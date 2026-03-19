@@ -71,7 +71,7 @@ extension QueryTabStrip {
 
     func resolveDatabaseNames(for tab: WorkspaceTab) -> [String] {
         guard tab.kind == .query else { return [] }
-        guard let session = environmentState.sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }) else { return [] }
+        guard let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) else { return [] }
         let databases = session.databaseStructure?.databases ?? []
         return databases.filter(\.isOnline).map(\.name).sorted()
     }
@@ -94,7 +94,7 @@ extension QueryTabStrip {
                                 connectionColorHex: queryState.clipboardMetadata.connectionColorHex
                             )
                         }
-                        if let session = environmentState.sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
+                        if let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
                             session.selectedDatabaseName = databaseName
                         }
                         environmentState.notificationEngine?.post(category: .databaseSwitched, message: "Switched to \(databaseName)")
@@ -125,7 +125,7 @@ extension QueryTabStrip {
                         // The next query execution will use the correct session
                         // via the USE prepend logic for MSSQL, or for PG the session
                         // itself is already connected to the right database.
-                        if let connSession = environmentState.sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
+                        if let connSession = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
                             connSession.selectedDatabaseName = databaseName
                         }
                         _ = newSession // Session is cached in PostgresServerConnection

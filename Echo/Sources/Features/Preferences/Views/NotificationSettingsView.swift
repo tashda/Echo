@@ -20,12 +20,15 @@ struct NotificationSettingsView: View {
 
     private var deliverySection: some View {
         Section("Delivery Method") {
-            Picker("Deliver notifications via", selection: deliveryBinding) {
-                ForEach(NotificationDelivery.allCases, id: \.self) { method in
-                    Text(method.displayName).tag(method)
+            PropertyRow(title: "Deliver notifications via") {
+                Picker("", selection: deliveryBinding) {
+                    ForEach(NotificationDelivery.allCases, id: \.self) { method in
+                        Text(method.displayName).tag(method)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
-            .pickerStyle(.radioGroup)
         }
     }
 
@@ -47,7 +50,11 @@ struct NotificationSettingsView: View {
             ForEach(NotificationGroup.allCases) { group in
                 DisclosureGroup {
                     ForEach(group.categories) { category in
-                        Toggle(category.displayName, isOn: categoryBinding(for: category))
+                        PropertyRow(title: category.displayName) {
+                            Toggle("", isOn: categoryBinding(for: category))
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                        }
                     }
                 } label: {
                     Label(group.displayName, systemImage: group.systemImage)

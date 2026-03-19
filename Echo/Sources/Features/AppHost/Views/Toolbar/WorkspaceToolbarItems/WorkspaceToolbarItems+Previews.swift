@@ -44,9 +44,9 @@ private struct WorkspaceToolbarPreview: View {
         .environment(data.connectionStore)
         .environment(data.navigationStore)
         .environment(data.tabStore)
-        .environmentObject(data.environmentState)
-        .environmentObject(data.appState)
-        .environmentObject(data.appearanceStore)
+        .environment(data.environmentState)
+        .environment(data.appState)
+        .environment(data.appearanceStore)
         .environment(\.colorScheme, .light)
     }
 }

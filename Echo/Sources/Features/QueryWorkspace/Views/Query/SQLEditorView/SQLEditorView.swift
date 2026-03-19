@@ -15,13 +15,14 @@ struct SQLEditorView: View {
     var backgroundColor: Color?
     var completionContext: SQLEditorCompletionContext?
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
+    var onSchemaLoadNeeded: ((String) -> Void)?
     var onTextChange: (String) -> Void
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata
     var onAddBookmark: (String) -> Void
 
-    @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+    @Environment(ClipboardHistoryStore.self) private var clipboardHistory
 
     init(
         text: Binding<String>,
@@ -30,6 +31,7 @@ struct SQLEditorView: View {
         backgroundColor: Color? = nil,
         completionContext: SQLEditorCompletionContext? = nil,
         ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil,
+        onSchemaLoadNeeded: ((String) -> Void)? = nil,
         onTextChange: @escaping (String) -> Void,
         onSelectionChange: @escaping (SQLEditorSelection) -> Void,
         onSelectionPreviewChange: @escaping (SQLEditorSelection) -> Void,
@@ -42,6 +44,7 @@ struct SQLEditorView: View {
         self.backgroundColor = backgroundColor
         self.completionContext = completionContext
         self.ruleTraceConfig = ruleTraceConfig
+        self.onSchemaLoadNeeded = onSchemaLoadNeeded
         self.onTextChange = onTextChange
         self.onSelectionChange = onSelectionChange
         self.onSelectionPreviewChange = onSelectionPreviewChange
@@ -63,7 +66,8 @@ struct SQLEditorView: View {
             clipboardMetadata: clipboardMetadata,
             onAddBookmark: onAddBookmark,
             completionContext: completionContext,
-            ruleTraceConfig: ruleTraceConfig
+            ruleTraceConfig: ruleTraceConfig,
+            onSchemaLoadNeeded: onSchemaLoadNeeded
         )
 #else
         IOSSQLEditorRepresentable(

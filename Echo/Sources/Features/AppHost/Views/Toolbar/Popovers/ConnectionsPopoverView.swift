@@ -65,14 +65,14 @@ struct ConnectionsPopoverView: View {
                     ManageConnectionsWindowController.shared.present()
                     dismiss()
                 } label: {
-                    Label("Manage Connections\u{2026}", systemImage: "gearshape")
+                    Label("Manage Connections", systemImage: "gearshape")
                 }
 
                 Button {
-                    AppCoordinator.shared.appState.showSheet(.quickConnect)
+                    AppDirector.shared.appState.showSheet(.quickConnect)
                     dismiss()
                 } label: {
-                    Label("Quick Connect\u{2026}", systemImage: "bolt")
+                    Label("Quick Connect", systemImage: "bolt")
                 }
             }
         }
@@ -87,7 +87,7 @@ struct ConnectionsPopoverView: View {
         let isSelected = connection.id == connectionStore.selectedConnectionID
 
         Button {
-            Task { await environmentState.connect(to: connection) }
+            environmentState.connect(to: connection)
             dismiss()
         } label: {
             HStack(spacing: SpacingTokens.xs) {
@@ -131,7 +131,7 @@ struct ConnectionsPopoverView: View {
     // MARK: - Data
 
     private var projectID: UUID? {
-        AppCoordinator.shared.projectStore.selectedProject?.id
+        AppDirector.shared.projectStore.selectedProject?.id
     }
 
     private var recentConnections: [SavedConnection] {

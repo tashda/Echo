@@ -16,6 +16,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var onAddBookmark: (String) -> Void
     var completionContext: SQLEditorCompletionContext?
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
+    var onSchemaLoadNeeded: ((String) -> Void)?
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -41,9 +42,10 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
             textView.isRuleTracingEnabled = false
             textView.onRuleTrace = nil
         }
+        textView.onSchemaLoadNeeded = onSchemaLoadNeeded
         context.coordinator.textView = textView
 
-        DispatchQueue.main.async { [weak textView, weak scrollView] in
+        Task { @MainActor [weak textView, weak scrollView] in
             guard let tv = textView else { return }
             scrollView?.window?.makeFirstResponder(tv)
         }
@@ -67,6 +69,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
             textView.isRuleTracingEnabled = false
             textView.onRuleTrace = nil
         }
+        textView.onSchemaLoadNeeded = onSchemaLoadNeeded
 
         if textView.string != text {
             context.coordinator.isUpdatingFromBinding = true
@@ -82,7 +85,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
             context.coordinator.isUpdatingFromBinding = false
         }
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             let scrollViewWidth = nsView.bounds.width
             let rulerWidth = nsView.verticalRulerView?.ruleThickness ?? 0
             let availableWidth = max(scrollViewWidth - rulerWidth, 320)

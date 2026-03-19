@@ -3,7 +3,6 @@ import AppKit
 import Combine
 import EchoSense
 
-@MainActor
 final class SQLTextView: NSTextView, NSTextViewDelegate {
     weak var sqlDelegate: SQLTextViewDelegate?
     weak var clipboardHistory: ClipboardHistoryStore?
@@ -12,7 +11,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var displayOptions: SQLEditorDisplayOptions { didSet { applyDisplayOptions() } }
     var backgroundOverride: NSColor? { didSet { applyTheme() } }
     var completionContext: SQLEditorCompletionContext? {
-        didSet { completionEngine.updateContext(completionContext); refreshCompletions(immediate: true) }
+        didSet { completionEngine.updateContext(completionContext) }
     }
 
     weak var lineNumberRuler: LineNumberRulerView?
@@ -67,6 +66,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var isAdjustingSnippetSelection = false
     var isRuleTracingEnabled: Bool = false
     var onRuleTrace: ((SQLAutocompleteTrace) -> Void)?
+    /// Called when completions are requested with a cross-database path prefix (e.g. "employees.")
+    /// and that database's schemas are not yet in the completion context.
+    /// The caller should trigger an on-demand schema load for the named database.
+    var onSchemaLoadNeeded: ((String) -> Void)?
 
     private final class FallbackResponder: NSResponder {
         private let manager = UndoManager()
@@ -83,14 +86,6 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     var suppressedCompletions: [SuppressedCompletion] = []
     var completionIndicatorView: CompletionAccessoryView?
-    var inlineSuggestionView: InlineSuggestionLabel?
-    var inlineKeywordSuggestions: [SQLAutoCompletionSuggestion] = []
-    var inlineSuggestionQuery: SQLAutoCompletionQuery?
-    var inlineSuggestionNextIndex: Int = 0
-    var inlineInsertedRange: NSRange?
-    var inlineInsertedIndex: Int?
-    var isInlineSuggestionActive: Bool { !inlineKeywordSuggestions.isEmpty || inlineInsertedRange != nil }
-    var inlineAcceptanceInProgress = false
     var suppressNextCompletionPopover = false
 
     init(theme: SQLEditorTheme, displayOptions: SQLEditorDisplayOptions, backgroundOverride: NSColor?, completionContext: SQLEditorCompletionContext? = nil, ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil) {
@@ -128,18 +123,18 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero); scheduleHighlighting(after: 0)
         if displayOptions.highlightSelectedSymbol { scheduleSymbolHighlights(for: currentSelectionDescriptor(), immediate: true) }
-        applyInlineSuggestionAppearance(); updateInlineSuggestionPosition()
+        completionController?.popover.appearance = effectiveAppearance
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let ruler = enclosingScrollView?.verticalRulerView as? LineNumberRulerView { configure(ruler: ruler); ruler.sqlTextView = self }
-        DispatchQueue.main.async { [weak self] in guard let self else { return }; self.window?.makeFirstResponder(self); self.primeInlineSuggestionsIfNeeded() }
+        Task { @MainActor [weak self] in guard let self else { return }; self.window?.makeFirstResponder(self) }
     }
 
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 48 && !event.modifierFlags.contains(.shift) && expandSelectStarShorthandIfNeeded() { return }
-        if handleInlineSuggestionKey(event) || handleSnippetNavigation(event) || completionController?.handleKeyDown(event) == true || handleCommandShortcut(event) { return }
+        if handleSnippetNavigation(event) || completionController?.handleKeyDown(event) == true || handleCommandShortcut(event) { return }
         super.keyDown(with: event)
     }
 
@@ -151,8 +146,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func resignFirstResponder() -> Bool { hideCompletions(); return super.resignFirstResponder() }
-    override func mouseDown(with event: NSEvent) { suppressNextCompletionPopover = true; window?.makeFirstResponder(self); super.mouseDown(with: event); notifySelectionPreview() }
-    override func becomeFirstResponder() -> Bool { suppressNextCompletionPopover = true; let became = super.becomeFirstResponder(); if became { primeInlineSuggestionsIfNeeded() }; return became }
+    override func mouseDown(with event: NSEvent) { hideCompletions(); suppressNextCompletionPopover = true; window?.makeFirstResponder(self); super.mouseDown(with: event); notifySelectionPreview() }
+    override func becomeFirstResponder() -> Bool { suppressNextCompletionPopover = true; return super.becomeFirstResponder() }
 
     func reapplyHighlighting() { scheduleHighlighting(after: 0) }
 

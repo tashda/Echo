@@ -18,7 +18,7 @@ struct BulkColumnEditorSheet: View {
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) internal var appearanceStore
     @State internal var dataType: String = ""
     @State internal var defaultValue: String = ""
     @State internal var generatedExpression: String = ""
@@ -81,7 +81,7 @@ struct BulkColumnEditorSheet: View {
             ForEach(dataTypeOptions(for: databaseType), id: \.self) { option in
                 Text(option).tag(Optional(option))
             }
-            Text("Custom...").tag(Optional<String>.none)
+            Text("Custom").tag(Optional<String>.none)
         }
         .labelsHidden()
         .pickerStyle(.menu)

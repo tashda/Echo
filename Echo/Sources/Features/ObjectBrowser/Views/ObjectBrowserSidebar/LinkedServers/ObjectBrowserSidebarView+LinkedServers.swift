@@ -1,0 +1,140 @@
+import SwiftUI
+import SQLServerKit
+
+extension ObjectBrowserSidebarView {
+
+    // MARK: - Linked Servers Folder Section
+
+    @ViewBuilder
+    func linkedServersSection(session: ConnectionSession) -> some View {
+        let connID = session.connection.id
+        let isExpanded = viewModel.linkedServersExpandedBySession[connID] ?? false
+        let servers = viewModel.linkedServersBySession[connID] ?? []
+        let isLoading = viewModel.linkedServersLoadingBySession[connID] ?? false
+
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+            folderHeaderRow(
+                title: "Linked Servers",
+                icon: "link",
+                count: servers.isEmpty ? nil : servers.count,
+                isExpanded: isExpanded,
+                action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.linkedServersExpandedBySession[connID] = !isExpanded
+                    }
+                    if !isExpanded && servers.isEmpty && !isLoading {
+                        loadLinkedServers(session: session)
+                    }
+                },
+                depth: 0
+            )
+
+            if isExpanded {
+                linkedServersContent(session: session, servers: servers, isLoading: isLoading)
+            }
+        }
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    func linkedServersContent(
+        session: ConnectionSession,
+        servers: [ObjectBrowserSidebarViewModel.LinkedServerItem],
+        isLoading: Bool
+    ) -> some View {
+        if isLoading {
+            linkedServersLoadingIndicator()
+        } else if !servers.isEmpty {
+            ForEach(servers) { server in
+                linkedServerRow(server: server, session: session)
+            }
+        }
+
+        newLinkedServerButton(session: session)
+    }
+
+    // MARK: - Row
+
+    func linkedServerRow(
+        server: ObjectBrowserSidebarViewModel.LinkedServerItem,
+        session: ConnectionSession
+    ) -> some View {
+        Button {
+            // No navigation action for linked servers — they are informational
+        } label: {
+            SidebarRow(
+                depth: 1,
+                icon: .system("link"),
+                label: server.name,
+                iconColor: (projectStore.globalSettings.sidebarIconColorMode == .colorful) ? ExplorerSidebarPalette.linkedServers : ExplorerSidebarPalette.monochrome,
+                labelColor: server.isDataAccessEnabled ? ColorTokens.Text.primary : ColorTokens.Text.secondary
+            ) {
+                if !server.dataSource.isEmpty {
+                    Text(server.dataSource)
+                        .font(SidebarRowConstants.trailingFont)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            linkedServerContextMenu(server: server, session: session)
+        }
+    }
+
+    // MARK: - Context Menu
+
+    @ViewBuilder
+    func linkedServerContextMenu(
+        server: ObjectBrowserSidebarViewModel.LinkedServerItem,
+        session: ConnectionSession
+    ) -> some View {
+        Button {
+            testLinkedServer(name: server.name, session: session)
+        } label: {
+            Label("Test Connection", systemImage: "bolt.horizontal")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            viewModel.dropLinkedServerTarget = .init(
+                connectionID: session.connection.id,
+                serverName: server.name
+            )
+            viewModel.showDropLinkedServerAlert = true
+        } label: {
+            Label("Delete", systemImage: "trash")
+        }
+    }
+
+    // MARK: - New Linked Server Button
+
+    func newLinkedServerButton(session: ConnectionSession) -> some View {
+        Button {
+            viewModel.newLinkedServerSessionID = session.connection.id
+            viewModel.showNewLinkedServerSheet = true
+        } label: {
+            SidebarRow(
+                depth: 1,
+                icon: .system("plus.circle"),
+                label: "New Linked Server\u{2026}",
+                iconColor: ColorTokens.Text.tertiary,
+                labelColor: ColorTokens.Text.tertiary
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Loading Indicator
+
+    func linkedServersLoadingIndicator() -> some View {
+        SidebarRow(depth: 1, icon: .none, label: "Loading linked servers\u{2026}", labelColor: ColorTokens.Text.secondary, labelFont: TypographyTokens.detail) {
+            ProgressView()
+                .controlSize(.mini)
+        }
+    }
+
+}

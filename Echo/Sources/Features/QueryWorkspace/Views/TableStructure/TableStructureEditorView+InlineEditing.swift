@@ -36,7 +36,7 @@ extension TableStructureEditorView {
         private var textColor: Color { ColorTokens.Text.primary }
         private var placeholderColor: Color { ColorTokens.Text.primary.opacity(appearanceStore.effectiveColorScheme == .dark ? 0.4 : 0.45) }
 
-        @EnvironmentObject var appearanceStore: AppearanceStore
+        @Environment(AppearanceStore.self) var appearanceStore
 
         var body: some View {
             ZStack(alignment: swiftAlignment) {
@@ -114,7 +114,7 @@ extension TableStructureEditorView {
 
             if context.coordinator.lastFocusSession != focusSession {
                 context.coordinator.lastFocusSession = focusSession
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     nsView.window?.makeFirstResponder(nsView)
                     if let editor = nsView.currentEditor() {
                         editor.selectedRange = NSRange(location: 0, length: (nsView.stringValue as NSString).length)

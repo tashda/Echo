@@ -1,15 +1,15 @@
 import Foundation
 import SwiftUI
-import Combine
 
 enum TableStructureSection: String, CaseIterable, Identifiable {
-    case columns, indexes, relations
+    case columns, indexes, relations, extendedProperties
     var id: String { rawValue }
     var displayName: String {
         switch self {
         case .columns: return "Columns"
         case .indexes: return "Indexes"
         case .relations: return "Relations"
+        case .extendedProperties: return "Properties"
         }
     }
     var displayTitle: String { displayName }
@@ -18,24 +18,35 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
         case .columns: return "tablecells"
         case .indexes: return "bolt.horizontal"
         case .relations: return "arrow.triangle.merge"
+        case .extendedProperties: return "tag"
+        }
+    }
+
+    /// Returns the sections available for the given database type.
+    static func cases(for databaseType: DatabaseType) -> [TableStructureSection] {
+        switch databaseType {
+        case .microsoftSQL:
+            return allCases
+        default:
+            return [.columns, .indexes, .relations]
         }
     }
 }
 
-@MainActor
-final class TableStructureEditorViewModel: ObservableObject {
-    @Published var columns: [ColumnModel] = []
-    @Published var indexes: [IndexModel] = []
-    @Published var uniqueConstraints: [UniqueConstraintModel] = []
-    @Published var foreignKeys: [ForeignKeyModel] = []
-    @Published var dependencies: [DependencyModel] = []
-    @Published var primaryKey: PrimaryKeyModel?
-    @Published var requestedSection: TableStructureSection?
+@MainActor @Observable
+final class TableStructureEditorViewModel {
+    var columns: [ColumnModel] = []
+    var indexes: [IndexModel] = []
+    var uniqueConstraints: [UniqueConstraintModel] = []
+    var foreignKeys: [ForeignKeyModel] = []
+    var dependencies: [DependencyModel] = []
+    var primaryKey: PrimaryKeyModel?
+    var requestedSection: TableStructureSection?
 
-    @Published var isLoading: Bool = false
-    @Published var isApplying: Bool = false
-    @Published var lastError: String?
-    @Published var lastSuccessMessage: String?
+    var isLoading: Bool = false
+    var isApplying: Bool = false
+    var lastError: String?
+    var lastSuccessMessage: String?
 
     let schemaName: String
     let tableName: String
@@ -80,7 +91,6 @@ final class TableStructureEditorViewModel: ObservableObject {
         requestedSection = section
     }
 
-    @MainActor
     func reload() async {
         isLoading = true
         defer { isLoading = false }
@@ -92,7 +102,6 @@ final class TableStructureEditorViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func applyChanges() async {
         lastError = nil
         lastSuccessMessage = nil
@@ -163,7 +172,6 @@ final class TableStructureEditorViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func rebuildIndex(_ index: IndexModel) async {
         guard !index.isNew else { return }
         lastError = nil
@@ -171,7 +179,7 @@ final class TableStructureEditorViewModel: ObservableObject {
         isApplying = true
         defer { isApplying = false }
         do {
-            try await session.rebuildIndex(schema: schemaName, table: tableName, index: index.name)
+            _ = try await session.rebuildIndex(schema: schemaName, table: tableName, index: index.name)
             lastSuccessMessage = "Index \"\(index.name)\" rebuilt successfully"
         } catch {
             lastError = "Failed to rebuild index: \(error.localizedDescription)"

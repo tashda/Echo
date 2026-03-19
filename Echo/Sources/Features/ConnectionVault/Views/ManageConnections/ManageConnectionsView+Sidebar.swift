@@ -61,8 +61,6 @@ extension ManageConnectionsView {
 
     @ViewBuilder
     func sidebarProjectLink(project: Project) -> some View {
-        let isSelected = projectStore.selectedProject?.id == project.id
-
         HStack {
             Label {
                 Text(project.name)
@@ -72,7 +70,7 @@ extension ManageConnectionsView {
 
             Spacer()
 
-            if isSelected {
+            if projectStore.selectedProject?.id == project.id {
                 Image(systemName: "checkmark")
                     .font(TypographyTokens.compact.weight(.bold))
                     .foregroundStyle(ColorTokens.Text.secondary)
@@ -81,9 +79,9 @@ extension ManageConnectionsView {
         .tag(SidebarSelection.project(project.id))
         .contextMenu {
             Button {
-                projectStore.selectProject(project)
-                navigationStore.selectProject(project)
+                environmentState.requestProjectSwitch(to: project)
             } label: {
+                let isSelected = projectStore.selectedProject?.id == project.id
                 Label("Select Project", systemImage: isSelected ? "checkmark" : "circle")
             }
 
@@ -100,7 +98,7 @@ extension ManageConnectionsView {
                 exportProjectID = project.id
                 showExportSheet = true
             } label: {
-                Text("Export…")
+                Text("Export")
             }
         }
     }
@@ -172,7 +170,7 @@ extension ManageConnectionsView {
             Button {
                 showImportSheet = true
             } label: {
-                Label("Import Project from file…", systemImage: "square.and.arrow.down")
+                Label("Import Project from file", systemImage: "square.and.arrow.down")
             }
         }
     }

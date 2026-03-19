@@ -6,9 +6,9 @@ struct AgentSidebarView: View {
     
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     
-    @StateObject internal var viewModel = AgentSidebarViewModel()
+    @State internal var viewModel = AgentSidebarViewModel()
     @State internal var searchText: String = ""
     @State internal var showNewJobSheet = false
     @State internal var newJobName: String = ""
@@ -60,7 +60,7 @@ struct AgentSidebarView: View {
 
     internal var selectedSession: ConnectionSession? {
         guard let id = selectedConnectionID else { return nil }
-        return environmentState.sessionCoordinator.sessionForConnection(id)
+        return environmentState.sessionGroup.sessionForConnection(id)
     }
 
     var body: some View {
@@ -71,7 +71,7 @@ struct AgentSidebarView: View {
                         HStack {
                             HStack(spacing: SpacingTokens.xs) {
                                 TextField("Search jobs", text: $searchText).textFieldStyle(.roundedBorder).frame(maxWidth: 220)
-                                Menu { Button("New Job…") { showNewJobSheet = true } } label: { Image(systemName: "plus.circle.fill").font(TypographyTokens.prominent.weight(.medium)) }.menuStyle(.borderlessButton)
+                                Menu { Button("New Job") { showNewJobSheet = true } } label: { Image(systemName: "plus.circle.fill").font(TypographyTokens.prominent.weight(.medium)) }.menuStyle(.borderlessButton)
                             }
                             Spacer()
                             Button { if let session = selectedSession { environmentState.openJobQueueTab(for: session) } } label: { Label("Open Job Management", systemImage: "wrench.and.screwdriver") }.buttonStyle(.borderedProminent).controlSize(.small)

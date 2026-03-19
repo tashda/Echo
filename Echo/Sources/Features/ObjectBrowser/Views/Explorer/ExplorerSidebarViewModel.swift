@@ -1,93 +1,147 @@
 import SwiftUI
-import Combine
 import EchoSense
 
-@MainActor
-final class ObjectBrowserSidebarViewModel: ObservableObject {
-    @Published var searchText = ""
-    @Published var debouncedSearchText = ""
-    @Published var isSearchFieldFocused = false
-    @Published var expandedServerIDs: Set<UUID> = []
-    @Published var selectedObjectID: String?
-    @Published var knownSessionIDs: Set<UUID> = []
+@MainActor @Observable
+final class ObjectBrowserSidebarViewModel {
+    var searchText = ""
+    var debouncedSearchText = ""
+    var isSearchFieldFocused = false
+    var expandedServerIDs: Set<UUID> = []
+    var selectedObjectID: String?
+    var knownSessionIDs: Set<UUID> = []
+    var recentlyConnectedIDs: Set<UUID> = []
 
     /// Maps connection ID → session ID for the last initialized session.
     /// Used to detect reconnects (same connection ID, new session ID).
-    private var lastInitializedSessionID: [UUID: UUID] = [:]
+    @ObservationIgnored internal var lastInitializedSessionID: [UUID: UUID] = [:]
 
     // Per-session state
-    @Published var expandedDatabasesBySession: [UUID: Set<String>] = [:]
-    @Published var expandedObjectGroupsBySession: [String: Set<SchemaObjectInfo.ObjectType>] = [:]
-    @Published var expandedObjectIDsBySession: [String: Set<String>] = [:]
-    @Published var selectedSchemaNameBySession: [String: String] = [:]
+    var expandedDatabasesBySession: [UUID: Set<String>] = [:]
+    var expandedObjectGroupsBySession: [String: Set<SchemaObjectInfo.ObjectType>] = [:]
+    var expandedObjectIDsBySession: [String: Set<String>] = [:]
+    var selectedSchemaNameBySession: [String: String] = [:]
     /// Stores the auto-expand object types per connection, derived from sidebar settings at init time.
-    private var defaultExpandedObjectTypes: [UUID: Set<SchemaObjectInfo.ObjectType>] = [:]
-    @Published var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
-    @Published var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
-    @Published var databaseSchemaLoadingStates: [String: Bool] = [:]
+    @ObservationIgnored internal var defaultExpandedObjectTypes: [UUID: Set<SchemaObjectInfo.ObjectType>] = [:]
+    var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
+    var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
+    var databaseSchemaLoadingStates: [String: Bool] = [:]
     /// Tracks databases whose schema has been fetched at least once (prevents re-fetch loops when the database has no user objects).
-    @Published var databaseSchemaLoadedOnce: Set<String> = []
+    var databaseSchemaLoadedOnce: Set<String> = []
 
     // Server folder groups (Databases, Management, etc.)
-    @Published var databasesFolderExpandedBySession: [UUID: Bool] = [:]
-    @Published var managementFolderExpandedBySession: [UUID: Bool] = [:]
+    var databasesFolderExpandedBySession: [UUID: Bool] = [:]
+    var managementFolderExpandedBySession: [UUID: Bool] = [:]
 
     // Agent Jobs state (per-connection, MSSQL only)
-    @Published var agentJobsExpandedBySession: [UUID: Bool] = [:]
-    @Published var agentJobsBySession: [UUID: [AgentJobItem]] = [:]
-    @Published var agentJobsLoadingBySession: [UUID: Bool] = [:]
-    @Published var showNewJobSheet = false
-    @Published var newJobSessionID: UUID?
+    var agentJobsExpandedBySession: [UUID: Bool] = [:]
+    var agentJobsBySession: [UUID: [AgentJobItem]] = [:]
+    var agentJobsLoadingBySession: [UUID: Bool] = [:]
+    var showNewJobSheet = false
+    var newJobSessionID: UUID?
+
+    // Linked Servers state (per-connection, MSSQL only)
+    var linkedServersExpandedBySession: [UUID: Bool] = [:]
+    var linkedServersBySession: [UUID: [LinkedServerItem]] = [:]
+    var linkedServersLoadingBySession: [UUID: Bool] = [:]
+    var showNewLinkedServerSheet = false
+    var newLinkedServerSessionID: UUID?
+    var showDropLinkedServerAlert = false
+    var dropLinkedServerTarget: DropLinkedServerTarget?
+
+    struct DropLinkedServerTarget {
+        let connectionID: UUID
+        let serverName: String
+    }
 
     // Security state — server-level (per-connection)
-    @Published var securityFolderExpandedBySession: [UUID: Bool] = [:]
-    @Published var securityLoginsExpandedBySession: [UUID: Bool] = [:]
-    @Published var securityServerRolesExpandedBySession: [UUID: Bool] = [:]
-    @Published var securityCredentialsExpandedBySession: [UUID: Bool] = [:]
-    @Published var securityCertLoginsExpandedBySession: [UUID: Bool] = [:]
-    @Published var securityLoginsBySession: [UUID: [SecurityLoginItem]] = [:]
-    @Published var securityServerRolesBySession: [UUID: [SecurityServerRoleItem]] = [:]
-    @Published var securityCredentialsBySession: [UUID: [SecurityCredentialItem]] = [:]
-    @Published var securityServerLoadingBySession: [UUID: Bool] = [:]
+    var securityFolderExpandedBySession: [UUID: Bool] = [:]
+    var securityLoginsExpandedBySession: [UUID: Bool] = [:]
+    var securityServerRolesExpandedBySession: [UUID: Bool] = [:]
+    var securityCredentialsExpandedBySession: [UUID: Bool] = [:]
+    var securityCertLoginsExpandedBySession: [UUID: Bool] = [:]
+    var securityLoginsBySession: [UUID: [SecurityLoginItem]] = [:]
+    var securityServerRolesBySession: [UUID: [SecurityServerRoleItem]] = [:]
+    var securityCredentialsBySession: [UUID: [SecurityCredentialItem]] = [:]
+    var securityServerLoadingBySession: [UUID: Bool] = [:]
     // PG separate folders
-    @Published var securityPGLoginRolesExpandedBySession: [UUID: Bool] = [:]
-    @Published var securityPGGroupRolesExpandedBySession: [UUID: Bool] = [:]
+    var securityPGLoginRolesExpandedBySession: [UUID: Bool] = [:]
+    var securityPGGroupRolesExpandedBySession: [UUID: Bool] = [:]
     // MSSQL server role sheet
-    @Published var showSecurityServerRoleSheet = false
-    @Published var securityServerRoleSheetSessionID: UUID?
+    var showSecurityServerRoleSheet = false
+    var securityServerRoleSheetSessionID: UUID?
 
     // Security state — database-level (keyed by "connID#dbName")
-    @Published var dbSecurityExpandedByDB: [String: Bool] = [:]
-    @Published var dbSecurityUsersExpandedByDB: [String: Bool] = [:]
-    @Published var dbSecurityRolesExpandedByDB: [String: Bool] = [:]
-    @Published var dbSecurityAppRolesExpandedByDB: [String: Bool] = [:]
-    @Published var dbSecuritySchemasExpandedByDB: [String: Bool] = [:]
-    @Published var dbSecurityUsersByDB: [String: [SecurityUserItem]] = [:]
-    @Published var dbSecurityRolesByDB: [String: [SecurityDatabaseRoleItem]] = [:]
-    @Published var dbSecurityAppRolesByDB: [String: [SecurityAppRoleItem]] = [:]
-    @Published var dbSecuritySchemasByDB: [String: [SecuritySchemaItem]] = [:]
-    @Published var dbSecurityLoadingByDB: [String: Bool] = [:]
+    var dbSecurityExpandedByDB: [String: Bool] = [:]
+    var dbSecurityUsersExpandedByDB: [String: Bool] = [:]
+    var dbSecurityRolesExpandedByDB: [String: Bool] = [:]
+    var dbSecurityAppRolesExpandedByDB: [String: Bool] = [:]
+    var dbSecuritySchemasExpandedByDB: [String: Bool] = [:]
+    var dbSecurityUsersByDB: [String: [SecurityUserItem]] = [:]
+    var dbSecurityRolesByDB: [String: [SecurityDatabaseRoleItem]] = [:]
+    var dbSecurityAppRolesByDB: [String: [SecurityAppRoleItem]] = [:]
+    var dbSecuritySchemasByDB: [String: [SecuritySchemaItem]] = [:]
+    var dbSecurityLoadingByDB: [String: Bool] = [:]
 
     // Security sheets
-    @Published var showSecurityLoginSheet = false
-    @Published var securityLoginSheetEditName: String?
-    @Published var securityLoginSheetSessionID: UUID?
-    @Published var showSecurityUserSheet = false
-    @Published var securityUserSheetEditName: String?
-    @Published var securityUserSheetSessionID: UUID?
-    @Published var securityUserSheetDatabaseName: String?
-    @Published var showSecurityPGRoleSheet = false
-    @Published var securityPGRoleSheetEditName: String?
-    @Published var securityPGRoleSheetSessionID: UUID?
+    var showSecurityLoginSheet = false
+    var securityLoginSheetEditName: String?
+    var securityLoginSheetSessionID: UUID?
+    var showSecurityUserSheet = false
+    var securityUserSheetEditName: String?
+    var securityUserSheetSessionID: UUID?
+    var securityUserSheetDatabaseName: String?
+    var showSecurityPGRoleSheet = false
+    var securityPGRoleSheetEditName: String?
+    var securityPGRoleSheetSessionID: UUID?
 
     // Database properties sheet
-    @Published var showDatabaseProperties = false
-    @Published var propertiesDatabaseName: String?
-    @Published var propertiesConnectionID: UUID?
+    var showDatabaseProperties = false
+    var propertiesDatabaseName: String?
+    var propertiesConnectionID: UUID?
+
+    // New database sheet
+    var showNewDatabaseSheet = false
+    var newDatabaseConnectionID: UUID?
+
+    // Backup/Restore sheets
+    var showBackupSheet = false
+    var backupDatabaseName: String?
+    var backupConnectionID: UUID?
+    var showRestoreSheet = false
+    var restoreDatabaseName: String?
+    var restoreConnectionID: UUID?
+
+    // Database Mail sheet
+    var showDatabaseMailSheet = false
+    var databaseMailConnectionID: UUID?
+
+    // Change Tracking / CDC sheet
+    var showChangeTrackingSheet = false
+    var changeTrackingDatabaseName: String?
+    var changeTrackingConnectionID: UUID?
+
+    // Full-Text Search sheet
+    var showFullTextSheet = false
+    var fullTextDatabaseName: String?
+    var fullTextConnectionID: UUID?
+
+    // Maintenance sheet
+    var showMaintenanceSheet = false
+    var maintenanceDatabaseName: String?
+    var maintenanceConnectionID: UUID?
+
+    // Replication sheet
+    var showReplicationSheet = false
+    var replicationDatabaseName: String?
+    var replicationConnectionID: UUID?
+
+    // CMS sheet
+    var showCMSSheet = false
+    var cmsConnectionID: UUID?
 
     // Drop database confirmation
-    @Published var showDropDatabaseAlert = false
-    @Published var dropDatabaseTarget: DropDatabaseTarget?
+    var showDropDatabaseAlert = false
+    var dropDatabaseTarget: DropDatabaseTarget?
 
     struct DropDatabaseTarget {
         let sessionID: UUID
@@ -104,8 +158,8 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     }
 
     // Drop security principal confirmation
-    @Published var showDropSecurityPrincipalAlert = false
-    @Published var dropSecurityPrincipalTarget: DropSecurityPrincipalTarget?
+    var showDropSecurityPrincipalAlert = false
+    var dropSecurityPrincipalTarget: DropSecurityPrincipalTarget?
 
     struct DropSecurityPrincipalTarget {
         let sessionID: UUID
@@ -121,6 +175,15 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
         case mssqlLogin = "Login"
         case mssqlUser = "User"
         case mssqlServerRole = "Server Role"
+    }
+
+    struct LinkedServerItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let provider: String
+        let dataSource: String
+        let product: String
+        let isDataAccessEnabled: Bool
     }
 
     struct AgentJobItem: Identifiable, Hashable {
@@ -175,51 +238,46 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
         let owner: String?
     }
 
-    private var searchDebounceTask: Task<Void, Never>?
-    private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var searchDebounceTask: Task<Void, Never>?
     /// Tracks whether a debounce observer is already running.
-    private var isDebounceActive = false
+    @ObservationIgnored private var isDebounceActive = false
 
     func setupSearchDebounce(proxy: ScrollViewProxy) {
         guard !isDebounceActive else { return }
         isDebounceActive = true
 
-        // Immediate path: clear debounced text instantly when search is cleared.
-        // Debounced path: wait 200ms after last keystroke before applying.
-        $searchText
-            .removeDuplicates()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newValue in
-                guard let self else { return }
-                self.searchDebounceTask?.cancel()
-                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Use onChange-driven debounce via Task-based approach.
+        // The caller should wire onChange(of: searchText) to call handleSearchTextChanged(proxy:).
+    }
 
-                if trimmed.isEmpty {
-                    self.debouncedSearchText = ""
-                    self.searchDebounceTask = Task { @MainActor in
-                        await Task.yield()
-                        guard !Task.isCancelled else { return }
-                        proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-                    }
-                } else {
-                    let pending = newValue
-                    self.searchDebounceTask = Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 200_000_000)
-                        guard !Task.isCancelled else { return }
-                        self.debouncedSearchText = pending
-                        await Task.yield()
-                        guard !Task.isCancelled else { return }
-                        proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-                    }
-                }
+    func handleSearchTextChanged(proxy: ScrollViewProxy) {
+        searchDebounceTask?.cancel()
+        let newValue = searchText
+        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if trimmed.isEmpty {
+            debouncedSearchText = ""
+            searchDebounceTask = Task {
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
             }
-            .store(in: &cancellables)
+        } else {
+            let pending = newValue
+            searchDebounceTask = Task {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                guard !Task.isCancelled else { return }
+                debouncedSearchText = pending
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
+            }
+        }
     }
 
     func stopSearchDebounce() {
         searchDebounceTask?.cancel()
         searchDebounceTask = nil
-        cancellables.removeAll()
         isDebounceActive = false
     }
 
@@ -240,64 +298,6 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     private func supportedObjectTypes(for session: ConnectionSession?) -> [SchemaObjectInfo.ObjectType] {
         guard let session else { return SchemaObjectInfo.ObjectType.allCases }
         return SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
-    }
-
-    func initializeSessionState(for session: ConnectionSession, autoExpandSections: Set<SidebarAutoExpandSection> = [.databases]) {
-        let connID = session.connection.id
-        let sessionID = session.id
-        // Detect reconnect: same connection ID but different session ID
-        let isNewSession = lastInitializedSessionID[connID] != sessionID
-        let prefix = connID.uuidString + "#"
-        if isNewSession {
-            lastInitializedSessionID[connID] = sessionID
-            // Clear stale expansion state so settings are re-applied
-            for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) { expandedObjectGroupsBySession.removeValue(forKey: key) }
-            expandedDatabasesBySession.removeValue(forKey: connID)
-            for key in expandedObjectIDsBySession.keys where key.hasPrefix(prefix) { expandedObjectIDsBySession.removeValue(forKey: key) }
-            databasesFolderExpandedBySession.removeValue(forKey: connID)
-            managementFolderExpandedBySession.removeValue(forKey: connID)
-            agentJobsExpandedBySession.removeValue(forKey: connID)
-            // Clear security state on reconnect
-            securityFolderExpandedBySession.removeValue(forKey: connID)
-            securityLoginsExpandedBySession.removeValue(forKey: connID)
-            securityServerRolesExpandedBySession.removeValue(forKey: connID)
-            securityCredentialsExpandedBySession.removeValue(forKey: connID)
-            securityLoginsBySession.removeValue(forKey: connID)
-            securityServerRolesBySession.removeValue(forKey: connID)
-            securityCredentialsBySession.removeValue(forKey: connID)
-            securityServerLoadingBySession.removeValue(forKey: connID)
-            // Clear loaded-once tracking for this connection
-            let prefix = connID.uuidString + "#"
-            databaseSchemaLoadedOnce = databaseSchemaLoadedOnce.filter { !$0.hasPrefix(prefix) }
-            // Clear database-level security state
-            for key in dbSecurityExpandedByDB.keys where key.hasPrefix(prefix) { dbSecurityExpandedByDB.removeValue(forKey: key) }
-            for key in dbSecurityUsersByDB.keys where key.hasPrefix(prefix) { dbSecurityUsersByDB.removeValue(forKey: key) }
-            for key in dbSecurityRolesByDB.keys where key.hasPrefix(prefix) { dbSecurityRolesByDB.removeValue(forKey: key) }
-            for key in dbSecurityAppRolesByDB.keys where key.hasPrefix(prefix) { dbSecurityAppRolesByDB.removeValue(forKey: key) }
-            for key in dbSecuritySchemasByDB.keys where key.hasPrefix(prefix) { dbSecuritySchemasByDB.removeValue(forKey: key) }
-            for key in dbSecurityLoadingByDB.keys where key.hasPrefix(prefix) { dbSecurityLoadingByDB.removeValue(forKey: key) }
-        }
-
-        // Compute and cache the default expanded object types from sidebar settings.
-        var defaultGroups = Set<SchemaObjectInfo.ObjectType>()
-        for section in autoExpandSections {
-            if let objectType = section.objectType {
-                defaultGroups.insert(objectType)
-            }
-        }
-        let previousDefaultGroups = defaultExpandedObjectTypes[connID]
-        defaultExpandedObjectTypes[connID] = defaultGroups
-
-        if previousDefaultGroups != nil, previousDefaultGroups != defaultGroups {
-            for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) {
-                expandedObjectGroupsBySession.removeValue(forKey: key)
-            }
-        }
-
-        databasesFolderExpandedBySession[connID] = autoExpandSections.contains(.databases)
-        managementFolderExpandedBySession[connID] = autoExpandSections.contains(.management)
-        agentJobsExpandedBySession[connID] = autoExpandSections.contains(.management)
-        securityFolderExpandedBySession[connID] = autoExpandSections.contains(.security)
     }
 
     // MARK: - Database Expansion
@@ -332,83 +332,4 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
         databaseSchemaLoadedOnce.contains(pinnedStorageKey(connectionID: connectionID, databaseName: databaseName))
     }
 
-    // MARK: - Per-Session Bindings
-
-    func expandedObjectGroupsBinding(for connectionID: UUID, database: String) -> Binding<Set<SchemaObjectInfo.ObjectType>> {
-        let key = "\(connectionID.uuidString)#\(database)"
-        return Binding(
-            get: { [weak self] in
-                guard let self else { return Set(SchemaObjectInfo.ObjectType.allCases) }
-                return self.expandedObjectGroupsBySession[key] ?? self.defaultExpandedObjectTypes[connectionID] ?? Set(SchemaObjectInfo.ObjectType.allCases)
-            },
-            set: { [weak self] in self?.expandedObjectGroupsBySession[key] = $0 }
-        )
-    }
-
-    func defaultExpandedObjectGroups(for connectionID: UUID) -> Set<SchemaObjectInfo.ObjectType> {
-        defaultExpandedObjectTypes[connectionID] ?? []
-    }
-
-    func expandedObjectIDsBinding(for connectionID: UUID, database: String) -> Binding<Set<String>> {
-        let key = "\(connectionID.uuidString)#\(database)"
-        return Binding(
-            get: { [weak self] in self?.expandedObjectIDsBySession[key] ?? [] },
-            set: { [weak self] in self?.expandedObjectIDsBySession[key] = $0 }
-        )
-    }
-
-    func selectedSchemaNameBinding(for connectionID: UUID, database: String) -> Binding<String?> {
-        let key = "\(connectionID.uuidString)#\(database)"
-        return Binding(
-            get: { [weak self] in self?.selectedSchemaNameBySession[key] },
-            set: { [weak self] newValue in
-                if let newValue {
-                    self?.selectedSchemaNameBySession[key] = newValue
-                } else {
-                    self?.selectedSchemaNameBySession.removeValue(forKey: key)
-                }
-            }
-        )
-    }
-
-    func ensureServerExpanded(for connectionID: UUID, sessions: [ConnectionSession]) {
-        expandedServerIDs = expandedServerIDs.filter { id in
-            sessions.contains { $0.connection.id == id }
-        }
-        expandedServerIDs.insert(connectionID)
-    }
-
-    func ensureDatabaseExpanded(connectionID: UUID, databaseName: String) {
-        var expanded = expandedDatabasesBySession[connectionID] ?? []
-        expanded.insert(databaseName)
-        expandedDatabasesBySession[connectionID] = expanded
-    }
-
-    func pinnedStorageKey(connectionID: UUID, databaseName: String) -> String {
-        "\(connectionID.uuidString)#\(databaseName)"
-    }
-
-    func pinnedObjectsBinding(for database: DatabaseInfo, connectionID: UUID) -> Binding<Set<String>> {
-        let key = pinnedStorageKey(connectionID: connectionID, databaseName: database.name)
-        return Binding(
-            get: { [weak self] in self?.pinnedObjectIDsByDatabase[key] ?? [] },
-            set: { [weak self] newValue in
-                if newValue.isEmpty {
-                    self?.pinnedObjectIDsByDatabase.removeValue(forKey: key)
-                } else {
-                    self?.pinnedObjectIDsByDatabase[key] = newValue
-                }
-            }
-        )
-    }
-
-    func pinnedSectionExpandedBinding(for database: DatabaseInfo, connectionID: UUID) -> Binding<Bool> {
-        let key = pinnedStorageKey(connectionID: connectionID, databaseName: database.name)
-        return Binding(
-            get: { [weak self] in self?.pinnedSectionExpandedByDatabase[key] ?? true },
-            set: { [weak self] newValue in
-                self?.pinnedSectionExpandedByDatabase[key] = newValue
-            }
-        )
-    }
 }

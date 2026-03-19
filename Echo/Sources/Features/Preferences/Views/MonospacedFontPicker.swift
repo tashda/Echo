@@ -31,37 +31,16 @@ struct MonospacedFontPicker: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            LabeledContent("Font Family") {
-                Picker("", selection: $selectedFamily) {
-                    ForEach(monospacedFamilies, id: \.self) { family in
-                        Text(displayName(for: family)).tag(family)
-                    }
+        LabeledContent("Font Family") {
+            Picker("", selection: $selectedFamily) {
+                ForEach(monospacedFamilies, id: \.self) { family in
+                    Text(displayName(for: family)).tag(family)
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(minWidth: 140, idealWidth: 180, maxWidth: 220, alignment: .trailing)
             }
-
-            fontPreview
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(minWidth: 140, idealWidth: 180, maxWidth: 220, alignment: .trailing)
         }
-    }
-
-    private var fontPreview: some View {
-        let previewFont: Font = {
-            if let nsFont = NSFont(name: selectedFamily, size: fontSize) {
-                return Font(nsFont)
-            }
-            return .system(size: fontSize, design: .monospaced)
-        }()
-        return Text("SELECT * FROM users WHERE id = 42;")
-            .font(previewFont)
-            .foregroundStyle(ColorTokens.Text.secondary)
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(SpacingTokens.xs)
-            .background(ColorTokens.Text.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
     }
 
     private func displayName(for family: String) -> String {

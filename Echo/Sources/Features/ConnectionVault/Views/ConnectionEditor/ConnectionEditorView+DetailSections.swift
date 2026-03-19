@@ -4,19 +4,23 @@ import AppKit
 import UniformTypeIdentifiers
 #endif
 
+// MARK: - Authentication Section
+
 extension ConnectionEditorView {
     var authenticationSection: some View {
         Section("Authentication") {
-            Picker("Method", selection: $credentialSource) {
-                ForEach(availableCredentialSources, id: \.self) { source in
-                    Text(source.displayName).tag(source)
+            PropertyRow(title: "Method") {
+                Picker("", selection: $credentialSource) {
+                    ForEach(availableCredentialSources, id: \.self) { source in
+                        Text(source.displayName).tag(source)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
-            .pickerStyle(.menu)
             .onChange(of: credentialSource) { _, newSource in
                 switch newSource {
                 case .manual:
-                    // Reset dirty state so saved password shows as dots again
                     if hasSavedPassword {
                         passwordDirty = false
                         password = ""
@@ -44,202 +48,128 @@ extension ConnectionEditorView {
         }
     }
 
+    @ViewBuilder
     var manualCredentialFields: some View {
-        Group {
-            if availableAuthenticationMethods.count > 1 {
-                Picker("Authentication", selection: $authenticationMethod) {
+        if availableAuthenticationMethods.count > 1 {
+            PropertyRow(title: "Mechanism") {
+                Picker("", selection: $authenticationMethod) {
                     ForEach(availableAuthenticationMethods, id: \.self) { method in
                         Text(method.displayName).tag(method)
                     }
                 }
+                .labelsHidden()
                 .pickerStyle(.menu)
             }
+        }
 
-            if authenticationMethod.requiresDomain {
-                LabeledContent("Domain") {
-                    TextField("", text: $domain, prompt: Text("DOMAIN"))
-                        .multilineTextAlignment(.trailing)
-                }
-            }
-
-            if authenticationMethod.usesAccessToken {
-                LabeledContent("Access Token") {
-                    SecureField(
-                        "",
-                        text: $password,
-                        prompt: Text(hasSavedPassword && !passwordDirty
-                            ? "••••••••"
-                            : "JWT access token")
-                    )
+        if authenticationMethod.requiresDomain {
+            PropertyRow(title: "Domain") {
+                TextField("", text: $domain, prompt: Text("DOMAIN"))
+                    .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
-                    .onChange(of: password) { _, newValue in
-                        if !newValue.isEmpty {
-                            passwordDirty = true
-                        }
+            }
+        }
+
+        if authenticationMethod.usesAccessToken {
+            PropertyRow(title: "Access Token") {
+                SecureField(
+                    "",
+                    text: $password,
+                    prompt: Text(hasSavedPassword && !passwordDirty
+                        ? "••••••••"
+                        : "JWT access token")
+                )
+                .textFieldStyle(.plain)
+                .multilineTextAlignment(.trailing)
+                .onChange(of: password) { _, newValue in
+                    if !newValue.isEmpty {
+                        passwordDirty = true
                     }
                 }
-            } else {
-                LabeledContent("Username") {
-                    TextField("", text: $username, prompt: Text("username"))
-                        .multilineTextAlignment(.trailing)
-                }
-
-                LabeledContent("Password") {
-                    SecureField(
-                        "",
-                        text: $password,
-                        prompt: Text(hasSavedPassword && !passwordDirty
-                            ? "••••••••"
-                            : (authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
-                    )
+            }
+        } else {
+            PropertyRow(title: "Username") {
+                TextField("", text: $username, prompt: Text("username"))
+                    .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
-                    .onChange(of: password) { _, newValue in
-                        if !newValue.isEmpty {
-                            passwordDirty = true
-                        }
+            }
+
+            PropertyRow(title: "Password") {
+                SecureField(
+                    "",
+                    text: $password,
+                    prompt: Text(hasSavedPassword && !passwordDirty
+                        ? "••••••••"
+                        : (authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
+                )
+                .textFieldStyle(.plain)
+                .multilineTextAlignment(.trailing)
+                .onChange(of: password) { _, newValue in
+                    if !newValue.isEmpty {
+                        passwordDirty = true
                     }
                 }
             }
         }
     }
 
+    @ViewBuilder
     var identityPickerFields: some View {
-        Group {
-            if sortedIdentities.isEmpty {
-                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+        if sortedIdentities.isEmpty {
+            PropertyRow(title: "Identity") {
+                VStack(alignment: .trailing, spacing: SpacingTokens.xs) {
                     Text("No identities available.")
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.secondary)
-                        .font(TypographyTokens.detail)
-                    Button("Create Identity...") {
+                    
+                    Button("Create Identity") {
                         identityEditorState = .create(parent: nil, token: UUID())
                     }
-                }
-            } else {
-                Picker("Identity", selection: $identityID) {
-                    ForEach(sortedIdentities, id: \.id) { identity in
-                        Text(identity.name).tag(identity.id as UUID?)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                Button("Create Identity...") {
-                    identityEditorState = .create(parent: nil, token: UUID())
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
             }
-        }
-    }
-
-    var inheritedIdentityInfo: some View {
-        Group {
-            if let identity = inheritedIdentity {
-                Text("This connection will use the identity \"\(identity.name)\" inherited from the selected folder.")
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .font(TypographyTokens.detail)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("The selected folder does not have credentials configured.")
-                    .foregroundStyle(ColorTokens.Status.error)
-                    .font(TypographyTokens.detail)
-            }
-        }
-    }
-
-    var securitySection: some View {
-        Section("Security") {
-            if selectedDatabaseType == .postgresql {
-                Picker("SSL Mode", selection: $tlsMode) {
-                    ForEach(TLSMode.allCases, id: \.self) { mode in
-                        Text(mode.description).tag(mode)
-                    }
-                }
-                .help("PostgreSQL SSL mode. Controls whether and how TLS is used.")
-                .onChange(of: tlsMode) { _, newValue in
-                    useTLS = newValue.requiresTLS
-                }
-
-                if tlsMode == .verifyCA || tlsMode == .verifyFull {
-                    caCertificatePathPicker
-                }
-
-                if tlsMode != .disable {
-                    clientCertificateSection
-                }
-            } else {
-                Toggle("Use SSL/TLS", isOn: $useTLS)
-
-                if useTLS && selectedDatabaseType == .microsoftSQL {
-                    Toggle("Trust Server Certificate", isOn: $trustServerCertificate)
-                        .help("Skip server certificate validation. Use for self-signed certificates in development environments.")
-
-                    Picker("Encryption Mode", selection: $mssqlEncryptionMode) {
-                        ForEach(MSSQLEncryptionMode.allCases, id: \.self) { mode in
-                            Text(mode.description).tag(mode)
+        } else {
+            PropertyRow(title: "Identity") {
+                HStack(spacing: SpacingTokens.xs) {
+                    Picker("", selection: $identityID) {
+                        ForEach(sortedIdentities, id: \.id) { identity in
+                            Text(identity.name).tag(identity.id as UUID?)
                         }
                     }
-                    .help("Controls how encryption is negotiated with SQL Server.")
-
-                    Toggle("Read-Only Intent", isOn: $readOnlyIntent)
-                        .help("Signal read-only application intent for AlwaysOn Availability Group secondary replica routing.")
-
-                    if !trustServerCertificate {
-                        caCertificatePathPicker
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    
+                    Button {
+                        identityEditorState = .create(parent: nil, token: UUID())
+                    } label: {
+                        Image(systemName: "plus")
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
             }
         }
     }
 
-    private var clientCertificateSection: some View {
-        Group {
-            certFilePathPicker(
-                label: "Client Certificate",
-                path: Binding(
-                    get: { sslCertPath ?? "" },
-                    set: { sslCertPath = $0.isEmpty ? nil : $0 }
-                )
-            )
-            certFilePathPicker(
-                label: "Client Key",
-                path: Binding(
-                    get: { sslKeyPath ?? "" },
-                    set: { sslKeyPath = $0.isEmpty ? nil : $0 }
-                )
-            )
-        }
-        .help("PEM-encoded client certificate and private key for mutual TLS (mTLS) authentication.")
-    }
-
-    private func certFilePathPicker(label: String, path: Binding<String>) -> some View {
-        HStack {
-            TextField(label, text: path)
-            Button("Browse...") {
-                let panel = NSOpenPanel()
-                panel.allowedContentTypes = [.init(filenameExtension: "pem")!, .init(filenameExtension: "crt")!, .init(filenameExtension: "key")!, .item]
-                panel.allowsMultipleSelection = false
-                panel.canChooseDirectories = false
-                if panel.runModal() == .OK, let url = panel.url {
-                    path.wrappedValue = url.path
-                }
+    @ViewBuilder
+    var inheritedIdentityInfo: some View {
+        if let identity = inheritedIdentity {
+            PropertyRow(title: "Inherited") {
+                Text(identity.name)
+                    .font(TypographyTokens.formValue)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            Text("Inherited from folder.")
+                .font(TypographyTokens.formDescription)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .listRowSeparator(.hidden)
+        } else {
+            PropertyRow(title: "Inherited") {
+                Text("None")
+                    .font(TypographyTokens.formValue)
+                    .foregroundStyle(ColorTokens.Status.error)
             }
         }
-    }
-
-    private var caCertificatePathPicker: some View {
-        HStack {
-            TextField("CA Certificate Path", text: Binding(
-                get: { sslRootCertPath ?? "" },
-                set: { sslRootCertPath = $0.isEmpty ? nil : $0 }
-            ))
-            Button("Browse...") {
-                let panel = NSOpenPanel()
-                panel.allowedContentTypes = [.init(filenameExtension: "pem")!, .init(filenameExtension: "crt")!, .item]
-                panel.allowsMultipleSelection = false
-                panel.canChooseDirectories = false
-                if panel.runModal() == .OK, let url = panel.url {
-                    sslRootCertPath = url.path
-                }
-            }
-        }
-        .help("Path to PEM-encoded root CA certificate for server verification.")
     }
 }

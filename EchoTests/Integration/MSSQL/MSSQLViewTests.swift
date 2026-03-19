@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server view operations through Echo's DatabaseSession layer.
@@ -9,8 +10,15 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
     func testCreateView() async throws {
         let tableName = uniqueTableName()
         let viewName = uniqueTableName(prefix: "v")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, name NVARCHAR(100), active BIT DEFAULT 1)")
-        try await execute("CREATE VIEW [\(viewName)] AS SELECT id, name FROM [\(tableName)] WHERE active = 1")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+            SQLServerColumnDefinition(name: "active", definition: .standard(.init(dataType: .bit, defaultValue: "1"))),
+        ])
+        try await sqlserverClient.views.createView(
+            name: viewName,
+            query: "SELECT id, name FROM [\(tableName)] WHERE active = 1"
+        )
         cleanupSQL(
             "DROP VIEW [\(viewName)]",
             "DROP TABLE [\(tableName)]"
@@ -23,9 +31,24 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
     func testQueryThroughView() async throws {
         let tableName = uniqueTableName()
         let viewName = uniqueTableName(prefix: "v")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, name NVARCHAR(100), active BIT)")
-        try await execute("INSERT INTO [\(tableName)] VALUES (1, 'Alice', 1), (2, 'Bob', 0), (3, 'Carol', 1)")
-        try await execute("CREATE VIEW [\(viewName)] AS SELECT id, name FROM [\(tableName)] WHERE active = 1")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+            SQLServerColumnDefinition(name: "active", definition: .standard(.init(dataType: .bit))),
+        ])
+        try await sqlserverClient.admin.insertRows(
+            into: tableName,
+            columns: ["id", "name", "active"],
+            values: [
+                [.int(1), .nString("Alice"), .bool(true)],
+                [.int(2), .nString("Bob"), .bool(false)],
+                [.int(3), .nString("Carol"), .bool(true)],
+            ]
+        )
+        try await sqlserverClient.views.createView(
+            name: viewName,
+            query: "SELECT id, name FROM [\(tableName)] WHERE active = 1"
+        )
         cleanupSQL(
             "DROP VIEW [\(viewName)]",
             "DROP TABLE [\(tableName)]"
@@ -42,14 +65,21 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
     func testAlterView() async throws {
         let tableName = uniqueTableName()
         let viewName = uniqueTableName(prefix: "v")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, name NVARCHAR(100), email NVARCHAR(200))")
-        try await execute("CREATE VIEW [\(viewName)] AS SELECT id, name FROM [\(tableName)]")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+            SQLServerColumnDefinition(name: "email", definition: .standard(.init(dataType: .nvarchar(length: .length(200))))),
+        ])
+        try await sqlserverClient.views.createView(
+            name: viewName,
+            query: "SELECT id, name FROM [\(tableName)]"
+        )
         cleanupSQL(
             "DROP VIEW [\(viewName)]",
             "DROP TABLE [\(tableName)]"
         )
 
-        // Alter to include email
+        // Alter to include email — no typed API for ALTER VIEW, use raw SQL
         try await execute("ALTER VIEW [\(viewName)] AS SELECT id, name, email FROM [\(tableName)]")
 
         let definition = try await session.getObjectDefinition(
@@ -63,11 +93,16 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
     func testDropView() async throws {
         let tableName = uniqueTableName()
         let viewName = uniqueTableName(prefix: "v")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY)")
-        try await execute("CREATE VIEW [\(viewName)] AS SELECT id FROM [\(tableName)]")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+        ])
+        try await sqlserverClient.views.createView(
+            name: viewName,
+            query: "SELECT id FROM [\(tableName)]"
+        )
         cleanupSQL("DROP TABLE [\(tableName)]")
 
-        try await execute("DROP VIEW [\(viewName)]")
+        try await sqlserverClient.views.dropView(name: viewName)
 
         let objects = try await session.listTablesAndViews(schema: "dbo")
         let exists = objects.contains { $0.name.caseInsensitiveCompare(viewName) == .orderedSame }
@@ -79,8 +114,14 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
     func testGetViewDefinition() async throws {
         let tableName = uniqueTableName()
         let viewName = uniqueTableName(prefix: "v")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, name NVARCHAR(100))")
-        try await execute("CREATE VIEW [\(viewName)] AS SELECT id, name FROM [\(tableName)] WHERE id > 0")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+        ])
+        try await sqlserverClient.views.createView(
+            name: viewName,
+            query: "SELECT id, name FROM [\(tableName)] WHERE id > 0"
+        )
         cleanupSQL(
             "DROP VIEW [\(viewName)]",
             "DROP TABLE [\(tableName)]"
@@ -99,15 +140,34 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
         let t1 = uniqueTableName(prefix: "dept")
         let t2 = uniqueTableName(prefix: "emp")
         let viewName = uniqueTableName(prefix: "v")
-        try await execute("CREATE TABLE [\(t1)] (id INT PRIMARY KEY, name NVARCHAR(100))")
-        try await execute("CREATE TABLE [\(t2)] (id INT PRIMARY KEY, dept_id INT, name NVARCHAR(100))")
-        try await execute("INSERT INTO [\(t1)] VALUES (1, 'Engineering')")
-        try await execute("INSERT INTO [\(t2)] VALUES (1, 1, 'Alice'), (2, 1, 'Bob')")
-        try await execute("""
-            CREATE VIEW [\(viewName)] AS
-            SELECT e.name AS employee, d.name AS department
-            FROM [\(t2)] e JOIN [\(t1)] d ON e.dept_id = d.id
-        """)
+        try await sqlserverClient.admin.createTable(name: t1, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+        ])
+        try await sqlserverClient.admin.createTable(name: t2, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "dept_id", definition: .standard(.init(dataType: .int))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+        ])
+        try await sqlserverClient.admin.insertRow(
+            into: t1,
+            values: ["id": .int(1), "name": .nString("Engineering")]
+        )
+        try await sqlserverClient.admin.insertRows(
+            into: t2,
+            columns: ["id", "dept_id", "name"],
+            values: [
+                [.int(1), .int(1), .nString("Alice")],
+                [.int(2), .int(1), .nString("Bob")],
+            ]
+        )
+        try await sqlserverClient.views.createView(
+            name: viewName,
+            query: """
+                SELECT e.name AS employee, d.name AS department
+                FROM [\(t2)] e JOIN [\(t1)] d ON e.dept_id = d.id
+            """
+        )
         cleanupSQL(
             "DROP VIEW [\(viewName)]",
             "DROP TABLE [\(t2)]",

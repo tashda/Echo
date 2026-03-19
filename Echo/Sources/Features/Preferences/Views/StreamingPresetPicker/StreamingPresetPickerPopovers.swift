@@ -42,7 +42,7 @@ extension StreamingPresetPickerControl {
             .padding(SpacingTokens.md)
             .frame(width: 240)
             .onAppear {
-                DispatchQueue.main.async {
+                Task {
                     fieldFocused = true
                 }
             }

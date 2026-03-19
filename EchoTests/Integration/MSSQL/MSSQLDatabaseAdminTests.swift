@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server database administration through Echo's DatabaseSession layer.

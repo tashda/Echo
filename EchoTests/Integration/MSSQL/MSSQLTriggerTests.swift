@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server trigger operations through Echo's DatabaseSession layer.
@@ -10,23 +11,31 @@ final class MSSQLTriggerTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName()
         let logTable = uniqueTableName(prefix: "log")
         let triggerName = uniqueTableName(prefix: "trg")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, name NVARCHAR(100))")
-        try await execute("CREATE TABLE [\(logTable)] (message NVARCHAR(200), logged_at DATETIME2 DEFAULT GETDATE())")
-        try await execute("""
-            CREATE TRIGGER [\(triggerName)] ON [\(tableName)]
-            AFTER INSERT
-            AS
-            BEGIN
-                INSERT INTO [\(logTable)] (message) VALUES ('Row inserted');
-            END
-        """)
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+        ])
+        try await sqlserverClient.admin.createTable(name: logTable, columns: [
+            SQLServerColumnDefinition(name: "message", definition: .standard(.init(dataType: .nvarchar(length: .length(200))))),
+            SQLServerColumnDefinition(name: "logged_at", definition: .standard(.init(dataType: .datetime2(precision: 7), defaultValue: "GETDATE()"))),
+        ])
+        try await sqlserverClient.triggers.createTrigger(
+            name: triggerName,
+            table: tableName,
+            timing: .after,
+            events: [.insert],
+            body: "INSERT INTO [\(logTable)] (message) VALUES ('Row inserted');"
+        )
         cleanupSQL(
             "DROP TRIGGER [\(triggerName)]",
             "DROP TABLE [\(tableName)]",
             "DROP TABLE [\(logTable)]"
         )
 
-        try await execute("INSERT INTO [\(tableName)] VALUES (1, 'Test')")
+        try await sqlserverClient.admin.insertRow(
+            into: tableName,
+            values: ["id": .int(1), "name": .nString("Test")]
+        )
 
         let result = try await query("SELECT message FROM [\(logTable)]")
         IntegrationTestHelpers.assertMinRowCount(result, expected: 1)
@@ -37,21 +46,35 @@ final class MSSQLTriggerTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName()
         let logTable = uniqueTableName(prefix: "log")
         let triggerName = uniqueTableName(prefix: "trg")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, name NVARCHAR(100))")
-        try await execute("CREATE TABLE [\(logTable)] (op NVARCHAR(20))")
-        try await execute("""
-            CREATE TRIGGER [\(triggerName)] ON [\(tableName)]
-            AFTER UPDATE
-            AS BEGIN INSERT INTO [\(logTable)] VALUES ('UPDATE'); END
-        """)
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+        ])
+        try await sqlserverClient.admin.createTable(name: logTable, columns: [
+            SQLServerColumnDefinition(name: "op", definition: .standard(.init(dataType: .nvarchar(length: .length(20))))),
+        ])
+        try await sqlserverClient.triggers.createTrigger(
+            name: triggerName,
+            table: tableName,
+            timing: .after,
+            events: [.update],
+            body: "INSERT INTO [\(logTable)] VALUES ('UPDATE');"
+        )
         cleanupSQL(
             "DROP TRIGGER [\(triggerName)]",
             "DROP TABLE [\(tableName)]",
             "DROP TABLE [\(logTable)]"
         )
 
-        try await execute("INSERT INTO [\(tableName)] VALUES (1, 'Old')")
-        try await execute("UPDATE [\(tableName)] SET name = 'New' WHERE id = 1")
+        try await sqlserverClient.admin.insertRow(
+            into: tableName,
+            values: ["id": .int(1), "name": .nString("Old")]
+        )
+        try await sqlserverClient.admin.updateRows(
+            in: tableName,
+            set: ["name": .nString("New")],
+            where: "id = 1"
+        )
 
         let result = try await query("SELECT op FROM [\(logTable)]")
         XCTAssertEqual(result.rows[0][0], "UPDATE")
@@ -61,21 +84,33 @@ final class MSSQLTriggerTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName()
         let logTable = uniqueTableName(prefix: "log")
         let triggerName = uniqueTableName(prefix: "trg")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY)")
-        try await execute("CREATE TABLE [\(logTable)] (op NVARCHAR(20))")
-        try await execute("""
-            CREATE TRIGGER [\(triggerName)] ON [\(tableName)]
-            AFTER DELETE
-            AS BEGIN INSERT INTO [\(logTable)] VALUES ('DELETE'); END
-        """)
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+        ])
+        try await sqlserverClient.admin.createTable(name: logTable, columns: [
+            SQLServerColumnDefinition(name: "op", definition: .standard(.init(dataType: .nvarchar(length: .length(20))))),
+        ])
+        try await sqlserverClient.triggers.createTrigger(
+            name: triggerName,
+            table: tableName,
+            timing: .after,
+            events: [.delete],
+            body: "INSERT INTO [\(logTable)] VALUES ('DELETE');"
+        )
         cleanupSQL(
             "DROP TRIGGER [\(triggerName)]",
             "DROP TABLE [\(tableName)]",
             "DROP TABLE [\(logTable)]"
         )
 
-        try await execute("INSERT INTO [\(tableName)] VALUES (1)")
-        try await execute("DELETE FROM [\(tableName)] WHERE id = 1")
+        try await sqlserverClient.admin.insertRow(
+            into: tableName,
+            values: ["id": .int(1)]
+        )
+        try await sqlserverClient.admin.deleteRows(
+            from: tableName,
+            where: "id = 1"
+        )
 
         let result = try await query("SELECT op FROM [\(logTable)]")
         XCTAssertEqual(result.rows[0][0], "DELETE")
@@ -87,13 +122,19 @@ final class MSSQLTriggerTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName()
         let logTable = uniqueTableName(prefix: "log")
         let triggerName = uniqueTableName(prefix: "trg")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY)")
-        try await execute("CREATE TABLE [\(logTable)] (op NVARCHAR(20))")
-        try await execute("""
-            CREATE TRIGGER [\(triggerName)] ON [\(tableName)]
-            AFTER INSERT
-            AS BEGIN INSERT INTO [\(logTable)] VALUES ('INSERT'); END
-        """)
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+        ])
+        try await sqlserverClient.admin.createTable(name: logTable, columns: [
+            SQLServerColumnDefinition(name: "op", definition: .standard(.init(dataType: .nvarchar(length: .length(20))))),
+        ])
+        try await sqlserverClient.triggers.createTrigger(
+            name: triggerName,
+            table: tableName,
+            timing: .after,
+            events: [.insert],
+            body: "INSERT INTO [\(logTable)] VALUES ('INSERT');"
+        )
         cleanupSQL(
             "DROP TRIGGER [\(triggerName)]",
             "DROP TABLE [\(tableName)]",
@@ -101,14 +142,20 @@ final class MSSQLTriggerTests: MSSQLDockerTestCase {
         )
 
         // Disable trigger
-        try await execute("DISABLE TRIGGER [\(triggerName)] ON [\(tableName)]")
-        try await execute("INSERT INTO [\(tableName)] VALUES (1)")
+        try await sqlserverClient.triggers.disableTrigger(name: triggerName, table: tableName)
+        try await sqlserverClient.admin.insertRow(
+            into: tableName,
+            values: ["id": .int(1)]
+        )
         let afterDisable = try await query("SELECT COUNT(*) FROM [\(logTable)]")
         XCTAssertEqual(afterDisable.rows[0][0], "0", "Trigger should not fire when disabled")
 
         // Re-enable trigger
-        try await execute("ENABLE TRIGGER [\(triggerName)] ON [\(tableName)]")
-        try await execute("INSERT INTO [\(tableName)] VALUES (2)")
+        try await sqlserverClient.triggers.enableTrigger(name: triggerName, table: tableName)
+        try await sqlserverClient.admin.insertRow(
+            into: tableName,
+            values: ["id": .int(2)]
+        )
         let afterEnable = try await query("SELECT COUNT(*) FROM [\(logTable)]")
         XCTAssertEqual(afterEnable.rows[0][0], "1", "Trigger should fire when re-enabled")
     }
@@ -118,16 +165,23 @@ final class MSSQLTriggerTests: MSSQLDockerTestCase {
     func testDropTrigger() async throws {
         let tableName = uniqueTableName()
         let triggerName = uniqueTableName(prefix: "trg")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY)")
-        try await execute("""
-            CREATE TRIGGER [\(triggerName)] ON [\(tableName)]
-            AFTER INSERT AS BEGIN SELECT 1; END
-        """)
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+        ])
+        try await sqlserverClient.triggers.createTrigger(
+            name: triggerName,
+            table: tableName,
+            timing: .after,
+            events: [.insert],
+            body: "SELECT 1;"
+        )
         cleanupSQL("DROP TABLE [\(tableName)]")
 
-        try await execute("DROP TRIGGER [\(triggerName)]")
-        // Trigger should be gone — no way to directly verify without sys tables,
-        // but we can insert without error
-        try await execute("INSERT INTO [\(tableName)] VALUES (1)")
+        try await sqlserverClient.triggers.dropTrigger(name: triggerName)
+        // Trigger should be gone — insert without error to verify
+        try await sqlserverClient.admin.insertRow(
+            into: tableName,
+            values: ["id": .int(1)]
+        )
     }
 }

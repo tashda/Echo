@@ -19,19 +19,27 @@ public struct DatabaseInfo: Sendable, Identifiable, Codable, Hashable {
     public var schemaCount: Int
     /// Database state (e.g. "ONLINE", "OFFLINE"). Nil for engines that don't report state.
     public var stateDescription: String?
+    /// Whether the current login has access to this database. Nil when not checked.
+    public var hasAccess: Bool?
 
-    public nonisolated init(name: String, schemas: [SchemaInfo] = [], extensions: [SchemaObjectInfo] = [], schemaCount: Int? = nil, stateDescription: String? = nil) {
+    public nonisolated init(name: String, schemas: [SchemaInfo] = [], extensions: [SchemaObjectInfo] = [], schemaCount: Int? = nil, stateDescription: String? = nil, hasAccess: Bool? = nil) {
         self.name = name
         self.schemas = schemas
         self.extensions = extensions
         self.schemaCount = schemaCount ?? schemas.count
         self.stateDescription = stateDescription
+        self.hasAccess = hasAccess
     }
 
     /// Whether the database is online (or assumed online when state is unknown).
     public nonisolated var isOnline: Bool {
         guard let state = stateDescription else { return true }
         return state.uppercased() == "ONLINE"
+    }
+
+    /// Whether the current login can access this database. Defaults to true when not checked.
+    public nonisolated var isAccessible: Bool {
+        hasAccess ?? true
     }
 }
 

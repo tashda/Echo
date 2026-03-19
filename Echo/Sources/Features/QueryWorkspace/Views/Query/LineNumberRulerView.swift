@@ -58,7 +58,6 @@ final class LineNumberRulerView: NSRulerView {
     }
 
     override var isOpaque: Bool { false }
-
     override func draw(_ dirtyRect: NSRect) {
         drawHashMarksAndLabels(in: dirtyRect)
     }

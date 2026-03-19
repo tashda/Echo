@@ -3,6 +3,7 @@ import SwiftUI
 struct NewProjectSheet: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(NavigationStore.self) private var navigationStore
+    @Environment(EnvironmentState.self) private var environmentState
     @Environment(\.dismiss) private var dismiss
 
     @State private var projectName: String = ""
@@ -85,8 +86,7 @@ struct NewProjectSheet: View {
                     iconName: selectedIconName
                 )
 
-                projectStore.selectProject(project)
-                navigationStore.selectProject(project)
+                environmentState.requestProjectSwitch(to: project)
                 dismiss()
             } catch {
                 print("Failed to create project: \(error)")

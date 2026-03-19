@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
-import Combine
+import Observation
+import SQLServerKit
 
 // MARK: - Connection Session Management
 
@@ -12,27 +13,27 @@ enum StructureLoadingState: Equatable {
 }
 
 /// Represents an active connection session to a database server
-@MainActor
-final class ConnectionSession: ObservableObject, Identifiable {
+@Observable @MainActor
+final class ConnectionSession: Identifiable {
     let id: UUID
-    let connection: SavedConnection
-    let session: DatabaseSession
-    private let spoolManager: ResultSpoolCoordinator
+    @ObservationIgnored let connection: SavedConnection
+    @ObservationIgnored let session: DatabaseSession
+    @ObservationIgnored private let spoolManager: ResultSpooler
 
-    @Published var selectedDatabaseName: String?
-    @Published var databaseStructure: DatabaseStructure?
-    @Published var connectionState: ConnectionState = .connected
-    @Published var lastActivity: Date = Date()
-    @Published var structureLoadingState: StructureLoadingState = .idle
-    @Published var structureLoadingMessage: String?
-    private var defaultInitialBatchSize: Int
-    private var defaultBackgroundStreamingThreshold: Int
-    private var defaultBackgroundFetchSize: Int
+    var selectedDatabaseName: String?
+    var databaseStructure: DatabaseStructure?
+    var connectionState: ConnectionState = .connected
+    var lastActivity: Date = Date()
+    var structureLoadingState: StructureLoadingState = .idle
+    var structureLoadingMessage: String?
+    @ObservationIgnored private var defaultInitialBatchSize: Int
+    @ObservationIgnored private var defaultBackgroundStreamingThreshold: Int
+    @ObservationIgnored private var defaultBackgroundFetchSize: Int
 
     // Query tabs specific to this connection
-    @Published var queryTabs: [WorkspaceTab] = []
-    @Published var activeQueryTabID: UUID?
-    var structureLoadTask: Task<Void, Never>?
+    var queryTabs: [WorkspaceTab] = []
+    var activeQueryTabID: UUID?
+    @ObservationIgnored var structureLoadTask: Task<Void, Never>?
 
     init(
         id: UUID = UUID(),
@@ -41,7 +42,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         defaultInitialBatchSize: Int = 500,
         defaultBackgroundStreamingThreshold: Int = 512,
         defaultBackgroundFetchSize: Int = 4_096,
-        spoolManager: ResultSpoolCoordinator
+        spoolManager: ResultSpooler
     ) {
         self.id = id
         self.connection = connection
@@ -215,7 +216,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
             databaseName: databaseName,
             session: self
         )
-        
+
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
@@ -231,11 +232,11 @@ final class ConnectionSession: ObservableObject, Identifiable {
 
     @discardableResult
     func addExtensionsManagerTab(databaseName: String) -> WorkspaceTab {
-        let viewModel = PostgresExtensionsManagerViewModel(
+        let viewModel = PostgresExtensionsViewModel(
             databaseName: databaseName,
             session: self
         )
-        
+
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
@@ -250,16 +251,205 @@ final class ConnectionSession: ObservableObject, Identifiable {
     }
 
     @discardableResult
-    func addActivityMonitorTab() throws -> WorkspaceTab {
-        let monitor = try session.makeActivityMonitor()
-        let viewModel = ActivityMonitorViewModel(monitor: monitor, connectionSessionID: self.id)
-        
+    func addMSSQLMaintenanceTab(databaseName: String? = nil) -> WorkspaceTab {
+        let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
+
+        // Only one MSSQL maintenance tab per connection — reuse if present, switch database
+        if let existing = queryTabs.first(where: { $0.mssqlMaintenance != nil }) {
+            activeQueryTabID = existing.id
+            if let vm = existing.mssqlMaintenance, vm.selectedDatabase != effectiveDatabase {
+                let newDB = effectiveDatabase
+                existing.title = newDB.isEmpty ? "Maintenance" : "Maintenance (\(newDB))"
+                Task { await vm.selectDatabase(newDB) }
+            }
+            return existing
+        }
+
+        let viewModel = MSSQLMaintenanceViewModel(
+            session: session,
+            connectionID: connection.id,
+            connectionSessionID: id,
+            initialDatabase: effectiveDatabase.isEmpty ? nil : effectiveDatabase,
+            notificationEngine: AppDirector.shared.notificationEngine
+        )
+
+        let title = if let db = databaseName ?? selectedDatabaseName, !db.isEmpty {
+            "Maintenance (\(db))"
+        } else {
+            "Maintenance"
+        }
+
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
-            title: "Activity Monitor",
+            title: title,
+            content: .mssqlMaintenance(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addMaintenanceTab(databaseName: String? = nil) -> WorkspaceTab {
+        let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
+
+        // Only one maintenance tab per connection — reuse if present, switch database
+        if let existing = queryTabs.first(where: { $0.maintenance != nil }) {
+            activeQueryTabID = existing.id
+            if let vm = existing.maintenance, vm.selectedDatabase != effectiveDatabase {
+                vm.selectedDatabase = effectiveDatabase
+                let title = effectiveDatabase.isEmpty ? "Maintenance" : "Maintenance (\(effectiveDatabase))"
+                existing.title = title
+            }
+            return existing
+        }
+
+        let viewModel = MaintenanceViewModel(
+            session: session,
+            connectionID: connection.id,
+            connectionSessionID: id,
+            databaseType: connection.databaseType,
+            initialDatabase: effectiveDatabase.isEmpty ? nil : effectiveDatabase
+        )
+
+        let title = if let db = databaseName ?? selectedDatabaseName, !db.isEmpty {
+            "Maintenance (\(db))"
+        } else {
+            "Maintenance"
+        }
+
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: title,
+            content: .maintenance(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addActivityMonitorTab() throws -> WorkspaceTab {
+        // Reuse existing activity monitor tab if present
+        if let existing = queryTabs.first(where: { $0.activityMonitor != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let monitor = try session.makeActivityMonitor()
+        let interval = AppDirector.shared.projectStore.globalSettings.activityMonitorRefreshInterval
+        let viewModel = ActivityMonitorViewModel(
+            monitor: monitor,
+            connectionSessionID: self.id,
+            connectionID: connection.id,
+            databaseType: connection.databaseType,
+            refreshInterval: interval
+        )
+
+        if let mssql = session as? MSSQLSession {
+            viewModel.extendedEventsVM = ExtendedEventsViewModel(
+                xeClient: mssql.extendedEvents,
+                connectionSessionID: id
+            )
+        }
+
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Activity Monitor (\(connection.connectionName))",
             content: .activityMonitor(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addQueryStoreTab(databaseName: String) -> WorkspaceTab? {
+        guard let mssql = session as? MSSQLSession else { return nil }
+
+        // Reuse existing query store tab for THIS specific database if present
+        if let existing = queryTabs.first(where: { tab in
+            guard let vm = tab.queryStoreVM else { return false }
+            return vm.databaseName == databaseName
+        }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = QueryStoreViewModel(
+            queryStoreClient: mssql.queryStore,
+            databaseName: databaseName,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Query Store (\(databaseName))",
+            content: .queryStore(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addExtendedEventsTab() -> WorkspaceTab? {
+        guard let mssql = session as? MSSQLSession else { return nil }
+
+        // Reuse existing extended events tab if present
+        if let existing = queryTabs.first(where: { $0.extendedEventsVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = ExtendedEventsViewModel(
+            xeClient: mssql.extendedEvents,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Extended Events",
+            content: .extendedEvents(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addAvailabilityGroupsTab() -> WorkspaceTab? {
+        guard let mssql = session as? MSSQLSession else { return nil }
+
+        // Reuse existing availability groups tab if present
+        if let existing = queryTabs.first(where: { $0.availabilityGroupsVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = AvailabilityGroupsViewModel(
+            agClient: mssql.availabilityGroups,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Availability Groups",
+            content: .availabilityGroups(viewModel)
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -275,7 +465,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         if let state = tab.query {
             state.cancelExecution()
         }
-        
+
         // Stop activity monitor streaming if this is an activity monitor tab
         if let activityVM = tab.activityMonitor {
             activityVM.stopStreaming()
@@ -325,11 +515,11 @@ final class ConnectionSession: ObservableObject, Identifiable {
 // MARK: - Multi-Connection Manager
 
 /// Manages multiple active database connections and provides server switching functionality
-@MainActor
-final class ActiveSessionCoordinator: ObservableObject {
-    @Published var activeSessions: [ConnectionSession] = []
-    @Published var activeSessionID: UUID?
-    @Published var isServerSwitcherVisible = false
+@Observable @MainActor
+final class ActiveSessionGroup {
+    var activeSessions: [ConnectionSession] = []
+    var activeSessionID: UUID?
+    var isServerSwitcherVisible = false
 
     // MARK: - Computed Properties
 

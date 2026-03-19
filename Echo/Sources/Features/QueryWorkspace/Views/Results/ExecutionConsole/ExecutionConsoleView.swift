@@ -1,167 +1,152 @@
 import SwiftUI
-#if canImport(AppKit)
 import AppKit
-#elseif canImport(UIKit)
-import UIKit
-#endif
 
 struct ExecutionConsoleView: View {
-    let results: QueryResultSet
+    let executionMessages: [QueryExecutionMessage]
+    var onClear: (() -> Void)?
 
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
-    @State internal var messages: [Message] = []
-    @State internal var expandedRows: Set<UUID> = []
-    internal let columnWidths: [CGFloat] = [64, 320, 110, 90, 110, 160, 80]
+    @State private var filter: MessageFilter = .all
+    @State private var isAutoScrolling = true
 
-    internal var headerBackground: Color {
-        ColorTokens.Background.secondary
-    }
-
-    internal var gridBackground: Color {
-        ColorTokens.Background.primary
+    private var filteredMessages: [QueryExecutionMessage] {
+        switch filter {
+        case .all: executionMessages
+        case .errors: executionMessages.filter { $0.severity == .error }
+        case .warnings: executionMessages.filter { $0.severity == .warning || $0.severity == .error }
+        }
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            headerView
+            consoleToolbar
             Divider()
-
-            if messages.isEmpty {
+            if filteredMessages.isEmpty {
                 emptyState
             } else {
-                tableView
+                messageList
             }
         }
-        .background(gridBackground)
-        .onAppear {
-            buildMessages()
-        }
+        .background(ColorTokens.Background.primary)
     }
 
-    // MARK: - Components
+    // MARK: - Toolbar
 
-    private var headerView: some View {
-        HStack(spacing: SpacingTokens.md) {
-            Label("Messages", systemImage: "text.bubble")
+    private var consoleToolbar: some View {
+        HStack(spacing: SpacingTokens.sm) {
+            Text("Messages")
                 .font(TypographyTokens.standard.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.primary)
 
+            CountBadge(count: filteredMessages.count)
+
             Spacer()
 
-            HStack(spacing: SpacingTokens.sm) {
-                ForEach(Message.Severity.allCases, id: \.self) { severity in
-                    let count = messages.filter { $0.severity == severity }.count
-                    Label("\(severity.rawValue.capitalized) (\(count))", systemImage: severity.iconName)
-                        .font(TypographyTokens.detail.weight(.medium))
-                        .foregroundStyle(severity.tint(using: appearanceStore.accentColor))
+            filterPicker
+
+            if let onClear {
+                Button {
+                    onClear()
+                } label: {
+                    Image(systemName: "trash")
+                        .font(TypographyTokens.detail)
                 }
+                .buttonStyle(.borderless)
+                .disabled(executionMessages.isEmpty)
+                .help("Clear Messages")
             }
-
-            Spacer()
 
             Button {
-                messages.removeAll()
-                expandedRows.removeAll()
+                copyAll()
             } label: {
-                Label("Clear", systemImage: "trash")
-                    .font(TypographyTokens.detail.weight(.medium))
+                Image(systemName: "doc.on.doc")
+                    .font(TypographyTokens.detail)
             }
             .buttonStyle(.borderless)
+            .disabled(filteredMessages.isEmpty)
+            .help("Copy All Messages")
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs2)
-        .background(headerBackground)
+        .background(ColorTokens.Background.secondary)
     }
 
-    private var tableView: some View {
-        ScrollView {
-            LazyVStack(spacing: 0, pinnedViews: []) {
-                tableHeader
-                ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-                    messageRow(message, index: index)
-                    if expandedRows.contains(message.id) {
-                        messageDetails(message, index: index)
+    private var filterPicker: some View {
+        Picker("Filter", selection: $filter) {
+            ForEach(MessageFilter.allCases, id: \.self) { filter in
+                Text(filter.label).tag(filter)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(width: 180)
+    }
+
+    // MARK: - Message List
+
+    private var messageList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(filteredMessages) { message in
+                        ConsoleMessageRow(message: message)
+                            .id(message.id)
+                        Divider()
+                            .padding(.leading, SpacingTokens.md)
                     }
-                    Divider()
+                }
+            }
+            .onChange(of: executionMessages.count) {
+                if isAutoScrolling, let last = filteredMessages.last {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        proxy.scrollTo(last.id, anchor: .bottom)
+                    }
                 }
             }
         }
-        .background(gridBackground)
     }
 
-    private var tableHeader: some View {
-        HStack(spacing: 0) {
-            headerCell("Number", width: columnWidths[0], alignment: .leading)
-            headerCell("Message", width: columnWidths[1], alignment: .leading)
-            headerCell("Time", width: columnWidths[2], alignment: .leading)
-            headerCell("Delta", width: columnWidths[3], alignment: .leading)
-            headerCell("Duration", width: columnWidths[4], alignment: .leading)
-            headerCell("Procedure", width: columnWidths[5], alignment: .leading)
-            headerCell("Line", width: columnWidths[6], alignment: .leading)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, SpacingTokens.sm)
-        .frame(height: 28)
-        .background(headerBackground)
-        .overlay(alignment: .bottom) {
-            Divider()
-        }
-    }
-
-    private func headerCell(_ title: String, width: CGFloat, alignment: Alignment) -> some View {
-        Text(title)
-            .font(TypographyTokens.detail.weight(.semibold))
-            .foregroundColor(ColorTokens.Text.secondary)
-            .frame(width: width, alignment: alignment)
-    }
+    // MARK: - Empty State
 
     private var emptyState: some View {
         VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "tray")
-                .font(TypographyTokens.hero)
-                .foregroundStyle(ColorTokens.Text.secondary)
+            Image(systemName: "text.bubble")
+                .font(.system(size: 28))
+                .foregroundStyle(ColorTokens.Text.tertiary)
             Text("No Messages")
-                .font(TypographyTokens.display.weight(.semibold))
-            Text("Server and execution output will appear here once available.")
-                .font(TypographyTokens.standard)
+                .font(TypographyTokens.standard.weight(.medium))
                 .foregroundStyle(ColorTokens.Text.secondary)
+            Text("Execution output will appear here.")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
         }
-        .padding(.vertical, SpacingTokens.xxxl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(gridBackground)
     }
 
-    // MARK: - Helpers
+    // MARK: - Actions
 
-    internal func toggle(_ id: UUID) {
-        if expandedRows.contains(id) {
-            expandedRows.remove(id)
-        } else {
-            expandedRows.insert(id)
+    private func copyAll() {
+        let text = filteredMessages.map { msg in
+            let time = msg.formattedTimestamp
+            let severity = msg.severity.displayName.uppercased()
+            return "[\(time)] [\(severity)] \(msg.message)"
+        }.joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+}
+
+// MARK: - Message Filter
+
+enum MessageFilter: String, CaseIterable {
+    case all
+    case errors
+    case warnings
+
+    var label: String {
+        switch self {
+        case .all: "All"
+        case .errors: "Errors"
+        case .warnings: "Warnings"
         }
     }
-
-    internal func rowBackground(index: Int, severity: Message.Severity) -> some View {
-        let base = ColorTokens.Background.secondary
-
-        let overlay: Color
-        switch severity {
-        case .error:
-            overlay = ColorTokens.Status.error.opacity(0.08)
-        case .warning:
-            overlay = ColorTokens.Status.warning.opacity(0.06)
-        case .info:
-            overlay = appearanceStore.accentColor.opacity(0.04)
-        case .debug:
-            overlay = Color.clear
-        }
-        return base.overlay(overlay)
-    }
-
-    internal func formattedTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: date)
-    }
-
 }

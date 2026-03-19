@@ -1,45 +1,61 @@
 import Foundation
 import SwiftUI
-import Combine
 import SQLServerKit
 import PostgresWire
 
-@MainActor
-final class ActivityMonitorViewModel: ObservableObject {
+@MainActor @Observable
+final class ActivityMonitorViewModel {
     struct GraphPoint: Identifiable {
         let id = UUID()
         let timestamp: Date
         let value: Double
     }
 
-    private let monitor: any DatabaseActivityMonitoring
-    private var streamTask: Task<Void, Never>?
+    @ObservationIgnored private let monitor: any DatabaseActivityMonitoring
+    @ObservationIgnored private var streamTask: Task<Void, Never>?
     let connectionSessionID: UUID
-    
-    @Published var latestSnapshot: DatabaseActivitySnapshot?
-    @Published var isRunning: Bool = true
-    @Published var refreshInterval: TimeInterval = 5.0
-    
-    @Published var cpuHistory: [GraphPoint] = []
-    @Published var waitingTasksHistory: [GraphPoint] = []
-    @Published var ioHistory: [GraphPoint] = []
-    @Published var throughputHistory: [GraphPoint] = []
-    
-    // For opening query windows in the correct context
-    var latestSnapshotSessionID: UUID? {
-        latestSnapshot != nil ? connectionSessionID : nil
-    }
+    let connectionID: UUID
+    let databaseType: DatabaseType
 
-    private let maxHistoryItems = 60 
+    var latestSnapshot: DatabaseActivitySnapshot?
+    var isRunning: Bool = true
+    var refreshInterval: TimeInterval = 5.0
+    var permissionDenied: Bool = false
 
-    init(monitor: any DatabaseActivityMonitoring, connectionSessionID: UUID) {
+    // MSSQL Extended Events (nil for non-MSSQL connections)
+    var extendedEventsVM: ExtendedEventsViewModel?
+
+    // MSSQL sparkline history
+    var cpuHistory: [GraphPoint] = []
+    var waitingTasksHistory: [GraphPoint] = []
+    var ioHistory: [GraphPoint] = []
+    var throughputHistory: [GraphPoint] = []
+
+    // Postgres sparkline history
+    var connectionCountHistory: [GraphPoint] = []
+    var cacheHitHistory: [GraphPoint] = []
+    var deadTuplesHistory: [GraphPoint] = []
+
+    private let maxHistoryItems = 60
+
+    init(
+        monitor: any DatabaseActivityMonitoring,
+        connectionSessionID: UUID,
+        connectionID: UUID,
+        databaseType: DatabaseType,
+        refreshInterval: TimeInterval = 5.0
+    ) {
         self.monitor = monitor
         self.connectionSessionID = connectionSessionID
+        self.connectionID = connectionID
+        self.databaseType = databaseType
+        self.refreshInterval = refreshInterval
         startStreaming()
     }
-    
+
     func startStreaming() {
         isRunning = true
+        permissionDenied = false
         streamTask?.cancel()
         streamTask = Task {
             do {
@@ -48,18 +64,33 @@ final class ActivityMonitorViewModel: ObservableObject {
                     self.latestSnapshot = snapshot
                     updateHistory(with: snapshot)
                 }
+                // Stream ended naturally (not cancelled) — check if it's because of permission denial
+                if latestSnapshot == nil || isEmptySnapshot(latestSnapshot) {
+                    permissionDenied = true
+                }
             } catch {
-                isRunning = false
+                // Check if error is permission related
             }
+            isRunning = false
         }
     }
-    
+
+    private func isEmptySnapshot(_ snapshot: DatabaseActivitySnapshot?) -> Bool {
+        guard let snapshot else { return true }
+        switch snapshot {
+        case .mssql(let snap):
+            return snap.overview == nil && snap.processes.isEmpty && snap.waits.isEmpty && snap.expensiveQueries.isEmpty
+        case .postgres:
+            return false
+        }
+    }
+
     func stopStreaming() {
         isRunning = false
         streamTask?.cancel()
         streamTask = nil
     }
-    
+
     func refresh() {
         Task {
             if let snap = try? await monitor.snapshot() {
@@ -71,13 +102,12 @@ final class ActivityMonitorViewModel: ObservableObject {
 
     func killSession(id: Int) async throws {
         try await monitor.killSession(id: id)
-        // Instant refresh to show the process is gone
         refresh()
     }
-    
+
     private func updateHistory(with snapshot: DatabaseActivitySnapshot) {
         let now = snapshot.capturedAt
-        
+
         switch snapshot {
         case .mssql(let snap):
             if let ov = snap.overview {
@@ -88,23 +118,26 @@ final class ActivityMonitorViewModel: ObservableObject {
             }
         case .postgres(let snap):
             if let ov = snap.overview {
-                appendHistory(&cpuHistory, value: ov.processorTimePercent, timestamp: now)
-                appendHistory(&waitingTasksHistory, value: Double(ov.waitingTasksCount), timestamp: now)
-                appendHistory(&ioHistory, value: ov.databaseIOMBPerSec, timestamp: now)
+                appendHistory(&connectionCountHistory, value: Double(ov.connectionsCount), timestamp: now)
+                appendHistory(&cacheHitHistory, value: ov.cacheHitPercent, timestamp: now)
                 appendHistory(&throughputHistory, value: ov.transactionsPerSec, timestamp: now)
+                appendHistory(&deadTuplesHistory, value: Double(ov.totalDeadTuples), timestamp: now)
+                appendHistory(&ioHistory, value: ov.databaseIOMBPerSec, timestamp: now)
             }
         }
     }
-    
+
     private func appendHistory(_ history: inout [GraphPoint], value: Double, timestamp: Date) {
         history.append(GraphPoint(timestamp: timestamp, value: value))
         if history.count > maxHistoryItems {
             history.removeFirst()
         }
     }
-    
+
     func estimatedMemoryUsageBytes() -> Int {
-        let historySize = (cpuHistory.count + waitingTasksHistory.count + ioHistory.count + throughputHistory.count) * 32
-        return 1024 * 512 + historySize 
+        let historySize = (cpuHistory.count + waitingTasksHistory.count + ioHistory.count +
+                           throughputHistory.count + connectionCountHistory.count +
+                           cacheHitHistory.count + deadTuplesHistory.count) * 32
+        return 1024 * 512 + historySize
     }
 }

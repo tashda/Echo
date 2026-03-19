@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server user-defined function operations through Echo's DatabaseSession layer.
@@ -8,14 +9,14 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
 
     func testCreateScalarFunction() async throws {
         let funcName = uniqueTableName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION dbo.[\(funcName)](@x INT)
-            RETURNS INT
-            AS
-            BEGIN
-                RETURN @x * 3;
-            END
-        """)
+        try await sqlserverClient.routines.createFunction(
+            name: funcName,
+            parameters: [
+                FunctionParameter(name: "@x", dataType: .int)
+            ],
+            returnType: .int,
+            body: "RETURN @x * 3;"
+        )
         cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         let result = try await query("SELECT dbo.[\(funcName)](14) AS tripled")
@@ -24,14 +25,15 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
 
     func testScalarFunctionWithStringInput() async throws {
         let funcName = uniqueTableName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION dbo.[\(funcName)](@first NVARCHAR(50), @last NVARCHAR(50))
-            RETURNS NVARCHAR(101)
-            AS
-            BEGIN
-                RETURN @first + ' ' + @last;
-            END
-        """)
+        try await sqlserverClient.routines.createFunction(
+            name: funcName,
+            parameters: [
+                FunctionParameter(name: "@first", dataType: .nvarchar(length: .length(50))),
+                FunctionParameter(name: "@last", dataType: .nvarchar(length: .length(50))),
+            ],
+            returnType: .nvarchar(length: .length(101)),
+            body: "RETURN @first + ' ' + @last;"
+        )
         cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         let result = try await query("SELECT dbo.[\(funcName)]('Jane', 'Doe') AS name")
@@ -43,8 +45,21 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
     func testInlineTableValuedFunction() async throws {
         let tableName = uniqueTableName()
         let funcName = uniqueTableName(prefix: "fn")
-        try await execute("CREATE TABLE [\(tableName)] (id INT, dept NVARCHAR(50), name NVARCHAR(100))")
-        try await execute("INSERT INTO [\(tableName)] VALUES (1, 'ENG', 'Alice'), (2, 'ENG', 'Bob'), (3, 'HR', 'Carol')")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int))),
+            SQLServerColumnDefinition(name: "dept", definition: .standard(.init(dataType: .nvarchar(length: .length(50))))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+        ])
+        try await sqlserverClient.admin.insertRows(
+            into: tableName,
+            columns: ["id", "dept", "name"],
+            values: [
+                [.int(1), .nString("ENG"), .nString("Alice")],
+                [.int(2), .nString("ENG"), .nString("Bob")],
+                [.int(3), .nString("HR"), .nString("Carol")],
+            ]
+        )
+        // Inline TVF requires raw SQL — createFunction wraps body in BEGIN/END which is for scalar functions
         try await execute("""
             CREATE FUNCTION dbo.[\(funcName)](@dept NVARCHAR(50))
             RETURNS TABLE
@@ -64,12 +79,17 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
 
     func testAlterFunction() async throws {
         let funcName = uniqueTableName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION dbo.[\(funcName)](@x INT)
-            RETURNS INT AS BEGIN RETURN @x; END
-        """)
+        try await sqlserverClient.routines.createFunction(
+            name: funcName,
+            parameters: [
+                FunctionParameter(name: "@x", dataType: .int)
+            ],
+            returnType: .int,
+            body: "RETURN @x;"
+        )
         cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
+        // ALTER FUNCTION — no typed API, use raw SQL
         try await execute("""
             ALTER FUNCTION dbo.[\(funcName)](@x INT)
             RETURNS INT AS BEGIN RETURN @x + 100; END
@@ -81,12 +101,16 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
 
     func testDropFunction() async throws {
         let funcName = uniqueTableName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION dbo.[\(funcName)](@x INT)
-            RETURNS INT AS BEGIN RETURN @x; END
-        """)
+        try await sqlserverClient.routines.createFunction(
+            name: funcName,
+            parameters: [
+                FunctionParameter(name: "@x", dataType: .int)
+            ],
+            returnType: .int,
+            body: "RETURN @x;"
+        )
 
-        try await execute("DROP FUNCTION dbo.[\(funcName)]")
+        try await sqlserverClient.routines.dropFunction(name: funcName)
 
         do {
             _ = try await query("SELECT dbo.[\(funcName)](1)")
@@ -100,14 +124,14 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
 
     func testGetFunctionDefinition() async throws {
         let funcName = uniqueTableName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION dbo.[\(funcName)](@input NVARCHAR(100))
-            RETURNS NVARCHAR(100)
-            AS
-            BEGIN
-                RETURN UPPER(@input);
-            END
-        """)
+        try await sqlserverClient.routines.createFunction(
+            name: funcName,
+            parameters: [
+                FunctionParameter(name: "@input", dataType: .nvarchar(length: .length(100)))
+            ],
+            returnType: .nvarchar(length: .length(100)),
+            body: "RETURN UPPER(@input);"
+        )
         cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         let definition = try await session.getObjectDefinition(

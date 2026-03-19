@@ -49,21 +49,21 @@ struct DatabaseObjectColumnRow: View {
                 .font(TypographyTokens.label)
                 .foregroundStyle(ColorTokens.Text.tertiary)
         }
-        .padding(.leading, ExplorerColumnMetrics.highlightExtension)
+        .padding(.leading, SidebarRowConstants.rowLeadingPadding + SidebarRowConstants.chevronWidth + SidebarRowConstants.iconTextSpacing)
         .padding(.vertical, SpacingTokens.xxxs)
-        .padding(.trailing, SpacingTokens.sm)
+        .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .background(
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
                 .fill(ColorTokens.Text.primary.opacity(0.04))
                 .opacity(isHovered ? 1 : 0)
         )
-        .padding(.leading, max(ExplorerColumnMetrics.contentLeading - ExplorerColumnMetrics.highlightExtension, 0))
-        .contentShape(Rectangle())
+        .padding(.leading, CGFloat(ExplorerColumnMetrics.depth) * SidebarRowConstants.indentStep)
+        .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .contextMenu {
             Button("Copy Name") {
                 onCopyName()
             }
-            Button("Rename Column…") {
+            Button("Rename Column") {
                 onRename()
             }
             Button("Drop Column", role: .destructive) {

@@ -4,50 +4,11 @@ import AppKit
 struct EchoSenseSettingsView: View {
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(NavigationStore.self) private var navigationStore
-    @EnvironmentObject internal var appState: AppState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(AppState.self) internal var appState
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     var body: some View {
         Form {
-            Section("Suggestions") {
-                EchoSenseToggleRow(
-                    title: "Keywords",
-                    isOn: suggestKeywordsBinding,
-                    topic: .keywords
-                )
-
-                EchoSenseToggleRow(
-                    title: "Inline keyword preview",
-                    isOn: inlineKeywordPreviewBinding,
-                    topic: .inlineKeywords
-                )
-                .disabled(!appState.sqlEditorDisplay.autoCompletionEnabled)
-
-                EchoSenseToggleRow(
-                    title: "Functions",
-                    isOn: suggestFunctionsBinding,
-                    topic: .functions
-                )
-
-                EchoSenseToggleRow(
-                    title: "Snippets",
-                    isOn: suggestSnippetsBinding,
-                    topic: .snippets
-                )
-
-                EchoSenseToggleRow(
-                    title: "Join helpers",
-                    isOn: suggestJoinsBinding,
-                    topic: .joins
-                )
-
-                EchoSenseToggleRow(
-                    title: "History boosting",
-                    isOn: suggestHistoryBinding,
-                    topic: .history
-                )
-            }
-
             Section("Insertion") {
                 EchoSenseToggleRow(
                     title: "Qualify table completions",
@@ -62,12 +23,8 @@ struct EchoSenseSettingsView: View {
                 )
             }
 
-            Section("Behaviour") {
-                EchoSenseAggressivenessRow(
-                    selection: aggressivenessBinding
-                )
-
-                LabeledContent {
+            Section("Shortcuts") {
+                PropertyRow(title: "Trigger shortcuts") {
                     Button {
                         NotificationCenter.default.post(
                             name: .openSettingsSection,
@@ -82,8 +39,6 @@ struct EchoSenseSettingsView: View {
                         }
                     }
                     .buttonStyle(.bordered)
-                } label: {
-                    Text("Trigger shortcuts")
                 }
             }
 

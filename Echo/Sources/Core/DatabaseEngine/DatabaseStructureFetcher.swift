@@ -69,14 +69,13 @@ public struct PostgresStructureFetcher: DatabaseStructureFetcher {
             connectedDatabase = connection.database
         } else {
             do {
-                let result = try await session.simpleQuery("SELECT current_database()")
-                if let row = result.rows.first, let value = row.first, let dbName = value, !dbName.isEmpty {
+                if let dbName = try await session.currentDatabaseName() {
                     connectedDatabase = dbName
                 } else {
                     connectedDatabase = "postgres"
                 }
             } catch {
-                structureLogger.warning("PostgreSQL: could not determine current database, assuming 'postgres': \(error)")
+                structureLogger.warning("PostgreSQL: failed to get current database: \(error.localizedDescription)")
                 connectedDatabase = "postgres"
             }
         }
@@ -223,7 +222,7 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
             var databases: [DatabaseInfo] = []
             do {
                 let allDbs = try await sqlSession.listDatabasesWithState()
-                databases = allDbs.map { DatabaseInfo(name: $0.name, schemas: [], schemaCount: 0, stateDescription: $0.stateDescription) }
+                databases = allDbs.map { DatabaseInfo(name: $0.name, schemas: [], schemaCount: 0, stateDescription: $0.stateDescription, hasAccess: $0.hasAccess) }
                 databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             } catch {
                 structureLogger.warning("SQL Server: failed to list databases: \(error.localizedDescription)")

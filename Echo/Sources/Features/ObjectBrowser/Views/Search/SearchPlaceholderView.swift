@@ -10,7 +10,7 @@ struct SearchPlaceholderView: View {
     var body: some View {
         VStack(spacing: SpacingTokens.xs2) {
             Image(systemName: systemImage)
-                .font(.system(size: 28, weight: .semibold))
+                .font(TypographyTokens.title.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.tertiary)
             Text(title)
                 .font(TypographyTokens.standard.weight(.semibold))

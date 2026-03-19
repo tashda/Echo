@@ -1,15 +1,14 @@
 import Foundation
 import SwiftUI
-import Combine
 
 // MARK: - Navigation State
 
-@MainActor
-final class NavigationState: ObservableObject {
-    @Published var selectedProject: Project?
-    @Published var selectedFolder: SavedFolder?
-    @Published var selectedConnection: SavedConnection?
-    @Published var selectedDatabase: String?
+@Observable
+final class NavigationState {
+    var selectedProject: Project?
+    var selectedFolder: SavedFolder?
+    var selectedConnection: SavedConnection?
+    var selectedDatabase: String?
 
     // Navigation breadcrumb levels
     var breadcrumbs: [NavigationLevel] {

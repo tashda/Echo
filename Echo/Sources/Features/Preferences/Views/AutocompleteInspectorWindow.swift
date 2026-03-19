@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AutocompleteInspectorWindow: Scene {
     static let sceneID = "autocomplete-management"
-    private let coordinator = AppCoordinator.shared
+    private let coordinator = AppDirector.shared
 
     var body: some Scene {
         Window("Autocomplete Management", id: Self.sceneID) {
@@ -11,10 +11,10 @@ struct AutocompleteInspectorWindow: Scene {
                 .environment(coordinator.connectionStore)
                 .environment(coordinator.navigationStore)
                 .environment(coordinator.tabStore)
-                .environmentObject(coordinator.environmentState)
-                .environmentObject(coordinator.appState)
-                .environmentObject(coordinator.clipboardHistory)
-                .environmentObject(AppearanceStore.shared)
+                .environment(coordinator.environmentState)
+                .environment(coordinator.appState)
+                .environment(coordinator.clipboardHistory)
+                .environment(AppearanceStore.shared)
         }
         .defaultSize(width: 1040, height: 680)
         .restorationBehavior(.disabled)

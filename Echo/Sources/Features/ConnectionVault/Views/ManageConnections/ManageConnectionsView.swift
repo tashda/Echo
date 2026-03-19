@@ -1,16 +1,15 @@
 @preconcurrency import SwiftUI
 import AppKit
 
-@MainActor
 struct ManageConnectionsView: View {
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(ConnectionStore.self) internal var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
     
-    @EnvironmentObject internal var environmentState: EnvironmentState
-    @EnvironmentObject internal var appState: AppState
-    @EnvironmentObject internal var clipboardHistory: ClipboardHistoryStore
-    @ObservedObject internal var appearanceStore = AppearanceStore.shared
+    @Environment(EnvironmentState.self) internal var environmentState
+    @Environment(AppState.self) internal var appState
+    @Environment(ClipboardHistoryStore.self) internal var clipboardHistory
+    @Environment(AppearanceStore.self) internal var appearanceStore
     @Environment(\.dismiss) internal var dismiss
     internal let onClose: (() -> Void)?
 
@@ -63,25 +62,18 @@ struct ManageConnectionsView: View {
     @State internal var navHistory = NavigationHistory<SidebarSelection>()
     @State internal var sidebarVisibility: NavigationSplitViewVisibility = .automatic
 
-    init(onClose: (() -> Void)? = nil, initialSection: ManageSection? = nil) {
+    init(onClose: (() -> Void)? = nil, initialSection: ManageSection? = nil, initialProjectID: UUID? = nil) {
         self.onClose = onClose
-        if let initialSection {
+        if let initialProjectID {
+            self._selectedSection = State(initialValue: .projects)
+            self._sidebarSelection = State(initialValue: .project(initialProjectID))
+        } else if let initialSection {
             self._selectedSection = State(initialValue: initialSection)
             self._sidebarSelection = State(initialValue: .section(initialSection))
         }
     }
 
     internal var activeSection: ManageSection { selectedSection ?? .connections }
-
-    var displayedProject: Project? {
-        if case .project(let id) = sidebarSelection {
-            return projectStore.projects.first(where: { $0.id == id })
-        }
-        if case .section(.projects) = sidebarSelection {
-            return projectStore.selectedProject ?? projectStore.projects.first
-        }
-        return nil
-    }
 
     var body: some View {
         contentView
@@ -109,7 +101,7 @@ struct ManageConnectionsView: View {
                 NewProjectSheet()
                     .environment(projectStore)
                     .environment(navigationStore)
-                    .environmentObject(environmentState)
+                    .environment(environmentState)
             }
             .sheet(isPresented: $showIconPicker) {
                 if case .project(let id) = sidebarSelection,
@@ -181,7 +173,7 @@ struct ManageConnectionsView: View {
             } message: { _ in
                 Text("Do you want to copy the bookmark history into the duplicated connection?")
             }
-            .modifier(ChangeHandlers(
+            .modifier(ChangeActions(
                 connectionStore: connectionStore,
                 projectStore: projectStore,
                 selectedSection: $selectedSection,
@@ -198,72 +190,6 @@ struct ManageConnectionsView: View {
                 onIdentitiesChange: { pruneIdentitySelection(allowedIDs: Set($0)) },
                 onFoldersChange: handleFoldersChange
             ))
-    }
-
-    private var configuredSplitView: some View {
-        splitView
-            .frame(minWidth: 1100, minHeight: 600)
-    }
-
-    private var splitView: some View {
-        NavigationSplitView(columnVisibility: $sidebarVisibility) {
-            sidebar
-                .frame(minWidth: 240)
-                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 400)
-                .toolbar(removing: .sidebarToggle)
-        } detail: {
-            detailContent
-        }
-        .navigationSplitViewStyle(.balanced)
-        .onReceive(NotificationCenter.default.publisher(for: .toggleManageConnectionsSidebar)) { _ in
-            withAnimation {
-                sidebarVisibility = sidebarVisibility == .detailOnly ? .automatic : .detailOnly
-            }
-        }
-    }
-
-    var deletionAlertBinding: Binding<Bool> {
-        Binding(
-            get: { pendingDeletion != nil },
-            set: { isPresented in
-                if !isPresented { pendingDeletion = nil }
-            }
-        )
-    }
-
-    @ViewBuilder
-    func folderEditorSheet(_ state: FolderEditorState) -> some View {
-        FolderEditorSheet(state: state)
-            .environmentObject(environmentState)
-    }
-
-    @ViewBuilder
-    func identityEditorSheet(_ state: IdentityEditorState) -> some View {
-        IdentityEditorSheet(state: state)
-            .environmentObject(environmentState)
-    }
-
-    @ViewBuilder
-    func connectionEditorSheet(_ presentation: ConnectionEditorPresentation) -> some View {
-        ConnectionEditorView(connection: presentation.connection) { connection, password, action in
-            handleConnectionEditorSave(connection: connection, password: password, action: action)
-        }
-        .environment(projectStore)
-        .environment(connectionStore)
-        .environment(navigationStore)
-        .environmentObject(environmentState)
-        .environmentObject(appState)
-    }
-
-    @ViewBuilder
-    func deletionAlertActions(target: DeletionTarget) -> some View {
-        Button("Delete", role: .destructive) { performDeletion(for: target) }
-        Button("Cancel", role: .cancel) { pendingDeletion = nil }
-    }
-
-    @ViewBuilder
-    func deletionAlertMessage(target: DeletionTarget) -> some View {
-        Text("Are you sure you want to delete \(target.displayName)? This action cannot be undone.")
     }
 
 }

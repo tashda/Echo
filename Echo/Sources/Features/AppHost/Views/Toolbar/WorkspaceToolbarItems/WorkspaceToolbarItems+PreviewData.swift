@@ -20,7 +20,7 @@ struct WorkspaceToolbarPreviewData {
 
     init(mode: Mode) {
         let previewCacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent("EchoPreviewResultCache", isDirectory: true)
-        let spoolManager = ResultSpoolCoordinator(configuration: ResultSpoolConfiguration.defaultConfiguration(rootDirectory: previewCacheRoot))
+        let spoolManager = ResultSpooler(configuration: ResultSpoolConfiguration.defaultConfiguration(rootDirectory: previewCacheRoot))
         let diagramCacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent("EchoPreviewDiagramCache", isDirectory: true)
         let diagramManager = DiagramCacheStore(configuration: DiagramCacheStore.Configuration(rootDirectory: diagramCacheRoot))
         let diagramKeyStore = DiagramEncryptionKeyStore()
@@ -46,10 +46,10 @@ struct WorkspaceToolbarPreviewData {
             navigationStore: navigationStore,
             tabStore: tabStore,
             clipboardHistory: ClipboardHistoryStore(),
-            resultSpoolConfigCoordinator: ResultSpoolConfigCoordinator(spoolManager: spoolManager),
-            diagramCoordinator: DiagramCoordinator(cacheManager: diagramManager, keyStore: diagramKeyStore),
+            resultSpoolConfigCoordinator: ResultSpoolConfig(spoolManager: spoolManager),
+            diagramBuilder: DiagramBuilder(cacheManager: diagramManager, keyStore: diagramKeyStore),
             identityRepository: IdentityRepository(connectionStore: connectionStore),
-            schemaDiscoveryCoordinator: MetadataDiscoveryCoordinator(identityRepository: IdentityRepository(connectionStore: connectionStore), connectionStore: connectionStore),
+            schemaDiscoveryEngine: MetadataDiscoveryEngine(identityRepository: IdentityRepository(connectionStore: connectionStore), connectionStore: connectionStore),
             bookmarkRepository: BookmarkRepository(),
             historyRepository: HistoryRepository(),
             resultSpoolManager: spoolManager,
@@ -100,7 +100,7 @@ struct WorkspaceToolbarPreviewData {
             ]
         )
 
-        environmentState.sessionCoordinator.addSession(previewSession)
+        environmentState.sessionGroup.addSession(previewSession)
         navigationStore.selectProject(project)
         navigationStore.navigationState.selectConnection(connection)
         navigationStore.navigationState.selectDatabase("analytics")

@@ -4,6 +4,10 @@ struct HoveredExplorerRowIDKey: EnvironmentKey {
     static let defaultValue: String? = nil
 }
 
+struct SidebarDensityKey: EnvironmentKey {
+    static let defaultValue: SidebarDensity = .default
+}
+
 struct SetHoveredExplorerRowIDKey: EnvironmentKey {
     static let defaultValue: @Sendable (String?) -> Void = { _ in }
 }
@@ -18,59 +22,117 @@ extension EnvironmentValues {
         get { self[SetHoveredExplorerRowIDKey.self] }
         set { self[SetHoveredExplorerRowIDKey.self] = newValue }
     }
+
+    var sidebarDensity: SidebarDensity {
+        get { self[SidebarDensityKey.self] }
+        set { self[SidebarDensityKey.self] = newValue }
+    }
 }
 
 enum ExplorerColumnMetrics {
-    static let contentLeading: CGFloat = SpacingTokens.lg
+    /// Hierarchy depth for column rows (nested under objects at depth 3).
+    static let depth: Int = 4
     static let highlightExtension: CGFloat = SpacingTokens.xs2
     static let iconSize: CGFloat = SpacingTokens.md
     static let spacing: CGFloat = SpacingTokens.xs
 }
 
-/// Shared constants for sidebar row consistency (macOS 26 Tahoe sidebar aesthetic).
+/// Shared constants for sidebar row consistency (macOS 26 Tahoe Finder sidebar aesthetic).
+///
+/// Measured from macOS 26 Tahoe Finder sidebar (Medium size):
+/// - 13pt text, 20pt icon frame, ~28pt row height
+/// - 18pt indentation per tree level
+/// - Fixed 16pt disclosure column (always present for alignment)
+/// - Selection pill inset 8pt from sidebar edges, 10pt corner radius
+/// - All icons monochrome secondary gray, Medium visual weight
 enum SidebarRowConstants {
-    /// Chevron font — uniform across all disclosure triangles.
-    static let chevronFont = TypographyTokens.compact.weight(.medium)
-    /// Chevron frame width.
-    static let chevronWidth: CGFloat = SpacingTokens.xs2
-    /// Icon font for sidebar row icons.
-    static let iconFont = TypographyTokens.prominent
-    /// Icon frame size (all sidebar icons).
-    static let iconFrame: CGFloat = SpacingTokens.md2
-    /// Spacing between icon and text label.
-    static let iconTextSpacing: CGFloat = SpacingTokens.xs
-    /// Per-level indentation step.
-    static let indentStep: CGFloat = SpacingTokens.xs
-    /// Horizontal padding inside rows (leading).
-    static let rowHorizontalPadding: CGFloat = SpacingTokens.xxxs
-    /// Trailing padding inside rows (accounts for scrollbar overlap).
-    static let rowTrailingPadding: CGFloat = SpacingTokens.xs
-    /// Vertical padding for structural rows.
-    static let rowVerticalPadding: CGFloat = SpacingTokens.xxs2
-    /// Hover highlight corner radius.
-    static let hoverCornerRadius: CGFloat = SpacingTokens.xs
-    /// Spacing between major sidebar sections for visual grouping.
-    static let sectionGroupSpacing: CGFloat = SpacingTokens.xs
+    /// Chevron font — matches Finder disclosure triangles.
+    static let chevronFont = Font.system(size: 9, weight: .semibold)
+    /// Fixed-width disclosure column — always present for icon alignment.
+    static let chevronWidth: CGFloat = SpacingTokens.sm // 12pt
+    /// Icon font — Regular weight, renders within 18×16pt frame.
+    static let iconFont = Font.system(size: 14, weight: .regular)
+    /// Icon frame width — 18pt (Figma: W 18).
+    static let iconFrameWidth: CGFloat = SpacingTokens.md1 // 18pt
+    /// Icon frame height — 16pt (Figma: H 16).
+    static let iconFrameHeight: CGFloat = SpacingTokens.md // 16pt
+    /// Legacy square frame — use iconFrameWidth/iconFrameHeight instead.
+    static let iconFrame: CGFloat = SpacingTokens.md1 // 18pt (width)
+    /// Spacing between icon and text label — 6pt (Figma: gap 6).
+    static let iconTextSpacing: CGFloat = SpacingTokens.xxs2 // 6pt
+    /// Primary label font — 11pt Regular (matches Finder sidebar default density).
+    static let labelFont = Font.system(size: 11, weight: .regular)
+    /// Font for trailing metadata (counts, types, badges) — matches Finder "Detail".
+    static let trailingFont = TypographyTokens.detail
+    /// Section header font (Finder-style: 11pt, bold).
+    static let sectionHeaderFont = TypographyTokens.detail.weight(.bold)
+    /// Per-level indentation step — 14pt per tree level.
+    static let indentStep: CGFloat = SpacingTokens.sm2 // 14pt
+    /// Leading padding inside row content highlight area — 6pt.
+    static let rowLeadingPadding: CGFloat = SpacingTokens.xxs2 // 6pt
+    /// Trailing padding inside rows — 8pt (Figma: trailing 8).
+    static let rowTrailingPadding: CGFloat = SpacingTokens.xs // 8pt
+    /// Vertical padding for rows — 4pt top/bottom (Figma: top 4, bottom 4).
+    static let rowVerticalPadding: CGFloat = SpacingTokens.xxs
+    /// Outer horizontal padding — selection pill inset from sidebar edges.
+    static let rowOuterHorizontalPadding: CGFloat = SpacingTokens.xxs2 // 6pt
+    /// Hover/selection highlight corner radius — 6pt.
+    static let hoverCornerRadius: CGFloat = SpacingTokens.xxs2 // 6pt
+    /// Spacing between major sidebar sections.
+    static let sectionGroupSpacing: CGFloat = SpacingTokens.xxs
+
+    // MARK: - Legacy aliases (use during migration, remove after)
+
+    /// Legacy alias — use `rowLeadingPadding` in new code.
+    static let rowHorizontalPadding: CGFloat = 0
 }
 
 enum ExplorerSidebarPalette {
     static let monochrome = ColorTokens.Text.secondary
 
-    static let database = ColorTokens.Explorer.database
+    static let databaseFolder = ColorTokens.Explorer.databaseFolder
+    static let databaseInstance = ColorTokens.Explorer.databaseInstance
     static let tables = ColorTokens.Explorer.tables
     static let views = ColorTokens.Explorer.views
+    static let materializedViews = ColorTokens.Explorer.materializedViews
     static let functions = ColorTokens.Explorer.functions
+    static let procedures = ColorTokens.Explorer.procedures
+    static let triggers = ColorTokens.Explorer.triggers
     static let jobs = ColorTokens.Explorer.jobs
     static let security = ColorTokens.Explorer.security
+    static let queryStore = ColorTokens.Explorer.queryStore
+    static let users = ColorTokens.Explorer.users
+    static let roles = ColorTokens.Explorer.roles
+    static let logins = ColorTokens.Explorer.logins
+    static let serverRoles = ColorTokens.Explorer.serverRoles
+    static let credentials = ColorTokens.Explorer.credentials
     static let extensions = ColorTokens.Explorer.extensions
+    static let linkedServers = ColorTokens.Explorer.linkedServers
+    
+    // Management Colors
+    static let management = ColorTokens.Explorer.management
+    static let extendedEvents = ColorTokens.Explorer.extendedEvents
+    static let databaseMail = ColorTokens.Explorer.databaseMail
+    static let activityMonitor = ColorTokens.Explorer.activityMonitor
 
     static func folderIconColor(title: String, colored: Bool = true) -> Color {
         guard colored else { return monochrome }
         switch title {
-        case "Databases": return database
-        case "Agent Jobs": return jobs
+        case "Databases": return databaseFolder
+        case "Agent Jobs", "Agent Jobs Overview": return jobs
         case "Security": return security
+        case "Users": return users
+        case "Database Roles", "Application Roles", "Schemas", "Group Roles": return roles
+        case "Logins", "Login Roles": return logins
+        case "Server Roles": return serverRoles
+        case "Credentials": return credentials
+        case "Management": return management
+        case "Extended Events": return extendedEvents
+        case "Database Mail": return databaseMail
+        case "Activity Monitor": return activityMonitor
+        case "Query Store": return queryStore
         case "Extensions": return extensions
+        case "Linked Servers": return linkedServers
         default: return monochrome
         }
     }
@@ -79,9 +141,11 @@ enum ExplorerSidebarPalette {
         guard colored else { return monochrome }
         switch type {
         case .table: return tables
-        case .view, .materializedView: return views
-        case .function, .procedure: return functions
-        case .trigger: return functions
+        case .view: return views
+        case .materializedView: return materializedViews
+        case .function: return functions
+        case .procedure: return procedures
+        case .trigger: return triggers
         case .extension: return extensions
         }
     }

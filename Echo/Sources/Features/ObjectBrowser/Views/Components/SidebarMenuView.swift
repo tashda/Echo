@@ -8,8 +8,8 @@ struct SidebarMenu: View {
     @Environment(ConnectionStore.self) var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
 
-    @EnvironmentObject var environmentState: EnvironmentState
-    @EnvironmentObject var appState: AppState
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
     let onAddConnection: () -> Void
 
     @State var selectedNavSection: NavSection = .folder
@@ -20,6 +20,7 @@ struct SidebarMenu: View {
         case bookmark = "Bookmarks"
         case search = "Search"
         case clipboard = "Clipboard"
+        case snippets = "Snippets"
         case history = "History"
         case connections = "Connections"
         case database = "Database Administration"
@@ -30,6 +31,7 @@ struct SidebarMenu: View {
             case .bookmark: return "bookmark"
             case .search: return "magnifyingglass"
             case .clipboard: return "clipboard"
+            case .snippets: return "curlybraces"
             case .history: return "clock"
             case .connections: return "externaldrive"
             case .database: return "cylinder.split.1x2"
@@ -42,6 +44,7 @@ struct SidebarMenu: View {
             case .bookmark: return "bookmark.fill"
             case .search: return "magnifyingglass"
             case .clipboard: return "clipboard.fill"
+            case .snippets: return "curlybraces"
             case .history: return "clock.fill"
             case .connections: return "externaldrive.fill"
             case .database: return "cylinder.split.1x2.fill"
@@ -160,9 +163,7 @@ struct SidebarMenu: View {
         selectedConnectionID = connection.id
         selectedNavSection = .folder
 
-        Task {
-            await environmentState.connect(to: connection)
-        }
+        environmentState.connect(to: connection)
     }
 
     private func duplicateConnection(_ connection: SavedConnection, copyBookmarks: Bool) {

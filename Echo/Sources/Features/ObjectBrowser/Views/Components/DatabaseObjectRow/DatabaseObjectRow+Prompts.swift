@@ -2,7 +2,7 @@ import SwiftUI
 
 extension DatabaseObjectRow {
     internal func performDrop(includeIfExists: Bool) {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let objectName = object.fullName
         connectionStore.selectedConnectionID = session.connection.id
 
@@ -39,7 +39,7 @@ extension DatabaseObjectRow {
     }
 
     internal func performRename() {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let newName = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newName.isEmpty, newName != object.name else { return }
         let objectName = object.fullName
@@ -80,7 +80,7 @@ extension DatabaseObjectRow {
     }
 
     internal func performTruncate() {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let objectName = object.fullName
         connectionStore.selectedConnectionID = session.connection.id
 

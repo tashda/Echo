@@ -1,0 +1,82 @@
+import SwiftUI
+
+struct ConnectionDashboardView: View {
+    @Bindable var session: ConnectionSession
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: SpacingTokens.xl) {
+                ConnectionDashboardHeader(session: session)
+                ConnectionDashboardTools(session: session)
+                ConnectionDashboardDatabases(session: session)
+                ConnectionDashboardRecentQueries(session: session)
+                ConnectionDashboardDetails(session: session)
+            }
+            .frame(maxWidth: 480)
+            .padding(.horizontal, SpacingTokens.xl)
+            .padding(.vertical, SpacingTokens.xl2)
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Header
+
+struct ConnectionDashboardHeader: View {
+    @Bindable var session: ConnectionSession
+
+    var body: some View {
+        VStack(spacing: SpacingTokens.xs) {
+            connectionIcon
+            VStack(spacing: SpacingTokens.xxs) {
+                Text(session.connection.connectionName)
+                    .font(TypographyTokens.displayLarge.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.primary)
+
+                Text(serverSubtitle)
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var serverSubtitle: String {
+        var parts: [String] = []
+        parts.append(session.connection.host)
+        if let version = session.databaseStructure?.serverVersion
+            ?? session.connection.serverVersion {
+            parts.append(version)
+        }
+        return parts.joined(separator: " \u{00B7} ")
+    }
+
+    private var connectionIcon: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(session.connection.color.opacity(0.1))
+                .frame(width: 48, height: 48)
+            Image(session.connection.databaseType.iconName)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24, height: 24)
+                .foregroundStyle(session.connection.color)
+        }
+    }
+}
+
+// MARK: - Section Header
+
+struct DashboardSectionLabel: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(TypographyTokens.detail.weight(.medium))
+            .foregroundStyle(ColorTokens.Text.tertiary)
+            .textCase(.uppercase)
+    }
+}

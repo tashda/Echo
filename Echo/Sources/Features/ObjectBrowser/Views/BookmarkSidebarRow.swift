@@ -54,7 +54,7 @@ struct BookmarkRow: View {
     private var headerRow: some View {
         HStack(alignment: .center, spacing: SpacingTokens.xs) {
             if isRenaming {
-                TextField("Bookmark title", text: $renameText, onCommit: commitRename).textFieldStyle(.plain).font(TypographyTokens.subheadline.weight(.semibold)).foregroundStyle(ColorTokens.Text.primary).lineLimit(1).focused($renameFieldFocused).onAppear { renameText = currentTitleSeed; DispatchQueue.main.async { renameFieldFocused = true } }.onChange(of: renameFieldFocused) { _, f in if !f { commitRename() } }
+                TextField("Bookmark title", text: $renameText, onCommit: commitRename).textFieldStyle(.plain).font(TypographyTokens.subheadline.weight(.semibold)).foregroundStyle(ColorTokens.Text.primary).lineLimit(1).focused($renameFieldFocused).onAppear { renameText = currentTitleSeed; Task { renameFieldFocused = true } }.onChange(of: renameFieldFocused) { _, f in if !f { commitRename() } }
             } else { Text(bookmark.primaryLine).font(TypographyTokens.subheadline.weight(.semibold)).foregroundStyle(ColorTokens.Text.primary).lineLimit(1) }
             Spacer(minLength: 0); Text(bookmark.createdAt.formatted(date: .abbreviated, time: .shortened)).font(TypographyTokens.caption2).foregroundStyle(ColorTokens.Text.secondary).opacity(isRenaming ? 0 : 1)
             if !isRenaming { Button { toggleInfoPopover() } label: { Image(systemName: "info.circle").font(TypographyTokens.standard.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary) }.buttonStyle(.plain) }
@@ -79,8 +79,8 @@ struct BookmarkRow: View {
         }.padding(SpacingTokens.md)
     }
 
-    private var currentTitleSeed: String { bookmark.title?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? bookmark.title! : bookmark.primaryLine }
-    private func beginRenaming() { renameText = currentTitleSeed; isRenaming = true; activePopoverID = nil; DispatchQueue.main.async { renameFieldFocused = true } }
+    private var currentTitleSeed: String { bookmark.title?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? (bookmark.title ?? bookmark.primaryLine) : bookmark.primaryLine }
+    private func beginRenaming() { renameText = currentTitleSeed; isRenaming = true; activePopoverID = nil; Task { renameFieldFocused = true } }
     private func commitRename() { guard isRenaming else { return }; let t = renameText.trimmingCharacters(in: .whitespacesAndNewlines); let n = t.isEmpty ? nil : t; if n != bookmark.title { onRename(n) }; finishRenaming() }
     private func cancelRenaming() { guard isRenaming else { return }; finishRenaming() }
     private func finishRenaming() { isRenaming = false; renameFieldFocused = false }

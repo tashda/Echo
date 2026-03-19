@@ -13,8 +13,8 @@ struct DatabaseObjectRow: View, Equatable {
 
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(ConnectionStore.self) internal var connectionStore
-    @EnvironmentObject internal var environmentState: EnvironmentState
-    @EnvironmentObject internal var viewModel: ObjectBrowserSidebarViewModel
+    @Environment(EnvironmentState.self) internal var environmentState
+    @Environment(ObjectBrowserSidebarViewModel.self) internal var viewModel
 
     @State internal var hoveredColumnID: String?
     @State internal var showDropAlert = false
@@ -22,6 +22,7 @@ struct DatabaseObjectRow: View, Equatable {
     @State internal var showRenameAlert = false
     @State internal var renameText = ""
     @State internal var pendingDropIncludeIfExists = false
+    @State internal var showBulkImportSheet = false
 
     private var canExpand: Bool {
         showColumns && !object.columns.isEmpty
@@ -35,16 +36,16 @@ struct DatabaseObjectRow: View, Equatable {
         switch object.type {
         case .table: return "tablecells"
         case .view: return "eye"
-        case .materializedView: return "eye.fill"
+        case .materializedView: return "eye"
         case .function: return "function"
-        case .trigger: return "bolt.fill"
+        case .trigger: return "bolt"
         case .procedure: return "terminal"
-        case .extension: return "puzzlepiece.fill"
+        case .extension: return "puzzlepiece.extension"
         }
     }
 
     private var iconColor: Color {
-        ExplorerSidebarPalette.objectGroupIconColor(for: object.type, colored: projectStore.globalSettings.sidebarColoredIcons)
+        ExplorerSidebarPalette.objectGroupIconColor(for: object.type, colored: projectStore.globalSettings.sidebarIconColorMode == .colorful)
     }
 
     var body: some View {
@@ -76,6 +77,19 @@ struct DatabaseObjectRow: View, Equatable {
         } message: {
             Text("Enter a new name for the \(objectTypeDisplayName().lowercased()) \(object.fullName).")
         }
+        .sheet(isPresented: $showBulkImportSheet) {
+            if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+                BulkImportSheet(
+                    viewModel: BulkImportViewModel(
+                        session: session.session,
+                        connectionSession: session,
+                        schema: object.schema.isEmpty ? "dbo" : object.schema,
+                        tableName: object.name
+                    ),
+                    onDismiss: { showBulkImportSheet = false }
+                )
+            }
+        }
     }
 
     static func == (lhs: DatabaseObjectRow, rhs: DatabaseObjectRow) -> Bool {
@@ -91,69 +105,32 @@ struct DatabaseObjectRow: View, Equatable {
         viewModel.selectedObjectID == object.id
     }
 
+    private var expandedBinding: Binding<Bool>? {
+        guard canExpand else { return nil }
+        return $isExpanded
+    }
+
+    private var triggerSubtitle: String? {
+        guard object.type == .trigger, let table = object.triggerTable, !table.isEmpty else { return nil }
+        return "on \(table)"
+    }
+
     private var rowContent: some View {
-        ExplorerSidebarRowChrome(isSelected: isSelected, accentColor: accentColor, style: .plain) {
-            HStack(alignment: .center, spacing: SidebarRowConstants.iconTextSpacing) {
-                if canExpand {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(SidebarRowConstants.chevronFont)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                        .frame(width: SidebarRowConstants.chevronWidth)
-                } else {
-                    Spacer().frame(width: SidebarRowConstants.chevronWidth)
-                }
-
-                Image(systemName: iconName)
-                    .font(SidebarRowConstants.iconFont)
-                    .foregroundStyle(iconColor)
-                    .frame(width: SidebarRowConstants.iconFrame)
-
-                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                    Text(displayName)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(ColorTokens.Text.primary)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if object.type == .trigger, let table = object.triggerTable, !table.isEmpty {
-                        Button {
-                            onTriggerTableTap?(table)
-                        } label: {
-                            HStack(spacing: SpacingTokens.xxxs) {
-                                Text("on")
-                                    .font(TypographyTokens.label)
-                                    .foregroundStyle(ColorTokens.Text.tertiary)
-                                Text(table)
-                                    .font(TypographyTokens.label)
-                                    .foregroundStyle(ColorTokens.Text.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if let comment = object.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
-                        Text(comment)
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                            .lineLimit(3)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .help(comment)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .contentShape(Rectangle())
-        }
-        .onTapGesture {
+        Button {
             viewModel.selectedObjectID = object.id
             guard canExpand else { return }
             isExpanded.toggle()
+        } label: {
+            SidebarRow(
+                depth: 3,
+                icon: .system(iconName),
+                label: displayName,
+                subtitle: triggerSubtitle,
+                isExpanded: expandedBinding,
+                isSelected: isSelected,
+                iconColor: iconColor,
+                accentColor: accentColor
+            )
         }
         .contextMenu { contextMenuContent }
     }

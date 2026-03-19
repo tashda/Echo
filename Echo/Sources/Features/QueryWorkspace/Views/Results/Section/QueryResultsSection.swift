@@ -2,17 +2,17 @@ import SwiftUI
 import Combine
 
 struct QueryResultsSection: View {
-    @ObservedObject var query: QueryEditorState
+    @Bindable var query: QueryEditorState
     let connection: SavedConnection
     let activeDatabaseName: String?
     let gridState: QueryResultsGridState
     let isResizingResults: Bool
+    @Bindable var panelState: BottomPanelState
 #if os(macOS)
     let onForeignKeyEvent: (QueryResultsTableView.ForeignKeyEvent) -> Void
     let onJsonEvent: (QueryResultsTableView.JsonCellEvent) -> Void
     let onCellInspect: ((CellValueInspectorContent) -> Void)?
 #endif
-    @State internal var selectedTab: ResultTab = .results
     @State internal var sortCriteria: SortCriteria?
     @State internal var highlightedColumnIndex: Int?
     @State internal var rowOrder: [Int] = []
@@ -21,7 +21,7 @@ struct QueryResultsSection: View {
     @State internal var jsonInspectorContext: JsonInspectorContext?
 #endif
 
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) private var appearanceStore
     @Environment(ProjectStore.self) internal var projectStore
 
     internal let statusBarHeight: CGFloat = 24
@@ -33,11 +33,22 @@ struct QueryResultsSection: View {
     internal let timeChipMinWidth: CGFloat = 112
 #endif
 
+    internal var selectedTab: ResultTab {
+        switch panelState.selectedSegment {
+        case .results: return .results
+        case .messages: return .messages
+        case .executionPlan: return .executionPlan
+        case .jsonInspector: return .jsonInspector
+        case .liveData: return .results
+        }
+    }
+
     enum ResultTab: Hashable {
         case results
         case messages
 #if os(macOS)
         case jsonInspector
+        case executionPlan
 #endif
     }
 
@@ -45,8 +56,9 @@ struct QueryResultsSection: View {
         VStack(spacing: 0) {
             if query.hasExecutedAtLeastOnce || query.isExecuting || query.errorMessage != nil {
                 content
+            } else {
+                noResultsPlaceholder
             }
-            statusBar
         }
         .accessibilityIdentifier("query-results-section")
         .background(ColorTokens.Background.primary)
@@ -55,7 +67,7 @@ struct QueryResultsSection: View {
         }
         .onChange(of: query.errorMessage) { _, error in
             if error != nil {
-                selectedTab = .messages
+                panelState.selectedSegment = .messages
             }
         }
         .onChange(of: query.isExecuting) { _, executing in
@@ -81,23 +93,4 @@ struct QueryResultsSection: View {
         return sort
     }
 
-    internal var shouldShowStatusBar: Bool {
-        true
-    }
-
-#if !os(macOS)
-    private var statusBar: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            Text(connectionChipText)
-            Spacer()
-            Text("\(query.rowProgress.displayCount) rows")
-            let elapsed = query.isExecuting ? query.currentExecutionTime : (query.lastExecutionTime ?? 0)
-            Text(formattedDuration(Int(elapsed.rounded())))
-            Text(statusBubbleConfiguration().label)
-        }
-        .padding(.horizontal, SpacingTokens.sm)
-        .padding(.vertical, SpacingTokens.xs)
-        .background(ColorTokens.Background.primary)
-    }
-#endif
 }

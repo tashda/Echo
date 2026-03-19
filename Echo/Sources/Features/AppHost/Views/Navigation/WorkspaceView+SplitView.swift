@@ -73,13 +73,15 @@ struct InspectorSplitViewConfigurator: NSViewRepresentable {
             // but later attempts (after layout settles) will stick.
             let delays: [Double] = [0.0, 0.05, 0.1, 0.15, 0.25, 0.4, 0.6]
             for delay in delays {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                Task { [weak self] in
+                    if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
                     self?.performSetPosition(target: clampedTarget, generation: generation)
                 }
             }
 
             // Clear cooldown after all attempts complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(1.0))
                 guard let self, self.resizeGeneration == generation else { return }
                 self.resizeCooldownUntil = .now
             }
@@ -112,7 +114,7 @@ struct InspectorSplitViewConfigurator: NSViewRepresentable {
         func scheduleSyncBack() {
             guard !syncScheduled else { return }
             syncScheduled = true
-            DispatchQueue.main.async { [weak self] in
+            Task { [weak self] in
                 self?.syncScheduled = false
                 self?.performSyncBack()
             }
@@ -170,71 +172,6 @@ struct InspectorSplitViewConfigurator: NSViewRepresentable {
             coordinator?.scheduleSyncBack()
         }
 
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    }
-}
-
-struct SidebarSplitViewObserver: NSViewRepresentable {
-    @Binding var width: CGFloat
-    func makeCoordinator() -> Coordinator { Coordinator(width: $width) }
-    func makeNSView(context: Context) -> ObserverView {
-        let view = ObserverView(); view.coordinator = context.coordinator
-        context.coordinator.observedView = view
-        return view
-    }
-    func updateNSView(_ nsView: ObserverView, context: Context) {
-        context.coordinator.width = $width; context.coordinator.observedView = nsView
-    }
-
-    @MainActor
-    final class Coordinator: NSObject {
-        var width: Binding<CGFloat>
-        weak var observedView: NSView?
-        private var syncScheduled = false
-        init(width: Binding<CGFloat>) { self.width = width }
-        func sidebarDidDetach() { if abs(width.wrappedValue) > 0.5 { width.wrappedValue = 0 } }
-
-        func scheduleSyncBack() {
-            guard !syncScheduled else { return }
-            syncScheduled = true
-            DispatchQueue.main.async { [weak self] in
-                self?.syncScheduled = false
-                self?.performSyncBack()
-            }
-        }
-
-        private func performSyncBack() {
-            guard let view = observedView,
-                  let (_, splitView, index) = locateSplitViewInfo(from: view),
-                  let sidebarView = splitView.subviews[safe: index] else { return }
-            let measuredWidth = max(0, sidebarView.frame.width)
-            if abs(width.wrappedValue - measuredWidth) > 0.5 { width.wrappedValue = measuredWidth }
-        }
-
-        private func locateSplitViewInfo(from view: NSView) -> (NSSplitViewController, NSSplitView, Int)? {
-            var responder: NSResponder? = view
-            while let current = responder {
-                if let controller = current as? NSSplitViewController {
-                    let splitView = controller.splitView
-                    for (index, item) in controller.splitViewItems.enumerated() {
-                        if item.viewController.view.isDescendant(of: view) || view.isDescendant(of: item.viewController.view) {
-                            return (controller, splitView, index)
-                        }
-                    }
-                }
-                responder = current.nextResponder
-            }
-            return nil
-        }
-    }
-
-    final class ObserverView: NSView {
-        weak var coordinator: Coordinator?
-        override func layout() { super.layout(); coordinator?.scheduleSyncBack() }
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            if window == nil { coordinator?.sidebarDidDetach() } else { coordinator?.scheduleSyncBack() }
-        }
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
     }
 }

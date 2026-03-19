@@ -35,10 +35,11 @@ extension DatabasesSettingsView {
                     Task { try? await projectStore.updateGlobalSettings(updated) }
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
                 .disabled(sharedExecutionSettingsAreDefault)
             }
-            .padding(.top, SpacingTokens.xxs2)
         } header: {
+
             Text("Execution & Ingestion")
         } footer: {
             Text("These defaults shape how Echo ingests large result sets before any engine-specific overrides are applied.")

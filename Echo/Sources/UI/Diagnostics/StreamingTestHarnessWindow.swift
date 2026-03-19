@@ -7,11 +7,11 @@ struct StreamingTestHarnessWindow: Scene {
     var body: some Scene {
         Window("Streaming Test Harness", id: Self.sceneID) {
             StreamingTestHarnessView()
-                .environment(AppCoordinator.shared.projectStore)
-                .environment(AppCoordinator.shared.connectionStore)
-                .environment(AppCoordinator.shared.navigationStore)
-                .environmentObject(AppCoordinator.shared.environmentState)
-                .environmentObject(AppCoordinator.shared.appearanceStore)
+                .environment(AppDirector.shared.projectStore)
+                .environment(AppDirector.shared.connectionStore)
+                .environment(AppDirector.shared.navigationStore)
+                .environment(AppDirector.shared.environmentState)
+                .environment(AppDirector.shared.appearanceStore)
         }
         .defaultSize(width: 840, height: 620)
         .restorationBehavior(.disabled)
@@ -24,9 +24,9 @@ struct StreamingTestHarnessView: View {
     @Environment(ConnectionStore.self) internal var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
     
-    @EnvironmentObject internal var environmentState: EnvironmentState
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
-    @ObservedObject private var coordinator = AppCoordinator.shared
+    @Environment(EnvironmentState.self) internal var environmentState
+    @Environment(AppearanceStore.self) internal var appearanceStore
+    @Bindable private var coordinator = AppDirector.shared
 
     @State internal var selectedSessionID: UUID?
     @State internal var sqlInput: String = "SELECT current_timestamp;"
@@ -44,7 +44,7 @@ struct StreamingTestHarnessView: View {
 
     internal var availableSessions: [ConnectionSession] {
         guard coordinator.isInitialized else { return [] }
-        return environmentState.sessionCoordinator.sortedSessions
+        return environmentState.sessionGroup.sortedSessions
     }
 
     internal var selectedSession: ConnectionSession? {
@@ -110,4 +110,20 @@ private final class StreamingTestHarnessDatabaseSession: DatabaseSession, @unche
     func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String { "-- preview" }
     func executeUpdate(_ sql: String) async throws -> Int { 0 }
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails { TableStructureDetails() }
+    func renameTable(schema: String?, oldName: String, newName: String) async throws {}
+    func dropTable(schema: String?, name: String, ifExists: Bool) async throws {}
+    func truncateTable(schema: String?, name: String) async throws {}
+    func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Rebuild", messages: [], succeeded: true)
+    }
+    func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Rebuild", messages: [], succeeded: true)
+    }
+    func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {}
+    func analyzeTable(schema: String, table: String) async throws {}
+    func reindexTable(schema: String, table: String) async throws {}
+    func sessionForDatabase(_ database: String) async throws -> DatabaseSession { self }
+    func makeActivityMonitor() throws -> any DatabaseActivityMonitoring { fatalError("Not supported in test harness") }
+    func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo] { [] }
+    func isSuperuser() async throws -> Bool { false }
 }

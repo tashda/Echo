@@ -11,19 +11,17 @@ protocol TabStoreDelegate: AnyObject {
 
 /// A modular store that manages workspace tabs.
 ///
-/// `TabCoordinator` is an `ObservableObject` whose `@Published` changes are
-/// invisible to views that observe `TabStore` via `@Observable` / `@Environment`.
-/// To bridge the two observation systems, every piece of state that views depend
-/// on is stored here as a plain stored property and kept in sync through the
-/// `TabCoordinatorDelegate` callbacks.
+/// `TabDirector` is `@Observable` and manages the underlying tab array. `TabStore`
+/// mirrors `TabDirector`'s state via `TabDirectorDelegate` callbacks so that views
+/// observing `TabStore` through `@Environment` see changes immediately.
 @Observable @MainActor
 final class TabStore {
     // MARK: - State
 
-    var tabCoordinator = TabCoordinator()
+    var tabDirector = TabDirector()
     weak var delegate: TabStoreDelegate?
 
-    /// Stored properties mirroring `TabCoordinator` so `@Observable` can track them.
+    /// Stored properties mirroring `TabDirector` so `@Observable` can track them.
     private(set) var tabs: [WorkspaceTab] = []
     var hasTabs: Bool = false
     private var _activeTabId: UUID?
@@ -31,7 +29,7 @@ final class TabStore {
     // MARK: - Initialization
 
     init() {
-        tabCoordinator.delegate = self
+        tabDirector.delegate = self
     }
 
     // MARK: - Public API
@@ -41,7 +39,7 @@ final class TabStore {
         set {
             guard _activeTabId != newValue else { return }
             _activeTabId = newValue
-            tabCoordinator.activeTabId = newValue
+            tabDirector.activeTabId = newValue
         }
     }
 
@@ -55,90 +53,98 @@ final class TabStore {
     }
 
     func addTab(_ tab: WorkspaceTab) {
-        tabCoordinator.addTab(tab)
+        tabDirector.addTab(tab)
     }
 
     func insertTab(_ tab: WorkspaceTab, at index: Int, activate: Bool = true) {
-        tabCoordinator.insertTab(tab, at: index, activate: activate)
+        tabDirector.insertTab(tab, at: index, activate: activate)
     }
 
     func selectTab(_ tab: WorkspaceTab) {
-        tabCoordinator.activeTabId = tab.id
+        tabDirector.activeTabId = tab.id
     }
 
     func closeTab(id: UUID) {
-        tabCoordinator.closeTab(id: id)
+        tabDirector.closeTab(id: id)
     }
 
     func moveTab(id: UUID, to index: Int) {
-        tabCoordinator.moveTab(id: id, to: index)
+        tabDirector.moveTab(id: id, to: index)
     }
 
     func togglePin(for id: UUID) {
-        tabCoordinator.togglePin(for: id)
+        tabDirector.togglePin(for: id)
     }
 
     func closeOtherTabs(keeping id: UUID) {
-        tabCoordinator.closeOtherTabs(keeping: id)
+        tabDirector.closeOtherTabs(keeping: id)
     }
 
     func closeTabsLeft(of id: UUID) {
-        tabCoordinator.closeTabsLeft(of: id)
+        tabDirector.closeTabsLeft(of: id)
     }
 
     func closeTabsRight(of id: UUID) {
-        tabCoordinator.closeTabsRight(of: id)
+        tabDirector.closeTabsRight(of: id)
+    }
+
+    func closeAllTabs() {
+        tabDirector.closeAllTabs()
     }
 
     func index(of id: UUID) -> Int? {
         tabs.firstIndex(where: { $0.id == id })
     }
 
+    func clearActiveTab() {
+        activeTabId = nil
+    }
+
     func activateNextTab() {
-        tabCoordinator.activateNextTab()
+        tabDirector.activateNextTab()
     }
 
     func activatePreviousTab() {
-        tabCoordinator.activatePreviousTab()
+        tabDirector.activatePreviousTab()
     }
 
     func reopenLastClosedTab(activate: Bool) -> WorkspaceTab? {
-        tabCoordinator.reopenLastClosedTab(activate: activate)
+        tabDirector.reopenLastClosedTab(activate: activate)
     }
 
     // MARK: - Internal Sync
 
     private func syncTabs() {
-        tabs = tabCoordinator.tabs
+        tabs = tabDirector.tabs
         hasTabs = !tabs.isEmpty
     }
 }
 
-// MARK: - TabCoordinatorDelegate
+// MARK: - TabDirectorDelegate
 
-extension TabStore: TabCoordinatorDelegate {
-    func tabCoordinator(_ manager: TabCoordinator, didAdd tab: WorkspaceTab) {
+extension TabStore: TabDirectorDelegate {
+    func tabDirector(_ manager: TabDirector, didAdd tab: WorkspaceTab) {
         syncTabs()
         delegate?.tabStore(self, didAdd: tab)
     }
 
-    func tabCoordinator(_ manager: TabCoordinator, shouldClose tab: WorkspaceTab) -> Bool {
+    func tabDirector(_ manager: TabDirector, shouldClose tab: WorkspaceTab) -> Bool {
         true
     }
 
-    func tabCoordinator(_ manager: TabCoordinator, didRemoveTabID tabID: UUID) {
+    func tabDirector(_ manager: TabDirector, didRemoveTabID tabID: UUID) {
         syncTabs()
         delegate?.tabStore(self, didRemoveTabID: tabID)
     }
 
-    func tabCoordinator(_ manager: TabCoordinator, didSetActiveTabID tabID: UUID?) {
+    func tabDirector(_ manager: TabDirector, didSetActiveTabID tabID: UUID?) {
         if _activeTabId != tabID {
             _activeTabId = tabID
         }
         delegate?.tabStore(self, didSetActiveTabID: tabID)
     }
 
-    func tabCoordinatorDidReorderTabs(_ manager: TabCoordinator) {
+    func tabDirectorDidReorderTabs(_ manager: TabDirector) {
         syncTabs()
         delegate?.tabStoreDidReorderTabs(self)
     }

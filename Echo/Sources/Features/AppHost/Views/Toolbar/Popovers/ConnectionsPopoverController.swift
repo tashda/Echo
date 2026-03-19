@@ -22,7 +22,7 @@ struct ConnectionsPopoverContent: View {
                             icon: iconImage(for: conn),
                             displayName: displayName(for: conn)
                         ) {
-                            Task { await environmentState.connect(to: conn) }
+                            environmentState.connect(to: conn)
                             dismiss()
                         }
                     }
@@ -38,7 +38,7 @@ struct ConnectionsPopoverContent: View {
                             icon: iconImage(for: conn),
                             displayName: displayName(for: conn)
                         ) {
-                            Task { await environmentState.connect(to: conn) }
+                            environmentState.connect(to: conn)
                             dismiss()
                         }
                     }
@@ -55,7 +55,7 @@ struct ConnectionsPopoverContent: View {
                             icon: iconImage(for: conn),
                             displayName: displayName(for: conn)
                         ) {
-                            Task { await environmentState.connect(to: conn) }
+                            environmentState.connect(to: conn)
                             dismiss()
                         }
                     }
@@ -68,7 +68,7 @@ struct ConnectionsPopoverContent: View {
                     dismiss()
                 }
                 PopoverActionRow(title: "Quick Connect\u{2026}") {
-                    AppCoordinator.shared.appState.showSheet(.quickConnect)
+                    AppDirector.shared.appState.showSheet(.quickConnect)
                     dismiss()
                 }
             }
@@ -80,7 +80,7 @@ struct ConnectionsPopoverContent: View {
     // MARK: - Data
 
     private var projectID: UUID? {
-        AppCoordinator.shared.projectStore.selectedProject?.id
+        AppDirector.shared.projectStore.selectedProject?.id
     }
 
     private var recentConnections: [SavedConnection] {

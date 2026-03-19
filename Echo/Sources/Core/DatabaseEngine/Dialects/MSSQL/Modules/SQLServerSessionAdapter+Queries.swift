@@ -4,8 +4,27 @@ import Logging
 
 extension SQLServerSessionAdapter {
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
-        let rows: [SQLServerRow] = try await client.query(sql)
-        return convertSQLServerRowsToEcho(rows)
+        let result = try await client.withConnection { connection in
+            let execResult = try await connection.execute(sql)
+            let classification = connection.decodeLastSensitivityClassification()
+            return (execResult: execResult, classification: classification)
+        }
+        var queryResult = convertSQLServerRowsToEcho(result.execResult.rows)
+        if let raw = result.classification {
+            queryResult.dataClassification = extractClassification(from: raw, columnCount: queryResult.columns.count)
+        }
+        queryResult.serverMessages = result.execResult.messages
+            .filter { $0.kind == .info }
+            .map { msg in
+                ServerMessage(
+                    kind: .info,
+                    number: msg.number,
+                    message: msg.message,
+                    state: msg.state,
+                    severity: msg.severity
+                )
+            }
+        return queryResult
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
@@ -66,12 +85,12 @@ extension SQLServerSessionAdapter {
         let batchEnqueueSize = 512
 
         let bridgedHandler: QueryProgressHandler = { update in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 progressHandler(update)
             }
         }
 
-        let (_, stream) = try await client.streamQuery(sql)
+        let (connection, stream) = try await client.streamQuery(sql)
 
         // Track which result set we're on (0 = primary, 1+ = additional)
         var resultSetIndex = -1
@@ -92,6 +111,7 @@ extension SQLServerSessionAdapter {
         var currentAdditionalRows: [[String?]] = []
 
         var errorMessage: SQLServerStreamMessage?
+        var infoMessages: [SQLServerStreamMessage] = []
 
         for try await event in stream {
             if Task.isCancelled {
@@ -177,6 +197,8 @@ extension SQLServerSessionAdapter {
             case .message(let msg):
                 if msg.kind == .error {
                     errorMessage = msg
+                } else {
+                    infoMessages.append(msg)
                 }
 
             case .done:
@@ -204,12 +226,15 @@ extension SQLServerSessionAdapter {
         if let worker {
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                 worker.finish(totalRowCount: primaryRowCount) {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         continuation.resume()
                     }
                 }
             }
         }
+
+        // Extract sensitivity classification from the connection after streaming
+        let classification = extractClassification(from: connection, columnCount: primaryColumns.count)
 
         let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
         logger.debug("[MSSQLStream] completed sets=\(resultSetIndex + 1) primaryRows=\(primaryRowCount) additionalSets=\(additionalResults.count) elapsed=\(String(format: "%.3f", totalElapsed))s")
@@ -218,12 +243,53 @@ extension SQLServerSessionAdapter {
             ? [ColumnInfo(name: "result", dataType: "text")]
             : primaryColumns
 
+        let serverMessages = infoMessages.map { msg in
+            ServerMessage(
+                kind: .info,
+                number: msg.number,
+                message: msg.message,
+                state: msg.state,
+                severity: msg.severity
+            )
+        }
+
         return QueryResultSet(
             columns: resolvedColumns,
             rows: primaryPreviewRows,
             totalRowCount: primaryRowCount,
-            additionalResults: additionalResults
+            additionalResults: additionalResults,
+            dataClassification: classification,
+            serverMessages: serverMessages
         )
+    }
+
+    // MARK: - Classification Extraction
+
+    private func extractClassification(
+        from connection: SQLServerConnection,
+        columnCount: Int
+    ) -> DataClassification? {
+        guard let raw = connection.decodeLastSensitivityClassification() else { return nil }
+        return extractClassification(from: raw, columnCount: columnCount)
+    }
+
+    private func extractClassification(
+        from raw: SQLServerSensitivityClassification,
+        columnCount: Int
+    ) -> DataClassification? {
+        let labels = raw.labels.map { SensitivityLabel(name: $0.name, id: $0.id) }
+        let infoTypes = raw.informationTypes.map { InformationType(name: $0.name, id: $0.id) }
+        var columnMap: [Int: ColumnSensitivity] = [:]
+        for (index, colSensitivity) in raw.columns.enumerated() where index < columnCount {
+            guard let prop = colSensitivity.properties.first else { continue }
+            let label = prop.label.map { SensitivityLabel(name: $0.name, id: $0.id) }
+            let infoType = prop.informationType.map { InformationType(name: $0.name, id: $0.id) }
+            let rank = prop.rank.map { SensitivityRank(rawValue: $0.rawValue) ?? .notDefined }
+            columnMap[index] = ColumnSensitivity(label: label, informationType: infoType, rank: rank)
+        }
+        guard !columnMap.isEmpty else { return nil }
+        let overallRank = raw.rank.map { SensitivityRank(rawValue: $0.rawValue) ?? .notDefined }
+        return DataClassification(labels: labels, informationTypes: infoTypes, columns: columnMap, overallRank: overallRank)
     }
 
     // MARK: - Non-Streaming Conversion

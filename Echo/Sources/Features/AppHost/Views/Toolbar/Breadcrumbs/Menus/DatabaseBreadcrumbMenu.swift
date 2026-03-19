@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DatabaseBreadcrumbMenu: View {
     @Environment(ConnectionStore.self) private var connectionStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     
     @State private var searchText = ""
     @State private var availableDatabases: [DatabaseInfo] = []
@@ -119,12 +119,12 @@ struct DatabaseBreadcrumbMenu: View {
 
     private func isSelected(_ database: DatabaseInfo) -> Bool {
         guard let connectionID else { return false }
-        return environmentState.sessionCoordinator.sessionForConnection(connectionID)?.selectedDatabaseName == database.name
+        return environmentState.sessionGroup.sessionForConnection(connectionID)?.selectedDatabaseName == database.name
     }
 
     private func selectDatabase(_ database: DatabaseInfo) {
         guard let connectionID,
-              let session = environmentState.sessionCoordinator.sessionForConnection(connectionID) else { return }
+              let session = environmentState.sessionGroup.sessionForConnection(connectionID) else { return }
         
         Task {
             await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
@@ -133,7 +133,7 @@ struct DatabaseBreadcrumbMenu: View {
 
     private func loadDatabases() async {
         guard let connectionID,
-              let session = environmentState.sessionCoordinator.sessionForConnection(connectionID) else { return }
+              let session = environmentState.sessionGroup.sessionForConnection(connectionID) else { return }
 
         if let structure = session.databaseStructure {
             self.availableDatabases = structure.databases

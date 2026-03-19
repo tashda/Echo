@@ -13,7 +13,7 @@ struct ExplorerSidebarFocusResetter: NSViewRepresentable {
 
     func updateNSView(_ nsView: FocusResetView, context: Context) {
         nsView.onDismiss = { [binding = $isSearchFieldFocused] in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard binding.wrappedValue else { return }
                 withAnimation(.easeInOut(duration: 0.2)) {
                     binding.wrappedValue = false

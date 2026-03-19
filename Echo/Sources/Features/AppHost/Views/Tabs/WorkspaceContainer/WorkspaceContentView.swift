@@ -5,11 +5,11 @@ import AppKit
 #endif
 
 struct WorkspaceContentView: View {
-    @ObservedObject var tab: WorkspaceTab
+    @Bindable var tab: WorkspaceTab
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
     let gridStateProvider: () -> QueryResultsGridState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     var body: some View {
         ZStack {
@@ -33,10 +33,25 @@ struct WorkspaceContentView: View {
                     PostgresExtensionStructureView(tab: tab, viewModel: extStructure)
                         .background(ColorTokens.Background.primary)
                 } else if let extensionsManager = tab.extensionsManager {
-                    PostgresExtensionsManagerView(tab: tab, viewModel: extensionsManager)
+                    PostgresExtensionsView(tab: tab, viewModel: extensionsManager)
                         .background(ColorTokens.Background.primary)
                 } else if let activityMonitor = tab.activityMonitor {
                     ActivityMonitorView(viewModel: activityMonitor)
+                        .background(ColorTokens.Background.primary)
+                } else if tab.maintenance != nil {
+                    MaintenanceView(tab: tab)
+                        .background(ColorTokens.Background.primary)
+                } else if tab.mssqlMaintenance != nil {
+                    MaintenanceView(tab: tab)
+                        .background(ColorTokens.Background.primary)
+                } else if let queryStoreVM = tab.queryStoreVM {
+                    QueryStoreView(viewModel: queryStoreVM)
+                        .background(ColorTokens.Background.primary)
+                } else if let xeVM = tab.extendedEventsVM {
+                    ExtendedEventsView(viewModel: xeVM, panelState: tab.panelState)
+                        .background(ColorTokens.Background.primary)
+                } else if let agVM = tab.availabilityGroupsVM {
+                    AvailabilityGroupsView(viewModel: agVM)
                         .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(

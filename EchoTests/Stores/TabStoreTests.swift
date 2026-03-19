@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class TabStoreTests: XCTestCase {
     private var store: TabStore!
-    private var spoolManager: ResultSpoolCoordinator!
+    private var spoolManager: ResultSpooler!
     private var mockSession: MockDatabaseSession!
     private var connection: SavedConnection!
 
@@ -15,7 +15,7 @@ final class TabStoreTests: XCTestCase {
             .appendingPathComponent("TabStoreTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
         let config = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: tempRoot)
-        spoolManager = ResultSpoolCoordinator(configuration: config)
+        spoolManager = ResultSpooler(configuration: config)
         mockSession = MockDatabaseSession()
         connection = TestFixtures.savedConnection()
     }
@@ -95,7 +95,7 @@ final class TabStoreTests: XCTestCase {
         XCTAssertEqual(store.tabs.count, 0)
 
         let reopened = store.reopenLastClosedTab(activate: true)
-        // May return nil depending on TabCoordinator implementation — just ensure no crash
+        // May return nil depending on TabDirector implementation — just ensure no crash
         if let reopened {
             XCTAssertTrue(store.tabs.contains(where: { $0.id == reopened.id }))
         }

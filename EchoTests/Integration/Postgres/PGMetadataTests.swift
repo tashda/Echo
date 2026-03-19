@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL metadata retrieval through Echo's DatabaseSession layer.
@@ -7,45 +8,58 @@ final class PGMetadataTests: PostgresDockerTestCase {
     // MARK: - Table Schema
 
     func testGetTableSchema() async throws {
-        try await withTempTable(
-            columns: "id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, email TEXT, age INTEGER"
-        ) { tableName in
-            let columns = try await session.getTableSchema(tableName, schemaName: "public")
-            XCTAssertEqual(columns.count, 4)
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .varchar(name: "name", length: 100, nullable: false),
+            .text(name: "email"),
+            .integer(name: "age")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let names = columns.map(\.name)
-            XCTAssertTrue(names.contains("id"))
-            XCTAssertTrue(names.contains("name"))
-            XCTAssertTrue(names.contains("email"))
-            XCTAssertTrue(names.contains("age"))
-        }
+        let columns = try await session.getTableSchema(tableName, schemaName: "public")
+        XCTAssertEqual(columns.count, 4)
+
+        let names = columns.map(\.name)
+        XCTAssertTrue(names.contains("id"))
+        XCTAssertTrue(names.contains("name"))
+        XCTAssertTrue(names.contains("email"))
+        XCTAssertTrue(names.contains("age"))
     }
 
     func testGetTableSchemaIncludesDataTypes() async throws {
-        try await withTempTable(
-            columns: "id INTEGER, amount NUMERIC(10,2), created_at TIMESTAMPTZ"
-        ) { tableName in
-            let columns = try await session.getTableSchema(tableName, schemaName: "public")
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .integer(name: "id"),
+            PostgresColumnDefinition(name: "amount", dataType: "NUMERIC(10,2)"),
+            .timestampWithTimeZone(name: "created_at")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            for col in columns {
-                XCTAssertFalse(col.dataType.isEmpty, "Column \(col.name) should have a data type")
-            }
+        let columns = try await session.getTableSchema(tableName, schemaName: "public")
+
+        for col in columns {
+            XCTAssertFalse(col.dataType.isEmpty, "Column \(col.name) should have a data type")
         }
     }
 
     func testGetTableSchemaReportsNullability() async throws {
-        try await withTempTable(
-            columns: "id SERIAL PRIMARY KEY, required_col TEXT NOT NULL, optional_col TEXT"
-        ) { tableName in
-            let columns = try await session.getTableSchema(tableName, schemaName: "public")
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "required_col", nullable: false),
+            .text(name: "optional_col")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let required = columns.first { $0.name == "required_col" }
-            let optional = columns.first { $0.name == "optional_col" }
-            XCTAssertNotNil(required)
-            XCTAssertNotNil(optional)
-            XCTAssertFalse(required?.isNullable ?? true, "required_col should not be nullable")
-            XCTAssertTrue(optional?.isNullable ?? false, "optional_col should be nullable")
-        }
+        let columns = try await session.getTableSchema(tableName, schemaName: "public")
+
+        let required = columns.first { $0.name == "required_col" }
+        let optional = columns.first { $0.name == "optional_col" }
+        XCTAssertNotNil(required)
+        XCTAssertNotNil(optional)
+        XCTAssertFalse(required?.isNullable ?? true, "required_col should not be nullable")
+        XCTAssertTrue(optional?.isNullable ?? false, "optional_col should be nullable")
     }
 
     func testGetTableSchemaInCustomSchema() async throws {
@@ -67,30 +81,37 @@ final class PGMetadataTests: PostgresDockerTestCase {
     // MARK: - Table Structure Details
 
     func testGetTableStructureDetailsColumns() async throws {
-        try await withTempTable(
-            columns: "id SERIAL NOT NULL, name VARCHAR(100), value NUMERIC(10,2) DEFAULT 0"
-        ) { tableName in
-            let details = try await session.getTableStructureDetails(
-                schema: "public", table: tableName
-            )
-            XCTAssertGreaterThanOrEqual(details.columns.count, 3)
-            IntegrationTestHelpers.assertHasStructureColumn(details, named: "id")
-            IntegrationTestHelpers.assertHasStructureColumn(details, named: "name")
-            IntegrationTestHelpers.assertHasStructureColumn(details, named: "value")
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id"),
+            .varchar(name: "name", length: 100),
+            .decimal(name: "value", precision: 10, scale: 2)
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
+
+        let details = try await session.getTableStructureDetails(
+            schema: "public", table: tableName
+        )
+        XCTAssertGreaterThanOrEqual(details.columns.count, 3)
+        IntegrationTestHelpers.assertHasStructureColumn(details, named: "id")
+        IntegrationTestHelpers.assertHasStructureColumn(details, named: "name")
+        IntegrationTestHelpers.assertHasStructureColumn(details, named: "value")
     }
 
     func testGetTableStructureDetailsPrimaryKey() async throws {
-        try await withTempTable(
-            columns: "id SERIAL PRIMARY KEY, name TEXT"
-        ) { tableName in
-            let details = try await session.getTableStructureDetails(
-                schema: "public", table: tableName
-            )
-            XCTAssertNotNil(details.primaryKey, "Should detect primary key")
-            if let pk = details.primaryKey {
-                XCTAssertTrue(pk.columns.contains("id"))
-            }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
+
+        let details = try await session.getTableStructureDetails(
+            schema: "public", table: tableName
+        )
+        XCTAssertNotNil(details.primaryKey, "Should detect primary key")
+        if let pk = details.primaryKey {
+            XCTAssertTrue(pk.columns.contains("id"))
         }
     }
 
@@ -119,9 +140,11 @@ final class PGMetadataTests: PostgresDockerTestCase {
 
     func testGetTableStructureDetailsIndexes() async throws {
         let tableName = uniqueName()
-        try await execute(
-            "CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, name TEXT, email TEXT)"
-        )
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .text(name: "email")
+        ])
         try await execute(
             "CREATE INDEX ix_\(tableName)_name ON public.\(tableName)(name)"
         )
@@ -141,9 +164,10 @@ final class PGMetadataTests: PostgresDockerTestCase {
     func testGetTableStructureDetailsForeignKeys() async throws {
         let parentTable = uniqueName(prefix: "parent")
         let childTable = uniqueName(prefix: "child")
-        try await execute(
-            "CREATE TABLE public.\(parentTable) (id SERIAL PRIMARY KEY, name TEXT)"
-        )
+        try await postgresClient.admin.createTable(name: parentTable, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
         try await execute("""
             CREATE TABLE public.\(childTable) (
                 id SERIAL PRIMARY KEY,
@@ -165,54 +189,69 @@ final class PGMetadataTests: PostgresDockerTestCase {
     }
 
     func testGetTableStructureDetailsUniqueConstraints() async throws {
-        try await withTempTable(
-            columns: "id SERIAL PRIMARY KEY, code VARCHAR(10) UNIQUE, name TEXT"
-        ) { tableName in
-            let details = try await session.getTableStructureDetails(
-                schema: "public", table: tableName
-            )
-            let hasUnique = !details.uniqueConstraints.isEmpty ||
-                details.indexes.contains(where: { $0.isUnique })
-            XCTAssertTrue(hasUnique, "Should detect unique constraint on 'code'")
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .varchar(name: "code", length: 10, nullable: true),
+            .text(name: "name")
+        ])
+        // Add unique constraint separately since createTable column-level unique
+        // may not be what we want to test here
+        try await execute("ALTER TABLE \(tableName) ADD CONSTRAINT uq_\(tableName)_code UNIQUE (code)")
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
+
+        let details = try await session.getTableStructureDetails(
+            schema: "public", table: tableName
+        )
+        let hasUnique = !details.uniqueConstraints.isEmpty ||
+            details.indexes.contains(where: { $0.isUnique })
+        XCTAssertTrue(hasUnique, "Should detect unique constraint on 'code'")
     }
 
     func testGetTableStructureDetailsDefaultValues() async throws {
-        try await withTempTable(
-            columns: "id SERIAL PRIMARY KEY, status TEXT DEFAULT 'active', count INTEGER DEFAULT 0"
-        ) { tableName in
-            let details = try await session.getTableStructureDetails(
-                schema: "public", table: tableName
-            )
-            let statusCol = details.columns.first { $0.name == "status" }
-            XCTAssertNotNil(statusCol)
-            XCTAssertNotNil(statusCol?.defaultValue, "status should have a default value")
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "status", defaultValue: "active"),
+            .integer(name: "count", defaultValue: 0)
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
+
+        let details = try await session.getTableStructureDetails(
+            schema: "public", table: tableName
+        )
+        let statusCol = details.columns.first { $0.name == "status" }
+        XCTAssertNotNil(statusCol)
+        XCTAssertNotNil(statusCol?.defaultValue, "status should have a default value")
     }
 
     // MARK: - Object Definitions
 
     func testGetTableDefinition() async throws {
-        try await withTempTable(
-            columns: "id SERIAL PRIMARY KEY, name VARCHAR(100)"
-        ) { tableName in
-            let definition = try await session.getObjectDefinition(
-                objectName: tableName, schemaName: "public", objectType: .table
-            )
-            XCTAssertFalse(definition.isEmpty)
-            XCTAssertTrue(
-                definition.lowercased().contains("create"),
-                "Table definition should contain CREATE"
-            )
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .varchar(name: "name", length: 100)
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
+
+        let definition = try await session.getObjectDefinition(
+            objectName: tableName, schemaName: "public", objectType: .table
+        )
+        XCTAssertFalse(definition.isEmpty)
+        XCTAssertTrue(
+            definition.lowercased().contains("create"),
+            "Table definition should contain CREATE"
+        )
     }
 
     func testGetViewDefinition() async throws {
         let tableName = uniqueName()
         let viewName = uniqueName(prefix: "v")
-        try await execute(
-            "CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, name TEXT)"
-        )
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
         try await execute(
             "CREATE VIEW public.\(viewName) AS SELECT id, name FROM public.\(tableName)"
         )
@@ -253,9 +292,10 @@ final class PGMetadataTests: PostgresDockerTestCase {
         let tableName = uniqueName()
         let triggerFuncName = uniqueName(prefix: "trg_fn")
         let triggerName = uniqueName(prefix: "trg")
-        try await execute(
-            "CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, updated_at TIMESTAMPTZ)"
-        )
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .timestampWithTimeZone(name: "updated_at")
+        ])
         try await execute("""
             CREATE OR REPLACE FUNCTION public.\(triggerFuncName)()
             RETURNS TRIGGER AS $$
@@ -285,10 +325,10 @@ final class PGMetadataTests: PostgresDockerTestCase {
 
     func testLoadSchemaInfo() async throws {
         let tableName = uniqueName()
-        try await execute(
-            "CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY)"
-        )
-        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true)
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
         guard let metaSession = session as? DatabaseMetadataSession else {
             throw XCTSkip("Session does not support DatabaseMetadataSession")
@@ -301,10 +341,11 @@ final class PGMetadataTests: PostgresDockerTestCase {
 
     func testLoadSchemaInfoIncludesCreatedTable() async throws {
         let tableName = uniqueName()
-        try await execute(
-            "CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, data TEXT)"
-        )
-        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "data")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
         guard let metaSession = session as? DatabaseMetadataSession else {
             throw XCTSkip("Session does not support DatabaseMetadataSession")

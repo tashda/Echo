@@ -18,7 +18,7 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        DispatchQueue.main.async {
+        Task {
             guard let window = view.window else { return }
             context.coordinator.configure(window: window, navigationStore: navigationStore)
         }
@@ -26,7 +26,7 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
+        Task {
             guard let window = nsView.window else { return }
             context.coordinator.configure(window: window, navigationStore: navigationStore)
         }
@@ -94,7 +94,8 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
             // In fullscreen, the toolbar moves to a separate NSToolbarFullScreenWindow.
             // Delay to let the fullscreen layout settle, then hide separators in
             // both the main window and the toolbar fullscreen window.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            Task {
+                try? await Task.sleep(for: .seconds(0.1))
                 self.hideFullScreenSeparators(for: window)
             }
         }

@@ -4,14 +4,14 @@ import AppKit
 #endif
 
 /// Thin shell that owns the `.toolbar` declaration. This view has NO
-/// `@EnvironmentObject` subscriptions, so its body never re-evaluates
-/// when ObservableObject publishers fire (e.g. AppState changes).
+/// direct `@Environment` subscriptions to frequently-changing state, so its
+/// body never re-evaluates when observable state changes (e.g. AppState).
 /// This prevents SwiftUI from re-creating ToolbarItem structs, which
 /// was causing NSToolbar to re-layout and shift the action button group.
 struct WorkspaceView: View {
     var body: some View {
         WorkspaceBody()
-            .toolbar {
+            .toolbar(id: "workspace") {
                 WorkspaceToolbarItems()
             }
     }
@@ -24,17 +24,17 @@ private struct WorkspaceBody: View {
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) private var tabStore
 
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
-    @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppState.self) private var appState
+    @Environment(AppearanceStore.self) private var appearanceStore
+    @Environment(ClipboardHistoryStore.self) private var clipboardHistory
     
-    @StateObject private var sparkleUpdater = SparkleUpdater.shared
+    @Bindable private var sparkleUpdater = SparkleUpdater.shared
 
     var body: some View {
         let tabBarStyle = appState.workspaceTabBarStyle
 
-        NavigationSplitView(columnVisibility: $appState.workspaceSidebarVisibility) {
+        NavigationSplitView(columnVisibility: Bindable(appState).workspaceSidebarVisibility) {
             SidebarColumn()
                 .accessibilityIdentifier("workspace-sidebar")
                 .navigationSplitViewColumnWidth(
@@ -47,16 +47,16 @@ private struct WorkspaceBody: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(ColorTokens.Background.primary)
                 .overlay(alignment: .topTrailing) {
-                    if let toast = environmentState.toastCoordinator.currentToast {
+                    if let toast = environmentState.toastPresenter.currentToast {
                         StatusToastView(icon: toast.icon, message: toast.message, style: toast.style)
-                            .onTapGesture { environmentState.toastCoordinator.dismiss() }
+                            .onTapGesture { environmentState.toastPresenter.dismiss() }
                             .padding(.top, 44)
                             .padding(.trailing, SpacingTokens.lg)
                             .transition(.move(edge: .top).combined(with: .opacity))
-                            .animation(.easeInOut(duration: 0.25), value: environmentState.toastCoordinator.currentToast)
+                            .animation(.easeInOut(duration: 0.25), value: environmentState.toastPresenter.currentToast)
                     }
                 }
-                .inspector(isPresented: $appState.showInfoSidebar) {
+                .inspector(isPresented: Bindable(appState).showInfoSidebar) {
                     let isJson = environmentState.dataInspectorContent?.isJson == true
                     inspectorContent
                         .inspectorColumnWidth(
@@ -86,10 +86,10 @@ private struct WorkspaceBody: View {
         .sheet(isPresented: Binding(get: { navigationStore.showNewProjectSheet }, set: { navigationStore.showNewProjectSheet = $0 })) {
             NewProjectSheet()
                 .environment(projectStore)
-                .environmentObject(environmentState)
+                .environment(environmentState)
         }
         .task {
-            if !AppCoordinator.shared.isInitialized { await AppCoordinator.shared.initialize() }
+            if !AppDirector.shared.isInitialized { await AppDirector.shared.initialize() }
         }
         .preferredColorScheme(appearanceStore.effectiveColorScheme)
         .accentColor(appearanceStore.accentColor)
@@ -101,6 +101,22 @@ private struct WorkspaceBody: View {
             } else {
                 Text("An unknown error occurred while checking for updates.")
             }
+        }
+        .alert(
+            "Switch to \(environmentState.pendingProjectSwitch?.name ?? "project")?",
+            isPresented: Binding(
+                get: { environmentState.pendingProjectSwitch != nil },
+                set: { if !$0 { environmentState.cancelProjectSwitch() } }
+            )
+        ) {
+            Button("Cancel", role: .cancel) {
+                environmentState.cancelProjectSwitch()
+            }
+            Button("Switch Project") {
+                environmentState.confirmProjectSwitch()
+            }
+        } message: {
+            Text("All active connections will be closed.")
         }
     }
 
@@ -126,7 +142,7 @@ private struct WorkspaceBody: View {
         )
 
         InfoSidebarView()
-            .environmentObject(environmentState)
+            .environment(environmentState)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
             .padding(.bottom, SpacingTokens.sm)
@@ -150,12 +166,12 @@ private struct WorkspaceBody: View {
                 appState.dismissSheet()
                 Task {
                     await environmentState.upsertConnection(connection, password: password)
-                    if action == .saveAndConnect { await environmentState.connect(to: connection) }
+                    if action == .saveAndConnect { environmentState.connect(to: connection) }
                 }
             }
         )
-        .environmentObject(environmentState)
-        .environmentObject(appState)
+        .environment(environmentState)
+        .environment(appState)
     }
 
     private var quickConnectSheet: some View {
@@ -167,14 +183,14 @@ private struct WorkspaceBody: View {
                 Task {
                     if action == .saveAndConnect {
                         await environmentState.upsertConnection(connection, password: password)
-                        await environmentState.connect(to: connection)
+                        environmentState.connect(to: connection)
                     } else if action == .connect {
-                        await environmentState.connect(to: connection)
+                        environmentState.connect(to: connection)
                     }
                 }
             }
         )
-        .environmentObject(environmentState)
-        .environmentObject(appState)
+        .environment(environmentState)
+        .environment(appState)
     }
 }

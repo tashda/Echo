@@ -25,6 +25,7 @@ final class HistoryRepositoryTests: XCTestCase {
             connectionName: "Prod",
             host: "db.example.com",
             databaseName: "production",
+            username: "admin",
             databaseType: .postgresql,
             colorHex: "FF0000",
             lastUsedAt: Date()
@@ -41,12 +42,12 @@ final class HistoryRepositoryTests: XCTestCase {
         let repo = MockHistoryRepository()
         let older = RecentConnectionRecord(
             id: UUID(), connectionName: "Old", host: "h", databaseName: nil,
-            databaseType: .postgresql, colorHex: nil,
+            username: nil, databaseType: .postgresql, colorHex: nil,
             lastUsedAt: Date().addingTimeInterval(-100)
         )
         let newer = RecentConnectionRecord(
             id: UUID(), connectionName: "New", host: "h", databaseName: nil,
-            databaseType: .postgresql, colorHex: nil,
+            username: nil, databaseType: .postgresql, colorHex: nil,
             lastUsedAt: Date()
         )
 
@@ -63,7 +64,7 @@ final class HistoryRepositoryTests: XCTestCase {
         for i in 0..<25 {
             records.append(RecentConnectionRecord(
                 id: UUID(), connectionName: "C\(i)", host: "h", databaseName: nil,
-                databaseType: .postgresql, colorHex: nil,
+                username: nil, databaseType: .postgresql, colorHex: nil,
                 lastUsedAt: Date().addingTimeInterval(Double(i))
             ))
         }
@@ -78,21 +79,36 @@ final class HistoryRepositoryTests: XCTestCase {
         let id = UUID()
         let record = RecentConnectionRecord(
             id: id, connectionName: "Test", host: "localhost",
-            databaseName: "MyDB", databaseType: .postgresql,
-            colorHex: nil, lastUsedAt: Date()
+            databaseName: "MyDB", username: "admin",
+            databaseType: .postgresql, colorHex: nil, lastUsedAt: Date()
         )
 
-        XCTAssertEqual(record.identifier, "\(id.uuidString)|mydb")
+        XCTAssertEqual(record.identifier, "\(id.uuidString)|mydb|admin")
     }
 
     func testRecordIdentifierWithNilDatabase() {
         let id = UUID()
         let record = RecentConnectionRecord(
             id: id, connectionName: "Test", host: "localhost",
-            databaseName: nil, databaseType: .postgresql,
-            colorHex: nil, lastUsedAt: Date()
+            databaseName: nil, username: nil,
+            databaseType: .postgresql, colorHex: nil, lastUsedAt: Date()
         )
 
-        XCTAssertEqual(record.identifier, "\(id.uuidString)|")
+        XCTAssertEqual(record.identifier, "\(id.uuidString)||")
+    }
+
+    func testFilterByProjectID() {
+        let repo = MockHistoryRepository()
+        let projectA = UUID()
+        let projectB = UUID()
+
+        repo.records = [
+            RecentConnectionRecord(id: UUID(), connectionName: "A1", host: "h", databaseName: nil, username: nil, databaseType: .postgresql, colorHex: nil, lastUsedAt: Date(), projectID: projectA),
+            RecentConnectionRecord(id: UUID(), connectionName: "B1", host: "h", databaseName: nil, username: nil, databaseType: .postgresql, colorHex: nil, lastUsedAt: Date(), projectID: projectB),
+        ]
+
+        let filtered = repo.loadRecentConnections(forProjectID: projectA)
+        XCTAssertEqual(filtered.count, 1)
+        XCTAssertEqual(filtered[0].connectionName, "A1")
     }
 }

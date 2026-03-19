@@ -152,6 +152,7 @@ extension QueryEditorState {
         appendMessage(
             message: "Execution metrics: \(segments.joined(separator: ", "))",
             severity: .debug,
+            category: "Performance",
             metadata: metadata
         )
     }

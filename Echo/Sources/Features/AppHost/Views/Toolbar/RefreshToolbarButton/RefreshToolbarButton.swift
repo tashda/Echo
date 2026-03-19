@@ -3,13 +3,22 @@ import EchoSense
 
 struct RefreshToolbarButton: View {
     @Environment(NavigationStore.self) private var navigationStore
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppearanceStore.self) private var appearanceStore
+    @Environment(TabStore.self) private var tabStore
 
     @State private var refreshTask: Task<Void, Never>?
 
     private var activeSession: ConnectionSession? {
-        environmentState.sessionCoordinator.activeSession ?? environmentState.sessionCoordinator.activeSessions.first
+        environmentState.sessionGroup.activeSession ?? environmentState.sessionGroup.activeSessions.first
+    }
+
+    private var hasPendingConnection: Bool {
+        environmentState.pendingConnections.contains { $0.phase == .connecting }
+    }
+
+    private var hasFailedPendingConnection: Bool {
+        environmentState.pendingConnections.contains { if case .failed = $0.phase { return true } else { return false } }
     }
 
     var body: some View {
@@ -18,6 +27,12 @@ struct RefreshToolbarButton: View {
                                  accent: appearanceStore.accentColor,
                                  onRefresh: { startRefresh(for: session) },
                                  onCancel: { cancelRefresh(for: session) })
+        } else if hasPendingConnection || hasFailedPendingConnection {
+            RefreshButtonPendingContent(
+                isPending: hasPendingConnection,
+                isFailed: hasFailedPendingConnection,
+                onCancel: { cancelAllPendingConnections() }
+            )
         } else {
             Button(action: {}) {
                 Label("Refresh", systemImage: "arrow.clockwise")
@@ -29,6 +44,57 @@ struct RefreshToolbarButton: View {
     }
 
     private func startRefresh(for session: ConnectionSession) {
+        // Dispatch based on active tab type
+        if let activeTab = tabStore.activeTab {
+            switch activeTab.kind {
+            case .maintenance:
+                if let vm = activeTab.maintenance {
+                    session.structureLoadingState = .loading(progress: nil)
+                    refreshTask = Task {
+                        await vm.refresh()
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
+            case .mssqlMaintenance:
+                if let vm = activeTab.mssqlMaintenance {
+                    session.structureLoadingState = .loading(progress: nil)
+                    refreshTask = Task {
+                        await vm.refresh()
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
+            case .activityMonitor:
+                if let vm = activeTab.activityMonitor {
+                    session.structureLoadingState = .loading(progress: nil)
+                    vm.refresh()
+                    // refresh() fires internally — signal completion after a brief delay
+                    refreshTask = Task {
+                        try? await Task.sleep(nanoseconds: 500_000_000)
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
+            case .extendedEvents:
+                if let vm = activeTab.extendedEventsVM {
+                    session.structureLoadingState = .loading(progress: nil)
+                    refreshTask = Task {
+                        await vm.loadSessions()
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
+            default:
+                break
+            }
+        }
+
+        // Default: refresh database structure
         refreshTask?.cancel()
         session.structureLoadingState = .loading(progress: 0)
         refreshTask = Task {
@@ -63,6 +129,13 @@ struct RefreshToolbarButton: View {
             )
         } else {
             await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
+        }
+    }
+
+    private func cancelAllPendingConnections() {
+        let ids = environmentState.pendingConnections.map(\.id)
+        for id in ids {
+            environmentState.cancelPendingConnection(for: id)
         }
     }
 

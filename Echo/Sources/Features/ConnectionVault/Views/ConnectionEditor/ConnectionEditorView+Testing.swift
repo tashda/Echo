@@ -97,77 +97,54 @@ extension ConnectionEditorView {
 
     func runConnectionTest(connection: SavedConnection, passwordOverride: String?) async {
         let driverTimeout = Self.driverTimeoutSeconds
-        let fallbackNanos = UInt64(driverTimeout + 1) * 1_000_000_000
 
-        do {
-            let result = try await withThrowingTaskGroup(of: ConnectionTestResult.self) { group in
-                group.addTask {
-                    await environmentState.testConnection(
-                        connection,
-                        passwordOverride: passwordOverride,
-                        connectTimeoutSeconds: driverTimeout
-                    )
-                }
+        // The driver's own connectTimeoutSeconds handles TCP timeouts.
+        // No need for a separate fallback timeout task — the previous
+        // withThrowingTaskGroup approach waited for ALL child tasks to finish
+        // (including the 11-second sleep), blocking the result for the full duration.
+        let result: ConnectionTestResult
+        if Task.isCancelled {
+            result = ConnectionTestResult(
+                isSuccessful: false,
+                message: "Connection test cancelled",
+                responseTime: nil,
+                serverVersion: nil
+            )
+        } else {
+            result = await environmentState.testConnection(
+                connection,
+                passwordOverride: passwordOverride,
+                connectTimeoutSeconds: driverTimeout
+            )
+        }
 
-                group.addTask {
-                    try await Task.sleep(nanoseconds: fallbackNanos)
-                    return ConnectionTestResult(
-                        isSuccessful: false,
-                        message: "Connection timed out. The server may be unreachable.",
-                        responseTime: Double(driverTimeout + 1),
-                        serverVersion: nil
-                    )
-                }
+        guard !Task.isCancelled else {
+            testResult = ConnectionTestResult(
+                isSuccessful: false,
+                message: "Connection test cancelled",
+                responseTime: nil,
+                serverVersion: nil
+            )
+            isTestingConnection = false
+            self.testTask = nil
+            return
+        }
 
-                let result = try await group.next()!
-                group.cancelAll()
-                return result
+        testResult = result
+        isTestingConnection = false
+        self.testTask = nil
+
+        if result.success {
+            var successMsg = "Connected successfully"
+            if let time = result.responseTime {
+                successMsg += String(format: " (%.0fms)", time * 1000)
             }
-
-            guard !Task.isCancelled else {
-                await MainActor.run {
-                    testResult = ConnectionTestResult(
-                        isSuccessful: false,
-                        message: "Connection test cancelled",
-                        responseTime: nil,
-                        serverVersion: nil
-                    )
-                    isTestingConnection = false
-                    self.testTask = nil
-                }
-                return
+            if let version = result.serverVersion, !version.isEmpty {
+                successMsg += " — \(version)"
             }
-
-            await MainActor.run {
-                testResult = result
-                isTestingConnection = false
-                self.testTask = nil
-
-                if result.success {
-                    var successMsg = "Connected successfully"
-                    if let time = result.responseTime {
-                        successMsg += String(format: " (%.0fms)", time * 1000)
-                    }
-                    if let version = result.serverVersion, !version.isEmpty {
-                        successMsg += " — \(version)"
-                    }
-                    appendLog(successMsg, kind: .success)
-                } else {
-                    appendLog("Failed: \(result.message)", kind: .error)
-                }
-            }
-        } catch {
-            await MainActor.run {
-                testResult = ConnectionTestResult(
-                    isSuccessful: false,
-                    message: "Connection test cancelled",
-                    responseTime: nil,
-                    serverVersion: nil
-                )
-                isTestingConnection = false
-                self.testTask = nil
-                appendLog("Test cancelled.", kind: .error)
-            }
+            appendLog(successMsg, kind: .success)
+        } else {
+            appendLog("Failed: \(result.message)", kind: .error)
         }
     }
 

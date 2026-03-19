@@ -57,7 +57,7 @@ struct SidebarStickySectionHeader: View {
         .background(
             GeometryReader { proxy in
                 let minY = proxy.frame(in: .named(coordinateSpaceName)).minY
-                DispatchQueue.main.async {
+                Task {
                     let pinned = minY <= 0.5
                     if pinned != isPinned {
                         withAnimation(.easeInOut(duration: 0.18)) {

@@ -10,7 +10,7 @@ enum DatabaseMenuBuilder {
         menu.minimumWidth = 220
 
         guard let connectionID = connectionStore.selectedConnectionID,
-              let session = environmentState.sessionCoordinator.sessionForConnection(connectionID) else {
+              let session = environmentState.sessionGroup.sessionForConnection(connectionID) else {
             let emptyItem = NSMenuItem(title: "No Connection", action: nil, keyEquivalent: "")
             emptyItem.isEnabled = false
             menu.addItem(emptyItem)
@@ -21,7 +21,7 @@ enum DatabaseMenuBuilder {
         let selectedName = session.selectedDatabaseName
 
         if databases.isEmpty {
-            let loadingItem = NSMenuItem(title: "Loading databases…", action: nil, keyEquivalent: "")
+            let loadingItem = NSMenuItem(title: "Loading databases", action: nil, keyEquivalent: "")
             loadingItem.isEnabled = false
             menu.addItem(loadingItem)
         } else {

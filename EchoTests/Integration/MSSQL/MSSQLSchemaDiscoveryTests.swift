@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server schema discovery through Echo's DatabaseSession layer.
@@ -34,7 +35,7 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
 
     func testListSchemasIncludesCustomSchema() async throws {
         let schemaName = uniqueTableName(prefix: "schema")
-        try await execute("CREATE SCHEMA [\(schemaName)]")
+        try await sqlserverClient.security.createSchema(name: schemaName)
         cleanupSQL("DROP SCHEMA [\(schemaName)]")
 
         let schemas = try await session.listSchemas()
@@ -44,17 +45,23 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
     // MARK: - List Tables and Views
 
     func testListTablesAndViews() async throws {
-        try await withTempTable { tableName in
-            let objects = try await session.listTablesAndViews(schema: "dbo")
-            XCTAssertNotNil(objects)
-            // The temp table might be in dbo or might not — depends on creation.
-            // At minimum, system tables should be discoverable.
-        }
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+            SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
+
+        let objects = try await session.listTablesAndViews(schema: "dbo")
+        XCTAssertNotNil(objects)
     }
 
     func testListTablesReturnsTableType() async throws {
         let tableName = uniqueTableName()
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT PRIMARY KEY)")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+        ])
         cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let objects = try await session.listTablesAndViews(schema: "dbo")
@@ -64,8 +71,13 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
     func testListViewsReturnsViewType() async throws {
         let tableName = uniqueTableName()
         let viewName = uniqueTableName(prefix: "v")
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT PRIMARY KEY)")
-        try await execute("CREATE VIEW dbo.[\(viewName)] AS SELECT id FROM dbo.[\(tableName)]")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+        ])
+        try await sqlserverClient.views.createView(
+            name: viewName,
+            query: "SELECT id FROM dbo.[\(tableName)]"
+        )
         cleanupSQL(
             "DROP VIEW dbo.[\(viewName)]",
             "DROP TABLE dbo.[\(tableName)]"
@@ -78,7 +90,7 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
     func testListTablesInCustomSchema() async throws {
         let schemaName = uniqueTableName(prefix: "s")
         let tableName = uniqueTableName()
-        try await execute("CREATE SCHEMA [\(schemaName)]")
+        try await sqlserverClient.security.createSchema(name: schemaName)
         try await execute("CREATE TABLE [\(schemaName)].[\(tableName)] (id INT)")
         cleanupSQL(
             "DROP TABLE [\(schemaName)].[\(tableName)]",

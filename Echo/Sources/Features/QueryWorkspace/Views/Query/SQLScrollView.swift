@@ -3,7 +3,6 @@ import AppKit
 import SwiftUI
 import EchoSense
 
-@MainActor
 final class SQLScrollView: NSScrollView {
     let sqlTextView: SQLTextView
     private var theme: SQLEditorTheme

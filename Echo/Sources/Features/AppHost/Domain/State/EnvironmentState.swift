@@ -7,49 +7,63 @@
 
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 import SQLServerKit
 
-@MainActor
-final class EnvironmentState: ObservableObject {
+@Observable @MainActor
+final class EnvironmentState {
 
     enum StructureRefreshScope {
         case selectedDatabase
         case full
     }
 
-    // MARK: - Published State
-    @Published var connectionStates: [UUID: ConnectionState] = [:]
-    @Published var sessionCoordinator = ActiveSessionCoordinator()
-    @Published var pinnedObjectIDs: [String] = []
-    @Published var recentConnections: [RecentConnectionRecord] = []
-    @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
-    @Published var dataInspectorContent: DataInspectorContent?
-    @Published private(set) var expandedConnectionFolderIDs: Set<UUID> = []
-    @Published var lastError: DatabaseError?
-    let toastCoordinator = StatusToastCoordinator()
-    var notificationEngine: NotificationEngine?
+    // MARK: - State
+    var connectionStates: [UUID: ConnectionState] = [:]
+    var pendingConnections: [PendingConnection] = []
+    var sessionGroup = ActiveSessionGroup()
+    var pinnedObjectIDs: [String] = []
+    var recentConnections: [RecentConnectionRecord] = []
+    var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
+    var dataInspectorContent: DataInspectorContent?
+    @ObservationIgnored private var lastPushedInspectorTitle: String?
+    private(set) var expandedConnectionFolderIDs: Set<UUID> = []
+
+    func toggleDataInspector(content: DataInspectorContent, title: String, appState: AppState) {
+        if appState.showInfoSidebar && lastPushedInspectorTitle == title {
+            appState.showInfoSidebar = false
+            dataInspectorContent = nil
+            lastPushedInspectorTitle = nil
+        } else {
+            dataInspectorContent = content
+            lastPushedInspectorTitle = title
+            appState.showInfoSidebar = true
+        }
+    }
+    var lastError: DatabaseError?
+    var pendingProjectSwitch: Project?
+    @ObservationIgnored let toastPresenter = StatusToastPresenter()
+    @ObservationIgnored var notificationEngine: NotificationEngine?
 
     // MARK: - Dependencies
-    let projectStore: ProjectStore
-    let connectionStore: ConnectionStore
-    let navigationStore: NavigationStore
-    let tabStore: TabStore
-    let resultSpoolConfigCoordinator: ResultSpoolConfigCoordinator
-    let diagramCoordinator: DiagramCoordinator
-    let identityRepository: IdentityRepository
-    let schemaDiscoveryCoordinator: MetadataDiscoveryCoordinator
-    let bookmarkRepository: BookmarkRepository
-    let historyRepository: HistoryRepository
-    private let clipboardHistory: ClipboardHistoryStore
-    let resultSpoolManager: ResultSpoolCoordinator
-    let diagramCacheStore: DiagramCacheStore
-    let diagramKeyStore: DiagramEncryptionKeyStore
+    @ObservationIgnored let projectStore: ProjectStore
+    @ObservationIgnored let connectionStore: ConnectionStore
+    @ObservationIgnored let navigationStore: NavigationStore
+    @ObservationIgnored let tabStore: TabStore
+    @ObservationIgnored let resultSpoolConfigCoordinator: ResultSpoolConfig
+    @ObservationIgnored let diagramBuilder: DiagramBuilder
+    @ObservationIgnored let identityRepository: IdentityRepository
+    @ObservationIgnored let schemaDiscoveryEngine: MetadataDiscoveryEngine
+    @ObservationIgnored let bookmarkRepository: BookmarkRepository
+    @ObservationIgnored let historyRepository: HistoryRepository
+    @ObservationIgnored private let clipboardHistory: ClipboardHistoryStore
+    @ObservationIgnored let resultSpoolManager: ResultSpooler
+    @ObservationIgnored let diagramCacheStore: DiagramCacheStore
+    @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
 
-    private var diagramRefreshTask: Task<Void, Never>?
-    private var cancellables: Set<AnyCancellable> = []
-    private var sessionDatabaseCancellables: [UUID: AnyCancellable] = [:]
-    private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"
+    @ObservationIgnored private var diagramRefreshTask: Task<Void, Never>?
+    @ObservationIgnored internal var observedSessionIDs: Set<UUID> = []
+    @ObservationIgnored private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"
 
     // MARK: - Initialization
     init(
@@ -58,13 +72,13 @@ final class EnvironmentState: ObservableObject {
         navigationStore: NavigationStore,
         tabStore: TabStore,
         clipboardHistory: ClipboardHistoryStore,
-        resultSpoolConfigCoordinator: ResultSpoolConfigCoordinator,
-        diagramCoordinator: DiagramCoordinator,
+        resultSpoolConfigCoordinator: ResultSpoolConfig,
+        diagramBuilder: DiagramBuilder,
         identityRepository: IdentityRepository,
-        schemaDiscoveryCoordinator: MetadataDiscoveryCoordinator,
+        schemaDiscoveryEngine: MetadataDiscoveryEngine,
         bookmarkRepository: BookmarkRepository,
         historyRepository: HistoryRepository,
-        resultSpoolManager: ResultSpoolCoordinator,
+        resultSpoolManager: ResultSpooler,
         diagramCacheStore: DiagramCacheStore,
         diagramKeyStore: DiagramEncryptionKeyStore
     ) {
@@ -74,9 +88,9 @@ final class EnvironmentState: ObservableObject {
         self.tabStore = tabStore
         self.clipboardHistory = clipboardHistory
         self.resultSpoolConfigCoordinator = resultSpoolConfigCoordinator
-        self.diagramCoordinator = diagramCoordinator
+        self.diagramBuilder = diagramBuilder
         self.identityRepository = identityRepository
-        self.schemaDiscoveryCoordinator = schemaDiscoveryCoordinator
+        self.schemaDiscoveryEngine = schemaDiscoveryEngine
         self.bookmarkRepository = bookmarkRepository
         self.historyRepository = historyRepository
         self.resultSpoolManager = resultSpoolManager
@@ -89,39 +103,55 @@ final class EnvironmentState: ObservableObject {
     }
 
     private func setupBindings() {
-        toastCoordinator.objectWillChange
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
+        observeActiveSessionID()
+        observeActiveSessions()
+        observeSelectedProject()
+    }
 
-        sessionCoordinator.$activeSessionID
-            .sink { [weak self] id in
+    private func observeActiveSessionID() {
+        _ = withObservationTracking {
+            sessionGroup.activeSessionID
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
-                if let id, let session = self.sessionCoordinator.activeSessions.first(where: { $0.id == id }) {
+                if let id = self.sessionGroup.activeSessionID,
+                   let session = self.sessionGroup.activeSessions.first(where: { $0.id == id }) {
                     self.updateNavigation(for: session)
                 } else {
                     self.updateNavigation(for: nil)
                 }
+                self.observeActiveSessionID()
             }
-            .store(in: &cancellables)
+        }
+    }
 
-        sessionCoordinator.$activeSessions
-            .sink { [weak self] sessions in
+    private func observeActiveSessions() {
+        _ = withObservationTracking {
+            sessionGroup.activeSessions
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
-                let validIDs = sessions.map { $0.id }
-                self.pruneSessionCancellables(validIDs: validIDs)
+                let sessions = self.sessionGroup.activeSessions
+                let validIDs = Set(sessions.map { $0.id })
 
-                for session in sessions where self.sessionDatabaseCancellables[session.id] == nil {
-                    self.observeSession(session)
+                // Prune tracked IDs for removed sessions
+                self.observedSessionIDs = self.observedSessionIDs.intersection(validIDs)
+
+                for session in sessions where !self.observedSessionIDs.contains(session.id) {
+                    self.observedSessionIDs.insert(session.id)
                     Task { await self.enqueuePrefetchForSessionIfNeeded(session) }
                 }
-            }
-            .store(in: &cancellables)
 
+                self.observeActiveSessions()
+            }
+        }
+    }
+
+    private func observeSelectedProject() {
         _ = withObservationTracking {
             projectStore.selectedProject
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.objectWillChange.send()
                 self?.loadExpandedConnectionFolders(for: self?.projectStore.selectedProject?.id)
                 self?.setupBindings()
             }
@@ -138,66 +168,107 @@ final class EnvironmentState: ObservableObject {
 
     // MARK: - Internal Connection Helpers
 
-    internal func connectToNewSession(to connection: SavedConnection) async {
+    internal func connectToNewSession(to connection: SavedConnection) {
         guard let credentials = identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: nil) else {
             lastError = .connectionFailed("Missing credentials")
             return
         }
 
+        // Cancel/remove any existing pending for the same connection
+        cancelAndRemovePending(for: connection.id)
+
+        let pending = PendingConnection(connection: connection)
+        pendingConnections.append(pending)
         connectionStates[connection.id] = .connecting
+
         let displayName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? connection.host
             : connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-        do {
-            let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType)
-            // MSSQL connects without a database — the server uses the login's default.
-            // Other engines may specify a database in the connection string.
-            let connectDatabase: String? = connection.databaseType == .microsoftSQL
-                ? nil
-                : (connection.database.isEmpty ? nil : connection.database)
 
-            let session = try await factory!.connect(
-                host: connection.host,
-                port: connection.port,
-                database: connectDatabase,
-                tls: connection.useTLS,
-                trustServerCertificate: connection.trustServerCertificate,
-                tlsMode: connection.tlsMode,
-                sslRootCertPath: connection.sslRootCertPath,
-                sslCertPath: connection.sslCertPath,
-                sslKeyPath: connection.sslKeyPath,
-                mssqlEncryptionMode: connection.mssqlEncryptionMode,
-                readOnlyIntent: connection.readOnlyIntent,
-                authentication: credentials,
-                connectTimeoutSeconds: 10
-            )
+        pending.connectTask = Task {
+            do {
+                let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType)
+                // MSSQL connects without a database — the server uses the login's default.
+                // Other engines may specify a database in the connection string.
+                let connectDatabase: String? = connection.databaseType == .microsoftSQL
+                    ? nil
+                    : (connection.database.isEmpty ? nil : connection.database)
 
-            let connectionSession = ConnectionSession(
-                connection: connection,
-                session: session,
-                spoolManager: resultSpoolManager
-            )
+                let session = try await factory!.connect(
+                    host: connection.host,
+                    port: connection.port,
+                    database: connectDatabase,
+                    tls: connection.useTLS,
+                    trustServerCertificate: connection.trustServerCertificate,
+                    tlsMode: connection.tlsMode,
+                    sslRootCertPath: connection.sslRootCertPath,
+                    sslCertPath: connection.sslCertPath,
+                    sslKeyPath: connection.sslKeyPath,
+                    mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                    readOnlyIntent: connection.readOnlyIntent,
+                    authentication: credentials,
+                    connectTimeoutSeconds: 10
+                )
 
-            sessionCoordinator.addSession(connectionSession)
-            connectionStates[connection.id] = .connected
-            recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
-            startStructureLoadTask(for: connectionSession)
-            notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")
-        } catch {
-            connectionStates[connection.id] = .disconnected
-            lastError = DatabaseError.from(error)
-            notificationEngine?.post(category: .connectionFailed, message: "Connection failed: \(displayName)", duration: 5.0)
+                guard !Task.isCancelled else {
+                    await session.close()
+                    return
+                }
+
+                let connectionSession = ConnectionSession(
+                    connection: connection,
+                    session: session,
+                    spoolManager: resultSpoolManager
+                )
+
+                // Transition: pending → active session
+                pendingConnections.removeAll { $0.id == connection.id }
+                sessionGroup.addSession(connectionSession)
+                connectionStates[connection.id] = .connected
+                recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
+                startStructureLoadTask(for: connectionSession)
+                notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")
+            } catch {
+                guard !Task.isCancelled else { return }
+                connectionStates[connection.id] = .disconnected
+                lastError = DatabaseError.from(error)
+                pending.phase = .failed(message: error.localizedDescription)
+                let reason = error.localizedDescription
+                notificationEngine?.post(category: .connectionFailed, message: "\(displayName): \(reason)", duration: 5.0)
+            }
         }
+    }
+
+    internal func cancelAndRemovePending(for connectionID: UUID) {
+        if let existing = pendingConnections.first(where: { $0.id == connectionID }) {
+            existing.connectTask?.cancel()
+        }
+        pendingConnections.removeAll { $0.id == connectionID }
     }
 
     // MARK: - Recent Connections
 
     internal func loadRecentConnections() {
-        recentConnections = historyRepository.loadRecentConnections()
+        let raw: [RecentConnectionRecord]
+        if let projectID = projectStore.selectedProject?.id {
+            raw = historyRepository.loadRecentConnections(forProjectID: projectID)
+        } else {
+            raw = historyRepository.loadRecentConnections()
+        }
+        // Deduplicate by identifier (connection + database + username) preserving order
+        var seen = Set<String>()
+        recentConnections = raw.filter { seen.insert($0.identifier).inserted }
     }
 
     private func saveRecentConnections() {
-        historyRepository.saveRecentConnections(recentConnections)
+        // Merge current project's records back into the full store
+        let currentProjectID = projectStore.selectedProject?.id
+        var allRecords = historyRepository.loadRecentConnections()
+        // Remove existing records for the current project
+        allRecords.removeAll { $0.projectID == currentProjectID }
+        // Add back the current in-memory records (which are project-filtered)
+        allRecords.append(contentsOf: recentConnections)
+        historyRepository.saveRecentConnections(allRecords)
     }
 
     internal func recordRecentConnection(for connection: SavedConnection, databaseName: String?) {
@@ -206,11 +277,13 @@ final class EnvironmentState: ObservableObject {
             connectionName: connection.connectionName,
             host: connection.host,
             databaseName: databaseName,
+            username: connection.username,
             databaseType: connection.databaseType,
             colorHex: connection.colorHex,
-            lastUsedAt: Date()
+            lastUsedAt: Date(),
+            projectID: connection.projectID ?? projectStore.selectedProject?.id
         )
-        recentConnections.removeAll { $0.id == record.id }
+        recentConnections.removeAll { $0.identifier == record.identifier }
         recentConnections.insert(record, at: 0)
         saveRecentConnections()
     }
@@ -226,21 +299,13 @@ final class EnvironmentState: ObservableObject {
         saveRecentConnections()
     }
 
+    // MARK: - Computed Properties
+
+    var hasActiveConnections: Bool {
+        !sessionGroup.activeSessions.isEmpty
+    }
+
     // MARK: - Private Helpers
-
-    private func pruneSessionCancellables(validIDs: [UUID]) {
-        for (id, cancellable) in sessionDatabaseCancellables where !validIDs.contains(id) {
-            cancellable.cancel()
-            sessionDatabaseCancellables.removeValue(forKey: id)
-        }
-    }
-
-    private func observeSession(_ session: ConnectionSession) {
-        let cancellable = session.objectWillChange.sink { [weak self] _ in
-            self?.objectWillChange.send()
-        }
-        sessionDatabaseCancellables[session.id] = cancellable
-    }
 
     private func ensureDefaultProjectExists() async {
         if projectStore.projects.isEmpty {
@@ -252,7 +317,7 @@ final class EnvironmentState: ObservableObject {
         // Migration logic
     }
 
-    private func loadExpandedConnectionFolders(for projectID: UUID?) {
+    internal func loadExpandedConnectionFolders(for projectID: UUID?) {
         let storage = UserDefaults.standard.dictionary(forKey: Self.expandedConnectionFoldersKey) as? [String: [String]] ?? [:]
         let key = projectID?.uuidString ?? "global"
         let ids = storage[key]?.compactMap(UUID.init) ?? []
@@ -263,7 +328,7 @@ final class EnvironmentState: ObservableObject {
 // MARK: - TabStoreDelegate
 extension EnvironmentState: TabStoreDelegate {
     func tabStore(_ store: TabStore, didAdd tab: WorkspaceTab) {
-        if let session = sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
+        if let session = sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
             if !session.queryTabs.contains(where: { $0.id == tab.id }) {
                 session.queryTabs.append(tab)
             }
@@ -275,7 +340,7 @@ extension EnvironmentState: TabStoreDelegate {
     }
 
     func tabStore(_ store: TabStore, didRemoveTabID tabID: UUID) {
-        for session in sessionCoordinator.activeSessions {
+        for session in sessionGroup.activeSessions {
             if let index = session.queryTabs.firstIndex(where: { $0.id == tabID }) {
                 session.queryTabs.remove(at: index)
             }
@@ -284,8 +349,8 @@ extension EnvironmentState: TabStoreDelegate {
 
     func tabStore(_ store: TabStore, didSetActiveTabID tabID: UUID?) {
         guard let tabID, let tab = store.getTab(id: tabID) else { return }
-        if sessionCoordinator.activeSessionID != tab.connectionSessionID {
-            sessionCoordinator.setActiveSession(tab.connectionSessionID)
+        if sessionGroup.activeSessionID != tab.connectionSessionID {
+            sessionGroup.setActiveSession(tab.connectionSessionID)
         }
     }
 

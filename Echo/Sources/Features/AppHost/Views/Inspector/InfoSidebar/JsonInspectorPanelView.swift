@@ -88,7 +88,6 @@ struct JsonInspectorPanelView: View {
     }
 
     // MARK: - Loading
-
     private var loadingContent: some View {
         VStack(spacing: SpacingTokens.sm) {
             ProgressView()
@@ -115,7 +114,7 @@ struct JsonInspectorPanelView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                 Text(displayText)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(TypographyTokens.detail.monospaced())
                     .textSelection(.enabled)
                     .lineSpacing(2)
                     .frame(maxWidth: .infinity, alignment: .leading)

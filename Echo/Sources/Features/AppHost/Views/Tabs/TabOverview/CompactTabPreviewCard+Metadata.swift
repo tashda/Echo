@@ -30,6 +30,14 @@ extension CompactTabPreviewCard {
             return []
         case .activityMonitor:
             return []
+        case .maintenance, .mssqlMaintenance:
+            return []
+        case .queryStore:
+            return []
+        case .extendedEvents:
+            return []
+        case .availabilityGroups:
+            return []
         }
         }
 
@@ -56,6 +64,14 @@ extension CompactTabPreviewCard {
             return "Extension Manager"
         case .activityMonitor:
             return "Activity"
+        case .maintenance, .mssqlMaintenance:
+            return "Maintenance"
+        case .queryStore:
+            return "Query Store"
+        case .extendedEvents:
+            return "Extended Events"
+        case .availabilityGroups:
+            return "Availability Groups"
         }
         }
 
@@ -83,6 +99,14 @@ extension CompactTabPreviewCard {
             return "Manage database extensions"
         case .activityMonitor:
             return "Live system performance monitoring"
+        case .maintenance, .mssqlMaintenance:
+            return "Database health and maintenance operations"
+        case .queryStore:
+            return "Query Store analysis and plan management"
+        case .extendedEvents:
+            return "Extended Events session monitoring"
+        case .availabilityGroups:
+            return "Always On Availability Groups dashboard"
         }
         }
 

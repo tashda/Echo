@@ -2,13 +2,12 @@ import SwiftUI
 import EchoSense
 
 struct RefreshButtonContent: View {
-    @ObservedObject var session: ConnectionSession
+    @Bindable var session: ConnectionSession
     var accent: Color
     let onRefresh: () -> Void
     let onCancel: () -> Void
 
     @State private var phase: Phase = .idle
-    @State private var spinning = false
     @State private var isHovering = false
     @State private var completionTask: Task<Void, Never>?
     @State private var completionMessage: String = "Completed"
@@ -20,6 +19,7 @@ struct RefreshButtonContent: View {
         case idle
         case refreshing
         case completed
+        case failed
     }
 
     private var showCancel: Bool {
@@ -31,6 +31,7 @@ struct RefreshButtonContent: View {
         case .idle: return "Refresh"
         case .refreshing: return session.structureLoadingMessage ?? "Updating structure\u{2026}"
         case .completed: return completionMessage
+        case .failed: return "Failed"
         }
     }
 
@@ -38,19 +39,15 @@ struct RefreshButtonContent: View {
         Button {
             handleTap()
         } label: {
-            Label("Refresh", systemImage: phase == .idle ? "arrow.clockwise" : "circle")
+            Label("Refresh", systemImage: "arrow.clockwise")
                 .labelStyle(.iconOnly)
-                .foregroundStyle(phase == .idle ? ColorTokens.Text.secondary : .clear)
+                .opacity(phase == .idle ? 1 : 0)
+                .animation(.easeInOut(duration: 0.15), value: phase)
                 .overlay {
-                    if phase != .idle {
-                        RefreshAnimatedOverlay(
-                            phase: phase,
-                            showCancel: showCancel,
-                            spinning: spinning,
-                            circleSize: 0,
-                            glowPadding: 0
-                        )
-                    }
+                    RefreshAnimatedOverlay(
+                        phase: phase,
+                        showCancel: showCancel
+                    )
                 }
         }
         .buttonStyle(.automatic)
@@ -82,7 +79,7 @@ struct RefreshButtonContent: View {
 
     private func handleTap() {
         switch phase {
-        case .idle:
+        case .idle, .failed:
             transition(to: .refreshing)
             onRefresh()
         case .refreshing:
@@ -100,7 +97,6 @@ struct RefreshButtonContent: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             phase = newPhase
         }
-        spinning = (newPhase == .refreshing)
         handleHoverStateChange(for: newPhase)
         if newPhase != .refreshing {
             hoverIntent = false
@@ -111,7 +107,7 @@ struct RefreshButtonContent: View {
         switch state {
         case .loading: beginRefreshing()
         case .ready: showCompletion()
-        case .failed: showCompletion(with: "Failed")
+        case .failed: showFailure()
         case .idle: resetToIdle()
         }
     }
@@ -129,6 +125,17 @@ struct RefreshButtonContent: View {
         transition(to: .completed)
         completionTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_200_000_000)
+            guard !Task.isCancelled else { return }
+            resetToIdle()
+        }
+    }
+
+    private func showFailure() {
+        completionTask?.cancel()
+        stopHoverDelay(resetIntent: true)
+        transition(to: .failed)
+        completionTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
             guard !Task.isCancelled else { return }
             resetToIdle()
         }
@@ -153,7 +160,7 @@ struct RefreshButtonContent: View {
         switch newPhase {
         case .refreshing:
             if hoverEnableTask == nil { startHoverDelay() }
-        case .completed, .idle:
+        case .completed, .idle, .failed:
             stopHoverDelay(resetIntent: true)
         }
     }

@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL connection lifecycle through Echo's DatabaseSession layer.
@@ -123,6 +124,57 @@ final class PGConnectionTests: PostgresDockerTestCase {
 
         let result = try await dbSession.simpleQuery("SELECT current_database() AS db")
         XCTAssertEqual(result.rows[0][0], dbName)
+    }
+
+    func testCurrentDatabaseName() async throws {
+        let name = try await session.currentDatabaseName()
+        XCTAssertEqual(name, "postgres")
+        
+        let dbName = uniqueName(prefix: "echo_db")
+        try await execute("CREATE DATABASE \(dbName)")
+        cleanupSQL("DROP DATABASE IF EXISTS \(dbName)")
+
+        let dbSession = try await session.sessionForDatabase(dbName)
+        defer { Task { @MainActor in await dbSession.close() } }
+        
+        let otherName = try await dbSession.currentDatabaseName()
+        XCTAssertEqual(otherName, dbName)
+    }
+    
+    func testDropIndex() async throws {
+        let tableName = uniqueName(prefix: "test_index_table")
+        let indexName = uniqueName(prefix: "test_idx")
+        try await execute("CREATE TABLE \(tableName) (id INT)")
+        try await execute("CREATE INDEX \(indexName) ON \(tableName)(id)")
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
+        
+        // Ensure index exists
+        let checkSql = "SELECT 1 FROM pg_indexes WHERE indexname = '\(indexName)'"
+        let r1 = try await session.simpleQuery(checkSql)
+        XCTAssertEqual(r1.rows.count, 1)
+        
+        // Drop index
+        try await session.dropIndex(schema: "public", name: indexName)
+        
+        // Ensure index is gone
+        let r2 = try await session.simpleQuery(checkSql)
+        XCTAssertEqual(r2.rows.count, 0)
+    }
+
+    func testDropExtension() async throws {
+        // Assume 'uuid-ossp' is available
+        guard let metaSession = session as? DatabaseMetadataSession else {
+            XCTFail("Session should be DatabaseMetadataSession")
+            return
+        }
+        
+        try await execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
+        
+        // Drop it
+        try await metaSession.dropExtension(name: "uuid-ossp", cascade: false)
+        
+        let check = try await session.simpleQuery("SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp'")
+        XCTAssertEqual(check.rows.count, 0)
     }
 
     // MARK: - Error Handling

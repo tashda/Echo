@@ -385,9 +385,39 @@ extension PostgresSession: DatabaseMetadataSession {
         return SchemaInfo(name: schemaName, objects: objects)
     }
 
-    func rebuildIndex(schema: String, table: String, index: String) async throws {
-        let quotedIndex = "\"\(index.replacingOccurrences(of: "\"", with: "\"\""))\""
-        _ = try await client.simpleQuery("REINDEX INDEX \(quotedIndex)")
+    func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        try await client.admin.reindex(table: table)
+        return DatabaseMaintenanceResult(operation: "Reindex", messages: ["Index rebuilt successfully."], succeeded: true)
+    }
+
+    func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        _ = try await client.admin.reindex(table: table)
+        return DatabaseMaintenanceResult(operation: "Reindex", messages: ["Table indexes rebuilt successfully."], succeeded: true)
+    }
+
+    func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
+        try await client.admin.vacuum(schema: schema, table: table, analyze: analyze, full: full)
+    }
+
+    func analyzeTable(schema: String, table: String) async throws {
+        try await client.admin.analyze(schema: schema, table: table)
+    }
+
+    func reindexTable(schema: String, table: String) async throws {
+        try await client.admin.reindex(schema: schema, table: table)
+    }
+
+    func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        try await analyzeTable(schema: schema, table: table)
+        return DatabaseMaintenanceResult(operation: "Analyze", messages: ["Statistics updated successfully."], succeeded: true)
+    }
+
+    func checkDatabaseIntegrity() async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Integrity checks are not supported for PostgreSQL")
+    }
+
+    func shrinkDatabase() async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Shrink is not supported for PostgreSQL")
     }
 
     func listAvailableExtensions() async throws -> [AvailableExtensionInfo] {

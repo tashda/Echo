@@ -9,7 +9,7 @@ enum ConnectionsMenuBuilder {
         let menu = NSMenu()
         menu.minimumWidth = 260
 
-        let projectID = AppCoordinator.shared.projectStore.selectedProject?.id
+        let projectID = AppDirector.shared.projectStore.selectedProject?.id
 
         // MARK: - Recent
         let recentRecords = Array(environmentState.recentConnections.prefix(3))
@@ -140,7 +140,7 @@ final class ConnectionsMenuActions: NSObject {
 
     @objc func selectConnection(_ sender: NSMenuItem) {
         guard let context = sender.representedObject as? ConnectionMenuContext else { return }
-        Task { await context.environmentState.connect(to: context.connection) }
+        context.environmentState.connect(to: context.connection)
     }
 
     @objc func manageConnections(_ sender: NSMenuItem) {
@@ -148,7 +148,7 @@ final class ConnectionsMenuActions: NSObject {
     }
 
     @objc func quickConnect(_ sender: NSMenuItem) {
-        AppCoordinator.shared.appState.showSheet(.quickConnect)
+        AppDirector.shared.appState.showSheet(.quickConnect)
     }
 }
 

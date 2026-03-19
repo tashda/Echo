@@ -203,3 +203,187 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         self.columns = columns; self.primaryKey = primaryKey; self.indexes = indexes; self.uniqueConstraints = uniqueConstraints; self.foreignKeys = foreignKeys; self.dependencies = dependencies
     }
 }
+
+/// A name-value pair of metadata attached to a SQL Server database object.
+public struct ExtendedPropertyInfo: Sendable, Identifiable, Hashable {
+    public var id: String { name }
+    public var name: String
+    public var value: String
+
+    public nonisolated init(name: String, value: String) {
+        self.name = name
+        self.value = value
+    }
+}
+
+// MARK: - Maintenance Models
+
+public struct DatabaseMaintenanceResult: Sendable, Equatable {
+    public let operation: String
+    public let messages: [String]
+    public let succeeded: Bool
+
+    public init(operation: String, messages: [String], succeeded: Bool) {
+        self.operation = operation; self.messages = messages; self.succeeded = succeeded
+    }
+}
+
+public struct SQLServerTableStat: Sendable, Identifiable {
+    public var id: String { "\(schemaName).\(tableName)" }
+    public let schemaName: String
+    public let tableName: String
+    public let tableType: String // "Heap" or "Clustered"
+    public let rowCount: Int64
+    public let dataSpaceKB: Int64
+    public let indexSpaceKB: Int64
+    public let unusedSpaceKB: Int64
+    public let totalSpaceKB: Int64
+    public let lastStatsUpdate: Date?
+    public let forwardedRecords: Int64?
+
+    public var totalSpaceBytes: Int64 { totalSpaceKB * 1024 }
+    public var dataSpaceBytes: Int64 { dataSpaceKB * 1024 }
+    public var indexSpaceBytes: Int64 { indexSpaceKB * 1024 }
+    public var unusedSpaceBytes: Int64 { unusedSpaceKB * 1024 }
+
+    public var isHeap: Bool { tableType == "Heap" }
+
+    /// Seconds since epoch for sorting — 0 if never updated
+    public var lastStatsUpdateSort: TimeInterval {
+        lastStatsUpdate?.timeIntervalSince1970 ?? 0
+    }
+
+    public var unusedRatio: Double {
+        totalSpaceKB > 0 ? Double(unusedSpaceKB) / Double(totalSpaceKB) * 100 : 0
+    }
+
+    public var status: String {
+        if let fwd = forwardedRecords, fwd > 1000 {
+            return "Forwarded"
+        }
+        // Only flag wasted space when both the ratio is high AND there's meaningful absolute waste
+        // Small tables naturally have high unused ratios due to extent-based allocation (64KB minimum)
+        if unusedRatio > 40 && unusedSpaceKB > 1024 {
+            return "Wasted Space"
+        }
+        return "Healthy"
+    }
+
+    public init(
+        schemaName: String,
+        tableName: String,
+        tableType: String,
+        rowCount: Int64,
+        dataSpaceKB: Int64,
+        indexSpaceKB: Int64,
+        unusedSpaceKB: Int64,
+        totalSpaceKB: Int64,
+        lastStatsUpdate: Date?,
+        forwardedRecords: Int64?
+    ) {
+        self.schemaName = schemaName; self.tableName = tableName; self.tableType = tableType
+        self.rowCount = rowCount; self.dataSpaceKB = dataSpaceKB; self.indexSpaceKB = indexSpaceKB
+        self.unusedSpaceKB = unusedSpaceKB; self.totalSpaceKB = totalSpaceKB
+        self.lastStatsUpdate = lastStatsUpdate; self.forwardedRecords = forwardedRecords
+    }
+}
+
+public struct SQLServerIndexFragmentation: Sendable, Identifiable {
+    public var id: String { "\(schemaName).\(tableName).\(indexName)" }
+    public let schemaName: String
+    public let tableName: String
+    public let indexName: String
+    public let fragmentationPercent: Double
+    public let pageCount: Int64
+    public let indexType: String
+    public let indexId: Int
+    public let isUnique: Bool
+    public let isPrimaryKey: Bool
+    public let totalScans: Int64
+    public let totalUpdates: Int64
+    public let sizeKB: Double
+    public let tableSizeKB: Double
+    public let lastStatsUpdate: Date?
+
+    public var ratio: Double {
+        tableSizeKB > 0 ? (sizeKB / tableSizeKB) * 100 : 0
+    }
+    
+    public var status: String {
+        if totalScans == 0 && sizeKB > 1024 {
+            return "Unused"
+        }
+        // SQL Server docs: fragmentation values are unreliable for indexes < 1000 pages
+        if fragmentationPercent > 30 && pageCount >= 1000 {
+            return "Fragmented"
+        }
+        return "Healthy"
+    }
+
+    public init(
+        schemaName: String,
+        tableName: String,
+        indexName: String,
+        fragmentationPercent: Double,
+        pageCount: Int64,
+        indexType: String,
+        indexId: Int,
+        isUnique: Bool,
+        isPrimaryKey: Bool,
+        totalScans: Int64,
+        totalUpdates: Int64,
+        sizeKB: Double,
+        tableSizeKB: Double,
+        lastStatsUpdate: Date? = nil
+    ) {
+        self.schemaName = schemaName; self.tableName = tableName; self.indexName = indexName; self.fragmentationPercent = fragmentationPercent; self.pageCount = pageCount; self.indexType = indexType; self.indexId = indexId
+        self.isUnique = isUnique; self.isPrimaryKey = isPrimaryKey; self.totalScans = totalScans; self.totalUpdates = totalUpdates; self.sizeKB = sizeKB; self.tableSizeKB = tableSizeKB
+        self.lastStatsUpdate = lastStatsUpdate
+    }
+}
+
+public struct SQLServerBackupHistoryEntry: Sendable, Identifiable {
+    public let id: Int
+    public let name: String?
+    public let description: String?
+    public let startDate: Date?
+    public let finishDate: Date?
+    public let type: String
+    public let size: Int64
+    public let compressedSize: Int64?
+    public let physicalPath: String
+    public let serverName: String
+    public let recoveryModel: String
+
+    public init(id: Int, name: String?, description: String?, startDate: Date?, finishDate: Date?, type: String, size: Int64, compressedSize: Int64?, physicalPath: String, serverName: String, recoveryModel: String) {
+        self.id = id; self.name = name; self.description = description; self.startDate = startDate; self.finishDate = finishDate; self.type = type; self.size = size; self.compressedSize = compressedSize; self.physicalPath = physicalPath; self.serverName = serverName; self.recoveryModel = recoveryModel
+    }
+
+    public var typeDescription: String {
+        switch type {
+        case "D": return "Full"
+        case "I": return "Differential"
+        case "L": return "Log"
+        case "F": return "File or Filegroup"
+        case "G": return "Differential File"
+        case "P": return "Partial"
+        case "Q": return "Differential Partial"
+        default: return "Unknown (\(type))"
+        }
+    }
+}
+
+public struct SQLServerDatabaseHealth: Sendable, Codable, Equatable {
+    public let name: String
+    public let owner: String
+    public let createDate: Date
+    public let sizeMB: Double
+    public let recoveryModel: String
+    public let status: String
+    public let compatibilityLevel: Int
+    public let collationName: String?
+
+    public init(name: String, owner: String, createDate: Date, sizeMB: Double, recoveryModel: String, status: String, compatibilityLevel: Int, collationName: String?) {
+        self.name = name; self.owner = owner; self.createDate = createDate; self.sizeMB = sizeMB; self.recoveryModel = recoveryModel; self.status = status; self.compatibilityLevel = compatibilityLevel; self.collationName = collationName
+    }
+}

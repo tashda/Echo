@@ -23,9 +23,9 @@ struct WorkspaceTabContainerView: View {
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) var tabStore
 
-    @EnvironmentObject var environmentState: EnvironmentState
-    @EnvironmentObject var appState: AppState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
+    @Environment(AppearanceStore.self) private var appearanceStore
     @Environment(\.hostedWorkspaceTabID) private var hostedWorkspaceTabID
 
     var showsTabStrip: Bool = true
@@ -44,7 +44,7 @@ struct WorkspaceTabContainerView: View {
 
             let settings = projectStore.globalSettings
             return RecentConnectionItem(
-                id: record.id,
+                id: record.identifier,
                 record: record,
                 name: displayName,
                 server: connection.host,
@@ -95,17 +95,8 @@ struct WorkspaceTabContainerView: View {
                     cancelQuery: { cancelQuery(tabId: currentTab.id) },
                     gridStateProvider: { currentTab.resultsGridState }
                 )
-            } else if let activeSession = environmentState.sessionCoordinator.activeSession {
-                ConnectionDashboardView(
-                    session: activeSession,
-                    onNewQuery: {
-                        environmentState.openQueryTab(for: activeSession)
-                    },
-                    onOpenJobQueue: activeSession.connection.databaseType == .microsoftSQL
-                        || activeSession.connection.databaseType == .postgresql
-                        ? { environmentState.openJobQueueTab(for: activeSession) }
-                        : nil
-                )
+            } else if let activeSession = environmentState.sessionGroup.activeSession {
+                ConnectionDashboardView(session: activeSession)
             } else {
                 RecentConnectionsPlaceholder(
                     connections: recentConnectionItems,
@@ -122,9 +113,7 @@ struct WorkspaceTabContainerView: View {
     }
 
     private func connectToRecentConnection(_ item: RecentConnectionItem) {
-        guard let connection = connectionStore.connections.first(where: { $0.id == item.id }) else { return }
-        Task {
-            await environmentState.connect(to: connection)
-        }
+        guard let connection = connectionStore.connections.first(where: { $0.id == item.record.id }) else { return }
+        environmentState.connect(to: connection)
     }
 }

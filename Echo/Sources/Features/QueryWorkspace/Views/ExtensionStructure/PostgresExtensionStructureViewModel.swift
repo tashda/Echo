@@ -1,21 +1,20 @@
 import SwiftUI
-import Combine
 
-@MainActor
-final class PostgresExtensionStructureViewModel: ObservableObject {
+@MainActor @Observable
+final class PostgresExtensionStructureViewModel {
     let extensionName: String
     let databaseName: String
     let session: ConnectionSession
-    
-    @Published var isLoading = true
-    @Published var errorMessage: String?
-    @Published var objects: [ExtensionObjectInfo] = []
-    @Published var currentVersion: String?
-    @Published var latestVersion: String?
-    @Published var isUpdating = false
-    @Published var homepageURL: String?
-    @Published var documentationURL: String?
-    @Published var description: String?
+
+    var isLoading = true
+    var errorMessage: String?
+    var objects: [ExtensionObjectInfo] = []
+    var currentVersion: String?
+    var latestVersion: String?
+    var isUpdating = false
+    var homepageURL: String?
+    var documentationURL: String?
+    var description: String?
     
     var canUpdate: Bool {
         guard let current = currentVersion, let latest = latestVersion else { return false }
@@ -41,7 +40,7 @@ final class PostgresExtensionStructureViewModel: ObservableObject {
                 objs: dbSession.listExtensionObjects(extensionName: extensionName),
                 installed: dbSession.listExtensions(),
                 available: metaSession.listAvailableExtensions(),
-                marketplace: PostgresMarketplaceService.shared.searchExtensions(query: extensionName)
+                marketplace: PostgresMarketplace.shared.searchExtensions(query: extensionName)
             )
             
             let (objs, installed, available, marketplace) = try await (fetches.objs, fetches.installed, fetches.available, fetches.marketplace)

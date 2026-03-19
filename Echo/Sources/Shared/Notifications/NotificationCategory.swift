@@ -36,9 +36,12 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
     case indexRebuildFailed
 
     // Database
+    case databaseCreated
+    case databaseCreationFailed
     case databaseSwitched
     case databaseSwitchFailed
     case databasePropertiesError
+    case databasePropertiesSaved
 
     // Jobs
     case jobStarted
@@ -66,7 +69,8 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
             return .objectBrowser
         case .tableStructureUpdated, .indexCreated, .indexDropped, .indexRebuilt, .indexRebuildFailed:
             return .tableStructure
-        case .databaseSwitched, .databaseSwitchFailed, .databasePropertiesError:
+        case .databaseCreated, .databaseCreationFailed,
+             .databaseSwitched, .databaseSwitchFailed, .databasePropertiesError, .databasePropertiesSaved:
             return .database
         case .jobStarted, .jobStopped, .jobError, .jobScheduleCreated, .jobNotificationSaved, .jobPropertiesSaved:
             return .jobs
@@ -95,9 +99,12 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
         case .indexDropped: return "Index Dropped"
         case .indexRebuilt: return "Index Rebuilt"
         case .indexRebuildFailed: return "Index Rebuild Failed"
+        case .databaseCreated: return "Database Created"
+        case .databaseCreationFailed: return "Database Creation Failed"
         case .databaseSwitched: return "Database Switched"
         case .databaseSwitchFailed: return "Database Switch Failed"
         case .databasePropertiesError: return "Properties Error"
+        case .databasePropertiesSaved: return "Properties Saved"
         case .jobStarted: return "Job Started"
         case .jobStopped: return "Job Stopped"
         case .jobError: return "Job Error"
@@ -130,9 +137,12 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
         case .indexDropped: return "checkmark.circle"
         case .indexRebuilt: return "checkmark.circle"
         case .indexRebuildFailed: return "exclamationmark.triangle"
+        case .databaseCreated: return "checkmark.circle.fill"
+        case .databaseCreationFailed: return "exclamationmark.triangle.fill"
         case .databaseSwitched: return "arrow.triangle.swap"
         case .databaseSwitchFailed: return "exclamationmark.triangle.fill"
         case .databasePropertiesError: return "exclamationmark.triangle"
+        case .databasePropertiesSaved: return "checkmark.circle.fill"
         case .jobStarted: return "play.fill"
         case .jobStopped: return "stop.fill"
         case .jobError: return "exclamationmark.triangle.fill"
@@ -151,10 +161,10 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
              .extensionInstalled, .maintenanceCompleted, .securityDropped,
              .tableStructureUpdated, .indexCreated, .indexDropped, .indexRebuilt,
              .jobStarted, .jobStopped, .jobScheduleCreated, .jobNotificationSaved, .jobPropertiesSaved,
-             .generalSuccess:
+             .databaseCreated, .databasePropertiesSaved, .generalSuccess:
             return .success
         case .connectionFailed, .extensionFailed, .maintenanceFailed, .securityToggleFailed,
-             .indexRebuildFailed, .databaseSwitchFailed, .databasePropertiesError,
+             .indexRebuildFailed, .databaseCreationFailed, .databaseSwitchFailed, .databasePropertiesError,
              .jobError, .generalError:
             return .error
         case .connectionDisconnected, .databaseSwitched, .generalInfo:

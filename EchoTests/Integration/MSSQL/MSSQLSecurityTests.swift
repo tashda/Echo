@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server security operations through Echo's DatabaseSession layer.
@@ -84,7 +85,9 @@ final class MSSQLSecurityTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName()
         try await execute("CREATE LOGIN [\(loginName)] WITH PASSWORD = 'StrongPass123!'")
         try await execute("CREATE USER [\(userName)] FOR LOGIN [\(loginName)]")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY)")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+        ])
         cleanupSQL(
             "DROP TABLE [\(tableName)]",
             "DROP USER [\(userName)]",
@@ -108,7 +111,9 @@ final class MSSQLSecurityTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName()
         try await execute("CREATE LOGIN [\(loginName)] WITH PASSWORD = 'StrongPass123!'")
         try await execute("CREATE USER [\(userName)] FOR LOGIN [\(loginName)]")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY)")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+        ])
         cleanupSQL(
             "DROP TABLE [\(tableName)]",
             "DROP USER [\(userName)]",
@@ -141,6 +146,7 @@ final class MSSQLSecurityTests: MSSQLDockerTestCase {
             "DROP LOGIN [\(loginName)]"
         )
 
+        // Schema with AUTHORIZATION requires raw SQL — no typed API for owner
         try await execute("CREATE SCHEMA [\(schemaName)] AUTHORIZATION [\(userName)]")
 
         let schemas = try await session.listSchemas()

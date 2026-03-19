@@ -1,21 +1,20 @@
 import SwiftUI
-import Combine
 import SQLServerKit
 
-@MainActor
-final class AgentSidebarViewModel: ObservableObject {
+@MainActor @Observable
+final class AgentSidebarViewModel {
     struct AgentJob: Identifiable, Hashable { let id: String; let name: String; let enabled: Bool; let lastOutcome: String? }
     struct AgentAlert: Identifiable, Hashable { let id: String; let name: String; let severity: String?; let messageId: String?; let enabled: Bool }
     struct AgentOperator: Identifiable, Hashable { let id: String; let name: String; let email: String?; let enabled: Bool }
     struct AgentProxy: Identifiable, Hashable { let id: String; let name: String; let enabled: Bool; let credentialName: String? }
     struct AgentErrorLog: Identifiable, Hashable { let id: String; let archiveNumber: Int; let date: String; let size: String? }
 
-    @Published private(set) var jobs: [AgentJob] = []
-    @Published private(set) var alerts: [AgentAlert] = []
-    @Published private(set) var operators: [AgentOperator] = []
-    @Published private(set) var proxies: [AgentProxy] = []
-    @Published private(set) var errorLogs: [AgentErrorLog] = []
-    @Published private(set) var errorMessage: String?
+    private(set) var jobs: [AgentJob] = []
+    private(set) var alerts: [AgentAlert] = []
+    private(set) var operators: [AgentOperator] = []
+    private(set) var proxies: [AgentProxy] = []
+    private(set) var errorLogs: [AgentErrorLog] = []
+    private(set) var errorMessage: String?
 
     func reload(for session: ConnectionSession?) async {
         guard let session, session.connection.databaseType == .microsoftSQL else {
@@ -150,23 +149,15 @@ final class AgentSidebarViewModel: ObservableObject {
 
     private func loadErrorLogs(session: ConnectionSession) async {
         do {
-            let result = try await session.session.simpleQuery("EXEC xp_enumerrorlogs 2;")
-            let archiveIdx = result.columns.firstIndex { $0.name.localizedCaseInsensitiveContains("archive") } ?? 0
-            let dateIdx = result.columns.firstIndex { $0.name.localizedCaseInsensitiveContains("date") } ?? min(1, max(0, result.columns.count - 1))
-            let sizeIdx = result.columns.firstIndex { $0.name.localizedCaseInsensitiveContains("size") }
-            let items: [AgentErrorLog] = result.rows.compactMap { row in
-                let archiveStr: String = row.indices.contains(archiveIdx) ? (row[archiveIdx] ?? "0") : "0"
-                let digitsOnly = archiveStr.unicodeScalars.filter { CharacterSet.decimalDigits.contains($0) }
-                let archive = Int(String(String.UnicodeScalarView(digitsOnly))) ?? 0
-                let date: String = row.indices.contains(dateIdx) ? (row[dateIdx] ?? "") : ""
-                let size: String? = sizeIdx.flatMap { idx in
-                    row.indices.contains(idx) ? (row[idx] ?? nil) : nil
+            if let mssql = session.session as? MSSQLSession {
+                let logs = try await mssql.agent.listErrorLogs()
+                let items: [AgentErrorLog] = logs.map { log in
+                    AgentErrorLog(id: "\(log.archiveNumber)", archiveNumber: log.archiveNumber, date: log.date, size: log.size)
                 }
-                return AgentErrorLog(id: "\(archive)", archiveNumber: archive, date: date, size: size)
+                await MainActor.run { self.errorLogs = items }
             }
-            await MainActor.run { self.errorLogs = items }
         } catch {
-            await MainActor.run { self.errorLogs = [] }
+            await MainActor.run { self.errorMessage = error.localizedDescription }
         }
     }
 

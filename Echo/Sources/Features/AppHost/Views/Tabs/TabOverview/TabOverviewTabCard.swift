@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct TabPreviewCard: View {
-    @ObservedObject var tab: WorkspaceTab
+    @Bindable var tab: WorkspaceTab
     let isActive: Bool
     let isFocused: Bool
     let isDropTarget: Bool
@@ -10,7 +10,7 @@ struct TabPreviewCard: View {
 
     @State internal var isHovering = false
     @State internal var isHoveringClose = false
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) internal var appearanceStore
     @Environment(\.colorScheme) internal var colorScheme
 
     var body: some View {
@@ -193,12 +193,47 @@ struct TabPreviewCard: View {
             }
         case .extensionsManager:
             if let vm = tab.extensionsManager {
-                ExtensionsManagerTabPreview(viewModel: vm)
+                ExtensionsTabPreview(viewModel: vm)
             } else {
                 EmptyPreviewPlaceholder(message: "Manager unavailable")
             }
         case .activityMonitor:
             ActivityMonitorPreview(viewModel: tab.activityMonitor)
+        case .maintenance, .mssqlMaintenance:
+            MaintenancePreview()
+        case .queryStore:
+            QueryStorePreview(viewModel: tab.queryStoreVM)
+        case .extendedEvents:
+            ExtendedEventsPreview()
+        case .availabilityGroups:
+            AvailabilityGroupsPreview()
+        }
+    }
+}
+
+struct QueryStorePreview: View {
+    let viewModel: QueryStoreViewModel?
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "chart.bar.xaxis")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Query Store")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.secondary)
+        }
+    }
+}
+
+struct ExtendedEventsPreview: View {
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "waveform.path.ecg")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Extended Events")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 }
@@ -208,9 +243,35 @@ struct ActivityMonitorPreview: View {
     var body: some View {
         VStack(spacing: SpacingTokens.xxs) {
             Image(systemName: "chart.bar.doc.horizontal")
-                .font(.system(size: SpacingTokens.xl))
+                .font(TypographyTokens.hero)
                 .foregroundStyle(ColorTokens.Text.tertiary)
             Text("Activity Monitor")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.secondary)
+        }
+    }
+}
+
+struct MaintenancePreview: View {
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "wrench.and.screwdriver")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Maintenance")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.secondary)
+        }
+    }
+}
+
+struct AvailabilityGroupsPreview: View {
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "server.rack")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Availability Groups")
                 .font(TypographyTokens.detail)
                 .foregroundStyle(ColorTokens.Text.secondary)
         }

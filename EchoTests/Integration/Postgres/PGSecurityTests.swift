@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL security operations (roles, permissions) through Echo's DatabaseSession layer.
@@ -8,7 +9,7 @@ final class PGSecurityTests: PostgresDockerTestCase {
 
     func testCreateRole() async throws {
         let roleName = uniqueName(prefix: "role")
-        try await execute("CREATE ROLE \(roleName)")
+        try await postgresClient.security.createRole(name: roleName)
         cleanupSQL("DROP ROLE IF EXISTS \(roleName)")
 
         let result = try await query("SELECT rolname FROM pg_roles WHERE rolname = '\(roleName)'")
@@ -20,7 +21,7 @@ final class PGSecurityTests: PostgresDockerTestCase {
 
     func testCreateRoleWithPassword() async throws {
         let roleName = uniqueName(prefix: "role")
-        try await execute("CREATE ROLE \(roleName) WITH LOGIN PASSWORD 'TestPass123!'")
+        try await postgresClient.security.createRole(name: roleName, password: "TestPass123!", login: true)
         cleanupSQL("DROP ROLE IF EXISTS \(roleName)")
 
         let result = try await query("""
@@ -37,8 +38,11 @@ final class PGSecurityTests: PostgresDockerTestCase {
         let roleName = uniqueName(prefix: "role")
         let tableName = uniqueName(prefix: "sec_tbl")
 
-        try await execute("CREATE ROLE \(roleName)")
-        try await execute("CREATE TABLE \(tableName) (id SERIAL PRIMARY KEY, data TEXT)")
+        try await postgresClient.security.createRole(name: roleName)
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "data")
+        ])
         cleanupSQL(
             "DROP TABLE IF EXISTS \(tableName) CASCADE",
             "DROP ROLE IF EXISTS \(roleName)"
@@ -61,8 +65,10 @@ final class PGSecurityTests: PostgresDockerTestCase {
         let roleName = uniqueName(prefix: "role")
         let tableName = uniqueName(prefix: "sec_tbl")
 
-        try await execute("CREATE ROLE \(roleName)")
-        try await execute("CREATE TABLE \(tableName) (id SERIAL PRIMARY KEY)")
+        try await postgresClient.security.createRole(name: roleName)
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true)
+        ])
         cleanupSQL(
             "DROP TABLE IF EXISTS \(tableName) CASCADE",
             "DROP ROLE IF EXISTS \(roleName)"
@@ -85,8 +91,8 @@ final class PGSecurityTests: PostgresDockerTestCase {
         let parentRole = uniqueName(prefix: "parent")
         let childRole = uniqueName(prefix: "child")
 
-        try await execute("CREATE ROLE \(parentRole)")
-        try await execute("CREATE ROLE \(childRole)")
+        try await postgresClient.security.createRole(name: parentRole)
+        try await postgresClient.security.createRole(name: childRole)
         cleanupSQL(
             "REVOKE \(parentRole) FROM \(childRole)",
             "DROP ROLE IF EXISTS \(childRole)",
@@ -111,9 +117,9 @@ final class PGSecurityTests: PostgresDockerTestCase {
 
     func testDropRole() async throws {
         let roleName = uniqueName(prefix: "role")
-        try await execute("CREATE ROLE \(roleName)")
+        try await postgresClient.security.createRole(name: roleName)
 
-        try await execute("DROP ROLE \(roleName)")
+        try await postgresClient.security.dropRole(name: roleName)
 
         let result = try await query("SELECT rolname FROM pg_roles WHERE rolname = '\(roleName)'")
         XCTAssertEqual(result.rows.count, 0, "Role should be dropped")
@@ -123,7 +129,7 @@ final class PGSecurityTests: PostgresDockerTestCase {
 
     func testAlterRoleAttributes() async throws {
         let roleName = uniqueName(prefix: "role")
-        try await execute("CREATE ROLE \(roleName)")
+        try await postgresClient.security.createRole(name: roleName)
         cleanupSQL("DROP ROLE IF EXISTS \(roleName)")
 
         // Grant CREATEDB
@@ -154,8 +160,11 @@ final class PGSecurityTests: PostgresDockerTestCase {
         let roleName = uniqueName(prefix: "role")
         let tableName = uniqueName(prefix: "sec_tbl")
 
-        try await execute("CREATE ROLE \(roleName)")
-        try await execute("CREATE TABLE \(tableName) (id SERIAL PRIMARY KEY, data TEXT)")
+        try await postgresClient.security.createRole(name: roleName)
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "data")
+        ])
         cleanupSQL(
             "DROP TABLE IF EXISTS \(tableName) CASCADE",
             "DROP ROLE IF EXISTS \(roleName)"

@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server query streaming through Echo's DatabaseSession layer.
@@ -61,7 +62,7 @@ final class MSSQLStreamingTests: MSSQLDockerTestCase {
     // MARK: - Column Metadata in Streaming
 
     func testStreamingPreservesColumnMetadata() async throws {
-        let streamColumns = LockIsolated<[ColumnInfo]>([])
+        let streamColumns = LockIsolated<[Echo.ColumnInfo]>([])
 
         _ = try await session.simpleQuery(
             "SELECT 1 AS int_col, 'text' AS string_col, 3.14 AS float_col",
@@ -79,16 +80,22 @@ final class MSSQLStreamingTests: MSSQLDockerTestCase {
     // MARK: - Empty Streaming Result
 
     func testStreamingEmptyResult() async throws {
-        try await withTempTable { tableName in
-            let progressCalled = LockIsolated(false)
-            let result = try await session.simpleQuery(
-                "SELECT * FROM [\(tableName)]",
-                progressHandler: { _ in
-                    progressCalled.setValue(true)
-                }
-            )
-            XCTAssertEqual(result.rows.count, 0)
-        }
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+            SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
+
+        let progressCalled = LockIsolated(false)
+        let result = try await session.simpleQuery(
+            "SELECT * FROM [\(tableName)]",
+            progressHandler: { _ in
+                progressCalled.setValue(true)
+            }
+        )
+        XCTAssertEqual(result.rows.count, 0)
     }
 
     // MARK: - Streaming with Mixed Data Types

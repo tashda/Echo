@@ -3,7 +3,7 @@ import SwiftUI
 struct FolderEditorSheet: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     @Environment(\.dismiss) private var dismiss
 
     let state: FolderEditorState
@@ -133,7 +133,7 @@ struct FolderEditorSheet: View {
             }
             .environment(projectStore)
             .environment(connectionStore)
-            .environmentObject(environmentState)
+            .environment(environmentState)
         }
         .onAppear(perform: prepareInitialValues)
     }
@@ -143,31 +143,51 @@ struct FolderEditorSheet: View {
     private var formContent: some View {
         Form {
             Section {
-                TextField("Name", text: $name, prompt: Text("Folder name"))
+                PropertyRow(title: "Name") {
+                    TextField("", text: $name, prompt: Text("Folder name"))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
+                
                 if hasDuplicateName {
                     Text("A folder with this name already exists here.")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Status.error)
+                        .listRowSeparator(.hidden)
                 }
-                TextField("Description", text: $folderDescription, prompt: Text("Optional"), axis: .vertical)
-                    .lineLimit(1...3)
-                LabeledContent("Icon") { iconPaletteView }
-                LabeledContent("Color") { colorPaletteView }
+                
+                PropertyRow(title: "Description") {
+                    TextField("", text: $folderDescription, prompt: Text("Optional"), axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .lineLimit(1...3)
+                        .multilineTextAlignment(.trailing)
+                }
+                
+                PropertyRow(title: "Icon") { iconPaletteView }
+                PropertyRow(title: "Color") { colorPaletteView }
             } header: {
                 Text(isEditing ? "Edit Folder" : "New Folder")
             }
 
             Section("Location") {
-                Picker("Type", selection: $selectedKind) {
-                    Text("Connections").tag(FolderKind.connections)
-                    Text("Identities").tag(FolderKind.identities)
+                PropertyRow(title: "Type") {
+                    Picker("", selection: $selectedKind) {
+                        Text("Connections").tag(FolderKind.connections)
+                        Text("Identities").tag(FolderKind.identities)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
                 }
 
-                Picker("Parent", selection: $selectedParentID) {
-                    Text("None").tag(UUID?.none)
-                    ForEach(hierarchicalParentFolders, id: \.folder.id) { item in
-                        Text(item.path).tag(UUID?.some(item.folder.id))
+                PropertyRow(title: "Parent") {
+                    Picker("", selection: $selectedParentID) {
+                        Text("None").tag(UUID?.none)
+                        ForEach(hierarchicalParentFolders, id: \.folder.id) { item in
+                            Text(item.path).tag(UUID?.some(item.folder.id))
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
                 }
             }
 
@@ -249,25 +269,39 @@ struct FolderEditorSheet: View {
     @ViewBuilder
     private var credentialsFormSection: some View {
         Section("Credentials") {
-            Picker("Mode", selection: $credentialMode) {
-                Text("None").tag(FolderCredentialMode.none)
-                Text("Manual").tag(FolderCredentialMode.manual)
-                Text("Identity").tag(FolderCredentialMode.identity)
-                if canUseInheritance { Text("Inherit").tag(FolderCredentialMode.inherit) }
+            PropertyRow(title: "Mode") {
+                Picker("", selection: $credentialMode) {
+                    Text("None").tag(FolderCredentialMode.none)
+                    Text("Manual").tag(FolderCredentialMode.manual)
+                    Text("Identity").tag(FolderCredentialMode.identity)
+                    if canUseInheritance { Text("Inherit").tag(FolderCredentialMode.inherit) }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
 
             switch credentialMode {
             case .manual:
-                TextField("Username", text: $manualUsername, prompt: Text("shared_user"))
-                SecureField("Password", text: Binding(
-                    get: { manualPassword },
-                    set: { manualPassword = $0; manualPasswordDirty = true }
-                ), prompt: Text("••••••••"))
+                PropertyRow(title: "Username") {
+                    TextField("", text: $manualUsername, prompt: Text("shared_user"))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
+                
+                PropertyRow(title: "Password") {
+                    SecureField("", text: Binding(
+                        get: { manualPassword },
+                        set: { manualPassword = $0; manualPasswordDirty = true }
+                    ), prompt: Text("••••••••"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                }
+                
                 if editingFolderUsesManual && !manualPasswordDirty {
                     Text("Existing password will be kept unless changed.")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.secondary)
+                        .listRowSeparator(.hidden)
                 }
             case .identity:
                 identitySelectionContent
@@ -275,11 +309,13 @@ struct FolderEditorSheet: View {
                 if let identity = inheritedIdentity {
                     Text("Inherits identity \"\(identity.name)\" from parent folder.")
                         .foregroundStyle(ColorTokens.Text.secondary)
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
+                        .listRowSeparator(.hidden)
                 } else {
                     Text("Parent folder does not provide credentials.")
                         .foregroundStyle(ColorTokens.Status.error)
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
+                        .listRowSeparator(.hidden)
                 }
             case .none:
                 EmptyView()
@@ -290,23 +326,38 @@ struct FolderEditorSheet: View {
     private var identitySelectionContent: some View {
         Group {
             if availableIdentities.isEmpty {
-                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                    Text("No identities available.")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                        .font(TypographyTokens.detail)
-                    Button("Create Identity…") {
-                        identityEditorState = .create(parent: nil, token: UUID())
+                PropertyRow(title: "Identity") {
+                    VStack(alignment: .trailing, spacing: SpacingTokens.xs) {
+                        Text("No identities available.")
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                            .font(TypographyTokens.formDescription)
+                        Button("Create Identity") {
+                            identityEditorState = .create(parent: nil, token: UUID())
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
                 }
             } else {
-                Picker("Identity", selection: $selectedIdentityID) {
-                    Text("Select…").tag(UUID?.none)
-                    ForEach(availableIdentities, id: \.id) {
-                        Text($0.name).tag(UUID?.some($0.id))
+                PropertyRow(title: "Identity") {
+                    HStack(spacing: SpacingTokens.xs) {
+                        Picker("", selection: $selectedIdentityID) {
+                            Text("Select").tag(UUID?.none)
+                            ForEach(availableIdentities, id: \.id) {
+                                Text($0.name).tag(UUID?.some($0.id))
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        
+                        Button {
+                            identityEditorState = .create(parent: nil, token: UUID())
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
-                }
-                Button("Create Identity…") {
-                    identityEditorState = .create(parent: nil, token: UUID())
                 }
             }
         }
@@ -320,20 +371,22 @@ struct FolderEditorSheet: View {
                 Button("Delete", role: .destructive) {
                     Task { try? await connectionStore.deleteFolder(folder); dismiss() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .tint(ColorTokens.Status.error)
             }
 
             Spacer()
 
             Button("Cancel", role: .cancel) { dismiss() }
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.cancelAction)
 
             Button(isEditing ? "Save" : "Create") { Task { await saveFolder() } }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!isValid)
         }
-        .padding(SpacingTokens.md2)
+        .padding(SpacingTokens.md)
     }
 
     // MARK: - Logic

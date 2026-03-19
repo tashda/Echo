@@ -2,8 +2,8 @@ import SwiftUI
 
 struct SecuritySidebarView: View {
     @Binding var selectedConnectionID: UUID?
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @StateObject private var viewModel = SecuritySidebarViewModel()
+    @Environment(EnvironmentState.self) private var environmentState
+    @State private var viewModel = SecuritySidebarViewModel()
     @State private var searchText: String = ""
 
     private var filteredDbUsers: [SecuritySidebarViewModel.DbUser] {
@@ -109,7 +109,7 @@ struct SecuritySidebarView: View {
 
     private var activeSession: ConnectionSession? {
         guard let id = selectedConnectionID else { return nil }
-        return environmentState.sessionCoordinator.sessionForConnection(id)
+        return environmentState.sessionGroup.sessionForConnection(id)
     }
 
     @ViewBuilder

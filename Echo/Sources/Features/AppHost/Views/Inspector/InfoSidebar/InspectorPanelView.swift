@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct InspectorPanelView: View {
-    let content: ForeignKeyInspectorContent
+    let content: DatabaseObjectInspectorContent
     let depth: Int
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.md1) {
@@ -34,6 +34,12 @@ struct InspectorPanelView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Open \(targetTitle) in a new query tab")
+                }
+            }
+
+            if let sql = content.sqlText, !sql.isEmpty {
+                InspectorSQLBlock(sql: sql) {
+                    environmentState.openQueryTab(presetQuery: sql)
                 }
             }
 

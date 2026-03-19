@@ -50,7 +50,7 @@ extension QueryInputSection {
                     ProgressView()
                         .controlSize(.mini)
                 } else {
-                    Image(systemName: "wand.and.stars")
+                    Image(systemName: "text.alignleft")
                         .font(TypographyTokens.caption2.weight(.semibold))
                 }
             }
@@ -119,7 +119,7 @@ extension QueryInputSection {
         let dialect = formatterDialect
         Task {
             do {
-                let formatted = try await SQLFormatterService.shared.format(sql: currentSQL, dialect: dialect)
+                let formatted = try await SQLFormatter.shared.format(sql: currentSQL, dialect: dialect)
                 await MainActor.run { query.sql = formatted }
             } catch {
                 await MainActor.run {

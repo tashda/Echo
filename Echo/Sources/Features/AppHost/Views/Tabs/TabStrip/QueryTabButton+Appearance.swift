@@ -39,39 +39,39 @@ extension QueryTabButton {
     var activeIdleGradient: LinearGradient {
         if colorScheme == .dark {
             return LinearGradient(colors: [
-                Color.white.opacity(0.26),
-                Color.white.opacity(0.18)
+                ColorTokens.TabStrip.ActiveTab.Dark.top,
+                ColorTokens.TabStrip.ActiveTab.Dark.bottom
             ], startPoint: .top, endPoint: .bottom)
         }
         return LinearGradient(colors: [
-            Color(white: 0.99),
-            Color(white: 0.95)
+            ColorTokens.TabStrip.ActiveTab.Light.top,
+            ColorTokens.TabStrip.ActiveTab.Light.bottom
         ], startPoint: .top, endPoint: .bottom)
     }
 
     var activeHoverGradient: LinearGradient {
         if colorScheme == .dark {
             return LinearGradient(colors: [
-                Color.white.opacity(0.32),
-                Color.white.opacity(0.24)
+                ColorTokens.TabStrip.ActiveTab.Dark.hoverTop,
+                ColorTokens.TabStrip.ActiveTab.Dark.hoverBottom
             ], startPoint: .top, endPoint: .bottom)
         }
         return LinearGradient(colors: [
-            Color(white: 1.0),
-            Color(white: 0.97)
+            ColorTokens.TabStrip.ActiveTab.Light.hoverTop,
+            ColorTokens.TabStrip.ActiveTab.Light.hoverBottom
         ], startPoint: .top, endPoint: .bottom)
     }
 
     var inactiveHoverGradient: LinearGradient {
         if colorScheme == .dark {
             return LinearGradient(colors: [
-                Color.white.opacity(0.18),
-                Color.white.opacity(0.12)
+                ColorTokens.TabStrip.InactiveHover.Dark.top,
+                ColorTokens.TabStrip.InactiveHover.Dark.bottom
             ], startPoint: .top, endPoint: .bottom)
         }
         return LinearGradient(colors: [
-            Color(white: 0.94),
-            Color(white: 0.90)
+            ColorTokens.TabStrip.InactiveHover.Light.top,
+            ColorTokens.TabStrip.InactiveHover.Light.bottom
         ], startPoint: .top, endPoint: .bottom)
     }
 
@@ -96,11 +96,11 @@ extension QueryTabButton {
         }
 
         if isActive {
-            return colorScheme == .dark ? Color.white.opacity(0.30) : Color(white: 0.86)
+            return colorScheme == .dark ? ColorTokens.TabStrip.Border.activeDark : ColorTokens.TabStrip.Border.activeLight
         }
 
         if shouldTreatAsHover {
-            return colorScheme == .dark ? Color.white.opacity(0.22) : Color.white.opacity(0.68)
+            return colorScheme == .dark ? ColorTokens.TabStrip.Border.hoverDark : ColorTokens.TabStrip.Border.hoverLight
         }
 
         return nil
@@ -121,9 +121,9 @@ extension QueryTabButton {
             return appearance.dropTabFill
         }
         if colorScheme == .dark {
-            return LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.18)], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [ColorTokens.TabStrip.DropTarget.Dark.top, ColorTokens.TabStrip.DropTarget.Dark.bottom], startPoint: .top, endPoint: .bottom)
         } else {
-            return LinearGradient(colors: [Color(white: 0.90), Color(white: 0.86)], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [ColorTokens.TabStrip.DropTarget.Light.top, ColorTokens.TabStrip.DropTarget.Light.bottom], startPoint: .top, endPoint: .bottom)
         }
 #else
         LinearGradient(colors: [ColorTokens.accent.opacity(0.4), ColorTokens.accent.opacity(0.28)], startPoint: .top, endPoint: .bottom)
@@ -134,7 +134,7 @@ extension QueryTabButton {
 #if os(macOS)
         Color.clear
 #else
-        return Color.black.opacity(0.1)
+        return ColorTokens.TabStrip.Border.inactive
 #endif
     }
 
@@ -144,9 +144,9 @@ extension QueryTabButton {
             return appearance.dropTabBorder
         }
         if colorScheme == .dark {
-            return Color.white.opacity(0.15)
+            return ColorTokens.TabStrip.Border.dropDark
         } else {
-            return Color.black.opacity(0.05)
+            return ColorTokens.TabStrip.Border.dropLight
         }
 #else
         return ColorTokens.accent.opacity(0.6)
@@ -158,9 +158,9 @@ extension QueryTabButton {
         if let appearance {
             return appearance.hoverTabBorder
         }
-        return colorScheme == .dark ? Color.white.opacity(0.38) : Color.white.opacity(0.55)
+        return colorScheme == .dark ? ColorTokens.TabStrip.Highlight.dark : ColorTokens.TabStrip.Highlight.light
 #else
-        return Color.white.opacity(0.4)
+        return ColorTokens.TabStrip.Highlight.light
 #endif
     }
 
@@ -179,7 +179,7 @@ extension QueryTabButton {
         }
 
         if !isActive { return Color.clear }
-        return colorScheme == .dark ? Color.black.opacity(0.28) : Color.black.opacity(0.10)
+        return colorScheme == .dark ? ColorTokens.TabStrip.Shadow.dark : ColorTokens.TabStrip.Shadow.light
 #else
         return Color.black.opacity(isActive ? 0.2 : 0)
 #endif

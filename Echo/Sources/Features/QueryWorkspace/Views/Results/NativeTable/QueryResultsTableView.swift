@@ -3,7 +3,7 @@ import SwiftUI
 import AppKit
 
 struct QueryResultsTableView: NSViewRepresentable {
-    @ObservedObject var query: QueryEditorState
+    @Bindable var query: QueryEditorState
     var highlightedColumnIndex: Int?
     var activeSort: SortCriteria?
     var rowOrder: [Int]
@@ -20,8 +20,8 @@ struct QueryResultsTableView: NSViewRepresentable {
     var showRowNumbers: Bool = true
     var colorOverrides: ResultGridColorOverrides = .init()
 
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(ClipboardHistoryStore.self) private var clipboardHistory
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self, clipboardHistory: clipboardHistory, persistedState: persistedState)

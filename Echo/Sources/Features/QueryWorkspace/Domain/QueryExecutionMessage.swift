@@ -42,6 +42,7 @@ struct QueryExecutionMessage: Identifiable, Hashable {
 
     let id: UUID
     let index: Int
+    let category: String
     let message: String
     let timestamp: Date
     let severity: Severity
@@ -54,6 +55,7 @@ struct QueryExecutionMessage: Identifiable, Hashable {
     init(
         id: UUID = UUID(),
         index: Int,
+        category: String = "Query Execution",
         message: String,
         timestamp: Date = Date(),
         severity: Severity = .info,
@@ -65,6 +67,7 @@ struct QueryExecutionMessage: Identifiable, Hashable {
     ) {
         self.id = id
         self.index = index
+        self.category = category
         self.message = message
         self.timestamp = timestamp
         self.severity = severity

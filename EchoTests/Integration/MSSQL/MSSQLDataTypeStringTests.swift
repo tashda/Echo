@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server string/binary data type round-trips through Echo's DatabaseSession layer.
@@ -126,28 +127,36 @@ final class MSSQLDataTypeStringTests: MSSQLDockerTestCase {
     // MARK: - Round-Trip Through Table
 
     func testStringRoundTripThroughTable() async throws {
-        try await withTempTable(
-            columns: """
-                id INT PRIMARY KEY,
-                char_val CHAR(20), varchar_val VARCHAR(200),
-                nchar_val NCHAR(20), nvarchar_val NVARCHAR(200),
-                date_val DATE, time_val TIME, dt2_val DATETIME2,
-                uid_val UNIQUEIDENTIFIER
-            """
-        ) { tableName in
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES (
-                    1, 'fixed', 'variable', N'固定', N'可変',
-                    '2024-01-15', '10:30:00', '2024-01-15 10:30:00',
-                    '12345678-1234-1234-1234-123456789012'
-                )
-            """)
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "char_val", definition: .standard(.init(dataType: .char(length: 20)))),
+            SQLServerColumnDefinition(name: "varchar_val", definition: .standard(.init(dataType: .varchar(length: .length(200))))),
+            SQLServerColumnDefinition(name: "nchar_val", definition: .standard(.init(dataType: .nchar(length: 20)))),
+            SQLServerColumnDefinition(name: "nvarchar_val", definition: .standard(.init(dataType: .nvarchar(length: .length(200))))),
+            SQLServerColumnDefinition(name: "date_val", definition: .standard(.init(dataType: .date))),
+            SQLServerColumnDefinition(name: "time_val", definition: .standard(.init(dataType: .time(precision: 7)))),
+            SQLServerColumnDefinition(name: "dt2_val", definition: .standard(.init(dataType: .datetime2(precision: 7)))),
+            SQLServerColumnDefinition(name: "uid_val", definition: .standard(.init(dataType: .uniqueidentifier)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)]")
-            XCTAssertEqual(result.rows.count, 1)
-            for (i, col) in result.columns.enumerated() {
-                XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
-            }
+        _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
+            "id": .int(1),
+            "char_val": .string("fixed"),
+            "varchar_val": .string("variable"),
+            "nchar_val": .nString("固定"),
+            "nvarchar_val": .nString("可変"),
+            "date_val": .raw("'2024-01-15'"),
+            "time_val": .raw("'10:30:00'"),
+            "dt2_val": .raw("'2024-01-15 10:30:00'"),
+            "uid_val": .uuid(UUID(uuidString: "12345678-1234-1234-1234-123456789012")!)
+        ])
+
+        let result = try await query("SELECT * FROM [\(tableName)]")
+        XCTAssertEqual(result.rows.count, 1)
+        for (i, col) in result.columns.enumerated() {
+            XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
         }
     }
 }

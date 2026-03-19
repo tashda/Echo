@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import Combine
 
 @MainActor
 final class ManageConnectionsWindowController: NSWindowController, NSWindowDelegate {
@@ -9,7 +8,6 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
     private var hostingController: PocketSeparatorHidingHostingController<ManageConnectionsWindowRootView>?
     private var isWindowLoadedOnce = false
-    private var themeCancellables = Set<AnyCancellable>()
 
     private override init(window: NSWindow?) {
         super.init(window: window)
@@ -19,17 +17,17 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         fatalError("init(coder:) has not been implemented")
     }
 
-    func present(initialSection: ManageSection? = nil) {
+    func present(initialSection: ManageSection? = nil, selectedProjectID: UUID? = nil) {
         if window == nil {
             configureWindow()
         }
 
         guard let window else { return }
-        AppCoordinator.shared.connectionStore.selectedFolderID = nil
+        AppDirector.shared.connectionStore.selectedFolderID = nil
 
         hostingController?.rootView = ManageConnectionsWindowRootView(onClose: { [weak self] in
             self?.closeWindow()
-        }, initialSection: initialSection)
+        }, initialSection: initialSection, selectedProjectID: selectedProjectID)
 
         applyTheme(to: window)
 
@@ -40,7 +38,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        AppCoordinator.shared.navigationStore.isManageConnectionsPresented = true
+        AppDirector.shared.navigationStore.isManageConnectionsPresented = true
     }
 
     func closeWindow() {
@@ -81,19 +79,23 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
     }
 
     func windowWillClose(_ notification: Notification) {
-        AppCoordinator.shared.navigationStore.isManageConnectionsPresented = false
+        AppDirector.shared.navigationStore.isManageConnectionsPresented = false
     }
 
     private func bindThemeUpdates(for window: NSWindow) {
-        themeCancellables.removeAll()
+        observeThemeChanges(for: window)
+    }
 
-        AppearanceStore.shared.$effectiveColorScheme
-            .receive(on: RunLoop.main)
-            .sink { [weak self, weak window] _ in
-                guard let window else { return }
-                self?.applyTheme(to: window)
+    private func observeThemeChanges(for window: NSWindow) {
+        _ = withObservationTracking {
+            AppearanceStore.shared.effectiveColorScheme
+        } onChange: { [weak self, weak window] in
+            Task { @MainActor in
+                guard let self, let window else { return }
+                self.applyTheme(to: window)
+                self.observeThemeChanges(for: window) // Re-track
             }
-            .store(in: &themeCancellables)
+        }
     }
 
     private func applyTheme(to window: NSWindow) {
@@ -131,17 +133,19 @@ final class PocketSeparatorHidingHostingController<Content: View>: NSHostingCont
 private struct ManageConnectionsWindowRootView: View {
     let onClose: () -> Void
     var initialSection: ManageSection? = nil
+    var selectedProjectID: UUID? = nil
 
     var body: some View {
-        let coordinator = AppCoordinator.shared
-        ManageConnectionsView(onClose: onClose, initialSection: initialSection)
+        let coordinator = AppDirector.shared
+        ManageConnectionsView(onClose: onClose, initialSection: initialSection, initialProjectID: selectedProjectID)
+            .id("\(initialSection?.rawValue ?? "")-\(selectedProjectID?.uuidString ?? "")")
             .environment(coordinator.projectStore)
             .environment(coordinator.connectionStore)
             .environment(coordinator.navigationStore)
             .environment(coordinator.tabStore)
-            .environmentObject(coordinator.environmentState)
-            .environmentObject(coordinator.appState)
-            .environmentObject(coordinator.appearanceStore)
-            .environmentObject(coordinator.clipboardHistory)
+            .environment(coordinator.environmentState)
+            .environment(coordinator.appState)
+            .environment(coordinator.appearanceStore)
+            .environment(coordinator.clipboardHistory)
     }
 }

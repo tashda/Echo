@@ -1,12 +1,11 @@
 import SwiftUI
-import Combine
 
 struct TableStructureEditorView: View {
-    @ObservedObject var tab: WorkspaceTab
-    @ObservedObject var viewModel: TableStructureEditorViewModel
-    
+    @Bindable var tab: WorkspaceTab
+    @Bindable var viewModel: TableStructureEditorViewModel
+
     @Environment(ProjectStore.self) internal var projectStore
-    @EnvironmentObject internal var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) internal var environmentState
     
     @State internal var activeIndexEditor: IndexEditorPresentation?
     @State internal var activeColumnEditor: ColumnEditorPresentation?
@@ -21,10 +20,10 @@ struct TableStructureEditorView: View {
     @State internal var bulkColumnEditor: BulkColumnEditorPresentation?
 
     init(tab: WorkspaceTab, viewModel: TableStructureEditorViewModel) {
-        _tab = ObservedObject(initialValue: tab)
-        _viewModel = ObservedObject(initialValue: viewModel)
+        self.tab = tab
+        self.viewModel = viewModel
         _selectedSection = State(initialValue: viewModel.requestedSection ?? .columns)
-        
+
         // Initialize column index lookup
         _columnIndexLookup = State(
             initialValue: Dictionary(
@@ -83,10 +82,10 @@ struct TableStructureEditorView: View {
     }
 
     internal var primaryKeyBinding: Binding<TableStructureEditorViewModel.PrimaryKeyModel>? {
-        guard viewModel.primaryKey != nil else { return nil }
+        guard let pk = viewModel.primaryKey else { return nil }
         return Binding(
-            get: { viewModel.primaryKey! },
-            set: { viewModel.primaryKey = $0 }
+            get: { self.viewModel.primaryKey ?? pk },
+            set: { self.viewModel.primaryKey = $0 }
         )
     }
 

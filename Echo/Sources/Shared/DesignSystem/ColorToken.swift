@@ -10,6 +10,13 @@ public enum ColorTokens {
         public static let secondary = Color(nsColor: .controlBackgroundColor)
         public static let tertiary = Color(nsColor: .textBackgroundColor)
         public static let elevated = Color(nsColor: .underPageBackgroundColor)
+        public static let sidebar = Color(nsColor: .controlBackgroundColor)
+    }
+
+    // Materials — use as ShapeStyle with .background()
+    public enum Material {
+        /// Translucent bar material matching sidebar/toolbar chrome.
+        public static let bar: some ShapeStyle = .bar
     }
     
     // Text
@@ -21,6 +28,30 @@ public enum ColorTokens {
         public static let placeholder = Color(nsColor: .placeholderTextColor)
     }
     
+    // Sidebar — Finder sidebar palette (macOS 26 Tahoe Figma reference)
+    public enum Sidebar {
+        /// Symbol fill — #000000 85% (Figma: light-mode sidebar icons)
+        public static let symbol = Color.black.opacity(0.85)
+        /// Selected row highlight — #000000 11% (Figma: sidebar selection pill)
+        public static let selectedFill = Color.black.opacity(0.11)
+        /// Context-menu / right-click highlight
+        public static let contextFill = Color.black.opacity(0.07)
+        /// Hover highlight
+        public static let hoverFill = Color.black.opacity(0.05)
+    }
+
+    // Surface fills — lightweight tinted backgrounds for cards, rows, and containers
+    public enum Surface {
+        /// Default card/container rest fill
+        public static let rest = Color.primary.opacity(0.03)
+        /// Hovered card/container fill
+        public static let hover = Color.primary.opacity(0.06)
+        /// Selected/active accent tint
+        public static let selected = Color.accentColor.opacity(0.06)
+        /// Selected border stroke
+        public static let selectedBorder = Color.accentColor.opacity(0.3)
+    }
+
     // Dividers / Borders
     public enum Separator {
         public static let primary = Color(nsColor: .separatorColor)
@@ -35,14 +66,143 @@ public enum ColorTokens {
         public static let info = Color.blue
     }
 
+    // Tab Strip
+    public enum TabStrip {
+        // Background fills (standard, non-themed)
+        public enum Background {
+            public static let dark = Color(white: 0.22)
+            public static let light = Color(white: 0.90)
+        }
+
+        // Active tab gradient stops
+        public enum ActiveTab {
+            public enum Dark {
+                public static let top = Color.white.opacity(0.26)
+                public static let bottom = Color.white.opacity(0.18)
+                public static let hoverTop = Color.white.opacity(0.32)
+                public static let hoverBottom = Color.white.opacity(0.24)
+            }
+            public enum Light {
+                public static let top = Color(white: 0.99)
+                public static let bottom = Color(white: 0.95)
+                public static let hoverTop = Color(white: 1.0)
+                public static let hoverBottom = Color(white: 0.97)
+            }
+        }
+
+        // Inactive tab hover gradient stops
+        public enum InactiveHover {
+            public enum Dark {
+                public static let top = Color.white.opacity(0.18)
+                public static let bottom = Color.white.opacity(0.12)
+            }
+            public enum Light {
+                public static let top = Color(white: 0.94)
+                public static let bottom = Color(white: 0.90)
+            }
+        }
+
+        // Drop target gradient stops
+        public enum DropTarget {
+            public enum Dark {
+                public static let top = Color.white.opacity(0.24)
+                public static let bottom = Color.white.opacity(0.18)
+            }
+            public enum Light {
+                public static let top = Color(white: 0.90)
+                public static let bottom = Color(white: 0.86)
+            }
+        }
+
+        // Tab borders
+        public enum Border {
+            public static let activeDark = Color.white.opacity(0.30)
+            public static let activeLight = Color(white: 0.86)
+            public static let hoverDark = Color.white.opacity(0.22)
+            public static let hoverLight = Color.white.opacity(0.68)
+            public static let dropDark = Color.white.opacity(0.15)
+            public static let dropLight = Color.black.opacity(0.05)
+            public static let inactive = Color.black.opacity(0.1)
+        }
+
+        // Tab shadow
+        public enum Shadow {
+            public static let dark = Color.black.opacity(0.28)
+            public static let light = Color.black.opacity(0.10)
+        }
+
+        // Hover highlight
+        public enum Highlight {
+            public static let dark = Color.white.opacity(0.38)
+            public static let light = Color.white.opacity(0.55)
+        }
+
+        // Separator gradient stops
+        public enum Separator {
+            public enum Dark {
+                public static let top = Color.white.opacity(0.28)
+                public static let bottom = Color.white.opacity(0.16)
+            }
+            public enum Light {
+                public static let top = Color(white: 0.88)
+                public static let bottom = Color(white: 0.75)
+            }
+        }
+
+        // Safari-style overlay
+        public enum SafariBar {
+            public static let gradientTop = Color.white.opacity(0.16)
+            public static let gradientBottom = Color.black.opacity(0.14)
+            public static let topEdge = Color.white.opacity(0.45)
+        }
+    }
+
+    // Glow frame decorative palette
+    public enum Glow {
+        public static let violet = Color(red: 0.737, green: 0.510, blue: 0.953)
+        public static let pink = Color(red: 0.961, green: 0.725, blue: 0.918)
+        public static let periwinkle = Color(red: 0.553, green: 0.624, blue: 1.0)
+        public static let coral = Color(red: 1.0, green: 0.404, blue: 0.471)
+        public static let peach = Color(red: 1.0, green: 0.729, blue: 0.443)
+        public static let lavender = Color(red: 0.776, green: 0.525, blue: 1.0)
+    }
+
+    // Editor Font Preview — fixed dark-theme palette used in the settings preview widget
+    public enum EditorPreview {
+        public static let background = Color(white: 0.12)
+        public static let border = Color.white.opacity(0.05)
+        public static let keyword = Color(red: 0.8, green: 0.5, blue: 0.9)
+        public static let plain = Color(white: 0.9)
+        public static let stringLiteral = Color(red: 0.6, green: 0.8, blue: 0.5)
+    }
+
     // Explorer / Object Browser
     public enum Explorer {
-        public static let database = Color(red: 0.18, green: 0.66, blue: 0.30)
-        public static let tables = Color(red: 0.22, green: 0.56, blue: 0.73)
-        public static let views = Color(red: 0.36, green: 0.38, blue: 0.92)
-        public static let functions = Color(red: 0.83, green: 0.53, blue: 0.05)
-        public static let jobs = Color(red: 0.06, green: 0.48, blue: 0.98)
-        public static let security = Color(red: 0.38, green: 0.45, blue: 0.65)
-        public static let extensions = Color(red: 0.84, green: 0.52, blue: 0.00)
+        public static let databaseFolder = Color.green
+        public static let databaseInstance = Color.blue
+        public static let tables = Color.cyan
+        public static let views = Color.teal
+        public static let materializedViews = Color.indigo
+        public static let functions = Color.orange
+        public static let procedures = Color.red
+        public static let triggers = Color(red: 0.95, green: 0.75, blue: 0.0) // Gold
+        public static let extensions = Color.mint
+
+        public static let jobs = Color.blue
+        public static let security = Color.purple
+        public static let queryStore = Color.indigo
+        public static let users = Color.pink
+        public static let roles = Color.pink
+        public static let logins = Color.pink
+        public static let serverRoles = Color.pink
+        public static let credentials = Color.pink
+        public static let linkedServers = Color.purple
+
+        public static let management = Color.brown
+        public static let extendedEvents = Color.teal
+        public static let databaseMail = Color.blue
+        public static let activityMonitor = Color.orange
     }
 }
+
+

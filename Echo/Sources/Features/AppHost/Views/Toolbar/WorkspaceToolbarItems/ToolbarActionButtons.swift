@@ -7,7 +7,7 @@ import EchoSense
 // when appState / tabStore / environmentState change.
 
 struct NewTabToolbarButton: View {
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(ConnectionStore.self) private var connectionStore
 
@@ -25,16 +25,16 @@ struct NewTabToolbarButton: View {
 
     private var canOpenNewTab: Bool {
         if let connection = navigationStore.navigationState.selectedConnection,
-           let _ = environmentState.sessionCoordinator.sessionForConnection(connection.id) {
+           let _ = environmentState.sessionGroup.sessionForConnection(connection.id) {
             return true
         }
-        return environmentState.sessionCoordinator.activeSession != nil
-            || environmentState.sessionCoordinator.activeSessions.first != nil
+        return environmentState.sessionGroup.activeSession != nil
+            || environmentState.sessionGroup.activeSessions.first != nil
     }
 }
 
 struct TabOverviewToolbarButton: View {
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
@@ -55,7 +55,7 @@ struct TabOverviewToolbarButton: View {
 }
 
 struct InspectorToolbarButton: View {
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         Button {

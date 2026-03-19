@@ -16,7 +16,7 @@ final class QueryEditorStateStreamingTests: XCTestCase {
         try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
 
         let spoolConfig = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: tempRoot)
-        let spoolManager = ResultSpoolCoordinator(configuration: spoolConfig)
+        let spoolManager = ResultSpooler(configuration: spoolConfig)
 
         let state = QueryEditorState(
             sql: "SELECT 1;",

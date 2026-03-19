@@ -62,20 +62,20 @@ extension QueryEditorContainer {
 
         foreignKeyFetchTask = Task {
             let session = await resolveExecutionSession()
-            let content = await fetchForeignKeyInspectorContent(for: selection, session: session)
+            let content = await fetchDatabaseObjectInspectorContent(for: selection, session: session)
 
             await MainActor.run {
                 if let content {
-                    environmentState.dataInspectorContent = .foreignKey(content)
+                    environmentState.dataInspectorContent = .databaseObject(content)
                 } else {
-                    let errorContent = ForeignKeyInspectorContent(
+                    let errorContent = DatabaseObjectInspectorContent(
                         title: selection.reference.referencedTable,
                         subtitle: selection.reference.referencedSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : selection.reference.referencedSchema,
                         fields: [],
                         lookupQuerySQL: makeForeignKeyLookupQuery(for: selection, includeLimit: false),
                         errorMessage: "Could not load referenced row"
                     )
-                    environmentState.dataInspectorContent = .foreignKey(errorContent)
+                    environmentState.dataInspectorContent = .databaseObject(errorContent)
                 }
 
                 let shouldOpen = forceOpen || autoOpenInspector
@@ -87,7 +87,7 @@ extension QueryEditorContainer {
         }
     }
 
-    private func fetchForeignKeyInspectorContent(for selection: QueryResultsTableView.ForeignKeySelection, session: DatabaseSession) async -> ForeignKeyInspectorContent? {
+    private func fetchDatabaseObjectInspectorContent(for selection: QueryResultsTableView.ForeignKeySelection, session: DatabaseSession) async -> DatabaseObjectInspectorContent? {
         guard let lookupQuery = makeForeignKeyLookupQuery(for: selection, includeLimit: true) else {
             fkLog.debug("[FK Inspector] Failed to build lookup query for \(selection.columnName) = \(selection.value)")
             return nil
@@ -100,16 +100,16 @@ extension QueryEditorContainer {
                 return nil
             }
 
-            var fields: [ForeignKeyInspectorContent.Field] = []
+            var fields: [DatabaseObjectInspectorContent.Field] = []
             for (column, value) in zip(result.columns, row) {
                 let displayValue = value ?? "NULL"
-                fields.append(ForeignKeyInspectorContent.Field(label: column.name, value: displayValue))
+                fields.append(DatabaseObjectInspectorContent.Field(label: column.name, value: displayValue))
             }
 
             let title = selection.reference.referencedTable
             let subtitle = selection.reference.referencedSchema.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            return ForeignKeyInspectorContent(
+            return DatabaseObjectInspectorContent(
                 title: title,
                 subtitle: subtitle.isEmpty ? nil : subtitle,
                 fields: fields,

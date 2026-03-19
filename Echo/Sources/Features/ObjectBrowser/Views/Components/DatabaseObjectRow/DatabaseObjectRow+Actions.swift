@@ -26,11 +26,17 @@ extension DatabaseObjectRow {
             openSelectScript(limit: limit)
         case .execute:
             openExecuteScript()
+        case .insert:
+            openInsertScript()
+        case .update:
+            openUpdateScript()
+        case .delete:
+            openDeleteScript()
         }
     }
     
     internal func openNewQueryTab() {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let sql = "-- Query for \(qualified)\n"
         Task { @MainActor in
@@ -39,7 +45,7 @@ extension DatabaseObjectRow {
     }
 
     internal func openDataPreview() {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
         let columnLines = columns.joined(separator: ",\n    ")
@@ -62,14 +68,14 @@ extension DatabaseObjectRow {
             return
         }
         Task { @MainActor in
-            guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+            guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
             environmentState.openStructureTab(for: session, object: object, databaseName: databaseName)
         }
     }
 
     internal func openExtensionStructure() {
         guard object.type == .extension else { return }
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let dbName = databaseName ?? connection.database
         session.addExtensionStructureTab(extensionName: object.name, databaseName: dbName)
     }
@@ -77,8 +83,51 @@ extension DatabaseObjectRow {
     internal func openRelationsDiagram() {
         guard supportsDiagram else { return }
         Task { @MainActor in
-            guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+            guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
             environmentState.openDiagramTab(for: session, object: object)
+        }
+    }
+
+    internal func openDependenciesQuery() {
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
+        let schema = object.schema
+        let sql = """
+        -- Dependencies for [\(schema)].[\(object.name)]
+        SELECT
+            OBJECT_NAME(d.referencing_id) AS [Referencing Object],
+            o1.type_desc AS [Referencing Type],
+            COALESCE(d.referenced_entity_name, OBJECT_NAME(d.referenced_id)) AS [Referenced Object],
+            COALESCE(o2.type_desc, d.referenced_class_desc) AS [Referenced Type]
+        FROM sys.sql_expression_dependencies d
+        LEFT JOIN sys.objects o1 ON d.referencing_id = o1.object_id
+        LEFT JOIN sys.objects o2 ON d.referenced_id = o2.object_id
+        WHERE d.referencing_id = OBJECT_ID('[\(schema)].[\(object.name)]')
+           OR d.referenced_id = OBJECT_ID('[\(schema)].[\(object.name)]')
+        ORDER BY [Referencing Object], [Referenced Object];
+        """
+        Task { @MainActor in
+            environmentState.openQueryTab(for: session, presetQuery: sql, autoExecute: true, database: databaseName)
+        }
+    }
+
+    internal func openTablePropertiesQuery() {
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
+        let schema = object.schema
+        let sql = """
+        -- Properties for [\(schema)].[\(object.name)]
+        EXEC sp_spaceused N'[\(schema)].[\(object.name)]';
+
+        SELECT
+            o.create_date AS [Created],
+            o.modify_date AS [Last Modified],
+            o.type_desc AS [Type],
+            i.rows AS [Row Count]
+        FROM sys.objects o
+        LEFT JOIN sys.sysindexes i ON o.object_id = i.id AND i.indid IN (0, 1)
+        WHERE o.object_id = OBJECT_ID('[\(schema)].[\(object.name)]');
+        """
+        Task { @MainActor in
+            environmentState.openQueryTab(for: session, presetQuery: sql, autoExecute: true, database: databaseName)
         }
     }
 

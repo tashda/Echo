@@ -34,7 +34,7 @@ struct SettingsRowWithInfo<Control: View>: View {
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(SpacingTokens.md)
-                .frame(width: 280)
+                .frame(width: LayoutTokens.Form.infoPopoverWidth)
         }
     }
 }

@@ -30,6 +30,10 @@ extension WorkspaceTab.Kind {
         case .extensionStructure: return "Extension Details"
         case .extensionsManager: return "Extensions"
         case .activityMonitor: return "Activity"
+        case .maintenance, .mssqlMaintenance: return "Maintenance"
+        case .queryStore: return "Query Store"
+        case .extendedEvents: return "Extended Events"
+        case .availabilityGroups: return "Availability Groups"
         }
     }
 
@@ -43,6 +47,10 @@ extension WorkspaceTab.Kind {
         case .extensionStructure: return "puzzlepiece.fill"
         case .extensionsManager: return "puzzlepiece"
         case .activityMonitor: return "chart.bar.doc.horizontal"
+        case .maintenance, .mssqlMaintenance: return "wrench.and.screwdriver"
+        case .queryStore: return "chart.bar.xaxis"
+        case .extendedEvents: return "bolt.horizontal"
+        case .availabilityGroups: return "server.rack"
         }
     }
 }

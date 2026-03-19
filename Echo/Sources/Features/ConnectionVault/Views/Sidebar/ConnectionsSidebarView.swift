@@ -7,7 +7,7 @@ struct ConnectionsSidebarView: View {
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(ConnectionStore.self) internal var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
-    @EnvironmentObject internal var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) internal var environmentState
 
     @Binding var selectedConnectionID: UUID?
     @Binding var selectedIdentityID: UUID?
@@ -49,7 +49,7 @@ struct ConnectionsSidebarView: View {
         .accessibilityIdentifier("connections-sidebar")
         .background(Color.clear)
         .contextMenu { addMenuContent() }
-        .sheet(item: $folderEditorState) { FolderEditorSheet(state: $0).environmentObject(environmentState) }
+        .sheet(item: $folderEditorState) { FolderEditorSheet(state: $0).environment(environmentState) }
         .alert("Delete Item?", isPresented: Binding(get: { pendingDeletion != nil }, set: { if !$0 { pendingDeletion = nil } }), presenting: pendingDeletion) { target in
             Button("Delete", role: .destructive) { performDeletion(for: target) }
             Button("Cancel", role: .cancel) { pendingDeletion = nil }
@@ -119,10 +119,10 @@ struct ConnectionsSidebarView: View {
 
     @ViewBuilder
     internal func addMenuContent() -> some View {
-        Button("New Connection…", systemImage: "externaldrive.badge.plus") { onCreateConnection(selectedConnectionFolder); selectedIdentityID = nil }
-        Button("New Connection Folder…", systemImage: "folder.badge.plus") { openFolderCreator(parent: selectedConnectionFolder); selectedIdentityID = nil }
+        Button("New Connection", systemImage: "externaldrive.badge.plus") { onCreateConnection(selectedConnectionFolder); selectedIdentityID = nil }
+        Button("New Connection Folder", systemImage: "folder.badge.plus") { openFolderCreator(parent: selectedConnectionFolder); selectedIdentityID = nil }
         Divider()
-        Button("Manage Connections…", systemImage: "gearshape") { openManageConnections(); selectedIdentityID = nil }
+        Button("Manage Connections", systemImage: "gearshape") { openManageConnections(); selectedIdentityID = nil }
     }
 
     internal func performDeletion(for target: DeletionTarget) {

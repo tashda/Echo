@@ -18,12 +18,11 @@ extension AgentSidebarView {
         .padding(SpacingTokens.md2)
         .frame(minWidth: 720, minHeight: 520)
         .onAppear {
-            if newJobOwner.isEmpty, let session = selectedSession {
+            if newJobOwner.isEmpty, let session = selectedSession, let mssql = session.session as? MSSQLSession {
                 Task {
                     do {
-                        let rs = try await session.session.simpleQuery("SELECT SUSER_SNAME() AS name;")
-                        let val = rs.rows.first?[0] ?? ""
-                        await MainActor.run { newJobOwner = val }
+                        let name = try await mssql.serverSecurity.currentLoginName()
+                        await MainActor.run { newJobOwner = name }
                     } catch { }
                 }
             }

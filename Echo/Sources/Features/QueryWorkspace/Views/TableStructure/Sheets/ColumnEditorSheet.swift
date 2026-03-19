@@ -45,33 +45,42 @@ struct ColumnEditorSheet: View {
 
     private var generalSection: some View {
         Section {
-            LabeledContent("Column Name") {
+            PropertyRow(title: "Column Name") {
                 TextField("", text: $draft.name)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
+            
             if hasDataTypeDropdown {
-                LabeledContent("Data Type") {
+                PropertyRow(title: "Data Type") {
                     Picker("", selection: typeSelectionBinding) {
                         Text("Custom").tag("")
                         ForEach(dataTypeOptions(for: databaseType), id: \.self) { type in
                             Text(type).tag(type)
                         }
                     }
-                    .pickerStyle(.menu)
                     .labelsHidden()
+                    .pickerStyle(.menu)
                 }
+                
                 if draft.selectedDataType == nil {
-                    LabeledContent("Custom Data Type") {
+                    PropertyRow(title: "Custom Data Type") {
                         TextField("", text: dataTypeInputBinding)
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
                     }
                 }
             } else {
-                LabeledContent("Data Type") {
+                PropertyRow(title: "Data Type") {
                     TextField("", text: dataTypeInputBinding)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
                 }
             }
         } footer: {
             if !draft.canSave {
                 Text("Name and data type cannot be empty.")
+                    .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Status.error)
             }
         }
@@ -81,39 +90,32 @@ struct ColumnEditorSheet: View {
 
     private var behaviorSection: some View {
         Section {
-            Toggle("Allow NULL values", isOn: $draft.isNullable)
-
-            LabeledContent("Default Value") {
-                TextField("", text: $draft.defaultValue, prompt: Text("e.g. 0, 'active', now()"))
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            PropertyRow(title: "Allow NULL values") {
+                Toggle("", isOn: $draft.isNullable)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
             }
 
-            LabeledContent {
+            PropertyRow(title: "Default Value") {
+                TextField("", text: $draft.defaultValue, prompt: Text("e.g. 0, 'active', now()"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+
+            PropertyRow(
+                title: "Generated Expression",
+                info: "A SQL expression that automatically computes this column's value. Generated columns cannot be written to directly.\n\nExample: price * quantity"
+            ) {
                 TextField("", text: $draft.generatedExpression, prompt: Text("e.g. price * quantity"), axis: .vertical)
+                    .textFieldStyle(.plain)
                     .lineLimit(2...4)
-            } label: {
-                HStack(spacing: SpacingTokens.xxs) {
-                    Text("Generated Expression")
-                    Button {
-                        showGeneratedExpressionInfo.toggle()
-                    } label: {
-                        Image(systemName: "info.circle")
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                    }
-                    .buttonStyle(.borderless)
-                    .popover(isPresented: $showGeneratedExpressionInfo, arrowEdge: .trailing) {
-                        Text("A SQL expression that automatically computes this column's value. Generated columns cannot be written to directly.\n\nExample: price * quantity")
-                            .font(TypographyTokens.detail)
-                            .multilineTextAlignment(.leading)
-                            .frame(width: 240, alignment: .leading)
-                            .padding(SpacingTokens.sm)
-                    }
-                }
+                    .multilineTextAlignment(.trailing)
             }
         } header: {
             Text("Behavior")
         } footer: {
             Text("Leave optional fields blank to omit them.")
+                .font(TypographyTokens.formDescription)
         }
     }
 
