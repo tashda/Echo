@@ -3,8 +3,23 @@ import Foundation
 extension EnvironmentState {
     // MARK: - Session Management
 
-    func connect(to connection: SavedConnection) async {
-        await connectToNewSession(to: connection)
+    func connect(to connection: SavedConnection) {
+        connectToNewSession(to: connection)
+    }
+
+    func cancelPendingConnection(for connectionID: UUID) {
+        cancelAndRemovePending(for: connectionID)
+        connectionStates[connectionID] = .disconnected
+    }
+
+    func retryPendingConnection(for connectionID: UUID) {
+        guard let saved = connectionStore.connections.first(where: { $0.id == connectionID }) else { return }
+        connectToNewSession(to: saved)
+    }
+
+    func removePendingConnection(for connectionID: UUID) {
+        pendingConnections.removeAll { $0.id == connectionID }
+        connectionStates.removeValue(forKey: connectionID)
     }
 
     func disconnectAllSessions() {
@@ -96,7 +111,9 @@ extension EnvironmentState {
                 connectTimeoutSeconds: connectTimeoutSeconds
             )
             let duration = Date().timeIntervalSince(startTime)
-            await session.close()
+            // Close in the background — shutting down the event loop group can take
+            // several seconds and should not block the test result.
+            Task.detached { await session.close() }
             return ConnectionTestResult(isSuccessful: true, message: "Success", responseTime: duration, serverVersion: nil)
         } catch {
             let duration = Date().timeIntervalSince(startTime)
@@ -124,18 +141,24 @@ extension EnvironmentState {
 
     func openMaintenanceTab(connectionID: UUID, databaseName: String? = nil) {
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab: WorkspaceTab
         if session.connection.databaseType == .microsoftSQL {
-            let tab = session.addMSSQLMaintenanceTab(databaseName: databaseName)
-            registerTab(tab)
-            tabStore.selectTab(tab)
+            tab = session.addMSSQLMaintenanceTab(databaseName: databaseName)
         } else {
-            let tab = session.addMaintenanceTab(databaseName: databaseName)
-            registerTab(tab)
-            tabStore.selectTab(tab)
+            tab = session.addMaintenanceTab(databaseName: databaseName)
         }
+        if tabStore.getTab(id: tab.id) == nil {
+            registerTab(tab)
+        }
+        tabStore.selectTab(tab)
     }
 
     func openActivityMonitorTab(connectionID: UUID) {
+        // Reuse any existing activity monitor tab for this connection across all sessions
+        if let existing = tabStore.tabs.first(where: { $0.kind == .activityMonitor && $0.connection.id == connectionID }) {
+            tabStore.selectTab(existing)
+            return
+        }
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
         do {
             let tab = try session.addActivityMonitorTab()
