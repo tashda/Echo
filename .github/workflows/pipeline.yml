@@ -107,26 +107,59 @@ jobs:
         name: test-results-unit
         path: TestResults-unit.xcresult
 
-  # ── Tier 2: SQLite & Cross-Dialect Tests (GitHub-hosted — no Docker needed) ─
-  sqlite-tests:
-    name: "Step 2: SQLite & Cross-Dialect Tests"
-    runs-on: macos-26
+  # ── Tier 2: SQLite & Integration Tests (self-hosted) ─────────────────────
+  integration-tests:
+    name: "Step 2: Integration Tests"
     needs: unit-tests
+    runs-on: [self-hosted, echo-test-server]
+    env:
+      DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
+      ECHO_MSSQL_PORT: "14332"
+      ECHO_PG_PORT: "54322"
     steps:
     - uses: actions/checkout@v4
 
-    - name: Select Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '26'
-
-    - name: Clear SPM cache
+    - name: Prepare environment
       run: |
-        rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
-        rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security set-keychain-settings ~/Library/Keychains/login.keychain-db
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
 
-    - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
+    - name: Verify Docker (via Colima)
+      run: |
+        # Ensure colima is running; start it if not
+        if ! /usr/local/bin/colima status > /dev/null 2>&1; then
+          echo "Colima not running — starting..."
+          /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
+        fi
+        # Verify Docker is reachable
+        docker info > /dev/null 2>&1
+        echo "Docker is ready"
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+    - name: Ensure test containers are running
+      run: |
+        # Start MSSQL container if not running
+        if ! docker ps --format '{{.Names}}' | grep -q echo-test-mssql; then
+          echo "Starting MSSQL container..."
+          docker run -d --name echo-test-mssql \
+            -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=YourStr0ngP@ssword' \
+            -p ${ECHO_MSSQL_PORT}:1433 \
+            mcr.microsoft.com/mssql/server:2022-latest
+          sleep 15
+        fi
+        # Start Postgres container if not running
+        if ! docker ps --format '{{.Names}}' | grep -q echo-test-pg; then
+          echo "Starting Postgres container..."
+          docker run -d --name echo-test-pg \
+            -e POSTGRES_PASSWORD=postgres \
+            -p ${ECHO_PG_PORT}:5432 \
+            postgres:16
+          sleep 5
+        fi
+        echo "Containers ready:"
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
     - name: Run SQLite & Cross-Dialect Tests
       run: |
@@ -146,69 +179,12 @@ jobs:
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
 
-    - name: Upload SQLite Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-sqlite
-        path: TestResults-sqlite.xcresult
-
-  # ── Tier 3: Docker Integration Tests (self-hosted, optional) ─────────────
-  # These tests require a self-hosted runner with Docker installed.
-  # They are NOT required for the release pipeline — they run as bonus
-  # validation on PRs to main. If Docker is unavailable, tests are skipped.
-  docker-integration:
-    name: "Step 3: Docker Integration - ${{ matrix.name }}"
-    needs: unit-tests
-    if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.ref == 'refs/heads/main')
-    runs-on: [self-hosted, echo-test-server]
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: "Modern SQL Stack (2022)"
-            type: "mssql-modern"
-          - name: "Postgres Stack (14-18)"
-            type: "postgres"
-    env:
-      ECHO_MSSQL_PORT: "14332"
-      ECHO_PG_PORT: "54322"
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Prepare environment
+    - name: Run MSSQL Integration Tests
       run: |
-        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-        security set-keychain-settings ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-
-    - name: Check Docker availability
-      id: docker-check
-      run: |
-        # Try multiple Docker socket paths
-        for sock in "/var/run/docker.sock" "$HOME/.docker/run/docker.sock" "$HOME/.colima/default/docker.sock" "$HOME/.orbstack/run/docker.sock"; do
-          if [ -S "$sock" ]; then
-            export DOCKER_HOST="unix://$sock"
-            if docker info > /dev/null 2>&1; then
-              echo "docker_available=true" >> $GITHUB_OUTPUT
-              echo "docker_host=unix://$sock" >> $GITHUB_OUTPUT
-              echo "Docker available via $sock"
-              exit 0
-            fi
-          fi
-        done
-        echo "docker_available=false" >> $GITHUB_OUTPUT
-        echo "::warning::Docker is not available on this runner — skipping integration tests"
-
-    - name: Run Modern SQL Stack Tests
-      if: matrix.type == 'mssql-modern' && steps.docker-check.outputs.docker_available == 'true'
-      env:
-        DOCKER_HOST: ${{ steps.docker-check.outputs.docker_host }}
-        ECHO_MSSQL_VERSION: "2022-latest"
-      run: |
-        xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-mssql \
           -only-testing:EchoTests/MSSQLConnectionTests \
           -only-testing:EchoTests/MSSQLQueryTests \
           -only-testing:EchoTests/MSSQLMaintenanceTests \
@@ -217,40 +193,34 @@ jobs:
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
 
-    - name: Run Postgres Matrix
-      if: matrix.type == 'postgres' && steps.docker-check.outputs.docker_available == 'true'
-      env:
-        DOCKER_HOST: ${{ steps.docker-check.outputs.docker_host }}
+    - name: Run Postgres Integration Tests
       run: |
-        for ver in "14" "16" "18"; do
-          echo "Testing Postgres $ver..."
-          export ECHO_PG_VERSION=$ver
-          xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
-            -only-testing:EchoTests/PGConnectionTests \
-            -only-testing:EchoTests/PGQueryTests \
-            -disable-concurrent-testing \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
-        done
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-pg \
+          -only-testing:EchoTests/PGConnectionTests \
+          -only-testing:EchoTests/PGQueryTests \
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
 
-    - name: Skip notice
-      if: steps.docker-check.outputs.docker_available != 'true'
-      run: echo "::notice::Docker integration tests skipped — Docker not available on this runner"
-
-    - name: Upload Results
+    - name: Upload Integration Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.type }}
-        path: "*.xcresult"
-        if-no-files-found: ignore
+        name: test-results-integration
+        path: |
+          TestResults-sqlite.xcresult
+          TestResults-mssql.xcresult
+          TestResults-pg.xcresult
 
-  # ── Tier 4: Production Build & Sparkle Release ───────────────────────────
+  # ── Tier 3: Production Build & Sparkle Release ───────────────────────────
   release:
-    name: "Step 4: Production Build & Release"
+    name: "Step 3: Production Build & Release"
     runs-on: macos-26
-    needs: [unit-tests, sqlite-tests]
+    needs: [unit-tests, integration-tests]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
