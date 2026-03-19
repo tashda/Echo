@@ -6,27 +6,19 @@ import SQLServerKit
 @Observable
 final class MSSQLMaintenanceViewModel {
     enum MaintenanceSection: String, CaseIterable, Identifiable {
-        case health = "Health & Integrity"
+        case health = "Health"
+        case tables = "Tables"
         case indexes = "Indexes"
-        case backups = "Backup History"
-        case extendedEvents = "Extended Events"
-        
+        case backups = "Backups"
+
         var id: String { rawValue }
-        
-        var icon: String {
-            switch self {
-            case .health: return "checkmark.shield"
-            case .indexes: return "rectangle.stack"
-            case .backups: return "archivebox"
-            case .extendedEvents: return "waveform.path.ecg"
-            }
-        }
     }
 
     let connectionID: UUID
     let connectionSessionID: UUID
     @ObservationIgnored private let session: DatabaseSession
     @ObservationIgnored private let notificationEngine: NotificationEngine?
+    @ObservationIgnored private(set) var panelState: BottomPanelState?
     
     var selectedSection: MaintenanceSection = .health
     var selectedDatabase: String?
@@ -37,20 +29,23 @@ final class MSSQLMaintenanceViewModel {
     
     // Health State
     var healthStats: SQLServerDatabaseHealth?
+    var healthPermissionError: String?
     var isCheckingIntegrity = false
     var isShrinking = false
-    
+
+    // Table State
+    var tableStats: [SQLServerTableStat] = []
+    var isRefreshingTables = false
+
     // Index State
     var fragmentedIndexes: [SQLServerIndexFragmentation] = []
     var isRefreshingIndexes = false
-    
+
     // Backup State
     var backupHistory: [SQLServerBackupHistoryEntry] = []
+    var backupPermissionError: String?
     var isRefreshingBackups = false
     
-    // Extended Events Integration
-    var extendedEventsVM: ExtendedEventsViewModel?
-
     init(
         session: DatabaseSession,
         connectionID: UUID,
@@ -63,14 +58,15 @@ final class MSSQLMaintenanceViewModel {
         self.connectionSessionID = connectionSessionID
         self.selectedDatabase = initialDatabase
         self.notificationEngine = notificationEngine
-        
-        // Initialize XE sub-viewmodel if we have an MSSQL session
-        if let mssql = session as? MSSQLSession {
-            self.extendedEventsVM = ExtendedEventsViewModel(
-                xeClient: mssql.extendedEvents,
-                connectionSessionID: connectionSessionID
-            )
-        }
+    }
+
+    func setPanelState(_ state: BottomPanelState) {
+        self.panelState = state
+    }
+
+    private func logOperation(_ text: String, severity: QueryExecutionMessage.Severity = .info, category: String = "Maintenance", duration: TimeInterval? = nil) {
+        guard let panelState else { return }
+        panelState.appendMessage(text, severity: severity, category: category, duration: duration)
     }
 
     func loadDatabases() async {
@@ -125,12 +121,12 @@ final class MSSQLMaintenanceViewModel {
         switch selectedSection {
         case .health:
             await refreshHealth()
+        case .tables:
+            await refreshTables()
         case .indexes:
             await refreshIndexes()
         case .backups:
             await refreshBackups()
-        case .extendedEvents:
-            await extendedEventsVM?.loadSessions()
         }
     }
 
@@ -143,49 +139,153 @@ final class MSSQLMaintenanceViewModel {
                 _ = try await session.sessionForDatabase(db)
             }
             healthStats = try await session.getDatabaseHealth()
+            healthPermissionError = nil
         } catch {
             healthStats = nil
-            notificationEngine?.post(category: .maintenanceFailed, message: "Failed to load health stats: \(error.localizedDescription)")
+            let msg = "\(error)"
+            if msg.contains("permission was denied") || msg.contains("not have permission") {
+                healthPermissionError = "Health statistics require access to the master database (sys.master_files)."
+            } else {
+                healthPermissionError = nil
+                notificationEngine?.post(category: .maintenanceFailed, message: "Failed to load health stats: \(error.localizedDescription)")
+            }
         }
     }
 
     func runIntegrityCheck() async {
+        let db = selectedDatabase ?? "database"
         isCheckingIntegrity = true
         defer { isCheckingIntegrity = false }
+        logOperation("Executing: DBCC CHECKDB(N'\(db)')", category: "Integrity Check")
         do {
             let result = try await session.checkDatabaseIntegrity()
-            notificationEngine?.post(
-                category: .maintenanceCompleted,
-                message: result.succeeded
-                    ? "Integrity check completed successfully for \(selectedDatabase ?? "database")."
-                    : "Integrity check finished with issues: \(result.messages.first ?? "Unknown")"
-            )
+            for msg in result.messages {
+                logOperation(msg, severity: result.succeeded ? .info : .warning, category: "Integrity Check")
+            }
+            let summary = result.succeeded
+                ? "Integrity check completed successfully for \(db)."
+                : "Integrity check finished with issues: \(result.messages.first ?? "Unknown")"
+            logOperation(summary, severity: result.succeeded ? .success : .warning, category: "Integrity Check")
+            notificationEngine?.post(category: .maintenanceCompleted, message: summary)
             await refreshHealth()
         } catch {
-            notificationEngine?.post(
-                category: .maintenanceFailed,
-                message: "Integrity check failed: \(error.localizedDescription)"
-            )
+            logOperation("Integrity check failed: \(error.localizedDescription)", severity: .error, category: "Integrity Check")
+            notificationEngine?.post(category: .maintenanceFailed, message: "Integrity check failed: \(error.localizedDescription)")
         }
     }
 
     func runShrink() async {
+        let db = selectedDatabase ?? "database"
         let sizeBefore = healthStats?.sizeMB ?? 0
         isShrinking = true
         defer { isShrinking = false }
+        logOperation("Executing: DBCC SHRINKDATABASE(N'\(db)')", category: "Shrink Database")
         do {
             _ = try await session.shrinkDatabase()
             await refreshHealth()
             let sizeAfter = healthStats?.sizeMB ?? 0
-            notificationEngine?.post(
-                category: .maintenanceCompleted,
-                message: "Database shrunk from \(String(format: "%.1f", sizeBefore)) MB to \(String(format: "%.1f", sizeAfter)) MB."
-            )
+            let summary = "Database shrunk from \(String(format: "%.1f", sizeBefore)) MB to \(String(format: "%.1f", sizeAfter)) MB."
+            logOperation(summary, severity: .success, category: "Shrink Database")
+            notificationEngine?.post(category: .maintenanceCompleted, message: summary)
         } catch {
-            notificationEngine?.post(
-                category: .maintenanceFailed,
-                message: "Shrink failed: \(error.localizedDescription)"
-            )
+            logOperation("Shrink failed: \(error.localizedDescription)", severity: .error, category: "Shrink Database")
+            notificationEngine?.post(category: .maintenanceFailed, message: "Shrink failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Table Operations
+
+    func refreshTables() async {
+        isRefreshingTables = true
+        defer { isRefreshingTables = false }
+        do {
+            if let db = selectedDatabase {
+                _ = try await session.sessionForDatabase(db)
+            }
+            tableStats = try await session.listTableStats()
+        } catch {
+            // Keep existing data if refresh fails
+        }
+    }
+
+    func updateTableStats(_ table: SQLServerTableStat) async {
+        logOperation("Executing: UPDATE STATISTICS [\(table.schemaName)].[\(table.tableName)]", category: "Update Statistics")
+        do {
+            let result = try await session.updateTableStatistics(schema: table.schemaName, table: table.tableName)
+            if result.succeeded {
+                await refreshTables()
+                let msg = "Statistics updated for table \(table.schemaName).\(table.tableName)."
+                logOperation(msg, severity: .success, category: "Update Statistics")
+                notificationEngine?.post(category: .maintenanceCompleted, message: msg)
+            } else {
+                let msg = "Failed to update statistics: \(result.messages.first ?? "Unknown error")"
+                logOperation(msg, severity: .error, category: "Update Statistics")
+                notificationEngine?.post(category: .maintenanceFailed, message: msg)
+            }
+        } catch {
+            let msg = "Failed to update statistics: \(error.localizedDescription)"
+            logOperation(msg, severity: .error, category: "Update Statistics")
+            notificationEngine?.post(category: .maintenanceFailed, message: msg)
+        }
+    }
+
+    func checkTable(_ table: SQLServerTableStat) async {
+        logOperation("Executing: DBCC CHECKTABLE('[\(table.schemaName)].[\(table.tableName)]')", category: "Check Table")
+        do {
+            let result = try await session.checkTable(schema: table.schemaName, table: table.tableName)
+            for msg in result.messages {
+                logOperation(msg, severity: result.succeeded ? .info : .warning, category: "Check Table")
+            }
+            let summary = result.succeeded
+                ? "Table check completed successfully for \(table.schemaName).\(table.tableName)."
+                : "Table check finished with issues: \(result.messages.first ?? "Unknown")"
+            logOperation(summary, severity: result.succeeded ? .success : .warning, category: "Check Table")
+            notificationEngine?.post(category: .maintenanceCompleted, message: summary)
+        } catch {
+            logOperation("Table check failed: \(error.localizedDescription)", severity: .error, category: "Check Table")
+            notificationEngine?.post(category: .maintenanceFailed, message: "Table check failed: \(error.localizedDescription)")
+        }
+    }
+
+    func rebuildTable(_ table: SQLServerTableStat) async {
+        logOperation("Executing: ALTER TABLE [\(table.schemaName)].[\(table.tableName)] REBUILD", category: "Rebuild Table")
+        do {
+            let result = try await session.rebuildTable(schema: table.schemaName, table: table.tableName)
+            if result.succeeded {
+                await refreshTables()
+                let msg = "Table rebuilt for \(table.schemaName).\(table.tableName)."
+                logOperation(msg, severity: .success, category: "Rebuild Table")
+                notificationEngine?.post(category: .maintenanceCompleted, message: msg)
+            } else {
+                let msg = "Failed to rebuild table: \(result.messages.first ?? "Unknown error")"
+                logOperation(msg, severity: .error, category: "Rebuild Table")
+                notificationEngine?.post(category: .maintenanceFailed, message: msg)
+            }
+        } catch {
+            let msg = "Failed to rebuild table: \(error.localizedDescription)"
+            logOperation(msg, severity: .error, category: "Rebuild Table")
+            notificationEngine?.post(category: .maintenanceFailed, message: msg)
+        }
+    }
+
+    func rebuildAllIndexes(_ table: SQLServerTableStat) async {
+        logOperation("Executing: ALTER INDEX ALL ON [\(table.schemaName)].[\(table.tableName)] REBUILD", category: "Rebuild Indexes")
+        do {
+            let result = try await session.rebuildIndexes(schema: table.schemaName, table: table.tableName)
+            if result.succeeded {
+                await refreshTables()
+                let msg = "All indexes rebuilt for \(table.schemaName).\(table.tableName)."
+                logOperation(msg, severity: .success, category: "Rebuild Indexes")
+                notificationEngine?.post(category: .maintenanceCompleted, message: msg)
+            } else {
+                let msg = "Failed to rebuild indexes: \(result.messages.first ?? "Unknown error")"
+                logOperation(msg, severity: .error, category: "Rebuild Indexes")
+                notificationEngine?.post(category: .maintenanceFailed, message: msg)
+            }
+        } catch {
+            let msg = "Failed to rebuild indexes: \(error.localizedDescription)"
+            logOperation(msg, severity: .error, category: "Rebuild Indexes")
+            notificationEngine?.post(category: .maintenanceFailed, message: msg)
         }
     }
 
@@ -206,30 +306,44 @@ final class MSSQLMaintenanceViewModel {
     }
 
     func rebuildIndex(_ index: SQLServerIndexFragmentation) async {
+        logOperation("Executing: ALTER INDEX [\(index.indexName)] ON [\(index.schemaName)].[\(index.tableName)] REBUILD", category: "Index Rebuild")
         do {
             let result = try await session.rebuildIndex(schema: index.schemaName, table: index.tableName, index: index.indexName)
             if result.succeeded {
-                notificationEngine?.post(category: .indexRebuilt, message: "Index \(index.indexName) rebuilt successfully.")
                 await refreshIndexes()
+                let msg = "Index \(index.indexName) rebuilt successfully."
+                logOperation(msg, severity: .success, category: "Index Rebuild")
+                notificationEngine?.post(category: .indexRebuilt, message: msg)
             } else {
-                notificationEngine?.post(category: .indexRebuildFailed, message: "Failed to rebuild index \(index.indexName): \(result.messages.first ?? "Unknown error")")
+                let msg = "Failed to rebuild index \(index.indexName): \(result.messages.first ?? "Unknown error")"
+                logOperation(msg, severity: .error, category: "Index Rebuild")
+                notificationEngine?.post(category: .indexRebuildFailed, message: msg)
             }
         } catch {
-            notificationEngine?.post(category: .indexRebuildFailed, message: "Failed to rebuild index \(index.indexName): \(error.localizedDescription)")
+            let msg = "Failed to rebuild index \(index.indexName): \(error.localizedDescription)"
+            logOperation(msg, severity: .error, category: "Index Rebuild")
+            notificationEngine?.post(category: .indexRebuildFailed, message: msg)
         }
     }
 
     func updateStatistics(_ index: SQLServerIndexFragmentation) async {
+        logOperation("Executing: UPDATE STATISTICS [\(index.schemaName)].[\(index.tableName)] [\(index.indexName)]", category: "Update Statistics")
         do {
             let result = try await session.updateIndexStatistics(schema: index.schemaName, table: index.tableName, index: index.indexName)
             if result.succeeded {
-                notificationEngine?.post(category: .maintenanceCompleted, message: "Statistics updated for index \(index.indexName) on table \(index.tableName).")
                 await refreshIndexes()
+                let msg = "Statistics updated for index \(index.indexName) on table \(index.tableName)."
+                logOperation(msg, severity: .success, category: "Update Statistics")
+                notificationEngine?.post(category: .maintenanceCompleted, message: msg)
             } else {
-                notificationEngine?.post(category: .maintenanceFailed, message: "Failed to update statistics: \(result.messages.first ?? "Unknown error")")
+                let msg = "Failed to update statistics: \(result.messages.first ?? "Unknown error")"
+                logOperation(msg, severity: .error, category: "Update Statistics")
+                notificationEngine?.post(category: .maintenanceFailed, message: msg)
             }
         } catch {
-            notificationEngine?.post(category: .maintenanceFailed, message: "Failed to update statistics: \(error.localizedDescription)")
+            let msg = "Failed to update statistics: \(error.localizedDescription)"
+            logOperation(msg, severity: .error, category: "Update Statistics")
+            notificationEngine?.post(category: .maintenanceFailed, message: msg)
         }
     }
 
@@ -240,16 +354,23 @@ final class MSSQLMaintenanceViewModel {
         defer { isRefreshingBackups = false }
         do {
             backupHistory = try await session.getBackupHistory(limit: 50)
+            backupPermissionError = nil
         } catch {
             backupHistory = []
+            let msg = "\(error)"
+            if msg.contains("permission was denied") || msg.contains("not have permission") {
+                backupPermissionError = "Backup history requires access to the msdb database."
+            } else {
+                backupPermissionError = nil
+            }
         }
     }
 
     func estimatedMemoryUsageBytes() -> Int {
         let healthSize = 1024 // Model
+        let tableSize = tableStats.count * 256
         let indexSize = fragmentedIndexes.count * 256
         let backupSize = backupHistory.count * 256
-        let xeSize = extendedEventsVM?.estimatedMemoryUsageBytes() ?? 0
-        return 1024 * 64 + healthSize + indexSize + backupSize + xeSize
+        return 1024 * 64 + healthSize + tableSize + indexSize + backupSize
     }
 }

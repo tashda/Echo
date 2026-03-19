@@ -6,7 +6,16 @@ struct MSSQLMaintenanceHealthView: View {
     var body: some View {
         Form {
             Section("Information") {
-                if let health = viewModel.healthStats {
+                if let permissionError = viewModel.healthPermissionError {
+                    Label {
+                        Text(permissionError)
+                            .font(TypographyTokens.formDescription)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    } icon: {
+                        Image(systemName: "lock.shield")
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                } else if let health = viewModel.healthStats {
                     PropertyRow(title: "Status") {
                         Text(health.status)
                             .foregroundStyle(statusColor(health.status))

@@ -20,6 +20,10 @@ final class ActivityMonitorViewModel {
     var latestSnapshot: DatabaseActivitySnapshot?
     var isRunning: Bool = true
     var refreshInterval: TimeInterval = 5.0
+    var permissionDenied: Bool = false
+
+    // MSSQL Extended Events (nil for non-MSSQL connections)
+    var extendedEventsVM: ExtendedEventsViewModel?
 
     // MSSQL sparkline history
     var cpuHistory: [GraphPoint] = []
@@ -38,17 +42,20 @@ final class ActivityMonitorViewModel {
         monitor: any DatabaseActivityMonitoring,
         connectionSessionID: UUID,
         connectionID: UUID,
-        databaseType: DatabaseType
+        databaseType: DatabaseType,
+        refreshInterval: TimeInterval = 5.0
     ) {
         self.monitor = monitor
         self.connectionSessionID = connectionSessionID
         self.connectionID = connectionID
         self.databaseType = databaseType
+        self.refreshInterval = refreshInterval
         startStreaming()
     }
 
     func startStreaming() {
         isRunning = true
+        permissionDenied = false
         streamTask?.cancel()
         streamTask = Task {
             do {
@@ -57,9 +64,24 @@ final class ActivityMonitorViewModel {
                     self.latestSnapshot = snapshot
                     updateHistory(with: snapshot)
                 }
+                // Stream ended naturally (not cancelled) — check if it's because of permission denial
+                if latestSnapshot == nil || isEmptySnapshot(latestSnapshot) {
+                    permissionDenied = true
+                }
             } catch {
-                isRunning = false
+                // Check if error is permission related
             }
+            isRunning = false
+        }
+    }
+
+    private func isEmptySnapshot(_ snapshot: DatabaseActivitySnapshot?) -> Bool {
+        guard let snapshot else { return true }
+        switch snapshot {
+        case .mssql(let snap):
+            return snap.overview == nil && snap.processes.isEmpty && snap.waits.isEmpty && snap.expensiveQueries.isEmpty
+        case .postgres:
+            return false
         }
     }
 

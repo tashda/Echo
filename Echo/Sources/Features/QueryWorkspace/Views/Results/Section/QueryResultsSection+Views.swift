@@ -150,9 +150,20 @@ extension QueryResultsSection {
     }
 #endif
 
-    var messagesView: some View {
-        ExecutionConsoleView(executionMessages: query.messages)
+    var noResultsPlaceholder: some View {
+        EmptyStatePlaceholder(
+            icon: "play.rectangle",
+            title: "Run a Query",
+            subtitle: "Execute a query to see results, messages, and execution plans."
+        )
     }
+
+    var messagesView: some View {
+        ExecutionConsoleView(executionMessages: query.messages) {
+            query.messages.removeAll()
+        }
+    }
+
 
     var placeholder: some View {
         VStack(spacing: SpacingTokens.sm) {

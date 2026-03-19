@@ -37,6 +37,18 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("i", modifiers: [.command, .option])
             .disabled(!navigationStore.isWorkspaceWindowKey)
 
+            Button {
+                tabStore.activeTab?.panelState.isOpen.toggle()
+            } label: {
+                let isOpen = tabStore.activeTab?.panelState.isOpen ?? false
+                Label(
+                    isOpen ? "Hide Bottom Panel" : "Show Bottom Panel",
+                    systemImage: "rectangle.bottomhalf.inset.filled"
+                )
+            }
+            .keyboardShortcut("y", modifiers: [.command, .shift])
+            .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
+
             Divider()
 
             Button {

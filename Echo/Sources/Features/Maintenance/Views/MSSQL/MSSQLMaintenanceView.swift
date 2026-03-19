@@ -2,109 +2,103 @@ import SwiftUI
 
 struct MSSQLMaintenanceView: View {
     @Bindable var viewModel: MSSQLMaintenanceViewModel
+    @Bindable var panelState: BottomPanelState
     @Environment(AppState.self) private var appState
-
-    @State private var sidebarFraction: CGFloat = 0.18
+    @Environment(TabStore.self) private var tabStore
+    @Environment(ProjectStore.self) private var projectStore
 
     var body: some View {
-        Group {
-            if !viewModel.isInitialized {
-                TabInitializingPlaceholder(
-                    icon: "wrench.and.screwdriver",
-                    title: "Initializing Maintenance",
-                    subtitle: "Loading database health data\u{2026}"
-                )
-            } else {
-                NativeSplitView(
-                    isVertical: true,
-                    firstMinFraction: 0.12,
-                    secondMinFraction: 0.60,
-                    fraction: $sidebarFraction
-                ) {
-                    maintenanceSidebar
-                        .frame(minWidth: 180, maxWidth: 280)
-                } second: {
-                    maintenanceContent
-                }
-            }
-        }
-        .task(id: viewModel.selectedSection) {
-            if viewModel.isInitialized {
-                await viewModel.loadCurrentSection()
-            }
-        }
-        .task(id: viewModel.selectedDatabase) {
-            if viewModel.isInitialized {
-                await viewModel.loadCurrentSection()
+        TabContentWithPanel(
+            panelState: panelState,
+            statusBarConfiguration: statusBarConfig
+        ) {
+            mainBody
+        } panelContent: {
+            ExecutionConsoleView(executionMessages: panelState.messages) {
+                panelState.clearMessages()
             }
         }
         .task {
             await viewModel.loadDatabases()
         }
+        .onChange(of: viewModel.selectedSection) { _, _ in
+            guard viewModel.isInitialized else { return }
+            Task { await viewModel.loadCurrentSection() }
+        }
+        .onChange(of: panelState.messages.count) { _, _ in
+            if !panelState.isOpen && projectStore.globalSettings.autoOpenBottomPanel {
+                panelState.isOpen = true
+            }
+        }
+        .onChange(of: viewModel.selectedDatabase) { _, newDB in
+            guard let newDB else { return }
+            if let tab = tabStore.activeTab, tab.mssqlMaintenance != nil {
+                tab.title = "Maintenance (\(newDB))"
+            }
+        }
     }
 
-    private var maintenanceSidebar: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            databasePicker
-                .padding(.horizontal, SpacingTokens.md)
-                .padding(.top, SpacingTokens.md)
-                .padding(.bottom, SpacingTokens.sm)
+    private var statusBarConfig: BottomPanelStatusBarConfiguration {
+        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
+        let db = viewModel.selectedDatabase
+        let text = db.map { "\(connText) • \($0)" } ?? connText
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                    ForEach(MSSQLMaintenanceViewModel.MaintenanceSection.allCases) { section in
-                        sidebarRow(section)
-                    }
+        var config = BottomPanelStatusBarConfiguration(
+            connectionText: text,
+            availableSegments: panelState.availableSegments,
+            selectedSegment: panelState.selectedSegment,
+            onSelectSegment: { segment in
+                if panelState.isOpen && panelState.selectedSegment == segment {
+                    panelState.isOpen = false
+                } else {
+                    panelState.selectedSegment = segment
+                    if !panelState.isOpen { panelState.isOpen = true }
                 }
-                .padding(.horizontal, SpacingTokens.xs)
-            }
+            },
+            onTogglePanel: { panelState.isOpen.toggle() },
+            isPanelOpen: panelState.isOpen
+        )
+
+        if viewModel.isCheckingIntegrity {
+            config.statusBubble = .init(label: "Checking Integrity", tint: .orange, isPulsing: true)
+        } else if viewModel.isShrinking {
+            config.statusBubble = .init(label: "Shrinking", tint: .orange, isPulsing: true)
+        } else if viewModel.isRefreshingTables {
+            config.statusBubble = .init(label: "Loading Tables", tint: .blue, isPulsing: true)
         }
-        .background(ColorTokens.Background.secondary.opacity(0.3))
+
+        return config
     }
 
-    private var databasePicker: some View {
-        Picker("", selection: Binding(
-            get: { viewModel.selectedDatabase ?? "" },
-            set: { db in Task { await viewModel.selectDatabase(db) } }
-        )) {
-            if viewModel.selectedDatabase == nil {
-                Text("Select Database...").tag("")
-            }
-            ForEach(viewModel.databaseList, id: \.self) { db in
-                Text(db).tag(db)
+    @ViewBuilder
+    private var mainBody: some View {
+        if !viewModel.isInitialized {
+            TabInitializingPlaceholder(
+                icon: "wrench.and.screwdriver",
+                title: "Initializing Maintenance",
+                subtitle: "Loading database health data\u{2026}"
+            )
+        } else {
+            VStack(spacing: 0) {
+                sectionToolbar
+                Divider()
+                maintenanceContent
             }
         }
-        .pickerStyle(.menu)
-        .controlSize(.regular)
-        .labelsHidden()
-        .frame(maxWidth: .infinity)
     }
 
-    private func sidebarRow(_ section: MSSQLMaintenanceViewModel.MaintenanceSection) -> some View {
-        let isSelected = viewModel.selectedSection == section
-        
-        return Button {
-            viewModel.selectedSection = section
-        } label: {
-            HStack(spacing: SpacingTokens.sm) {
-                Image(systemName: section.icon)
-                    .font(.body)
-                    .frame(width: 18, alignment: .center)
-                
-                Text(section.rawValue)
-                    .font(TypographyTokens.standard)
-                
-                Spacer()
+    private var sectionToolbar: some View {
+        MaintenanceToolbar {
+            Picker(selection: $viewModel.selectedSection) {
+                ForEach(MSSQLMaintenanceViewModel.MaintenanceSection.allCases, id: \.self) { section in
+                    Text(section.rawValue).tag(section)
+                }
+            } label: {
+                EmptyView()
             }
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .background(isSelected ? ColorTokens.accent.opacity(0.15) : Color.clear)
-            .cornerRadius(6)
-            .foregroundStyle(isSelected ? ColorTokens.accent : ColorTokens.Text.primary)
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 340)
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -113,16 +107,12 @@ struct MSSQLMaintenanceView: View {
             switch viewModel.selectedSection {
             case .health:
                 MSSQLMaintenanceHealthView(viewModel: viewModel)
+            case .tables:
+                MSSQLMaintenanceTablesView(viewModel: viewModel)
             case .indexes:
                 MSSQLMaintenanceIndexesView(viewModel: viewModel)
             case .backups:
                 MSSQLMaintenanceBackupsView(viewModel: viewModel)
-            case .extendedEvents:
-                if let xeVM = viewModel.extendedEventsVM {
-                    ExtendedEventsView(viewModel: xeVM)
-                } else {
-                    Text("Extended Events not available")
-                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

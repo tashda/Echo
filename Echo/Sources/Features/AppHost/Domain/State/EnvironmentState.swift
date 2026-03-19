@@ -20,6 +20,7 @@ final class EnvironmentState {
 
     // MARK: - State
     var connectionStates: [UUID: ConnectionState] = [:]
+    var pendingConnections: [PendingConnection] = []
     var sessionGroup = ActiveSessionGroup()
     var pinnedObjectIDs: [String] = []
     var recentConnections: [RecentConnectionRecord] = []
@@ -167,66 +168,96 @@ final class EnvironmentState {
 
     // MARK: - Internal Connection Helpers
 
-    internal func connectToNewSession(to connection: SavedConnection) async {
+    internal func connectToNewSession(to connection: SavedConnection) {
         guard let credentials = identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: nil) else {
             lastError = .connectionFailed("Missing credentials")
             return
         }
 
+        // Cancel/remove any existing pending for the same connection
+        cancelAndRemovePending(for: connection.id)
+
+        let pending = PendingConnection(connection: connection)
+        pendingConnections.append(pending)
         connectionStates[connection.id] = .connecting
+
         let displayName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? connection.host
             : connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-        do {
-            let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType)
-            // MSSQL connects without a database — the server uses the login's default.
-            // Other engines may specify a database in the connection string.
-            let connectDatabase: String? = connection.databaseType == .microsoftSQL
-                ? nil
-                : (connection.database.isEmpty ? nil : connection.database)
 
-            let session = try await factory!.connect(
-                host: connection.host,
-                port: connection.port,
-                database: connectDatabase,
-                tls: connection.useTLS,
-                trustServerCertificate: connection.trustServerCertificate,
-                tlsMode: connection.tlsMode,
-                sslRootCertPath: connection.sslRootCertPath,
-                sslCertPath: connection.sslCertPath,
-                sslKeyPath: connection.sslKeyPath,
-                mssqlEncryptionMode: connection.mssqlEncryptionMode,
-                readOnlyIntent: connection.readOnlyIntent,
-                authentication: credentials,
-                connectTimeoutSeconds: 10
-            )
+        pending.connectTask = Task {
+            do {
+                let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType)
+                // MSSQL connects without a database — the server uses the login's default.
+                // Other engines may specify a database in the connection string.
+                let connectDatabase: String? = connection.databaseType == .microsoftSQL
+                    ? nil
+                    : (connection.database.isEmpty ? nil : connection.database)
 
-            let connectionSession = ConnectionSession(
-                connection: connection,
-                session: session,
-                spoolManager: resultSpoolManager
-            )
+                let session = try await factory!.connect(
+                    host: connection.host,
+                    port: connection.port,
+                    database: connectDatabase,
+                    tls: connection.useTLS,
+                    trustServerCertificate: connection.trustServerCertificate,
+                    tlsMode: connection.tlsMode,
+                    sslRootCertPath: connection.sslRootCertPath,
+                    sslCertPath: connection.sslCertPath,
+                    sslKeyPath: connection.sslKeyPath,
+                    mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                    readOnlyIntent: connection.readOnlyIntent,
+                    authentication: credentials,
+                    connectTimeoutSeconds: 10
+                )
 
-            sessionGroup.addSession(connectionSession)
-            connectionStates[connection.id] = .connected
-            recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
-            startStructureLoadTask(for: connectionSession)
-            notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")
-        } catch {
-            connectionStates[connection.id] = .disconnected
-            lastError = DatabaseError.from(error)
-            notificationEngine?.post(category: .connectionFailed, message: "Connection failed: \(displayName)", duration: 5.0)
+                guard !Task.isCancelled else {
+                    await session.close()
+                    return
+                }
+
+                let connectionSession = ConnectionSession(
+                    connection: connection,
+                    session: session,
+                    spoolManager: resultSpoolManager
+                )
+
+                // Transition: pending → active session
+                pendingConnections.removeAll { $0.id == connection.id }
+                sessionGroup.addSession(connectionSession)
+                connectionStates[connection.id] = .connected
+                recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
+                startStructureLoadTask(for: connectionSession)
+                notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")
+            } catch {
+                guard !Task.isCancelled else { return }
+                connectionStates[connection.id] = .disconnected
+                lastError = DatabaseError.from(error)
+                pending.phase = .failed(message: error.localizedDescription)
+                let reason = error.localizedDescription
+                notificationEngine?.post(category: .connectionFailed, message: "\(displayName): \(reason)", duration: 5.0)
+            }
         }
+    }
+
+    internal func cancelAndRemovePending(for connectionID: UUID) {
+        if let existing = pendingConnections.first(where: { $0.id == connectionID }) {
+            existing.connectTask?.cancel()
+        }
+        pendingConnections.removeAll { $0.id == connectionID }
     }
 
     // MARK: - Recent Connections
 
     internal func loadRecentConnections() {
+        let raw: [RecentConnectionRecord]
         if let projectID = projectStore.selectedProject?.id {
-            recentConnections = historyRepository.loadRecentConnections(forProjectID: projectID)
+            raw = historyRepository.loadRecentConnections(forProjectID: projectID)
         } else {
-            recentConnections = historyRepository.loadRecentConnections()
+            raw = historyRepository.loadRecentConnections()
         }
+        // Deduplicate by identifier (connection + database + username) preserving order
+        var seen = Set<String>()
+        recentConnections = raw.filter { seen.insert($0.identifier).inserted }
     }
 
     private func saveRecentConnections() {

@@ -23,17 +23,17 @@ struct PostgresActivityOperations: View {
         Table(operations, selection: $selection) {
             TableColumn("PID") {
                 Text("\($0.pid)")
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
             }.width(min: 50, ideal: 60)
 
             TableColumn("Operation") {
                 Text($0.operation)
-                    .font(TypographyTokens.detail.weight(.medium))
+                    .font(TypographyTokens.Table.category)
             }.width(min: 80, ideal: 100)
 
             TableColumn("Phase") {
                 Text($0.phase)
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.category)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }.width(min: 120, ideal: 180)
 
@@ -43,13 +43,13 @@ struct PostgresActivityOperations: View {
 
             TableColumn("Database") {
                 Text($0.databaseName ?? "\u{2014}")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.name)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }.width(min: 80, ideal: 100)
 
             TableColumn("Object") {
                 Text($0.relation ?? "\u{2014}")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.name)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
             }.width(min: 100, ideal: 160)

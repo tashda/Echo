@@ -1,5 +1,4 @@
 import SwiftUI
-import PostgresWire
 
 struct PostgresMaintenanceView: View {
     @Bindable var viewModel: MaintenanceViewModel
@@ -7,26 +6,23 @@ struct PostgresMaintenanceView: View {
     @Environment(TabStore.self) private var tabStore
     @Environment(AppState.self) private var appState
 
-    @State private var selectedSection: PostgresMaintenanceSection = .tables
-    @State private var availableDatabases: [String] = []
+    @State private var selectedSection: PostgresMaintenanceSection = .health
 
-    @State private var tableStatsSortOrder = [KeyPathComparator(\PostgresTableStat.nDeadTup, order: .reverse)]
+    @State private var tableStatsSortOrder = [KeyPathComparator(\PostgresMaintenanceTableStat.nDeadTup, order: .reverse)]
     @State private var indexStatsSortOrder = [KeyPathComparator(\PostgresIndexStat.idxScan)]
 
-    @State private var selectedTableIDs: Set<PostgresTableStat.ID> = []
+    @State private var selectedTableIDs: Set<PostgresMaintenanceTableStat.ID> = []
     @State private var selectedIndexIDs: Set<PostgresIndexStat.ID> = []
 
     enum PostgresMaintenanceSection: String, CaseIterable {
+        case health = "Health"
         case tables = "Tables"
         case indexes = "Indexes"
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            MaintenanceToolbar(
-                databases: availableDatabases,
-                selectedDatabase: $viewModel.selectedDatabase
-            ) {
+            MaintenanceToolbar {
                 Picker(selection: $selectedSection) {
                     ForEach(PostgresMaintenanceSection.allCases, id: \.self) { section in
                         Text(section.rawValue).tag(section)
@@ -35,7 +31,7 @@ struct PostgresMaintenanceView: View {
                     EmptyView()
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 200)
+                .frame(maxWidth: 280)
             }
 
             Divider()
@@ -63,7 +59,6 @@ struct PostgresMaintenanceView: View {
             selectedTableIDs.removeAll()
             selectedIndexIDs.removeAll()
             environmentState.dataInspectorContent = nil
-            // Update tab title to reflect selected database
             if let tab = tabStore.activeTab, tab.maintenance != nil {
                 tab.title = "Maintenance (\(newDB))"
             }
@@ -85,6 +80,8 @@ struct PostgresMaintenanceView: View {
     @ViewBuilder
     private var sectionContent: some View {
         switch selectedSection {
+        case .health:
+            PostgresMaintenanceHealthView(viewModel: viewModel)
         case .tables:
             PostgresMaintenanceTables(
                 viewModel: viewModel,
@@ -102,7 +99,7 @@ struct PostgresMaintenanceView: View {
 
     // MARK: - Inspector Integration
 
-    private func pushTableInspector(ids: Set<PostgresTableStat.ID>, toggle: Bool = false) {
+    private func pushTableInspector(ids: Set<PostgresMaintenanceTableStat.ID>, toggle: Bool = false) {
         guard let id = ids.first,
               let table = viewModel.tableStats.first(where: { $0.id == id }) else {
             if !toggle { environmentState.dataInspectorContent = nil }
@@ -112,9 +109,13 @@ struct PostgresMaintenanceView: View {
         let fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "Schema", value: table.schemaName),
             .init(label: "Table", value: table.tableName),
+            .init(label: "Table Size", value: ByteCountFormatter.string(fromByteCount: table.tableSizeBytes, countStyle: .binary)),
+            .init(label: "Index Size", value: ByteCountFormatter.string(fromByteCount: table.indexSizeBytes, countStyle: .binary)),
+            .init(label: "Total Size", value: ByteCountFormatter.string(fromByteCount: table.totalSizeBytes, countStyle: .binary)),
             .init(label: "Live Tuples", value: formatCount(table.nLiveTup)),
             .init(label: "Dead Tuples", value: formatCount(table.nDeadTup)),
             .init(label: "Dead Ratio", value: deadRatio),
+            .init(label: "Table Age (XID)", value: formatCount(table.tableAge)),
             .init(label: "Sequential Scans", value: formatCount(table.seqScan)),
             .init(label: "Index Scans", value: formatCount(table.idxScan)),
             .init(label: "Seq Tuples Read", value: formatCount(table.seqTupRead)),
@@ -122,13 +123,13 @@ struct PostgresMaintenanceView: View {
             .init(label: "Last Vacuum", value: formatDate(manual: table.lastVacuum, auto: table.lastAutoVacuum)),
             .init(label: "Last Analyze", value: formatDate(manual: table.lastAnalyze, auto: table.lastAutoAnalyze))
         ]
-        
+
         let content = DatabaseObjectInspectorContent(
             title: table.tableName,
             subtitle: "Table \u{2022} \(table.schemaName)",
             fields: fields
         )
-        
+
         if toggle {
             environmentState.toggleDataInspector(content: .databaseObject(content), title: table.tableName, appState: appState)
         } else {
@@ -157,13 +158,13 @@ struct PostgresMaintenanceView: View {
             .init(label: "Tuples Fetched", value: formatCount(index.idxTupFetch)),
             .init(label: "Definition", value: index.definition)
         ]
-        
+
         let content = DatabaseObjectInspectorContent(
             title: index.indexName,
             subtitle: "\(kindLabel) \u{2022} \(index.indexType)",
             fields: fields
         )
-        
+
         if toggle {
             environmentState.toggleDataInspector(content: .databaseObject(content), title: index.indexName, appState: appState)
         } else {
@@ -192,18 +193,16 @@ struct PostgresMaintenanceView: View {
         return "\(relative) (\(isAuto ? "auto" : "manual"))"
     }
 
-    private func refreshCurrentSection() {
-        guard let db = viewModel.selectedDatabase else { return }
-        Task { await loadSectionData(for: db) }
-    }
-
     private func loadData(for database: String) async {
+        await viewModel.fetchHealth(for: database)
         await viewModel.fetchTableStats(for: database)
         await viewModel.fetchIndexStats(for: database)
     }
 
     private func loadSectionData(for database: String) async {
         switch selectedSection {
+        case .health:
+            await viewModel.fetchHealth(for: database)
         case .tables:
             await viewModel.fetchTableStats(for: database)
         case .indexes:
@@ -214,7 +213,7 @@ struct PostgresMaintenanceView: View {
     private func loadDatabases() async {
         guard let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) else { return }
         let databases = session.databaseStructure?.databases.map(\.name).sorted() ?? []
-        availableDatabases = databases
+        viewModel.databaseList = databases
         if viewModel.selectedDatabase == nil, let first = databases.first {
             viewModel.selectedDatabase = first
         }

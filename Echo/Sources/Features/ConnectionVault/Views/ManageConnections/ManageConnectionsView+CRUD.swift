@@ -36,10 +36,8 @@ extension ManageConnectionsView {
             }
 
             if action == .saveAndConnect {
-                await environmentState.connect(to: connection)
-                await MainActor.run {
-                    closeManageConnections()
-                }
+                environmentState.connect(to: connection)
+                closeManageConnections()
             }
         }
     }
@@ -95,12 +93,8 @@ extension ManageConnectionsView {
     }
 
     func connectToConnection(_ connection: SavedConnection) {
-        Task {
-            await environmentState.connect(to: connection)
-            await MainActor.run {
-                closeManageConnections()
-            }
-        }
+        environmentState.connect(to: connection)
+        closeManageConnections()
     }
 
     func closeManageConnections() {

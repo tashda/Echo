@@ -27,10 +27,6 @@ public enum TypographyTokens {
     public static let label = SwiftUI.Font.system(size: 10)
     /// 11pt — table cells, footnotes, secondary detail
     public static let detail = SwiftUI.Font.system(size: 11)
-    
-    /// 11pt Medium — Standard sidebar label matching macOS 26 Tahoe Figma
-    public static let sidebarLabel = SwiftUI.Font.system(size: 11, weight: .medium)
-    
     /// 12pt — secondary labels, form fields
     public static let caption2 = SwiftUI.Font.system(size: 12)
     /// 13pt Regular — primary UI text, body equivalent
@@ -53,6 +49,35 @@ public enum TypographyTokens {
 
     /// 12pt Medium — Status badges and indicators
     public static let statusLabel = SwiftUI.Font.system(size: 12).weight(.medium)
+
+    // MARK: - Table Cell Roles
+    // Semantic tokens for SwiftUI Table columns. Change here to update every table at once.
+
+    public enum Table {
+        /// Primary name / identifier columns (Index, Table, User, Database).
+        /// Uses table default size — do not set an explicit font on these columns
+        /// unless you need to opt out. This token exists for the rare case where
+        /// you must pass a Font value; prefer omitting .font() entirely.
+        public static let name = TypographyTokens.standard
+
+        /// Type / category labels (e.g. "clustered index", "TASK MANAGER", lock mode).
+        public static let category = TypographyTokens.statusLabel
+
+        /// Numeric values (counts, sizes, durations, IDs).
+        public static let numeric = TypographyTokens.monospaced
+
+        /// Percentages and ratios.
+        public static let percentage = TypographyTokens.statusLabel
+
+        /// Date and time values (intentionally smaller / de-emphasised).
+        public static let date = TypographyTokens.detail
+
+        /// Status text (Healthy, Fragmented, Running, Sleeping …).
+        public static let status = TypographyTokens.statusLabel
+
+        /// Tiny kind / tag badges (PK, UQ, IX).
+        public static let kindBadge = TypographyTokens.compact.weight(.bold)
+    }
 
     /// 16pt — large headers
     public static let display = SwiftUI.Font.system(size: 16)

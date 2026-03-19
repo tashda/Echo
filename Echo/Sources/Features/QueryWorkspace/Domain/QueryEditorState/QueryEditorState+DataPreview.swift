@@ -113,17 +113,20 @@ extension QueryEditorState {
         if newRows.isEmpty {
             appendMessage(
                 message: "No additional data available",
-                severity: .info
+                severity: .info,
+                category: "Data Preview"
             )
         } else if newRows.count < requestedLimit {
             appendMessage(
                 message: "Loaded \(newRows.count) additional rows (end of results)",
-                severity: .info
+                severity: .info,
+                category: "Data Preview"
             )
         } else {
             appendMessage(
                 message: "Loaded \(newRows.count) additional rows",
-                severity: .info
+                severity: .info,
+                category: "Data Preview"
             )
         }
     }
@@ -138,6 +141,7 @@ extension QueryEditorState {
         appendMessage(
             message: "Failed to load additional preview rows",
             severity: .error,
+            category: "Data Preview",
             metadata: ["error": nsError.localizedDescription]
         )
     }

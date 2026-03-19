@@ -20,6 +20,11 @@ extension ObjectBrowserSidebarView {
             }
         )
 
+        let hideInaccessible = projectStore.globalSettings.hideInaccessibleDatabases
+        let displayCount = hideInaccessible
+            ? structure.databases.filter { $0.isAccessible }.count
+            : structure.databases.count
+
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 expandedBinding.wrappedValue.toggle()
@@ -31,7 +36,7 @@ extension ObjectBrowserSidebarView {
                     isExpanded: expandedBinding,
                     iconColor: ExplorerSidebarPalette.folderIconColor(title: "Databases", colored: colored)
                 ) {
-                    Text("\(structure.databases.count)")
+                    Text("\(displayCount)")
                         .font(SidebarRowConstants.trailingFont)
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
@@ -41,7 +46,10 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded || isSearching {
-                ForEach(structure.databases, id: \.name) { database in
+                let visibleDatabases = projectStore.globalSettings.hideInaccessibleDatabases
+                    ? structure.databases.filter { $0.isAccessible }
+                    : structure.databases
+                ForEach(visibleDatabases, id: \.name) { database in
                     if databaseMatchesSearch(database, session: session) {
                         databaseSection(database: database, session: session, proxy: proxy)
                     }
@@ -110,9 +118,11 @@ extension ObjectBrowserSidebarView {
     func databaseHeaderRow(database: DatabaseInfo, session: ConnectionSession, isExpanded: Bool, isSelected: Bool, accentColor: Color) -> some View {
         let connID = session.connection.id
         let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
+        let isAvailable = database.isOnline && database.isAccessible
         let expandedBinding = Binding<Bool>(
             get: { isExpanded },
             set: { _ in
+                guard database.isAccessible else { return }
                 withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
                     viewModel.toggleDatabaseExpanded(connectionID: connID, databaseName: database.name)
                 }
@@ -123,6 +133,7 @@ extension ObjectBrowserSidebarView {
         )
 
         return Button {
+            guard database.isAccessible else { return }
             expandedBinding.wrappedValue.toggle()
         } label: {
             SidebarRow(
@@ -131,12 +142,17 @@ extension ObjectBrowserSidebarView {
                 label: database.name,
                 isExpanded: expandedBinding,
                 isSelected: isSelected,
-                iconColor: database.isOnline ? (isSelected ? accentColor : (projectStore.globalSettings.sidebarIconColorMode == .colorful ? ExplorerSidebarPalette.databaseInstance : ExplorerSidebarPalette.monochrome)) : ColorTokens.Text.quaternary,
-                labelColor: database.isOnline ? ColorTokens.Text.primary : ColorTokens.Text.secondary,
+                iconColor: isAvailable ? (isSelected ? accentColor : (projectStore.globalSettings.sidebarIconColorMode == .colorful ? ExplorerSidebarPalette.databaseInstance : ExplorerSidebarPalette.monochrome)) : ColorTokens.Text.quaternary,
+                labelColor: isAvailable ? ColorTokens.Text.primary : ColorTokens.Text.secondary,
                 accentColor: accentColor
             ) {
                 if !database.isOnline, let state = database.stateDescription {
                     Text(state.uppercased())
+                        .font(TypographyTokens.compact)
+                        .foregroundStyle(ColorTokens.Text.quaternary)
+                        .lineLimit(1)
+                } else if !database.isAccessible {
+                    Text("NO ACCESS")
                         .font(TypographyTokens.compact)
                         .foregroundStyle(ColorTokens.Text.quaternary)
                         .lineLimit(1)
@@ -146,7 +162,7 @@ extension ObjectBrowserSidebarView {
                         .controlSize(.mini)
                 }
             }
-            .opacity(database.isOnline ? 1 : 0.5)
+            .opacity(isAvailable ? 1 : 0.5)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)

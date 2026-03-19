@@ -87,7 +87,7 @@ struct ConnectionsPopoverView: View {
         let isSelected = connection.id == connectionStore.selectedConnectionID
 
         Button {
-            Task { await environmentState.connect(to: connection) }
+            environmentState.connect(to: connection)
             dismiss()
         } label: {
             HStack(spacing: SpacingTokens.xs) {

@@ -167,6 +167,15 @@ public enum ColorTokens {
         public static let lavender = Color(red: 0.776, green: 0.525, blue: 1.0)
     }
 
+    // Editor Font Preview — fixed dark-theme palette used in the settings preview widget
+    public enum EditorPreview {
+        public static let background = Color(white: 0.12)
+        public static let border = Color.white.opacity(0.05)
+        public static let keyword = Color(red: 0.8, green: 0.5, blue: 0.9)
+        public static let plain = Color(white: 0.9)
+        public static let stringLiteral = Color(red: 0.6, green: 0.8, blue: 0.5)
+    }
+
     // Explorer / Object Browser
     public enum Explorer {
         public static let databaseFolder = Color.green

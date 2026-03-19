@@ -2,26 +2,26 @@ import SwiftUI
 
 enum InspectorTab: CaseIterable {
     case dataInspector
-    case connection
+    case notifications
 
     var icon: String {
         switch self {
         case .dataInspector: return "tablecells"
-        case .connection: return "server.rack"
+        case .notifications: return "bell"
         }
     }
 
     var activeIcon: String {
         switch self {
         case .dataInspector: return "tablecells.fill"
-        case .connection: return "server.rack"
+        case .notifications: return "bell.fill"
         }
     }
 
     var title: String {
         switch self {
         case .dataInspector: return "Data Inspector"
-        case .connection: return "Connection"
+        case .notifications: return "Notifications"
         }
     }
 }

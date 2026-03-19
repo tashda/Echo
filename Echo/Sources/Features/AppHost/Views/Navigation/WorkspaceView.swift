@@ -166,7 +166,7 @@ private struct WorkspaceBody: View {
                 appState.dismissSheet()
                 Task {
                     await environmentState.upsertConnection(connection, password: password)
-                    if action == .saveAndConnect { await environmentState.connect(to: connection) }
+                    if action == .saveAndConnect { environmentState.connect(to: connection) }
                 }
             }
         )
@@ -183,9 +183,9 @@ private struct WorkspaceBody: View {
                 Task {
                     if action == .saveAndConnect {
                         await environmentState.upsertConnection(connection, password: password)
-                        await environmentState.connect(to: connection)
+                        environmentState.connect(to: connection)
                     } else if action == .connect {
-                        await environmentState.connect(to: connection)
+                        environmentState.connect(to: connection)
                     }
                 }
             }

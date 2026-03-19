@@ -1,5 +1,4 @@
 import SwiftUI
-import EchoSense
 
 extension QueryInputSection {
     var runButton: some View {
@@ -51,7 +50,7 @@ extension QueryInputSection {
                     ProgressView()
                         .controlSize(.mini)
                 } else {
-                    Image(systemName: "wand.and.stars")
+                    Image(systemName: "text.alignleft")
                         .font(TypographyTokens.caption2.weight(.semibold))
                 }
             }
@@ -66,129 +65,8 @@ extension QueryInputSection {
         .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
     }
 
-    var estimatedPlanButton: some View {
-        Button(action: triggerEstimatedPlan) {
-            Image(systemName: "chart.bar.doc.horizontal")
-                .font(TypographyTokens.caption2.weight(.semibold))
-                .padding(SpacingTokens.xs)
-                .background(.ultraThinMaterial, in: Circle())
-        }
-        .buttonStyle(.plain)
-        .disabled(isRunDisabled || query.isExecuting || query.isLoadingExecutionPlan || onRequestEstimatedPlan == nil)
-        .opacity(onRequestEstimatedPlan == nil ? 0 : 1)
-        .help("Display Estimated Execution Plan (Ctrl+Cmd+E)")
-        .accessibilityIdentifier("estimated-plan-button")
-        .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
-    }
-
-    func triggerEstimatedPlan() {
-        guard let handler = onRequestEstimatedPlan, !isRunDisabled else { return }
-        let sqlToRun: String = hasExecutableSelection ? currentSelection.selectedText : query.sql
-        Task { await handler(sqlToRun) }
-    }
-
-    var statisticsToggle: some View {
-        let isActive = query.statisticsEnabled
-        return Button {
-            query.statisticsEnabled.toggle()
-        } label: {
-            Image(systemName: "gauge.with.dots.needle.33percent")
-                .font(TypographyTokens.caption2.weight(.semibold))
-                .padding(SpacingTokens.xs)
-                .background(
-                    isActive
-                        ? AnyShapeStyle(ColorTokens.accent.opacity(0.18))
-                        : AnyShapeStyle(.ultraThinMaterial),
-                    in: Circle()
-                )
-                .overlay(
-                    Circle()
-                        .stroke(isActive ? ColorTokens.accent.opacity(0.5) : Color.clear, lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .help(isActive ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")
-        .accessibilityIdentifier("statistics-toggle-button")
-        .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
-    }
-
-    private var isMSSQLConnection: Bool {
-        completionContext?.databaseType == .microsoftSQL
-    }
-
-    var sqlcmdModeToggle: some View {
-        let isActive = query.sqlcmdModeEnabled
-        return Button {
-            query.sqlcmdModeEnabled.toggle()
-        } label: {
-            Image(systemName: "terminal")
-                .font(TypographyTokens.caption2.weight(.semibold))
-                .padding(SpacingTokens.xs)
-                .background(
-                    isActive
-                        ? AnyShapeStyle(ColorTokens.accent.opacity(0.18))
-                        : AnyShapeStyle(.ultraThinMaterial),
-                    in: Circle()
-                )
-                .overlay(
-                    Circle()
-                        .stroke(isActive ? ColorTokens.accent.opacity(0.5) : Color.clear, lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .help(isActive ? "Disable SQLCMD Mode" : "Enable SQLCMD Mode")
-        .accessibilityIdentifier("sqlcmd-mode-toggle-button")
-        .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
-    }
-
-    var debugToggle: some View {
-        let isActive = query.debugMode
-        return Button {
-            if isActive {
-                onDebugStop?()
-            } else {
-                triggerDebugExecution()
-            }
-        } label: {
-            Image(systemName: "ladybug")
-                .font(TypographyTokens.caption2.weight(.semibold))
-                .padding(SpacingTokens.xs)
-                .background(
-                    isActive
-                        ? AnyShapeStyle(ColorTokens.accent.opacity(0.18))
-                        : AnyShapeStyle(.ultraThinMaterial),
-                    in: Circle()
-                )
-                .overlay(
-                    Circle()
-                        .stroke(isActive ? ColorTokens.accent.opacity(0.5) : Color.clear, lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .disabled(isRunDisabled || (query.isExecuting && !query.debugMode))
-        .help(isActive ? "Stop Debugging" : "Debug Query (Step-by-Step)")
-        .accessibilityIdentifier("debug-toggle-button")
-        .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
-    }
-
-    func triggerDebugExecution() {
-        guard !isRunDisabled else { return }
-        let sqlToRun: String = hasExecutableSelection ? currentSelection.selectedText : query.sql
-        Task {
-            if let handler = onDebugExecute {
-                await handler(sqlToRun)
-            }
-        }
-    }
-
     var floatingControls: some View {
         HStack(spacing: SpacingTokens.sm2) {
-            if isMSSQLConnection {
-                debugToggle
-                sqlcmdModeToggle
-                statisticsToggle
-            }
-            estimatedPlanButton
             formatButton
             runButton
         }

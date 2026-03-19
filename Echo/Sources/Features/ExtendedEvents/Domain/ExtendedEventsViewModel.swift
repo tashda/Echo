@@ -12,17 +12,11 @@ final class ExtendedEventsViewModel {
         case error(String)
     }
 
-    enum SelectedSection: String, CaseIterable {
-        case sessions = "Sessions"
-        case liveData = "Live Data"
-    }
-
     @ObservationIgnored private let xeClient: SQLServerExtendedEventsClient
     @ObservationIgnored let connectionSessionID: UUID
 
     var loadingState: LoadingState = .idle
     var sessions: [SQLServerXESession] = []
-    var selectedSection: SelectedSection = .sessions
     var selectedSessionName: String?
     var sessionDetail: SQLServerXESessionDetail?
     var detailLoadingState: LoadingState = .idle
@@ -32,11 +26,37 @@ final class ExtendedEventsViewModel {
 
     // Create session state
     var showCreateSheet = false
-    var createSessionName = ""
-    var createEventName = "sqlserver.sql_statement_completed"
-    var createPredicate = ""
-    var createMaxMemoryKB = 4096
     var isCreating = false
+    var createSessionName = ""
+    var createEvents: [EventEntry] = []
+    var createTargetType: TargetChoice = .ringBuffer
+    var createRingBufferKB = 4096
+    var createEventFileName = ""
+    var createEventFileMaxMB = 100
+    var createMaxMemoryKB = 4096
+    var createStartupState = false
+    var createErrorMessage: String?
+
+    // Available events catalog (loaded lazily)
+    var availableEvents: [SQLServerXEEvent] = []
+    var isLoadingAvailableEvents = false
+
+    // Add-event form state
+    var newEventName = ""
+    var newEventPredicate = ""
+    var newEventActions: Set<String> = ["sqlserver.sql_text", "sqlserver.database_name", "sqlserver.username"]
+
+    struct EventEntry: Identifiable {
+        let id = UUID()
+        var eventName: String
+        var actions: [String]
+        var predicate: String?
+    }
+
+    enum TargetChoice: String, CaseIterable {
+        case ringBuffer = "Ring Buffer"
+        case eventFile = "Event File"
+    }
 
     init(
         xeClient: SQLServerExtendedEventsClient,
@@ -108,44 +128,80 @@ final class ExtendedEventsViewModel {
         }
     }
 
-    func createSession() async {
-        guard !createSessionName.isEmpty else { return }
-        isCreating = true
+    func loadAvailableEvents() async {
+        guard availableEvents.isEmpty else { return }
+        isLoadingAvailableEvents = true
         do {
-            var actions: [String] = [
-                "sqlserver.sql_text",
-                "sqlserver.database_name",
-                "sqlserver.username"
-            ]
-            if createEventName.contains("sql_statement") {
-                actions.append("sqlserver.client_hostname")
-            }
+            availableEvents = try await xeClient.listAvailableEvents()
+        } catch {
+            // Non-fatal — the picker will just show common events
+        }
+        isLoadingAvailableEvents = false
+    }
 
-            let eventSpec = SQLServerXESessionConfiguration.EventSpec(
-                eventName: createEventName,
-                actions: actions,
-                predicate: createPredicate.isEmpty ? nil : createPredicate
-            )
+    func addEventEntry() {
+        guard !newEventName.isEmpty else { return }
+        let entry = EventEntry(
+            eventName: newEventName,
+            actions: Array(newEventActions).sorted(),
+            predicate: newEventPredicate.isEmpty ? nil : newEventPredicate
+        )
+        createEvents.append(entry)
+        newEventName = ""
+        newEventPredicate = ""
+        newEventActions = ["sqlserver.sql_text", "sqlserver.database_name", "sqlserver.username"]
+    }
+
+    func removeEventEntry(_ id: UUID) {
+        createEvents.removeAll { $0.id == id }
+    }
+
+    func createSession() async {
+        guard !createSessionName.isEmpty, !createEvents.isEmpty else { return }
+        isCreating = true
+        createErrorMessage = nil
+        do {
+            let eventSpecs = createEvents.map { entry in
+                SQLServerXESessionConfiguration.EventSpec(
+                    eventName: entry.eventName,
+                    actions: entry.actions,
+                    predicate: entry.predicate
+                )
+            }
+            let target: SQLServerXESessionConfiguration.TargetType = switch createTargetType {
+            case .ringBuffer: .ringBuffer(maxMemoryKB: createRingBufferKB)
+            case .eventFile: .eventFile(filename: createEventFileName, maxFileSizeMB: createEventFileMaxMB)
+            }
             let config = SQLServerXESessionConfiguration(
                 name: createSessionName,
-                events: [eventSpec],
-                target: .ringBuffer(maxMemoryKB: createMaxMemoryKB)
+                events: eventSpecs,
+                target: target,
+                maxMemoryKB: createMaxMemoryKB,
+                startupState: createStartupState
             )
             try await xeClient.createSession(config)
             showCreateSheet = false
             resetCreateForm()
             await loadSessions()
         } catch {
-            loadingState = .error(error.localizedDescription)
+            createErrorMessage = error.localizedDescription
         }
         isCreating = false
     }
 
     private func resetCreateForm() {
         createSessionName = ""
-        createEventName = "sqlserver.sql_statement_completed"
-        createPredicate = ""
+        createEvents = []
+        createTargetType = .ringBuffer
+        createRingBufferKB = 4096
+        createEventFileName = ""
+        createEventFileMaxMB = 100
         createMaxMemoryKB = 4096
+        createStartupState = false
+        createErrorMessage = nil
+        newEventName = ""
+        newEventPredicate = ""
+        newEventActions = ["sqlserver.sql_text", "sqlserver.database_name", "sqlserver.username"]
     }
 
     func estimatedMemoryUsageBytes() -> Int {

@@ -85,6 +85,16 @@ final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable 
             guard let identity = connectionStore.identities.first(where: { $0.id == connection.identityID }) else { return nil }
             username = identity.username
             password = overridePassword ?? self.password(for: identity)
+
+            let trimmedIdentityDomain = identity.domain?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let identityDomain = (trimmedIdentityDomain?.isEmpty == false) ? trimmedIdentityDomain : nil
+
+            return DatabaseAuthenticationConfiguration(
+                method: identity.authenticationMethod,
+                username: username,
+                password: password,
+                domain: identityDomain
+            )
         case .inherit:
             guard let folderID = connection.folderID,
                   let resolved = resolveInheritedDetails(folderID: folderID) else { return nil }

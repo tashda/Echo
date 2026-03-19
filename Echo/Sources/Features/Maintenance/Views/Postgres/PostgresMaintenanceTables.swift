@@ -1,18 +1,13 @@
 import SwiftUI
-import PostgresWire
 
 struct PostgresMaintenanceTables: View {
     var viewModel: MaintenanceViewModel
-    @Binding var sortOrder: [KeyPathComparator<PostgresTableStat>]
-    @Binding var selection: Set<PostgresTableStat.ID>
+    @Binding var sortOrder: [KeyPathComparator<PostgresMaintenanceTableStat>]
+    @Binding var selection: Set<PostgresMaintenanceTableStat.ID>
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppState.self) private var appState
 
-    @State private var vacuumFullTarget: PostgresTableStat?
-
-    private var sortedTables: [PostgresTableStat] {
-        viewModel.tableStats.sorted(using: sortOrder)
-    }
+    @State private var vacuumFullTarget: PostgresMaintenanceTableStat?
 
     var body: some View {
         Group {
@@ -71,45 +66,65 @@ struct PostgresMaintenanceTables: View {
     }
 
     private var tableView: some View {
-        Table(sortedTables, selection: $selection, sortOrder: $sortOrder) {
+        Table(viewModel.tableStats, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Table") {
                 Text("\($0.schemaName).\($0.tableName)")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.name)
                     .lineLimit(1)
             }.width(min: 140, ideal: 200)
 
+            TableColumn("Size", value: \.totalSizeBytes) {
+                Text(ByteCountFormatter.string(fromByteCount: $0.totalSizeBytes, countStyle: .binary))
+                    .font(TypographyTokens.Table.numeric)
+            }.width(min: 60, ideal: 75)
+
             TableColumn("Seq Scans", value: \.seqScan) {
                 Text("\($0.seqScan)")
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle($0.seqScan > 1000 && $0.idxScan == 0 ? ColorTokens.Status.warning : ColorTokens.Text.primary)
             }.width(min: 70, ideal: 80)
 
             TableColumn("Idx Scans", value: \.idxScan) {
                 Text("\($0.idxScan)")
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(ColorTokens.Status.success)
             }.width(min: 70, ideal: 80)
 
-            TableColumn("Live Tuples", value: \.nLiveTup) {
-                Text(formatCount($0.nLiveTup)).font(TypographyTokens.detail.monospacedDigit())
-            }.width(min: 80, ideal: 90)
+            TableColumn("Live", value: \.nLiveTup) {
+                Text(formatCount($0.nLiveTup)).font(TypographyTokens.Table.numeric)
+            }.width(min: 60, ideal: 70)
 
-            TableColumn("Dead Tuples", value: \.nDeadTup) {
+            TableColumn("Dead", value: \.nDeadTup) {
                 Text(formatCount($0.nDeadTup))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(deadTupleColor(dead: $0.nDeadTup, live: $0.nLiveTup))
-            }.width(min: 80, ideal: 90)
+            }.width(min: 60, ideal: 70)
+
+            TableColumn("Age", value: \.tableAge) {
+                Text(formatAge($0.tableAge))
+                    .font(TypographyTokens.Table.numeric)
+                    .foregroundStyle($0.isAgingRisk ? ColorTokens.Status.error : ColorTokens.Text.secondary)
+                    .help("Transaction ID age — risk above 500M (wraparound at 2B)")
+            }.width(min: 60, ideal: 70)
 
             TableColumn("Last Vacuum") {
                 MaintenanceDateCell(manual: $0.lastVacuum, auto: $0.lastAutoVacuum)
-            }.width(min: 100, ideal: 140)
+            }.width(min: 100, ideal: 130)
 
             TableColumn("Last Analyze") {
                 MaintenanceDateCell(manual: $0.lastAnalyze, auto: $0.lastAutoAnalyze)
-            }.width(min: 100, ideal: 140)
+            }.width(min: 100, ideal: 130)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
-        .contextMenu(forSelectionType: PostgresTableStat.ID.self) { ids in
+        .onChange(of: sortOrder) { _, newOrder in
+            viewModel.tableStats.sort(using: newOrder)
+        }
+        .onChange(of: viewModel.isLoadingTables) { old, new in
+            if old && !new {
+                viewModel.tableStats.sort(using: sortOrder)
+            }
+        }
+        .contextMenu(forSelectionType: PostgresMaintenanceTableStat.ID.self) { ids in
             let tables = ids.compactMap { id in viewModel.tableStats.first(where: { $0.id == id }) }
             if !tables.isEmpty {
                 tableContextMenu(for: tables)
@@ -120,22 +135,8 @@ struct PostgresMaintenanceTables: View {
     }
 
     @ViewBuilder
-    private func tableContextMenu(for tables: [PostgresTableStat]) -> some View {
+    private func tableContextMenu(for tables: [PostgresMaintenanceTableStat]) -> some View {
         let countSuffix = tables.count > 1 ? " (\(tables.count))" : ""
-
-        Button("Vacuum\(countSuffix)") {
-            runMaintenanceOnAll(tables: tables, operation: "Vacuum") { db, table in
-                try await viewModel.vacuumTable(database: db, schema: table.schemaName, table: table.tableName)
-                return .vacuumCompleted(schema: table.schemaName, table: table.tableName)
-            }
-        }
-
-        Button("Vacuum Analyze\(countSuffix)") {
-            runMaintenanceOnAll(tables: tables, operation: "Vacuum Analyze") { db, table in
-                try await viewModel.vacuumTable(database: db, schema: table.schemaName, table: table.tableName, analyze: true)
-                return .vacuumAnalyzeCompleted(schema: table.schemaName, table: table.tableName)
-            }
-        }
 
         Button("Analyze\(countSuffix)") {
             runMaintenanceOnAll(tables: tables, operation: "Analyze") { db, table in
@@ -144,8 +145,6 @@ struct PostgresMaintenanceTables: View {
             }
         }
 
-        Divider()
-
         Button("Reindex\(countSuffix)") {
             runMaintenanceOnAll(tables: tables, operation: "Reindex") { db, table in
                 try await viewModel.reindexTable(database: db, schema: table.schemaName, table: table.tableName)
@@ -153,15 +152,34 @@ struct PostgresMaintenanceTables: View {
             }
         }
 
-        if tables.count == 1, let table = tables.first {
-            Divider()
-            Button("Vacuum Full\u{2026}") {
-                vacuumFullTarget = table
+        Divider()
+
+        Menu("Vacuum\(countSuffix)") {
+            Button("Vacuum") {
+                runMaintenanceOnAll(tables: tables, operation: "Vacuum") { db, table in
+                    try await viewModel.vacuumTable(database: db, schema: table.schemaName, table: table.tableName)
+                    return .vacuumCompleted(schema: table.schemaName, table: table.tableName)
+                }
+            }
+
+            Button("Vacuum Analyze") {
+                runMaintenanceOnAll(tables: tables, operation: "Vacuum Analyze") { db, table in
+                    try await viewModel.vacuumTable(database: db, schema: table.schemaName, table: table.tableName, analyze: true)
+                    return .vacuumAnalyzeCompleted(schema: table.schemaName, table: table.tableName)
+                }
+            }
+
+            if tables.count == 1, let table = tables.first {
+                Divider()
+
+                Button("Vacuum Full\u{2026}") {
+                    vacuumFullTarget = table
+                }
             }
         }
     }
 
-    private func runMaintenanceOnAll(tables: [PostgresTableStat], operation: String, action: @escaping (String, PostgresTableStat) async throws -> NotificationEvent) {
+    private func runMaintenanceOnAll(tables: [PostgresMaintenanceTableStat], operation: String, action: @escaping (String, PostgresMaintenanceTableStat) async throws -> NotificationEvent) {
         let database = viewModel.selectedDatabase ?? ""
         Task {
             for table in tables {
@@ -182,6 +200,13 @@ struct PostgresMaintenanceTables: View {
         if count >= 1_000_000 { return String(format: "%.1fM", Double(count) / 1_000_000) }
         if count >= 1_000 { return String(format: "%.1fK", Double(count) / 1_000) }
         return "\(count)"
+    }
+
+    private func formatAge(_ age: Int64) -> String {
+        if age >= 1_000_000_000 { return String(format: "%.1fB", Double(age) / 1_000_000_000) }
+        if age >= 1_000_000 { return String(format: "%.0fM", Double(age) / 1_000_000) }
+        if age >= 1_000 { return String(format: "%.0fK", Double(age) / 1_000) }
+        return "\(age)"
     }
 
     private func deadTupleColor(dead: Int64, live: Int64) -> Color {
@@ -209,12 +234,11 @@ struct MaintenanceDateCell: View {
     var body: some View {
         if let date = latest {
             Text(date, style: .relative)
-                .font(TypographyTokens.detail)
+                .font(TypographyTokens.Table.date)
                 .foregroundStyle(isStale(date) ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
         } else {
-            Text("Never")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Status.error)
+            Text("\u{2014}")
+                .foregroundStyle(ColorTokens.Text.tertiary)
         }
     }
 

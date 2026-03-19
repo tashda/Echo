@@ -10,10 +10,6 @@ struct PostgresMaintenanceIndexes: View {
 
     @State private var selectedDefinition: String?
 
-    private var sortedIndexes: [PostgresIndexStat] {
-        viewModel.indexStats.sorted(using: sortOrder)
-    }
-
     var body: some View {
         Group {
             if viewModel.isLoadingIndexes && viewModel.indexStats.isEmpty {
@@ -48,17 +44,17 @@ struct PostgresMaintenanceIndexes: View {
     }
 
     private var indexTable: some View {
-        Table(sortedIndexes, selection: $selection, sortOrder: $sortOrder) {
+        Table(viewModel.indexStats, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Kind") { index in
                 Text(index.kindLabel)
-                    .font(TypographyTokens.compact.weight(.medium).monospaced())
+                    .font(TypographyTokens.Table.kindBadge)
                     .foregroundStyle(kindColor(for: index))
             }.width(min: 28, ideal: 32)
 
             TableColumn("Index") { index in
                 HStack(spacing: SpacingTokens.xxs) {
                     Text(index.indexName)
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.Table.name)
                         .lineLimit(1)
                     if !index.isValid {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -71,38 +67,38 @@ struct PostgresMaintenanceIndexes: View {
 
             TableColumn("Table") { index in
                 Text("\(index.schemaName).\(index.tableName)")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.name)
                     .lineLimit(1)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }.width(min: 120, ideal: 180)
 
             TableColumn("Type") { index in
                 Text(index.indexType)
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.category)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }.width(min: 50, ideal: 60)
 
             TableColumn("Size", value: \.indexSizeBytes) { index in
                 Text(formatBytes(index.indexSizeBytes))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
             }.width(min: 60, ideal: 70)
 
             TableColumn("Ratio", value: \.indexToTablePct) { index in
                 Text(String(format: "%.0f%%", index.indexToTablePct))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(index.isBloated ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
                     .help("Index size relative to table size")
             }.width(min: 50, ideal: 55)
 
             TableColumn("Scans", value: \.idxScan) { index in
                 Text("\(index.idxScan)")
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(index.isUnused ? ColorTokens.Status.warning : ColorTokens.Text.primary)
             }.width(min: 60, ideal: 70)
 
             TableColumn("Rows Read", value: \.idxTupRead) { index in
                 Text(formatCount(index.idxTupRead))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
             }.width(min: 70, ideal: 80)
 
             TableColumn("Status") { index in
@@ -110,6 +106,14 @@ struct PostgresMaintenanceIndexes: View {
             }.width(min: 80, ideal: 100)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .onChange(of: sortOrder) { _, newOrder in
+            viewModel.indexStats.sort(using: newOrder)
+        }
+        .onChange(of: viewModel.isLoadingIndexes) { old, new in
+            if old && !new {
+                viewModel.indexStats.sort(using: sortOrder)
+            }
+        }
         .contextMenu(forSelectionType: PostgresIndexStat.ID.self) { ids in
             let indexes = ids.compactMap { id in viewModel.indexStats.first(where: { $0.id == id }) }
             if !indexes.isEmpty {
@@ -141,7 +145,7 @@ struct PostgresMaintenanceIndexes: View {
                 Text("Healthy").foregroundStyle(ColorTokens.Status.success)
             }
         }
-        .font(TypographyTokens.caption2.weight(.medium))
+        .font(TypographyTokens.Table.status)
     }
 
     @ViewBuilder

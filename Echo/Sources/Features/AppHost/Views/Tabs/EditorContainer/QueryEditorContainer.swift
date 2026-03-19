@@ -6,9 +6,6 @@ struct QueryEditorContainer: View {
     @Bindable var query: QueryEditorState
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
-    let requestEstimatedPlan: ((String) async -> Void)?
-    let debugExecute: ((String) async -> Void)?
-    let debugStop: (() -> Void)?
     let gridStateProvider: () -> QueryResultsGridState
 
     @Environment(ProjectStore.self) var projectStore
@@ -61,9 +58,6 @@ struct QueryEditorContainer: View {
                         onExecute: { sql in await runQuery(sql) },
                         onCancel: cancelQuery,
                         onAddBookmark: handleBookmarkRequest,
-                        onRequestEstimatedPlan: requestEstimatedPlan,
-                        onDebugExecute: debugExecute,
-                        onDebugStop: debugStop,
                         completionContext: editorCompletionContext,
                         onSchemaLoadNeeded: { dbName in
                             ensureSchemaLoaded(forDatabase: dbName)

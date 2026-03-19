@@ -7,6 +7,7 @@ struct ExtendedEventsDataView: View {
     @Environment(AppState.self) private var appState
     
     @State private var selection: Set<SQLServerXEEventData.ID> = []
+    @State private var eventSortOrder: [KeyPathComparator<SQLServerXEEventData>] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -24,38 +25,34 @@ struct ExtendedEventsDataView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Background.primary)
-        .task(id: viewModel.selectedSessionName) {
-            if viewModel.selectedSessionName != nil {
-                await viewModel.loadEventData()
-            }
-        }
     }
 
     // MARK: - Event Table
 
     private var eventTable: some View {
-        Table(viewModel.eventData, selection: $selection) {
-            TableColumn("Timestamp") { event in
+        Table(viewModel.eventData.sorted(using: eventSortOrder), selection: $selection, sortOrder: $eventSortOrder) {
+            TableColumn("Timestamp", value: \.sortableTimestamp) { event in
                 Text(formattedTimestamp(event.timestamp))
-                    .font(TypographyTokens.monospaced)
+                    .font(TypographyTokens.Table.date)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
             .width(180)
-            
-            TableColumn("Event") { event in
+
+            TableColumn("Event", value: \.eventName) { event in
                 Text(event.eventName)
-                    .font(TypographyTokens.standard)
+                    .font(TypographyTokens.Table.name)
                     .foregroundStyle(ColorTokens.Text.primary)
             }
             .width(200)
             
             TableColumn("Details") { event in
                 Text(summaryFields(event.fields))
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.name)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
             }
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: SQLServerXEEventData.ID.self) { ids in
             Button {
                 Task { await viewModel.loadEventData() }
@@ -65,7 +62,7 @@ struct ExtendedEventsDataView: View {
             
             if let id = ids.first, let event = viewModel.eventData.first(where: { $0.id == id }) {
                 Button {
-                    appState.showInfoSidebar.toggle()
+                    pushEventInspector(event, toggle: true)
                 } label: {
                     Label("View Details", systemImage: "info.circle")
                 }
@@ -91,13 +88,16 @@ struct ExtendedEventsDataView: View {
     }
 
     private func pushEventInspector(_ event: SQLServerXEEventData, toggle: Bool) {
-        let fields: [DatabaseObjectInspectorContent.Field] = event.fields.sorted(by: { $0.key < $1.key }).map { 
-            .init(label: $0.key, value: $0.value)
-        }
-        
+        let sqlText = event.fields["sql_text"] ?? event.fields["statement"] ?? event.fields["batch_text"]
+        let fields: [DatabaseObjectInspectorContent.Field] = event.fields
+            .filter { $0.key != "sql_text" && $0.key != "statement" && $0.key != "batch_text" }
+            .sorted(by: { $0.key < $1.key })
+            .map { .init(label: $0.key, value: $0.value) }
+
         let content = DatabaseObjectInspectorContent(
             title: event.eventName,
             subtitle: formattedTimestamp(event.timestamp),
+            sqlText: sqlText,
             fields: fields
         )
         

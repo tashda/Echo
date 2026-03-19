@@ -253,16 +253,18 @@ final class ConnectionSession: Identifiable {
     @discardableResult
     func addMSSQLMaintenanceTab(databaseName: String? = nil) -> WorkspaceTab {
         let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
-        
-        // Reuse existing maintenance tab for THIS specific database if present
-        if let existing = queryTabs.first(where: { tab in
-            guard let vm = tab.mssqlMaintenance else { return false }
-            return vm.selectedDatabase == effectiveDatabase
-        }) {
+
+        // Only one MSSQL maintenance tab per connection — reuse if present, switch database
+        if let existing = queryTabs.first(where: { $0.mssqlMaintenance != nil }) {
             activeQueryTabID = existing.id
+            if let vm = existing.mssqlMaintenance, vm.selectedDatabase != effectiveDatabase {
+                let newDB = effectiveDatabase
+                existing.title = newDB.isEmpty ? "Maintenance" : "Maintenance (\(newDB))"
+                Task { await vm.selectDatabase(newDB) }
+            }
             return existing
         }
-        
+
         let viewModel = MSSQLMaintenanceViewModel(
             session: session,
             connectionID: connection.id,
@@ -294,12 +296,14 @@ final class ConnectionSession: Identifiable {
     func addMaintenanceTab(databaseName: String? = nil) -> WorkspaceTab {
         let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
 
-        // Reuse existing maintenance tab for THIS specific database if present
-        if let existing = queryTabs.first(where: { tab in
-            guard let vm = tab.maintenance else { return false }
-            return vm.selectedDatabase == effectiveDatabase
-        }) {
+        // Only one maintenance tab per connection — reuse if present, switch database
+        if let existing = queryTabs.first(where: { $0.maintenance != nil }) {
             activeQueryTabID = existing.id
+            if let vm = existing.maintenance, vm.selectedDatabase != effectiveDatabase {
+                vm.selectedDatabase = effectiveDatabase
+                let title = effectiveDatabase.isEmpty ? "Maintenance" : "Maintenance (\(effectiveDatabase))"
+                existing.title = title
+            }
             return existing
         }
 
@@ -339,12 +343,21 @@ final class ConnectionSession: Identifiable {
         }
 
         let monitor = try session.makeActivityMonitor()
+        let interval = AppDirector.shared.projectStore.globalSettings.activityMonitorRefreshInterval
         let viewModel = ActivityMonitorViewModel(
             monitor: monitor,
             connectionSessionID: self.id,
             connectionID: connection.id,
-            databaseType: connection.databaseType
+            databaseType: connection.databaseType,
+            refreshInterval: interval
         )
+
+        if let mssql = session as? MSSQLSession {
+            viewModel.extendedEventsVM = ExtendedEventsViewModel(
+                xeClient: mssql.extendedEvents,
+                connectionSessionID: id
+            )
+        }
 
         let tab = WorkspaceTab(
             connection: connection,

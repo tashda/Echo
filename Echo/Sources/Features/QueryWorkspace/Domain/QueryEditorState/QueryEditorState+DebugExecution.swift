@@ -20,7 +20,8 @@ extension QueryEditorState {
         messages.removeAll()
         appendMessage(
             message: "Debug session started — \(statements.count) statement\(statements.count == 1 ? "" : "s") detected",
-            severity: .debug
+            severity: .debug,
+            category: "Debug"
         )
     }
 
@@ -37,7 +38,7 @@ extension QueryEditorState {
             continuation.resume()
         }
 
-        appendMessage(message: "Debug session stopped", severity: .debug)
+        appendMessage(message: "Debug session stopped", severity: .debug, category: "Debug")
     }
 
     /// Signal the debug session to proceed past a breakpoint pause.

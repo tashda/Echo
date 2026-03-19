@@ -8,6 +8,10 @@ final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
     @ObservationIgnored private let toastPresenter: StatusToastPresenter
     @ObservationIgnored private let preferencesProvider: () -> NotificationPreferences
     @ObservationIgnored private var hasRequestedAuthorization = false
+    @ObservationIgnored private var lastMessageTimestamp: Date?
+
+    /// All notifications posted through the engine, displayed in the Notifications panel segment.
+    var notificationMessages: [QueryExecutionMessage] = []
 
     init(
         toastPresenter: StatusToastPresenter,
@@ -45,6 +49,9 @@ final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
         let preferences = preferencesProvider()
         guard preferences.isEnabled(category) else { return }
 
+        // Store in notification messages for the panel
+        appendNotificationMessage(message, category: category.group.displayName, style: style)
+
         switch preferences.delivery {
         case .inApp:
             showToast(icon: icon, message: message, style: style, duration: duration)
@@ -54,6 +61,34 @@ final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
             showToast(icon: icon, message: message, style: style, duration: duration)
             sendNativeNotification(category: category, message: message)
         }
+    }
+
+    func clearNotifications() {
+        notificationMessages.removeAll()
+        lastMessageTimestamp = nil
+    }
+
+    // MARK: - Notification Message Storage
+
+    private func appendNotificationMessage(_ text: String, category: String, style: StatusToastView.StatusToastStyle) {
+        let now = Date()
+        let delta = lastMessageTimestamp.map { now.timeIntervalSince($0) } ?? 0
+        let severity: QueryExecutionMessage.Severity = switch style {
+        case .success: .success
+        case .error: .error
+        case .warning: .warning
+        case .info: .info
+        }
+        let message = QueryExecutionMessage(
+            index: notificationMessages.count + 1,
+            category: category,
+            message: text,
+            timestamp: now,
+            severity: severity,
+            delta: delta
+        )
+        notificationMessages.append(message)
+        lastMessageTimestamp = now
     }
 
     // MARK: - In-App

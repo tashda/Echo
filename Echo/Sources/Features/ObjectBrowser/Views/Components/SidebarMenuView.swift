@@ -163,9 +163,7 @@ struct SidebarMenu: View {
         selectedConnectionID = connection.id
         selectedNavSection = .folder
 
-        Task {
-            await environmentState.connect(to: connection)
-        }
+        environmentState.connect(to: connection)
     }
 
     private func duplicateConnection(_ connection: SavedConnection, copyBookmarks: Bool) {

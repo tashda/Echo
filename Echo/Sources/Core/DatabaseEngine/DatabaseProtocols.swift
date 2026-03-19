@@ -29,6 +29,9 @@ public protocol DatabaseSession: Sendable {
     func updateIndexStatistics(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult
 
     // MSSQL Maintenance
+    func listTableStats() async throws -> [SQLServerTableStat]
+    func checkTable(schema: String, table: String) async throws -> DatabaseMaintenanceResult
+    func rebuildTable(schema: String, table: String) async throws -> DatabaseMaintenanceResult
     func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation]
     func getDatabaseHealth() async throws -> SQLServerDatabaseHealth
     func getBackupHistory(limit: Int) async throws -> [SQLServerBackupHistoryEntry]
@@ -143,6 +146,18 @@ public extension DatabaseSession {
 
     func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo] {
         []
+    }
+
+    func listTableStats() async throws -> [SQLServerTableStat] {
+        []
+    }
+
+    func checkTable(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Table check is not supported for this database type")
+    }
+
+    func rebuildTable(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Heap rebuild is not supported for this database type")
     }
 
     func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation] {

@@ -140,7 +140,7 @@ final class ConnectionsMenuActions: NSObject {
 
     @objc func selectConnection(_ sender: NSMenuItem) {
         guard let context = sender.representedObject as? ConnectionMenuContext else { return }
-        Task { await context.environmentState.connect(to: context.connection) }
+        context.environmentState.connect(to: context.connection)
     }
 
     @objc func manageConnections(_ sender: NSMenuItem) {

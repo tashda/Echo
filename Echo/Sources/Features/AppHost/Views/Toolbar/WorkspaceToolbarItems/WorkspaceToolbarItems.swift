@@ -1,14 +1,6 @@
 import SwiftUI
-import Foundation
-import AppKit
-import EchoSense
 
 struct WorkspaceToolbarItems: CustomizableToolbarContent {
-    @Environment(ProjectStore.self) internal var projectStore
-    @Environment(ConnectionStore.self) internal var connectionStore
-    @Environment(NavigationStore.self) internal var navigationStore
-    @Environment(EnvironmentState.self) internal var environmentState
-
     var body: some CustomizableToolbarContent {
         navigationItems
         centerItems
@@ -21,18 +13,18 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
     private var navigationItems: some CustomizableToolbarContent {
         // Project — own glass group
         ToolbarItem(id: "workspace.nav.project", placement: .navigation) {
-            projectContextMenu
+            ProjectContextMenuButton()
                 .glassEffect(.regular.interactive())
         }
         .sharedBackgroundVisibility(.hidden)
 
         // Recent Connections + Connections — shared glass group
         ToolbarItem(id: "workspace.nav.recents", placement: .navigation) {
-            recentConnectionsMenu
+            RecentConnectionsMenuButton()
         }
 
         ToolbarItem(id: "workspace.nav.connections", placement: .navigation) {
-            connectionsSelectionMenu
+            ConnectionsMenuButton()
         }
 
         // Quick Connect — own glass group
@@ -64,6 +56,28 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
 
     @ToolbarContentBuilder
     private var primaryActionItems: some CustomizableToolbarContent {
+        ToolbarItem(id: "workspace.primary.activitymonitor", placement: .primaryAction) {
+            ActivityMonitorToolbarItem()
+        }
+        .sharedBackgroundVisibility(.hidden)
+
+        ToolbarItem(id: "workspace.primary.tabcontext", placement: .primaryAction) {
+            TabContextToolbarButton()
+        }
+        .sharedBackgroundVisibility(.hidden)
+
+        // Database-specific query controls (e.g. MSSQL: SQLCMD, Statistics)
+        ToolbarItem(id: "workspace.primary.querydb", placement: .primaryAction) {
+            QueryEditorDatabaseToolbarControls()
+        }
+        .sharedBackgroundVisibility(.hidden)
+
+        // Generic query controls (Estimated Plan)
+        ToolbarItem(id: "workspace.primary.querygeneric", placement: .primaryAction) {
+            QueryEditorToolbarControls()
+        }
+        .sharedBackgroundVisibility(.hidden)
+
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
             RefreshToolbarButton()
         }

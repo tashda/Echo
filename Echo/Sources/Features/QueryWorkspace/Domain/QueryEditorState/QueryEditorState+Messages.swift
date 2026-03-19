@@ -4,6 +4,7 @@ extension QueryEditorState {
     func appendMessage(
         message: String,
         severity: QueryExecutionMessage.Severity,
+        category: String = "Query Execution",
         timestamp: Date = Date(),
         duration: TimeInterval? = nil,
         procedure: String? = nil,
@@ -14,6 +15,7 @@ extension QueryEditorState {
         let delta = lastMessageTimestamp.map { timestamp.timeIntervalSince($0) } ?? 0
         let entry = QueryExecutionMessage(
             index: index,
+            category: category,
             message: message,
             timestamp: timestamp,
             severity: severity,

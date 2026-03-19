@@ -131,7 +131,7 @@ final class ConnectToolbarMenuDelegate: NSObject {
 
     @objc private func connectTo(_ sender: NSMenuItem) {
         guard let connection = sender.representedObject as? SavedConnection else { return }
-        Task { await environmentState.connect(to: connection) }
+        environmentState.connect(to: connection)
     }
 
     @objc private func manageConnections(_ sender: NSMenuItem) {

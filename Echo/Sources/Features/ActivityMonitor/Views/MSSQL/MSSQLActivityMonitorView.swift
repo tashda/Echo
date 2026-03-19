@@ -19,12 +19,14 @@ struct MSSQLActivityMonitorView: View {
     @State private var selectedQueryIDs: Set<SQLServerExpensiveQuery.ID> = []
 
     @State private var selectedSQLContext: SQLPopoutContext?
+    @State private var xeventsPanelState = BottomPanelState.forExtendedEventsTab()
 
     enum MSSQLActivitySection: String, CaseIterable {
         case processes = "Processes"
         case waits = "Waits"
         case io = "I/O"
         case queries = "Queries"
+        case xevents = "XEvents"
     }
 
     var body: some View {
@@ -38,10 +40,14 @@ struct MSSQLActivityMonitorView: View {
                     EmptyView()
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 320)
+                .frame(maxWidth: 400)
             }
 
-            if viewModel.latestSnapshot == nil {
+            if selectedSection == .xevents {
+                xeventsContent
+            } else if viewModel.permissionDenied {
+                permissionDeniedView
+            } else if viewModel.latestSnapshot == nil {
                 loadingView
             } else {
                 contentView
@@ -60,6 +66,14 @@ struct MSSQLActivityMonitorView: View {
         .onChange(of: selectedWaitIDs) { _, ids in pushWaitInspector(ids: ids) }
         .onChange(of: selectedIOIDs) { _, ids in pushIOInspector(ids: ids) }
         .onChange(of: selectedQueryIDs) { _, ids in pushQueryInspector(ids: ids) }
+    }
+
+    private var permissionDeniedView: some View {
+        EmptyStatePlaceholder(
+            icon: "lock.shield",
+            title: "Insufficient Permissions",
+            subtitle: "Activity Monitor requires VIEW SERVER STATE permission on this server. Contact your database administrator to grant access."
+        )
     }
 
     private var loadingView: some View {
@@ -130,9 +144,24 @@ struct MSSQLActivityMonitorView: View {
                     onPopout: popout,
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
                 )
+            case .xevents:
+                EmptyView() // Handled separately above
             }
         } else {
             EmptyTablePlaceholder()
+        }
+    }
+
+    @ViewBuilder
+    private var xeventsContent: some View {
+        if let xeVM = viewModel.extendedEventsVM {
+            ExtendedEventsView(viewModel: xeVM, panelState: xeventsPanelState)
+        } else {
+            EmptyStatePlaceholder(
+                icon: "waveform.path.ecg",
+                title: "Extended Events",
+                subtitle: "Extended Events is not available for this connection"
+            )
         }
     }
 
@@ -181,9 +210,6 @@ struct MSSQLActivityMonitorView: View {
             if let pct = req.percentComplete, pct > 0 {
                 fields.append(.init(label: "Progress", value: String(format: "%.1f%%", pct)))
             }
-            if let sql = req.sqlText, !sql.isEmpty {
-                fields.append(.init(label: "SQL", value: sql))
-            }
         }
         let subtitle: String
         if let blocker = proc.request?.blockingSessionId, blocker > 0 {
@@ -194,6 +220,7 @@ struct MSSQLActivityMonitorView: View {
         environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: "Session \(proc.sessionId)",
             subtitle: subtitle,
+            sqlText: proc.request?.sqlText,
             fields: fields
         ))
     }
@@ -260,11 +287,7 @@ struct MSSQLActivityMonitorView: View {
         }
         let avgWorker = query.executionCount > 0 ? query.totalWorkerTime / Int64(query.executionCount) : 0
         let avgElapsed = query.executionCount > 0 ? query.totalElapsedTime / Int64(query.executionCount) : 0
-        var fields: [DatabaseObjectInspectorContent.Field] = []
-        if let sql = query.sqlText, !sql.isEmpty {
-            fields.append(.init(label: "SQL", value: sql))
-        }
-        fields.append(contentsOf: [
+        var fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "Executions", value: "\(query.executionCount)"),
             .init(label: "Total Worker Time", value: formatMicroseconds(query.totalWorkerTime)),
             .init(label: "Total Elapsed Time", value: formatMicroseconds(query.totalElapsedTime)),
@@ -274,7 +297,7 @@ struct MSSQLActivityMonitorView: View {
             .init(label: "Max Elapsed Time", value: formatMicroseconds(query.maxElapsedTime)),
             .init(label: "Logical Reads", value: "\(query.totalLogicalReads)"),
             .init(label: "Logical Writes", value: "\(query.totalLogicalWrites)")
-        ])
+        ]
         if let date = query.lastExecutionTime {
             fields.append(.init(label: "Last Execution", value: date.formatted(date: .abbreviated, time: .standard)))
         }
@@ -284,6 +307,7 @@ struct MSSQLActivityMonitorView: View {
         environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: "Query",
             subtitle: "\(query.executionCount) executions \u{2022} \(formatMicroseconds(query.totalWorkerTime)) total",
+            sqlText: query.sqlText,
             fields: fields
         ))
     }

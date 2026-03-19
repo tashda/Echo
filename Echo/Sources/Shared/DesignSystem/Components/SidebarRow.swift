@@ -28,8 +28,16 @@ struct SidebarRow<Trailing: View>: View {
     var accentColor: Color = ColorTokens.accent
     @ViewBuilder var trailing: () -> Trailing
 
+    @Environment(\.sidebarDensity) private var density
+
     @State private var isHovered = false
     @State private var isContextMenuVisible = false
+
+    private var densityVerticalPadding: CGFloat { density == .large ? 6 : SidebarRowConstants.rowVerticalPadding }
+    private var densityIconFrameWidth: CGFloat { density == .large ? 20 : SidebarRowConstants.iconFrameWidth }
+    private var densityIconFrameHeight: CGFloat { density == .large ? 20 : SidebarRowConstants.iconFrameHeight }
+    private var densityIconFont: Font { density == .large ? Font.system(size: 16, weight: .medium) : SidebarRowConstants.iconFont }
+    private var densityLabelFont: Font { density == .large ? Font.system(size: 13, weight: .medium) : labelFont }
 
     private var showChevron: Bool { isExpanded != nil }
     private var expanded: Bool { isExpanded?.wrappedValue ?? false }
@@ -80,7 +88,7 @@ struct SidebarRow<Trailing: View>: View {
                 if let subtitle {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(label)
-                            .font(labelFont)
+                            .font(densityLabelFont)
                             .foregroundStyle(labelColor)
                             .lineLimit(1)
                         Text(subtitle)
@@ -90,7 +98,7 @@ struct SidebarRow<Trailing: View>: View {
                     }
                 } else {
                     Text(label)
-                        .font(labelFont)
+                        .font(densityLabelFont)
                         .foregroundStyle(labelColor)
                         .lineLimit(1)
                 }
@@ -101,7 +109,7 @@ struct SidebarRow<Trailing: View>: View {
             }
             .padding(.leading, SidebarRowConstants.rowLeadingPadding)
             .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+            .padding(.vertical, densityVerticalPadding)
             .background(highlightFill)
             .contentShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
         }
@@ -127,17 +135,17 @@ struct SidebarRow<Trailing: View>: View {
         switch icon {
         case .system(let name):
             Image(systemName: name)
-                .font(SidebarRowConstants.iconFont)
+                .font(densityIconFont)
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(resolvedIconColor)
-                .frame(width: SidebarRowConstants.iconFrameWidth, height: SidebarRowConstants.iconFrameHeight)
+                .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
         case .asset(let name):
             Image(name)
                 .resizable()
                 .renderingMode(.template)
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(resolvedIconColor)
-                .frame(width: SidebarRowConstants.iconFrameWidth, height: SidebarRowConstants.iconFrameHeight)
+                .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
         case .none:
             EmptyView()
         }

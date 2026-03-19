@@ -107,25 +107,25 @@ struct PostgresActivityLocks: View {
         Table(stickyState.displayLocks, selection: $selection) {
             TableColumn("PID") {
                 Text("\($0.pid)")
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle($0.isActive ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
             }.width(min: 50, max: 70)
 
             TableColumn("Type") {
                 Text($0.locktype)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle($0.isActive ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
+                    .font(TypographyTokens.Table.category)
+                    .foregroundStyle($0.isActive ? ColorTokens.Text.secondary : ColorTokens.Text.tertiary)
             }.width(min: 80, ideal: 100)
 
             TableColumn("Relation") {
                 Text($0.relation ?? "\u{2014}")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.name)
                     .foregroundStyle($0.isActive ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
             }.width(min: 100, ideal: 140)
 
             TableColumn("Mode") {
                 Text($0.mode)
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.category)
                     .foregroundStyle(lockModeColor($0))
             }.width(min: 120, ideal: 160)
 
@@ -136,11 +136,11 @@ struct PostgresActivityLocks: View {
             TableColumn("Blocked By") {
                 if let blocker = $0.blockingPid {
                     Text("\(blocker)")
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(ColorTokens.Status.error)
                 } else {
                     Text("\u{2014}")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.Table.name)
                         .foregroundStyle(ColorTokens.Text.quaternary)
                 }
             }.width(min: 70, max: 90)
@@ -148,7 +148,7 @@ struct PostgresActivityLocks: View {
             TableColumn("Wait") {
                 if let duration = $0.waitDuration, !$0.granted, $0.isActive {
                     Text(formatWait(duration))
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(duration > 10 ? ColorTokens.Status.error : ColorTokens.Status.warning)
                 }
             }.width(min: 60, ideal: 80)
@@ -214,11 +214,7 @@ private struct LockStatusBadge: View {
 
     var body: some View {
         Text(text)
-            .font(TypographyTokens.compact.weight(.bold))
-            .padding(.horizontal, SpacingTokens.xxs2)
-            .padding(.vertical, SpacingTokens.xxxs)
-            .background(color.opacity(0.15))
+            .font(TypographyTokens.Table.status)
             .foregroundStyle(color)
-            .cornerRadius(4)
     }
 }

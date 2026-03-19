@@ -125,12 +125,10 @@ extension ObjectBrowserSidebarView {
         return raw
     }
 
-    func connectToSavedConnection(_ connection: SavedConnection) async {
-        await environmentState.connect(to: connection)
-        await MainActor.run {
-            viewModel.expandedServerIDs.insert(connection.id)
-            selectedConnectionID = connection.id
-        }
+    func connectToSavedConnection(_ connection: SavedConnection) {
+        environmentState.connect(to: connection)
+        viewModel.expandedServerIDs.insert(connection.id)
+        selectedConnectionID = connection.id
     }
 
     func resolvedAccentColor(for connection: SavedConnection) -> Color {

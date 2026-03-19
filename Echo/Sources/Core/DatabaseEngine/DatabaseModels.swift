@@ -228,6 +228,66 @@ public struct DatabaseMaintenanceResult: Sendable, Equatable {
     }
 }
 
+public struct SQLServerTableStat: Sendable, Identifiable {
+    public var id: String { "\(schemaName).\(tableName)" }
+    public let schemaName: String
+    public let tableName: String
+    public let tableType: String // "Heap" or "Clustered"
+    public let rowCount: Int64
+    public let dataSpaceKB: Int64
+    public let indexSpaceKB: Int64
+    public let unusedSpaceKB: Int64
+    public let totalSpaceKB: Int64
+    public let lastStatsUpdate: Date?
+    public let forwardedRecords: Int64?
+
+    public var totalSpaceBytes: Int64 { totalSpaceKB * 1024 }
+    public var dataSpaceBytes: Int64 { dataSpaceKB * 1024 }
+    public var indexSpaceBytes: Int64 { indexSpaceKB * 1024 }
+    public var unusedSpaceBytes: Int64 { unusedSpaceKB * 1024 }
+
+    public var isHeap: Bool { tableType == "Heap" }
+
+    /// Seconds since epoch for sorting — 0 if never updated
+    public var lastStatsUpdateSort: TimeInterval {
+        lastStatsUpdate?.timeIntervalSince1970 ?? 0
+    }
+
+    public var unusedRatio: Double {
+        totalSpaceKB > 0 ? Double(unusedSpaceKB) / Double(totalSpaceKB) * 100 : 0
+    }
+
+    public var status: String {
+        if let fwd = forwardedRecords, fwd > 1000 {
+            return "Forwarded"
+        }
+        // Only flag wasted space when both the ratio is high AND there's meaningful absolute waste
+        // Small tables naturally have high unused ratios due to extent-based allocation (64KB minimum)
+        if unusedRatio > 40 && unusedSpaceKB > 1024 {
+            return "Wasted Space"
+        }
+        return "Healthy"
+    }
+
+    public init(
+        schemaName: String,
+        tableName: String,
+        tableType: String,
+        rowCount: Int64,
+        dataSpaceKB: Int64,
+        indexSpaceKB: Int64,
+        unusedSpaceKB: Int64,
+        totalSpaceKB: Int64,
+        lastStatsUpdate: Date?,
+        forwardedRecords: Int64?
+    ) {
+        self.schemaName = schemaName; self.tableName = tableName; self.tableType = tableType
+        self.rowCount = rowCount; self.dataSpaceKB = dataSpaceKB; self.indexSpaceKB = indexSpaceKB
+        self.unusedSpaceKB = unusedSpaceKB; self.totalSpaceKB = totalSpaceKB
+        self.lastStatsUpdate = lastStatsUpdate; self.forwardedRecords = forwardedRecords
+    }
+}
+
 public struct SQLServerIndexFragmentation: Sendable, Identifiable {
     public var id: String { "\(schemaName).\(tableName).\(indexName)" }
     public let schemaName: String
@@ -243,7 +303,8 @@ public struct SQLServerIndexFragmentation: Sendable, Identifiable {
     public let totalUpdates: Int64
     public let sizeKB: Double
     public let tableSizeKB: Double
-    
+    public let lastStatsUpdate: Date?
+
     public var ratio: Double {
         tableSizeKB > 0 ? (sizeKB / tableSizeKB) * 100 : 0
     }
@@ -251,11 +312,12 @@ public struct SQLServerIndexFragmentation: Sendable, Identifiable {
     public var status: String {
         if totalScans == 0 && sizeKB > 1024 {
             return "Unused"
-        } else if fragmentationPercent > 30 {
-            return "Fragmented"
-        } else {
-            return "Healthy"
         }
+        // SQL Server docs: fragmentation values are unreliable for indexes < 1000 pages
+        if fragmentationPercent > 30 && pageCount >= 1000 {
+            return "Fragmented"
+        }
+        return "Healthy"
     }
 
     public init(
@@ -271,10 +333,12 @@ public struct SQLServerIndexFragmentation: Sendable, Identifiable {
         totalScans: Int64,
         totalUpdates: Int64,
         sizeKB: Double,
-        tableSizeKB: Double
+        tableSizeKB: Double,
+        lastStatsUpdate: Date? = nil
     ) {
         self.schemaName = schemaName; self.tableName = tableName; self.indexName = indexName; self.fragmentationPercent = fragmentationPercent; self.pageCount = pageCount; self.indexType = indexType; self.indexId = indexId
         self.isUnique = isUnique; self.isPrimaryKey = isPrimaryKey; self.totalScans = totalScans; self.totalUpdates = totalUpdates; self.sizeKB = sizeKB; self.tableSizeKB = tableSizeKB
+        self.lastStatsUpdate = lastStatsUpdate
     }
 }
 

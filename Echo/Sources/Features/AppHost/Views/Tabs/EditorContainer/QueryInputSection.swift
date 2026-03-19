@@ -12,9 +12,6 @@ struct QueryInputSection: View {
     let onExecute: (String) async -> Void
     let onCancel: () -> Void
     let onAddBookmark: (String) -> Void
-    let onRequestEstimatedPlan: ((String) async -> Void)?
-    let onDebugExecute: ((String) async -> Void)?
-    let onDebugStop: (() -> Void)?
     let completionContext: SQLEditorCompletionContext?
     let onSchemaLoadNeeded: ((String) -> Void)?
 
@@ -81,21 +78,6 @@ struct QueryInputSection: View {
             .padding(.trailing, trailingPadding)
             .padding(.top, topPadding)
             .padding(.bottom, bottomPadding)
-
-            if query.debugMode {
-                VStack {
-                    DebugControls(
-                        query: query,
-                        onStepOver: { query.debugResume() },
-                        onContinue: { query.debugResume() },
-                        onStop: { onDebugStop?() }
-                    )
-                    .padding(.top, SpacingTokens.xs)
-                    .padding(.trailing, trailingPadding)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
 
             floatingControls
                 .padding(.trailing, trailingPadding)

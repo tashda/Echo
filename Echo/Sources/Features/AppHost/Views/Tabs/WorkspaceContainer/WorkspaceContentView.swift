@@ -8,9 +8,6 @@ struct WorkspaceContentView: View {
     @Bindable var tab: WorkspaceTab
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
-    let requestEstimatedPlan: ((String) async -> Void)?
-    let debugExecute: ((String) async -> Void)?
-    let debugStop: (() -> Void)?
     let gridStateProvider: () -> QueryResultsGridState
     @Environment(AppearanceStore.self) private var appearanceStore
 
@@ -41,17 +38,17 @@ struct WorkspaceContentView: View {
                 } else if let activityMonitor = tab.activityMonitor {
                     ActivityMonitorView(viewModel: activityMonitor)
                         .background(ColorTokens.Background.primary)
-                } else if let maintenance = tab.maintenance {
+                } else if tab.maintenance != nil {
                     MaintenanceView(tab: tab)
                         .background(ColorTokens.Background.primary)
-                } else if let mssqlMaintenance = tab.mssqlMaintenance {
+                } else if tab.mssqlMaintenance != nil {
                     MaintenanceView(tab: tab)
                         .background(ColorTokens.Background.primary)
                 } else if let queryStoreVM = tab.queryStoreVM {
                     QueryStoreView(viewModel: queryStoreVM)
                         .background(ColorTokens.Background.primary)
                 } else if let xeVM = tab.extendedEventsVM {
-                    ExtendedEventsView(viewModel: xeVM)
+                    ExtendedEventsView(viewModel: xeVM, panelState: tab.panelState)
                         .background(ColorTokens.Background.primary)
                 } else if let agVM = tab.availabilityGroupsVM {
                     AvailabilityGroupsView(viewModel: agVM)
@@ -62,9 +59,6 @@ struct WorkspaceContentView: View {
                         query: query,
                         runQuery: runQuery,
                         cancelQuery: cancelQuery,
-                        requestEstimatedPlan: requestEstimatedPlan,
-                        debugExecute: debugExecute,
-                        debugStop: debugStop,
                         gridStateProvider: gridStateProvider
                     )
                 } else {

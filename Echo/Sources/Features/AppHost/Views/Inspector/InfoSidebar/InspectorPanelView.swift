@@ -37,6 +37,12 @@ struct InspectorPanelView: View {
                 }
             }
 
+            if let sql = content.sqlText, !sql.isEmpty {
+                InspectorSQLBlock(sql: sql) {
+                    environmentState.openQueryTab(presetQuery: sql)
+                }
+            }
+
             if let errorMessage = content.errorMessage {
                 Label {
                     Text(errorMessage)

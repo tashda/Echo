@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 struct RecentConnectionItem: Identifiable {
-    let id: UUID
+    let id: String
     let record: RecentConnectionRecord
     let name: String
     let server: String

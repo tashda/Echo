@@ -4,6 +4,10 @@ struct HoveredExplorerRowIDKey: EnvironmentKey {
     static let defaultValue: String? = nil
 }
 
+struct SidebarDensityKey: EnvironmentKey {
+    static let defaultValue: SidebarDensity = .default
+}
+
 struct SetHoveredExplorerRowIDKey: EnvironmentKey {
     static let defaultValue: @Sendable (String?) -> Void = { _ in }
 }
@@ -17,6 +21,11 @@ extension EnvironmentValues {
     var setHoveredExplorerRowID: @Sendable (String?) -> Void {
         get { self[SetHoveredExplorerRowIDKey.self] }
         set { self[SetHoveredExplorerRowIDKey.self] = newValue }
+    }
+
+    var sidebarDensity: SidebarDensity {
+        get { self[SidebarDensityKey.self] }
+        set { self[SidebarDensityKey.self] = newValue }
     }
 }
 
@@ -40,9 +49,9 @@ enum SidebarRowConstants {
     /// Chevron font — matches Finder disclosure triangles.
     static let chevronFont = Font.system(size: 9, weight: .semibold)
     /// Fixed-width disclosure column — always present for icon alignment.
-    static let chevronWidth: CGFloat = SpacingTokens.md // 16pt
-    /// Icon font — Medium weight, renders within 18×16pt frame.
-    static let iconFont = Font.system(size: 14, weight: .medium)
+    static let chevronWidth: CGFloat = SpacingTokens.sm // 12pt
+    /// Icon font — Regular weight, renders within 18×16pt frame.
+    static let iconFont = Font.system(size: 14, weight: .regular)
     /// Icon frame width — 18pt (Figma: W 18).
     static let iconFrameWidth: CGFloat = SpacingTokens.md1 // 18pt
     /// Icon frame height — 16pt (Figma: H 16).
@@ -51,24 +60,24 @@ enum SidebarRowConstants {
     static let iconFrame: CGFloat = SpacingTokens.md1 // 18pt (width)
     /// Spacing between icon and text label — 6pt (Figma: gap 6).
     static let iconTextSpacing: CGFloat = SpacingTokens.xxs2 // 6pt
-    /// Primary label font — 11pt Medium (Figma: SF Pro Medium 11).
-    static let labelFont = TypographyTokens.sidebarLabel
+    /// Primary label font — 11pt Regular (matches Finder sidebar default density).
+    static let labelFont = Font.system(size: 11, weight: .regular)
     /// Font for trailing metadata (counts, types, badges) — matches Finder "Detail".
     static let trailingFont = TypographyTokens.detail
     /// Section header font (Finder-style: 11pt, bold).
     static let sectionHeaderFont = TypographyTokens.detail.weight(.bold)
-    /// Per-level indentation step — 18pt per tree level.
-    static let indentStep: CGFloat = 18
-    /// Leading padding inside row content highlight area — 10pt (Figma: leading 10).
-    static let rowLeadingPadding: CGFloat = SpacingTokens.xs2 // 10pt
+    /// Per-level indentation step — 14pt per tree level.
+    static let indentStep: CGFloat = SpacingTokens.sm2 // 14pt
+    /// Leading padding inside row content highlight area — 6pt.
+    static let rowLeadingPadding: CGFloat = SpacingTokens.xxs2 // 6pt
     /// Trailing padding inside rows — 8pt (Figma: trailing 8).
     static let rowTrailingPadding: CGFloat = SpacingTokens.xs // 8pt
     /// Vertical padding for rows — 4pt top/bottom (Figma: top 4, bottom 4).
     static let rowVerticalPadding: CGFloat = SpacingTokens.xxs
     /// Outer horizontal padding — selection pill inset from sidebar edges.
-    static let rowOuterHorizontalPadding: CGFloat = SpacingTokens.xs
-    /// Hover/selection highlight corner radius — 8pt (Figma: corner radius 8).
-    static let hoverCornerRadius: CGFloat = SpacingTokens.xs // 8pt
+    static let rowOuterHorizontalPadding: CGFloat = SpacingTokens.xxs2 // 6pt
+    /// Hover/selection highlight corner radius — 6pt.
+    static let hoverCornerRadius: CGFloat = SpacingTokens.xxs2 // 6pt
     /// Spacing between major sidebar sections.
     static let sectionGroupSpacing: CGFloat = SpacingTokens.xxs
 

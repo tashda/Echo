@@ -13,7 +13,7 @@ struct MSSQLMaintenanceIndexesView: View {
             Table(viewModel.fragmentedIndexes, selection: $selection, sortOrder: $sortOrder) {
                 TableColumn("Kind") { index in
                     Text(index.isPrimaryKey ? "PK" : index.isUnique ? "UQ" : "IX")
-                        .font(TypographyTokens.compact.weight(.bold))
+                        .font(TypographyTokens.Table.kindBadge)
                         .foregroundStyle(index.isPrimaryKey ? .orange : index.isUnique ? .blue : ColorTokens.Text.tertiary)
                 }
                 .width(35)
@@ -23,36 +23,49 @@ struct MSSQLMaintenanceIndexesView: View {
                 
                 TableColumn("Type") { index in
                     Text(index.indexType.lowercased())
-                        .font(TypographyTokens.statusLabel)
+                        .font(TypographyTokens.Table.category)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 .width(100)
 
                 TableColumn("Size") { index in
                     Text(ByteCountFormatter.string(fromByteCount: Int64(index.sizeKB * 1024), countStyle: .binary))
-                        .font(TypographyTokens.monospaced)
+                        .font(TypographyTokens.Table.numeric)
                 }
                 .width(80)
 
                 TableColumn("Ratio") { index in
                     Text(String(format: "%.0f%%", index.ratio))
-                        .font(TypographyTokens.statusLabel)
+                        .font(TypographyTokens.Table.percentage)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 .width(50)
 
                 TableColumn("Scans") { index in
                     Text("\(index.totalScans)")
-                        .font(TypographyTokens.monospaced)
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(index.totalScans == 0 ? .orange : ColorTokens.Text.primary)
                 }
                 .width(60)
+
+                TableColumn("Stats Updated") { index in
+                    if let date = index.lastStatsUpdate {
+                        Text(date.formatted(date: .abbreviated, time: .shortened))
+                            .font(TypographyTokens.Table.date)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    } else {
+                        Text("—")
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                }
+                .width(130)
 
                 TableColumn("Status") { index in
                     statusBadge(for: index)
                 }
                 .width(100)
             }
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
             .contextMenu(forSelectionType: SQLServerIndexFragmentation.ID.self) { ids in
                 if let id = ids.first, let index = viewModel.fragmentedIndexes.first(where: { $0.id == id }) {
                     Button {
@@ -92,6 +105,11 @@ struct MSSQLMaintenanceIndexesView: View {
             .onChange(of: sortOrder) { _, newOrder in
                 viewModel.fragmentedIndexes.sort(using: newOrder)
             }
+            .onChange(of: viewModel.isRefreshingIndexes) { old, new in
+                if old && !new {
+                    viewModel.fragmentedIndexes.sort(using: sortOrder)
+                }
+            }
         }
     }
 
@@ -106,7 +124,7 @@ struct MSSQLMaintenanceIndexesView: View {
         }
 
         return Text(label)
-            .font(TypographyTokens.statusLabel)
+            .font(TypographyTokens.Table.status)
             .foregroundStyle(color)
     }
 
@@ -123,7 +141,8 @@ struct MSSQLMaintenanceIndexesView: View {
             .init(label: "Table Size", value: ByteCountFormatter.string(fromByteCount: Int64(index.tableSizeKB * 1024), countStyle: .binary)),
             .init(label: "Index/Table Ratio", value: String(format: "%.0f%%", index.ratio)),
             .init(label: "Total Scans", value: "\(index.totalScans)"),
-            .init(label: "Total Updates", value: "\(index.totalUpdates)")
+            .init(label: "Total Updates", value: "\(index.totalUpdates)"),
+            .init(label: "Stats Updated", value: index.lastStatsUpdate?.formatted(date: .abbreviated, time: .shortened) ?? "—")
         ]
         
         let content = DatabaseObjectInspectorContent(
