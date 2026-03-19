@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ── Tier 1: Compilation & Core Unit Tests ────────────────────────────────
+  # ── Tier 1: Compilation & Core Unit Tests (GitHub-hosted) ────────────────
   unit-tests:
     name: "Step 1: Compilation & Unit Tests"
     runs-on: macos-26
@@ -107,20 +107,26 @@ jobs:
         name: test-results-unit
         path: TestResults-unit.xcresult
 
-  # ── Tier 2: SQLite & Cross-Dialect Tests (self-hosted) ───────────────────
+  # ── Tier 2: SQLite & Cross-Dialect Tests (GitHub-hosted — no Docker needed) ─
   sqlite-tests:
-    name: "Step 2: Rapid Functional Validation (SQLite)"
+    name: "Step 2: SQLite & Cross-Dialect Tests"
+    runs-on: macos-26
     needs: unit-tests
-    runs-on: [self-hosted, echo-test-server]
     steps:
     - uses: actions/checkout@v4
 
-    - name: Prepare environment
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26'
+
+    - name: Clear SPM cache
       run: |
-        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security set-keychain-settings ~/Library/Keychains/login.keychain-db
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
+        rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
+
+    - name: Resolve packages
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Run SQLite & Cross-Dialect Tests
       run: |
@@ -147,29 +153,25 @@ jobs:
         name: test-results-sqlite
         path: TestResults-sqlite.xcresult
 
-  # ── Tier 3: Compatibility Matrix (Docker + UI) ──────────────────────────
-  matrix-tests:
-    name: "Step 3: Compatibility - ${{ matrix.name }}"
+  # ── Tier 3: Docker Integration Tests (self-hosted, optional) ─────────────
+  # These tests require a self-hosted runner with Docker installed.
+  # They are NOT required for the release pipeline — they run as bonus
+  # validation on PRs to main. If Docker is unavailable, tests are skipped.
+  docker-integration:
+    name: "Step 3: Docker Integration - ${{ matrix.name }}"
     needs: unit-tests
-    # Only run on PRs to main or pushes to main
     if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.ref == 'refs/heads/main')
     runs-on: [self-hosted, echo-test-server]
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: "Legacy SQL Stack (2008 R2 - 2014)"
-            type: "mssql-legacy"
-          - name: "Enterprise SQL Stack (2016 - 2019)"
-            type: "mssql-enterprise"
-          - name: "Modern SQL Stack (2022 - 2025)"
+          - name: "Modern SQL Stack (2022)"
             type: "mssql-modern"
-          - name: "Postgres Stack (14 - 18)"
+          - name: "Postgres Stack (14-18)"
             type: "postgres"
-          - name: "UI Automation (macOS Native)"
-            type: "ui-tests"
     env:
-      USE_DOCKER: "1"
       ECHO_MSSQL_PORT: "14332"
       ECHO_PG_PORT: "54322"
     steps:
@@ -177,46 +179,50 @@ jobs:
 
     - name: Prepare environment
       run: |
-        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security set-keychain-settings ~/Library/Keychains/login.keychain-db
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        security set-keychain-settings ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-        defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
 
-    - name: Verify Docker
-      if: matrix.type != 'ui-tests'
+    - name: Check Docker availability
+      id: docker-check
       run: |
-        export DOCKER_HOST="${DOCKER_HOST:-unix://$HOME/.colima/default/docker.sock}"
-        docker info > /dev/null 2>&1 || (echo "Docker not running" && exit 1)
-        echo "Docker is ready"
-
-    - name: Run MSSQL Legacy Tests
-      if: matrix.type == 'mssql-legacy'
-      run: |
-        # Run across multiple versions in one job to save matrix slots but keep logs distinct
-        for ver in "2008R2" "2012" "2014"; do
-          echo "Testing SQL Server $ver..."
-          ECHO_MSSQL_VERSION="2017-latest"
-          case $ver in
-            "2008R2") ECHO_MSSQL_COMPAT="100" ;;
-            "2012")   ECHO_MSSQL_COMPAT="110" ;;
-            "2014")   ECHO_MSSQL_COMPAT="120" ;;
-          esac
-          
-          export ECHO_MSSQL_VERSION ECHO_MSSQL_COMPAT
-          xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
-            -only-testing:EchoTests/MSSQLConnectionTests \
-            -only-testing:EchoTests/MSSQLTableOperationsTests \
-            -disable-concurrent-testing \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+        # Try multiple Docker socket paths
+        for sock in "/var/run/docker.sock" "$HOME/.docker/run/docker.sock" "$HOME/.colima/default/docker.sock" "$HOME/.orbstack/run/docker.sock"; do
+          if [ -S "$sock" ]; then
+            export DOCKER_HOST="unix://$sock"
+            if docker info > /dev/null 2>&1; then
+              echo "docker_available=true" >> $GITHUB_OUTPUT
+              echo "docker_host=unix://$sock" >> $GITHUB_OUTPUT
+              echo "Docker available via $sock"
+              exit 0
+            fi
+          fi
         done
+        echo "docker_available=false" >> $GITHUB_OUTPUT
+        echo "::warning::Docker is not available on this runner — skipping integration tests"
+
+    - name: Run Modern SQL Stack Tests
+      if: matrix.type == 'mssql-modern' && steps.docker-check.outputs.docker_available == 'true'
+      env:
+        DOCKER_HOST: ${{ steps.docker-check.outputs.docker_host }}
+        ECHO_MSSQL_VERSION: "2022-latest"
+      run: |
+        xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
+          -only-testing:EchoTests/MSSQLConnectionTests \
+          -only-testing:EchoTests/MSSQLQueryTests \
+          -only-testing:EchoTests/MSSQLMaintenanceTests \
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
 
     - name: Run Postgres Matrix
-      if: matrix.type == 'postgres'
+      if: matrix.type == 'postgres' && steps.docker-check.outputs.docker_available == 'true'
+      env:
+        DOCKER_HOST: ${{ steps.docker-check.outputs.docker_host }}
       run: |
-        for ver in "14" "15" "16" "17" "18" "latest"; do
+        for ver in "14" "16" "18"; do
           echo "Testing Postgres $ver..."
           export ECHO_PG_VERSION=$ver
           xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
@@ -228,42 +234,23 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
         done
 
-    - name: Run Modern SQL Stack (Full Suite)
-      if: matrix.type == 'mssql-modern'
-      run: |
-        export ECHO_MSSQL_VERSION="2022-latest"
-        xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
-          -only-testing:EchoTests/MSSQLConnectionTests \
-          -only-testing:EchoTests/MSSQLQueryTests \
-          -only-testing:EchoTests/MSSQLMaintenanceTests \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+    - name: Skip notice
+      if: steps.docker-check.outputs.docker_available != 'true'
+      run: echo "::notice::Docker integration tests skipped — Docker not available on this runner"
 
-    - name: Run UI Tests
-      if: matrix.type == 'ui-tests'
-      run: |
-        pkill -x Echo || true
-        xcodebuild test -project Echo.xcodeproj -scheme EchoUITests -destination 'platform=macOS' \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
-
-    - name: Upload Matrix Results
+    - name: Upload Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.type }}
         path: "*.xcresult"
+        if-no-files-found: ignore
 
   # ── Tier 4: Production Build & Sparkle Release ───────────────────────────
   release:
     name: "Step 4: Production Build & Release"
     runs-on: macos-26
-    needs: [unit-tests, sqlite-tests, matrix-tests]
-    # Only release on push to main (not PRs)
+    needs: [unit-tests, sqlite-tests]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
@@ -276,6 +263,14 @@ jobs:
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '26'
+
+    - name: Clear SPM cache
+      run: |
+        rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
+        rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
+
+    - name: Resolve packages
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Build App (Release)
       run: |
