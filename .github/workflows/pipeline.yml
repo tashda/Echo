@@ -36,66 +36,9 @@ jobs:
       run: |
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
+          -testPlan UnitTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-unit \
-          -skip-testing:EchoTests/MSSQLIntegrationTests \
-          -skip-testing:EchoTests/PostgresIntegrationTests \
-          -skip-testing:EchoTests/MySQLIntegrationTests \
-          -skip-testing:EchoTests/SQLiteIntegrationTests \
-          -skip-testing:EchoTests/EchoSenseIntegrationTests \
-          -skip-testing:EchoTests/MSSQLConnectionTests \
-          -skip-testing:EchoTests/MSSQLQueryTests \
-          -skip-testing:EchoTests/MSSQLSchemaDiscoveryTests \
-          -skip-testing:EchoTests/MSSQLMetadataTests \
-          -skip-testing:EchoTests/MSSQLTableOperationsTests \
-          -skip-testing:EchoTests/MSSQLColumnTests \
-          -skip-testing:EchoTests/MSSQLConstraintTests \
-          -skip-testing:EchoTests/MSSQLIndexTests \
-          -skip-testing:EchoTests/MSSQLViewTests \
-          -skip-testing:EchoTests/MSSQLProcedureTests \
-          -skip-testing:EchoTests/MSSQLFunctionTests \
-          -skip-testing:EchoTests/MSSQLTriggerTests \
-          -skip-testing:EchoTests/MSSQLTransactionTests \
-          -skip-testing:EchoTests/MSSQLSecurityTests \
-          -skip-testing:EchoTests/MSSQLAgentTests \
-          -skip-testing:EchoTests/MSSQLActivityMonitorTests \
-          -skip-testing:EchoTests/MSSQLDatabaseAdminTests \
-          -skip-testing:EchoTests/MSSQLDataTypeNumericTests \
-          -skip-testing:EchoTests/MSSQLDataTypeStringTests \
-          -skip-testing:EchoTests/MSSQLDataTypeDateTimeTests \
-          -skip-testing:EchoTests/MSSQLDataTypeBinaryTests \
-          -skip-testing:EchoTests/MSSQLStreamingTests \
-          -skip-testing:EchoTests/MSSQLStreamingSpoolTests \
-          -skip-testing:EchoTests/PGConnectionTests \
-          -skip-testing:EchoTests/PGQueryTests \
-          -skip-testing:EchoTests/PGSchemaDiscoveryTests \
-          -skip-testing:EchoTests/PGMetadataTests \
-          -skip-testing:EchoTests/PGTableOperationsTests \
-          -skip-testing:EchoTests/PGColumnTests \
-          -skip-testing:EchoTests/PGConstraintTests \
-          -skip-testing:EchoTests/PGIndexTests \
-          -skip-testing:EchoTests/PGViewTests \
-          -skip-testing:EchoTests/PGFunctionTests \
-          -skip-testing:EchoTests/PGTriggerTests \
-          -skip-testing:EchoTests/PGTransactionTests \
-          -skip-testing:EchoTests/PGSecurityTests \
-          -skip-testing:EchoTests/PGExtensionTests \
-          -skip-testing:EchoTests/PGActivityMonitorTests \
-          -skip-testing:EchoTests/PGSequenceTests \
-          -skip-testing:EchoTests/PGDataTypeNumericTests \
-          -skip-testing:EchoTests/PGDataTypeStringTests \
-          -skip-testing:EchoTests/PGDataTypeDateTimeTests \
-          -skip-testing:EchoTests/PGDataTypeSpecialTests \
-          -skip-testing:EchoTests/PGStreamingTests \
-          -skip-testing:EchoTests/PGStreamingSpoolTests \
-          -skip-testing:EchoTests/SQLiteConnectionTests \
-          -skip-testing:EchoTests/SQLiteQueryTests \
-          -skip-testing:EchoTests/SQLiteSchemaTests \
-          -skip-testing:EchoTests/SQLiteTableOperationsTests \
-          -skip-testing:EchoTests/SQLiteDataTypeTests \
-          -skip-testing:EchoTests/SessionProtocolComplianceTests \
-          -skip-testing:EchoTests/FactoryConnectionTests \
-          -skip-testing:EchoTests/MSSQLMaintenanceTests \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
@@ -107,7 +50,7 @@ jobs:
         name: test-results-unit
         path: TestResults-unit.xcresult
 
-  # ── Tier 2: SQLite & Integration Tests (self-hosted) ─────────────────────
+  # ── Tier 2: Integration Tests (self-hosted with Docker via Colima) ───────
   integration-tests:
     name: "Step 2: Integration Tests"
     needs: unit-tests
@@ -128,12 +71,11 @@ jobs:
 
     - name: Verify Docker (via Colima)
       run: |
-        # Ensure colima is running; start it if not
+        export PATH="/usr/local/bin:$PATH"
         if ! /usr/local/bin/colima status > /dev/null 2>&1; then
           echo "Colima not running — starting..."
           /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
         fi
-        # Verify Docker is reachable
         docker info > /dev/null 2>&1
         echo "Docker is ready"
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
@@ -143,7 +85,9 @@ jobs:
         # Start MSSQL container if not running
         if ! docker ps --format '{{.Names}}' | grep -q echo-test-mssql; then
           echo "Starting MSSQL container..."
+          docker rm -f echo-test-mssql 2>/dev/null || true
           docker run -d --name echo-test-mssql \
+            --restart unless-stopped \
             -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=YourStr0ngP@ssword' \
             -p ${ECHO_MSSQL_PORT}:1433 \
             mcr.microsoft.com/mssql/server:2022-latest
@@ -152,7 +96,9 @@ jobs:
         # Start Postgres container if not running
         if ! docker ps --format '{{.Names}}' | grep -q echo-test-pg; then
           echo "Starting Postgres container..."
+          docker rm -f echo-test-pg 2>/dev/null || true
           docker run -d --name echo-test-pg \
+            --restart unless-stopped \
             -e POSTGRES_PASSWORD=postgres \
             -p ${ECHO_PG_PORT}:5432 \
             postgres:16
@@ -161,46 +107,13 @@ jobs:
         echo "Containers ready:"
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-    - name: Run SQLite & Cross-Dialect Tests
+    - name: Run Integration Tests
       run: |
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
+          -testPlan IntegrationTests \
           -destination 'platform=macOS' \
-          -resultBundlePath TestResults-sqlite \
-          -only-testing:EchoTests/SQLiteConnectionTests \
-          -only-testing:EchoTests/SQLiteQueryTests \
-          -only-testing:EchoTests/SQLiteSchemaTests \
-          -only-testing:EchoTests/SQLiteTableOperationsTests \
-          -only-testing:EchoTests/SQLiteDataTypeTests \
-          -only-testing:EchoTests/SessionProtocolComplianceTests \
-          -only-testing:EchoTests/FactoryConnectionTests \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
-
-    - name: Run MSSQL Integration Tests
-      run: |
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-mssql \
-          -only-testing:EchoTests/MSSQLConnectionTests \
-          -only-testing:EchoTests/MSSQLQueryTests \
-          -only-testing:EchoTests/MSSQLMaintenanceTests \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
-
-    - name: Run Postgres Integration Tests
-      run: |
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-pg \
-          -only-testing:EchoTests/PGConnectionTests \
-          -only-testing:EchoTests/PGQueryTests \
+          -resultBundlePath TestResults-integration \
           -disable-concurrent-testing \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
@@ -211,10 +124,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-results-integration
-        path: |
-          TestResults-sqlite.xcresult
-          TestResults-mssql.xcresult
-          TestResults-pg.xcresult
+        path: TestResults-integration.xcresult
 
   # ── Tier 3: Production Build & Sparkle Release ───────────────────────────
   release:

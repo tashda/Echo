@@ -53,6 +53,12 @@
             default = "YES">
          </TestPlanReference>
          <TestPlanReference
+            reference = "container:UnitTests.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
+            reference = "container:IntegrationTests.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
             reference = "container:EchoUITests.xctestplan">
          </TestPlanReference>
       </TestPlans>
