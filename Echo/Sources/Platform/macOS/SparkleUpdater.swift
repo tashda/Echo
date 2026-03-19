@@ -26,6 +26,9 @@ final class SparkleUpdater: NSObject {
     override private init() {
         super.init()
         #if canImport(Sparkle)
+        // Skip Sparkle entirely when running under xctest
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+
         // Initialize the controller. We set startingUpdater to false to ensure delegate is ready.
         let controller = SPUStandardUpdaterController(
             startingUpdater: false,
