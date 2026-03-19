@@ -97,54 +97,26 @@ extension ConnectionEditorView {
 
     func runConnectionTest(connection: SavedConnection, passwordOverride: String?) async {
         let driverTimeout = Self.driverTimeoutSeconds
-        let fallbackNanos = UInt64(driverTimeout + 1) * 1_000_000_000
 
-        // Start a concurrent timeout task and the actual test in parallel
-        let timeoutTask = Task<ConnectionTestResult, Error> {
-            try await Task.sleep(nanoseconds: fallbackNanos)
-            return ConnectionTestResult(
-                isSuccessful: false,
-                message: "Connection timed out. The server may be unreachable.",
-                responseTime: Double(driverTimeout + 1),
-                serverVersion: nil
-            )
-        }
-
-        let testTask = Task<ConnectionTestResult, Never> {
-            await environmentState.testConnection(
-                connection,
-                passwordOverride: passwordOverride,
-                connectTimeoutSeconds: driverTimeout
-            )
-        }
-
-        // Wait for whichever finishes first
+        // The driver's own connectTimeoutSeconds handles TCP timeouts.
+        // No need for a separate fallback timeout task — the previous
+        // withThrowingTaskGroup approach waited for ALL child tasks to finish
+        // (including the 11-second sleep), blocking the result for the full duration.
         let result: ConnectionTestResult
-        do {
-            result = try await withThrowingTaskGroup(of: ConnectionTestResult.self) { group in
-                group.addTask { await testTask.value }
-                group.addTask { try await timeoutTask.value }
-                guard let first = try await group.next() else {
-                    throw CancellationError()
-                }
-                group.cancelAll()
-                return first
-            }
-        } catch {
-            testResult = ConnectionTestResult(
+        if Task.isCancelled {
+            result = ConnectionTestResult(
                 isSuccessful: false,
                 message: "Connection test cancelled",
                 responseTime: nil,
                 serverVersion: nil
             )
-            isTestingConnection = false
-            self.testTask = nil
-            appendLog("Test cancelled.", kind: .error)
-            return
+        } else {
+            result = await environmentState.testConnection(
+                connection,
+                passwordOverride: passwordOverride,
+                connectTimeoutSeconds: driverTimeout
+            )
         }
-
-        // Clean up
-        timeoutTask.cancel()
 
         guard !Task.isCancelled else {
             testResult = ConnectionTestResult(
