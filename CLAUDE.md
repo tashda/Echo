@@ -246,6 +246,40 @@ When adding or modifying functionality, write or update the corresponding tests.
 
 Use **Swift Testing** (`@Test`, `#expect`, `#require`) for new tests. Use `@Test` attribute for test functions, not XCTest's `test` prefix convention. Use `#expect(throws:)` for error-case tests. Use `Attachment.record` when tests need diagnostic context. XCTest is acceptable for existing tests but all new tests should use Swift Testing.
 
+### Test Plans
+
+Echo uses Xcode test plans (`.xctestplan` files) to manage which tests run where. **Never use `-skip-testing` or `-only-testing` flags in CI workflows** — use test plans instead.
+
+| Plan | File | Purpose | Runs on |
+|---|---|---|---|
+| **UnitTests** | `UnitTests.xctestplan` | All tests except integration — uses `skippedTests` so new unit test files are automatically included | GitHub-hosted `macos-26` |
+| **IntegrationTests** | `IntegrationTests.xctestplan` | Database integration tests (MSSQL, Postgres, SQLite, cross-dialect) — uses `selectedTests` for explicit inclusion | Self-hosted `echo-test-server` |
+| **EchoTests** | `EchoTests.xctestplan` | Everything (used for local development) | Local only |
+
+**When adding a new test file:**
+- **Unit test** (no database needed): No action required — `UnitTests.xctestplan` uses `skippedTests`, so new files are included automatically.
+- **Integration test** (needs database): Add the test class name to both `IntegrationTests.xctestplan` (`selectedTests` array) AND `UnitTests.xctestplan` (`skippedTests` array).
+
+### CI Pipeline Structure
+
+The CI pipeline runs on every push to `dev` and `main`:
+
+- **Step 1** (GitHub-hosted `macos-26`): Runs `UnitTests` test plan — compilation + all unit tests.
+- **Step 2** (self-hosted `echo-test-server`): Runs `IntegrationTests` test plan — Docker containers (Colima), MSSQL, Postgres, SQLite.
+- **Step 3** (GitHub-hosted `macos-26`): Production build + Sparkle release — only on `main`, requires Step 1 + Step 2 to pass.
+
+A **runner health check** workflow runs every 6 hours to verify Colima, Docker, and test containers are up on the self-hosted runner. It auto-recovers if anything is down.
+
+### Self-Hosted Runner Infrastructure
+
+The self-hosted runner (`echo-test-server`) is an Intel iMac running:
+- **Colima** (`/usr/local/bin/colima`) — lightweight Docker runtime using macOS Virtualization.framework
+- **Docker socket**: `unix:///Users/k/.colima/default/docker.sock`
+- **LaunchAgent** (`com.echo.colima`) — auto-starts Colima on boot with `PATH` set to include `/usr/local/bin`
+- **Test containers** (with `--restart unless-stopped`):
+  - `echo-test-mssql` — SQL Server 2022 on port 14332
+  - `echo-test-pg` — Postgres 16 on port 54322
+
 ## Design Tokens
 
 Never hardcode colors, spacing, or fonts. Every visual value must reference a design token from `Echo/Sources/Shared/DesignSystem/`.
@@ -254,6 +288,18 @@ Never hardcode colors, spacing, or fonts. Every visual value must reference a de
 - **Spacing** → `SpacingTokens` in `SpacingToken.swift` — use `SpacingTokens.xs` (8pt), `.sm` (12pt), `.md` (16pt), `.lg` (24pt), etc. Never write raw `CGFloat` padding/spacing values.
 - **Typography** → `TypographyTokens` in `TypographyToken.swift` — use semantic styles (`TypographyTokens.body`, `.headline`, `.caption`) or fixed-size styles (`.detail` 11pt, `.standard` 13pt, `.prominent` 14pt, etc.). Never write `.font(.system(size: N))` directly.
 - **Components** → Reusable design system components live in `DesignSystem/Components/` (e.g., `CountBadge`, `EmptyStatePlaceholder`, `SidebarSectionHeader`, `ToolbarAddButton`, `TintedIcon`). Use these instead of reimplementing common patterns.
+
+## Form TextField Rules
+
+Every `TextField` inside a grouped `Form` must have a `prompt:` parameter with descriptive placeholder text. The field must never appear empty — the prompt gives users a visual hint of what to enter. Use `prompt: Text("example value")` with a realistic example or brief description. The prompt text appears greyed-out and disappears automatically when the user types — it is not editable content.
+
+```swift
+// WRONG — empty field with no hint
+TextField("", text: $name)
+
+// RIGHT — placeholder guides the user
+TextField("", text: $name, prompt: Text("e.g. my_database"))
+```
 
 ## Code Architecture
 
