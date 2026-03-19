@@ -50,6 +50,7 @@ jobs:
       fail-fast: false
     env:
       USE_DOCKER: "1"
+      DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
       ECHO_MSSQL_PORT: "14332"
       ECHO_PG_PORT: "54322"
     steps:
@@ -65,10 +66,14 @@ jobs:
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
         defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
 
-    - name: Verify Docker
+    - name: Verify Docker (via Colima)
       run: |
-        export DOCKER_HOST="${DOCKER_HOST:-unix://$HOME/.colima/default/docker.sock}"
-        docker info > /dev/null 2>&1 || (echo "Docker not running" && exit 1)
+        export PATH="/usr/local/bin:$PATH"
+        if ! /usr/local/bin/colima status > /dev/null 2>&1; then
+          echo "Colima not running — starting..."
+          /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
+        fi
+        docker info > /dev/null 2>&1
         echo "Docker is ready"
 
     - name: Run Integration Tests (MSSQL)
