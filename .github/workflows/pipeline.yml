@@ -25,10 +25,12 @@ jobs:
         xcode-version: '26'
 
     - name: Clear SPM cache
-      run: rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
+      run: |
+        rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
+        rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
 
     - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Run Unit Tests
       run: |
