@@ -13,12 +13,26 @@ struct RefreshToolbarButton: View {
         environmentState.sessionGroup.activeSession ?? environmentState.sessionGroup.activeSessions.first
     }
 
+    private var hasPendingConnection: Bool {
+        environmentState.pendingConnections.contains { $0.phase == .connecting }
+    }
+
+    private var hasFailedPendingConnection: Bool {
+        environmentState.pendingConnections.contains { if case .failed = $0.phase { return true } else { return false } }
+    }
+
     var body: some View {
         if let session = activeSession {
             RefreshButtonContent(session: session,
                                  accent: appearanceStore.accentColor,
                                  onRefresh: { startRefresh(for: session) },
                                  onCancel: { cancelRefresh(for: session) })
+        } else if hasPendingConnection || hasFailedPendingConnection {
+            RefreshButtonPendingContent(
+                isPending: hasPendingConnection,
+                isFailed: hasFailedPendingConnection,
+                onCancel: { cancelAllPendingConnections() }
+            )
         } else {
             Button(action: {}) {
                 Label("Refresh", systemImage: "arrow.clockwise")
@@ -65,6 +79,16 @@ struct RefreshToolbarButton: View {
                     }
                     return
                 }
+            case .extendedEvents:
+                if let vm = activeTab.extendedEventsVM {
+                    session.structureLoadingState = .loading(progress: nil)
+                    refreshTask = Task {
+                        await vm.loadSessions()
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
             default:
                 break
             }
@@ -105,6 +129,13 @@ struct RefreshToolbarButton: View {
             )
         } else {
             await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
+        }
+    }
+
+    private func cancelAllPendingConnections() {
+        let ids = environmentState.pendingConnections.map(\.id)
+        for id in ids {
+            environmentState.cancelPendingConnection(for: id)
         }
     }
 

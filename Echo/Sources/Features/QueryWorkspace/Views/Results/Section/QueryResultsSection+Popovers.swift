@@ -27,7 +27,7 @@ extension QueryResultsSection {
 #if os(macOS)
     func openJsonInspector(with selection: QueryResultsTableView.JsonSelection) {
         jsonInspectorContext = JsonInspectorContext()
-        selectedTab = .jsonInspector
+        panelState.selectedSegment = .jsonInspector
     }
 
     @ViewBuilder

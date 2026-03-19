@@ -22,7 +22,7 @@ struct ConnectionsPopoverContent: View {
                             icon: iconImage(for: conn),
                             displayName: displayName(for: conn)
                         ) {
-                            Task { await environmentState.connect(to: conn) }
+                            environmentState.connect(to: conn)
                             dismiss()
                         }
                     }
@@ -38,7 +38,7 @@ struct ConnectionsPopoverContent: View {
                             icon: iconImage(for: conn),
                             displayName: displayName(for: conn)
                         ) {
-                            Task { await environmentState.connect(to: conn) }
+                            environmentState.connect(to: conn)
                             dismiss()
                         }
                     }
@@ -55,7 +55,7 @@ struct ConnectionsPopoverContent: View {
                             icon: iconImage(for: conn),
                             displayName: displayName(for: conn)
                         ) {
-                            Task { await environmentState.connect(to: conn) }
+                            environmentState.connect(to: conn)
                             dismiss()
                         }
                     }

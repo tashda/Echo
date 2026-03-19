@@ -27,10 +27,10 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
         return databases.map(\.name)
     }
 
-    /// List databases with state information for the sidebar.
-    func listDatabasesWithState() async throws -> [(name: String, stateDescription: String?)] {
+    /// List databases with state and access information for the sidebar.
+    func listDatabasesWithState() async throws -> [(name: String, stateDescription: String?, hasAccess: Bool?)] {
         let databases = try await client.metadata.listDatabases()
-        return databases.map { (name: $0.name, stateDescription: $0.stateDescription) }
+        return databases.map { (name: $0.name, stateDescription: $0.stateDescription, hasAccess: $0.hasAccess) }
     }
 
     func listSchemas() async throws -> [String] {

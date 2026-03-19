@@ -28,14 +28,7 @@ public enum DatabaseAuthenticationMethod: String, CaseIterable, Codable, Hashabl
     }
 
     /// Whether credentials can come from an identity/credential store instead of manual entry.
-    public var supportsExternalCredentials: Bool {
-        switch self {
-        case .sqlPassword:
-            return true
-        case .windowsIntegrated, .accessToken:
-            return false
-        }
-    }
+    public var supportsExternalCredentials: Bool { true }
 
     /// Whether this method uses an access token instead of username/password.
     public var usesAccessToken: Bool {

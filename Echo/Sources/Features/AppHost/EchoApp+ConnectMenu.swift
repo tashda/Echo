@@ -297,7 +297,7 @@ struct ConnectMenuCommands: Commands {
                 connectionStore.selectedFolderID = connection.folderID
                 navigationStore.navigationState.selectConnection(connection)
             }
-            await environmentState.connect(to: connection)
+            environmentState.connect(to: connection)
         }
     }
 }

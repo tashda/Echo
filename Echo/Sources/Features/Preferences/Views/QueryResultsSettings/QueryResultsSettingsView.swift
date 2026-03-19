@@ -55,6 +55,17 @@ struct QueryResultsSettingsView: View {
                 }
             }
 
+            Section("Bottom Panel") {
+                PropertyRow(
+                    title: "Auto-open on activity",
+                    info: "Automatically open the bottom panel when a query executes or an operation produces messages."
+                ) {
+                    Toggle("", isOn: autoOpenBottomPanelBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
+
             ResultGridColorSettingsSection()
         }
         .formStyle(.grouped)

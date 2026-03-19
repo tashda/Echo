@@ -14,49 +14,49 @@ struct MSSQLActivityQueries: View {
 
     var body: some View {
         Table(sortedQueries, selection: $selection, sortOrder: $sortOrder) {
-            TableColumn("Query") {
+            TableColumn("Query", value: \.sortableQuery) {
                 SQLQueryCell(sql: $0.sqlText ?? "", onPopout: onPopout)
             }
 
             TableColumn("Count", value: \.executionCount) {
                 Text("\($0.executionCount)")
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
             }.width(55)
 
             TableColumn("Worker Time", value: \.totalWorkerTime) {
                 Text(formatMs($0.totalWorkerTime))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(ColorTokens.accent)
             }.width(80)
 
             TableColumn("Elapsed", value: \.totalElapsedTime) {
                 Text(formatMs($0.totalElapsedTime))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
             }.width(70)
 
             TableColumn("Reads", value: \.totalLogicalReads) {
                 Text(formatCount($0.totalLogicalReads))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }.width(60)
 
             TableColumn("Writes", value: \.totalLogicalWrites) {
                 Text(formatCount($0.totalLogicalWrites))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }.width(60)
 
-            TableColumn("Avg Time") { query in
+            TableColumn("Avg Time", value: \.avgWorkerTime) { query in
                 let avg = query.executionCount > 0 ? query.totalWorkerTime / Int64(query.executionCount) : 0
                 Text(formatMs(avg))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }.width(70)
 
-            TableColumn("Last Run") { query in
+            TableColumn("Last Run", value: \.sortableLastRun) { query in
                 if let date = query.lastExecutionTime {
                     Text(date, style: .relative)
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.Table.date)
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }.width(min: 80, ideal: 100)

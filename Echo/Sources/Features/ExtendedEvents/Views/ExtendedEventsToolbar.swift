@@ -5,7 +5,6 @@ struct ExtendedEventsToolbar: View {
 
     var body: some View {
         HStack(spacing: SpacingTokens.sm) {
-            sectionPicker
             Spacer()
             createButton
             refreshButton
@@ -13,18 +12,6 @@ struct ExtendedEventsToolbar: View {
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs)
         .background(ColorTokens.Background.secondary.opacity(0.5))
-    }
-
-    private var sectionPicker: some View {
-        Picker(selection: $viewModel.selectedSection) {
-            ForEach(ExtendedEventsViewModel.SelectedSection.allCases, id: \.self) { section in
-                Text(section.rawValue).tag(section)
-            }
-        } label: {
-            EmptyView()
-        }
-        .pickerStyle(.segmented)
-        .frame(maxWidth: 240)
     }
 
     private var createButton: some View {
@@ -41,9 +28,6 @@ struct ExtendedEventsToolbar: View {
         Button {
             Task {
                 await viewModel.loadSessions()
-                if viewModel.selectedSection == .liveData {
-                    await viewModel.loadEventData()
-                }
             }
         } label: {
             Label("Refresh", systemImage: "arrow.clockwise")

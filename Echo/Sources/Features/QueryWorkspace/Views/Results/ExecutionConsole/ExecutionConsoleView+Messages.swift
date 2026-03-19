@@ -1,110 +1,75 @@
 import SwiftUI
 
-extension ExecutionConsoleView {
-    func messageRow(_ message: Message, index: Int) -> some View {
-        let isExpanded = expandedRows.contains(message.id)
-        return HStack(spacing: 0) {
-            Text("\(message.sequence)")
-                .font(TypographyTokens.callout.monospaced())
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .frame(width: columnWidths[0], alignment: .leading)
+/// A single row in the execution console, showing severity, category, timestamp, delta, and message.
+struct ConsoleMessageRow: View {
+    let message: QueryExecutionMessage
 
-            HStack(spacing: SpacingTokens.xs) {
-                Image(systemName: message.severity.iconName)
-                    .font(TypographyTokens.caption2.weight(.medium))
-                    .foregroundStyle(message.severity.tint(using: appearanceStore.accentColor))
-                Text(message.title)
-                    .font(TypographyTokens.caption2)
-                    .foregroundStyle(ColorTokens.Text.primary)
-                    .lineLimit(1)
-            }
-            .frame(width: columnWidths[1], alignment: .leading)
+    private static let categoryWidth: CGFloat = 120
+    private static let timestampWidth: CGFloat = 68
+    private static let deltaWidth: CGFloat = 72
 
-            Text(formattedTime(message.timestamp))
-                .font(TypographyTokens.footnote.monospaced())
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .frame(width: columnWidths[2], alignment: .leading)
+    var body: some View {
+        HStack(spacing: 0) {
+            // Severity icon
+            Image(systemName: message.severity.systemImage)
+                .font(TypographyTokens.detail)
+                .foregroundStyle(message.severity.tint)
+                .frame(width: 20, alignment: .center)
 
-            Text(EchoFormatters.duration(message.delta))
-                .font(TypographyTokens.footnote.monospaced())
+            // Category
+            Text(message.category)
+                .font(TypographyTokens.detail.weight(.medium))
                 .foregroundStyle(ColorTokens.Text.secondary)
-                .frame(width: columnWidths[3], alignment: .leading)
+                .lineLimit(1)
+                .frame(width: Self.categoryWidth, alignment: .leading)
+                .padding(.leading, SpacingTokens.xs)
 
-            Text(message.duration.map(EchoFormatters.duration) ?? "\u{2014}")
-                .font(TypographyTokens.footnote.monospaced())
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .frame(width: columnWidths[4], alignment: .leading)
+            // Timestamp
+            Text(message.formattedTimestamp)
+                .font(TypographyTokens.detail.monospaced())
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .frame(width: Self.timestampWidth, alignment: .leading)
+                .padding(.leading, SpacingTokens.xs)
 
-            Text(message.procedure ?? "")
-                .font(TypographyTokens.footnote.monospaced())
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .frame(width: columnWidths[5], alignment: .leading)
+            // Delta
+            Text(message.delta > 0 ? "+" + EchoFormatters.duration(message.delta) : "")
+                .font(TypographyTokens.detail.monospaced())
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .frame(width: Self.deltaWidth, alignment: .leading)
+                .padding(.leading, SpacingTokens.xxs)
 
-            Text(message.line ?? "")
-                .font(TypographyTokens.footnote.monospaced())
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .frame(width: columnWidths[6], alignment: .leading)
+            // Message (fills remaining space)
+            Text(message.message)
+                .font(TypographyTokens.detail)
+                .foregroundStyle(messageTextColor)
+                .textSelection(.enabled)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, SpacingTokens.xs)
 
             Spacer(minLength: 0)
-
-            Button {
-                toggle(message.id)
-            } label: {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(TypographyTokens.detail.weight(.medium))
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            }
-            .buttonStyle(.borderless)
-            .padding(.trailing, SpacingTokens.xs2)
         }
         .padding(.horizontal, SpacingTokens.sm)
-        .frame(minHeight: 28, alignment: .center)
-        .background(rowBackground(index: index, severity: message.severity))
-        .contentShape(Rectangle())
-        .onTapGesture {
-            toggle(message.id)
+        .padding(.vertical, SpacingTokens.xs2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(rowBackground)
+    }
+
+    // MARK: - Styling
+
+    private var messageTextColor: Color {
+        switch message.severity {
+        case .error: ColorTokens.Status.error
+        case .warning: .orange
+        case .info, .success, .debug: ColorTokens.Text.primary
         }
     }
 
-    func messageDetails(_ message: Message, index: Int) -> some View {
-        let indent = columnWidths[0] + 12
-        let detailBackground = headerBackground.opacity(0.65)
-
-        return HStack(spacing: 0) {
-            Color.clear.frame(width: indent)
-
-            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                Text("Object {")
-                    .font(TypographyTokens.footnote.monospaced())
-                    .foregroundStyle(ColorTokens.Text.secondary)
-
-                ForEach(message.details) { detail in
-                    HStack(alignment: .top, spacing: SpacingTokens.xxs2) {
-                        Text(detail.key + ":")
-                            .font(TypographyTokens.footnote.monospaced())
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                            .frame(width: 90, alignment: .leading)
-
-                        Text(detail.value)
-                            .font(TypographyTokens.footnote.monospaced())
-                            .foregroundStyle(detail.highlight.valueColor)
-                            .textSelection(.enabled)
-                    }
-                }
-
-                Text("}")
-                    .font(TypographyTokens.footnote.monospaced())
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            }
-            .padding(.vertical, SpacingTokens.xs)
-            .padding(.horizontal, SpacingTokens.sm)
-            .background(detailBackground)
-            .cornerRadius(6)
-
-            Spacer(minLength: 0)
+    private var rowBackground: Color {
+        switch message.severity {
+        case .error: ColorTokens.Status.error.opacity(0.06)
+        case .warning: Color.orange.opacity(0.04)
+        default: .clear
         }
-        .padding(.horizontal, SpacingTokens.sm)
-        .padding(.bottom, SpacingTokens.xxs2)
-        .background(rowBackground(index: index, severity: message.severity).opacity(0.4))
     }
 }

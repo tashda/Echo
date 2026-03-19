@@ -16,6 +16,17 @@ struct AppearanceSettingsView: View {
                 }
 
                 LabeledContent {
+                    SidebarDensityPicker(selection: sidebarDensityBinding)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Explorer Sidebar")
+                        Text("Choose the row density for the explorer sidebar.")
+                            .font(TypographyTokens.formDescription)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
+                }
+
+                LabeledContent {
                     SidebarIconPicker(selection: sidebarIconColorModeBinding)
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
@@ -83,13 +94,15 @@ struct AppearanceSettingsView: View {
                         Task { try? await projectStore.updateGlobalSettings(settings) }
                     }
                 ))
+            }
 
+            Section {
                 EditorFontPreview(
                     fontName: projectStore.globalSettings.defaultEditorFontFamily,
                     fontSize: projectStore.globalSettings.defaultEditorFontSize,
                     ligatures: projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true
                 )
-                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
         }
@@ -134,6 +147,17 @@ struct AppearanceSettingsView: View {
                 Task {
                     try? await projectStore.updateGlobalSettings(settings)
                 }
+            }
+        )
+    }
+
+    private var sidebarDensityBinding: Binding<SidebarDensity> {
+        Binding(
+            get: { projectStore.globalSettings.sidebarDensity },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.sidebarDensity = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }

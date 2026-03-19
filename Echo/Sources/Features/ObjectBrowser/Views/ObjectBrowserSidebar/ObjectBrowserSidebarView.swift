@@ -36,15 +36,22 @@ struct ObjectBrowserSidebarView: View {
                         .frame(height: SpacingTokens.sm)
                         .id(ExplorerSidebarConstants.objectsTopAnchor)
 
-                    if sessions.isEmpty {
+                    let pending = environmentState.pendingConnections
+
+                    if sessions.isEmpty && pending.isEmpty {
                         emptyStateView
                             .padding(.horizontal, SpacingTokens.md)
                             .padding(.top, SpacingTokens.xl)
                     } else {
+                        ForEach(pending) { item in
+                            pendingConnectionSection(pending: item)
+                                .padding(.bottom, SpacingTokens.sm)
+                        }
+
                         ForEach(sessions, id: \.connection.id) { session in
                             if sidebarSearchQuery == nil || serverMatchesSearch(session) {
                                 serverSection(session: session, proxy: proxy)
-                                    .padding(.bottom, SpacingTokens.sm) // Restored list-like spacing
+                                    .padding(.bottom, SpacingTokens.sm)
                             }
                         }
 
@@ -61,7 +68,7 @@ struct ObjectBrowserSidebarView: View {
             .coordinateSpace(name: ExplorerSidebarConstants.scrollCoordinateSpace)
             .clipped()
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if !sessions.isEmpty {
+                if !sessions.isEmpty || !environmentState.pendingConnections.isEmpty {
                     globalFooterView
                         .padding(.top, SpacingTokens.xxs2)
                         .padding(.bottom, SpacingTokens.xxs2)
@@ -73,7 +80,14 @@ struct ObjectBrowserSidebarView: View {
             .onChange(of: viewModel.searchText) { _, _ in
                 viewModel.handleSearchTextChanged(proxy: proxy)
             }
-            .onChange(of: sessions.map { $0.connection.id }) { _, _ in syncSelectionWithSessions(proxy: proxy) }
+            .onChange(of: sessions.map { $0.connection.id }) { oldIDs, newIDs in
+                syncSelectionWithSessions(proxy: proxy)
+                // Detect newly connected sessions for green flash animation
+                let added = Set(newIDs).subtracting(oldIDs)
+                if !added.isEmpty {
+                    viewModel.recentlyConnectedIDs.formUnion(added)
+                }
+            }
             .onChange(of: selectedConnectionID) { _, newValue in
                 guard let id = newValue, let session = environmentState.sessionGroup.sessionForConnection(id) else { return }
                 environmentState.sessionGroup.setActiveSession(session.id)
@@ -86,6 +100,7 @@ struct ObjectBrowserSidebarView: View {
             .onDisappear { viewModel.stopSearchDebounce() }
         }
         .environment(viewModel)
+        .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
         .accessibilityIdentifier("object-browser-sidebar")
         .background(ExplorerSidebarFocusResetter(isSearchFieldFocused: $viewModel.isSearchFieldFocused).allowsHitTesting(false))
 

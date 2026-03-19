@@ -153,6 +153,7 @@ struct GlobalSettings: Codable, Hashable {
     var resultSpoolRetentionHours: Int = 72
     var resultSpoolCustomLocation: String?
     var autoOpenInspectorOnSelection: Bool = true
+    var autoOpenBottomPanel: Bool = true
     var inspectorWidth: Double?
     var keepTabsInMemory: Bool = false
     var diagramPrefetchMode: DiagramPrefetchMode = .off
@@ -180,6 +181,9 @@ struct GlobalSettings: Codable, Hashable {
     var nativePsqlAllowFileCommands: Bool = true
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarIconSize: SidebarIconSize = .medium
+    var sidebarDensity: SidebarDensity = .default
+    var activityMonitorRefreshInterval: Double = 5.0
+    var hideInaccessibleDatabases: Bool = false
     var notificationPreferences: NotificationPreferences = NotificationPreferences()
 
     /// Returns the effective auto-expand sections for a given database type.
@@ -241,7 +245,7 @@ struct GlobalSettings: Codable, Hashable {
         case resultsStreamingMode
         case mssqlStreamingMode, mysqlStreamingMode, sqliteStreamingMode
         case resultSpoolMaxBytes, resultSpoolRetentionHours, resultSpoolCustomLocation
-        case autoOpenInspectorOnSelection, inspectorWidth, keepTabsInMemory
+        case autoOpenInspectorOnSelection, autoOpenBottomPanel, inspectorWidth, keepTabsInMemory
         case diagramPrefetchMode, diagramRefreshCadence, diagramCacheMaxBytes
         case diagramVerifyBeforeRefresh, diagramRenderRelationshipsForLargeDiagrams, diagramUseThemedAppearance
         case usePerTypeStorageLimits, echoSenseStorageMaxBytes, customKeyboardShortcuts
@@ -256,7 +260,10 @@ struct GlobalSettings: Codable, Hashable {
         case nativePsqlAllowFileCommands
         case sidebarIconColorMode
         case sidebarIconSize
+        case sidebarDensity
         case sidebarColoredIcons
+        case activityMonitorRefreshInterval
+        case hideInaccessibleDatabases
         case notificationPreferences
     }
 
@@ -318,6 +325,7 @@ struct GlobalSettings: Codable, Hashable {
         resultSpoolRetentionHours = try container.decodeIfPresent(Int.self, forKey: .resultSpoolRetentionHours) ?? 72
         resultSpoolCustomLocation = try container.decodeIfPresent(String.self, forKey: .resultSpoolCustomLocation)
         autoOpenInspectorOnSelection = try container.decodeIfPresent(Bool.self, forKey: .autoOpenInspectorOnSelection) ?? true
+        autoOpenBottomPanel = try container.decodeIfPresent(Bool.self, forKey: .autoOpenBottomPanel) ?? true
         inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
         keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
         diagramPrefetchMode = try container.decodeIfPresent(DiagramPrefetchMode.self, forKey: .diagramPrefetchMode) ?? .off
@@ -353,7 +361,10 @@ struct GlobalSettings: Codable, Hashable {
         }
         
         sidebarIconSize = try container.decodeIfPresent(SidebarIconSize.self, forKey: .sidebarIconSize) ?? .medium
+        sidebarDensity = try container.decodeIfPresent(SidebarDensity.self, forKey: .sidebarDensity) ?? .default
         
+        activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
+        hideInaccessibleDatabases = try container.decodeIfPresent(Bool.self, forKey: .hideInaccessibleDatabases) ?? false
         notificationPreferences = try container.decodeIfPresent(NotificationPreferences.self, forKey: .notificationPreferences) ?? NotificationPreferences()
     }
 
@@ -404,6 +415,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)
         try container.encode(autoOpenInspectorOnSelection, forKey: .autoOpenInspectorOnSelection)
+        try container.encode(autoOpenBottomPanel, forKey: .autoOpenBottomPanel)
         try container.encodeIfPresent(inspectorWidth, forKey: .inspectorWidth)
         try container.encode(keepTabsInMemory, forKey: .keepTabsInMemory)
         try container.encode(diagramPrefetchMode, forKey: .diagramPrefetchMode)
@@ -435,6 +447,9 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(nativePsqlAllowFileCommands, forKey: .nativePsqlAllowFileCommands)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
         try container.encode(sidebarIconSize, forKey: .sidebarIconSize)
+        try container.encode(sidebarDensity, forKey: .sidebarDensity)
+        try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
+        try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)
         try container.encode(notificationPreferences, forKey: .notificationPreferences)
     }
 

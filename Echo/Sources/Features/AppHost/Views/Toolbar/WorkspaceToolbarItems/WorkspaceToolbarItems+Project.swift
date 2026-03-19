@@ -1,12 +1,13 @@
 import SwiftUI
 import EchoSense
 
-extension WorkspaceToolbarItems {
+/// Standalone view that properly observes `@Observable` state changes.
+/// See `RecentConnectionsMenuButton` for rationale.
+struct ProjectContextMenuButton: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(EnvironmentState.self) private var environmentState
 
-    // MARK: - Project Context Menu
-
-    @ViewBuilder
-    internal var projectContextMenu: some View {
+    var body: some View {
         Menu {
             Section("Projects") {
                 if projectStore.projects.isEmpty {

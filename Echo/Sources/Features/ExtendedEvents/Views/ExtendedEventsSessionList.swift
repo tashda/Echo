@@ -3,15 +3,18 @@ import SQLServerKit
 
 struct ExtendedEventsSessionList: View {
     @Bindable var viewModel: ExtendedEventsViewModel
+    var onWatchLiveData: (String) -> Void = { _ in }
     @Environment(AppState.self) private var appState
     @Environment(EnvironmentState.self) private var environmentState
-    
-    @State private var splitFraction: CGFloat = 0.4
+
+    @State private var splitFraction: CGFloat = 0.45
+    @State private var sessionSortOrder: [KeyPathComparator<SQLServerXESession>] = []
+    @State private var dropSessionTarget: String?
 
     var body: some View {
         NativeSplitView(
-            isVertical: false, // Top/Bottom split like Agent Jobs
-            firstMinFraction: 0.2,
+            isVertical: true,
+            firstMinFraction: 0.3,
             secondMinFraction: 0.3,
             fraction: $splitFraction
         ) {
@@ -20,66 +23,87 @@ struct ExtendedEventsSessionList: View {
             detailPane
         }
         .background(ColorTokens.Background.primary)
+        .alert(
+            "Delete \"\(dropSessionTarget ?? "")\"?",
+            isPresented: Binding(get: { dropSessionTarget != nil }, set: { if !$0 { dropSessionTarget = nil } })
+        ) {
+            Button("Cancel", role: .cancel) { dropSessionTarget = nil }
+            Button("Delete", role: .destructive) {
+                if let name = dropSessionTarget {
+                    Task { await viewModel.dropSession(name) }
+                }
+                dropSessionTarget = nil
+            }
+        } message: {
+            Text("This will permanently drop the Extended Events session from the server. This action cannot be undone.")
+        }
     }
 
     // MARK: - Session Table
 
     private var sessionTable: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Sessions")
-                    .font(TypographyTokens.prominent.weight(.semibold))
-                Spacer()
+        Table(viewModel.sessions.sorted(using: sessionSortOrder), selection: Binding(
+            get: { Set([viewModel.selectedSessionName].compactMap { $0 }) },
+            set: { names in
+                if let first = names.first {
+                    Task { await viewModel.selectSession(first) }
+                }
+            }
+        ), sortOrder: $sessionSortOrder) {
+            TableColumn("Name", value: \.name) { session in
+                Text(session.name)
+                    .font(TypographyTokens.Table.name)
+            }
+            TableColumn("Status") { session in
+                Text(session.isRunning ? "Running" : "Stopped")
+                    .font(TypographyTokens.Table.status)
+                    .foregroundStyle(session.isRunning ? ColorTokens.Status.success : ColorTokens.Text.secondary)
+            }
+            TableColumn("Startup") { session in
+                Image(systemName: session.startupState ? "checkmark" : "minus")
+                    .font(TypographyTokens.compact)
+                    .foregroundStyle(session.startupState ? ColorTokens.Text.secondary : ColorTokens.Text.quaternary)
+            }
+            .width(60)
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .contextMenu(forSelectionType: String.self) { names in
+            if let name = names.first, let session = viewModel.sessions.first(where: { $0.name == name }) {
+                Button {
+                    Task { await viewModel.toggleSession(session) }
+                } label: {
+                    Label(session.isRunning ? "Stop Session" : "Start Session",
+                          systemImage: session.isRunning ? "stop.fill" : "play.fill")
+                }
+
+                if session.isRunning {
+                    Button {
+                        onWatchLiveData(name)
+                    } label: {
+                        Label("Watch Live Data", systemImage: "waveform.path.ecg")
+                    }
+                }
+
+                Divider()
+
                 Button {
                     viewModel.showCreateSheet = true
                 } label: {
-                    ToolbarAddButton()
+                    Label("New Session", systemImage: "plus")
                 }
-                .buttonStyle(.plain)
-                .help("New Extended Events Session")
-            }
-            .padding(.horizontal, SpacingTokens.md)
-            .padding(.vertical, SpacingTokens.sm)
 
-            Divider()
+                Divider()
 
-            Table(viewModel.sessions, selection: Binding(
-                get: { Set([viewModel.selectedSessionName].compactMap { $0 }) },
-                set: { names in 
-                    if let first = names.first {
-                        Task { await viewModel.selectSession(first) }
-                    }
+                Button(role: .destructive) {
+                    dropSessionTarget = name
+                } label: {
+                    Label("Delete Session", systemImage: "trash")
                 }
-            )) {
-                TableColumn("Name", value: \.name)
-                TableColumn("Status") { session in
-                    Text(session.isRunning ? "Running" : "Stopped")
-                        .font(TypographyTokens.statusLabel)
-                        .foregroundStyle(session.isRunning ? ColorTokens.Status.success : ColorTokens.Text.secondary)
-                }
-                TableColumn("Startup") { session in
-                    Image(systemName: session.startupState ? "checkmark" : "minus")
-                        .font(TypographyTokens.compact)
-                        .foregroundStyle(session.startupState ? ColorTokens.Text.secondary : ColorTokens.Text.quaternary)
-                }
-                .width(60)
-            }
-            .contextMenu(forSelectionType: String.self) { names in
-                if let name = names.first, let session = viewModel.sessions.first(where: { $0.name == name }) {
-                    Button {
-                        Task { await viewModel.toggleSession(session) }
-                    } label: {
-                        Label(session.isRunning ? "Stop Session" : "Start Session", 
-                              systemImage: session.isRunning ? "stop.fill" : "play.fill")
-                    }
-                    
-                    Divider()
-                    
-                    Button(role: .destructive) {
-                        Task { await viewModel.dropSession(name) }
-                    } label: {
-                        Label("Delete Session", systemImage: "trash")
-                    }
+            } else {
+                Button {
+                    viewModel.showCreateSheet = true
+                } label: {
+                    Label("New Session", systemImage: "plus")
                 }
             }
         }
@@ -93,14 +117,7 @@ struct ExtendedEventsSessionList: View {
             VStack(alignment: .leading, spacing: 0) {
                 detailHeader(sessionName)
                 Divider()
-                
-                HSplitView {
-                    sessionProperties(sessionName)
-                        .frame(minWidth: 250, maxWidth: 450)
-                    
-                    liveEventStream
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+                sessionDetailContent
             }
         } else {
             noSelectionPlaceholder
@@ -122,73 +139,59 @@ struct ExtendedEventsSessionList: View {
         .background(ColorTokens.Background.secondary.opacity(0.3))
     }
 
-    private func sessionProperties(_ name: String) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SpacingTokens.lg) {
-                if let detail = viewModel.sessionDetail {
-                    propertyTable(title: "Configured Events", items: detail.events.map { $0.eventName })
-                    propertyTable(title: "Targets", items: detail.targets.map { $0.targetName })
-                } else if viewModel.detailLoadingState != .loading {
-                    Text("Session details not available.")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
+    @ViewBuilder
+    private var sessionDetailContent: some View {
+        if let detail = viewModel.sessionDetail {
+            NativeSplitView(
+                isVertical: false,
+                firstMinFraction: 0.35,
+                secondMinFraction: 0.25,
+                fraction: .constant(0.65)
+            ) {
+                eventsTable(detail.events)
+            } second: {
+                targetsTable(detail.targets)
             }
-            .padding(SpacingTokens.md)
-        }
-        .background(ColorTokens.Background.secondary.opacity(0.1))
-    }
-
-    private func propertyTable(title: String, items: [String]) -> some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text(title)
-                .font(TypographyTokens.standard.weight(.bold))
-            
-            VStack(alignment: .leading, spacing: 0) {
-                if items.isEmpty {
-                    Text("No items configured")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                        .padding(SpacingTokens.sm)
-                } else {
-                    ForEach(items, id: \.self) { item in
-                        HStack {
-                            Text(item)
-                                .font(TypographyTokens.statusLabel)
-                            Spacer()
-                        }
-                        .padding(.horizontal, SpacingTokens.sm)
-                        .padding(.vertical, 6)
-                        
-                        if item != items.last {
-                            Divider().padding(.leading, SpacingTokens.sm)
-                        }
-                    }
-                }
+        } else if viewModel.detailLoadingState != .loading {
+            VStack {
+                Text("Session details not available.")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
             }
-            .background(ColorTokens.Background.secondary.opacity(0.3))
-            .cornerRadius(8)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(ColorTokens.Background.tertiary.opacity(0.5), lineWidth: 0.5))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    private var liveEventStream: some View {
+    private func eventsTable(_ events: [SQLServerXESessionEvent]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Live Data")
-                    .font(TypographyTokens.standard.weight(.semibold))
-                Spacer()
-                if viewModel.eventDataLoadingState == .loading {
-                    ProgressView().controlSize(.mini)
-                }
-            }
-            .padding(.horizontal, SpacingTokens.md)
-            .padding(.vertical, SpacingTokens.sm)
-            
+            sectionLabel("Configured Events")
             Divider()
-            
-            ExtendedEventsDataView(viewModel: viewModel)
+            Table(events) {
+                TableColumn("Event Name", value: \.eventName)
+                TableColumn("Package", value: \.packageName)
+                    .width(min: 80, ideal: 120)
+            }
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
         }
+    }
+
+    private func targetsTable(_ targets: [SQLServerXESessionTarget]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionLabel("Targets")
+            Divider()
+            Table(targets) {
+                TableColumn("Target Name", value: \.targetName)
+            }
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
+        }
+    }
+
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title)
+            .font(TypographyTokens.detail.weight(.medium))
+            .foregroundStyle(ColorTokens.Text.secondary)
+            .padding(.horizontal, SpacingTokens.md)
+            .padding(.vertical, SpacingTokens.xs)
     }
 
     private var noSelectionPlaceholder: some View {
@@ -196,7 +199,7 @@ struct ExtendedEventsSessionList: View {
             Image(systemName: "waveform.path.ecg")
                 .font(.largeTitle)
                 .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("Select an Extended Events session to view properties and live data.")
+            Text("Select a session to view its configuration")
                 .font(TypographyTokens.standard)
                 .foregroundStyle(ColorTokens.Text.secondary)
         }

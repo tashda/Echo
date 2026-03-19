@@ -9,6 +9,18 @@ struct MSSQLMaintenanceBackupsView: View {
     @State private var selection: Set<SQLServerBackupHistoryEntry.ID> = []
 
     var body: some View {
+        if let permissionError = viewModel.backupPermissionError {
+            EmptyStatePlaceholder(
+                icon: "lock.shield",
+                title: "Insufficient Permissions",
+                subtitle: permissionError
+            )
+        } else {
+            backupContent
+        }
+    }
+
+    private var backupContent: some View {
         VStack(spacing: 0) {
             Table(viewModel.backupHistory, selection: $selection, sortOrder: $sortOrder) {
                 TableColumn("Type", value: \.typeDescription)

@@ -9,6 +9,7 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isExpanded = viewModel.expandedServerIDs.contains(connID)
         let isSearching = sidebarSearchQuery != nil
+        let isNewlyConnected = viewModel.recentlyConnectedIDs.contains(connID)
 
         VStack(alignment: .leading, spacing: 0) {
             serverSectionHeader(session: session, isExpanded: isExpanded || isSearching)
@@ -19,7 +20,20 @@ extension ObjectBrowserSidebarView {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .task { viewModel.initializeSessionState(for: session, autoExpandSections: projectStore.globalSettings.sidebarExpandSections(for: session.connection.databaseType)) }
+        .overlay(
+            StatusWaveOverlay(
+                color: ColorTokens.Status.success,
+                cornerRadius: SidebarRowConstants.hoverCornerRadius,
+                trigger: isNewlyConnected
+            )
+        )
+        .task {
+            viewModel.initializeSessionState(for: session, autoExpandSections: projectStore.globalSettings.sidebarExpandSections(for: session.connection.databaseType))
+            if isNewlyConnected {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                viewModel.recentlyConnectedIDs.remove(connID)
+            }
+        }
     }
 
     /// A visually rich connection header for a connected server (macOS System Settings style).

@@ -104,15 +104,11 @@ struct StatusBadge: View {
 
     var body: some View {
         Text(text)
-            .font(TypographyTokens.compact.weight(.bold))
-            .padding(.horizontal, SpacingTokens.xxs2)
-            .padding(.vertical, SpacingTokens.xxxs)
-            .background(backgroundColor.opacity(0.15))
-            .foregroundStyle(backgroundColor)
-            .cornerRadius(4)
+            .font(TypographyTokens.Table.status)
+            .foregroundStyle(statusColor)
     }
 
-    private var backgroundColor: Color {
+    private var statusColor: Color {
         if isSystem { return ColorTokens.Status.info }
         switch text.lowercased() {
         case "active", "running", "runnable": return ColorTokens.Status.success

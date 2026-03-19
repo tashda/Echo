@@ -25,15 +25,19 @@ struct ConnectionsTableView: View {
 
             TableColumn("Name", value: \.connectionName) { connection in
                 Text(displayName(for: connection))
+                    .font(TypographyTokens.Table.name)
             }
 
             TableColumn("Server", value: \.host) { connection in
                 Text(connection.host.isEmpty ? "—" : connection.host)
+                    .font(TypographyTokens.Table.name)
+                    .foregroundStyle(connection.host.isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
             }
 
             TableColumn("Port") { connection in
                 Text(connection.port > 0 ? String(connection.port) : "—")
-                    .foregroundStyle(connection.port > 0 ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+                    .font(TypographyTokens.Table.numeric)
+                    .foregroundStyle(connection.port > 0 ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
             }
             .width(ideal: 50, max: 70)
 
@@ -41,13 +45,15 @@ struct ConnectionsTableView: View {
                 if let decoration = identityDecorationProvider(connection) {
                     Label {
                         Text(decoration.name)
+                            .font(TypographyTokens.Table.name)
                     } icon: {
                         Image(systemName: decoration.icon)
                     }
                     .foregroundStyle(ColorTokens.Text.secondary)
                 } else {
                     Text("—")
-                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .font(TypographyTokens.Table.name)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
 
@@ -55,9 +61,11 @@ struct ConnectionsTableView: View {
                 if let folderID = connection.folderID,
                    let folder = folderLookup[folderID] {
                     Text(folder.displayName)
+                        .font(TypographyTokens.Table.name)
                 } else {
                     Text("—")
-                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .font(TypographyTokens.Table.name)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
         } rows: {
@@ -68,6 +76,7 @@ struct ConnectionsTableView: View {
                     }
             }
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: SavedConnection.ID.self) { items in
             if let selectionID = items.first,
                let connection = connections.first(where: { $0.id == selectionID }) {

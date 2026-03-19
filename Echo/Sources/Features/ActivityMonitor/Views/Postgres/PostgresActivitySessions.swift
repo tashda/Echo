@@ -16,17 +16,18 @@ struct PostgresActivitySessions: View {
     var body: some View {
         Table(sortedProcesses, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("PID", value: \.pid) {
-                Text("\($0.pid)").font(TypographyTokens.detail.monospacedDigit())
+                Text("\($0.pid)").font(TypographyTokens.Table.numeric)
             }.width(min: 50, max: 70)
 
             TableColumn("User") {
                 Text($0.userName ?? "")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.name)
                     .foregroundStyle(($0.userName ?? "").isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
             }.width(min: 80, ideal: 100)
 
             TableColumn("DB") {
-                Text($0.databaseName ?? "").font(TypographyTokens.detail)
+                Text($0.databaseName ?? "")
+                    .font(TypographyTokens.Table.name)
             }.width(min: 80, ideal: 100)
 
             TableColumn("State") {
@@ -39,14 +40,14 @@ struct PostgresActivitySessions: View {
 
             TableColumn("App") {
                 Text($0.applicationName ?? "")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.name)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
             }.width(min: 80, ideal: 120)
 
             TableColumn("Client") {
                 Text($0.clientAddress ?? "")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.Table.name)
                     .foregroundStyle(ColorTokens.Text.tertiary)
             }.width(min: 80, ideal: 100)
 
@@ -84,11 +85,11 @@ private struct DurationCell: View {
         if let start = queryStart, state == "active" {
             let seconds = Date().timeIntervalSince(start)
             Text(formatDuration(seconds))
-                .font(TypographyTokens.detail.monospacedDigit())
+                .font(TypographyTokens.Table.numeric)
                 .foregroundStyle(seconds > 60 ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
         } else {
             Text("\u{2014}")
-                .font(TypographyTokens.detail)
+                .font(TypographyTokens.Table.name)
                 .foregroundStyle(ColorTokens.Text.quaternary)
         }
     }

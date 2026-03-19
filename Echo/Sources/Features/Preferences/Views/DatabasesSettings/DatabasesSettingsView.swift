@@ -78,6 +78,23 @@ struct DatabasesSettingsView: View {
         } footer: {
             Text("SQL Server currently supports a managed execution profile only.")
         }
+
+        Section("Activity Monitor") {
+            Picker("Refresh Interval", selection: activityMonitorIntervalBinding) {
+                Text("1 second").tag(1.0)
+                Text("2 seconds").tag(2.0)
+                Text("5 seconds").tag(5.0)
+                Text("10 seconds").tag(10.0)
+            }
+        }
+
+        Section {
+            Toggle("Hide inaccessible databases", isOn: hideInaccessibleDatabasesBinding)
+        } header: {
+            Text("Explorer Sidebar")
+        } footer: {
+            Text("When enabled, databases that the current login cannot access are hidden from the sidebar.")
+        }
     }
 
     @ViewBuilder

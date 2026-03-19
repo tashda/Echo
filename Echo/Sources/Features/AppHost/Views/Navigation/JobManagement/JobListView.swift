@@ -29,14 +29,34 @@ struct JobListView: View {
                             .foregroundStyle(job.enabled ? ColorTokens.Status.success : ColorTokens.Text.secondary)
                     }
                 }.width(28)
-                TableColumn("Name", value: \.name)
-                TableColumn("Owner") { job in Text(job.owner ?? "—").foregroundStyle(job.owner == nil ? ColorTokens.Text.secondary : ColorTokens.Text.primary) }
-                TableColumn("Category") { job in Text(job.category ?? "—").foregroundStyle(job.category == nil ? ColorTokens.Text.secondary : ColorTokens.Text.primary) }
-                TableColumn("Last Outcome") { job in Text(job.lastOutcome ?? "—").foregroundStyle(job.lastOutcome == nil ? ColorTokens.Text.secondary : ColorTokens.Text.primary) }
-                TableColumn("Next Run") { job in Text(job.nextRun ?? "—").foregroundStyle(job.nextRun == nil ? ColorTokens.Text.secondary : ColorTokens.Text.primary) }
+                TableColumn("Name") { job in
+                    Text(job.name)
+                        .font(TypographyTokens.Table.name)
+                }
+                TableColumn("Owner") { job in
+                    Text(job.owner ?? "—")
+                        .font(TypographyTokens.Table.name)
+                        .foregroundStyle(job.owner == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
+                }
+                TableColumn("Category") { job in
+                    Text(job.category ?? "—")
+                        .font(TypographyTokens.Table.name)
+                        .foregroundStyle(job.category == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
+                }
+                TableColumn("Last Outcome") { job in
+                    Text(job.lastOutcome ?? "—")
+                        .font(TypographyTokens.Table.status)
+                        .foregroundStyle(jobOutcomeColor(job.lastOutcome))
+                }
+                TableColumn("Next Run") { job in
+                    Text(job.nextRun ?? "—")
+                        .font(TypographyTokens.Table.date)
+                        .foregroundStyle(job.nextRun == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
+                }
             } rows: {
                 ForEach(viewModel.jobs) { job in TableRow(job) }
             }
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
             .contextMenu(forSelectionType: String.self) { items in
                 if let id = items.first {
                     let jobIsRunning = viewModel.jobs.first(where: { $0.id == id }).map { viewModel.runningJobNames.contains($0.name) } ?? false
@@ -85,6 +105,16 @@ struct JobListView: View {
                     tableSelection = [id]
                 }
             }
+        }
+    }
+
+    private func jobOutcomeColor(_ outcome: String?) -> Color {
+        switch outcome {
+        case "Succeeded": return ColorTokens.Status.success
+        case "Failed": return ColorTokens.Status.error
+        case "In Progress": return ColorTokens.Status.warning
+        case nil: return ColorTokens.Text.tertiary
+        default: return ColorTokens.Text.secondary
         }
     }
 }

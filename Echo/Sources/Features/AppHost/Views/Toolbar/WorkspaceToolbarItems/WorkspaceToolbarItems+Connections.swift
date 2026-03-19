@@ -1,12 +1,14 @@
 import SwiftUI
 import EchoSense
 
-extension WorkspaceToolbarItems {
+/// Standalone view that properly observes `@Observable` state changes.
+/// See `RecentConnectionsMenuButton` for rationale.
+struct ConnectionsMenuButton: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(EnvironmentState.self) private var environmentState
 
-    // MARK: - Connections Selection Menu
-
-    @ViewBuilder
-    internal var connectionsSelectionMenu: some View {
+    var body: some View {
         Menu {
             Section("Connections") {
                 let activeSessions = environmentState.sessionGroup.activeSessions
@@ -24,24 +26,24 @@ extension WorkspaceToolbarItems {
                 let projectID = projectStore.selectedProject?.id
                 let projectConnections = connectionStore.connections.filter { $0.projectID == projectID && !connectedIDs.contains($0.id) }
                 let projectFolders = connectionStore.folders.filter { $0.projectID == projectID && $0.kind == .connections }
-                
+
                 let rootFolders = projectFolders.filter { $0.parentFolderID == nil }
                     .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
-                
+
                 ForEach(rootFolders) { folder in
                     ToolbarFolderMenu(
                         folder: folder,
                         allFolders: projectFolders,
                         allConnections: projectConnections,
                         onConnect: { conn in
-                            Task { await environmentState.connectToNewSession(to: conn) }
+                            environmentState.connectToNewSession(to: conn)
                         }
                     )
                 }
-                
+
                 let rootConnections = projectConnections.filter { $0.folderID == nil }
                     .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
-                
+
                 ForEach(rootConnections) { connection in
                     connectionButton(connection)
                 }
@@ -74,7 +76,7 @@ extension WorkspaceToolbarItems {
     @ViewBuilder
     private func connectionButton(_ connection: SavedConnection) -> some View {
         Button {
-            Task { await environmentState.connectToNewSession(to: connection) }
+            environmentState.connectToNewSession(to: connection)
         } label: {
             HStack {
                 if let image = NSImage(named: connection.databaseType.iconName) {
@@ -91,7 +93,7 @@ extension WorkspaceToolbarItems {
     private func sessionButton(_ session: ConnectionSession) -> some View {
         let conn = session.connection
         let isActive = conn.id == connectionStore.selectedConnectionID
-        
+
         Button {
             connectionStore.selectedConnectionID = conn.id
             environmentState.sessionGroup.setActiveSession(session.id)
@@ -114,7 +116,6 @@ extension WorkspaceToolbarItems {
 
 // MARK: - Supporting Views
 
-@MainActor
 struct ToolbarFolderMenu: View {
     let folder: SavedFolder
     let allFolders: [SavedFolder]
@@ -126,7 +127,7 @@ struct ToolbarFolderMenu: View {
             // Child Folders
             let childFolders = allFolders.filter { $0.parentFolderID == folder.id }
                 .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
-            
+
             ForEach(childFolders) { child in
                 ToolbarFolderMenu(
                     folder: child,
@@ -135,15 +136,15 @@ struct ToolbarFolderMenu: View {
                     onConnect: onConnect
                 )
             }
-            
+
             if !childFolders.isEmpty {
                 Divider()
             }
-            
+
             // Connections in this folder
             let folderConnections = allConnections.filter { $0.folderID == folder.id }
                 .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
-            
+
             if folderConnections.isEmpty && childFolders.isEmpty {
                 Text("Empty Folder").foregroundStyle(.secondary)
             } else {

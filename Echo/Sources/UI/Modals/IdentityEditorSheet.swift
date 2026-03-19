@@ -10,10 +10,13 @@ struct IdentityEditorSheet: View {
     var onSave: ((SavedIdentity) -> Void)? = nil
 
     @State private var name: String = ""
+    @State private var authenticationMethod: DatabaseAuthenticationMethod = .sqlPassword
     @State private var username: String = ""
+    @State private var domain: String = ""
     @State private var password: String = ""
     @State private var passwordDirty = false
     @State private var selectedFolderID: UUID?
+    @State private var isSaving = false
 
     private var editingIdentity: SavedIdentity? {
         if case .edit(let identity) = state { return identity }
@@ -52,6 +55,7 @@ struct IdentityEditorSheet: View {
     }
 
     private var hasDuplicateName: Bool {
+        if isSaving { return false }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return false }
         let projectID = projectStore.selectedProject?.id
@@ -68,10 +72,19 @@ struct IdentityEditorSheet: View {
 
     private var isValid: Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedName.isEmpty || trimmedUsername.isEmpty { return false }
+        if trimmedName.isEmpty { return false }
         if hasDuplicateName { return false }
-        if !isEditing && password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+
+        if authenticationMethod.usesAccessToken {
+            // Access token: need the token (stored in password field), no username required
+            if !isEditing && password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+        } else {
+            // SQL Password / Windows Integrated: need username + password
+            let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmedUsername.isEmpty { return false }
+            if !isEditing && password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+        }
+
         return true
     }
 
@@ -108,21 +121,54 @@ struct IdentityEditorSheet: View {
             }
 
             Section("Credentials") {
-                PropertyRow(title: "Username") {
-                    TextField("", text: $username, prompt: Text("db_admin"))
+                PropertyRow(title: "Authentication") {
+                    Picker("", selection: $authenticationMethod) {
+                        ForEach(DatabaseAuthenticationMethod.allCases, id: \.self) { method in
+                            Text(method.displayName).tag(method)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                if authenticationMethod.usesAccessToken {
+                    PropertyRow(title: "Access Token") {
+                        SecureField("", text: Binding(
+                            get: { password },
+                            set: { password = $0; passwordDirty = true }
+                        ), prompt: Text(isEditing && editingIdentityHasPassword && !passwordDirty
+                            ? "••••••••"
+                            : "JWT access token"))
                         .textFieldStyle(.plain)
                         .multilineTextAlignment(.trailing)
+                    }
+                } else {
+                    if authenticationMethod.requiresDomain {
+                        PropertyRow(title: "Domain") {
+                            TextField("", text: $domain, prompt: Text("DOMAIN"))
+                                .textFieldStyle(.plain)
+                                .multilineTextAlignment(.trailing)
+                        }
+                    }
+
+                    PropertyRow(title: "Username") {
+                        TextField("", text: $username, prompt: Text("db_admin"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
+
+                    PropertyRow(title: "Password") {
+                        SecureField("", text: Binding(
+                            get: { password },
+                            set: { password = $0; passwordDirty = true }
+                        ), prompt: Text(isEditing && editingIdentityHasPassword && !passwordDirty
+                            ? "••••••••"
+                            : (authenticationMethod == .windowsIntegrated ? "Windows password" : "••••••••")))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                    }
                 }
-                
-                PropertyRow(title: "Password") {
-                    SecureField("", text: Binding(
-                        get: { password },
-                        set: { password = $0; passwordDirty = true }
-                    ), prompt: Text("••••••••"))
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
-                }
-                
+
                 if isEditing && editingIdentityHasPassword && !passwordDirty {
                     Text("Existing password will be kept unless changed.")
                         .font(TypographyTokens.formDescription)
@@ -185,13 +231,17 @@ struct IdentityEditorSheet: View {
     private func prepareInitialValues() {
         if case .edit(let identity) = state {
             name = identity.name
+            authenticationMethod = identity.authenticationMethod
             username = identity.username
+            domain = identity.domain ?? ""
             selectedFolderID = identity.folderID
             password = ""
             passwordDirty = false
         } else if case .create(let parent, _) = state {
             name = ""
+            authenticationMethod = .sqlPassword
             username = ""
+            domain = ""
             password = ""
             passwordDirty = false
             selectedFolderID = parent?.id
@@ -199,21 +249,28 @@ struct IdentityEditorSheet: View {
     }
 
     private func saveIdentity() async {
+        isSaving = true
         var identity: SavedIdentity
+
+        let trimmedDomain = domain.trimmingCharacters(in: .whitespacesAndNewlines)
 
         switch state {
         case .create:
             identity = SavedIdentity(
                 projectID: projectStore.selectedProject?.id,
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                authenticationMethod: authenticationMethod,
                 username: username.trimmingCharacters(in: .whitespacesAndNewlines),
+                domain: trimmedDomain.isEmpty ? nil : trimmedDomain,
                 keychainIdentifier: "echo.identity.\(UUID().uuidString)",
                 folderID: selectedFolderID
             )
         case .edit(let existing):
             identity = existing
             identity.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            identity.authenticationMethod = authenticationMethod
             identity.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
+            identity.domain = trimmedDomain.isEmpty ? nil : trimmedDomain
             identity.folderID = selectedFolderID
             identity.updatedAt = Date()
         }

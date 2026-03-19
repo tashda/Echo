@@ -63,4 +63,16 @@ extension QueryResultsSettingsView {
             }
         )
     }
+
+    var autoOpenBottomPanelBinding: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.autoOpenBottomPanel },
+            set: { newValue in
+                guard projectStore.globalSettings.autoOpenBottomPanel != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.autoOpenBottomPanel = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
 }

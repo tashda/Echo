@@ -44,7 +44,7 @@ struct WorkspaceTabContainerView: View {
 
             let settings = projectStore.globalSettings
             return RecentConnectionItem(
-                id: record.id,
+                id: record.identifier,
                 record: record,
                 name: displayName,
                 server: connection.host,
@@ -55,27 +55,6 @@ struct WorkspaceTabContainerView: View {
                 accentColorSource: settings.accentColorSource,
                 customAccentColorHex: settings.customAccentColorHex
             )
-        }
-    }
-
-    private func estimatedPlanHandler(for tab: WorkspaceTab) -> ((String) async -> Void)? {
-        guard supportsExecutionPlan(tab) else { return nil }
-        return { sql in
-            await self.requestEstimatedPlan(tabId: tab.id, sql: sql)
-        }
-    }
-
-    private func debugExecuteHandler(for tab: WorkspaceTab) -> ((String) async -> Void)? {
-        guard tab.connection.databaseType == .microsoftSQL else { return nil }
-        return { sql in
-            await self.runDebugSession(tabId: tab.id, sql: sql)
-        }
-    }
-
-    private func debugStopHandler(for tab: WorkspaceTab) -> (() -> Void)? {
-        guard tab.connection.databaseType == .microsoftSQL else { return nil }
-        return {
-            self.debugStop(tabId: tab.id)
         }
     }
 
@@ -114,9 +93,6 @@ struct WorkspaceTabContainerView: View {
                     tab: currentTab,
                     runQuery: { sql in await runQuery(tabId: currentTab.id, sql: sql) },
                     cancelQuery: { cancelQuery(tabId: currentTab.id) },
-                    requestEstimatedPlan: estimatedPlanHandler(for: currentTab),
-                    debugExecute: debugExecuteHandler(for: currentTab),
-                    debugStop: debugStopHandler(for: currentTab),
                     gridStateProvider: { currentTab.resultsGridState }
                 )
             } else if let activeSession = environmentState.sessionGroup.activeSession {
@@ -137,9 +113,7 @@ struct WorkspaceTabContainerView: View {
     }
 
     private func connectToRecentConnection(_ item: RecentConnectionItem) {
-        guard let connection = connectionStore.connections.first(where: { $0.id == item.id }) else { return }
-        Task {
-            await environmentState.connect(to: connection)
-        }
+        guard let connection = connectionStore.connections.first(where: { $0.id == item.record.id }) else { return }
+        environmentState.connect(to: connection)
     }
 }

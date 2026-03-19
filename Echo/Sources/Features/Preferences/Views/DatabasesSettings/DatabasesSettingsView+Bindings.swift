@@ -18,6 +18,14 @@ extension DatabasesSettingsView {
         binding(for: \.mssqlStreamingMode)
     }
 
+    var activityMonitorIntervalBinding: Binding<Double> {
+        binding(for: \.activityMonitorRefreshInterval)
+    }
+
+    var hideInaccessibleDatabasesBinding: Binding<Bool> {
+        binding(for: \.hideInaccessibleDatabases)
+    }
+
     // MARK: - PostgreSQL Tool Bindings
 
     var managedConsoleBinding: Binding<Bool> {

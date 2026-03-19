@@ -148,12 +148,7 @@ struct QueryCommands: Commands {
             Button("Close Query Tab") {
                 if navigationStore.isWorkspaceWindowKey {
                     if let active = tabStore.activeTab {
-                        let returnToDashboard = active.kind != .query
                         tabStore.closeTab(id: active.id)
-                        if returnToDashboard {
-                            // Deselect so the dashboard shows instead of jumping to another tab
-                            tabStore.activeTabId = nil
-                        }
                     }
                 } else if let keyWindow = NSApplication.shared.keyWindow {
                     keyWindow.performClose(nil)

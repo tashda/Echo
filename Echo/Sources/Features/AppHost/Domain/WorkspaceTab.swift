@@ -66,6 +66,7 @@ final class WorkspaceTab: Identifiable {
     @ObservationIgnored let bookmarkContext: BookmarkTabContext?
 
     @ObservationIgnored let resultsGridState = QueryResultsGridState()
+    let panelState: BottomPanelState
 
     init(
         connection: SavedConnection,
@@ -85,6 +86,7 @@ final class WorkspaceTab: Identifiable {
         self.isPinned = isPinned
         self.activeDatabaseName = activeDatabaseName
         self.bookmarkContext = bookmarkContext
+        self.panelState = Self.makePanelState(for: content)
         setupRowCountRefreshHandler()
     }
 
@@ -197,7 +199,7 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + 1024 * 1024
         case .maintenance(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
-        case .mssqlMaintenance(let vm):
+        case .mssqlMaintenance:
             return baseOverhead + 256 * 1024 // Default estimation
         case .queryStore(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
@@ -205,6 +207,19 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .availabilityGroups(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
+        }
+    }
+
+    private static func makePanelState(for content: Content) -> BottomPanelState {
+        switch content {
+        case .query:
+            return .forQueryTab()
+        case .maintenance, .mssqlMaintenance:
+            return .forMaintenanceTab()
+        case .extendedEvents:
+            return .forExtendedEventsTab()
+        default:
+            return .forGenericTab()
         }
     }
 

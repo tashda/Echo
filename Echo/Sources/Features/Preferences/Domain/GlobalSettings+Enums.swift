@@ -31,3 +31,13 @@ enum SidebarIconSize: String, Codable, CaseIterable, Sendable {
         }
     }
 }
+
+enum SidebarDensity: String, Codable, CaseIterable, Sendable {
+    case `default`, large
+    var displayName: String {
+        switch self {
+        case .default: return "Default"
+        case .large: return "Large"
+        }
+    }
+}

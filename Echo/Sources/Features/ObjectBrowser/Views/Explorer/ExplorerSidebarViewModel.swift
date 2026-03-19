@@ -9,6 +9,7 @@ final class ObjectBrowserSidebarViewModel {
     var expandedServerIDs: Set<UUID> = []
     var selectedObjectID: String?
     var knownSessionIDs: Set<UUID> = []
+    var recentlyConnectedIDs: Set<UUID> = []
 
     /// Maps connection ID → session ID for the last initialized session.
     /// Used to detect reconnects (same connection ID, new session ID).

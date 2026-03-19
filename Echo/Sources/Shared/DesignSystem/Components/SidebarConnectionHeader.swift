@@ -14,9 +14,17 @@ struct SidebarConnectionHeader: View {
     let isSecure: Bool
     let connectionState: ConnectionState
     let onAction: () -> Void
+    var trailingAccessory: TrailingAccessory = .chevron
 
     @State private var isHovered = false
     @State private var currentWidth: CGFloat = 0
+
+    enum TrailingAccessory {
+        case chevron
+        case spinner
+        case retryButton(() -> Void)
+        case none
+    }
 
     private var statusInfo: (color: Color, label: String?) {
         switch connectionState {
@@ -36,13 +44,13 @@ struct SidebarConnectionHeader: View {
             HStack(spacing: SpacingTokens.sm) {
                 // Native SF Symbol (standalone, no background card)
                 let iconColor = isColorful ? connectionColor : ColorTokens.Text.secondary
-                
+
                 ZStack(alignment: .bottomTrailing) {
                     Image(systemName: databaseType.symbolName)
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(iconColor.gradient)
                         .frame(width: 24, height: 24)
-                    
+
                     // Small status dot overlaid on icon
                     Circle()
                         .fill(statusInfo.color)
@@ -57,22 +65,22 @@ struct SidebarConnectionHeader: View {
                             .font(TypographyTokens.standard.weight(.semibold))
                             .foregroundStyle(ColorTokens.Text.primary)
                             .lineLimit(1)
-                        
+
                         if isSecure {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 9))
                                 .foregroundStyle(ColorTokens.Text.tertiary)
                         }
                     }
-                    
+
                     HStack(spacing: SpacingTokens.xxs) {
                         Text(subtitle)
                             .font(TypographyTokens.compact)
                             .foregroundStyle(ColorTokens.Text.secondary)
                             .lineLimit(1)
-                        
+
                         if case .error = connectionState {
-                            Text("•")
+                            Text("\u{2022}")
                             Text("Error")
                                 .font(TypographyTokens.compact)
                                 .foregroundStyle(ColorTokens.Status.error)
@@ -82,11 +90,7 @@ struct SidebarConnectionHeader: View {
 
                 Spacer()
 
-                // Disclosure Chevron
-                Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(ColorTokens.Text.quaternary)
-                    .padding(.trailing, SpacingTokens.xxs)
+                trailingAccessoryView
             }
             .padding(.vertical, SpacingTokens.sm)
             .padding(.horizontal, SpacingTokens.md)
@@ -125,6 +129,34 @@ struct SidebarConnectionHeader: View {
         .id("\(connectionName)-\(currentWidth)-\(isExpanded.wrappedValue)")
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
+        }
+    }
+
+    @ViewBuilder
+    private var trailingAccessoryView: some View {
+        switch trailingAccessory {
+        case .chevron:
+            Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(ColorTokens.Text.quaternary)
+                .padding(.trailing, SpacingTokens.xxs)
+        case .spinner:
+            ProgressView()
+                .controlSize(.small)
+                .padding(.trailing, SpacingTokens.xxs)
+        case .retryButton(let action):
+            Button {
+                action()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Retry connection")
+            .padding(.trailing, SpacingTokens.xxs)
+        case .none:
+            EmptyView()
         }
     }
 }

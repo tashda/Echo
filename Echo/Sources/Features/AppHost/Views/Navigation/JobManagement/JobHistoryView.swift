@@ -42,22 +42,44 @@ struct JobHistoryView: View {
                 get: { viewModel.selectedHistoryRowID.flatMap { Set([$0]) } ?? [] },
                 set: { viewModel.selectedHistoryRowID = $0.first }
             )) {
-                TableColumn("Job") { h in Text(h.jobName) }
+                TableColumn("Job") { h in
+                    Text(h.jobName)
+                        .font(TypographyTokens.Table.name)
+                }
                 TableColumn("Step ID") { h in
                     Text("\(h.stepId)")
-                        .monospacedDigit()
+                        .font(TypographyTokens.Table.numeric)
                 }.width(52)
                 TableColumn("Step Name") { h in
                     Text(h.stepName)
+                        .font(TypographyTokens.Table.name)
                         .foregroundStyle(h.stepId == 0 ? ColorTokens.Text.secondary : ColorTokens.Text.primary)
                 }
-                TableColumn("Status") { h in Text(jobStatusLabel(h.status)).foregroundStyle(colorForStatus(h.status)) }
-                TableColumn("Run Date") { h in Text(formatAgentDate(h.runDate, h.runTime)) }
-                TableColumn("Duration") { h in Text(formatDuration(h.runDuration)) }
-                TableColumn("Message") { h in Text(h.message).lineLimit(1).truncationMode(.tail) }
+                TableColumn("Status") { h in
+                    Text(jobStatusLabel(h.status))
+                        .font(TypographyTokens.Table.status)
+                        .foregroundStyle(colorForStatus(h.status))
+                }
+                TableColumn("Run Date") { h in
+                    Text(formatAgentDate(h.runDate, h.runTime))
+                        .font(TypographyTokens.Table.date)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
+                TableColumn("Duration") { h in
+                    Text(formatDuration(h.runDuration))
+                        .font(TypographyTokens.Table.numeric)
+                }
+                TableColumn("Message") { h in
+                    Text(h.message)
+                        .font(TypographyTokens.Table.name)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             } rows: {
                 ForEach(viewModel.history) { h in TableRow(h) }
             }
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
         }
     }
 

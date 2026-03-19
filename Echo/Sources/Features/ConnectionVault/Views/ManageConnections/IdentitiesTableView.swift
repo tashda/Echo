@@ -19,23 +19,36 @@ struct IdentitiesTableView: View {
             }
             .width(24)
 
-            TableColumn("Name", value: \.name)
+            TableColumn("Name") { identity in
+                Text(identity.name)
+                    .font(TypographyTokens.Table.name)
+            }
+
+            TableColumn("Authentication") { identity in
+                Text(identity.authenticationMethod.displayName)
+                    .font(TypographyTokens.Table.name)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
 
             TableColumn("Username", value: \.username) { identity in
                 let trimmed = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
                 Text(trimmed.isEmpty ? "—" : trimmed)
-                    .foregroundStyle(trimmed.isEmpty ? ColorTokens.Text.secondary : ColorTokens.Text.primary)
+                    .font(TypographyTokens.Table.name)
+                    .foregroundStyle(trimmed.isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
             }
 
             TableColumn("Folder") { identity in
                 let folderName = identity.folderID.flatMap { folderLookup[$0]?.displayName } ?? "—"
                 Text(folderName)
-                    .foregroundStyle(folderName == "—" ? ColorTokens.Text.secondary : ColorTokens.Text.primary)
+                    .font(TypographyTokens.Table.name)
+                    .foregroundStyle(folderName == "—" ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
             }
 
             TableColumn("Updated") { identity in
                 let referenceDate = identity.updatedAt ?? identity.createdAt
                 Text(referenceDate, style: .date)
+                    .font(TypographyTokens.Table.date)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
 
         } rows: {
@@ -46,6 +59,7 @@ struct IdentitiesTableView: View {
                     }
             }
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: SavedIdentity.ID.self) { items in
             if let selectionID = items.first,
                let identity = identities.first(where: { $0.id == selectionID }) {

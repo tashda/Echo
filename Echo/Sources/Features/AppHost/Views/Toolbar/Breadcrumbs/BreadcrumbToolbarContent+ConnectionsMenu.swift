@@ -3,9 +3,9 @@ import SwiftUI
 #if os(macOS)
 import AppKit
 
-// MARK: - Connections Menu Button
+// MARK: - Breadcrumb Connections Menu Button
 
-struct ConnectionsMenuButton: NSViewRepresentable {
+struct BreadcrumbConnectionsMenuButton: NSViewRepresentable {
     let connectionStore: ConnectionStore
     let projectStore: ProjectStore
     let environmentState: EnvironmentState
@@ -138,7 +138,7 @@ final class ConnectionsMenuDelegate: NSObject, NSMenuDelegate {
 
     @objc private func connectTo(_ sender: NSMenuItem) {
         guard let connection = sender.representedObject as? SavedConnection else { return }
-        Task { await environmentState.connect(to: connection) }
+        environmentState.connect(to: connection)
     }
 
     @objc private func manageConnections(_ sender: NSMenuItem) {

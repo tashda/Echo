@@ -115,6 +115,81 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
         throw DatabaseError.queryError("Use rebuildIndex for SQL Server")
     }
 
+    func listTableStats() async throws -> [SQLServerTableStat] {
+        let sql = """
+            SELECT
+                s.name AS schema_name,
+                t.name AS table_name,
+                CASE WHEN i.index_id = 0 THEN 'Heap' ELSE 'Clustered' END AS table_type,
+                SUM(p.rows) AS row_count,
+                SUM(a.data_pages) * 8 AS data_space_kb,
+                (SUM(a.used_pages) - SUM(a.data_pages)) * 8 AS index_space_kb,
+                (SUM(a.total_pages) - SUM(a.used_pages)) * 8 AS unused_space_kb,
+                SUM(a.total_pages) * 8 AS total_space_kb,
+                (SELECT MAX(sp.last_updated)
+                 FROM sys.stats st
+                 CROSS APPLY sys.dm_db_stats_properties(st.object_id, st.stats_id) sp
+                 WHERE st.object_id = t.object_id) AS last_stats_update
+            FROM sys.tables t
+            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            INNER JOIN sys.indexes i ON t.object_id = i.object_id AND i.index_id IN (0, 1)
+            INNER JOIN sys.partitions p ON i.object_id = p.object_id AND i.index_id = p.index_id
+            INNER JOIN sys.allocation_units a ON p.partition_id = a.container_id
+            WHERE t.is_ms_shipped = 0
+            GROUP BY s.name, t.name, i.index_id, i.object_id, t.object_id
+            ORDER BY SUM(p.rows) DESC
+            """
+        let result = try await simpleQuery(sql)
+        return result.rows.compactMap { row -> SQLServerTableStat? in
+            guard row.count >= 9,
+                  let schemaName = row[0],
+                  let tableName = row[1],
+                  let tableType = row[2] else { return nil }
+            let rowCount = Int64(row[3] ?? "0") ?? 0
+            let dataSpaceKB = Int64(row[4] ?? "0") ?? 0
+            let indexSpaceKB = Int64(row[5] ?? "0") ?? 0
+            let unusedSpaceKB = Int64(row[6] ?? "0") ?? 0
+            let totalSpaceKB = Int64(row[7] ?? "0") ?? 0
+            let lastStatsUpdate: Date? = if let dateStr = row[8] {
+                ISO8601DateFormatter().date(from: dateStr)
+            } else {
+                nil
+            }
+            return SQLServerTableStat(
+                schemaName: schemaName,
+                tableName: tableName,
+                tableType: tableType,
+                rowCount: rowCount,
+                dataSpaceKB: dataSpaceKB,
+                indexSpaceKB: indexSpaceKB,
+                unusedSpaceKB: unusedSpaceKB,
+                totalSpaceKB: totalSpaceKB,
+                lastStatsUpdate: lastStatsUpdate,
+                forwardedRecords: nil
+            )
+        }
+    }
+
+    func checkTable(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        let sql = "DBCC CHECKTABLE('[\(schema.replacingOccurrences(of: "]", with: "]]"))].[\(table.replacingOccurrences(of: "]", with: "]]"))]') WITH NO_INFOMSGS"
+        do {
+            _ = try await simpleQuery(sql)
+            return DatabaseMaintenanceResult(operation: "Check Table", messages: ["CHECKTABLE found 0 allocation errors and 0 consistency errors."], succeeded: true)
+        } catch {
+            return DatabaseMaintenanceResult(operation: "Check Table", messages: [error.localizedDescription], succeeded: false)
+        }
+    }
+
+    func rebuildTable(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        let sql = "ALTER TABLE [\(schema.replacingOccurrences(of: "]", with: "]]"))].[\(table.replacingOccurrences(of: "]", with: "]]"))] REBUILD"
+        do {
+            _ = try await simpleQuery(sql)
+            return DatabaseMaintenanceResult(operation: "Rebuild Table", messages: ["Table rebuilt successfully."], succeeded: true)
+        } catch {
+            return DatabaseMaintenanceResult(operation: "Rebuild Table", messages: [error.localizedDescription], succeeded: false)
+        }
+    }
+
     func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation] {
         let nioStats = try await client.indexes.listFragmentedIndexes()
         return nioStats.map { stat in
@@ -131,7 +206,8 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
                 totalScans: stat.totalScans,
                 totalUpdates: stat.totalUpdates,
                 sizeKB: stat.sizeKB,
-                tableSizeKB: stat.tableSizeKB
+                tableSizeKB: stat.tableSizeKB,
+                lastStatsUpdate: stat.lastStatsUpdate
             )
         }
     }

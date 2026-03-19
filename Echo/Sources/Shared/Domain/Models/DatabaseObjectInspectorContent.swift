@@ -15,6 +15,7 @@ public struct DatabaseObjectInspectorContent: Sendable, Equatable {
 
     public let title: String
     public let subtitle: String?
+    public let sqlText: String?
     public let fields: [Field]
     public let related: [DatabaseObjectInspectorContent]
     public let lookupQuerySQL: String?
@@ -23,6 +24,7 @@ public struct DatabaseObjectInspectorContent: Sendable, Equatable {
     public init(
         title: String,
         subtitle: String? = nil,
+        sqlText: String? = nil,
         fields: [Field],
         related: [DatabaseObjectInspectorContent] = [],
         lookupQuerySQL: String? = nil,
@@ -30,6 +32,7 @@ public struct DatabaseObjectInspectorContent: Sendable, Equatable {
     ) {
         self.title = title
         self.subtitle = subtitle
+        self.sqlText = sqlText
         self.fields = fields
         self.related = related
         self.lookupQuerySQL = lookupQuerySQL

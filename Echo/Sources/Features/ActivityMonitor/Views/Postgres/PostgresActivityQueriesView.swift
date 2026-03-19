@@ -68,20 +68,20 @@ struct PostgresExpensiveQueriesTable: View {
         Table(sortedQueries, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Query") { SQLQueryCell(sql: $0.query, onPopout: onPopout) }
             TableColumn("Calls", value: \.calls) {
-                Text("\($0.calls)").font(TypographyTokens.detail.monospacedDigit())
+                Text("\($0.calls)").font(TypographyTokens.Table.numeric)
             }.width(60)
             TableColumn("Total Time", value: \.total_exec_time) {
                 Text(String(format: "%.1fms", $0.total_exec_time))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(ColorTokens.accent)
             }.width(90)
             TableColumn("Mean Time", value: \.mean_exec_time) {
                 Text(String(format: "%.1fms", $0.mean_exec_time))
-                    .font(TypographyTokens.detail.monospacedDigit())
+                    .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }.width(80)
             TableColumn("Rows", value: \.rows) {
-                Text("\($0.rows)").font(TypographyTokens.detail.monospacedDigit())
+                Text("\($0.rows)").font(TypographyTokens.Table.numeric)
             }.width(70)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))

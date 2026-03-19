@@ -7,6 +7,8 @@ struct RefreshAnimatedOverlay: View {
 
     @State private var checkmarkScale: CGFloat = 0.0
     @State private var checkmarkOpacity: Double = 0.0
+    @State private var failureScale: CGFloat = 0.0
+    @State private var failureOpacity: Double = 0.0
 
     var body: some View {
         ZStack {
@@ -30,18 +32,35 @@ struct RefreshAnimatedOverlay: View {
                 .foregroundStyle(ColorTokens.Status.success)
                 .scaleEffect(checkmarkScale)
                 .opacity(checkmarkOpacity)
+
+            // Failure xmark — appears with scale bounce on failure
+            Image(systemName: "xmark")
+                .font(TypographyTokens.standard.weight(.semibold))
+                .foregroundStyle(ColorTokens.Status.error)
+                .scaleEffect(failureScale)
+                .opacity(failureOpacity)
         }
-        .onChange(of: phase) { oldPhase, newPhase in
-            if newPhase == .completed {
-                // Animate checkmark in with a bounce
+        .onChange(of: phase) { _, newPhase in
+            switch newPhase {
+            case .completed:
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
                     checkmarkScale = 1.0
                     checkmarkOpacity = 1.0
                 }
-            } else {
-                // Reset checkmark instantly when leaving completed state
+                failureScale = 0.0
+                failureOpacity = 0.0
+            case .failed:
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
+                    failureScale = 1.0
+                    failureOpacity = 1.0
+                }
                 checkmarkScale = 0.0
                 checkmarkOpacity = 0.0
+            default:
+                checkmarkScale = 0.0
+                checkmarkOpacity = 0.0
+                failureScale = 0.0
+                failureOpacity = 0.0
             }
         }
     }

@@ -58,6 +58,7 @@ extension WorkspaceTabContainerView {
                         state.appendMessage(
                             message: "Paused at statement \(index + 1) (line \(statement.lineNumber))",
                             severity: .debug,
+                            category: "Debug",
                             line: statement.lineNumber
                         )
                     }
@@ -79,6 +80,7 @@ extension WorkspaceTabContainerView {
                     state.appendMessage(
                         message: "Executing statement \(index + 1): \(statementPreview(statement.text))",
                         severity: .info,
+                        category: "Debug",
                         line: statement.lineNumber
                     )
                 }
@@ -96,6 +98,7 @@ extension WorkspaceTabContainerView {
                             state.appendMessage(
                                 message: "Returned \(result.rows.count) row\(result.rows.count == 1 ? "" : "s")",
                                 severity: .info,
+                                category: "Debug",
                                 line: statement.lineNumber,
                                 metadata: ["rows": "\(result.rows.count)"]
                             )
@@ -105,6 +108,7 @@ extension WorkspaceTabContainerView {
                             state.appendMessage(
                                 message: tag,
                                 severity: .info,
+                                category: "Debug",
                                 line: statement.lineNumber
                             )
                         }
@@ -115,6 +119,7 @@ extension WorkspaceTabContainerView {
                             state.appendMessage(
                                 message: serverMsg.message,
                                 severity: severity,
+                                category: "Debug",
                                 line: serverMsg.lineNumber.map(Int.init)
                             )
                         }
@@ -131,6 +136,7 @@ extension WorkspaceTabContainerView {
                         state.appendMessage(
                             message: "Statement \(index + 1) failed: \(error.localizedDescription)",
                             severity: .error,
+                            category: "Debug",
                             line: statement.lineNumber
                         )
                     }
@@ -149,7 +155,8 @@ extension WorkspaceTabContainerView {
                 state.debugPhase = .completed
                 state.appendMessage(
                     message: "Debug session completed — all statements executed",
-                    severity: .success
+                    severity: .success,
+                    category: "Debug"
                 )
             }
         }
@@ -207,7 +214,8 @@ extension WorkspaceTabContainerView {
             await MainActor.run {
                 state.appendMessage(
                     message: "Variable inspection failed: \(error.localizedDescription)",
-                    severity: .warning
+                    severity: .warning,
+                    category: "Debug"
                 )
             }
         }

@@ -1,17 +1,20 @@
 import SwiftUI
 import EchoSense
 
-extension WorkspaceToolbarItems {
+/// Standalone view that properly observes `@Observable` state changes.
+/// Toolbar inline `@ViewBuilder` computed properties inside `CustomizableToolbarContent`
+/// do not re-evaluate when `@Observable` state changes — wrapping in a proper `View`
+/// ensures SwiftUI's observation tracking triggers re-renders.
+struct RecentConnectionsMenuButton: View {
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(EnvironmentState.self) private var environmentState
 
-    // MARK: - Recent Connections Menu
-
-    @ViewBuilder
-    internal var recentConnectionsMenu: some View {
+    var body: some View {
         Menu {
             Section("Recent") {
                 let allRecents = environmentState.recentConnections
                 let visibleRecents = Array(allRecents.prefix(10))
-                
+
                 if visibleRecents.isEmpty {
                     Text("No Recent Connections")
                         .foregroundStyle(.secondary)
@@ -19,7 +22,7 @@ extension WorkspaceToolbarItems {
                     ForEach(visibleRecents) { record in
                         Button {
                             if let connection = connectionStore.connections.first(where: { $0.id == record.id }) {
-                                Task { await environmentState.connectToNewSession(to: connection) }
+                                environmentState.connectToNewSession(to: connection)
                             }
                         } label: {
                             HStack {
@@ -28,24 +31,23 @@ extension WorkspaceToolbarItems {
                                 } else {
                                     Image(systemName: "server.rack")
                                 }
-                                
+
                                 let baseName = record.connectionName.isEmpty ? record.host : record.connectionName
-                                
-                                // Only show username suffix if there's a duplicate NAME within the visible set
-                                let isDuplicate = visibleRecents.filter { 
+
+                                let isDuplicate = visibleRecents.filter {
                                     let otherName = $0.connectionName.isEmpty ? $0.host : $0.connectionName
-                                    return otherName.localizedCaseInsensitiveCompare(baseName) == .orderedSame 
+                                    return otherName.localizedCaseInsensitiveCompare(baseName) == .orderedSame
                                 }.count > 1
-                                
+
                                 Text(baseName + (isDuplicate ? " (\(record.username ?? "default"))" : ""))
                             }
                         }
                     }
                 }
             }
-            
+
             Divider()
-            
+
             Button("Clear Recents") {
                 environmentState.recentConnections.removeAll()
             }
