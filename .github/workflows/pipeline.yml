@@ -318,9 +318,37 @@ jobs:
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
+    - name: Determine version
+      id: version
+      run: |
+        # Read the marketing version from the Xcode project (e.g. "1.0", "1.1")
+        MARKETING_VERSION=$(xcodebuild -project Echo.xcodeproj -scheme Echo -showBuildSettings 2>/dev/null \
+          | grep 'MARKETING_VERSION' | head -1 | awk '{print $3}')
+        echo "Marketing version: $MARKETING_VERSION"
+
+        # Find the highest existing patch for this marketing version from git tags
+        # Tags follow the pattern v1.0.0, v1.0.1, v1.0.2, ...
+        LATEST_PATCH=$(git tag --list "v${MARKETING_VERSION}.*" --sort=-version:refname \
+          | head -1 \
+          | sed "s/v${MARKETING_VERSION}\.\([0-9]*\)/\1/")
+
+        if [ -z "$LATEST_PATCH" ]; then
+          PATCH=0
+        else
+          PATCH=$((LATEST_PATCH + 1))
+        fi
+
+        FULL_VERSION="${MARKETING_VERSION}.${PATCH}"
+        echo "Next version: $FULL_VERSION"
+        echo "full=$FULL_VERSION" >> $GITHUB_OUTPUT
+        echo "patch=$PATCH" >> $GITHUB_OUTPUT
+        echo "tag=v$FULL_VERSION" >> $GITHUB_OUTPUT
+
     - name: Build App (Release)
       run: |
         xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
+          MARKETING_VERSION=${{ steps.version.outputs.full }} \
+          CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
           CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 
     - name: Package & Sign (Ad-Hoc)
@@ -330,13 +358,6 @@ jobs:
         codesign --force --deep -s - release/Echo.app
         cd release
         ditto -c -k --sequesterRsrc --keepParent Echo.app Echo.zip
-
-    - name: Get Version
-      id: get_version
-      run: |
-        VERSION=$(defaults read "$(pwd)/build/Build/Products/Release/Echo.app/Contents/Info.plist" CFBundleShortVersionString)
-        BUILD=$(defaults read "$(pwd)/build/Build/Products/Release/Echo.app/Contents/Info.plist" CFBundleVersion)
-        echo "tag=v$VERSION-$BUILD" >> $GITHUB_OUTPUT
 
     - name: Setup Sparkle & Generate Appcast
       env:
@@ -355,7 +376,8 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ steps.get_version.outputs.tag }}
+        tag_name: ${{ steps.version.outputs.tag }}
+        name: Echo ${{ steps.version.outputs.full }}
         files: |
           Echo.zip
           appcast.xml
