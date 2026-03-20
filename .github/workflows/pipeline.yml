@@ -57,10 +57,19 @@ jobs:
     runs-on: [self-hosted, echo-test-server]
     env:
       DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
-      ECHO_MSSQL_PORT: "14332"
-      ECHO_PG_PORT: "54322"
+      USE_DOCKER: "1"
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/sqlserver-nio
+        ref: dev
+        path: vendor/sqlserver-nio
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/postgres-wire
+        ref: dev
+        path: vendor/postgres-wire
 
     - name: Prepare environment
       run: |
@@ -80,36 +89,16 @@ jobs:
         echo "Docker is ready"
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-    - name: Ensure test containers are running
+    - name: Bootstrap validated database fixtures
       run: |
-        if ! docker ps --format '{{.Names}}' | grep -q echo-test-mssql; then
-          echo "Starting MSSQL container..."
-          docker rm -f echo-test-mssql 2>/dev/null || true
-          docker run -d --name echo-test-mssql \
-            --restart unless-stopped \
-            -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=YourStr0ngP@ssword' \
-            -p ${ECHO_MSSQL_PORT}:1433 \
-            mcr.microsoft.com/mssql/server:2022-latest
-          sleep 15
-        fi
-        if ! docker ps --format '{{.Names}}' | grep -q echo-test-pg; then
-          echo "Starting Postgres container..."
-          docker rm -f echo-test-pg 2>/dev/null || true
-          docker run -d --name echo-test-pg \
-            --restart unless-stopped \
-            -e POSTGRES_PASSWORD=postgres \
-            -p ${ECHO_PG_PORT}:5432 \
-            postgres:16
-          sleep 5
-        fi
-        echo "Containers ready:"
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh all
 
     - name: Run Integration Tests
       run: |
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
-          -testPlan IntegrationTests \
+          -testPlan DatabaseIntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
           -disable-concurrent-testing \
@@ -187,11 +176,19 @@ jobs:
             ECHO_PG_VERSION: "18"
     env:
       DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
-      ECHO_MSSQL_PORT: "14332"
-      ECHO_PG_PORT: "54322"
       USE_DOCKER: "1"
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/sqlserver-nio
+        ref: dev
+        path: vendor/sqlserver-nio
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/postgres-wire
+        ref: dev
+        path: vendor/postgres-wire
 
     - name: Prepare environment
       run: |
@@ -216,6 +213,8 @@ jobs:
         ECHO_MSSQL_VERSION: ${{ matrix.ECHO_MSSQL_VERSION }}
         ECHO_MSSQL_COMPAT: ${{ matrix.ECHO_MSSQL_COMPAT }}
       run: |
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh sqlserver
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -destination 'platform=macOS' \
@@ -254,6 +253,8 @@ jobs:
       env:
         ECHO_PG_VERSION: ${{ matrix.ECHO_PG_VERSION }}
       run: |
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh postgres
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -destination 'platform=macOS' \
@@ -328,9 +329,10 @@ jobs:
 
         # Find the highest existing patch for this marketing version from git tags
         # Tags follow the pattern v1.0.0, v1.0.1, v1.0.2, ...
-        LATEST_PATCH=$(git tag --list "v${MARKETING_VERSION}.*" --sort=-version:refname \
+        LATEST_TAG=$(git tag --list "v${MARKETING_VERSION}.*" --sort=-version:refname \
           | head -1 \
-          | sed "s/v${MARKETING_VERSION}\.\([0-9]*\)/\1/")
+        )
+        LATEST_PATCH=$(printf "%s" "$LATEST_TAG" | sed "s/v${MARKETING_VERSION}\.\([0-9]*\)/\1/")
 
         if [ -z "$LATEST_PATCH" ]; then
           PATCH=0
@@ -340,6 +342,7 @@ jobs:
 
         FULL_VERSION="${MARKETING_VERSION}.${PATCH}"
         echo "Next version: $FULL_VERSION"
+        echo "previous_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
         echo "full=$FULL_VERSION" >> $GITHUB_OUTPUT
         echo "patch=$PATCH" >> $GITHUB_OUTPUT
         echo "tag=v$FULL_VERSION" >> $GITHUB_OUTPUT
@@ -373,6 +376,15 @@ jobs:
         mv release/appcast.xml .
         mv release/Echo.zip .
 
+    - name: Generate Release Notes
+      run: |
+        python3 .github/scripts/generate_release_notes.py \
+          --repo-key echo \
+          --repo-name Echo \
+          --new-tag "${{ steps.version.outputs.tag }}" \
+          --previous-tag "${{ steps.version.outputs.previous_tag }}" \
+          --output release-notes.md
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
@@ -381,4 +393,4 @@ jobs:
         files: |
           Echo.zip
           appcast.xml
-        generate_release_notes: true
+        body_path: release-notes.md
