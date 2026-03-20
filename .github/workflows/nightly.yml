@@ -65,11 +65,20 @@ jobs:
             ECHO_PG_VERSION: "18"
     env:
       DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
-      ECHO_MSSQL_PORT: "14332"
-      ECHO_PG_PORT: "54322"
       USE_DOCKER: "1"
+      ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/sqlserver-nio
+        ref: dev
+        path: vendor/sqlserver-nio
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/postgres-wire
+        ref: dev
+        path: vendor/postgres-wire
 
     - name: Prepare environment
       run: |
@@ -94,9 +103,11 @@ jobs:
         ECHO_MSSQL_VERSION: ${{ matrix.ECHO_MSSQL_VERSION }}
         ECHO_MSSQL_COMPAT: ${{ matrix.ECHO_MSSQL_COMPAT }}
       run: |
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh sqlserver
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
-          -testPlan IntegrationTests \
+          -testPlan MSSQLCompatibilityTests \
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-${{ matrix.db }}" \
           -disable-concurrent-testing \
@@ -104,20 +115,38 @@ jobs:
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
 
+    - name: Verify MSSQL Compatibility Results
+      if: always() && matrix.type == 'mssql'
+      run: |
+        python3 .github/scripts/verify_xcresult.py \
+          --path "TestResults-${{ matrix.db }}.xcresult" \
+          --label "${{ matrix.db }} nightly compatibility tests" \
+          --min-executed 1
+
     - name: Run Postgres Compatibility Tests
       if: matrix.type == 'postgres'
       env:
         ECHO_PG_VERSION: ${{ matrix.ECHO_PG_VERSION }}
       run: |
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh postgres
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
-          -testPlan IntegrationTests \
+          -testPlan PostgresCompatibilityTests \
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-${{ matrix.db }}" \
           -disable-concurrent-testing \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
+
+    - name: Verify Postgres Compatibility Results
+      if: always() && matrix.type == 'postgres'
+      run: |
+        python3 .github/scripts/verify_xcresult.py \
+          --path "TestResults-${{ matrix.db }}.xcresult" \
+          --label "${{ matrix.db }} nightly compatibility tests" \
+          --min-executed 1
 
     - name: Upload Results
       if: always()

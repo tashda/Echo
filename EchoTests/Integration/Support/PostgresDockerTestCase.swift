@@ -26,6 +26,9 @@ class PostgresDockerTestCase: XCTestCase {
     static let username = "postgres"
     static let password = "postgres"
     static let database = "postgres"
+    static var requiresValidatedFixtures: Bool {
+        echoTestEnvFlag("ECHO_REQUIRE_VALIDATED_FIXTURES")
+    }
 
     private(set) var session: DatabaseSession!
 
@@ -79,6 +82,7 @@ class PostgresDockerTestCase: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         guard echoTestEnvFlag("USE_DOCKER") else {
+            try Self.failIfFixturesRequired("USE_DOCKER not set for Postgres integration tests")
             throw XCTSkip("USE_DOCKER not set — skipping Postgres integration tests")
         }
         if echoTestEnvFlag("ECHO_USE_PACKAGE_FIXTURES") || echoTestEnvFlag("ECHO_PG_FIXTURE_VALIDATED") {
@@ -86,9 +90,11 @@ class PostgresDockerTestCase: XCTestCase {
             return
         }
         if let error = Self.dockerError {
+            try Self.failIfFixturesRequired("Postgres Docker setup failed: \(error)")
             throw XCTSkip("Docker setup failed: \(error)")
         }
         guard Self.isDockerReady else {
+            try Self.failIfFixturesRequired("Postgres Docker fixture was not ready")
             throw XCTSkip("Docker not ready")
         }
 
@@ -205,5 +211,14 @@ class PostgresDockerTestCase: XCTestCase {
         try? process.run()
         process.waitUntilExit()
         return process.terminationStatus == 0
+    }
+
+    private static func failIfFixturesRequired(_ message: String) throws {
+        guard requiresValidatedFixtures else { return }
+        throw NSError(
+            domain: "Echo.IntegrationFixtures",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: message]
+        )
     }
 }
