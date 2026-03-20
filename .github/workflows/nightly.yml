@@ -6,9 +6,91 @@ on:
   workflow_dispatch:
 
 jobs:
+  extended-integration:
+    name: "Extended Integration Tests"
+    runs-on: [self-hosted, echo-test-server]
+    env:
+      DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
+      USE_DOCKER: "1"
+      ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/sqlserver-nio
+        ref: dev
+        path: vendor/sqlserver-nio
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/postgres-wire
+        ref: dev
+        path: vendor/postgres-wire
+
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security set-keychain-settings ~/Library/Keychains/login.keychain-db
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+
+    - name: Verify Docker (via Colima)
+      run: |
+        export PATH="/usr/local/bin:$PATH"
+        if ! /usr/local/bin/colima status > /dev/null 2>&1; then
+          echo "Colima not running — starting..."
+          /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
+        fi
+        docker info > /dev/null 2>&1
+        echo "Docker is ready"
+
+    - name: Ensure PostgreSQL client tools
+      run: |
+        if ! command -v brew >/dev/null 2>&1; then
+          echo "Homebrew is required on the self-hosted runner to provide PostgreSQL client tools" >&2
+          exit 1
+        fi
+        brew list libpq >/dev/null 2>&1 || brew install libpq
+        LIBPQ_BIN="$(brew --prefix libpq)/bin"
+        echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+        echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+
+    - name: Bootstrap validated database fixtures
+      run: |
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh all
+
+    - name: Run Extended Integration Tests
+      run: |
+        rm -rf TestResults-extended-integration.xcresult
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -testPlan ExtendedIntegrationTests \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-extended-integration \
+          -disable-concurrent-destination-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Verify Extended Integration Results
+      if: always()
+      run: |
+        python3 .github/scripts/verify_xcresult.py \
+          --path TestResults-extended-integration.xcresult \
+          --label "Nightly extended integration tests" \
+          --min-executed 1
+
+    - name: Upload Extended Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-extended-integration
+        path: TestResults-extended-integration.xcresult
+
   # ── Full Compatibility Matrix (same as pipeline Step 3) ──────────────────
   compatibility-matrix:
     name: "${{ matrix.db }}"
+    needs: extended-integration
     runs-on: [self-hosted, echo-test-server]
     strategy:
       fail-fast: false
