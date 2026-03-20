@@ -366,7 +366,7 @@ final class PostgresBackupRestoreViewModel {
         guard canRestore, let inputURL else { return }
 
         if isPlainSQL(url: inputURL) {
-            await restorePlainSQL(from: inputURL)
+            await restorePlainSQL(from: inputURL, customToolPath: customToolPath)
             return
         }
 
@@ -552,16 +552,44 @@ final class PostgresBackupRestoreViewModel {
         return trimmed.hasPrefix("--") || trimmed.hasPrefix("CREATE") || trimmed.hasPrefix("SET")
     }
 
-    private func restorePlainSQL(from url: URL) async {
+    private func restorePlainSQL(from url: URL, customToolPath: String?) async {
         restorePhase = .running
         restoreStderrOutput = []
         let handle = activityEngine?.begin("Restore \(restoreDatabaseName)", connectionSessionID: connectionSessionID)
+        guard let psql = PostgresToolLocator.psqlURL(customPath: customToolPath) else {
+            restorePhase = .failed(message: "psql not found. Install PostgreSQL or configure a custom tool path in Settings.")
+            handle?.fail("psql not found")
+            return
+        }
+
+        let env = buildEnvironment()
+        nonisolated(unsafe) let panel = panelState
+
         do {
-            let sql = try String(contentsOf: url, encoding: .utf8)
-            let dbSession = try await session.sessionForDatabase(restoreDatabaseName)
-            _ = try await dbSession.simpleQuery(sql)
-            restorePhase = .completed(messages: ["Plain SQL restore completed."])
-            handle?.succeed()
+            let result = try await processRunner.run(
+                executable: psql,
+                arguments: [
+                    "--dbname", buildConnectionURI(database: restoreDatabaseName),
+                    "--file", url.path,
+                    "--no-password"
+                ],
+                environment: env
+            ) { @Sendable line in
+                Task { @MainActor in
+                    let severity: QueryExecutionMessage.Severity = line.contains("ERROR:") ? .error : line.contains("WARNING:") ? .warning : .info
+                    panel?.appendMessage(line, severity: severity, category: "Restore")
+                }
+            }
+
+            restoreStderrOutput = result.stderrLines
+            if result.exitCode == 0 {
+                restorePhase = .completed(messages: ["Plain SQL restore completed."])
+                handle?.succeed()
+            } else {
+                let errorMsg = result.stderrLines.last ?? "psql exited with code \(result.exitCode)"
+                restorePhase = .failed(message: errorMsg)
+                handle?.fail(errorMsg)
+            }
         } catch {
             restorePhase = .failed(message: error.localizedDescription)
             handle?.fail(error.localizedDescription)

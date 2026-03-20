@@ -11,12 +11,11 @@ final class PostgresIntegrationTests: XCTestCase {
     }
 
     private func loadConfig() throws -> PGConfig {
-        let env = ProcessInfo.processInfo.environment
-        let host = env["TEST_PG_HOST"] ?? env["ECHO_PG_HOST"] ?? "127.0.0.1"
-        let portValue = env["TEST_PG_PORT"] ?? env["ECHO_PG_PORT"] ?? "54322"
-        let database = env["TEST_PG_DATABASE"] ?? env["ECHO_PG_DATABASE"] ?? "postgres"
-        let username = env["TEST_PG_USER"] ?? env["ECHO_PG_USER"] ?? "postgres"
-        let password = env["TEST_PG_PASSWORD"] ?? env["ECHO_PG_PASSWORD"] ?? "postgres"
+        let host = echoTestEnv("TEST_PG_HOST") ?? echoTestEnv("ECHO_PG_HOST") ?? "127.0.0.1"
+        let portValue = echoTestEnv("TEST_PG_PORT") ?? echoTestEnv("ECHO_PG_PORT") ?? "54322"
+        let database = echoTestEnv("TEST_PG_DATABASE") ?? echoTestEnv("ECHO_PG_DATABASE") ?? "postgres"
+        let username = echoTestEnv("TEST_PG_USER") ?? echoTestEnv("ECHO_PG_USER") ?? "postgres"
+        let password = echoTestEnv("TEST_PG_PASSWORD") ?? echoTestEnv("ECHO_PG_PASSWORD") ?? "postgres"
         guard
             let port = Int(portValue)
         else {
