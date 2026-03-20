@@ -61,7 +61,7 @@ jobs:
 
     - name: Run Extended Integration Tests
       run: |
-        rm -rf TestResults-extended-integration.xcresult
+        rm -rf TestResults-extended-integration TestResults-extended-integration.xcresult
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -testPlan ExtendedIntegrationTests \
@@ -198,7 +198,7 @@ jobs:
       run: |
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh sqlserver
-        rm -rf "TestResults-${{ matrix.db }}.xcresult"
+        rm -rf "TestResults-${{ matrix.db }}" "TestResults-${{ matrix.db }}.xcresult"
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -testPlan MSSQLCompatibilityTests \
@@ -224,7 +224,7 @@ jobs:
       run: |
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh postgres
-        rm -rf "TestResults-${{ matrix.db }}.xcresult"
+        rm -rf "TestResults-${{ matrix.db }}" "TestResults-${{ matrix.db }}.xcresult"
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -testPlan PostgresCompatibilityTests \
