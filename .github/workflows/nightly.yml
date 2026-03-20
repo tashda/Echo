@@ -97,6 +97,17 @@ jobs:
         docker info > /dev/null 2>&1
         echo "Docker is ready"
 
+    - name: Ensure PostgreSQL client tools
+      run: |
+        if ! command -v brew >/dev/null 2>&1; then
+          echo "Homebrew is required on the self-hosted runner to provide PostgreSQL client tools" >&2
+          exit 1
+        fi
+        brew list libpq >/dev/null 2>&1 || brew install libpq
+        LIBPQ_BIN="$(brew --prefix libpq)/bin"
+        echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+        echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+
     - name: Run MSSQL Compatibility Tests
       if: matrix.type == 'mssql'
       env:

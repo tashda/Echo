@@ -52,12 +52,14 @@ extension QueryResultsTableView {
         let defaultAutoscrollInterval: TimeInterval = 1.0 / 60.0
         var autoscrollTimerInterval: TimeInterval = 1.0 / 60.0
         var pendingReloadWorkItems: [DispatchWorkItem] = []
+        var lastSeenExecuting = false
         var pendingRowCountCorrection = false
         var pendingPaletteRefresh: Task<Void, Never>?
         var scrollPaginationWorkItem: DispatchWorkItem?
         var lastPaginationVisibleRange: NSRange = NSRange(location: NSNotFound, length: 0)
         var isSplitResizing = false
         var isResizingColumn = false
+        var suppressRowsDuringClear = false
         nonisolated(unsafe) var columnResizeObserver: NSObjectProtocol?
         nonisolated(unsafe) var rowCountObserver: NSObjectProtocol?
         var isPerformingUpdatePass = false
