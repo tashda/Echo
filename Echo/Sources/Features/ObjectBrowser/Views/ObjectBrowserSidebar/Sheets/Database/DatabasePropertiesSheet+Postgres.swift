@@ -34,7 +34,7 @@ extension DatabasePropertiesSheet {
             }
 
             PropertyRow(title: "Description") {
-                TextField("", text: $pgComment, axis: .vertical)
+                TextField("", text: $pgComment, prompt: Text("Optional comment"), axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...3)
                     .multilineTextAlignment(.trailing)
@@ -125,7 +125,7 @@ extension DatabasePropertiesSheet {
                 title: "Connection Limit",
                 subtitle: "-1 = unlimited"
             ) {
-                TextField("", value: $pgConnectionLimit, format: .number)
+                TextField("", value: $pgConnectionLimit, format: .number, prompt: Text("-1 for unlimited"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .onSubmit {

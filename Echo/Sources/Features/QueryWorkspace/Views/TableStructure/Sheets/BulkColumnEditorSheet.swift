@@ -100,7 +100,7 @@ struct BulkColumnEditorSheet: View {
         )
     }
 
-    func inlineField(text: Binding<String>, alignment: TextAlignment) -> some View {
+    func inlineField(text: Binding<String>, alignment: TextAlignment, prompt: Text? = nil) -> some View {
         let frameAlignment: Alignment
         switch alignment {
         case .trailing: frameAlignment = .trailing
@@ -108,7 +108,7 @@ struct BulkColumnEditorSheet: View {
         default: frameAlignment = .leading
         }
 
-        return TextField("", text: text)
+        return TextField("", text: text, prompt: prompt)
             .textFieldStyle(.plain)
             .font(TypographyTokens.standard)
             .multilineTextAlignment(alignment)

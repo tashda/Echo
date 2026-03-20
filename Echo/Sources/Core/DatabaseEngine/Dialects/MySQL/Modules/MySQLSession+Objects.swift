@@ -102,6 +102,12 @@ extension MySQLSession {
             sql = "SHOW CREATE TRIGGER `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
         case .extension:
             throw DatabaseError.queryError("MySQL does not support extensions")
+        case .sequence:
+            throw DatabaseError.queryError("MySQL does not support sequences")
+        case .type:
+            throw DatabaseError.queryError("MySQL does not support user-defined types")
+        case .synonym:
+            throw DatabaseError.queryError("MySQL does not support synonyms")
         }
 
         let rows = try await connection.simpleQuery(sql).get()

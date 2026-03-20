@@ -106,7 +106,7 @@ extension AgentSidebarView {
                     Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
                         .font(TypographyTokens.label.weight(.semibold))
                         .foregroundStyle(ColorTokens.Text.secondary)
-                    Text(title.uppercased())
+                    Text(title)
                         .font(TypographyTokens.detail.weight(.semibold))
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }

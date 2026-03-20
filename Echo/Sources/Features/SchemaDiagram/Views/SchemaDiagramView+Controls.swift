@@ -14,6 +14,8 @@ extension SchemaDiagramView {
                         Image(systemName: "minus.magnifyingglass")
                     }
                     .buttonStyle(.bordered)
+                    .help("Zoom Out")
+                    .accessibilityLabel("Zoom Out")
 
                     Slider(value: Binding(
                         get: { zoom },
@@ -27,6 +29,20 @@ extension SchemaDiagramView {
                         Image(systemName: "plus.magnifyingglass")
                     }
                     .buttonStyle(.bordered)
+                    .help("Zoom In")
+                    .accessibilityLabel("Zoom In")
+
+                    Divider()
+                        .frame(height: 16)
+
+                    Button {
+                        zoomToFit(in: viewSize)
+                    } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Zoom to Fit All")
+                    .accessibilityLabel("Zoom to Fit All")
                 }
                 .padding(SpacingTokens.xs2)
                 .background(.regularMaterial, in: Capsule())
@@ -102,6 +118,50 @@ extension SchemaDiagramView {
         contentOffset = targetOffset
         lastDragOffset = targetOffset
         hasCenteredDiagram = true
+    }
+
+    func zoomToFit(in size: CGSize) {
+        guard !viewModel.nodes.isEmpty else { return }
+        let nodeWidth: CGFloat = 220
+        let nodeHeight: CGFloat = 60
+
+        var minX = CGFloat.greatestFiniteMagnitude
+        var minY = CGFloat.greatestFiniteMagnitude
+        var maxX = -CGFloat.greatestFiniteMagnitude
+        var maxY = -CGFloat.greatestFiniteMagnitude
+
+        for node in viewModel.nodes {
+            let halfW = nodeWidth / 2
+            let halfH = (nodeHeight + CGFloat(node.columns.count) * 20) / 2
+            minX = min(minX, node.position.x - halfW)
+            minY = min(minY, node.position.y - halfH)
+            maxX = max(maxX, node.position.x + halfW)
+            maxY = max(maxY, node.position.y + halfH)
+        }
+
+        let contentWidth = maxX - minX
+        let contentHeight = maxY - minY
+        guard contentWidth > 0, contentHeight > 0 else { return }
+
+        let padding: CGFloat = 80
+        let availableWidth = size.width - padding * 2
+        let availableHeight = size.height - padding * 2
+        guard availableWidth > 0, availableHeight > 0 else { return }
+
+        let fitZoom = min(availableWidth / contentWidth, availableHeight / contentHeight)
+        let clampedZoom = max(minZoom, min(maxZoom, fitZoom))
+
+        let centerX = (minX + maxX) / 2
+        let centerY = (minY + maxY) / 2
+        let viewCenter = CGPoint(x: size.width / 2, y: size.height / 2)
+
+        zoom = clampedZoom
+        let targetOffset = CGSize(
+            width: viewCenter.x - centerX * clampedZoom,
+            height: viewCenter.y - centerY * clampedZoom
+        )
+        contentOffset = targetOffset
+        lastDragOffset = targetOffset
     }
 
     func backgroundGrid(in size: CGSize) -> some View {

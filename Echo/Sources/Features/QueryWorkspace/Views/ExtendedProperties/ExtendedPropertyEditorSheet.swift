@@ -5,60 +5,77 @@ struct ExtendedPropertyEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: SpacingTokens.md) {
-            Text(isNew ? "Add Extended Property" : "Edit Extended Property")
-                .font(TypographyTokens.prominent.weight(.semibold))
-
+        VStack(spacing: 0) {
             Form {
-                TextField("Name", text: nameBinding)
-                    .disabled(!isNew)
-
-                if let childName = viewModel.editingProperty?.childName {
-                    LabeledContent("Target") {
-                        Text("\(viewModel.editingProperty?.childType ?? "COLUMN"): \(childName)")
-                            .foregroundStyle(ColorTokens.Text.secondary)
+                Section {
+                    PropertyRow(title: "Name") {
+                        TextField("", text: nameBinding, prompt: Text("property_name"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                            .disabled(!isNew)
                     }
-                }
 
-                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                    Text("Value")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                    TextEditor(text: valueBinding)
-                        .font(TypographyTokens.standard)
-                        .frame(minHeight: 80)
-                        .scrollContentBackground(.hidden)
-                        .padding(SpacingTokens.xxs)
-                        .background(
-                            RoundedRectangle(cornerRadius: SpacingTokens.xxs, style: .continuous)
-                                .fill(ColorTokens.Background.secondary)
-                        )
-                }
-            }
-            .formStyle(.grouped)
-
-            HStack(spacing: SpacingTokens.sm) {
-                Spacer()
-                Button("Cancel") {
-                    viewModel.cancelEdit()
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Button(isNew ? "Add" : "Save") {
-                    Task {
-                        await viewModel.save()
-                        if viewModel.editingProperty == nil {
-                            dismiss()
+                    if let childName = viewModel.editingProperty?.childName {
+                        PropertyRow(title: "Target") {
+                            Text("\(viewModel.editingProperty?.childType ?? "COLUMN"): \(childName)")
+                                .foregroundStyle(ColorTokens.Text.secondary)
                         }
                     }
                 }
-                .keyboardShortcut(.defaultAction)
-                .disabled(nameBinding.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Section("Value") {
+                    TextEditor(text: valueBinding)
+                        .font(TypographyTokens.standard.monospaced())
+                        .frame(minHeight: 80, idealHeight: 120)
+                        .scrollContentBackground(.hidden)
+                        .overlay(alignment: .topLeading) {
+                            if valueBinding.wrappedValue.isEmpty {
+                                Text("Enter property value")
+                                    .font(TypographyTokens.standard.monospaced())
+                                    .foregroundStyle(ColorTokens.Text.tertiary)
+                                    .padding(.top, SpacingTokens.xxs)
+                                    .padding(.leading, SpacingTokens.xxs)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                }
             }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+
+            Divider()
+
+            toolbar
         }
-        .padding(SpacingTokens.lg)
-        .frame(minWidth: 400, minHeight: 300)
+        .frame(minWidth: 420, idealWidth: 460, minHeight: 300)
+        .navigationTitle(isNew ? "Add Extended Property" : "Edit Extended Property")
+    }
+
+    private var toolbar: some View {
+        HStack(spacing: SpacingTokens.sm) {
+            Spacer()
+
+            Button("Cancel") {
+                viewModel.cancelEdit()
+                dismiss()
+            }
+            .keyboardShortcut(.cancelAction)
+
+            Button(isNew ? "Add" : "Save") {
+                Task {
+                    await viewModel.save()
+                    if viewModel.editingProperty == nil {
+                        dismiss()
+                    }
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(nameBinding.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding(.horizontal, SpacingTokens.md2)
+        .padding(.vertical, SpacingTokens.sm2)
+        .background(.bar)
     }
 
     private var isNew: Bool {

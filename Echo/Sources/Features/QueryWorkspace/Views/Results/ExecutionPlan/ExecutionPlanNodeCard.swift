@@ -116,28 +116,82 @@ struct ExecutionPlanNodeCard: View {
 
     private var operatorIconInfo: (String, Color) {
         let op = node.physicalOp.lowercased()
-        if op.contains("scan") {
+
+        // Scan operations (both MSSQL and Postgres)
+        if op.contains("seq scan") || op.contains("table scan") {
+            return ("arrow.left.arrow.right", ColorTokens.Status.warning)
+        } else if op.contains("index only scan") || op.contains("index seek") {
+            return ("target", ColorTokens.Status.success)
+        } else if op.contains("index scan") || op.contains("bitmap index scan") {
+            return ("list.bullet.rectangle", ColorTokens.Status.success)
+        } else if op.contains("bitmap heap scan") {
+            return ("square.grid.3x3", ColorTokens.Status.info)
+        } else if op.contains("scan") {
             return ("arrow.left.arrow.right", ColorTokens.Status.warning)
         } else if op.contains("seek") {
             return ("target", ColorTokens.Status.success)
+
+        // Join operations
+        } else if op.contains("nested loop") {
+            return ("arrow.triangle.merge", ColorTokens.accent)
+        } else if op.contains("merge join") || op.contains("merge") && op.contains("join") {
+            return ("arrow.triangle.merge", ColorTokens.accent)
+        } else if op.contains("hash join") {
+            return ("number", ColorTokens.accent)
         } else if op.contains("join") {
             return ("arrow.triangle.merge", ColorTokens.accent)
-        } else if op.contains("sort") {
+
+        // Sort and ordering
+        } else if op.contains("sort") || op.contains("incremental sort") {
             return ("arrow.up.arrow.down", ColorTokens.Status.info)
+        } else if op.contains("unique") {
+            return ("sparkle", ColorTokens.Status.info)
+
+        // Hash and grouping
         } else if op.contains("hash") {
             return ("number", ColorTokens.Status.info)
-        } else if op.contains("spool") {
+        } else if op.contains("group") || op.contains("groupaggregate") || op.contains("hashaggregate") {
+            return ("sum", ColorTokens.Status.info)
+        } else if op.contains("aggregate") || op.contains("windowagg") || op.contains("compute") {
+            return ("sum", ColorTokens.Status.info)
+
+        // Materialization and caching
+        } else if op.contains("materialize") || op.contains("memoize") || op.contains("spool") {
             return ("tray.2", ColorTokens.Text.tertiary)
+        } else if op.contains("cte scan") || op.contains("worktable scan") {
+            return ("tray.2", ColorTokens.Text.tertiary)
+
+        // Modification
         } else if op.contains("insert") || op.contains("update") || op.contains("delete") {
             return ("pencil", ColorTokens.Status.error)
-        } else if op.contains("select") || op.contains("result") || op.contains("top") {
+
+        // Result / output
+        } else if op.contains("result") || op.contains("top") || op.contains("limit") {
             return ("arrow.right.circle", ColorTokens.Text.secondary)
-        } else if op.contains("aggregate") || op.contains("stream") || op.contains("compute") {
-            return ("sum", ColorTokens.Status.info)
-        } else if op.contains("filter") {
+        } else if op.contains("subquery scan") || op.contains("function scan") || op.contains("values scan") {
+            return ("arrow.right.circle", ColorTokens.Text.secondary)
+
+        // Set operations
+        } else if op.contains("append") || op.contains("merge append") {
+            return ("plus.rectangle.on.rectangle", ColorTokens.Status.info)
+        } else if op.contains("setop") || op.contains("intersect") || op.contains("except") {
+            return ("rectangle.on.rectangle", ColorTokens.Status.info)
+
+        // Postgres-specific
+        } else if op.contains("gather") {
+            return ("arrow.triangle.branch", ColorTokens.Status.info)
+        } else if op.contains("tid") {
+            return ("number.circle", ColorTokens.Status.success)
+
+        // Filter
+        } else if op.contains("filter") || op.contains("select") {
             return ("line.3.horizontal.decrease", ColorTokens.accent)
+
+        // Index generic
         } else if op.contains("index") {
             return ("list.bullet.rectangle", ColorTokens.Status.success)
+        } else if op.contains("stream") {
+            return ("arrow.forward", ColorTokens.Status.info)
         } else {
             return ("gearshape", ColorTokens.Text.tertiary)
         }

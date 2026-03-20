@@ -1,34 +1,15 @@
 import SwiftUI
 
-// MARK: - ForeignKeyEditorSheet Reference, Actions & Toolbar Sections
+// MARK: - ForeignKeyEditorSheet Actions, Deferrable & Toolbar Sections
 
 extension ForeignKeyEditorSheet {
 
-    var referenceSection: some View {
-        Section {
-            PropertyRow(title: "Referenced Columns") {
-                TextField("col1, col2", text: $draft.referencedColumnsInput)
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
-            }
-        } header: {
-            Text("References")
-        } footer: {
-            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                Text("Comma-separated column names, matching the order above.")
-                    .font(TypographyTokens.formDescription)
-                if draft.referencedColumnsMismatch {
-                    Text("Column count does not match local columns (\(draft.columns.count)).")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.warning)
-                }
-            }
-        }
-    }
-
     var actionsSection: some View {
         Section {
-            PropertyRow(title: "ON UPDATE") {
+            PropertyRow(
+                title: "ON UPDATE",
+                info: "No Action: Raise error if referenced row is updated.\nCascade: Automatically update matching rows.\nSet Null: Set foreign key columns to NULL.\nSet Default: Set foreign key columns to their default values.\nRestrict: Prevent the update (checked immediately)."
+            ) {
                 Picker("", selection: $draft.onUpdate) {
                     ForEach(ForeignKeyAction.allCases) { action in
                         Text(action.displayName).tag(action.rawValue)
@@ -38,7 +19,10 @@ extension ForeignKeyEditorSheet {
                 .pickerStyle(.menu)
             }
 
-            PropertyRow(title: "ON DELETE") {
+            PropertyRow(
+                title: "ON DELETE",
+                info: "No Action: Raise error if referenced row is deleted.\nCascade: Automatically delete matching rows.\nSet Null: Set foreign key columns to NULL.\nSet Default: Set foreign key columns to their default values.\nRestrict: Prevent the deletion (checked immediately)."
+            ) {
                 Picker("", selection: $draft.onDelete) {
                     ForEach(ForeignKeyAction.allCases) { action in
                         Text(action.displayName).tag(action.rawValue)
@@ -52,6 +36,30 @@ extension ForeignKeyEditorSheet {
         } footer: {
             Text("Determines behavior when the referenced row is updated or deleted.")
                 .font(TypographyTokens.formDescription)
+        }
+    }
+
+    var deferrableSection: some View {
+        Section("Deferrable") {
+            PropertyRow(
+                title: "Deferrable",
+                info: "A deferrable constraint can be checked at the end of a transaction instead of immediately. This allows temporary violations during multi-statement operations."
+            ) {
+                Toggle("", isOn: $draft.isDeferrable)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .onChange(of: draft.isDeferrable) { _, newValue in
+                        if !newValue { draft.isInitiallyDeferred = false }
+                    }
+            }
+
+            if draft.isDeferrable {
+                PropertyRow(title: "Initially Deferred") {
+                    Toggle("", isOn: $draft.isInitiallyDeferred)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
         }
     }
 
@@ -74,7 +82,6 @@ extension ForeignKeyEditorSheet {
                     onCancelNew()
                 }
             }
-            .buttonStyle(.bordered)
             .keyboardShortcut(.cancelAction)
 
             Button("Save") {
@@ -85,7 +92,9 @@ extension ForeignKeyEditorSheet {
             .disabled(!draft.canSave)
             .keyboardShortcut(.defaultAction)
         }
-        .padding(SpacingTokens.md)
+        .padding(.horizontal, SpacingTokens.md2)
+        .padding(.vertical, SpacingTokens.sm2)
+        .background(.bar)
     }
 }
 

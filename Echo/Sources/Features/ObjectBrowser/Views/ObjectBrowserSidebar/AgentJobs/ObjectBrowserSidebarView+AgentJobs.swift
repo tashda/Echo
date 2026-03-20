@@ -28,6 +28,19 @@ extension ObjectBrowserSidebarView {
                 },
                 depth: 0
             )
+            .contextMenu {
+                Button {
+                    environmentState.openJobQueueTab(for: session)
+                } label: {
+                    Label("Open in Tab", systemImage: "list.bullet.rectangle")
+                }
+                Button {
+                    let sessionID = environmentState.prepareJobQueueWindow(for: session)
+                    openWindow(id: JobQueueWindow.sceneID, value: sessionID)
+                } label: {
+                    Label("Open in New Window", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            }
 
             if isExpanded {
                 agentJobsContent(session: session, jobs: jobs, isLoading: isLoading)

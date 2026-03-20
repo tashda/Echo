@@ -3,6 +3,7 @@ import SwiftUI
 struct IndexEditorSheet: View {
     @Binding var index: TableStructureEditorViewModel.IndexModel
     let availableColumns: [String]
+    let databaseType: DatabaseType
     let onDelete: () -> Void
     let onCancelNew: () -> Void
 
@@ -14,11 +15,13 @@ struct IndexEditorSheet: View {
     init(
         index: Binding<TableStructureEditorViewModel.IndexModel>,
         availableColumns: [String],
+        databaseType: DatabaseType,
         onDelete: @escaping () -> Void,
         onCancelNew: @escaping () -> Void
     ) {
         self._index = index
         self.availableColumns = availableColumns
+        self.databaseType = databaseType
         self.onDelete = onDelete
         self.onCancelNew = onCancelNew
         _draft = State(initialValue: Draft(model: index.wrappedValue, availableColumns: availableColumns))
@@ -29,15 +32,35 @@ struct IndexEditorSheet: View {
             Form {
                 Section {
                     PropertyRow(title: "Name") {
-                        TextField("", text: $draft.name)
+                        TextField("", text: $draft.name, prompt: Text("IX_table_column"))
                             .textFieldStyle(.plain)
                             .multilineTextAlignment(.trailing)
                     }
 
-                    PropertyRow(title: "Unique") {
+                    PropertyRow(
+                        title: "Unique",
+                        info: "A unique index ensures that no two rows have the same values in the indexed columns. Useful for enforcing business rules like unique email addresses."
+                    ) {
                         Toggle("", isOn: $draft.isUnique)
                             .labelsHidden()
                             .toggleStyle(.switch)
+                    }
+
+                    if databaseType == .postgresql {
+                        PropertyRow(
+                            title: "Index Type",
+                            info: "B-tree: Default, good for equality and range queries.\nHash: Fast equality lookups only.\nGIN: Generalized inverted index for full-text search, arrays, JSONB.\nGiST: Generalized search tree for geometric, range, and full-text data.\nBRIN: Block range index, very compact for naturally ordered large tables."
+                        ) {
+                            Picker("", selection: $draft.indexType) {
+                                Text("B-tree").tag("btree")
+                                Text("Hash").tag("hash")
+                                Text("GIN").tag("gin")
+                                Text("GiST").tag("gist")
+                                Text("BRIN").tag("brin")
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                        }
                     }
 
                     PropertyRow(
@@ -99,6 +122,16 @@ struct IndexEditorSheet: View {
             }
             .labelsHidden()
             .pickerStyle(.menu)
+            .fixedSize()
+            .opacity(column.wrappedValue.isIncluded ? 0 : 1)
+            .disabled(column.wrappedValue.isIncluded)
+
+            Picker("", selection: column.isIncluded) {
+                Text("Key").tag(false)
+                Text("Include").tag(true)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
             .fixedSize()
 
             Button(role: .destructive) {

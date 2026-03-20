@@ -67,11 +67,19 @@ extension SQLAutoCompletionController {
     }
 
     func caretRectForQuery(_ query: SQLAutoCompletionQuery) -> NSRect? {
+        caretRectForRange(query.replacementRange)
+    }
+
+    func caretRectForResponse(_ response: SQLCompletionResponse) -> NSRect? {
+        caretRectForRange(response.replacementRange)
+    }
+
+    private func caretRectForRange(_ range: NSRange) -> NSRect? {
         guard let textView = textView,
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer else { return nil }
 
-        var queryRange = query.replacementRange
+        var queryRange = range
         if queryRange.length == 0 && queryRange.location > 0 {
             queryRange = NSRange(location: max(queryRange.location - 1, 0), length: 1)
         }

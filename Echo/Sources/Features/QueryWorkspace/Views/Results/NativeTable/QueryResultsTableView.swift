@@ -23,6 +23,33 @@ struct QueryResultsTableView: NSViewRepresentable {
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
 
+    private var effectiveRowOrder: [Int] {
+        let displayedCount = query.displayedRowCount
+        guard displayedCount > 0, rowOrder.count == displayedCount else { return [] }
+        return rowOrder
+    }
+
+    private var normalizedSelf: QueryResultsTableView {
+        QueryResultsTableView(
+            query: query,
+            highlightedColumnIndex: highlightedColumnIndex,
+            activeSort: activeSort,
+            rowOrder: effectiveRowOrder,
+            onColumnTap: onColumnTap,
+            onSort: onSort,
+            onClearColumnHighlight: onClearColumnHighlight,
+            backgroundColor: backgroundColor,
+            onForeignKeyEvent: onForeignKeyEvent,
+            onJsonEvent: onJsonEvent,
+            onCellInspect: onCellInspect,
+            persistedState: persistedState,
+            isResizing: isResizing,
+            alternateRowShading: alternateRowShading,
+            showRowNumbers: showRowNumbers,
+            colorOverrides: colorOverrides
+        )
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self, clipboardHistory: clipboardHistory, persistedState: persistedState)
     }
@@ -58,12 +85,15 @@ struct QueryResultsTableView: NSViewRepresentable {
 
         let container = ResultTableContainerView(scrollView: scrollView, showRowNumbers: showRowNumbers)
         container.updateBackgroundColor(backgroundColor)
-        let rowCount = rowOrder.isEmpty ? query.displayedRowCount : rowOrder.count
+        let rowCount = effectiveRowOrder.isEmpty ? query.displayedRowCount : effectiveRowOrder.count
         container.updateRowNumbers(count: rowCount)
         let coordinator = context.coordinator
         container.setRowNumberCallbacks(
-            onSelect: { [weak coordinator] row in coordinator?.selectFullRow(row) },
-            onExtendSelect: { [weak coordinator] row in coordinator?.extendRowSelection(to: row) }
+            onSelect: { [weak coordinator] row in coordinator?.beginRowSelection(at: row) },
+            onExtendSelect: { [weak coordinator] row in coordinator?.extendRowSelection(to: row) },
+            onDrag: { [weak coordinator] event in coordinator?.handleRowNumberDrag(event) },
+            onDragEnded: { [weak coordinator] in coordinator?.endSelectionDrag() },
+            onContextMenu: { [weak coordinator] row in coordinator?.prepareRowContextMenu(at: row) }
         )
         return container
     }
@@ -72,7 +102,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         guard let tableView = container.tableView else { return }
         context.coordinator.isSplitResizing = isResizing
         if isResizing {
-            context.coordinator.parent = self
+            context.coordinator.parent = normalizedSelf
             return
         }
         context.coordinator.updatePersistedState(persistedState)
@@ -86,10 +116,10 @@ struct QueryResultsTableView: NSViewRepresentable {
             tableView.needsDisplay = true
         }
         container.updateShowRowNumbers(showRowNumbers)
-        let rowCount = rowOrder.isEmpty ? query.displayedRowCount : rowOrder.count
+        let rowCount = effectiveRowOrder.isEmpty ? query.displayedRowCount : effectiveRowOrder.count
         container.updateRowNumbers(count: rowCount)
         container.updateBackgroundColor(backgroundColor)
-        context.coordinator.update(parent: self, tableView: tableView)
+        context.coordinator.update(parent: normalizedSelf, tableView: tableView)
     }
 }
 #endif

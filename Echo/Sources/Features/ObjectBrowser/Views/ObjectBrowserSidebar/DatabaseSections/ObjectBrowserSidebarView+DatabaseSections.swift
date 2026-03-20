@@ -57,7 +57,7 @@ extension ObjectBrowserSidebarView {
                 .transition(.opacity)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Folder Header Row (used by Security, Agent Jobs, Linked Servers)

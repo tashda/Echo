@@ -150,6 +150,7 @@ struct ClipboardHistoryRow: View {
                 .padding(SpacingTokens.xxs)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Show info")
 #if os(macOS)
         .popover(isPresented: $showInfo, arrowEdge: .trailing) {
             infoPopover

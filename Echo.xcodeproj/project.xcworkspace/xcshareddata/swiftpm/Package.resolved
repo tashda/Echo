@@ -7,7 +7,7 @@
       "location" : "https://github.com/tashda/EchoSense",
       "state" : {
         "branch" : "dev",
-        "revision" : "72822169f86c70e9cc4bdbfe57a750bfdb5d4652"
+        "revision" : "fdcb2c37fac981eb2c92c22cacbea43fa310905a"
       }
     },
     {
@@ -34,7 +34,7 @@
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "04e093c70e4d3648c286986407e0a7fdf341314f"
+        "revision" : "32d950ba2d745af75fc0ad4bc34383fd3c8849cf"
       }
     },
     {
@@ -61,7 +61,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "f80f1baf936e05fe6d41ffad752f52c3b97dde83"
+        "revision" : "d99540d90faf1fbe99a9b1d935129a0f7399d08e"
       }
     },
     {
@@ -105,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",
       "state" : {
-        "revision" : "8d9834a6189db730f6264db7556a7ffb751e99ee",
-        "version" : "1.4.0"
+        "revision" : "6675bc0ff86e61436e615df6fc5174e043e57924",
+        "version" : "1.4.1"
       }
     },
     {

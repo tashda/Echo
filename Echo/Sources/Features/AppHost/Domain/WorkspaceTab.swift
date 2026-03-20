@@ -58,6 +58,7 @@ final class WorkspaceTab: Identifiable {
     @ObservationIgnored let connection: SavedConnection
     @ObservationIgnored let session: DatabaseSession
     @ObservationIgnored let connectionSessionID: UUID
+    @ObservationIgnored let ownsSession: Bool
 
     var title: String
     private(set) var content: Content
@@ -76,11 +77,13 @@ final class WorkspaceTab: Identifiable {
         content: Content,
         isPinned: Bool = false,
         activeDatabaseName: String? = nil,
-        bookmarkContext: BookmarkTabContext? = nil
+        bookmarkContext: BookmarkTabContext? = nil,
+        ownsSession: Bool = false
     ) {
         self.connection = connection
         self.session = session
         self.connectionSessionID = connectionSessionID
+        self.ownsSession = ownsSession
         self.title = title
         self.content = content
         self.isPinned = isPinned

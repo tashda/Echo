@@ -28,8 +28,10 @@ final class BulkImportViewModel {
     var fileHeaders: [String] = []
     var previewRows: [[String]] = []
     var totalRowCount = 0
+    var isXLSX: Bool { fileURL?.pathExtension.lowercased() == "xlsx" }
 
     // Configuration
+    let databaseType: DatabaseType
     var schema: String
     var tableName: String
     var batchSize = 1000
@@ -53,10 +55,13 @@ final class BulkImportViewModel {
     @ObservationIgnored private let connectionSession: ConnectionSession
     @ObservationIgnored private var importTask: Task<Void, Never>?
     @ObservationIgnored private var timerTask: Task<Void, Never>?
+    @ObservationIgnored private var activityHandle: OperationHandle?
+    @ObservationIgnored var activityEngine: ActivityEngine?
 
-    init(session: DatabaseSession, connectionSession: ConnectionSession, schema: String, tableName: String) {
+    init(session: DatabaseSession, connectionSession: ConnectionSession, databaseType: DatabaseType, schema: String, tableName: String) {
         self.session = session
         self.connectionSession = connectionSession
+        self.databaseType = databaseType
         self.schema = schema
         self.tableName = tableName
     }
@@ -78,10 +83,13 @@ final class BulkImportViewModel {
 
     func selectFile() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.commaSeparatedText, .tabSeparatedText, .plainText]
+        panel.allowedContentTypes = [
+            .commaSeparatedText, .tabSeparatedText, .plainText,
+            UTType(filenameExtension: "xlsx") ?? .data
+        ]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.message = "Select a CSV, TSV, or delimited text file to import"
+        panel.message = "Select a CSV, TSV, Excel (.xlsx), or delimited text file to import"
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         fileURL = url
@@ -94,11 +102,12 @@ final class BulkImportViewModel {
         guard let url = fileURL else { return }
         parseError = nil
         do {
-            let result = try await CSVFileParser.parse(
-                url: url,
-                delimiter: delimiter,
-                previewLimit: 10
-            )
+            let result: CSVParseResult
+            if isXLSX {
+                result = try await XLSXFileParser.parse(url: url, previewLimit: 10)
+            } else {
+                result = try await CSVFileParser.parse(url: url, delimiter: delimiter, previewLimit: 10)
+            }
             fileHeaders = result.headers
             previewRows = result.rows
             totalRowCount = result.totalRowCount
@@ -151,6 +160,7 @@ final class BulkImportViewModel {
         importedRowCount = 0
         completedBatches = 0
         elapsedTime = 0
+        activityHandle = activityEngine?.begin("Import \(tableName)", connectionSessionID: connectionSession.id)
 
         let batchSz = max(1, batchSize)
         totalBatches = (totalRowCount + batchSz - 1) / batchSz
@@ -166,6 +176,8 @@ final class BulkImportViewModel {
         timerTask = nil
         if phase == .importing {
             phase = .failed(message: "Import cancelled")
+            activityHandle?.cancel()
+            activityHandle = nil
         }
     }
 
@@ -175,13 +187,13 @@ final class BulkImportViewModel {
             return
         }
 
-        guard let adapter = session as? SQLServerSessionAdapter else {
-            phase = .failed(message: "Bulk copy is only supported for SQL Server connections")
-            return
-        }
-
         do {
-            let fullResult = try await CSVFileParser.parseAll(url: url, delimiter: delimiter)
+            let fullResult: CSVParseResult
+            if isXLSX {
+                fullResult = try await XLSXFileParser.parse(url: url, previewLimit: nil)
+            } else {
+                fullResult = try await CSVFileParser.parseAll(url: url, delimiter: delimiter)
+            }
 
             let activeMappings = columnMappings.compactMap { mapping -> (fileIndex: Int, targetName: String)? in
                 guard let target = mapping.targetColumnName else { return nil }
@@ -191,41 +203,120 @@ final class BulkImportViewModel {
             let targetColumnNames = activeMappings.map(\.targetName)
             let fileIndexes = activeMappings.map(\.fileIndex)
 
-            let bcpRows = fullResult.rows.map { row in
-                let values: [SQLServerLiteralValue] = fileIndexes.map { idx in
-                    guard idx < row.count else { return .null }
-                    let value = row[idx].trimmingCharacters(in: .whitespaces)
-                    if value.isEmpty { return .null }
-                    return .nString(value)
+            let mappedRows = fullResult.rows.map { row in
+                fileIndexes.map { idx in
+                    guard idx < row.count else { return "" }
+                    return row[idx]
                 }
-                return SQLServerBulkCopyRow(values: values)
             }
 
-            let options = SQLServerBulkCopyOptions(
-                table: tableName,
-                schema: schema.isEmpty ? "dbo" : schema,
-                columns: targetColumnNames,
-                batchSize: max(1, batchSize),
-                identityInsert: identityInsert
-            )
+            switch databaseType {
+            case .microsoftSQL:
+                try await executeMSSQLImport(rows: mappedRows, columns: targetColumnNames)
+            case .postgresql, .sqlite, .mysql:
+                try await executeGenericImport(rows: mappedRows, columns: targetColumnNames)
+            }
 
-            let summary = try await adapter.client.bulkCopy.copy(
-                rows: bcpRows,
-                options: options
-            )
-
-            timerTask?.cancel()
-            importedRowCount = summary.totalRows
-            completedBatches = summary.batchesExecuted
-            elapsedTime = summary.duration
-            phase = .completed(rowCount: summary.totalRows, duration: summary.duration)
+            activityHandle?.succeed()
+            activityHandle = nil
         } catch is CancellationError {
             timerTask?.cancel()
             phase = .failed(message: "Import cancelled")
+            activityHandle?.cancel()
+            activityHandle = nil
         } catch {
             timerTask?.cancel()
             phase = .failed(message: error.localizedDescription)
+            activityHandle?.fail(error.localizedDescription)
+            activityHandle = nil
         }
+    }
+
+    private func executeMSSQLImport(rows: [[String]], columns: [String]) async throws {
+        guard let adapter = session as? SQLServerSessionAdapter else {
+            throw DatabaseError.queryError("Expected SQL Server session")
+        }
+
+        let bcpRows = rows.map { row in
+            let values: [SQLServerLiteralValue] = row.map { value in
+                let trimmed = value.trimmingCharacters(in: .whitespaces)
+                if trimmed.isEmpty { return .null }
+                return .nString(trimmed)
+            }
+            return SQLServerBulkCopyRow(values: values)
+        }
+
+        let options = SQLServerBulkCopyOptions(
+            table: tableName,
+            schema: schema.isEmpty ? "dbo" : schema,
+            columns: columns,
+            batchSize: max(1, batchSize),
+            identityInsert: identityInsert
+        )
+
+        let summary = try await adapter.client.bulkCopy.copy(rows: bcpRows, options: options)
+
+        timerTask?.cancel()
+        importedRowCount = summary.totalRows
+        completedBatches = summary.batchesExecuted
+        elapsedTime = summary.duration
+        phase = .completed(rowCount: summary.totalRows, duration: summary.duration)
+    }
+
+    private func executeGenericImport(rows: [[String]], columns: [String]) async throws {
+        let effectiveSchema = databaseType == .sqlite ? nil : (schema.isEmpty ? nil : schema)
+        let batchSz = max(1, batchSize)
+        let total = rows.count
+        let batchCount = (total + batchSz - 1) / batchSz
+        totalBatches = batchCount
+        let start = Date()
+
+        for batchIndex in 0..<batchCount {
+            try Task.checkCancellation()
+
+            let batchStart = batchIndex * batchSz
+            let batchEnd = min(batchStart + batchSz, total)
+            let batchRows = rows[batchStart..<batchEnd]
+
+            let sql = buildInsertSQL(
+                schema: effectiveSchema,
+                table: tableName,
+                columns: columns,
+                rows: Array(batchRows)
+            )
+            _ = try await session.executeUpdate(sql)
+
+            completedBatches = batchIndex + 1
+            importedRowCount = batchEnd
+            activityHandle?.updateProgress(Double(batchEnd) / Double(total))
+        }
+
+        timerTask?.cancel()
+        let duration = Date().timeIntervalSince(start)
+        elapsedTime = duration
+        phase = .completed(rowCount: total, duration: duration)
+    }
+
+    private func buildInsertSQL(schema: String?, table: String, columns: [String], rows: [[String]]) -> String {
+        let quotedTable: String
+        if let schema {
+            quotedTable = "\"\(schema)\".\"\(table)\""
+        } else {
+            quotedTable = "\"\(table)\""
+        }
+        let quotedColumns = columns.map { "\"\($0)\"" }.joined(separator: ", ")
+
+        let valueRows = rows.map { row in
+            let literals = row.map { value -> String in
+                let trimmed = value.trimmingCharacters(in: .whitespaces)
+                if trimmed.isEmpty { return "NULL" }
+                let escaped = trimmed.replacingOccurrences(of: "'", with: "''")
+                return "'\(escaped)'"
+            }
+            return "(\(literals.joined(separator: ", ")))"
+        }
+
+        return "INSERT INTO \(quotedTable) (\(quotedColumns)) VALUES \(valueRows.joined(separator: ", "))"
     }
 
     // MARK: - Timer

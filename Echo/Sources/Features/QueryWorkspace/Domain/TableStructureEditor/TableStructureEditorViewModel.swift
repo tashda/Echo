@@ -2,14 +2,14 @@ import Foundation
 import SwiftUI
 
 enum TableStructureSection: String, CaseIterable, Identifiable {
-    case columns, indexes, relations, extendedProperties
+    case columns, indexes, constraints, relations
     var id: String { rawValue }
     var displayName: String {
         switch self {
         case .columns: return "Columns"
         case .indexes: return "Indexes"
+        case .constraints: return "Constraints"
         case .relations: return "Relations"
-        case .extendedProperties: return "Properties"
         }
     }
     var displayTitle: String { displayName }
@@ -17,18 +17,8 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
         switch self {
         case .columns: return "tablecells"
         case .indexes: return "bolt.horizontal"
+        case .constraints: return "shield.lefthalf.filled"
         case .relations: return "arrow.triangle.merge"
-        case .extendedProperties: return "tag"
-        }
-    }
-
-    /// Returns the sections available for the given database type.
-    static func cases(for databaseType: DatabaseType) -> [TableStructureSection] {
-        switch databaseType {
-        case .microsoftSQL:
-            return allCases
-        default:
-            return [.columns, .indexes, .relations]
         }
     }
 }
@@ -40,7 +30,9 @@ final class TableStructureEditorViewModel {
     var uniqueConstraints: [UniqueConstraintModel] = []
     var foreignKeys: [ForeignKeyModel] = []
     var dependencies: [DependencyModel] = []
+    var checkConstraints: [CheckConstraintModel] = []
     var primaryKey: PrimaryKeyModel?
+    var tableProperties: TableStructureDetails.TableProperties?
     var requestedSection: TableStructureSection?
 
     var isLoading: Bool = false
@@ -55,14 +47,14 @@ final class TableStructureEditorViewModel {
     internal private(set) var session: DatabaseSession
     internal var originalPrimaryKeySnapshot: PrimaryKeyModel.Snapshot?
     internal var removedPrimaryKeyName: String?
+    @ObservationIgnored var activityEngine: ActivityEngine?
+    @ObservationIgnored var connectionSessionID: UUID?
 
     /// Update the session to point at a different database connection.
-    /// Triggers a reload if the view model has no data yet.
+    /// Always triggers a reload since the previous session may have returned empty results.
     func updateSession(_ newSession: DatabaseSession) {
         session = newSession
-        if columns.isEmpty {
-            Task { await reload() }
-        }
+        Task { await reload() }
     }
 
     var dialectGenerator: SQLDialectGenerator {
@@ -112,6 +104,7 @@ final class TableStructureEditorViewModel {
         }
         isApplying = true
         defer { isApplying = false }
+        let handle = activityEngine?.begin("Alter \(tableName)", connectionSessionID: connectionSessionID)
         let dialect = dialectGenerator
         do {
             let executionPlan = [dialect.beginTransaction()] + statements + [dialect.commitTransaction()]
@@ -121,9 +114,11 @@ final class TableStructureEditorViewModel {
             let refreshed = try await session.getTableStructureDetails(schema: schemaName, table: tableName)
             apply(details: refreshed)
             lastSuccessMessage = "Structure updated"
+            handle?.succeed()
         } catch {
             _ = try? await session.executeUpdate(dialect.rollbackTransaction())
             lastError = error.localizedDescription
+            handle?.fail(error.localizedDescription)
         }
     }
 
@@ -132,6 +127,7 @@ final class TableStructureEditorViewModel {
         if indexes.contains(where: { $0.isDirty }) { return true }
         if uniqueConstraints.contains(where: { $0.isDirty }) { return true }
         if foreignKeys.contains(where: { $0.isDirty }) { return true }
+        if checkConstraints.contains(where: { $0.isDirty }) { return true }
         if primaryKey?.isDirty == true { return true }
         if removedPrimaryKeyName != nil { return true }
         return false
@@ -139,7 +135,7 @@ final class TableStructureEditorViewModel {
 
     @discardableResult
     func addColumn() -> ColumnModel {
-        let model = ColumnModel(original: nil, name: "new_column", dataType: "text", isNullable: true, defaultValue: nil, generatedExpression: nil)
+        let model = ColumnModel(original: nil, name: "new_column", dataType: "text", isNullable: true, defaultValue: nil, generatedExpression: nil, isIdentity: false, identitySeed: nil, identityIncrement: nil, identityGeneration: nil, collation: nil)
         columns.append(model)
         return model
     }
@@ -160,8 +156,9 @@ final class TableStructureEditorViewModel {
     func addIndex(unique: Bool = false) -> IndexModel {
         let baseName = unique ? "new_unique" : "new_index"
         let availableColumns = columns.filter { !$0.isDeleted }
-        let initialColumns = availableColumns.prefix(1).map { IndexModel.Column(name: $0.name, sortOrder: .ascending) }
-        let model = IndexModel(original: nil, name: baseName, columns: initialColumns, isUnique: unique, filterCondition: "")
+        let initialColumns = availableColumns.prefix(1).map { IndexModel.Column(name: $0.name, sortOrder: .ascending, isIncluded: false) }
+        let defaultType = databaseType == .microsoftSQL ? "nonclustered" : "btree"
+        let model = IndexModel(original: nil, name: baseName, columns: initialColumns, isUnique: unique, filterCondition: "", indexType: defaultType)
         indexes.append(model)
         return model
     }
@@ -178,17 +175,20 @@ final class TableStructureEditorViewModel {
         lastSuccessMessage = nil
         isApplying = true
         defer { isApplying = false }
+        let handle = activityEngine?.begin("Rebuild \(index.name)", connectionSessionID: connectionSessionID)
         do {
             _ = try await session.rebuildIndex(schema: schemaName, table: tableName, index: index.name)
             lastSuccessMessage = "Index \"\(index.name)\" rebuilt successfully"
+            handle?.succeed()
         } catch {
             lastError = "Failed to rebuild index: \(error.localizedDescription)"
+            handle?.fail(error.localizedDescription)
         }
     }
 
     @discardableResult
     func addUniqueConstraint() -> UniqueConstraintModel {
-        let model = UniqueConstraintModel(original: nil, name: "uq_\(tableName)_\(uniqueConstraints.count + 1)", columns: [])
+        let model = UniqueConstraintModel(original: nil, name: "uq_\(tableName)_\(uniqueConstraints.count + 1)", columns: [], isDeferrable: false, isInitiallyDeferred: false)
         uniqueConstraints.append(model)
         return model
     }
@@ -201,9 +201,22 @@ final class TableStructureEditorViewModel {
 
     @discardableResult
     func addForeignKey() -> ForeignKeyModel {
-        let model = ForeignKeyModel(original: nil, name: "fk_\(tableName)_\(foreignKeys.count + 1)", columns: [], referencedSchema: schemaName, referencedTable: tableName, referencedColumns: [], onUpdate: nil, onDelete: nil)
+        let model = ForeignKeyModel(original: nil, name: "fk_\(tableName)_\(foreignKeys.count + 1)", columns: [], referencedSchema: schemaName, referencedTable: tableName, referencedColumns: [], onUpdate: nil, onDelete: nil, isDeferrable: false, isInitiallyDeferred: false)
         foreignKeys.append(model)
         return model
+    }
+
+    @discardableResult
+    func addCheckConstraint() -> CheckConstraintModel {
+        let model = CheckConstraintModel(original: nil, name: "ck_\(tableName)_\(checkConstraints.count + 1)", expression: "")
+        checkConstraints.append(model)
+        return model
+    }
+
+    func removeCheckConstraint(_ constraint: CheckConstraintModel) {
+        if let position = checkConstraints.firstIndex(where: { $0.id == constraint.id }) {
+            if checkConstraints[position].isNew { checkConstraints.remove(at: position) } else { checkConstraints[position].isDeleted = true }
+        }
     }
 
     func removeForeignKey(_ fk: ForeignKeyModel) {

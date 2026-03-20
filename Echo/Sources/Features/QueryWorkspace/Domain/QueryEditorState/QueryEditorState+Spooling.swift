@@ -4,12 +4,18 @@ extension QueryEditorState {
     func prepareSpoolForNewExecution() {
         spoolStatsTask?.cancel()
         spoolStatsTask = nil
+        progressiveMaterializationTask?.cancel()
+        progressiveMaterializationTask = nil
         deferredSpoolUpdates.removeAll(keepingCapacity: false)
         isSpoolActivationDeferred = true
         resultSpoolID = nil
         spoolHandle = nil
         ingestionService = nil
         shouldPersistResults = false
+        pendingVisibleRowReloadIndexes = nil
+        lastVisibleDisplayRange = 0..<0
+        lastPrefetchedSourceRange = 0..<0
+        rowCache.reset()
     }
 
     func activateSpoolIfNeeded() {
@@ -63,6 +69,8 @@ extension QueryEditorState {
 
     func finalizeSpoolOnCompletion(cancelled: Bool) {
         if cancelled {
+            progressiveMaterializationTask?.cancel()
+            progressiveMaterializationTask = nil
             Task {
                 await ingestionService?.cancel()
                 await MainActor.run {

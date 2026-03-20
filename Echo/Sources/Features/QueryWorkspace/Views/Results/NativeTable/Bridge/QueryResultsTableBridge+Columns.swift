@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 
 extension QueryResultsTableView.Coordinator {
-    
+
     func reloadColumns() -> Bool {
         guard let tableView else { return false }
         let columnIDs = parent.query.displayedColumns.map(\.id)
@@ -18,10 +18,15 @@ extension QueryResultsTableView.Coordinator {
             for (offset, column) in parent.query.displayedColumns.enumerated() {
                 let tableColumn = tableView.tableColumns[offset]
                 if tableColumn.title != column.name { tableColumn.title = column.name; headerNeedsRefresh = true }
-                let minWidth = defaultWidth(for: column)
+                let minWidth = minimumWidth(for: column)
                 if abs(tableColumn.minWidth - minWidth) > 1 {
                     tableColumn.minWidth = minWidth
                     if tableColumn.width < minWidth { tableColumn.width = minWidth }
+                }
+                let maxWidth = maximumWidth(for: column)
+                if abs(tableColumn.maxWidth - maxWidth) > 1 {
+                    tableColumn.maxWidth = maxWidth
+                    if tableColumn.width > maxWidth { tableColumn.width = maxWidth }
                 }
                 tableColumn.headerCell.alignment = .left
             }
@@ -40,28 +45,56 @@ extension QueryResultsTableView.Coordinator {
             guard !hidden.contains(index) else { continue }
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("data-\(column.id)"))
             tableColumn.title = column.name
-            tableColumn.minWidth = defaultWidth(for: column)
-            tableColumn.width = tableColumn.minWidth
+            tableColumn.minWidth = minimumWidth(for: column)
+            tableColumn.maxWidth = maximumWidth(for: column)
             tableColumn.isEditable = false
             tableColumn.resizingMask = [.userResizingMask]
             let headerCell = ResultTableHeaderCell(textCell: column.name)
             headerCell.columnSensitivity = classification?.classification(forColumnAt: index)
             tableColumn.headerCell = headerCell
             tableColumn.headerCell.controlSize = .regular; tableColumn.headerCell.alignment = .left
-            tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+            tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .medium)
             if let sensitivity = headerCell.columnSensitivity {
                 tableColumn.headerToolTip = sensitivity.summary + " (\(sensitivity.effectiveRank.displayName))"
             }
             tableView.addTableColumn(tableColumn)
+            let visibleColumnIndex = tableView.tableColumns.count - 1
+            let measuredWidth = idealWidth(forVisibleColumnAt: visibleColumnIndex, in: tableView)
+            tableColumn.width = min(max(measuredWidth, tableColumn.minWidth), tableColumn.maxWidth)
         }
     }
 
-    func defaultWidth(for column: ColumnInfo) -> CGFloat {
+    func minimumWidth(for column: ColumnInfo) -> CGFloat {
         let type = column.dataType.lowercased()
-        if type.contains("bool") { return 80 }
-        if type.contains("int") || type.contains("numeric") || type.contains("decimal") || type.contains("float") || type.contains("double") || type.contains("money") { return 120 }
-        if type.contains("date") || type.contains("time") { return 160 }
-        return 200
+        if type.contains("bool") || type == "bit" { return ResultsGridMetrics.minimumColumnWidth }
+        if type.contains("guid") || type.contains("uniqueidentifier") || type.contains("uuid") { return 180 }
+        if type.contains("date") || type.contains("time") { return 124 }
+        if type.contains("int") || type.contains("numeric") || type.contains("decimal") || type.contains("float") || type.contains("double") || type.contains("money") { return 72 }
+        if type.contains("json") || type.contains("xml") || type.contains("text") { return 96 }
+        return 80
+    }
+
+    func maximumWidth(for column: ColumnInfo) -> CGFloat {
+        let type = column.dataType.lowercased()
+        if type.contains("guid") || type.contains("uniqueidentifier") || type.contains("uuid") {
+            return 300
+        }
+        if type.contains("date") || type.contains("time") {
+            return 240
+        }
+        return ResultsGridMetrics.maximumColumnWidth
+    }
+
+    func idealWidth(forVisibleColumnAt column: Int, in tableView: NSTableView) -> CGFloat {
+        guard column >= 0, column < tableView.tableColumns.count else { return 0 }
+        if column >= parent.query.displayedColumns.count {
+            let tableColumn = tableView.tableColumns[column]
+            return max(tableColumn.minWidth, tableColumn.width)
+        }
+        let tableColumn = tableView.tableColumns[column]
+        let desired = max(headerContentWidth(for: tableColumn, in: tableView), widestCellWidth(forColumn: column, tableView: tableView))
+        let maxWidth = tableColumn.maxWidth > 0 ? tableColumn.maxWidth : .greatestFiniteMagnitude
+        return min(max(desired, tableColumn.minWidth), maxWidth)
     }
 
     func headerContentWidth(for column: NSTableColumn, in tableView: NSTableView) -> CGFloat {
@@ -75,12 +108,12 @@ extension QueryResultsTableView.Coordinator {
         }
         let size = baseString.size(withAttributes: attributes)
         let indicatorWidth: CGFloat = tableView.indicatorImage(in: column) != nil ? 16 : 0
-        return ceil(size.width) + (ResultsGridMetrics.horizontalPadding * 2) + indicatorWidth + 4
+        return ceil(size.width) + (ResultsGridMetrics.contentHorizontalPadding * 2) + indicatorWidth + 4
     }
 
     func widestCellWidth(forColumn column: Int, tableView: NSTableView) -> CGFloat {
         guard column >= 0, tableView.numberOfRows > 0 else { return 0 }
-        let padding = ResultsGridMetrics.horizontalPadding * 2
+        let padding = ResultsGridMetrics.contentHorizontalPadding * 2
         let columnInfo = column < parent.query.displayedColumns.count ? parent.query.displayedColumns[column] : nil
         var maxWidth = CGFloat.zero
         let sampleCount = isSplitResizing ? min(tableView.numberOfRows, 32) : min(tableView.numberOfRows, ResultsGridMetrics.maxAutoWidthSampleCount)
@@ -124,7 +157,7 @@ extension QueryResultsTableView.Coordinator {
             column.headerCell.controlSize = .regular
             column.headerCell.alignment = .left
             column.headerCell.title = column.title
-            column.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+            column.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .medium)
             column.headerCell.isHighlighted = false
         }
         tableView.headerView?.needsDisplay = true

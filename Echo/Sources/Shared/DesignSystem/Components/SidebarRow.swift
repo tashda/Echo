@@ -33,11 +33,11 @@ struct SidebarRow<Trailing: View>: View {
     @State private var isHovered = false
     @State private var isContextMenuVisible = false
 
-    private var densityVerticalPadding: CGFloat { density == .large ? 6 : SidebarRowConstants.rowVerticalPadding }
+    private var densityVerticalPadding: CGFloat { density == .large ? 5 : SidebarRowConstants.rowVerticalPadding }
     private var densityIconFrameWidth: CGFloat { density == .large ? 20 : SidebarRowConstants.iconFrameWidth }
-    private var densityIconFrameHeight: CGFloat { density == .large ? 20 : SidebarRowConstants.iconFrameHeight }
-    private var densityIconFont: Font { density == .large ? Font.system(size: 16, weight: .medium) : SidebarRowConstants.iconFont }
-    private var densityLabelFont: Font { density == .large ? Font.system(size: 13, weight: .medium) : labelFont }
+    private var densityIconFrameHeight: CGFloat { density == .large ? 18 : SidebarRowConstants.iconFrameHeight }
+    private var densityIconFont: Font { density == .large ? Font.system(size: 15, weight: .regular) : SidebarRowConstants.iconFont }
+    private var densityLabelFont: Font { density == .large ? Font.system(size: 13, weight: .regular) : labelFont }
 
     private var showChevron: Bool { isExpanded != nil }
     private var expanded: Bool { isExpanded?.wrappedValue ?? false }
@@ -113,7 +113,6 @@ struct SidebarRow<Trailing: View>: View {
             .background(highlightFill)
             .contentShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
@@ -127,7 +126,6 @@ struct SidebarRow<Trailing: View>: View {
         }
         .buttonStyle(.plain)
         .focusable(false)
-        .animation(.snappy(duration: 0.2), value: isSelected)
     }
 
     @ViewBuilder

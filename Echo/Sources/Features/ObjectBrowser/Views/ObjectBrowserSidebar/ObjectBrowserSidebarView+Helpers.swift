@@ -16,6 +16,15 @@ extension ObjectBrowserSidebarView {
         return AnyView(row)
     }
 
+    // MARK: - Server Separator
+
+    /// A thin divider line between server sections for clear visual boundaries.
+    var serverSeparator: some View {
+        Divider()
+            .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding + SidebarRowConstants.rowLeadingPadding)
+            .padding(.vertical, SpacingTokens.xxs)
+    }
+
     // MARK: - Compact Inline States
 
     func loadingHint() -> some View {

@@ -38,6 +38,7 @@ extension QueryResultsTableView.Coordinator {
 
     func endSelectionDrag() {
         isDraggingCellSelection = false
+        isDraggingRowSelection = false
         stopAutoscroll()
     }
 }

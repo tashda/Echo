@@ -104,7 +104,7 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func performAutoscrollStep(in tableView: NSTableView) {
-        guard isDraggingCellSelection,
+        guard isDraggingSelection,
               NSEvent.pressedMouseButtons != 0,
               let scrollView = tableView.enclosingScrollView else {
             stopAutoscroll()
@@ -152,8 +152,13 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func processAutoscrollSelection(in tableView: NSTableView) {
-        guard isDraggingCellSelection, let anchor = selectionAnchor else { return }
+        guard isDraggingSelection, let anchor = selectionAnchor else { return }
         let point = currentMouseLocationInTableView(tableView)
+        if isDraggingRowSelection {
+            guard let row = resolvedRowForDragSelection(at: point, in: tableView) else { return }
+            extendRowSelection(to: row)
+            return
+        }
         guard let cell = resolvedCell(at: point, in: tableView, allowOutOfBounds: true) else { return }
         let region = SelectedRegion(start: anchor, end: cell)
         if selectionRegion != region {

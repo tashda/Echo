@@ -9,7 +9,7 @@ extension NewDatabaseSheet {
     func postgresGeneralPage() -> some View {
         Section("Database") {
             PropertyRow(title: "Name") {
-                TextField("new_database", text: $databaseName)
+                TextField("", text: $databaseName, prompt: Text("new_database"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
             }
@@ -26,7 +26,7 @@ extension NewDatabaseSheet {
             }
 
             PropertyRow(title: "Comment") {
-                TextField("", text: $pgComment, axis: .vertical)
+                TextField("", text: $pgComment, prompt: Text("Optional comment"), axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...3)
                     .multilineTextAlignment(.trailing)
@@ -74,25 +74,25 @@ extension NewDatabaseSheet {
 
             if pgLocaleProvider == "libc" {
                 PropertyRow(title: "Collation") {
-                    TextField("e.g. en_US.UTF-8", text: $pgCollation)
+                    TextField("", text: $pgCollation, prompt: Text("e.g. en_US.UTF-8"))
                         .textFieldStyle(.plain)
                         .multilineTextAlignment(.trailing)
                 }
 
                 PropertyRow(title: "Character Type") {
-                    TextField("e.g. en_US.UTF-8", text: $pgCtype)
+                    TextField("", text: $pgCtype, prompt: Text("e.g. en_US.UTF-8"))
                         .textFieldStyle(.plain)
                         .multilineTextAlignment(.trailing)
                 }
             } else {
                 PropertyRow(title: "ICU Locale") {
-                    TextField("e.g. en-US", text: $pgIcuLocale)
+                    TextField("", text: $pgIcuLocale, prompt: Text("e.g. en-US"))
                         .textFieldStyle(.plain)
                         .multilineTextAlignment(.trailing)
                 }
 
                 PropertyRow(title: "ICU Rules") {
-                    TextField("", text: $pgIcuRules)
+                    TextField("", text: $pgIcuRules, prompt: Text("Optional"))
                         .textFieldStyle(.plain)
                         .multilineTextAlignment(.trailing)
                 }
@@ -113,7 +113,7 @@ extension NewDatabaseSheet {
 
         Section("Connection") {
             PropertyRow(title: "Connection Limit", subtitle: "-1 = unlimited") {
-                TextField("", value: $pgConnectionLimit, format: .number)
+                TextField("", value: $pgConnectionLimit, format: .number, prompt: Text("-1 for unlimited"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
             }

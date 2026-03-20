@@ -9,6 +9,9 @@ extension QueryResultsSection {
             sortCriteria = nil
             highlightedColumnIndex = nil
         }
+        if panelState.selectedSegment == .messages, query.errorMessage == nil {
+            panelState.selectedSegment = .results
+        }
         rebuildRowOrder()
     }
 
@@ -17,6 +20,9 @@ extension QueryResultsSection {
             sortCriteria = nil
             highlightedColumnIndex = nil
             rowOrder = []
+            if panelState.selectedSegment == .messages {
+                panelState.selectedSegment = .results
+            }
         }
     }
 

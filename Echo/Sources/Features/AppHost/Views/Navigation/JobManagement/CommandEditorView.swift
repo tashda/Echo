@@ -29,11 +29,13 @@ struct CommandEditorView: View {
                     Button("Save to Step") {
                         onSaveToStep(stepName, text)
                     }
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                 } else {
                     Button("Use Command") {
                         onUseCommand(text)
                     }
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                 }
             }

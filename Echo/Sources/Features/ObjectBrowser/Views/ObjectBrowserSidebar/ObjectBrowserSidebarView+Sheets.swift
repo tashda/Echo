@@ -81,25 +81,28 @@ extension ObjectBrowserSidebarView {
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showBackupSheet) {
-                if let dbName = viewModel.backupDatabaseName,
-                   let connID = viewModel.backupConnectionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let adapter = session.session as? SQLServerSessionAdapter {
-                    BackupSheet(
-                        viewModel: BackupViewModel(client: adapter.client, databaseName: dbName),
-                        onDismiss: { viewModel.showBackupSheet = false }
+            .sheet(isPresented: $viewModel.showPgBackupSheet) {
+                if let dbName = viewModel.pgBackupDatabaseName,
+                   let connID = viewModel.pgBackupConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    PgBackupSheetContainer(
+                        connection: session.connection,
+                        session: session.session,
+                        databaseName: dbName,
+                        isPresented: $viewModel.showPgBackupSheet
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showRestoreSheet) {
-                if let dbName = viewModel.restoreDatabaseName,
-                   let connID = viewModel.restoreConnectionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let adapter = session.session as? SQLServerSessionAdapter {
-                    RestoreSheet(
-                        viewModel: RestoreViewModel(client: adapter.client, databaseName: dbName),
-                        onDismiss: { viewModel.showRestoreSheet = false }
+            .sheet(isPresented: $viewModel.showPgRestoreSheet) {
+                if let dbName = viewModel.pgBackupDatabaseName,
+                   let connID = viewModel.pgBackupConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    PgRestoreSheetContainer(
+                        connection: session.connection,
+                        session: session.session,
+                        databaseName: dbName,
+                        connectionSession: session,
+                        isPresented: $viewModel.showPgRestoreSheet
                     )
                 }
             }
@@ -143,17 +146,6 @@ extension ObjectBrowserSidebarView {
                         databaseName: dbName,
                         session: session,
                         onDismiss: { viewModel.showFullTextSheet = false }
-                    )
-                }
-            }
-            .sheet(isPresented: $viewModel.showMaintenanceSheet) {
-                if let dbName = viewModel.maintenanceDatabaseName,
-                   let connID = viewModel.maintenanceConnectionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    MaintenanceSheet(
-                        databaseName: dbName,
-                        session: session,
-                        onDismiss: { viewModel.showMaintenanceSheet = false }
                     )
                 }
             }

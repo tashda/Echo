@@ -53,6 +53,7 @@ struct ExecutionConsoleView: View {
                 .buttonStyle(.borderless)
                 .disabled(executionMessages.isEmpty)
                 .help("Clear Messages")
+                .accessibilityLabel("Clear Messages")
             }
 
             Button {
@@ -64,6 +65,7 @@ struct ExecutionConsoleView: View {
             .buttonStyle(.borderless)
             .disabled(filteredMessages.isEmpty)
             .help("Copy All Messages")
+            .accessibilityLabel("Copy All Messages")
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs2)

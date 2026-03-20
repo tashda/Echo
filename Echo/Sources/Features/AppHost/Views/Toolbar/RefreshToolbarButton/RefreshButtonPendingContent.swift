@@ -82,6 +82,7 @@ private struct RefreshPendingOverlay: View {
 
     @State private var failureScale: CGFloat = 0
     @State private var failureOpacity: Double = 0
+    @State private var failureRotation: Double = -90
 
     var body: some View {
         ZStack {
@@ -98,22 +99,30 @@ private struct RefreshPendingOverlay: View {
                 .opacity(showCancel ? 1 : 0)
                 .animation(.easeInOut(duration: 0.15), value: showCancel)
 
-            // Failure xmark — red, with spring bounce
+            // Failure xmark — softened red, with rotation + spring entrance
             Image(systemName: "xmark")
                 .font(TypographyTokens.standard.weight(.semibold))
-                .foregroundStyle(ColorTokens.Status.error)
+                .foregroundStyle(ColorTokens.Status.error.opacity(0.8))
                 .scaleEffect(failureScale)
                 .opacity(failureOpacity)
+                .rotationEffect(.degrees(failureRotation))
         }
         .onChange(of: phase) { _, newPhase in
             if newPhase == .failed {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
+                failureScale = 0.3
+                failureRotation = -90
+                failureOpacity = 0
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                     failureScale = 1.0
                     failureOpacity = 1.0
+                    failureRotation = 0
                 }
             } else {
-                failureScale = 0
-                failureOpacity = 0
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    failureScale = 0.4
+                    failureOpacity = 0
+                    failureRotation = 90
+                }
             }
         }
     }

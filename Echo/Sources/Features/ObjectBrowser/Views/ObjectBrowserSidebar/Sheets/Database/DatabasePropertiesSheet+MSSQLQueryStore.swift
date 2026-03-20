@@ -65,7 +65,7 @@ extension DatabasePropertiesSheet {
 
         Section("Storage") {
             PropertyRow(title: "Max Storage Size", subtitle: "MB") {
-                TextField("", value: $qsMaxStorageMB, format: .number)
+                TextField("", value: $qsMaxStorageMB, format: .number, prompt: Text("100"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .onSubmit { applyQueryStoreOption(.maxStorageSizeMB(qsMaxStorageMB)) }
@@ -88,28 +88,28 @@ extension DatabasePropertiesSheet {
 
         Section("Intervals") {
             PropertyRow(title: "Flush Interval", subtitle: "seconds") {
-                TextField("", value: $qsFlushIntervalSeconds, format: .number)
+                TextField("", value: $qsFlushIntervalSeconds, format: .number, prompt: Text("900"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .onSubmit { applyQueryStoreOption(.flushIntervalSeconds(qsFlushIntervalSeconds)) }
             }
 
             PropertyRow(title: "Statistics Interval", subtitle: "minutes") {
-                TextField("", value: $qsIntervalLengthMinutes, format: .number)
+                TextField("", value: $qsIntervalLengthMinutes, format: .number, prompt: Text("60"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .onSubmit { applyQueryStoreOption(.intervalLengthMinutes(qsIntervalLengthMinutes)) }
             }
 
             PropertyRow(title: "Stale Query Threshold", subtitle: "days") {
-                TextField("", value: $qsStaleThresholdDays, format: .number)
+                TextField("", value: $qsStaleThresholdDays, format: .number, prompt: Text("30"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .onSubmit { applyQueryStoreOption(.staleQueryThresholdDays(qsStaleThresholdDays)) }
             }
 
             PropertyRow(title: "Max Plans Per Query", subtitle: "plans") {
-                TextField("", value: $qsMaxPlansPerQuery, format: .number)
+                TextField("", value: $qsMaxPlansPerQuery, format: .number, prompt: Text("200"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .onSubmit { applyQueryStoreOption(.maxPlansPerQuery(qsMaxPlansPerQuery)) }

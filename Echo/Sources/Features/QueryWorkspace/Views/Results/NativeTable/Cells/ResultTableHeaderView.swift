@@ -54,7 +54,6 @@ final class ResultTableHeaderView: NSTableHeaderView {
         } else {
             isDraggingColumns = false
         }
-        super.mouseDown(with: event)
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -75,15 +74,15 @@ final class ResultTableHeaderView: NSTableHeaderView {
             column = location.x < 0 ? 0 : tableView.tableColumns.count - 1
         }
         coordinator?.continueColumnSelection(to: column)
-        super.mouseDragged(with: event)
     }
 
     override func mouseUp(with event: NSEvent) {
         if isDraggingColumns, event.buttonNumber == 0 {
             coordinator?.endColumnSelection()
+        } else {
+            super.mouseUp(with: event)
         }
         isDraggingColumns = false
-        super.mouseUp(with: event)
     }
 
     override func rightMouseDown(with event: NSEvent) {

@@ -25,6 +25,7 @@ final class EnvironmentState {
     var pinnedObjectIDs: [String] = []
     var recentConnections: [RecentConnectionRecord] = []
     var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
+    var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
     var dataInspectorContent: DataInspectorContent?
     @ObservationIgnored private var lastPushedInspectorTitle: String?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []
@@ -207,7 +208,7 @@ final class EnvironmentState {
                     mssqlEncryptionMode: connection.mssqlEncryptionMode,
                     readOnlyIntent: connection.readOnlyIntent,
                     authentication: credentials,
-                    connectTimeoutSeconds: 10
+                    connectTimeoutSeconds: Int(connection.connectionTimeout)
                 )
 
                 guard !Task.isCancelled else {

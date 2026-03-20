@@ -26,7 +26,6 @@ import os.log
     var statisticsEnabled: Bool = false
     var sqlcmdModeEnabled: Bool = false
     @ObservationIgnored var rowCountRefreshHandler: (() -> Void)?
-
     var streamingMode: StreamingMode = .idle
 
     @ObservationIgnored let initialVisibleRowBatch: Int
@@ -71,6 +70,7 @@ import os.log
     @ObservationIgnored var executionTimer: Timer?
     @ObservationIgnored var lastMessageTimestamp: Date?
     @ObservationIgnored var executingTask: Task<Void, Never>?
+    @ObservationIgnored var isCancellationRequested: Bool = false
     var streamingColumns: [ColumnInfo] = []
     var streamingRows: [[String?]] = []
     var resultChangeToken: UInt64 = 0

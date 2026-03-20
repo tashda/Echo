@@ -51,7 +51,8 @@ struct DatabaseMailSheet: View {
                 }
                 Spacer()
                 Button("Done") { onDismiss() }
-                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.cancelAction)
             }
             .padding(SpacingTokens.md)
         }

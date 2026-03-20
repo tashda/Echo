@@ -44,18 +44,18 @@ struct QueryStorePlanDetailSection: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .error(let message):
-            EmptyStatePlaceholder(
-                icon: "exclamationmark.triangle",
-                title: "Failed to load plans",
-                subtitle: message
-            )
+            ContentUnavailableView {
+                Label("Failed to load plans", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(message)
+            }
         default:
             if viewModel.queryPlans.isEmpty {
-                EmptyStatePlaceholder(
-                    icon: "doc.text.magnifyingglass",
-                    title: "No plans found",
-                    subtitle: "No execution plans recorded for this query."
-                )
+                ContentUnavailableView {
+                    Label("No plans found", systemImage: "doc.text.magnifyingglass")
+                } description: {
+                    Text("No execution plans recorded for this query.")
+                }
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: SpacingTokens.xxs) {
