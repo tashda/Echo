@@ -10,6 +10,10 @@ nonisolated struct PostgresToolLocator {
         locateTool(name: "pg_restore", customPath: customPath)
     }
 
+    static func psqlURL(customPath: String? = nil) -> URL? {
+        locateTool(name: "psql", customPath: customPath)
+    }
+
     static func version(of tool: URL) async throws -> String {
         let process = Process()
         process.executableURL = tool
@@ -44,7 +48,7 @@ nonisolated struct PostgresToolLocator {
         }
 
         // 3. Common install paths
-        let searchPaths = [
+        let searchPaths = homebrewVersionedSearchPaths(for: name) + [
             "/opt/homebrew/bin/\(name)",
             "/usr/local/bin/\(name)",
             "/Applications/Postgres.app/Contents/Versions/latest/bin/\(name)"
@@ -77,5 +81,15 @@ nonisolated struct PostgresToolLocator {
         }
 
         return nil
+    }
+
+    private static func homebrewVersionedSearchPaths(for name: String) -> [String] {
+        let versions = ["18", "17", "16", "15", "14"]
+        return versions.flatMap { version in
+            [
+                "/opt/homebrew/opt/postgresql@\(version)/bin/\(name)",
+                "/usr/local/opt/postgresql@\(version)/bin/\(name)"
+            ]
+        }
     }
 }

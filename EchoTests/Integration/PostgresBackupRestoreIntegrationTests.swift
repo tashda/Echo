@@ -28,12 +28,13 @@ struct PostgresBackupRestoreIntegrationTests {
 
     private func loadConfig() throws -> PGConfig {
         let env = ProcessInfo.processInfo.environment
+        let host = env["TEST_PG_HOST"] ?? env["ECHO_PG_HOST"] ?? "127.0.0.1"
+        let portValue = env["TEST_PG_PORT"] ?? env["ECHO_PG_PORT"] ?? "54322"
+        let database = env["TEST_PG_DATABASE"] ?? env["ECHO_PG_DATABASE"] ?? "postgres"
+        let username = env["TEST_PG_USER"] ?? env["ECHO_PG_USER"] ?? "postgres"
+        let password = env["TEST_PG_PASSWORD"] ?? env["ECHO_PG_PASSWORD"] ?? "postgres"
         guard
-            let host = env["TEST_PG_HOST"],
-            let portStr = env["TEST_PG_PORT"], let port = Int(portStr),
-            let database = env["TEST_PG_DATABASE"],
-            let username = env["TEST_PG_USER"],
-            let password = env["TEST_PG_PASSWORD"]
+            let port = Int(portValue)
         else {
             throw PGTestError.skipped
         }
@@ -50,6 +51,12 @@ struct PostgresBackupRestoreIntegrationTests {
 
     private func pgRestore(config: PGConfig, args: [String]) async throws -> ProcessResult {
         guard let exe = PostgresToolLocator.pgRestoreURL() else { throw PGTestError.toolNotFound("pg_restore") }
+        let env: [String: String] = ["PGPASSWORD": config.password, "PGSSLMODE": "disable"]
+        return try await runner.run(executable: exe, arguments: args, environment: env)
+    }
+
+    private func psql(config: PGConfig, args: [String]) async throws -> ProcessResult {
+        guard let exe = PostgresToolLocator.psqlURL() else { throw PGTestError.toolNotFound("psql") }
         let env: [String: String] = ["PGPASSWORD": config.password, "PGSSLMODE": "disable"]
         return try await runner.run(executable: exe, arguments: args, environment: env)
     }
@@ -203,11 +210,12 @@ struct PostgresBackupRestoreIntegrationTests {
 
         try await dropTestData(config: c)
 
-        // Plain SQL restores via direct session execution (like the app does)
-        let sql = try String(contentsOf: file, encoding: .utf8)
-        let s = try await connect(config: c)
-        _ = try await s.simpleQuery(sql)
-        await s.close()
+        let restore = try await psql(config: c, args: [
+            "--dbname", c.connectionURI,
+            "--file", file.path,
+            "--no-password"
+        ])
+        #expect(restore.exitCode == 0, "psql restore failed: \(restore.stderrLines.last ?? "unknown")")
 
         let count = try await rowCount(config: c, table: "bk_parent")
         #expect(count == 3)
@@ -706,6 +714,11 @@ struct PostgresBackupRestoreIntegrationTests {
     @Test("PostgresToolLocator finds pg_restore")
     func toolLocatorFindsPgRestore() {
         #expect(PostgresToolLocator.pgRestoreURL() != nil)
+    }
+
+    @Test("PostgresToolLocator finds psql")
+    func toolLocatorFindsPsql() {
+        #expect(PostgresToolLocator.psqlURL() != nil)
     }
 }
 

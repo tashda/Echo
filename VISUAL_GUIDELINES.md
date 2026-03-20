@@ -324,9 +324,9 @@ All context menus follow this fixed group order. Not every group appears in ever
  7. Maintenance actions              (hammer, arrow.triangle.2.circlepath, chart.bar)
  8. Enable / Disable                 (checkmark.circle, nosign)
     ── Divider ──
- 9. Properties                       (info.circle)
+ 9. Destructive actions              (trash) — role: .destructive
     ── Divider ──
-10. Destructive actions              (trash) — role: .destructive
+10. Properties                       (info.circle) — ALWAYS last if present
 ```
 
 ### Divider Rules
@@ -393,7 +393,7 @@ DROP IF EXISTS
 | Update Statistics | `chart.bar` | |
 | Enable | `checkmark.circle` | |
 | Disable | `nosign` | |
-| Properties | `info.circle` | Always last before destructive |
+| Properties | `info.circle` | **Always absolute last** if present |
 | Drop / Delete | `trash` | Always `role: .destructive` |
 | Truncate | `xmark.bin` | Always `role: .destructive` |
 | Kill Process | `xmark.octagon` | Always `role: .destructive` |

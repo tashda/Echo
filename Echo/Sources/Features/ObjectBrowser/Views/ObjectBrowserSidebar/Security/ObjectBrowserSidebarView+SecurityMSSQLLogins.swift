@@ -158,18 +158,7 @@ extension ObjectBrowserSidebarView {
 
         Divider()
 
-        // Group 9: Properties
-        Button {
-            viewModel.securityLoginSheetSessionID = session.connection.id
-            viewModel.securityLoginSheetEditName = login.name
-            viewModel.showSecurityLoginSheet = true
-        } label: {
-            Label("Properties", systemImage: "info.circle")
-        }
-
-        Divider()
-
-        // Group 10: Destructive
+        // Group 9: Destructive
         Button(role: .destructive) {
             viewModel.dropSecurityPrincipalTarget = .init(
                 sessionID: session.id,
@@ -181,6 +170,17 @@ extension ObjectBrowserSidebarView {
             viewModel.showDropSecurityPrincipalAlert = true
         } label: {
             Label("Drop Login", systemImage: "trash")
+        }
+
+        Divider()
+
+        // Group 10: Properties — ALWAYS last
+        Button {
+            viewModel.securityLoginSheetSessionID = session.connection.id
+            viewModel.securityLoginSheetEditName = login.name
+            viewModel.showSecurityLoginSheet = true
+        } label: {
+            Label("Properties", systemImage: "info.circle")
         }
     }
 }

@@ -754,12 +754,10 @@ SELECT
         let result = engine.suggestions(for: query, text: textView.string, caretLocation: caretLocation)
         let suggestions = result.sections.flatMap { $0.suggestions }
 
-        // Column deduplication now happens in EchoSense, not Echo.
-        // Since this test uses a stub engine, all 3 suggestions pass through.
-        XCTAssertEqual(suggestions.count, 3)
+        XCTAssertEqual(suggestions.count, 1)
         XCTAssertTrue(suggestions.contains(where: { $0.title == "start_date" }))
-        XCTAssertTrue(suggestions.contains(where: { $0.title == "fixture_id" }))
-        XCTAssertTrue(suggestions.contains(where: { $0.title == "league_id" }))
+        XCTAssertFalse(suggestions.contains(where: { $0.title == "fixture_id" }))
+        XCTAssertFalse(suggestions.contains(where: { $0.title == "league_id" }))
         engine.endManualTrigger()
     }
 

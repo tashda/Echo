@@ -17,6 +17,7 @@ DerivedData/
 # IDE and editor configs
 .idea/
 .vscode/
+__pycache__/
 *.xcworkspace/xcuserdata/
 
 # AI agent configs and caches
@@ -58,6 +59,9 @@ traces/
 *.trace/
 tmp_trace_export/
 Scripts/
+!.github/scripts/
+!.github/scripts/**
+.github/scripts/__pycache__/
 bin/
 build-release/
 build_output*.txt

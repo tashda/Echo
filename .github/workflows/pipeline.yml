@@ -98,10 +98,10 @@ jobs:
       run: |
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
-          -testPlan DatabaseIntegrationTests \
+          -testPlan IntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
-          -disable-concurrent-testing \
+          -disable-concurrent-destination-testing \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
