@@ -7,7 +7,7 @@ import Foundation
 /// Every test creates real data, backs up, drops/truncates, restores, and verifies
 /// the data survived the roundtrip. No test merely checks exit codes or file contents.
 ///
-/// Requires Docker Postgres on the self-hosted runner (echo-test-pg, port 54322).
+/// Requires a validated PostgreSQL fixture.
 /// Environment variables: TEST_PG_HOST, TEST_PG_PORT, TEST_PG_DATABASE, TEST_PG_USER, TEST_PG_PASSWORD
 @Suite("PostgreSQL Backup & Restore")
 struct PostgresBackupRestoreIntegrationTests {
@@ -27,12 +27,15 @@ struct PostgresBackupRestoreIntegrationTests {
     }
 
     private func loadConfig() throws -> PGConfig {
-        let env = ProcessInfo.processInfo.environment
-        let host = env["TEST_PG_HOST"] ?? env["ECHO_PG_HOST"] ?? "127.0.0.1"
-        let portValue = env["TEST_PG_PORT"] ?? env["ECHO_PG_PORT"] ?? "54322"
-        let database = env["TEST_PG_DATABASE"] ?? env["ECHO_PG_DATABASE"] ?? "postgres"
-        let username = env["TEST_PG_USER"] ?? env["ECHO_PG_USER"] ?? "postgres"
-        let password = env["TEST_PG_PASSWORD"] ?? env["ECHO_PG_PASSWORD"] ?? "postgres"
+        let host = echoTestEnv("TEST_PG_HOST") ?? echoTestEnv("ECHO_PG_HOST") ?? "127.0.0.1"
+        let portValue = echoTestEnv("TEST_PG_PORT") ?? echoTestEnv("ECHO_PG_PORT") ?? "54322"
+        let database = echoTestEnv("TEST_PG_BACKUP_DATABASE")
+            ?? echoTestEnv("ECHO_PG_BACKUP_DATABASE")
+            ?? echoTestEnv("TEST_PG_DATABASE")
+            ?? echoTestEnv("ECHO_PG_DATABASE")
+            ?? "postgres"
+        let username = echoTestEnv("TEST_PG_USER") ?? echoTestEnv("ECHO_PG_USER") ?? "postgres"
+        let password = echoTestEnv("TEST_PG_PASSWORD") ?? echoTestEnv("ECHO_PG_PASSWORD") ?? "postgres"
         guard
             let port = Int(portValue)
         else {
@@ -61,6 +64,14 @@ struct PostgresBackupRestoreIntegrationTests {
         return try await runner.run(executable: exe, arguments: args, environment: env)
     }
 
+    private func restorePlainSQL(config: PGConfig, file: URL) async throws -> ProcessResult {
+        try await psql(config: config, args: [
+            "--dbname", config.connectionURI,
+            "--file", file.path,
+            "--no-password"
+        ])
+    }
+
     private func connect(config: PGConfig) async throws -> DatabaseSession {
         let factory = PostgresNIOFactory()
         return try await factory.connect(
@@ -85,8 +96,7 @@ struct PostgresBackupRestoreIntegrationTests {
     /// Create two tables with foreign key + sample data (3 rows in A, 2 in B).
     private func setupTestData(config: PGConfig) async throws {
         let s = try await connect(config: config)
-        _ = try await s.simpleQuery("DROP TABLE IF EXISTS bk_child CASCADE")
-        _ = try await s.simpleQuery("DROP TABLE IF EXISTS bk_parent CASCADE")
+        try await dropTestObjects(using: s)
         _ = try await s.simpleQuery("""
             CREATE TABLE bk_parent (
                 id SERIAL PRIMARY KEY,
@@ -109,8 +119,7 @@ struct PostgresBackupRestoreIntegrationTests {
     /// Drop both test tables.
     private func dropTestData(config: PGConfig) async throws {
         let s = try await connect(config: config)
-        _ = try await s.simpleQuery("DROP TABLE IF EXISTS bk_child CASCADE")
-        _ = try await s.simpleQuery("DROP TABLE IF EXISTS bk_parent CASCADE")
+        try await dropTestObjects(using: s)
         await s.close()
     }
 
@@ -137,6 +146,13 @@ struct PostgresBackupRestoreIntegrationTests {
         """)
         await s.close()
         return !r.rows.isEmpty
+    }
+
+    private func dropTestObjects(using session: DatabaseSession) async throws {
+        _ = try await session.simpleQuery("DROP TABLE IF EXISTS bk_child CASCADE")
+        _ = try await session.simpleQuery("DROP TABLE IF EXISTS bk_parent CASCADE")
+        _ = try await session.simpleQuery("DROP SEQUENCE IF EXISTS bk_child_id_seq CASCADE")
+        _ = try await session.simpleQuery("DROP SEQUENCE IF EXISTS bk_parent_id_seq CASCADE")
     }
 
     /// Full roundtrip helper: backup with extra args → drop tables → restore with extra args → verify counts.
@@ -452,9 +468,8 @@ struct PostgresBackupRestoreIntegrationTests {
 
         // Roundtrip
         try await dropTestData(config: c)
-        let s = try await connect(config: c)
-        _ = try await s.simpleQuery(sql)
-        await s.close()
+        let restore = try await restorePlainSQL(config: c, file: file)
+        #expect(restore.exitCode == 0, "psql restore failed: \(restore.stderrLines.last ?? "unknown")")
 
         let count = try await rowCount(config: c, table: "bk_parent")
         #expect(count == 3)
@@ -479,9 +494,8 @@ struct PostgresBackupRestoreIntegrationTests {
         #expect(sql.contains("INSERT INTO public.bk_parent ("), "Should include column names")
 
         try await dropTestData(config: c)
-        let s = try await connect(config: c)
-        _ = try await s.simpleQuery(sql)
-        await s.close()
+        let restore = try await restorePlainSQL(config: c, file: file)
+        #expect(restore.exitCode == 0, "psql restore failed: \(restore.stderrLines.last ?? "unknown")")
 
         let count = try await rowCount(config: c, table: "bk_parent")
         #expect(count == 3)
@@ -506,9 +520,8 @@ struct PostgresBackupRestoreIntegrationTests {
         #expect(sql.contains("ON CONFLICT DO NOTHING"))
 
         // Restore on top of existing data — should not fail or duplicate
-        let s = try await connect(config: c)
-        _ = try await s.simpleQuery(sql)
-        await s.close()
+        let restore = try await restorePlainSQL(config: c, file: file)
+        #expect(restore.exitCode == 0, "psql restore failed: \(restore.stderrLines.last ?? "unknown")")
 
         let count = try await rowCount(config: c, table: "bk_parent")
         #expect(count == 3, "ON CONFLICT DO NOTHING should not duplicate rows")
@@ -612,9 +625,8 @@ struct PostgresBackupRestoreIntegrationTests {
         #expect(sql.contains("\"bk_parent\""), "Should quote table names")
 
         try await dropTestData(config: c)
-        let s = try await connect(config: c)
-        _ = try await s.simpleQuery(sql)
-        await s.close()
+        let restore = try await restorePlainSQL(config: c, file: file)
+        #expect(restore.exitCode == 0, "psql restore failed: \(restore.stderrLines.last ?? "unknown")")
 
         let count = try await rowCount(config: c, table: "bk_parent")
         #expect(count == 3)
@@ -652,10 +664,8 @@ struct PostgresBackupRestoreIntegrationTests {
         #expect(dump.exitCode == 0)
 
         try await dropTestData(config: c)
-        let sql = try String(contentsOf: file, encoding: .utf8)
-        let s = try await connect(config: c)
-        _ = try await s.simpleQuery(sql)
-        await s.close()
+        let restore = try await restorePlainSQL(config: c, file: file)
+        #expect(restore.exitCode == 0, "psql restore failed: \(restore.stderrLines.last ?? "unknown")")
 
         let count = try await rowCount(config: c, table: "bk_parent")
         #expect(count == 3)
