@@ -12,14 +12,15 @@ final class PostgresIntegrationTests: XCTestCase {
 
     private func loadConfig() throws -> PGConfig {
         let env = ProcessInfo.processInfo.environment
+        let host = env["TEST_PG_HOST"] ?? env["ECHO_PG_HOST"] ?? "127.0.0.1"
+        let portValue = env["TEST_PG_PORT"] ?? env["ECHO_PG_PORT"] ?? "54322"
+        let database = env["TEST_PG_DATABASE"] ?? env["ECHO_PG_DATABASE"] ?? "postgres"
+        let username = env["TEST_PG_USER"] ?? env["ECHO_PG_USER"] ?? "postgres"
+        let password = env["TEST_PG_PASSWORD"] ?? env["ECHO_PG_PASSWORD"] ?? "postgres"
         guard
-            let host = env["TEST_PG_HOST"],
-            let portStr = env["TEST_PG_PORT"], let port = Int(portStr),
-            let database = env["TEST_PG_DATABASE"],
-            let username = env["TEST_PG_USER"],
-            let password = env["TEST_PG_PASSWORD"]
+            let port = Int(portValue)
         else {
-            throw XCTSkip("PostgreSQL integration test env vars not set (TEST_PG_HOST, TEST_PG_PORT, TEST_PG_DATABASE, TEST_PG_USER, TEST_PG_PASSWORD)")
+            throw XCTSkip("PostgreSQL integration test env vars invalid (TEST_PG_PORT or ECHO_PG_PORT)")
         }
         return PGConfig(host: host, port: port, database: database, username: username, password: password)
     }

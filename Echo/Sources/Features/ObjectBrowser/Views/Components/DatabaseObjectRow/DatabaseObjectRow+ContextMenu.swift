@@ -63,28 +63,28 @@ extension DatabaseObjectRow {
             contextMenuButton(item)
         }
 
-        // Divider before Properties
-        let propertiesItems = computePropertiesItems()
-        let previousBeforeProps = !scriptActions.isEmpty || !maintenanceItems.isEmpty
-            || !openItems.isEmpty || !editItems.isEmpty || !copyItems.isEmpty || !newItems.isEmpty
-        if previousBeforeProps && !propertiesItems.isEmpty {
-            Divider()
-        }
-
-        // Group 9: Properties
-        ForEach(propertiesItems) { item in
-            contextMenuButton(item)
-        }
-
         // Divider before Destructive
         let destructiveItems = computeDestructiveItems()
-        let previousBeforeDestructive = previousBeforeProps || !propertiesItems.isEmpty
+        let propertiesItems = computePropertiesItems()
+        let previousBeforeDestructive = !scriptActions.isEmpty || !maintenanceItems.isEmpty
+            || !openItems.isEmpty || !editItems.isEmpty || !copyItems.isEmpty || !newItems.isEmpty
         if previousBeforeDestructive && !destructiveItems.isEmpty {
             Divider()
         }
 
-        // Group 10: Destructive
+        // Group 9: Destructive
         ForEach(destructiveItems) { item in
+            contextMenuButton(item)
+        }
+
+        // Divider before Properties — ALWAYS last
+        let previousBeforeProps = previousBeforeDestructive || !destructiveItems.isEmpty
+        if previousBeforeProps && !propertiesItems.isEmpty {
+            Divider()
+        }
+
+        // Group 10: Properties — ALWAYS last
+        ForEach(propertiesItems) { item in
             contextMenuButton(item)
         }
     }

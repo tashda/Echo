@@ -20,6 +20,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     var showRowNumbers: Bool = true
     var colorOverrides: ResultGridColorOverrides = .init()
 
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
 

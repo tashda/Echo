@@ -160,18 +160,7 @@ extension ObjectBrowserSidebarView {
 
         Divider()
 
-        // Group 9: Properties
-        Button {
-            viewModel.propertiesDatabaseName = database.name
-            viewModel.propertiesConnectionID = connID
-            viewModel.showDatabaseProperties = true
-        } label: {
-            Label("Properties", systemImage: "info.circle")
-        }
-
-        Divider()
-
-        // Group 10: Destructive
+        // Group 9: Destructive
         if session.connection.databaseType == .postgresql {
             Menu("Drop Database", systemImage: "trash") {
                 Button(role: .destructive) {
@@ -200,6 +189,17 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Drop Database", systemImage: "trash")
             }
+        }
+
+        Divider()
+
+        // Group 10: Properties — ALWAYS last
+        Button {
+            viewModel.propertiesDatabaseName = database.name
+            viewModel.propertiesConnectionID = connID
+            viewModel.showDatabaseProperties = true
+        } label: {
+            Label("Properties", systemImage: "info.circle")
         }
     }
 }

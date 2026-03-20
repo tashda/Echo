@@ -80,6 +80,9 @@ final class MSSQLIntegrationTests: XCTestCase {
             database: database,
             tls: config.useTLS,
             trustServerCertificate: true,
+            sslRootCertPath: nil,
+            mssqlEncryptionMode: .optional,
+            readOnlyIntent: false,
             authentication: DatabaseAuthenticationConfiguration(
                 method: .sqlPassword,
                 username: config.username,
