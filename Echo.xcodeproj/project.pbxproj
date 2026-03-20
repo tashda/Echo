@@ -26,6 +26,19 @@
 		F17A0E1E2FC1C3BC007F5489 /* JetBrainsMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */; };
 		F17A0E1F2FC1C3BC007F5489 /* RecursiveMonoLinear-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */; };
 		F17A0E202FC1C3BC007F5489 /* SplineSansMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */; };
+		PGT001000000000000000001 /* pg_dump in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000001 /* pg_dump */; };
+		PGT001000000000000000002 /* pg_restore in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000002 /* pg_restore */; };
+		PGT001000000000000000003 /* libpq.5.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000003 /* libpq.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000004 /* libssl.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000004 /* libssl.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000005 /* libcrypto.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000005 /* libcrypto.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000006 /* libintl.8.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000006 /* libintl.8.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000007 /* libzstd.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000007 /* libzstd.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000008 /* liblz4.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000008 /* liblz4.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000009 /* libgssapi_krb5.2.2.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000009 /* libgssapi_krb5.2.2.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000A /* libkrb5.3.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000A /* libkrb5.3.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000B /* libk5crypto.3.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000B /* libk5crypto.3.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000C /* libcom_err.3.0.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000C /* libcom_err.3.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000D /* libkrb5support.1.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000D /* libkrb5support.1.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +80,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		PGT003000000000000000001 /* Copy PostgresTools */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = PostgresTools;
+			dstSubfolderSpec = 12;
+			files = (
+				PGT001000000000000000001 /* pg_dump in Copy PostgresTools */,
+				PGT001000000000000000002 /* pg_restore in Copy PostgresTools */,
+				PGT001000000000000000003 /* libpq.5.dylib in Copy PostgresTools */,
+				PGT001000000000000000004 /* libssl.3.dylib in Copy PostgresTools */,
+				PGT001000000000000000005 /* libcrypto.3.dylib in Copy PostgresTools */,
+				PGT001000000000000000006 /* libintl.8.dylib in Copy PostgresTools */,
+				PGT001000000000000000007 /* libzstd.1.dylib in Copy PostgresTools */,
+				PGT001000000000000000008 /* liblz4.1.dylib in Copy PostgresTools */,
+				PGT001000000000000000009 /* libgssapi_krb5.2.2.dylib in Copy PostgresTools */,
+				PGT00100000000000000000A /* libkrb5.3.3.dylib in Copy PostgresTools */,
+				PGT00100000000000000000B /* libk5crypto.3.1.dylib in Copy PostgresTools */,
+				PGT00100000000000000000C /* libcom_err.3.0.dylib in Copy PostgresTools */,
+				PGT00100000000000000000D /* libkrb5support.1.1.dylib in Copy PostgresTools */,
+			);
+			name = "Copy PostgresTools";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -87,6 +123,19 @@
 		F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "JetBrainsMono-Regular.ttf"; path = "Echo/Resources/Fonts/JetBrainsMono-Regular.ttf"; sourceTree = "<group>"; };
 		F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "RecursiveMonoLinear-Regular.ttf"; path = "Echo/Resources/Fonts/RecursiveMonoLinear-Regular.ttf"; sourceTree = "<group>"; };
 		F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SplineSansMono-Regular.ttf"; path = "Echo/Resources/Fonts/SplineSansMono-Regular.ttf"; sourceTree = "<group>"; };
+		PGT002000000000000000001 /* pg_dump */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = pg_dump; path = Tools/PostgresTools/pg_dump; sourceTree = "<group>"; };
+		PGT002000000000000000002 /* pg_restore */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = pg_restore; path = Tools/PostgresTools/pg_restore; sourceTree = "<group>"; };
+		PGT002000000000000000003 /* libpq.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpq.5.dylib; path = Tools/PostgresTools/libpq.5.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000004 /* libssl.3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libssl.3.dylib; path = Tools/PostgresTools/libssl.3.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000005 /* libcrypto.3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcrypto.3.dylib; path = Tools/PostgresTools/libcrypto.3.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000006 /* libintl.8.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libintl.8.dylib; path = Tools/PostgresTools/libintl.8.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000007 /* libzstd.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libzstd.1.dylib; path = Tools/PostgresTools/libzstd.1.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000008 /* liblz4.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = liblz4.1.dylib; path = Tools/PostgresTools/liblz4.1.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000009 /* libgssapi_krb5.2.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libgssapi_krb5.2.2.dylib; path = Tools/PostgresTools/libgssapi_krb5.2.2.dylib; sourceTree = "<group>"; };
+		PGT00200000000000000000A /* libkrb5.3.3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libkrb5.3.3.dylib; path = Tools/PostgresTools/libkrb5.3.3.dylib; sourceTree = "<group>"; };
+		PGT00200000000000000000B /* libk5crypto.3.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libk5crypto.3.1.dylib; path = Tools/PostgresTools/libk5crypto.3.1.dylib; sourceTree = "<group>"; };
+		PGT00200000000000000000C /* libcom_err.3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcom_err.3.0.dylib; path = Tools/PostgresTools/libcom_err.3.0.dylib; sourceTree = "<group>"; };
+		PGT00200000000000000000D /* libkrb5support.1.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libkrb5support.1.1.dylib; path = Tools/PostgresTools/libkrb5support.1.1.dylib; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -173,6 +222,7 @@
 				0ADF94972E78B95200E993F8 /* Echo */,
 				A136718CC82746DC8CBC84F8 /* EchoTests */,
 				BE16104276AD4F81B99B7950 /* EchoUITests */,
+				PGT004000000000000000001 /* PostgresTools */,
 				0A7967712E8FC887002279AE /* Frameworks */,
 				0ADF94962E78B95200E993F8 /* Products */,
 				0A946E5E2F63124D009635C0 /* Recovered References */,
@@ -189,6 +239,26 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		PGT004000000000000000001 /* PostgresTools */ = {
+			isa = PBXGroup;
+			children = (
+				PGT002000000000000000001 /* pg_dump */,
+				PGT002000000000000000002 /* pg_restore */,
+				PGT002000000000000000003 /* libpq.5.dylib */,
+				PGT002000000000000000004 /* libssl.3.dylib */,
+				PGT002000000000000000005 /* libcrypto.3.dylib */,
+				PGT002000000000000000006 /* libintl.8.dylib */,
+				PGT002000000000000000007 /* libzstd.1.dylib */,
+				PGT002000000000000000008 /* liblz4.1.dylib */,
+				PGT002000000000000000009 /* libgssapi_krb5.2.2.dylib */,
+				PGT00200000000000000000A /* libkrb5.3.3.dylib */,
+				PGT00200000000000000000B /* libk5crypto.3.1.dylib */,
+				PGT00200000000000000000C /* libcom_err.3.0.dylib */,
+				PGT00200000000000000000D /* libkrb5support.1.1.dylib */,
+			);
+			name = PostgresTools;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -199,6 +269,7 @@
 				0ADF94912E78B95200E993F8 /* Sources */,
 				0ADF94922E78B95200E993F8 /* Frameworks */,
 				F17A0E1B2FC1C3BC007F5489 /* CopyFiles */,
+				PGT003000000000000000001 /* Copy PostgresTools */,
 				0ADF94932E78B95200E993F8 /* Resources */,
 			);
 			buildRules = (
@@ -517,11 +588,11 @@
 				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_SUEnableInstallerLauncherService = YES;
@@ -531,6 +602,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dk.tippr.echo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -560,11 +632,11 @@
 				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_SUEnableInstallerLauncherService = YES;
@@ -574,6 +646,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dk.tippr.echo;
 				PRODUCT_NAME = "$(TARGET_NAME)";

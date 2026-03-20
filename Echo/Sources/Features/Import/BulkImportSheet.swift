@@ -59,8 +59,8 @@ struct BulkImportSheet: View {
                         .foregroundStyle(viewModel.fileURL == nil ? ColorTokens.Text.placeholder : ColorTokens.Text.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    
-                    Button("Browse\u{2026}") {
+
+                    Button("Browse") {
                         viewModel.selectFile()
                     }
                     .buttonStyle(.bordered)
@@ -68,17 +68,19 @@ struct BulkImportSheet: View {
                 }
             }
 
-            PropertyRow(title: "Delimiter") {
-                Picker("", selection: Binding(
-                    get: { viewModel.delimiter },
-                    set: { viewModel.reparseWithDelimiter($0) }
-                )) {
-                    ForEach(CSVDelimiter.allCases) { delim in
-                        Text(delim.displayName).tag(delim)
+            if !viewModel.isXLSX {
+                PropertyRow(title: "Delimiter") {
+                    Picker("", selection: Binding(
+                        get: { viewModel.delimiter },
+                        set: { viewModel.reparseWithDelimiter($0) }
+                    )) {
+                        ForEach(CSVDelimiter.allCases) { delim in
+                            Text(delim.displayName).tag(delim)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
             }
 
             if let error = viewModel.parseError {
@@ -101,28 +103,32 @@ struct BulkImportSheet: View {
 
     private var configurationSection: some View {
         Section("Target") {
-            PropertyRow(title: "Schema") {
-                TextField("", text: $viewModel.schema)
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
+            if viewModel.databaseType != .sqlite {
+                PropertyRow(title: "Schema") {
+                    TextField("", text: $viewModel.schema, prompt: Text(viewModel.databaseType == .microsoftSQL ? "dbo" : "public"))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
             }
-            
+
             PropertyRow(title: "Table") {
-                TextField("", text: $viewModel.tableName)
+                TextField("", text: $viewModel.tableName, prompt: Text("table_name"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
             }
 
             PropertyRow(title: "Batch Size") {
-                TextField("", value: $viewModel.batchSize, format: .number)
+                TextField("", value: $viewModel.batchSize, format: .number, prompt: Text("1000"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
             }
 
-            PropertyRow(title: "Identity Insert") {
-                Toggle("", isOn: $viewModel.identityInsert)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
+            if viewModel.databaseType == .microsoftSQL {
+                PropertyRow(title: "Identity Insert") {
+                    Toggle("", isOn: $viewModel.identityInsert)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
             }
         }
     }

@@ -104,6 +104,7 @@ struct BottomPanelStatusBar: View {
         .opacity(isDisabled ? 0.3 : 1)
         .disabled(isDisabled)
         .help(isDisabled ? segment.label : (isActive ? "Show Results" : "Show \(segment.label)"))
+        .accessibilityLabel(segment.label)
     }
 
     @ViewBuilder

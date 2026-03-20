@@ -43,6 +43,12 @@ class MSSQLDockerTestCase: XCTestCase {
         super.setUp()
         guard echoTestEnvFlag("USE_DOCKER") else { return }
 
+        if echoTestEnvFlag("ECHO_USE_PACKAGE_FIXTURES") || echoTestEnvFlag("ECHO_MSSQL_FIXTURE_VALIDATED") {
+            isDockerReady = true
+            dockerError = nil
+            return
+        }
+
         let resolvedImage = resolvedImageName(for: imageVersion)
 
         let config = EchoDockerManager.ContainerConfig(
@@ -78,6 +84,10 @@ class MSSQLDockerTestCase: XCTestCase {
         try await super.setUp()
         guard echoTestEnvFlag("USE_DOCKER") else {
             throw XCTSkip("USE_DOCKER not set — skipping MSSQL integration tests")
+        }
+        if echoTestEnvFlag("ECHO_USE_PACKAGE_FIXTURES") || echoTestEnvFlag("ECHO_MSSQL_FIXTURE_VALIDATED") {
+            session = try await createSession()
+            return
         }
         if let error = Self.dockerError {
             throw XCTSkip("Docker setup failed: \(error)")

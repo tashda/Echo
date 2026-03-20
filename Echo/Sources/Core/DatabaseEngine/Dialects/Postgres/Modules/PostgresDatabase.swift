@@ -239,11 +239,18 @@ final class PostgresSession: DatabaseSession {
         let meta = PostgresMetadata()
 
         let columnList = try await meta.listColumns(using: client, schema: schema, table: table)
-        let columns = columnList.map { TableStructureDetails.Column(name: $0.name, dataType: $0.dataType, isNullable: $0.isNullable, defaultValue: $0.defaultValue, generatedExpression: nil) }
+        let columns = columnList.map {
+            TableStructureDetails.Column(
+                name: $0.name, dataType: $0.dataType, isNullable: $0.isNullable,
+                defaultValue: $0.defaultValue, generatedExpression: nil,
+                isIdentity: $0.isIdentity, identityGeneration: $0.identityGeneration,
+                collation: $0.collation
+            )
+        }
 
         let primaryKey: TableStructureDetails.PrimaryKey?
         if let p = try? await meta.primaryKey(using: client, schema: schema, table: table) {
-            primaryKey = TableStructureDetails.PrimaryKey(name: p.name, columns: p.columns)
+            primaryKey = TableStructureDetails.PrimaryKey(name: p.name, columns: p.columns, isDeferrable: p.isDeferrable, isInitiallyDeferred: p.isInitiallyDeferred)
         } else {
             primaryKey = nil
         }
@@ -251,25 +258,41 @@ final class PostgresSession: DatabaseSession {
         let indexList = try await meta.listIndexes(using: client, schema: schema, table: table)
         let indexes = indexList.map { i in
             let cols = i.columns.enumerated().map { (pos, c) in
-                TableStructureDetails.Index.Column(name: c.name, position: pos + 1, sortOrder: c.isDescending ? .descending : .ascending)
+                TableStructureDetails.Index.Column(name: c.name, position: pos + 1, sortOrder: c.isDescending ? .descending : .ascending, isIncluded: c.isIncluded)
             }
-            return TableStructureDetails.Index(name: i.name, columns: cols, isUnique: i.isUnique, filterCondition: i.predicate)
+            return TableStructureDetails.Index(name: i.name, columns: cols, isUnique: i.isUnique, filterCondition: i.predicate, indexType: i.indexType)
         }
 
         let fkList = try await meta.foreignKeys(using: client, schema: schema, table: table)
         let foreignKeys = fkList.map { fk in
-            TableStructureDetails.ForeignKey(name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete)
+            TableStructureDetails.ForeignKey(name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete, isDeferrable: fk.isDeferrable, isInitiallyDeferred: fk.isInitiallyDeferred)
         }
 
         let uniqueList = try await meta.uniqueConstraints(using: client, schema: schema, table: table)
-        let uniqueConstraints = uniqueList.map { TableStructureDetails.UniqueConstraint(name: $0.name, columns: $0.columns) }
+        let uniqueConstraints = uniqueList.map {
+            TableStructureDetails.UniqueConstraint(name: $0.name, columns: $0.columns, isDeferrable: $0.isDeferrable, isInitiallyDeferred: $0.isInitiallyDeferred)
+        }
 
         let depList = try await meta.dependencies(using: client, schema: schema, table: table)
         let dependencies = depList.map { d in
             TableStructureDetails.Dependency(name: d.name, baseColumns: d.referencingColumns, referencedTable: d.sourceTable, referencedColumns: d.referencedColumns, onUpdate: d.onUpdate, onDelete: d.onDelete)
         }
 
-        return TableStructureDetails(columns: columns, primaryKey: primaryKey, indexes: indexes, uniqueConstraints: uniqueConstraints, foreignKeys: foreignKeys, dependencies: dependencies)
+        let checkList = try await meta.checkConstraints(using: client, schema: schema, table: table)
+        let checkConstraints = checkList.map {
+            TableStructureDetails.CheckConstraint(name: $0.name, expression: $0.expression)
+        }
+
+        let pgProps = try await meta.tableProperties(using: client, schema: schema, table: table)
+        let tableProperties = TableStructureDetails.TableProperties(
+            fillfactor: pgProps.fillfactor,
+            toastTupleTarget: pgProps.toastTupleTarget,
+            autovacuumEnabled: pgProps.autovacuumEnabled,
+            parallelWorkers: pgProps.parallelWorkers,
+            tablespace: pgProps.tablespace
+        )
+
+        return TableStructureDetails(columns: columns, primaryKey: primaryKey, indexes: indexes, uniqueConstraints: uniqueConstraints, foreignKeys: foreignKeys, dependencies: dependencies, checkConstraints: checkConstraints, tableProperties: tableProperties)
     }
 
     func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
@@ -325,6 +348,15 @@ final class PostgresSession: DatabaseSession {
 
         case .extension:
             return "-- Extension definition unavailable"
+
+        case .sequence:
+            return "-- Sequence definition: use \\d \"\(schemaName)\".\"\(objectName)\" in psql"
+
+        case .type:
+            return "-- Type definition unavailable"
+
+        case .synonym:
+            return "-- Synonyms are not available in PostgreSQL"
         }
     }
 }
@@ -343,6 +375,7 @@ extension PostgresSession: DatabaseMetadataSession {
                 case .view: mapped = .view
                 case .materializedView: mapped = .materializedView
                 case .function: mapped = .function
+                case .procedure: mapped = .procedure
                 case .trigger: mapped = .trigger
                 }
                 await progress(mapped, current, total)
@@ -369,6 +402,7 @@ extension PostgresSession: DatabaseMetadataSession {
             case .view: mapped = .view
             case .materializedView: mapped = .materializedView
             case .function: mapped = .function
+            case .procedure: mapped = .procedure
             case .trigger: mapped = .trigger
             }
 
@@ -380,6 +414,26 @@ extension PostgresSession: DatabaseMetadataSession {
                 triggerAction: o.triggerAction,
                 triggerTable: o.triggerTable
             ))
+        }
+
+        // Sequences via typed API
+        do {
+            let sequences = try await client.introspection.listSequences(schema: schemaName)
+            for seq in sequences {
+                objects.append(SchemaObjectInfo(name: seq.name, schema: schemaName, type: .sequence))
+            }
+        } catch {
+            // Sequences are best-effort
+        }
+
+        // User-defined types via typed API
+        do {
+            let types = try await client.introspection.listTypes(schema: schemaName)
+            for pgType in types {
+                objects.append(SchemaObjectInfo(name: pgType.name, schema: schemaName, type: .type, comment: pgType.kind))
+            }
+        } catch {
+            // Types are best-effort
         }
 
         return SchemaInfo(name: schemaName, objects: objects)

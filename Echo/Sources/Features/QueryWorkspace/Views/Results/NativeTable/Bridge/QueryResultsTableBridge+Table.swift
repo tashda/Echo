@@ -32,15 +32,10 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         return cellView
     }
 
-    func tableView(_ tableView: NSTableView, shouldReorderColumn columnIndex: Int, toColumn newColumnIndex: Int) -> Bool { true }
+    func tableView(_ tableView: NSTableView, shouldReorderColumn columnIndex: Int, toColumn newColumnIndex: Int) -> Bool { false }
 
     func tableView(_ tableView: NSTableView, sizeToFitWidthOfColumn column: Int) -> CGFloat {
-        guard column >= 0, column < tableView.tableColumns.count else { return 0 }
-        if column >= parent.query.displayedColumns.count { return max(tableView.tableColumns[column].minWidth, tableView.tableColumns[column].width) }
-        let tableColumn = tableView.tableColumns[column]
-        let desired = max(headerContentWidth(for: tableColumn, in: tableView), widestCellWidth(forColumn: column, tableView: tableView))
-        let maxWidth = tableColumn.maxWidth > 0 ? tableColumn.maxWidth : .greatestFiniteMagnitude
-        return min(max(desired, tableColumn.minWidth), maxWidth)
+        idealWidth(forVisibleColumnAt: column, in: tableView)
     }
 
     func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {

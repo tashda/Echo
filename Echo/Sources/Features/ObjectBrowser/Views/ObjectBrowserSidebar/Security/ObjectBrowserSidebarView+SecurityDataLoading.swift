@@ -17,23 +17,25 @@ extension ObjectBrowserSidebarView {
     }
 
     func loadServerSecurity(session: ConnectionSession) {
+        Task {
+            await loadServerSecurityAsync(session: session)
+        }
+    }
+
+    func loadServerSecurityAsync(session: ConnectionSession) async {
         let connID = session.connection.id
         viewModel.securityServerLoadingBySession[connID] = true
 
-        Task {
-            switch session.connection.databaseType {
-            case .microsoftSQL:
-                await loadMSSQLServerSecurity(session: session, connID: connID)
-            case .postgresql:
-                await loadPostgresServerSecurity(session: session, connID: connID)
-            default:
-                break
-            }
-
-            await MainActor.run {
-                viewModel.securityServerLoadingBySession[connID] = false
-            }
+        switch session.connection.databaseType {
+        case .microsoftSQL:
+            await loadMSSQLServerSecurity(session: session, connID: connID)
+        case .postgresql:
+            await loadPostgresServerSecurity(session: session, connID: connID)
+        default:
+            break
         }
+
+        viewModel.securityServerLoadingBySession[connID] = false
     }
 
     func loadMSSQLServerSecurity(session: ConnectionSession, connID: UUID) async {

@@ -1,9 +1,10 @@
 import SwiftUI
-import EchoSense
 
-/// A visually rich connection header for the sidebar matching macOS 26 Tahoe aesthetics.
+/// A sidebar connection header that integrates naturally with the tree.
 ///
-/// Displays connection icon, name, and detailed host/type metadata in a Liquid Glass card.
+/// Uses the same visual language as `SidebarRow` — identical hover, selection, and
+/// context-menu fills — but with a two-line layout (name + version) and a slightly
+/// bolder typographic treatment to distinguish servers from their children.
 struct SidebarConnectionHeader: View {
     let connectionName: String
     let subtitle: String
@@ -16,8 +17,10 @@ struct SidebarConnectionHeader: View {
     let onAction: () -> Void
     var trailingAccessory: TrailingAccessory = .chevron
 
+    @Environment(\.sidebarDensity) private var density
+
     @State private var isHovered = false
-    @State private var currentWidth: CGFloat = 0
+    @State private var isContextMenuVisible = false
 
     enum TrailingAccessory {
         case chevron
@@ -39,111 +42,133 @@ struct SidebarConnectionHeader: View {
         }
     }
 
+    // MARK: - Density
+
+    private var densityVerticalPadding: CGFloat { density == .large ? 5 : SpacingTokens.xs }
+    private var densityIconFont: Font { density == .large ? Font.system(size: 15, weight: .regular) : .system(size: 14, weight: .medium) }
+    private var densityIconFrameWidth: CGFloat { density == .large ? 20 : SidebarRowConstants.iconFrameWidth }
+    private var densityIconFrameHeight: CGFloat { density == .large ? 18 : SidebarRowConstants.iconFrameHeight }
+    private var densityNameFont: Font { density == .large ? Font.system(size: 13, weight: .medium) : SidebarRowConstants.labelFont.weight(.semibold) }
+    private var densitySubtitleFont: Font { density == .large ? Font.system(size: 10) : TypographyTokens.compact }
+    private var densityStatusDotSize: CGFloat { density == .large ? 7 : 6 }
+
+    // MARK: - Icon
+
+    private var iconColor: Color {
+        isColorful ? connectionColor : ColorTokens.Sidebar.symbol
+    }
+
+    // MARK: - Highlight
+
+    @ViewBuilder
+    private var highlightFill: some View {
+        if isContextMenuVisible {
+            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                .fill(ColorTokens.Sidebar.contextFill)
+        } else if isHovered {
+            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                .fill(ColorTokens.Sidebar.hoverFill)
+        } else {
+            Color.clear
+        }
+    }
+
+    // MARK: - Body
+
     var body: some View {
         Button(action: onAction) {
-            HStack(spacing: SpacingTokens.sm) {
-                // Native SF Symbol (standalone, no background card)
-                let iconColor = isColorful ? connectionColor : ColorTokens.Text.secondary
+            HStack(alignment: .center, spacing: SidebarRowConstants.iconTextSpacing) {
+                // Disclosure chevron column — same fixed width as SidebarRow
+                ZStack(alignment: .center) {
+                    Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
+                        .font(SidebarRowConstants.chevronFont)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
+                .frame(width: SidebarRowConstants.chevronWidth)
 
+                // Server icon with status dot
                 ZStack(alignment: .bottomTrailing) {
                     Image(systemName: databaseType.symbolName)
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(iconColor.gradient)
-                        .frame(width: 24, height: 24)
+                        .font(densityIconFont)
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(iconColor)
+                        .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
 
-                    // Small status dot overlaid on icon
                     Circle()
                         .fill(statusInfo.color)
-                        .frame(width: 7, height: 7)
-                        .overlay(Circle().stroke(Color.white.opacity(0.5), lineWidth: 1))
-                        .offset(x: 2, y: 2)
+                        .frame(width: densityStatusDotSize, height: densityStatusDotSize)
+                        .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 0.75))
+                        .offset(x: 1.5, y: 1.5)
                 }
 
+                // Name + subtitle
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: SpacingTokens.xxs) {
                         Text(connectionName)
-                            .font(TypographyTokens.standard.weight(.semibold))
+                            .font(densityNameFont)
                             .foregroundStyle(ColorTokens.Text.primary)
                             .lineLimit(1)
 
                         if isSecure {
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(ColorTokens.Text.tertiary)
+                                .font(.system(size: density == .large ? 9 : 8))
+                                .foregroundStyle(ColorTokens.Text.quaternary)
                         }
                     }
 
                     HStack(spacing: SpacingTokens.xxs) {
                         Text(subtitle)
-                            .font(TypographyTokens.compact)
-                            .foregroundStyle(ColorTokens.Text.secondary)
+                            .font(densitySubtitleFont)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
                             .lineLimit(1)
 
                         if case .error = connectionState {
                             Text("\u{2022}")
+                                .font(densitySubtitleFont)
+                                .foregroundStyle(ColorTokens.Status.error)
                             Text("Error")
-                                .font(TypographyTokens.compact)
+                                .font(densitySubtitleFont)
                                 .foregroundStyle(ColorTokens.Status.error)
                         }
                     }
                 }
 
-                Spacer()
+                Spacer(minLength: SpacingTokens.xxxs)
 
                 trailingAccessoryView
             }
-            .padding(.vertical, SpacingTokens.sm)
-            .padding(.horizontal, SpacingTokens.md)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(
-                .regular
-                .tint(isColorful ? connectionColor.opacity(0.01) : nil)
-                .interactive(true),
-                in: RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-            )
-            .background {
-                if isColorful {
-                    // Whisper-thin mesh tint for the glass
-                    RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [connectionColor.opacity(0.02), connectionColor.opacity(0.005)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
-            }
+            .padding(.leading, SidebarRowConstants.rowLeadingPadding)
+            .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
+            .padding(.vertical, densityVerticalPadding)
+            .background(highlightFill)
             .contentShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
-            .background(
-                GeometryReader { geo in
-                    Color.clear
-                        .onAppear { currentWidth = geo.size.width }
-                        .onChange(of: geo.size.width) { _, newValue in currentWidth = newValue }
-                }
-            )
         }
         .buttonStyle(.plain)
-        .padding(.bottom, SpacingTokens.xxs)
-        // Combined ID forces an instant layout re-pass when width OR state changes
-        .id("\(connectionName)-\(currentWidth)-\(isExpanded.wrappedValue)")
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
+            guard isHovered else { return }
+            withAnimation(.easeInOut(duration: 0.1)) { isContextMenuVisible = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
+            withAnimation(.easeInOut(duration: 0.15)) { isContextMenuVisible = false }
+        }
+        .focusable(false)
     }
+
+    // MARK: - Trailing Accessory
 
     @ViewBuilder
     private var trailingAccessoryView: some View {
         switch trailingAccessory {
         case .chevron:
-            Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(ColorTokens.Text.quaternary)
-                .padding(.trailing, SpacingTokens.xxs)
+            EmptyView()
         case .spinner:
             ProgressView()
                 .controlSize(.small)
-                .padding(.trailing, SpacingTokens.xxs)
         case .retryButton(let action):
             Button {
                 action()
@@ -154,7 +179,7 @@ struct SidebarConnectionHeader: View {
             }
             .buttonStyle(.plain)
             .help("Retry connection")
-            .padding(.trailing, SpacingTokens.xxs)
+            .accessibilityLabel("Retry connection")
         case .none:
             EmptyView()
         }

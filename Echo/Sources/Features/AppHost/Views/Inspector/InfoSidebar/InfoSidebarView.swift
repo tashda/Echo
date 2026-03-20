@@ -8,7 +8,7 @@ struct InfoSidebarView: View {
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
 
-    @State private var selectedTab: InspectorTab = .dataInspector
+    @State private var selectedTab: InspectorTab = .notifications
 
     private var hasDataInspectorContent: Bool {
         environmentState.dataInspectorContent != nil

@@ -8,6 +8,11 @@ extension ColumnEditorSheet {
         var isNullable: Bool
         var defaultValue: String
         var generatedExpression: String
+        var isIdentity: Bool
+        var identitySeed: String
+        var identityIncrement: String
+        var identityGeneration: String
+        var collation: String
         let isEditingExisting: Bool
         var selectedDataType: String?
 
@@ -17,6 +22,11 @@ extension ColumnEditorSheet {
             self.isNullable = model.isNullable
             self.defaultValue = model.defaultValue ?? ""
             self.generatedExpression = model.generatedExpression ?? ""
+            self.isIdentity = model.isIdentity
+            self.identitySeed = model.identitySeed.map(String.init) ?? "1"
+            self.identityIncrement = model.identityIncrement.map(String.init) ?? "1"
+            self.identityGeneration = model.identityGeneration ?? "ALWAYS"
+            self.collation = model.collation ?? ""
             self.isEditingExisting = !model.isNew
             let options = dataTypeOptions(for: databaseType)
             if !options.isEmpty,
@@ -75,6 +85,14 @@ extension ColumnEditorSheet {
 
         let expressionTrimmed = draft.generatedExpression.trimmingCharacters(in: .whitespacesAndNewlines)
         column.generatedExpression = expressionTrimmed.isEmpty ? nil : expressionTrimmed
+
+        column.isIdentity = draft.isIdentity
+        column.identitySeed = draft.isIdentity ? Int(draft.identitySeed) : nil
+        column.identityIncrement = draft.isIdentity ? Int(draft.identityIncrement) : nil
+        column.identityGeneration = draft.isIdentity ? draft.identityGeneration : nil
+
+        let collationTrimmed = draft.collation.trimmingCharacters(in: .whitespacesAndNewlines)
+        column.collation = collationTrimmed.isEmpty ? nil : collationTrimmed
 
         dismiss()
     }

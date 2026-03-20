@@ -38,6 +38,7 @@ final class AppDirector {
     @ObservationIgnored let resultSpoolManager: ResultSpooler
     @ObservationIgnored let diagramCacheStore: DiagramCacheStore
     @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
+    @ObservationIgnored let activityEngine: ActivityEngine
 #if os(macOS)
     @ObservationIgnored private nonisolated(unsafe) var windowFocusObservers: [NSObjectProtocol] = []
 #endif
@@ -82,6 +83,8 @@ final class AppDirector {
         // Initialize new domain coordinators
         self.resultSpoolConfigCoordinator = ResultSpoolConfig(spoolManager: resultSpoolManager)
         self.diagramBuilder = DiagramBuilder(cacheManager: cacheManager, keyStore: keyStore)
+
+        self.activityEngine = ActivityEngine()
 
         self.environmentState = EnvironmentState(
             projectStore: projectStore,

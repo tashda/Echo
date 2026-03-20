@@ -61,6 +61,15 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
         }
         .sharedBackgroundVisibility(.hidden)
 
+        ToolbarItem(id: "workspace.primary.jobqueueplay", placement: .primaryAction) {
+            JobQueuePlayToolbarItem()
+        }
+
+        ToolbarItem(id: "workspace.primary.jobqueuepopout", placement: .primaryAction) {
+            JobQueuePopOutToolbarItem()
+        }
+        .sharedBackgroundVisibility(.hidden)
+
         ToolbarItem(id: "workspace.primary.tabcontext", placement: .primaryAction) {
             TabContextToolbarButton()
         }

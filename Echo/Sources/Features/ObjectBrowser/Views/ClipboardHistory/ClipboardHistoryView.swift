@@ -127,11 +127,21 @@ struct ClipboardHistoryView: View {
     }
 
     private var placeholder: some View {
-        EmptyStatePlaceholder(icon: "clipboard", title: "No Clipboard Items Yet", subtitle: "Copy from the query editor or result grid to build a clipboard history.")
+        ContentUnavailableView {
+            Label("No Clipboard Items Yet", systemImage: "clipboard")
+        } description: {
+            Text("Copy from the query editor or result grid to build a clipboard history.")
+        }
     }
 
     private var disabledPlaceholder: some View {
-        EmptyStatePlaceholder(icon: "nosign", title: "Disabled", subtitle: "Enable clipboard history in Settings to keep track of copied queries and results.", actionTitle: "Enable in Settings", action: openClipboardSettings)
+        ContentUnavailableView {
+            Label("Disabled", systemImage: "nosign")
+        } description: {
+            Text("Enable clipboard history in Settings to keep track of copied queries and results.")
+        } actions: {
+            Button("Enable in Settings", action: openClipboardSettings)
+        }
     }
 
     private func handleCopy(_ entry: ClipboardHistoryStore.Entry) {

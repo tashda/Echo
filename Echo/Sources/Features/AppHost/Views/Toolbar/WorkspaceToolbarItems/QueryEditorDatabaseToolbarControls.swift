@@ -41,6 +41,7 @@ private struct MSSQLQueryToolbarControls: View {
                 .symbolVariant(query.sqlcmdModeEnabled ? .fill : .none)
         }
         .help(query.sqlcmdModeEnabled ? "Disable SQLCMD Mode" : "Enable SQLCMD Mode")
+        .accessibilityLabel(query.sqlcmdModeEnabled ? "Disable SQLCMD Mode" : "Enable SQLCMD Mode")
     }
 
     private var statisticsButton: some View {
@@ -51,5 +52,6 @@ private struct MSSQLQueryToolbarControls: View {
                 .symbolVariant(query.statisticsEnabled ? .fill : .none)
         }
         .help(query.statisticsEnabled ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")
+        .accessibilityLabel(query.statisticsEnabled ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")
     }
 }

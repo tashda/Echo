@@ -7,6 +7,7 @@ struct DiagramCanvas: View {
     let offset: CGSize
     let palette: DiagramPalette
     let renderEdges: Bool
+    let searchFilter: String
     @Binding var isDraggingNode: Bool
     let onLayoutCommitted: () -> Void
 
@@ -21,6 +22,7 @@ struct DiagramCanvas: View {
                         isDraggingNode: $isDraggingNode,
                         onPositionCommitted: onLayoutCommitted
                     )
+                        .opacity(nodeMatchesSearch(node) ? 1.0 : 0.2)
                         .position(position(for: node.position))
                 }
             }
@@ -54,6 +56,14 @@ struct DiagramCanvas: View {
         CGPoint(x: basePoint.x, y: basePoint.y)
     }
 
+    private func nodeMatchesSearch(_ node: SchemaDiagramNodeModel) -> Bool {
+        let query = searchFilter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !query.isEmpty else { return true }
+        return node.name.lowercased().contains(query)
+            || node.schema.lowercased().contains(query)
+            || node.displayName.lowercased().contains(query)
+    }
+
     private func renderEdges(
         context: inout GraphicsContext,
         anchors: [DiagramColumnAnchor],
@@ -81,7 +91,8 @@ struct DiagramCanvas: View {
             drawConnection(
                 context: &context,
                 from: startPoint,
-                to: endPoint
+                to: endPoint,
+                edge: edge
             )
         }
     }
@@ -89,7 +100,8 @@ struct DiagramCanvas: View {
     private func drawConnection(
         context: inout GraphicsContext,
         from start: CGPoint,
-                to end: CGPoint
+        to end: CGPoint,
+        edge: SchemaDiagramEdge
     ) {
         let strokeColor = palette.edgeColor
         var backgroundPath = Path()
@@ -130,5 +142,45 @@ struct DiagramCanvas: View {
         arrowPath.addLine(to: point2)
         arrowPath.closeSubpath()
         context.fill(arrowPath, with: .color(strokeColor))
+
+        // Cardinality indicators: "1" at the FK (start/referencing) side, "N" at the referenced side
+        let labelFont = Font.system(size: 10, weight: .semibold, design: .rounded)
+        let labelColor = strokeColor.opacity(0.85)
+        let perpAngle = angle + .pi / 2
+        let perpOffset: CGFloat = 10
+
+        let onePos = CGPoint(
+            x: start.x + 20 * cos(angle) + perpOffset * cos(perpAngle),
+            y: start.y + 20 * sin(angle) + perpOffset * sin(perpAngle)
+        )
+        let manyPos = CGPoint(
+            x: end.x - 28 * cos(angle) + perpOffset * cos(perpAngle),
+            y: end.y - 28 * sin(angle) + perpOffset * sin(perpAngle)
+        )
+
+        context.draw(
+            Text("1").font(labelFont).foregroundStyle(labelColor),
+            at: onePos,
+            anchor: .center
+        )
+        context.draw(
+            Text("N").font(labelFont).foregroundStyle(labelColor),
+            at: manyPos,
+            anchor: .center
+        )
+
+        // FK name label at midpoint
+        if let fkName = edge.relationshipName, !fkName.isEmpty {
+            let midPoint = CGPoint(
+                x: (start.x + end.x) / 2 + perpOffset * cos(perpAngle),
+                y: (start.y + end.y) / 2 + perpOffset * sin(perpAngle)
+            )
+            let fkFont = Font.system(size: 9, weight: .medium, design: .monospaced)
+            context.draw(
+                Text(fkName).font(fkFont).foregroundStyle(strokeColor.opacity(0.6)),
+                at: midPoint,
+                anchor: .center
+            )
+        }
     }
 }

@@ -8,6 +8,19 @@ extension ObjectBrowserSidebarView {
     @ViewBuilder
     func agentJobsContent(session: ConnectionSession, jobs: [ObjectBrowserSidebarViewModel.AgentJobItem], isLoading: Bool) -> some View {
         agentJobsOverviewButton(session: session)
+            .contextMenu {
+                Button {
+                    environmentState.openJobQueueTab(for: session)
+                } label: {
+                    Label("Open in Tab", systemImage: "list.bullet.rectangle")
+                }
+                Button {
+                    let sessionID = environmentState.prepareJobQueueWindow(for: session)
+                    openWindow(id: JobQueueWindow.sceneID, value: sessionID)
+                } label: {
+                    Label("Open in New Window", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            }
 
         if isLoading {
             agentJobsLoadingIndicator()
@@ -51,7 +64,7 @@ extension ObjectBrowserSidebarView {
             SidebarRow(
                 depth: 1,
                 icon: .system("plus.circle"),
-                label: "New Job\u{2026}",
+                label: "New Job",
                 iconColor: ColorTokens.Text.tertiary,
                 labelColor: ColorTokens.Text.tertiary
             )
@@ -87,7 +100,13 @@ extension ObjectBrowserSidebarView {
             Button {
                 environmentState.openJobQueueTab(for: session, selectJobID: job.name)
             } label: {
-                Label("Open in Job Management", systemImage: "list.bullet.rectangle")
+                Label("Open in Tab", systemImage: "list.bullet.rectangle")
+            }
+            Button {
+                let sessionID = environmentState.prepareJobQueueWindow(for: session, selectJobID: job.name)
+                openWindow(id: JobQueueWindow.sceneID, value: sessionID)
+            } label: {
+                Label("Open in New Window", systemImage: "rectangle.portrait.and.arrow.right")
             }
         }
     }
@@ -95,10 +114,10 @@ extension ObjectBrowserSidebarView {
     func agentJobStatusColor(_ outcome: String?, enabled: Bool, colored: Bool = true) -> Color {
         guard enabled else { return ColorTokens.Text.primary.opacity(0.2) }
         switch outcome?.lowercased() {
-        case "succeeded": return colored ? ExplorerSidebarPalette.jobs : .green
-        case "failed": return .red
-        case "in progress": return .orange
-        case "retry": return .yellow
+        case "succeeded": return colored ? ExplorerSidebarPalette.jobs : ColorTokens.Status.success
+        case "failed": return ColorTokens.Status.error
+        case "in progress": return ColorTokens.Status.warning
+        case "retry": return ColorTokens.Status.warning
         case "canceled": return ColorTokens.Text.primary.opacity(0.3)
         default: return colored ? ExplorerSidebarPalette.jobs : ColorTokens.Text.primary.opacity(0.2)
         }

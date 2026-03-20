@@ -151,11 +151,11 @@ extension QueryResultsSection {
 #endif
 
     var noResultsPlaceholder: some View {
-        EmptyStatePlaceholder(
-            icon: "play.rectangle",
-            title: "Run a Query",
-            subtitle: "Execute a query to see results, messages, and execution plans."
-        )
+        ContentUnavailableView {
+            Label("Run a Query", systemImage: "play.rectangle")
+        } description: {
+            Text("Execute a query to see results, messages, and execution plans.")
+        }
     }
 
     var messagesView: some View {

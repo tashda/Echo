@@ -79,26 +79,34 @@ extension ObjectBrowserSidebarView {
                 Label("Show Privileges", systemImage: "lock.shield")
             }
             Divider()
-            Menu {
+            Menu("Script as", systemImage: "scroll") {
                 if session.connection.databaseType == .microsoftSQL {
-                    Button("CREATE") {
+                    Button {
                         let auth = schema.owner.map { " AUTHORIZATION [\($0)]" } ?? ""
                         openScriptTab(sql: "CREATE SCHEMA [\(schema.name)]\(auth);", session: session)
+                    } label: {
+                        Label("CREATE", systemImage: "plus.rectangle.on.rectangle")
                     }
-                    Button("DROP") {
+                    Divider()
+                    Button {
                         openScriptTab(sql: "DROP SCHEMA [\(schema.name)];", session: session)
+                    } label: {
+                        Label("DROP", systemImage: "trash")
                     }
                 } else if session.connection.databaseType == .postgresql {
-                    Button("CREATE") {
+                    Button {
                         let auth = schema.owner.map { " AUTHORIZATION \"\($0)\"" } ?? ""
                         openScriptTab(sql: "CREATE SCHEMA \"\(schema.name)\"\(auth);", session: session)
+                    } label: {
+                        Label("CREATE", systemImage: "plus.rectangle.on.rectangle")
                     }
-                    Button("DROP") {
+                    Divider()
+                    Button {
                         openScriptTab(sql: "DROP SCHEMA \"\(schema.name)\" CASCADE;", session: session)
+                    } label: {
+                        Label("DROP", systemImage: "trash")
                     }
                 }
-            } label: {
-                Label("Script as", systemImage: "scroll")
             }
         }
     }

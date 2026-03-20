@@ -31,17 +31,17 @@ struct QueryStoreView: View {
                     subtitle: "Loading query performance data\u{2026}"
                 )
             } else if case .error(let message) = viewModel.loadingState {
-                EmptyStatePlaceholder(
-                    icon: "exclamationmark.triangle",
-                    title: "Could not load Query Store",
-                    subtitle: message
-                )
+                ContentUnavailableView {
+                    Label("Could not load Query Store", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(message)
+                }
             } else if let options = viewModel.storeOptions, options.isOff {
-                EmptyStatePlaceholder(
-                    icon: "chart.bar.xaxis",
-                    title: "Query Store is off",
-                    subtitle: "Enable Query Store in Database Properties to start capturing query performance data."
-                )
+                ContentUnavailableView {
+                    Label("Query Store is off", systemImage: "chart.bar.xaxis")
+                } description: {
+                    Text("Enable Query Store in Database Properties to start capturing query performance data.")
+                }
             } else {
                 contentView
             }

@@ -13,11 +13,11 @@ struct MSSQLMaintenanceTablesView: View {
             if viewModel.isRefreshingTables && viewModel.tableStats.isEmpty {
                 loadingView
             } else if viewModel.tableStats.isEmpty {
-                EmptyStatePlaceholder(
-                    icon: "tablecells",
-                    title: "No Table Statistics",
-                    subtitle: "No user tables found in the selected database"
-                )
+                ContentUnavailableView {
+                    Label("No Table Statistics", systemImage: "tablecells")
+                } description: {
+                    Text("No user tables found in the selected database.")
+                }
             } else {
                 tableView
             }
@@ -25,14 +25,11 @@ struct MSSQLMaintenanceTablesView: View {
     }
 
     private var loadingView: some View {
-        VStack(spacing: SpacingTokens.md) {
-            ProgressView()
-                .controlSize(.large)
-            Text("Loading table statistics\u{2026}")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabInitializingPlaceholder(
+            icon: "tablecells",
+            title: "Loading Tables",
+            subtitle: "Fetching table statistics\u{2026}"
+        )
     }
 
     private var tableView: some View {
@@ -156,6 +153,12 @@ struct MSSQLMaintenanceTablesView: View {
             Task { await viewModel.rebuildAllIndexes(table) }
         } label: {
             Label("Rebuild All Indexes", systemImage: "hammer")
+        }
+
+        Button {
+            Task { await viewModel.reorganizeAllIndexes(table) }
+        } label: {
+            Label("Reorganize All Indexes", systemImage: "arrow.triangle.2.circlepath")
         }
 
         Divider()

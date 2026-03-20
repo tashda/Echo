@@ -14,39 +14,53 @@ extension TableStructureEditorViewModel {
                     dataType: column.dataType,
                     isNullable: column.isNullable,
                     defaultValue: column.defaultValue,
-                    generatedExpression: column.generatedExpression
+                    generatedExpression: column.generatedExpression,
+                    isIdentity: column.isIdentity,
+                    identitySeed: column.identitySeed,
+                    identityIncrement: column.identityIncrement,
+                    identityGeneration: column.identityGeneration,
+                    collation: column.collation
                 ),
                 name: column.name,
                 dataType: column.dataType,
                 isNullable: column.isNullable,
                 defaultValue: column.defaultValue,
-                generatedExpression: column.generatedExpression
+                generatedExpression: column.generatedExpression,
+                isIdentity: column.isIdentity,
+                identitySeed: column.identitySeed,
+                identityIncrement: column.identityIncrement,
+                identityGeneration: column.identityGeneration,
+                collation: column.collation
             )
         }
 
         indexes = details.indexes.map { index in
             let columns = index.columns.map { column in
-                IndexModel.Column(name: column.name, sortOrder: column.sortOrder == .descending ? .descending : .ascending)
+                IndexModel.Column(name: column.name, sortOrder: column.sortOrder == .descending ? .descending : .ascending, isIncluded: column.isIncluded)
             }
             return IndexModel(
                 original: IndexModel.Snapshot(
                     name: index.name,
                     columns: columns.map { $0.snapshot },
                     isUnique: index.isUnique,
-                    filterCondition: index.filterCondition
+                    filterCondition: index.filterCondition,
+                    indexType: index.indexType
                 ),
                 name: index.name,
                 columns: columns,
                 isUnique: index.isUnique,
-                filterCondition: index.filterCondition ?? ""
+                filterCondition: index.filterCondition ?? "",
+                indexType: index.indexType ?? (databaseType == .microsoftSQL ? "nonclustered" : "btree")
             )
         }
 
         uniqueConstraints = details.uniqueConstraints.map { constraint in
             UniqueConstraintModel(
-                original: UniqueConstraintModel.Snapshot(name: constraint.name, columns: constraint.columns),
+                original: UniqueConstraintModel.Snapshot(name: constraint.name, columns: constraint.columns, isDeferrable: constraint.isDeferrable, isInitiallyDeferred: constraint.isInitiallyDeferred),
                 name: constraint.name,
-                columns: constraint.columns
+                columns: constraint.columns,
+                isDeferrable: constraint.isDeferrable,
+                isInitiallyDeferred: constraint.isInitiallyDeferred
             )
         }
 
@@ -59,7 +73,9 @@ extension TableStructureEditorViewModel {
                     referencedTable: fk.referencedTable,
                     referencedColumns: fk.referencedColumns,
                     onUpdate: fk.onUpdate,
-                    onDelete: fk.onDelete
+                    onDelete: fk.onDelete,
+                    isDeferrable: fk.isDeferrable,
+                    isInitiallyDeferred: fk.isInitiallyDeferred
                 ),
                 name: fk.name,
                 columns: fk.columns,
@@ -67,7 +83,9 @@ extension TableStructureEditorViewModel {
                 referencedTable: fk.referencedTable,
                 referencedColumns: fk.referencedColumns,
                 onUpdate: fk.onUpdate,
-                onDelete: fk.onDelete
+                onDelete: fk.onDelete,
+                isDeferrable: fk.isDeferrable,
+                isInitiallyDeferred: fk.isInitiallyDeferred
             )
         }
 
@@ -82,11 +100,21 @@ extension TableStructureEditorViewModel {
             )
         }
 
+        checkConstraints = details.checkConstraints.map { cc in
+            CheckConstraintModel(
+                original: CheckConstraintModel.Snapshot(name: cc.name, expression: cc.expression),
+                name: cc.name,
+                expression: cc.expression
+            )
+        }
+
         if let pk = details.primaryKey {
             primaryKey = PrimaryKeyModel(
-                original: PrimaryKeyModel.Snapshot(name: pk.name, columns: pk.columns),
+                original: PrimaryKeyModel.Snapshot(name: pk.name, columns: pk.columns, isDeferrable: pk.isDeferrable, isInitiallyDeferred: pk.isInitiallyDeferred),
                 name: pk.name,
-                columns: pk.columns
+                columns: pk.columns,
+                isDeferrable: pk.isDeferrable,
+                isInitiallyDeferred: pk.isInitiallyDeferred
             )
             originalPrimaryKeySnapshot = primaryKey?.original
             removedPrimaryKeyName = nil
@@ -95,6 +123,8 @@ extension TableStructureEditorViewModel {
             originalPrimaryKeySnapshot = nil
             removedPrimaryKeyName = nil
         }
+
+        tableProperties = details.tableProperties
     }
 
     internal func generateStatements() -> [String] {
@@ -117,10 +147,14 @@ extension TableStructureEditorViewModel {
         // New columns and column modifications
         for column in columns where !column.isDeleted {
             if column.isNew {
+                let identity: (seed: Int, increment: Int, generation: String?)? = column.isIdentity
+                    ? (seed: column.identitySeed ?? 1, increment: column.identityIncrement ?? 1, generation: column.identityGeneration)
+                    : nil
                 statements.append(dialect.addColumn(
                     table: qualifiedTable, name: column.name, dataType: column.dataType,
                     isNullable: column.isNullable, defaultValue: column.defaultValue,
-                    generatedExpression: column.generatedExpression
+                    generatedExpression: column.generatedExpression,
+                    identity: identity, collation: column.collation
                 ))
                 continue
             }
@@ -152,11 +186,11 @@ extension TableStructureEditorViewModel {
                 if pk.isDirty {
                     statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
                     if !pk.columns.isEmpty {
-                        statements.append(dialect.addPrimaryKey(table: qualifiedTable, name: pk.name, columns: pk.columns))
+                        statements.append(dialect.addPrimaryKey(table: qualifiedTable, name: pk.name, columns: pk.columns, isDeferrable: pk.isDeferrable, isInitiallyDeferred: pk.isInitiallyDeferred))
                     }
                 }
             } else if !pk.columns.isEmpty {
-                statements.append(dialect.addPrimaryKey(table: qualifiedTable, name: pk.name, columns: pk.columns))
+                statements.append(dialect.addPrimaryKey(table: qualifiedTable, name: pk.name, columns: pk.columns, isDeferrable: pk.isDeferrable, isInitiallyDeferred: pk.isInitiallyDeferred))
             }
         } else if let removedName = removedPrimaryKeyName {
             statements.append(dialect.dropConstraint(table: qualifiedTable, name: removedName))
@@ -169,16 +203,18 @@ extension TableStructureEditorViewModel {
             }
         }
         for index in indexes where !index.isDeleted {
-            guard !index.columns.isEmpty else { continue }
-            let cols = index.columns.map { (name: $0.name, sort: $0.sortOrder.sqlKeyword) }
+            let keyColumns = index.columns.filter { !$0.isIncluded }
+            guard !keyColumns.isEmpty else { continue }
+            let cols = keyColumns.map { (name: $0.name, sort: $0.sortOrder.sqlKeyword) }
+            let includeCols = index.columns.filter { $0.isIncluded }.map(\.name)
 
             if index.isNew {
-                statements.append(dialect.createIndex(table: qualifiedTable, name: index.name, columns: cols, isUnique: index.isUnique, filter: index.effectiveFilterCondition))
+                statements.append(dialect.createIndex(table: qualifiedTable, name: index.name, columns: cols, includeColumns: includeCols, isUnique: index.isUnique, filter: index.effectiveFilterCondition, indexType: index.indexType))
             } else if index.isDirty {
                 if let original = index.original {
                     statements.append(dialect.dropIndex(schema: schemaName, name: original.name, table: qualifiedTable))
                 }
-                statements.append(dialect.createIndex(table: qualifiedTable, name: index.name, columns: cols, isUnique: index.isUnique, filter: index.effectiveFilterCondition))
+                statements.append(dialect.createIndex(table: qualifiedTable, name: index.name, columns: cols, includeColumns: includeCols, isUnique: index.isUnique, filter: index.effectiveFilterCondition, indexType: index.indexType))
             }
         }
 
@@ -191,10 +227,28 @@ extension TableStructureEditorViewModel {
         for constraint in uniqueConstraints where !constraint.isDeleted {
             guard !constraint.columns.isEmpty else { continue }
             if constraint.isNew {
-                statements.append(dialect.addUniqueConstraint(table: qualifiedTable, name: constraint.name, columns: constraint.columns))
+                statements.append(dialect.addUniqueConstraint(table: qualifiedTable, name: constraint.name, columns: constraint.columns, isDeferrable: constraint.isDeferrable, isInitiallyDeferred: constraint.isInitiallyDeferred))
             } else if constraint.isDirty, let original = constraint.original {
                 statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
-                statements.append(dialect.addUniqueConstraint(table: qualifiedTable, name: constraint.name, columns: constraint.columns))
+                statements.append(dialect.addUniqueConstraint(table: qualifiedTable, name: constraint.name, columns: constraint.columns, isDeferrable: constraint.isDeferrable, isInitiallyDeferred: constraint.isInitiallyDeferred))
+            }
+        }
+
+        // Check constraints
+        for cc in checkConstraints where cc.isDeleted && !cc.isNew {
+            if let original = cc.original {
+                statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
+            }
+        }
+        for cc in checkConstraints where !cc.isDeleted {
+            guard !cc.expression.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+            if cc.isNew {
+                statements.append(dialect.addCheckConstraint(table: qualifiedTable, name: cc.name, expression: cc.expression))
+            } else if cc.isDirty {
+                if let original = cc.original {
+                    statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
+                }
+                statements.append(dialect.addCheckConstraint(table: qualifiedTable, name: cc.name, expression: cc.expression))
             }
         }
 
@@ -208,12 +262,12 @@ extension TableStructureEditorViewModel {
             guard !fk.columns.isEmpty, !fk.referencedColumns.isEmpty else { continue }
 
             if fk.isNew {
-                statements.append(dialect.addForeignKey(table: qualifiedTable, name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete))
+                statements.append(dialect.addForeignKey(table: qualifiedTable, name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete, isDeferrable: fk.isDeferrable, isInitiallyDeferred: fk.isInitiallyDeferred))
             } else if fk.isDirty {
                 if let original = fk.original {
                     statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
                 }
-                statements.append(dialect.addForeignKey(table: qualifiedTable, name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete))
+                statements.append(dialect.addForeignKey(table: qualifiedTable, name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete, isDeferrable: fk.isDeferrable, isInitiallyDeferred: fk.isInitiallyDeferred))
             }
         }
 

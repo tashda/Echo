@@ -130,7 +130,9 @@ struct ConnectionConfiguration: Codable, Hashable {
             sslCertPath: sslCertPath,
             sslKeyPath: sslKeyPath,
             mssqlEncryptionMode: mssqlEncryptionMode,
-            readOnlyIntent: readOnlyIntent
+            readOnlyIntent: readOnlyIntent,
+            connectionTimeout: connectionTimeout,
+            queryTimeout: queryTimeout
         )
     }
 
@@ -157,6 +159,8 @@ struct ConnectionConfiguration: Codable, Hashable {
             sslKeyPath: savedConnection.sslKeyPath,
             mssqlEncryptionMode: savedConnection.mssqlEncryptionMode,
             readOnlyIntent: savedConnection.readOnlyIntent,
+            connectionTimeout: savedConnection.connectionTimeout,
+            queryTimeout: savedConnection.queryTimeout,
             id: savedConnection.id
         )
     }

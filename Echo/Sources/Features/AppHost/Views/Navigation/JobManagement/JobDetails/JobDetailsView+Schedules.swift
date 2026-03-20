@@ -5,122 +5,155 @@ extension JobDetailsView {
     // MARK: - Schedules Tab
 
     var schedulesTab: some View {
-        VSplitView {
-            Table(of: JobQueueViewModel.ScheduleRow.self, selection: $selectedScheduleID) {
-                TableColumn("") { sch in
-                    Image(systemName: sch.enabled ? "checkmark.circle.fill" : "xmark.circle")
-                        .foregroundStyle(sch.enabled ? .green : .secondary)
-                }
-                .width(24)
-
-                TableColumn("Name", value: \.name)
-
-                TableColumn("Frequency") { sch in
-                    Text(frequencyDisplayName(sch.freqType))
-                }
-
-                TableColumn("Next Run") { sch in
-                    if let next = sch.next {
-                        Text(next)
-                    } else {
-                        Text("\u{2014}").foregroundStyle(ColorTokens.Text.secondary)
+        VStack(spacing: 0) {
+            SchedulesTableView(viewModel: viewModel, selectedScheduleID: $selectedScheduleID)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay {
+                    if viewModel.schedules.isEmpty {
+                        Text("No schedules defined.")
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                     }
                 }
-            } rows: {
-                ForEach(viewModel.schedules) { sch in
-                    TableRow(sch)
-                }
-            }
-            .contextMenu(forSelectionType: String.self) { items in
-                if let id = items.first, let sch = viewModel.schedules.first(where: { $0.id == id }) {
-                    Button("Detach Schedule", role: .destructive) {
-                        Task { await viewModel.detachSchedule(scheduleName: sch.name) }
-                    }
-                }
-            }
-            .frame(minHeight: 40)
 
-            newScheduleForm
-                .frame(minHeight: 40)
+            Divider()
+
+            HStack {
+                Spacer()
+                Button {
+                    showAddScheduleSheet = true
+                } label: {
+                    Label("New Schedule", systemImage: "plus")
+                }
+                .controlSize(.small)
+                .padding(SpacingTokens.xs)
+            }
+        }
+        .sheet(isPresented: $showAddScheduleSheet) {
+            AgentJobScheduleEditorSheet(
+                title: "New Schedule",
+                actionLabel: "Create Schedule"
+            ) { name, enabled, frequency, interval, startHour, startMinute, weekdays, monthDay, startDate, oneTimeDate in
+                let freqType: Int
+                let freqInterval: Int
+                let activeStartTime: Int? = startHour * 10000 + startMinute * 100
+                var freqRecurrenceFactor: Int? = nil
+                var activeStartDate: Int? = nil
+
+                switch frequency {
+                case .daily:
+                    freqType = 4; freqInterval = interval
+                case .weekly:
+                    freqType = 8; freqInterval = weekdays.reduce(0, |); freqRecurrenceFactor = interval
+                case .monthly:
+                    freqType = 16; freqInterval = monthDay; freqRecurrenceFactor = interval
+                case .once:
+                    freqType = 1; freqInterval = 0
+                    let comps = Calendar.current.dateComponents([.year, .month, .day], from: oneTimeDate)
+                    activeStartDate = (comps.year ?? 2026) * 10000 + (comps.month ?? 1) * 100 + (comps.day ?? 1)
+                }
+
+                Task {
+                    await viewModel.addAndAttachSchedule(
+                        name: name,
+                        enabled: enabled,
+                        freqType: freqType,
+                        freqInterval: freqInterval,
+                        activeStartTime: activeStartTime,
+                        freqRecurrenceFactor: freqRecurrenceFactor,
+                        activeStartDate: activeStartDate
+                    )
+                    showAddScheduleSheet = false
+                }
+            } onCancel: {
+                showAddScheduleSheet = false
+            }
+        }
+    }
+}
+
+// MARK: - Sortable Schedules Table
+
+private struct SchedulesTableView: View {
+    var viewModel: JobQueueViewModel
+    @Binding var selectedScheduleID: Set<String>
+    @State private var sortOrder: [KeyPathComparator<JobQueueViewModel.ScheduleRow>] = [
+        .init(\.name, order: .forward)
+    ]
+    @State private var showDetachAlert = false
+    @State private var pendingDetachName: String?
+
+    private var sortedSchedules: [JobQueueViewModel.ScheduleRow] {
+        viewModel.schedules.sorted(using: sortOrder)
+    }
+
+    var body: some View {
+        Table(of: JobQueueViewModel.ScheduleRow.self, selection: $selectedScheduleID, sortOrder: $sortOrder) {
+            TableColumn("Enabled", value: \.enabledSortKey) { sch in
+                Image(systemName: sch.enabled ? "checkmark.circle.fill" : "xmark.circle")
+                    .foregroundStyle(sch.enabled ? ColorTokens.Status.success : ColorTokens.Text.secondary)
+            }
+            .width(24)
+
+            TableColumn("Name", value: \.name) { sch in
+                Text(sch.name)
+                    .font(TypographyTokens.Table.name)
+            }
+
+            TableColumn("Frequency", value: \.freqType) { sch in
+                Text(frequencyDisplayName(sch.freqType))
+                    .font(TypographyTokens.Table.category)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+
+            TableColumn("Next Run", value: \.nextSortKey) { sch in
+                if let next = sch.next {
+                    Text(next)
+                        .font(TypographyTokens.Table.date)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                } else {
+                    Text("\u{2014}")
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
+            }
+        } rows: {
+            ForEach(sortedSchedules) { sch in
+                TableRow(sch)
+            }
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .contextMenu(forSelectionType: String.self) { items in
+            if let id = items.first, let sch = viewModel.schedules.first(where: { $0.id == id }) {
+                Button("Detach Schedule", role: .destructive) {
+                    pendingDetachName = sch.name
+                    showDetachAlert = true
+                }
+            }
+        }
+        .alert("Detach Schedule?", isPresented: $showDetachAlert) {
+            Button("Cancel", role: .cancel) { pendingDetachName = nil }
+            Button("Detach", role: .destructive) {
+                guard let name = pendingDetachName else { return }
+                pendingDetachName = nil
+                Task { await viewModel.detachSchedule(scheduleName: name) }
+            }
+        } message: {
+            if let name = pendingDetachName {
+                Text("Are you sure you want to detach schedule \"\(name)\" from this job?")
+            }
         }
     }
 
-    var newScheduleForm: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                Text("New Schedule")
-                    .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.secondary)
-
-                TextField("Schedule Name", text: $newScheduleName)
-                    .textFieldStyle(.roundedBorder)
-
-                Picker("Frequency", selection: $newScheduleFrequency) {
-                    ForEach(ScheduleFrequency.allCases) { freq in
-                        Text(freq.displayName).tag(freq)
-                    }
-                }
-
-                Divider()
-
-                Text(scheduleRecurrenceHeader)
-                    .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.secondary)
-
-                scheduleRecurrenceContent
-
-                Divider()
-
-                Text("Start Time")
-                    .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.secondary)
-
-                HStack {
-                    Text("Time")
-                    Spacer()
-                    Picker("Hour", selection: $newScheduleStartHour) {
-                        ForEach(0..<24, id: \.self) { h in
-                            Text(String(format: "%02d", h)).tag(h)
-                        }
-                    }
-                    .labelsHidden()
-                    .fixedSize()
-
-                    Text(":")
-                        .font(TypographyTokens.standard.weight(.medium))
-
-                    Picker("Minute", selection: $newScheduleStartMinute) {
-                        ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { m in
-                            Text(String(format: "%02d", m)).tag(m)
-                        }
-                    }
-                    .labelsHidden()
-                    .fixedSize()
-                }
-
-                if newScheduleFrequency != .once {
-                    DatePicker("Starting from", selection: $newScheduleStartDate, displayedComponents: .date)
-                }
-
-                Divider()
-
-                scheduleNaturalLanguageSummary
-
-                HStack {
-                    Toggle("Enabled", isOn: $newScheduleEnabled)
-                        .toggleStyle(.switch)
-                        .fixedSize()
-
-                    Spacer()
-
-                    Button("Create") {
-                        createSchedule()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(newScheduleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-            .padding(SpacingTokens.sm)
+    private func frequencyDisplayName(_ freqType: Int) -> String {
+        switch freqType {
+        case 1: return "Once"
+        case 4: return "Daily"
+        case 8: return "Weekly"
+        case 16: return "Monthly"
+        case 32: return "Monthly (relative)"
+        case 64: return "Agent start"
+        case 128: return "Idle"
+        default: return "Unknown (\(freqType))"
         }
     }
 }

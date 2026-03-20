@@ -40,6 +40,13 @@ class PostgresDockerTestCase: XCTestCase {
         super.setUp()
         guard echoTestEnvFlag("USE_DOCKER") else { return }
 
+        if echoTestEnvFlag("ECHO_USE_PACKAGE_FIXTURES") || echoTestEnvFlag("ECHO_PG_FIXTURE_VALIDATED") {
+            isDockerReady = true
+            dockerError = nil
+            sampleDataLoaded = true
+            return
+        }
+
         let config = EchoDockerManager.ContainerConfig(
             engine: .postgres,
             imageTag: "postgres:\(imageVersion)",
@@ -73,6 +80,10 @@ class PostgresDockerTestCase: XCTestCase {
         try await super.setUp()
         guard echoTestEnvFlag("USE_DOCKER") else {
             throw XCTSkip("USE_DOCKER not set — skipping Postgres integration tests")
+        }
+        if echoTestEnvFlag("ECHO_USE_PACKAGE_FIXTURES") || echoTestEnvFlag("ECHO_PG_FIXTURE_VALIDATED") {
+            session = try await createSession()
+            return
         }
         if let error = Self.dockerError {
             throw XCTSkip("Docker setup failed: \(error)")

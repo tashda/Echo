@@ -2,6 +2,13 @@ import SwiftUI
 
 struct JobHistoryView: View {
     var viewModel: JobQueueViewModel
+    @State private var sortOrder: [KeyPathComparator<JobQueueViewModel.HistoryRow>] = [
+        .init(\.runDateTimeSortKey, order: .reverse)
+    ]
+
+    private var sortedHistory: [JobQueueViewModel.HistoryRow] {
+        viewModel.history.sorted(using: sortOrder)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -12,72 +19,46 @@ struct JobHistoryView: View {
             .padding(.horizontal, SpacingTokens.sm)
             .padding(.vertical, SpacingTokens.xxs2)
 
-            // Active step indicator while job is running
-            if let info = viewModel.activeStepInfo {
-                HStack(spacing: SpacingTokens.xs) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text(info.jobName)
-                        .font(TypographyTokens.standard.weight(.medium))
-                    Text("·")
-                        .foregroundStyle(ColorTokens.Text.quaternary)
-                    Text("Step \(info.stepID): \(info.stepName)")
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                    Text("·")
-                        .foregroundStyle(ColorTokens.Text.quaternary)
-                    Text("Started \(info.startTime, style: .relative) ago")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                    Spacer()
-                }
-                .padding(.horizontal, SpacingTokens.sm)
-                .padding(.vertical, SpacingTokens.xxs)
-                .background(Color.orange.opacity(0.08))
-
-                Divider()
-            }
-
             Table(of: JobQueueViewModel.HistoryRow.self, selection: Binding(
                 get: { viewModel.selectedHistoryRowID.flatMap { Set([$0]) } ?? [] },
                 set: { viewModel.selectedHistoryRowID = $0.first }
-            )) {
-                TableColumn("Job") { h in
+            ), sortOrder: $sortOrder) {
+                TableColumn("Job", value: \.jobName) { h in
                     Text(h.jobName)
                         .font(TypographyTokens.Table.name)
                 }
-                TableColumn("Step ID") { h in
+                TableColumn("Step ID", value: \.stepId) { h in
                     Text("\(h.stepId)")
                         .font(TypographyTokens.Table.numeric)
                 }.width(52)
-                TableColumn("Step Name") { h in
+                TableColumn("Step Name", value: \.stepName) { h in
                     Text(h.stepName)
                         .font(TypographyTokens.Table.name)
                         .foregroundStyle(h.stepId == 0 ? ColorTokens.Text.secondary : ColorTokens.Text.primary)
                 }
-                TableColumn("Status") { h in
-                    Text(jobStatusLabel(h.status))
+                TableColumn("Status", value: \.statusLabel) { h in
+                    Text(h.statusLabel)
                         .font(TypographyTokens.Table.status)
                         .foregroundStyle(colorForStatus(h.status))
                 }
-                TableColumn("Run Date") { h in
+                TableColumn("Run Date", value: \.runDateTimeSortKey) { h in
                     Text(formatAgentDate(h.runDate, h.runTime))
                         .font(TypographyTokens.Table.date)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
-                TableColumn("Duration") { h in
+                TableColumn("Duration", value: \.runDuration) { h in
                     Text(formatDuration(h.runDuration))
                         .font(TypographyTokens.Table.numeric)
                 }
-                TableColumn("Message") { h in
+                TableColumn("Message", value: \.message) { h in
                     Text(h.message)
-                        .font(TypographyTokens.Table.name)
+                        .font(TypographyTokens.Table.secondaryName)
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
             } rows: {
-                ForEach(viewModel.history) { h in TableRow(h) }
+                ForEach(sortedHistory) { h in TableRow(h) }
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
         }
@@ -86,7 +67,7 @@ struct JobHistoryView: View {
     // MARK: - Utilities
 
     private func formatAgentDate(_ dateInt: Int, _ timeInt: Int) -> String {
-        guard dateInt > 0 else { return "—" }
+        guard dateInt > 0 else { return "\u{2014}" }
         let yyyy = dateInt / 10000
         let mm = (dateInt / 100) % 100
         let dd = dateInt % 100
@@ -100,11 +81,7 @@ struct JobHistoryView: View {
             fmt.timeStyle = .medium
             return fmt.string(from: date)
         }
-        return "—"
-    }
-
-    private func jobStatusLabel(_ status: Int) -> String {
-        switch status { case 0: return "Failed"; case 1: return "Succeeded"; case 2: return "Retry"; case 3: return "Canceled"; case 4: return "In Progress"; default: return "?" }
+        return "\u{2014}"
     }
 
     private func colorForStatus(_ status: Int) -> Color {

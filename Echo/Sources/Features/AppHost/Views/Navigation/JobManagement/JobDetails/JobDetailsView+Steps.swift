@@ -4,35 +4,114 @@ extension JobDetailsView {
 
     // MARK: - Steps Tab
 
-    var isAddStepDisabled: Bool {
-        newStepName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        || newStepCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
     var stepsTab: some View {
-        VSplitView {
+        VStack(spacing: 0) {
             List {
                 ForEach(viewModel.steps) { step in
                     stepListRow(step)
                         .contextMenu {
-                            Button("Open Command in Editor") {
-                                openCommandEditor(text: step.command ?? "", stepName: step.name)
+                            Button {
+                                editingStep = step
+                            } label: {
+                                Label("Edit Step", systemImage: "pencil")
                             }
+
+                            if step.command != nil {
+                                Button {
+                                    openCommandEditor(text: step.command ?? "", stepName: step.name)
+                                } label: {
+                                    Label("Open Command in Editor", systemImage: "arrow.up.right.square")
+                                }
+                            }
+
                             Divider()
-                            Button("Delete Step", role: .destructive) {
-                                Task { await viewModel.deleteStep(stepName: step.name) }
+
+                            Button(role: .destructive) {
+                                pendingDeleteStepName = step.name
+                                showDeleteStepAlert = true
+                            } label: {
+                                Label("Delete Step", systemImage: "trash")
                             }
                         }
                 }
                 .onMove(perform: moveSteps)
             }
             .listStyle(.inset(alternatesRowBackgrounds: true))
-            .frame(maxWidth: .infinity, minHeight: 40)
-
-            ScrollView {
-                addStepForm
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+                if viewModel.steps.isEmpty {
+                    Text("No steps defined.")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             }
-            .frame(minHeight: 40)
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button {
+                    showAddStepSheet = true
+                } label: {
+                    Label("New Step", systemImage: "plus")
+                }
+                .controlSize(.small)
+                .padding(SpacingTokens.xs)
+            }
+        }
+        .sheet(isPresented: $showAddStepSheet) {
+            AgentJobStepEditorSheet(
+                databaseNames: viewModel.databaseNames,
+                title: "New Step",
+                actionLabel: "Add Step",
+                onSaveAsync: { name, subsystem, database, command in
+                    let beforeError = viewModel.errorMessage
+                    await viewModel.addStep(name: name, subsystem: subsystem, database: database, command: command)
+                    if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {
+                        showAddStepSheet = false
+                        return nil
+                    }
+                    let err = viewModel.errorMessage
+                    viewModel.errorMessage = nil
+                    return err
+                },
+                onCancel: { showAddStepSheet = false }
+            )
+        }
+        .alert("Delete Step?", isPresented: $showDeleteStepAlert) {
+            Button("Cancel", role: .cancel) { pendingDeleteStepName = nil }
+            Button("Delete", role: .destructive) {
+                guard let name = pendingDeleteStepName else { return }
+                pendingDeleteStepName = nil
+                Task { await viewModel.deleteStep(stepName: name) }
+            }
+        } message: {
+            if let name = pendingDeleteStepName {
+                Text("Are you sure you want to delete step \"\(name)\"? This action cannot be undone.")
+            }
+        }
+        .sheet(item: $editingStep) { step in
+            AgentJobStepEditorSheet(
+                name: step.name,
+                subsystem: step.subsystem,
+                database: step.database ?? "",
+                command: step.command ?? "",
+                databaseNames: viewModel.databaseNames,
+                title: "Edit Step",
+                actionLabel: "Save",
+                onSaveAsync: { _, _, database, command in
+                    let beforeError = viewModel.errorMessage
+                    await viewModel.updateStep(stepName: step.name, newCommand: command, database: database)
+                    if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {
+                        editingStep = nil
+                        return nil
+                    }
+                    let err = viewModel.errorMessage
+                    viewModel.errorMessage = nil
+                    return err
+                },
+                onCancel: { editingStep = nil }
+            )
         }
     }
 
@@ -72,18 +151,6 @@ extension JobDetailsView {
             }
 
             Spacer()
-
-            if step.command != nil {
-                Button {
-                    openCommandEditor(text: step.command ?? "", stepName: step.name)
-                } label: {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(TypographyTokens.compact)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .help("Open in editor")
-            }
         }
     }
 
@@ -95,71 +162,5 @@ extension JobDetailsView {
 
     func openCommandEditor(text: String, stepName: String? = nil) {
         commandEditorContext = CommandEditorContext(stepName: stepName, initialText: text)
-    }
-
-    var addStepForm: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Add Step")
-                .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .padding(.horizontal, SpacingTokens.md)
-                .padding(.top, SpacingTokens.sm)
-
-            HStack(spacing: SpacingTokens.sm) {
-                TextField("Step Name", text: $newStepName)
-                Picker("Type", selection: $newStepSubsystem) {
-                    Text("T-SQL").tag("TSQL")
-                    Text("CmdExec").tag("CmdExec")
-                    Text("PowerShell").tag("PowerShell")
-                }
-                .fixedSize()
-                if newStepSubsystem == "TSQL" {
-                    Picker("Database", selection: $newStepDatabase) {
-                        Text("Default").tag("")
-                        ForEach(viewModel.databaseNames, id: \.self) { db in
-                            Text(db).tag(db)
-                        }
-                    }
-                    .frame(maxWidth: 160)
-                }
-            }
-            .padding(.horizontal, SpacingTokens.md)
-
-            HStack(spacing: SpacingTokens.xs) {
-                TextField("Command", text: $newStepCommand, axis: .vertical)
-                    .lineLimit(1...3)
-                    .font(TypographyTokens.body.monospaced())
-                Button {
-                    openCommandEditor(text: newStepCommand, stepName: nil)
-                } label: {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                }
-                .help("Open in full editor")
-            }
-            .padding(.horizontal, SpacingTokens.md)
-
-            HStack {
-                Spacer()
-                Button("Add Step") {
-                    let name = newStepName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let command = newStepCommand.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !name.isEmpty, !command.isEmpty else { return }
-                    Task {
-                        await viewModel.addStep(
-                            name: name,
-                            subsystem: newStepSubsystem,
-                            database: newStepDatabase.isEmpty ? nil : newStepDatabase,
-                            command: command
-                        )
-                        newStepName = ""
-                        newStepDatabase = ""
-                        newStepCommand = ""
-                    }
-                }
-                .disabled(isAddStepDisabled)
-            }
-            .padding(.horizontal, SpacingTokens.md)
-            .padding(.bottom, SpacingTokens.sm)
-        }
     }
 }

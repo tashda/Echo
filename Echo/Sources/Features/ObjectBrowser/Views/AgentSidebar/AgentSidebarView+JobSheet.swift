@@ -13,7 +13,7 @@ extension AgentSidebarView {
                 schedulesTab
                 notificationsTab
             }
-            HStack { Spacer(); Button("Cancel") { showNewJobSheet = false }; Button("Create") { Task { await createJobWithBuilder() } }.keyboardShortcut(.defaultAction) }
+            HStack { Spacer(); Button("Cancel") { showNewJobSheet = false }.keyboardShortcut(.cancelAction); Button("Create") { Task { await createJobWithBuilder() } }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction) }
         }
         .padding(SpacingTokens.md2)
         .frame(minWidth: 720, minHeight: 520)
@@ -31,14 +31,14 @@ extension AgentSidebarView {
 
     var generalTab: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
-            TextField("Name", text: $newJobName)
-            TextField("Description (optional)", text: $newJobDescription)
+            TextField("Name", text: $newJobName, prompt: Text("e.g. Daily Backup"))
+            TextField("Description (optional)", text: $newJobDescription, prompt: Text("Optional"))
             Toggle("Enabled", isOn: $newJobEnabled)
             Toggle("Start job after creation", isOn: $startAfterCreate)
             Divider()
             Text("Owner and Category").font(TypographyTokens.subheadline)
-            TextField("Owner (default current login)", text: $newJobOwner)
-            TextField("Category (optional)", text: $newJobCategory)
+            TextField("Owner (default current login)", text: $newJobOwner, prompt: Text("sa"))
+            TextField("Category (optional)", text: $newJobCategory, prompt: Text("Optional"))
         }
         .tabItem { Text("General") }
     }
@@ -49,19 +49,19 @@ extension AgentSidebarView {
                 VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
                     ForEach(Array(wizardSteps.enumerated()), id: \.element.id) { index, step in
                         VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
-                            HStack { TextField("Step name", text: $wizardSteps[index].name); Picker("Subsystem", selection: $wizardSteps[index].subsystem) { ForEach(SubsystemChoice.allCases) { Text($0.rawValue).tag($0) } }.frame(width: 180) }
-                            if step.subsystem == .tsql { TextField("Database", text: $wizardSteps[index].database) }
-                            TextField("Command", text: $wizardSteps[index].command, axis: .vertical).lineLimit(2...5)
-                            HStack { TextField("Run As (Proxy)", text: $wizardSteps[index].proxyName); TextField("Output file", text: $wizardSteps[index].outputFile); Toggle("Append", isOn: $wizardSteps[index].appendOutput) }
+                            HStack { TextField("Step name", text: $wizardSteps[index].name, prompt: Text("Step 1")); Picker("Subsystem", selection: $wizardSteps[index].subsystem) { ForEach(SubsystemChoice.allCases) { Text($0.rawValue).tag($0) } }.frame(width: 180) }
+                            if step.subsystem == .tsql { TextField("Database", text: $wizardSteps[index].database, prompt: Text("master")) }
+                            TextField("Command", text: $wizardSteps[index].command, prompt: Text("SELECT ..."), axis: .vertical).lineLimit(2...5)
+                            HStack { TextField("Run As (Proxy)", text: $wizardSteps[index].proxyName, prompt: Text("Optional")); TextField("Output file", text: $wizardSteps[index].outputFile, prompt: Text("Optional")); Toggle("Append", isOn: $wizardSteps[index].appendOutput) }
                             HStack {
                                 Picker("On success", selection: $wizardSteps[index].onSuccess) { ForEach(StepActionChoice.allCases) { Text($0.rawValue).tag($0) } }
-                                if step.onSuccess == .goToStep { TextField("Step ID", value: $wizardSteps[index].onSuccessGoTo, formatter: NumberFormatter()).frame(width: 80) }
+                                if step.onSuccess == .goToStep { TextField("Step ID", value: $wizardSteps[index].onSuccessGoTo, formatter: NumberFormatter(), prompt: Text("1")).frame(width: 80) }
                             }
                             HStack {
                                 Picker("On failure", selection: $wizardSteps[index].onFail) { ForEach(StepActionChoice.allCases) { Text($0.rawValue).tag($0) } }
-                                if step.onFail == .goToStep { TextField("Step ID", value: $wizardSteps[index].onFailGoTo, formatter: NumberFormatter()).frame(width: 80) }
+                                if step.onFail == .goToStep { TextField("Step ID", value: $wizardSteps[index].onFailGoTo, formatter: NumberFormatter(), prompt: Text("1")).frame(width: 80) }
                             }
-                            HStack { TextField("Retry attempts", value: $wizardSteps[index].retryAttempts, formatter: NumberFormatter()).frame(width: 120); TextField("Retry interval (min)", value: $wizardSteps[index].retryInterval, formatter: NumberFormatter()).frame(width: 160) }
+                            HStack { TextField("Retry attempts", value: $wizardSteps[index].retryAttempts, formatter: NumberFormatter(), prompt: Text("0")).frame(width: 120); TextField("Retry interval (min)", value: $wizardSteps[index].retryInterval, formatter: NumberFormatter(), prompt: Text("5")).frame(width: 160) }
                             HStack { Button("Remove", role: .destructive) { wizardSteps.remove(at: index); if let sid = startStepId, sid > wizardSteps.count { startStepId = wizardSteps.count } } ; Spacer() }
                         }
                         .padding(SpacingTokens.xs)
@@ -71,7 +71,7 @@ extension AgentSidebarView {
                 }
             }
             HStack { Button("Add step") { wizardSteps.append(WizardStep(name: "Step \(wizardSteps.count+1)")) } ; Spacer() }
-            HStack { Text("Start step ID: "); TextField("", value: Binding(get: { startStepId ?? 1 }, set: { startStepId = $0 }), formatter: NumberFormatter()).frame(width: 60) }
+            HStack { Text("Start step ID: "); TextField("", value: Binding(get: { startStepId ?? 1 }, set: { startStepId = $0 }), formatter: NumberFormatter(), prompt: Text("1")).frame(width: 60) }
         }
         .tabItem { Text("Steps") }
     }
@@ -82,21 +82,21 @@ extension AgentSidebarView {
                 VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
                     ForEach(Array(wizardSchedules.enumerated()), id: \.element.id) { index, _ in
                         VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
-                            HStack { TextField("Name", text: $wizardSchedules[index].name); Toggle("Enabled", isOn: $wizardSchedules[index].enabled) }
+                            HStack { TextField("Name", text: $wizardSchedules[index].name, prompt: Text("Daily 9 AM")); Toggle("Enabled", isOn: $wizardSchedules[index].enabled) }
                             Picker("Mode", selection: $wizardSchedules[index].mode) { ForEach(ScheduleMode.allCases) { Text($0.rawValue).tag($0) } }
-                            HStack { TextField("Start time (HHMMSS)", text: $wizardSchedules[index].startHHMMSS).frame(width: 120); TextField("End time (HHMMSS)", text: $wizardSchedules[index].endHHMMSS).frame(width: 120) }
-                            HStack { TextField("Start date (YYYYMMDD)", text: $wizardSchedules[index].startDateYYYYMMDD).frame(width: 150); TextField("End date (YYYYMMDD)", text: $wizardSchedules[index].endDateYYYYMMDD).frame(width: 150) }
+                            HStack { TextField("Start time (HHMMSS)", text: $wizardSchedules[index].startHHMMSS, prompt: Text("090000")).frame(width: 120); TextField("End time (HHMMSS)", text: $wizardSchedules[index].endHHMMSS, prompt: Text("170000")).frame(width: 120) }
+                            HStack { TextField("Start date (YYYYMMDD)", text: $wizardSchedules[index].startDateYYYYMMDD, prompt: Text("20260101")).frame(width: 150); TextField("End date (YYYYMMDD)", text: $wizardSchedules[index].endDateYYYYMMDD, prompt: Text("20271231")).frame(width: 150) }
                             if wizardSchedules[index].mode == .daily {
-                                HStack { Text("Every"); TextField("Days", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter()).frame(width: 60); Text("days") }
+                                HStack { Text("Every"); TextField("Days", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter(), prompt: Text("1")).frame(width: 60); Text("days") }
                             } else if wizardSchedules[index].mode == .weekly {
-                                HStack { Text("Every"); TextField("Weeks", value: $wizardSchedules[index].weeklyEveryWeeks, formatter: NumberFormatter()).frame(width: 60); Text("weeks on:") }
+                                HStack { Text("Every"); TextField("Weeks", value: $wizardSchedules[index].weeklyEveryWeeks, formatter: NumberFormatter(), prompt: Text("1")).frame(width: 60); Text("weeks on:") }
                                 HStack { ForEach(WeeklyDayChoice.allCases) { day in Toggle(day.rawValue, isOn: Binding(get: { wizardSchedules[index].weeklyDays.contains(day) }, set: { checked in if checked { wizardSchedules[index].weeklyDays.insert(day) } else { wizardSchedules[index].weeklyDays.remove(day) } })) } }
                             } else if wizardSchedules[index].mode == .monthly {
-                                HStack { Text("Day"); TextField("", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter()).frame(width: 60); Text("of every"); TextField("", value: $wizardSchedules[index].weeklyEveryWeeks, formatter: NumberFormatter()).frame(width: 60); Text("month(s)") }
+                                HStack { Text("Day"); TextField("", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter(), prompt: Text("1")).frame(width: 60); Text("of every"); TextField("", value: $wizardSchedules[index].weeklyEveryWeeks, formatter: NumberFormatter(), prompt: Text("1")).frame(width: 60); Text("month(s)") }
                             }
                             Divider()
                             Text("Subday frequency").font(TypographyTokens.subheadline)
-                            HStack { Text("Occurs every"); TextField("", value: $wizardSchedules[index].subdayInterval, formatter: NumberFormatter()).frame(width: 80); Picker("", selection: $wizardSchedules[index].subdayUnit) { Text("(none)").tag(0); Text("Minutes").tag(4); Text("Hours").tag(8) }.pickerStyle(.segmented).frame(width: 240) }
+                            HStack { Text("Occurs every"); TextField("", value: $wizardSchedules[index].subdayInterval, formatter: NumberFormatter(), prompt: Text("15")).frame(width: 80); Picker("", selection: $wizardSchedules[index].subdayUnit) { Text("(none)").tag(0); Text("Minutes").tag(4); Text("Hours").tag(8) }.pickerStyle(.segmented).frame(width: 240) }
                             HStack { Button("Remove", role: .destructive) { wizardSchedules.remove(at: index) } ; Spacer() }
                         }
                         .padding(SpacingTokens.xs)
@@ -112,7 +112,7 @@ extension AgentSidebarView {
 
     var notificationsTab: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
-            TextField("Operator name", text: $notifyOperatorName)
+            TextField("Operator name", text: $notifyOperatorName, prompt: Text("DBA Team"))
             Picker("Notify", selection: $notifyLevel) { ForEach(NotifyLevel.allCases) { Text($0.rawValue).tag($0) } }
         }
         .tabItem { Text("Notifications") }

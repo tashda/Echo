@@ -87,8 +87,10 @@ struct PostgresExpensiveQueriesTable: View {
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: PostgresExpensiveQuery.ID.self) { ids in
             if let id = ids.first, let query = queries.first(where: { $0.id == id }) {
-                Button("Details") {
+                Button {
                     onPopout(query.query)
+                } label: {
+                    Label("Details", systemImage: "arrow.up.left.and.arrow.down.right")
                 }
             }
         } primaryAction: { _ in

@@ -27,15 +27,18 @@ extension ObjectBrowserSidebarView {
             }
             .contextMenu {
                 Button {
-                    Task { await createMSSQLServerRole(session: session) }
-                } label: {
-                    Label("New Server Role", systemImage: "plus")
-                }
-                Divider()
-                Button {
-                    loadServerSecurity(session: session)
+                    Task {
+                        let handle = AppDirector.shared.activityEngine.begin("Refreshing server roles", connectionSessionID: session.id)
+                        await loadServerSecurityAsync(session: session)
+                        handle.succeed()
+                    }
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
+                    Task { await createMSSQLServerRole(session: session) }
+                } label: {
+                    Label("New Server Role", systemImage: "person.2.badge.plus")
                 }
             }
 
@@ -68,6 +71,7 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     private func serverRoleRowContextMenu(role: ObjectBrowserSidebarViewModel.SecurityServerRoleItem, session: ConnectionSession) -> some View {
+        // Group 3: Open / View
         Button {
             openScriptTab(
                 sql: """
@@ -82,8 +86,28 @@ extension ObjectBrowserSidebarView {
         } label: {
             Label("List Members", systemImage: "person.2")
         }
+
         if !role.isFixed {
             Divider()
+
+            // Group 6: Script as
+            Menu("Script as", systemImage: "scroll") {
+                Button {
+                    openScriptTab(sql: "CREATE SERVER ROLE [\(role.name)];", session: session)
+                } label: {
+                    Label("CREATE", systemImage: "plus.rectangle.on.rectangle")
+                }
+                Divider()
+                Button {
+                    openScriptTab(sql: "DROP SERVER ROLE [\(role.name)];", session: session)
+                } label: {
+                    Label("DROP", systemImage: "trash")
+                }
+            }
+
+            Divider()
+
+            // Group 10: Destructive
             Button(role: .destructive) {
                 viewModel.dropSecurityPrincipalTarget = .init(
                     sessionID: session.id,
@@ -95,17 +119,6 @@ extension ObjectBrowserSidebarView {
                 viewModel.showDropSecurityPrincipalAlert = true
             } label: {
                 Label("Drop Server Role", systemImage: "trash")
-            }
-            Divider()
-            Menu {
-                Button("CREATE") {
-                    openScriptTab(sql: "CREATE SERVER ROLE [\(role.name)];", session: session)
-                }
-                Button("DROP") {
-                    openScriptTab(sql: "DROP SERVER ROLE [\(role.name)];", session: session)
-                }
-            } label: {
-                Label("Script as", systemImage: "scroll")
             }
         }
     }
@@ -163,18 +176,21 @@ extension ObjectBrowserSidebarView {
                 .lineLimit(1)
         }
         .contextMenu {
-            Menu {
-                Button("CREATE") {
+            Menu("Script as", systemImage: "scroll") {
+                Button {
                     openScriptTab(
                         sql: "CREATE CREDENTIAL [\(credential.name)] WITH IDENTITY = N'\(credential.identity)', SECRET = N'<secret>';",
                         session: session
                     )
+                } label: {
+                    Label("CREATE", systemImage: "plus.rectangle.on.rectangle")
                 }
-                Button("DROP") {
+                Divider()
+                Button {
                     openScriptTab(sql: "DROP CREDENTIAL [\(credential.name)];", session: session)
+                } label: {
+                    Label("DROP", systemImage: "trash")
                 }
-            } label: {
-                Label("Script as", systemImage: "scroll")
             }
         }
     }

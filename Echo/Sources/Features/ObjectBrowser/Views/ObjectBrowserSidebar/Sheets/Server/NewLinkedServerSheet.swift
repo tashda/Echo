@@ -144,6 +144,7 @@ struct NewLinkedServerSheet: View {
             Button("Create") {
                 createLinkedServer()
             }
+            .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
             .disabled(!canCreate || isCreating)
         }

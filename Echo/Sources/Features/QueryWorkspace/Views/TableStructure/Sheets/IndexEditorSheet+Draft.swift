@@ -6,12 +6,14 @@ extension IndexEditorSheet {
             let id = UUID()
             var name: String
             var sortOrder: TableStructureEditorViewModel.IndexModel.Column.SortOrder
+            var isIncluded: Bool
         }
 
         var id = UUID()
         var name: String
         var isUnique: Bool
         var filterCondition: String
+        var indexType: String
         var columns: [Column]
         let isEditingExisting: Bool
 
@@ -22,13 +24,14 @@ extension IndexEditorSheet {
             self.name = model.name
             self.isUnique = model.isUnique
             self.filterCondition = model.filterCondition
-            self.columns = model.columns.map { Column(name: $0.name, sortOrder: $0.sortOrder) }
+            self.indexType = model.indexType
+            self.columns = model.columns.map { Column(name: $0.name, sortOrder: $0.sortOrder, isIncluded: $0.isIncluded) }
             self.isEditingExisting = !model.isNew
 
             if columns.isEmpty {
                 let initialName = model.columns.first?.name ?? availableColumns.first ?? ""
                 if !initialName.isEmpty {
-                    self.columns = [Column(name: initialName, sortOrder: .ascending)]
+                    self.columns = [Column(name: initialName, sortOrder: .ascending, isIncluded: false)]
                 }
             }
         }
@@ -49,8 +52,9 @@ extension IndexEditorSheet {
         index.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
         index.isUnique = draft.isUnique
         index.filterCondition = draft.filterCondition.trimmingCharacters(in: .whitespacesAndNewlines)
+        index.indexType = draft.indexType
         index.columns = draft.columns.map { column in
-            TableStructureEditorViewModel.IndexModel.Column(name: column.name, sortOrder: column.sortOrder)
+            TableStructureEditorViewModel.IndexModel.Column(name: column.name, sortOrder: column.sortOrder, isIncluded: column.isIncluded)
         }
     }
 
@@ -70,7 +74,7 @@ extension IndexEditorSheet {
     }
 
     func addColumn(named name: String) {
-        draft.columns.append(.init(name: name, sortOrder: .ascending))
+        draft.columns.append(.init(name: name, sortOrder: .ascending, isIncluded: false))
     }
 
     func removeColumn(withID id: UUID) {

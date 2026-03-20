@@ -1,4 +1,5 @@
 import SwiftUI
+import EchoSense
 
 extension WorkspaceTabContainerView {
     func runQuery(tabId: UUID, sql: String) async {
@@ -35,18 +36,6 @@ extension WorkspaceTabContainerView {
             effectiveSQL = baseSQL
         }
 
-        // For MSSQL, prepend USE [database] to set the correct database context
-        if tab.connection.databaseType == .microsoftSQL,
-           let selectedDB = tab.activeDatabaseName, !selectedDB.isEmpty {
-            effectiveSQL = "USE [\(selectedDB)];\n\(effectiveSQL)"
-        }
-
-        // For MSSQL, prepend SET STATISTICS when enabled
-        if tab.connection.databaseType == .microsoftSQL,
-           queryState.statisticsEnabled {
-            effectiveSQL = "SET STATISTICS IO ON;\nSET STATISTICS TIME ON;\n\(effectiveSQL)"
-        }
-
         // Resolve the execution session -- for PostgreSQL, route through the database-specific session
         let executionSession: DatabaseSession
         if tab.connection.databaseType == .postgresql,
@@ -54,6 +43,21 @@ extension WorkspaceTabContainerView {
             executionSession = (try? await tab.session.sessionForDatabase(activeDB)) ?? tab.session
         } else {
             executionSession = tab.session
+        }
+
+        // For pooled MSSQL sessions we still need to set database context explicitly.
+        // Dedicated query tabs are already connected to their target database, and sending
+        // an extra USE batch before the query creates an unnecessary multi-statement stream.
+        if tab.connection.databaseType == .microsoftSQL,
+           let selectedDB = tab.activeDatabaseName, !selectedDB.isEmpty,
+           (executionSession as? MSSQLDedicatedQuerySession) == nil {
+            effectiveSQL = "USE [\(selectedDB)];\n\(effectiveSQL)"
+        }
+
+        // For MSSQL, prepend SET STATISTICS when enabled
+        if tab.connection.databaseType == .microsoftSQL,
+           queryState.statisticsEnabled {
+            effectiveSQL = "SET STATISTICS IO ON;\nSET STATISTICS TIME ON;\n\(effectiveSQL)"
         }
 
         let inferredObject = inferPrimaryObjectName(from: effectiveSQL)
@@ -91,6 +95,17 @@ extension WorkspaceTabContainerView {
                 await MainActor.run {
                     state.consumeFinalResult(result)
                     state.finishExecution()
+
+                    // Record table usage to EchoSense history so frequently
+                    // queried tables rank higher in future completions.
+                    let historyContext = SQLEditorCompletionContext(
+                        databaseType: EchoSenseDatabaseType(tab.connection.databaseType),
+                        selectedDatabase: tab.activeDatabaseName ?? tab.connection.database,
+                        defaultSchema: tab.connection.databaseType == .microsoftSQL ? "dbo" : "public"
+                    )
+                    let historyEngine = SQLAutoCompletionEngine()
+                    historyEngine.updateContext(historyContext)
+                    historyEngine.recordQueryExecution(baseSQL)
                 }
 
                 // Eagerly fetch FK metadata after results arrive so first click works
@@ -155,13 +170,31 @@ extension WorkspaceTabContainerView {
                     }
                 }
             } catch is CancellationError {
+                if let dedicatedSession = executionSession as? MSSQLDedicatedQuerySession {
+                    await MainActor.run {
+                        dedicatedSession.reconnectAfterCancellation()
+                    }
+                }
                 await MainActor.run {
                     state.markCancellationCompleted()
                 }
             } catch {
+                let shouldTreatAsCancellation = await MainActor.run {
+                    state.isCancellationRequested
+                }
+                if shouldTreatAsCancellation,
+                   let dedicatedSession = executionSession as? MSSQLDedicatedQuerySession {
+                    await MainActor.run {
+                        dedicatedSession.reconnectAfterCancellation()
+                    }
+                }
                 await MainActor.run {
-                    state.errorMessage = error.localizedDescription
-                    state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
+                    if shouldTreatAsCancellation {
+                        state.markCancellationCompleted()
+                    } else {
+                        state.errorMessage = error.localizedDescription
+                        state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
+                    }
                 }
             }
         }

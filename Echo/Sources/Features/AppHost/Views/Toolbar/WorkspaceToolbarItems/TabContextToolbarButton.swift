@@ -6,18 +6,58 @@ struct ActivityMonitorToolbarItem: View {
 
     var body: some View {
         if let tab = tabStore.activeTab, let vm = tab.activityMonitor {
+            PlayStopToolbarButton(
+                isRunning: vm.isRunning,
+                runningLabel: "Pause Monitoring",
+                stoppedLabel: "Resume Monitoring"
+            ) {
+                if vm.isRunning { vm.stopStreaming() } else { vm.startStreaming() }
+            }
+            .glassEffect(.regular.interactive())
+        } else {
+            EmptyView()
+        }
+    }
+}
+
+/// Toolbar button to start/stop a selected job in a Job Queue tab.
+struct JobQueuePlayToolbarItem: View {
+    @Environment(TabStore.self) private var tabStore
+
+    var body: some View {
+        if let tab = tabStore.activeTab, let vm = tab.jobQueue, vm.selectedJobID != nil {
+            PlayStopToolbarButton(
+                isRunning: vm.isJobRunning,
+                runningLabel: "Stop Job",
+                stoppedLabel: "Start Job"
+            ) {
+                Task {
+                    if vm.isJobRunning { await vm.stopSelectedJob() } else { await vm.startSelectedJob() }
+                }
+            }
+        } else {
+            EmptyView()
+        }
+    }
+}
+
+/// Toolbar button to pop a Job Queue tab into a separate window.
+struct JobQueuePopOutToolbarItem: View {
+    @Environment(TabStore.self) private var tabStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        if let tab = tabStore.activeTab, tab.kind == .jobQueue {
             Button {
-                if vm.isRunning {
-                    vm.stopStreaming()
-                } else {
-                    vm.startStreaming()
+                if let sessionID = environmentState.popOutJobQueueTab(tab) {
+                    openWindow(id: JobQueueWindow.sceneID, value: sessionID)
                 }
             } label: {
-                Image(systemName: vm.isRunning ? "pause.fill" : "play.fill")
-                    .foregroundStyle(vm.isRunning ? .green : .red)
-                    .contentTransition(.symbolEffect(.replace))
+                Label("Open in Window", systemImage: "rectangle.portrait.and.arrow.right")
             }
-            .help(vm.isRunning ? "Pause Monitoring" : "Resume Monitoring")
+            .help("Open in separate window")
+            .accessibilityLabel("Open in separate window")
             .glassEffect(.regular.interactive())
         } else {
             EmptyView()

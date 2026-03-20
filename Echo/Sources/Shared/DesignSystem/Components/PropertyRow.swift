@@ -68,7 +68,7 @@ public struct PropertyRow<Control: View>: View {
     private func infoButton(text: String) -> some View {
         Button(action: { showPopover.toggle() }) {
             Image(systemName: "info.circle")
-                .imageScale(.medium)
+                .imageScale(.large)
         }
         .buttonStyle(.plain)
         .foregroundStyle(ColorTokens.Text.secondary)

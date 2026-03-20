@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 final class MSSQLIntegrationTests: XCTestCase {
@@ -64,6 +65,40 @@ final class MSSQLIntegrationTests: XCTestCase {
         )
     }
 
+    private func makeDedicatedQuerySession(
+        config: MSSQLConfig,
+        database: String
+    ) async throws -> MSSQLDedicatedQuerySession {
+        let metadataSession = try await connect(config: config) as! SQLServerSessionAdapter
+        addTeardownBlock {
+            await metadataSession.close()
+        }
+
+        let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
+            host: config.host,
+            port: config.port,
+            database: database,
+            tls: config.useTLS,
+            trustServerCertificate: true,
+            authentication: DatabaseAuthenticationConfiguration(
+                method: .sqlPassword,
+                username: config.username,
+                password: config.password
+            ),
+            connectTimeoutSeconds: 15
+        )
+        let connection = try await SQLServerConnection.connect(configuration: configuration)
+        let querySession = MSSQLDedicatedQuerySession(
+            connection: connection,
+            configuration: configuration,
+            metadataSession: metadataSession
+        )
+        addTeardownBlock {
+            await querySession.close()
+        }
+        return querySession
+    }
+
     // MARK: - Basic Connectivity
 
     func testSimpleQuerySelect1() async throws {
@@ -121,5 +156,25 @@ final class MSSQLIntegrationTests: XCTestCase {
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertGreaterThanOrEqual(details.columns.count, 2)
+    }
+
+    func testDedicatedSessionCanQueryAdventureWorksEmployeeAndContinue() async throws {
+        let config = try loadConfig()
+        let targetDatabase = "AdventureWorks"
+        let session = try await makeDedicatedQuerySession(config: config, database: targetDatabase)
+
+        let result = try await session.simpleQuery(
+            "SELECT * FROM HumanResources.Employee",
+            progressHandler: { _ in }
+        )
+        XCTAssertFalse(result.rows.isEmpty)
+        XCTAssertTrue(result.columns.contains(where: { $0.name.caseInsensitiveCompare("BusinessEntityID") == .orderedSame }))
+
+        let details = try await session.getTableStructureDetails(schema: "HumanResources", table: "Employee")
+        XCTAssertFalse(details.columns.isEmpty)
+
+        let followUp = try await session.simpleQuery("SELECT TOP 1 BusinessEntityID FROM HumanResources.Employee")
+        XCTAssertEqual(followUp.columns.first?.name, "BusinessEntityID")
+        XCTAssertEqual(followUp.rows.count, 1)
     }
 }

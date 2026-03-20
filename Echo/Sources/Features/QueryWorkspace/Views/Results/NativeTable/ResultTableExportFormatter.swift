@@ -10,6 +10,7 @@ enum ResultTableExportFormatter {
         case .json: return formatJSON(headers: headers, rows: rows)
         case .sqlInsert: return formatSQLInsert(tableName: tableName ?? "table_name", headers: headers, rows: rows)
         case .markdown: return formatMarkdown(headers: headers, rows: rows)
+        case .xlsx: return formatCSV(headers: headers, rows: rows) // Fallback — binary export uses XLSXExportWriter directly
         }
     }
 

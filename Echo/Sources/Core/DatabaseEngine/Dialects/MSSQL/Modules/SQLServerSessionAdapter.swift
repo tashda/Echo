@@ -21,7 +21,7 @@ private actor MetadataTraceWriter {
 /// Adapter to make SQLServerClient conform to Echo's DatabaseSession protocol
 final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     let client: SQLServerClient
-    let database: String?
+    nonisolated(unsafe) private(set) var database: String?
     let logger = Logger(label: "dk.tippr.echo.mssql.metadata")
     let metadataTraceEnabled = ProcessInfo.processInfo.environment["MSSQL_METADATA_TRACE"] == "1"
     let metadataTracePath: String?
@@ -100,6 +100,16 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
 
     func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
         let nioResult = try await client.maintenance.rebuildIndexes(schema: schema, table: table)
+        return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
+    }
+
+    func reorganizeIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        let nioResult = try await client.maintenance.reorganizeIndex(schema: schema, table: table, name: index)
+        return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
+    }
+
+    func reorganizeIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        let nioResult = try await client.maintenance.reorganizeIndexes(schema: schema, table: table)
         return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
     }
 
@@ -274,6 +284,7 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
 
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
         _ = try await client.execute("USE [\(database.replacingOccurrences(of: "]", with: "]]"))]")
+        self.database = database
         return self
     }
 

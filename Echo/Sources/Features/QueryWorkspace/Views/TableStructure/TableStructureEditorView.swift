@@ -12,12 +12,16 @@ struct TableStructureEditorView: View {
     @State internal var activePrimaryKeyEditor: PrimaryKeyEditorPresentation?
     @State internal var activeUniqueConstraintEditor: UniqueConstraintEditorPresentation?
     @State internal var activeForeignKeyEditor: ForeignKeyEditorPresentation?
+    @State internal var activeCheckConstraintEditor: CheckConstraintEditorPresentation?
     @State internal var selectedSection: TableStructureSection
     @State internal var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
     @State internal var selectedIndexIDs: Set<TableStructureEditorViewModel.IndexModel.ID> = []
     @State internal var selectedForeignKeyIDs: Set<TableStructureEditorViewModel.ForeignKeyModel.ID> = []
     @State internal var columnIndexLookup: [UUID: Int] = [:]
     @State internal var bulkColumnEditor: BulkColumnEditorPresentation?
+    @State internal var showScriptPreview = false
+
+    @State internal var selectedConstraintIDs: Set<ConstraintRowModel.ID> = []
 
     init(tab: WorkspaceTab, viewModel: TableStructureEditorViewModel) {
         self.tab = tab
@@ -50,7 +54,7 @@ struct TableStructureEditorView: View {
                 selectedSection = requested
                 viewModel.requestedSection = nil
             }
-            if viewModel.columns.isEmpty {
+            if viewModel.columns.isEmpty && !viewModel.isLoading {
                 Task { await viewModel.reload() }
             }
         }
@@ -79,6 +83,11 @@ struct TableStructureEditorView: View {
     internal func foreignKeyBinding(for foreignKeyID: UUID) -> Binding<TableStructureEditorViewModel.ForeignKeyModel>? {
         guard let index = viewModel.foreignKeys.firstIndex(where: { $0.id == foreignKeyID }) else { return nil }
         return $viewModel.foreignKeys[index]
+    }
+
+    internal func checkConstraintBinding(for constraintID: UUID) -> Binding<TableStructureEditorViewModel.CheckConstraintModel>? {
+        guard let index = viewModel.checkConstraints.firstIndex(where: { $0.id == constraintID }) else { return nil }
+        return $viewModel.checkConstraints[index]
     }
 
     internal var primaryKeyBinding: Binding<TableStructureEditorViewModel.PrimaryKeyModel>? {

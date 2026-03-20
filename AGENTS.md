@@ -375,6 +375,33 @@ Echo is being upgraded with enterprise-grade connection configuration. The full 
 
 **Rule:** All TLS/auth features must be implemented in the package first (`sqlserver-nio` or `postgres-wire`), then consumed by Echo. Echo never implements protocol-level logic directly.
 
+## Activity Engine (Toolbar Progress)
+
+Every long-running operation in Echo **must** report its progress through the `ActivityEngine`. This is the single, shared mechanism that drives the toolbar refresh button — showing a spinner while work is running, a checkmark on success, and an X on failure. No operation should run silently.
+
+**How to wire any operation:**
+
+```swift
+let handle = activityEngine?.begin("Backup mydb", connectionSessionID: connectionSessionID)
+handle?.updateMessage("Copying data…")   // optional — updates toolbar tooltip
+handle?.updateProgress(0.5)               // optional — 0.0–1.0 for determinate progress
+// ... do work ...
+handle?.succeed()                         // or handle?.fail("reason"), or handle?.cancel()
+```
+
+**Rules:**
+- Call `activityEngine?.begin()` at the start of every async operation that takes more than ~100ms (backup, restore, vacuum, reindex, integrity check, shrink, DDL apply, bulk import, schema refresh, etc.).
+- Always call exactly one of `succeed()`, `fail()`, or `cancel()` when the operation finishes. Never leave a handle dangling.
+- Pass the `connectionSessionID` so the toolbar filters activity per-connection. Pass `nil` only for truly global operations.
+- The `activityEngine` property is `@ObservationIgnored var activityEngine: ActivityEngine?` on view models. Set it when creating the view model (see `ConnectionSession.addMSSQLMaintenanceTab()` for the pattern).
+- The `OperationHandle` is non-Sendable and stays on MainActor. Do not pass it across actor boundaries.
+- Existing per-view-model state (`backupPhase`, `isApplying`, `isCheckingIntegrity`, etc.) stays — it drives local sheet/dialog UI. The `ActivityEngine` is an **additional** reporting channel to the toolbar. Both must be updated.
+
+**Key files:**
+- `Shared/ActivityEngine/ActivityEngine.swift` — the engine
+- `Shared/ActivityEngine/ActivityEngineTypes.swift` — `TrackedOperation`, `OperationResult`, `OperationHandle`
+- `AppHost/Views/Toolbar/RefreshToolbarButton/` — consumes the engine
+
 ## Code Style
 
 - Follow Swift API Design Guidelines.

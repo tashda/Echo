@@ -38,6 +38,8 @@ struct ConnectionEditorView: View {
     @State internal var sslKeyPath: String?
     @State internal var mssqlEncryptionMode: MSSQLEncryptionMode
     @State internal var readOnlyIntent: Bool
+    @State internal var connectionTimeout: TimeInterval
+    @State internal var queryTimeout: TimeInterval
     @State internal var colorHex: String
 
     @State internal var passwordDirty = false
@@ -98,6 +100,8 @@ struct ConnectionEditorView: View {
         _sslKeyPath = State(initialValue: model.sslKeyPath)
         _mssqlEncryptionMode = State(initialValue: model.mssqlEncryptionMode)
         _readOnlyIntent = State(initialValue: model.readOnlyIntent)
+        _connectionTimeout = State(initialValue: model.connectionTimeout)
+        _queryTimeout = State(initialValue: model.queryTimeout)
         _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)
     }
 

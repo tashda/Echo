@@ -24,6 +24,7 @@ extension QueryResultsTableView {
         var selectionRegion: SelectedRegion?
         var selectionAnchor: QueryResultsTableView.SelectedCell?
         var isDraggingCellSelection = false
+        var isDraggingRowSelection = false
         var selectionFocus: QueryResultsTableView.SelectedCell?
         var columnSelectionAnchor: Int?
         var contextMenuCell: QueryResultsTableView.SelectedCell?
@@ -104,7 +105,7 @@ extension QueryResultsTableView {
             tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
             tableView.headerView?.isHidden = false
             tableView.selectionHighlightStyle = .regular
-            tableView.usesAlternatingRowBackgroundColors = false
+            tableView.usesAlternatingRowBackgroundColors = parent.alternateRowShading
             _ = reloadColumns()
             applyHeaderStyle(to: tableView)
             refreshVisibleRowBackgrounds(tableView)
@@ -171,6 +172,10 @@ extension QueryResultsTableView {
         func debugLog(_ message: String) {
             guard Coordinator.isGridDiagnosticsEnabled else { return }
             print("[GridDebug] \(message)")
+        }
+
+        var isDraggingSelection: Bool {
+            isDraggingCellSelection || isDraggingRowSelection
         }
     }
 }

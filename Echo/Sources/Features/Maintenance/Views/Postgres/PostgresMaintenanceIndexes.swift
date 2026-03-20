@@ -15,11 +15,11 @@ struct PostgresMaintenanceIndexes: View {
             if viewModel.isLoadingIndexes && viewModel.indexStats.isEmpty {
                 loadingView
             } else if viewModel.indexStats.isEmpty {
-                EmptyStatePlaceholder(
-                    icon: "list.bullet.indent",
-                    title: "No Index Statistics",
-                    subtitle: "No user indexes found in the selected database"
-                )
+                ContentUnavailableView {
+                    Label("No Index Statistics", systemImage: "list.bullet.indent")
+                } description: {
+                    Text("No user indexes found in the selected database.")
+                }
             } else {
                 indexTable
             }
@@ -33,14 +33,11 @@ struct PostgresMaintenanceIndexes: View {
     }
 
     private var loadingView: some View {
-        VStack(spacing: SpacingTokens.md) {
-            ProgressView()
-                .controlSize(.large)
-            Text("Loading index statistics\u{2026}")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabInitializingPlaceholder(
+            icon: "list.bullet.indent",
+            title: "Loading Indexes",
+            subtitle: "Fetching index statistics\u{2026}"
+        )
     }
 
     private var indexTable: some View {
@@ -67,7 +64,7 @@ struct PostgresMaintenanceIndexes: View {
 
             TableColumn("Table") { index in
                 Text("\(index.schemaName).\(index.tableName)")
-                    .font(TypographyTokens.Table.name)
+                    .font(TypographyTokens.Table.secondaryName)
                     .lineLimit(1)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }.width(min: 120, ideal: 180)
@@ -85,7 +82,7 @@ struct PostgresMaintenanceIndexes: View {
 
             TableColumn("Ratio", value: \.indexToTablePct) { index in
                 Text(String(format: "%.0f%%", index.indexToTablePct))
-                    .font(TypographyTokens.Table.numeric)
+                    .font(TypographyTokens.Table.percentage)
                     .foregroundStyle(index.isBloated ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
                     .help("Index size relative to table size")
             }.width(min: 50, ideal: 55)
@@ -203,7 +200,8 @@ struct PostgresMaintenanceIndexes: View {
                 Button("Done") {
                     selectedDefinition = nil
                 }
-                .keyboardShortcut(.return, modifiers: .command)
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding()
             .background(ColorTokens.Background.secondary)

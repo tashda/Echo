@@ -46,19 +46,19 @@ struct SnippetsSidebarView: View {
     @ViewBuilder
     private var content: some View {
         if dialect == nil {
-            EmptyStatePlaceholder(
-                icon: "curlybraces",
-                title: "No Active Connection",
-                subtitle: "Connect to a database to browse SQL snippets."
-            )
+            ContentUnavailableView {
+                Label("No Active Connection", systemImage: "curlybraces")
+            } description: {
+                Text("Connect to a database to browse SQL snippets.")
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(SpacingTokens.xl)
         } else if snippetsByGroup.isEmpty {
-            EmptyStatePlaceholder(
-                icon: "curlybraces",
-                title: "No Snippets",
-                subtitle: "No snippets available for this dialect."
-            )
+            ContentUnavailableView {
+                Label("No Snippets", systemImage: "curlybraces")
+            } description: {
+                Text("No snippets available for this dialect.")
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(SpacingTokens.xl)
         } else {

@@ -15,28 +15,49 @@ extension DatabaseObjectRow {
     }
 
     private func scriptActionsPostgres() -> [ScriptAction] {
-        var actions: [ScriptAction] = [.create]
-        if supportsCreateOrReplaceInPostgres {
-            actions.append(.createOrReplace)
-        }
-        actions.append(.dropIfExists)
+        var actions: [ScriptAction] = []
+
+        // Read group
         if shouldIncludeSelectScript || object.type == .function || object.type == .procedure {
-            actions.append(.select)
             if shouldIncludeSelectScript {
                 actions.append(.selectLimited(1000))
             }
+            actions.append(.select)
         }
+
+        // Create/Modify group
+        actions.append(.create)
+        if supportsCreateOrReplaceInPostgres {
+            actions.append(.createOrReplace)
+        }
+
+        // Write group
         if shouldIncludeSelectScript {
             actions.append(contentsOf: [.insert, .update, .delete])
         }
+
+        // Execute group
         if object.type == .function || object.type == .procedure {
             actions.append(.execute)
         }
+
+        // Destroy group
+        actions.append(.dropIfExists)
+
         return actions
     }
 
     private func scriptActionsMySQL() -> [ScriptAction] {
-        var actions: [ScriptAction] = [.create]
+        var actions: [ScriptAction] = []
+
+        // Read group
+        if shouldIncludeSelectScript {
+            actions.append(.selectLimited(1000))
+            actions.append(.select)
+        }
+
+        // Create/Modify group
+        actions.append(.create)
         if supportsCreateOrReplaceInMySQL {
             actions.append(.createOrReplace)
         }
@@ -45,33 +66,60 @@ extension DatabaseObjectRow {
         } else {
             actions.append(.alter)
         }
-        actions.append(.drop)
-        if shouldIncludeSelectScript {
-            actions.append(.select)
-            actions.append(.selectLimited(1000))
-        }
+
+        // Execute group
         if object.type == .function || object.type == .procedure {
             actions.append(.execute)
         }
+
+        // Destroy group
+        actions.append(.drop)
+
         return actions
     }
 
     private func scriptActionsSQLite() -> [ScriptAction] {
-        var actions: [ScriptAction] = [.create, .drop]
+        var actions: [ScriptAction] = []
+
+        // Read group
         if shouldIncludeSelectScript {
-            actions.append(contentsOf: [.select, .selectLimited(1000)])
+            actions.append(contentsOf: [.selectLimited(1000), .select])
         }
+
+        // Create/Modify group
+        actions.append(.create)
+
+        // Destroy group
+        actions.append(.drop)
+
         return actions
     }
 
     private func scriptActionsMSSQL() -> [ScriptAction] {
-        var actions: [ScriptAction] = [.create, .alter, .dropIfExists]
-        if object.type == .function || object.type == .procedure {
-            actions.append(.execute)
-        } else if shouldIncludeSelectScript {
-            actions.append(contentsOf: [.select, .selectLimited(1000)])
+        var actions: [ScriptAction] = []
+
+        // Read group
+        if shouldIncludeSelectScript {
+            actions.append(contentsOf: [.selectLimited(1000), .select])
+        }
+
+        // Create/Modify group
+        actions.append(.create)
+        actions.append(.alter)
+
+        // Write group
+        if shouldIncludeSelectScript {
             actions.append(contentsOf: [.insert, .update, .delete])
         }
+
+        // Execute group
+        if object.type == .function || object.type == .procedure {
+            actions.append(.execute)
+        }
+
+        // Destroy group
+        actions.append(.dropIfExists)
+
         return actions
     }
 
@@ -92,7 +140,7 @@ extension DatabaseObjectRow {
         switch object.type {
         case .table, .view, .materializedView:
             return true
-        case .function, .trigger, .procedure, .extension:
+        case .function, .trigger, .procedure, .extension, .sequence, .type, .synonym:
             return false
         }
     }
@@ -131,80 +179,26 @@ extension DatabaseObjectRow {
         case .create:
             return "plus.rectangle.on.rectangle"
         case .createOrReplace:
-            return "arrow.triangle.2.circlepath"
+            return "plus.rectangle.on.rectangle"
         case .alter, .alterTable:
-            return "wrench"
+            return "pencil.line"
         case .drop:
             return "trash"
         case .dropIfExists:
-            return "trash.slash"
+            return "trash"
         case .select:
-            return "text.magnifyingglass"
+            return "magnifyingglass"
         case .selectLimited:
-            return "text.magnifyingglass"
+            return "magnifyingglass"
         case .execute:
-            return "play.circle"
+            return "play"
         case .insert:
             return "plus.square"
         case .update:
-            return "pencil.line"
+            return "arrow.triangle.2.circlepath"
         case .delete:
             return "minus.square"
         }
     }
 
-    internal func computeAdministrativeMenuItems() -> [ContextMenuActionItem] {
-        var items: [ContextMenuActionItem] = []
-
-        switch connection.databaseType {
-        case .postgresql, .mysql, .microsoftSQL:
-            items.append(renameMenuItem)
-            if supportsTruncateTable {
-                items.append(
-                    ContextMenuActionItem(
-                        id: "truncateTable",
-                        title: "Truncate Table",
-                        systemImage: "scissors",
-                        role: .destructive,
-                        action: { initiateTruncate() }
-                    )
-                )
-            }
-            items.append(dropMenuItem)
-
-        case .sqlite:
-            items.append(renameMenuItem)
-            items.append(dropMenuItem)
-        }
-
-        return items
-    }
-
-    private var renameMenuItem: ContextMenuActionItem {
-        ContextMenuActionItem(
-            id: "renameObject",
-            title: connection.databaseType == .sqlite ? "Rename (Limited)" : "Rename",
-            systemImage: "textformat.alt",
-            role: nil,
-            action: { initiateRename() }
-        )
-    }
-
-    private var dropMenuItem: ContextMenuActionItem {
-        ContextMenuActionItem(
-            id: "dropObject",
-            title: "Drop",
-            systemImage: "trash",
-            role: .destructive,
-            action: { initiateDrop(includeIfExists: false) }
-        )
-    }
-
-    private var supportsTruncateTable: Bool {
-        guard object.type == .table else { return false }
-        switch connection.databaseType {
-        case .postgresql, .mysql, .microsoftSQL: return true
-        case .sqlite: return false
-        }
-    }
 }

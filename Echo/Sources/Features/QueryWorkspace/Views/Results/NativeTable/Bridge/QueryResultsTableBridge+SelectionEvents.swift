@@ -10,6 +10,7 @@ extension QueryResultsTableView.Coordinator {
         contextMenuCell = nil
         tableView.window?.makeFirstResponder(tableView)
         lastDragLocationInWindow = event.locationInWindow
+        isDraggingRowSelection = false
         stopAutoscroll()
         let point = tableView.convert(event.locationInWindow, from: nil)
         guard let cell = resolvedCell(at: point, in: tableView, allowOutOfBounds: false) else {
@@ -123,6 +124,11 @@ extension QueryResultsTableView.Coordinator {
                 setSelectionRegion(nil, tableView: tableView)
             }
         }
+    }
+
+    func handleRowNumberDrag(_ event: NSEvent) {
+        guard let tableView else { return }
+        updateAutoscroll(for: event, tableView: tableView)
     }
 
     func handleKeyDown(_ event: NSEvent, in tableView: NSTableView) -> Bool {

@@ -34,6 +34,7 @@ extension QueryEditorState {
         lastBroadcastSnapshot = nil
         isExecuting = true
         wasCancelled = false
+        isCancellationRequested = false
         visibleRowLimit = initialVisibleRowBatch
 
         if isResultsOnly, var preview = dataPreviewState {
@@ -74,7 +75,7 @@ extension QueryEditorState {
 
     func finishExecution() {
         if let startTime = executionStartTime { lastExecutionTime = Date().timeIntervalSince(startTime) }
-        isExecuting = false; wasCancelled = false; executingTask = nil
+        isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
         executionTimer?.invalidate(); executionTimer = nil
         streamingMode = .completed
         let endTime = Date()
@@ -98,7 +99,7 @@ extension QueryEditorState {
     }
 
     func failExecution(with error: String) {
-        isExecuting = false; wasCancelled = false; executingTask = nil
+        isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
         executionTimer?.invalidate(); executionTimer = nil
         let endTime = Date()
         if let startTime = executionStartTime { lastExecutionTime = endTime.timeIntervalSince(startTime) }
@@ -120,12 +121,13 @@ extension QueryEditorState {
     }
 
     func cancelExecution() {
+        isCancellationRequested = true
         if let task = executingTask { task.cancel() }
         else if isExecuting { markCancellationCompleted() }
     }
 
     func markCancellationCompleted() {
-        executingTask = nil; isExecuting = false; executionTimer?.invalidate(); executionTimer = nil
+        executingTask = nil; isExecuting = false; isCancellationRequested = false; executionTimer?.invalidate(); executionTimer = nil
         streamingMode = .completed
         let endTime = Date()
         if let startTime = executionStartTime { lastExecutionTime = endTime.timeIntervalSince(startTime) }

@@ -35,13 +35,13 @@ struct ExecutionPlanNodeDetail: View {
             VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                 detailRow("Operator Cost", String(format: "%.0f%%", costPercent))
                 if let subtree = node.totalSubtreeCost {
-                    detailRow("Subtree Cost", formatCost(subtree))
+                    detailRow("Total Cost", formatCost(subtree))
                 }
                 if let io = node.estimateIO {
-                    detailRow("Estimated I/O", formatCost(io))
+                    detailRow("Startup Cost", formatCost(io))
                 }
                 if let cpu = node.estimateCPU {
-                    detailRow("Estimated CPU", formatCost(cpu))
+                    detailRow("Run Cost", formatCost(cpu))
                 }
             }
 

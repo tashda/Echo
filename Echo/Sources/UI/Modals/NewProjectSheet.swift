@@ -68,6 +68,7 @@ struct NewProjectSheet: View {
             Button("Cancel", role: .cancel) { dismiss() }
                 .keyboardShortcut(.cancelAction)
             Button("Create") { createProject() }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }

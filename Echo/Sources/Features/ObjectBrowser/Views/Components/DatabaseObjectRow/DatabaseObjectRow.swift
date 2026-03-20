@@ -41,6 +41,9 @@ struct DatabaseObjectRow: View, Equatable {
         case .trigger: return "bolt"
         case .procedure: return "terminal"
         case .extension: return "puzzlepiece.extension"
+        case .sequence: return "number"
+        case .type: return "t.square"
+        case .synonym: return "arrow.triangle.branch"
         }
     }
 
@@ -80,12 +83,23 @@ struct DatabaseObjectRow: View, Equatable {
         .sheet(isPresented: $showBulkImportSheet) {
             if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
                 BulkImportSheet(
-                    viewModel: BulkImportViewModel(
-                        session: session.session,
-                        connectionSession: session,
-                        schema: object.schema.isEmpty ? "dbo" : object.schema,
-                        tableName: object.name
-                    ),
+                    viewModel: {
+                        let defaultSchema: String
+                        switch connection.databaseType {
+                        case .microsoftSQL: defaultSchema = object.schema.isEmpty ? "dbo" : object.schema
+                        case .postgresql: defaultSchema = object.schema.isEmpty ? "public" : object.schema
+                        case .sqlite, .mysql: defaultSchema = object.schema
+                        }
+                        let vm = BulkImportViewModel(
+                            session: session.session,
+                            connectionSession: session,
+                            databaseType: connection.databaseType,
+                            schema: defaultSchema,
+                            tableName: object.name
+                        )
+                        vm.activityEngine = AppDirector.shared.activityEngine
+                        return vm
+                    }(),
                     onDismiss: { showBulkImportSheet = false }
                 )
             }

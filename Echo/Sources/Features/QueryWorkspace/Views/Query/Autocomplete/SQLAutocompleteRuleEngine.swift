@@ -100,6 +100,9 @@ extension EchoSenseSchemaObjectInfo.ObjectType {
         case .trigger: self = .trigger
         case .procedure: self = .procedure
         case .extension: self = .function
+        case .sequence: self = .function
+        case .type: self = .function
+        case .synonym: self = .function
         }
     }
 }
