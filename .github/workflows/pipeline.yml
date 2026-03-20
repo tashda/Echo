@@ -58,6 +58,7 @@ jobs:
     env:
       DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
       USE_DOCKER: "1"
+      ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
     steps:
     - uses: actions/checkout@v4
     - uses: actions/checkout@v4
@@ -98,13 +99,21 @@ jobs:
       run: |
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
-          -testPlan IntegrationTests \
+          -testPlan DatabaseIntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
           -disable-concurrent-destination-testing \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
+
+    - name: Verify Integration Results
+      if: always()
+      run: |
+        python3 .github/scripts/verify_xcresult.py \
+          --path TestResults-integration.xcresult \
+          --label "Step 2 integration tests" \
+          --min-executed 1
 
     - name: Upload Integration Results
       if: always()
@@ -177,6 +186,7 @@ jobs:
     env:
       DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
       USE_DOCKER: "1"
+      ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
     steps:
     - uses: actions/checkout@v4
     - uses: actions/checkout@v4
@@ -217,36 +227,21 @@ jobs:
         .github/scripts/bootstrap-db-fixtures.sh sqlserver
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
+          -testPlan MSSQLCompatibilityTests \
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-${{ matrix.db }}" \
-          -only-testing:EchoTests/MSSQLConnectionTests \
-          -only-testing:EchoTests/MSSQLQueryTests \
-          -only-testing:EchoTests/MSSQLSchemaDiscoveryTests \
-          -only-testing:EchoTests/MSSQLMetadataTests \
-          -only-testing:EchoTests/MSSQLTableOperationsTests \
-          -only-testing:EchoTests/MSSQLColumnTests \
-          -only-testing:EchoTests/MSSQLConstraintTests \
-          -only-testing:EchoTests/MSSQLIndexTests \
-          -only-testing:EchoTests/MSSQLViewTests \
-          -only-testing:EchoTests/MSSQLProcedureTests \
-          -only-testing:EchoTests/MSSQLFunctionTests \
-          -only-testing:EchoTests/MSSQLTriggerTests \
-          -only-testing:EchoTests/MSSQLTransactionTests \
-          -only-testing:EchoTests/MSSQLSecurityTests \
-          -only-testing:EchoTests/MSSQLAgentTests \
-          -only-testing:EchoTests/MSSQLActivityMonitorTests \
-          -only-testing:EchoTests/MSSQLDatabaseAdminTests \
-          -only-testing:EchoTests/MSSQLDataTypeNumericTests \
-          -only-testing:EchoTests/MSSQLDataTypeStringTests \
-          -only-testing:EchoTests/MSSQLDataTypeDateTimeTests \
-          -only-testing:EchoTests/MSSQLDataTypeBinaryTests \
-          -only-testing:EchoTests/MSSQLStreamingTests \
-          -only-testing:EchoTests/MSSQLStreamingSpoolTests \
-          -only-testing:EchoTests/MSSQLMaintenanceTests \
           -disable-concurrent-testing \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
+
+    - name: Verify MSSQL Compatibility Results
+      if: always() && matrix.type == 'mssql'
+      run: |
+        python3 .github/scripts/verify_xcresult.py \
+          --path "TestResults-${{ matrix.db }}.xcresult" \
+          --label "${{ matrix.db }} compatibility tests" \
+          --min-executed 1
 
     - name: Run Postgres Compatibility Tests
       if: matrix.type == 'postgres'
@@ -257,34 +252,21 @@ jobs:
         .github/scripts/bootstrap-db-fixtures.sh postgres
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
+          -testPlan PostgresCompatibilityTests \
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-${{ matrix.db }}" \
-          -only-testing:EchoTests/PGConnectionTests \
-          -only-testing:EchoTests/PGQueryTests \
-          -only-testing:EchoTests/PGSchemaDiscoveryTests \
-          -only-testing:EchoTests/PGMetadataTests \
-          -only-testing:EchoTests/PGTableOperationsTests \
-          -only-testing:EchoTests/PGColumnTests \
-          -only-testing:EchoTests/PGConstraintTests \
-          -only-testing:EchoTests/PGIndexTests \
-          -only-testing:EchoTests/PGViewTests \
-          -only-testing:EchoTests/PGFunctionTests \
-          -only-testing:EchoTests/PGTriggerTests \
-          -only-testing:EchoTests/PGTransactionTests \
-          -only-testing:EchoTests/PGSecurityTests \
-          -only-testing:EchoTests/PGExtensionTests \
-          -only-testing:EchoTests/PGActivityMonitorTests \
-          -only-testing:EchoTests/PGSequenceTests \
-          -only-testing:EchoTests/PGDataTypeNumericTests \
-          -only-testing:EchoTests/PGDataTypeStringTests \
-          -only-testing:EchoTests/PGDataTypeDateTimeTests \
-          -only-testing:EchoTests/PGDataTypeSpecialTests \
-          -only-testing:EchoTests/PGStreamingTests \
-          -only-testing:EchoTests/PGStreamingSpoolTests \
           -disable-concurrent-testing \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
+
+    - name: Verify Postgres Compatibility Results
+      if: always() && matrix.type == 'postgres'
+      run: |
+        python3 .github/scripts/verify_xcresult.py \
+          --path "TestResults-${{ matrix.db }}.xcresult" \
+          --label "${{ matrix.db }} compatibility tests" \
+          --min-executed 1
 
     - name: Upload Results
       if: always()
