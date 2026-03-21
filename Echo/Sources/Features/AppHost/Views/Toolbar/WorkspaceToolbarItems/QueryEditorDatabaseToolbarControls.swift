@@ -48,8 +48,13 @@ private struct MSSQLQueryToolbarControls: View {
         Button {
             query.statisticsEnabled.toggle()
         } label: {
-            Label("Statistics", systemImage: "gauge.with.dots.needle.33percent")
-                .symbolVariant(query.statisticsEnabled ? .fill : .none)
+            Label {
+                Text("Statistics")
+            } icon: {
+                Image(systemName: query.statisticsEnabled ? "chart.bar.fill" : "chart.bar")
+                    .frame(width: 16, height: 16)
+                    .contentTransition(.identity)
+            }
         }
         .help(query.statisticsEnabled ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")
         .accessibilityLabel(query.statisticsEnabled ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")

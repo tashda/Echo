@@ -48,6 +48,7 @@ extension JobDetailsView {
                 }
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay {
                 if rows.isEmpty {

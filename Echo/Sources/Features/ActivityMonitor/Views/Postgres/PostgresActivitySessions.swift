@@ -61,6 +61,7 @@ struct PostgresActivitySessions: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: PostgresProcessInfo.ID.self) { selection in
             if let id = selection.first, let process = processes.first(where: { $0.id == id }) {
                 Button {

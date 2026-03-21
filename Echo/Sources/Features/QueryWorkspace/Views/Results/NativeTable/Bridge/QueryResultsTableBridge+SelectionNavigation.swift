@@ -18,13 +18,13 @@ extension QueryResultsTableView.Coordinator {
         selectionAnchor = topLeft
         selectionFocus = bottomRight
         endSelectionDrag()
-        parent.onClearColumnHighlight()
+        notifyClearColumnHighlight()
     }
 
     func clearColumnSelection(in tableView: NSTableView) {
         setSelectionRegion(nil, tableView: tableView)
         tableView.highlightedTableColumn = nil
-        parent.onClearColumnHighlight()
+        notifyClearColumnHighlight()
         deactivateActiveSelectableField(in: tableView)
         selectionAnchor = nil
         selectionFocus = nil

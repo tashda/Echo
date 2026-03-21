@@ -26,7 +26,6 @@ final class JobQueueViewModel {
         var statusLabel: String {
             switch status { case 0: return "Failed"; case 1: return "Succeeded"; case 2: return "Retry"; case 3: return "Canceled"; case 4: return "In Progress"; default: return "Unknown" }
         }
-        /// Combined date+time as sortable integer: YYYYMMDDHHMMSS
         var runDateTimeSortKey: Int { runDate * 1_000_000 + runTime }
     }
 
@@ -50,19 +49,14 @@ final class JobQueueViewModel {
     var isLoadingJobs = false
     var isLoadingDetails = false
     var isJobRunning = false
-    /// The name of the job the user manually started via Play — drives refresh button progress.
-    /// Cleared only when that specific job stops running, regardless of selection changes.
     var manuallyStartedJobName: String?
-    /// ActivityEngine handle for the manually-started job — stays alive until the job finishes.
     @ObservationIgnored var manualStartHandle: OperationHandle?
     var runningJobNames: Set<String> = []
     var errorMessage: String?
     var selectedDetailSection: String = "Properties"
     var activeStepInfo: ActiveStepInfo?
     @ObservationIgnored internal var activityPollTask: Task<Void, Never>?
-    /// Tracks when a job was manually started to avoid clearing running state during SQL Agent's registration delay
     @ObservationIgnored internal var jobStartedAt: Date?
-    /// Whether the poll has ever seen the job running (confirmed by SQL Agent)
     @ObservationIgnored internal var jobSeenRunning = false
 
     struct ActiveStepInfo: Equatable {
@@ -77,7 +71,6 @@ final class JobQueueViewModel {
         return history.first { $0.id == id }
     }
 
-    /// Identifier passed before jobs are loaded — may be a GUID or a job name.
     private var pendingJobIdentifier: String?
 
     init(session: DatabaseSession, connection: SavedConnection, initialSelectedJobID: String? = nil) {
@@ -93,88 +86,61 @@ final class JobQueueViewModel {
         await loadCategories()
         await loadLogins()
 
-        // Resolve pending selection now that jobs are loaded
         let hadPending = pendingJobIdentifier != nil
         if let identifier = pendingJobIdentifier {
             pendingJobIdentifier = nil
             resolveAndSelect(jobIdentifier: identifier)
         }
 
-        // If no pending selection was resolved, load all history
         if selectedJobID == nil {
             await loadHistory(all: true)
         } else if !hadPending {
-            // Selection was already set before loadInitial (shouldn't happen normally)
             await loadDetailsAndHistory()
         }
-        // else: resolveAndSelect already triggered didSet → loadDetailsAndHistory
 
-        // Check if the selected job is currently running
         if selectedJobID != nil {
             await checkJobActivity()
             if isJobRunning { startActivityPolling() }
         }
     }
 
-    /// Resolve a job identifier (GUID or name) against the loaded jobs list and select it.
     func resolveAndSelect(jobIdentifier: String) {
-        let normalized = jobIdentifier
-            .trimmingCharacters(in: CharacterSet(charactersIn: "{}"))
-
-        // Try exact ID match (case-insensitive for GUIDs)
+        let normalized = jobIdentifier.trimmingCharacters(in: CharacterSet(charactersIn: "{}"))
         if let match = jobs.first(where: {
             $0.id.trimmingCharacters(in: CharacterSet(charactersIn: "{}"))
                 .caseInsensitiveCompare(normalized) == .orderedSame
         }) {
-            if selectedJobID != match.id {
-                selectedJobID = match.id
-            } else {
-                // Already selected — force reload details
-                Task { await loadDetailsAndHistory() }
-            }
+            if selectedJobID != match.id { selectedJobID = match.id }
+            else { Task { await loadDetailsAndHistory() } }
             return
         }
-        // Fallback: match by name
         if let match = jobs.first(where: { $0.name.caseInsensitiveCompare(normalized) == .orderedSame }) {
-            if selectedJobID != match.id {
-                selectedJobID = match.id
-            } else {
-                Task { await loadDetailsAndHistory() }
-            }
+            if selectedJobID != match.id { selectedJobID = match.id }
+            else { Task { await loadDetailsAndHistory() } }
             return
         }
-        // If jobs aren't loaded yet, store as pending
         pendingJobIdentifier = jobIdentifier
     }
 
     private func loadDatabaseNames() async {
-        do {
-            databaseNames = try await session.listDatabases()
-        } catch {
-            databaseNames = []
-        }
+        do { databaseNames = try await session.listDatabases() }
+        catch { databaseNames = [] }
     }
 
     private func loadCategories() async {
         guard let mssql = session as? MSSQLSession else { return }
         do {
-            let agent = mssql.agent
-            let cats = try await agent.listCategories()
+            let cats = try await mssql.agent.listCategories()
             categories = cats.filter { $0.classId == 1 }.map(\.name).sorted()
-        } catch {
-            categories = []
-        }
+        } catch { categories = [] }
     }
 
     private func loadOperators() async {
         guard let mssql = session as? MSSQLSession else { return }
         do {
-            let agent = mssql.agent
-            let ops = try await agent.listOperators()
+            let ops = try await mssql.agent.listOperators()
             self.operators = ops.map { OperatorInfo(id: $0.name, name: $0.name, emailAddress: $0.emailAddress, enabled: $0.enabled) }
-        } catch {
-            self.operators = []
-        }
+        } catch { self.operators = [] }
     }
 
     private func loadLogins() async {
@@ -182,76 +148,33 @@ final class JobQueueViewModel {
         do {
             let result = try await mssql.serverSecurity.listLogins()
             logins = result.map(\.name).sorted()
-        } catch {
-            logins = []
-        }
+        } catch { logins = [] }
     }
 
     func reloadJobs() async {
         await loadJobs()
     }
 
+    // MARK: - Load Jobs (typed API)
+
     internal func loadJobs() async {
+        guard let mssql = session as? MSSQLSession else { return }
         isLoadingJobs = true
         defer { isLoadingJobs = false }
         do {
-            let sql = """
-            SELECT
-                job_id = CONVERT(nvarchar(36), j.job_id),
-                j.name,
-                j.enabled,
-                owner_name = SUSER_SNAME(j.owner_sid),
-                category = c.name,
-                last_outcome = CASE last.run_status
-                    WHEN 0 THEN 'Failed'
-                    WHEN 1 THEN 'Succeeded'
-                    WHEN 2 THEN 'Retry'
-                    WHEN 3 THEN 'Canceled'
-                    WHEN 4 THEN 'In Progress'
-                    ELSE NULL
-                END,
-                last_run = CASE WHEN last.run_date IS NULL THEN NULL ELSE RIGHT('00000000' + CONVERT(varchar(8), last.run_date), 8) + ' ' + RIGHT('000000' + CONVERT(varchar(6), last.run_time), 6) END,
-                next_run = CASE WHEN nx.next_run_date IS NULL THEN NULL ELSE RIGHT('00000000' + CONVERT(varchar(8), nx.next_run_date), 8) + ' ' + RIGHT('000000' + CONVERT(varchar(6), nx.next_run_time), 6) END
-            FROM msdb.dbo.sysjobs AS j
-            LEFT JOIN msdb.dbo.syscategories AS c ON c.category_id = j.category_id
-            OUTER APPLY (
-                SELECT TOP (1) run_status, run_date, run_time
-                FROM msdb.dbo.sysjobhistory AS h
-                WHERE h.job_id = j.job_id AND h.step_id = 0
-                ORDER BY h.instance_id DESC
-            ) AS last
-            OUTER APPLY (
-                SELECT TOP (1) js.next_run_date, js.next_run_time
-                FROM msdb.dbo.sysjobschedules AS js
-                WHERE js.job_id = j.job_id
-                ORDER BY js.next_run_date, js.next_run_time
-            ) AS nx
-            ORDER BY j.name;
-            """
-            let rs = try await session.simpleQuery(sql)
-            let idx: (String) -> Int = { name in rs.columns.firstIndex { $0.name.caseInsensitiveCompare(name) == .orderedSame } ?? 0 }
-            let items = rs.rows.compactMap { row -> JobRow? in
-                guard let name = row[safe: idx("name")] else { return nil }
-                let id = row[safe: idx("job_id")] ?? name
-                let enabled = (row[safe: idx("enabled")] ?? "0") == "1"
-                let owner = row[safe: idx("owner_name")]
-                let category = row[safe: idx("category")]
-                let outcome = row[safe: idx("last_outcome")]
-                let lastRunDate: String? = {
-                    guard let raw = row[safe: idx("last_run")] else { return nil }
-                    let parts = raw.split(separator: " ")
-                    guard parts.count == 2, let d = Int(parts[0]), let t = Int(parts[1]) else { return raw }
-                    return Self.formatAgentDateTime(d, t)
-                }()
-                let nextRun: String? = {
-                    guard let raw = row[safe: idx("next_run")] else { return nil }
-                    let parts = raw.split(separator: " ")
-                    guard parts.count == 2, let d = Int(parts[0]), let t = Int(parts[1]) else { return raw }
-                    return Self.formatAgentDateTime(d, t)
-                }()
-                return JobRow(id: id, name: name, enabled: enabled, category: category, owner: owner, lastOutcome: outcome, lastRunDate: lastRunDate, nextRun: nextRun)
+            let detailed = try await mssql.agent.listJobsDetailed()
+            self.jobs = detailed.map { job in
+                JobRow(
+                    id: job.jobId,
+                    name: job.name,
+                    enabled: job.enabled,
+                    category: job.categoryName,
+                    owner: job.ownerLoginName,
+                    lastOutcome: job.lastRunOutcome,
+                    lastRunDate: job.lastRunDate.map { Self.formatDate($0) },
+                    nextRun: job.nextRunDate.map { Self.formatDate($0) }
+                )
             }
-            self.jobs = items
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -259,7 +182,6 @@ final class JobQueueViewModel {
 
     private func loadDetailsAndHistory() async {
         stopActivityPolling()
-        // Only reset running state if this isn't the job we manually started
         let selectedName = jobs.first(where: { $0.id == selectedJobID })?.name
         let isManuallyStartedJob = selectedName != nil && selectedName == manuallyStartedJobName
         if !isManuallyStartedJob {
@@ -272,9 +194,35 @@ final class JobQueueViewModel {
         if isJobRunning { startActivityPolling() }
     }
 
+    // MARK: - Date Formatting
+
+    private static let dateFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateStyle = .medium
+        fmt.timeStyle = .short
+        return fmt
+    }()
+
+    static func formatDate(_ date: Date) -> String {
+        dateFormatter.string(from: date)
+    }
+
+    /// Format SQL Server Agent date (YYYYMMDD) + time (HHMMSS) integers into a readable string.
+    static func formatAgentDateTime(_ dateInt: Int, _ timeInt: Int) -> String? {
+        guard dateInt > 0 else { return nil }
+        let yyyy = dateInt / 10000
+        let mm = (dateInt / 100) % 100
+        let dd = dateInt % 100
+        let hh = timeInt / 10000
+        let mi = (timeInt / 100) % 100
+        let ss = timeInt % 100
+        let comps = DateComponents(year: yyyy, month: mm, day: dd, hour: hh, minute: mi, second: ss)
+        guard let date = Calendar(identifier: .gregorian).date(from: comps) else { return nil }
+        return dateFormatter.string(from: date)
+    }
+
     // MARK: - Util
     internal func escape(_ s: String) -> String { s.replacingOccurrences(of: "'", with: "''") }
-
 }
 
 extension QueryResultSet {

@@ -101,6 +101,7 @@ struct MSSQLMaintenanceBackupsView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SQLServerBackupHistoryEntry.ID.self) { ids in
             if ids.first != nil {
                 Button {

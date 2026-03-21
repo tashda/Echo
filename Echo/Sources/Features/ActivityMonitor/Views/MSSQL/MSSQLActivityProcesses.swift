@@ -76,6 +76,7 @@ struct MSSQLActivityProcesses: View {
             }.width(80)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SQLServerProcessInfo.ID.self) { selection in
             if let id = selection.first, let process = processes.first(where: { $0.id == id }) {
                 Button {

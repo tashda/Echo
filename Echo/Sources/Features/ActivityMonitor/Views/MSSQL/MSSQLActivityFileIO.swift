@@ -61,6 +61,7 @@ struct MSSQLActivityFileIO: View {
             }.width(min: 60, ideal: 70)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SQLServerFileIOStatDelta.ID.self) { _ in
         } primaryAction: { _ in
             onDoubleClick?()

@@ -1,11 +1,7 @@
 import XCTest
 import AppKit
 
-final class QueryEditorExtendedUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class QueryEditorExtendedUITests: EchoUITestCase {
     // MARK: - Helpers
 
     private func launchWithEditor() -> (XCUIApplication, XCUIElement) {

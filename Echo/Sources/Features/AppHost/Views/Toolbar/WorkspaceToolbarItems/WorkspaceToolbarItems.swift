@@ -4,7 +4,8 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
     var body: some CustomizableToolbarContent {
         navigationItems
         centerItems
-        primaryActionItems
+        contextActionItems
+        workspaceActionItems
     }
 
     // MARK: - Left Side (Navigation)
@@ -52,10 +53,11 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
         }
     }
 
-    // MARK: - Right Side (Primary Actions)
+    // MARK: - Right Side: Context-Specific Actions
 
     @ToolbarContentBuilder
-    private var primaryActionItems: some CustomizableToolbarContent {
+    private var contextActionItems: some CustomizableToolbarContent {
+        // Activity Monitor, Job Queue, Maintenance — tab-specific controls
         ToolbarItem(id: "workspace.primary.activitymonitor", placement: .primaryAction) {
             ActivityMonitorToolbarItem()
         }
@@ -75,22 +77,30 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
         }
         .sharedBackgroundVisibility(.hidden)
 
-        // Database-specific query controls (e.g. MSSQL: SQLCMD, Statistics)
+        // Run — standalone, leftmost query action
+        ToolbarItem(id: "workspace.primary.queryrun", placement: .primaryAction) {
+            QueryRunToolbarItem()
+        }
+        .sharedBackgroundVisibility(.hidden)
+
+        // Format + Estimated Plan — "enhance" group
+        ToolbarItem(id: "workspace.primary.queryenhance", placement: .primaryAction) {
+            QueryEditorEnhanceToolbarControls()
+        }
+        .sharedBackgroundVisibility(.hidden)
+
+        // Database-specific mode toggles (SQLCMD, Statistics)
         ToolbarItem(id: "workspace.primary.querydb", placement: .primaryAction) {
             QueryEditorDatabaseToolbarControls()
         }
         .sharedBackgroundVisibility(.hidden)
+    }
 
-        // Generic query controls (Estimated Plan)
-        ToolbarItem(id: "workspace.primary.querygeneric", placement: .primaryAction) {
-            QueryEditorToolbarControls()
-        }
-        .sharedBackgroundVisibility(.hidden)
+    // MARK: - Right Side: Workspace Actions
 
-        ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
-            RefreshToolbarButton()
-        }
-
+    @ToolbarContentBuilder
+    private var workspaceActionItems: some CustomizableToolbarContent {
+        // Tab Overview + New Tab — shared glass group
         ToolbarItem(id: "workspace.primary.taboverview", placement: .primaryAction) {
             TabOverviewToolbarButton()
         }
@@ -99,6 +109,14 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
             NewTabToolbarButton()
         }
 
+        // Refresh — standalone with own glass
+        ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
+            RefreshToolbarButton()
+                .glassEffect(.regular.interactive())
+        }
+        .sharedBackgroundVisibility(.hidden)
+
+        // Inspector — standalone, rightmost
         ToolbarItem(id: "workspace.primary.inspector", placement: .primaryAction) {
             InspectorToolbarButton()
         }

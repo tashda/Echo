@@ -97,6 +97,7 @@ struct MSSQLMaintenanceTablesView: View {
             .width(min: 80, ideal: 100)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .onChange(of: sortOrder) { _, newOrder in
             viewModel.tableStats.sort(using: newOrder)
         }

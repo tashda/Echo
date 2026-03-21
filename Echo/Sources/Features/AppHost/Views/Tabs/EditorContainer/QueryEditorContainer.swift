@@ -5,7 +5,6 @@ struct QueryEditorContainer: View {
     @Bindable var tab: WorkspaceTab
     @Bindable var query: QueryEditorState
     let runQuery: (String) async -> Void
-    let cancelQuery: () -> Void
     let gridStateProvider: () -> QueryResultsGridState
 
     @Environment(ProjectStore.self) var projectStore
@@ -50,8 +49,6 @@ struct QueryEditorContainer: View {
                 ) {
                     QueryInputSection(
                         query: query,
-                        onExecute: { sql in await runQuery(sql) },
-                        onCancel: cancelQuery,
                         onAddBookmark: handleBookmarkRequest,
                         completionContext: editorCompletionContext,
                         onSchemaLoadNeeded: { dbName in
@@ -67,8 +64,6 @@ struct QueryEditorContainer: View {
             } else {
                 QueryInputSection(
                     query: query,
-                    onExecute: { sql in await runQuery(sql) },
-                    onCancel: cancelQuery,
                     onAddBookmark: handleBookmarkRequest,
                     completionContext: editorCompletionContext,
                     onSchemaLoadNeeded: { dbName in
@@ -84,6 +79,7 @@ struct QueryEditorContainer: View {
         .background(ColorTokens.Background.primary)
         .onAppear {
             updateClipboardContext()
+            wireToolbarActions()
         }
         .onChange(of: tab.connection.metadataColorHex) { _, _ in
             updateClipboardContext()
@@ -91,13 +87,19 @@ struct QueryEditorContainer: View {
         .onChange(of: tab.connection.database) { _, _ in
             updateClipboardContext()
         }
+        .onChange(of: tab.activeDatabaseName) { _, _ in
+            updateClipboardContext()
+        }
         .onChange(of: query.hasExecutedAtLeastOnce) { _, executed in
             if executed && !panelState.isOpen && projectStore.globalSettings.autoOpenBottomPanel {
                 panelState.isOpen = true
             }
         }
-        .task {
+        .task(id: tab.id) {
+            wireToolbarActions()
             await triggerAutoExecutionIfNeeded()
+        }
+        .task(id: connectionDatabaseName ?? tab.connection.database) {
             ensureCurrentDatabaseStructureLoaded()
         }
         .onChange(of: query.shouldAutoExecuteOnAppear) { _, newValue in
@@ -114,6 +116,12 @@ struct QueryEditorContainer: View {
         guard !query.isExecuting else { return }
         query.shouldAutoExecuteOnAppear = false
         await runQuery(query.sql)
+    }
+
+    func wireToolbarActions() {
+        tab.executeQueryAction = { [runQuery] sql in
+            await runQuery(sql)
+        }
     }
 
     func handleCellInspect(_ content: CellValueInspectorContent) {

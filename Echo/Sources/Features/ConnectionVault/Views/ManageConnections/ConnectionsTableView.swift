@@ -76,6 +76,7 @@ struct ConnectionsTableView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SavedConnection.ID.self) { items in
             if let selectionID = items.first,
                let connection = connections.first(where: { $0.id == selectionID }) {

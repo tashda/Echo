@@ -54,6 +54,8 @@ struct QueryPanelStatusBar: View {
             config.statusBubble = buildStatusBubble()
         }
 
+        config.modeIndicators = buildModeIndicators()
+
         return config
     }
 
@@ -65,6 +67,17 @@ struct QueryPanelStatusBar: View {
         let durationText = hasDuration ? EchoFormatters.duration(seconds: Int(elapsed.rounded())) : nil
 
         return .init(rowCountText: rowCount, rowCountLabel: rowLabel, durationText: durationText)
+    }
+
+    private func buildModeIndicators() -> [BottomPanelStatusBarConfiguration.ModeIndicator] {
+        var indicators: [BottomPanelStatusBarConfiguration.ModeIndicator] = []
+        if query.sqlcmdModeEnabled {
+            indicators.append(.init(id: "sqlcmd", label: "SQLCMD", icon: "terminal"))
+        }
+        if query.statisticsEnabled {
+            indicators.append(.init(id: "statistics", label: "Statistics", icon: "chart.bar"))
+        }
+        return indicators
     }
 
     private func buildStatusBubble() -> BottomPanelStatusBarConfiguration.StatusBubble {

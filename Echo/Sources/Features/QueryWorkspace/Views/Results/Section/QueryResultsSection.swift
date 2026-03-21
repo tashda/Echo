@@ -21,7 +21,7 @@ struct QueryResultsSection: View {
     @State internal var jsonInspectorContext: JsonInspectorContext?
 #endif
 
-    @Environment(AppearanceStore.self) private var appearanceStore
+    @Environment(AppearanceStore.self) internal var appearanceStore
     @Environment(ProjectStore.self) internal var projectStore
 
     internal let statusBarHeight: CGFloat = 24

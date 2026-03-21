@@ -71,6 +71,7 @@ struct JobListView: View {
                 ForEach(sortedJobs) { job in TableRow(job) }
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
             .contextMenu(forSelectionType: String.self) { items in
                 if let id = items.first {
                     let jobIsRunning = viewModel.jobs.first(where: { $0.id == id }).map { viewModel.runningJobNames.contains($0.name) } ?? false

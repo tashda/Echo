@@ -9,6 +9,9 @@ import os.log
     var results: QueryResultSet?
     var errorMessage: String?
     var isExecuting: Bool = false
+    /// Incremented each time `startExecution()` runs. Used as a SwiftUI `.id()`
+    /// on the result table so that it is fully recreated between query runs.
+    var executionGeneration: Int = 0
     var lastExecutionTime: TimeInterval?
     var currentExecutionTime: TimeInterval = 0
     var rowProgress: RowProgress = RowProgress()
@@ -107,6 +110,13 @@ import os.log
     var executionPlan: ExecutionPlanData?
     var isLoadingExecutionPlan: Bool = false
     var dataClassification: DataClassification?
+
+    // MARK: - Selection State (observed by toolbar)
+
+    /// True when the user has a non-empty text selection in the editor.
+    var hasActiveSelection: Bool = false
+    /// The selected text, available for "Run Selection".
+    @ObservationIgnored var selectedText: String = ""
 
     // MARK: - Debug Session State
 

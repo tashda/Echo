@@ -119,6 +119,7 @@ extension TableStructureEditorView {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .environment(\.defaultMinListRowHeight, 28)
         .onChange(of: selectedColumnIDs) { _, newIDs in
             pushColumnInspector(ids: newIDs)

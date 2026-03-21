@@ -61,6 +61,7 @@ struct JobHistoryView: View {
                 ForEach(sortedHistory) { h in TableRow(h) }
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
         }
     }
 

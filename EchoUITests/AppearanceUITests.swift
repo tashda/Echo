@@ -1,10 +1,6 @@
 import XCTest
 
-final class AppearanceUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class AppearanceUITests: EchoUITestCase {
     // MARK: - Dark Mode
 
     func testDarkModeAppearance() {

@@ -142,7 +142,6 @@ extension SQLTextView {
     func triggerCompletion(immediate: Bool) {
         guard displayOptions.autoCompletionEnabled else { return }
         guard !manualCompletionSuppression else { return }
-        suppressNextCompletionRefresh = true
         refreshCompletions(immediate: immediate)
     }
 

@@ -14,11 +14,11 @@ struct AutoCompletionListView: View {
     @State private var detailUnlocked = false
 
     private enum Layout {
-        static let rowCornerRadius: CGFloat = 5
-        static let detailWidth: CGFloat = 240
-        static let containerCornerRadius: CGFloat = 8
-        static let horizontalPadding: CGFloat = SpacingTokens.xxs2
-        static let verticalPadding: CGFloat = SpacingTokens.xxs2
+        static let rowCornerRadius: CGFloat = ShapeTokens.CornerRadius.large
+        static let detailWidth: CGFloat = 200
+        static let containerCornerRadius: CGFloat = ShapeTokens.CornerRadius.medium
+        static let horizontalPadding: CGFloat = SpacingTokens.xxs1
+        static let verticalPadding: CGFloat = SpacingTokens.xxs1
         static let containerSpacing: CGFloat = 0
         static let detailRevealDelay: TimeInterval = 1.0
         static let rowHorizontalPadding: CGFloat = SpacingTokens.xs
@@ -40,13 +40,8 @@ struct AutoCompletionListView: View {
     }
 
     private var listWidth: CGFloat {
-#if os(macOS)
-        let font = NSFont.systemFont(ofSize: 13)
-        let titleWidth = suggestions.map { ($0.title as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
+        let titleWidth = suggestions.map { ($0.title as NSString).size(withAttributes: [.font: TypographyTokens.AppKit.standard]).width }.max() ?? 0
         return max(Layout.minListWidth, Layout.rowHorizontalPadding * 2 + Layout.rowIconSize + Layout.rowIconSpacing + titleWidth)
-#else
-        return Layout.minListWidth
-#endif
     }
 
     var body: some View {
@@ -126,17 +121,24 @@ struct AutoCompletionRowView: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: SpacingTokens.xxs2) {
-                Image(systemName: suggestion.kind.iconSystemName).font(TypographyTokens.detail.weight(.medium)).foregroundStyle(isSelected ? activeIconColor : .secondary).frame(width: 14)
-#if os(macOS)
-                AutoScrollingText(text: suggestion.title, font: .systemFont(ofSize: 13), isActive: isSelected).foregroundStyle(isSelected ? activeTitleColor : .primary)
-#else
-                AutoScrollingText(text: suggestion.title, font: .system(size: 13), isActive: isSelected).foregroundStyle(isSelected ? activeTitleColor : .primary)
-#endif
+                Image(systemName: suggestion.kind.iconSystemName)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(isSelected ? activeIconColor : .secondary)
+                    .frame(width: 14)
+                Text(suggestion.title)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(isSelected ? activeTitleColor : .primary)
                 Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, SpacingTokens.xs).padding(.vertical, SpacingTokens.xxs).contentShape(Rectangle())
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, SpacingTokens.xs)
+            .padding(.vertical, SpacingTokens.xxs)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain).background(rowBackground)
+        .buttonStyle(.plain)
+        .background(rowBackground)
     }
 
     private var activeIconColor: Color {
@@ -158,9 +160,9 @@ struct AutoCompletionRowView: View {
     private var rowBackground: some View {
         guard isSelected else { return AnyView(EmptyView()) }
 #if os(macOS)
-        return AnyView(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color(nsColor: .controlAccentColor)))
+        return AnyView(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.large, style: .continuous).fill(Color(nsColor: .controlAccentColor)))
 #else
-        return AnyView(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(ColorTokens.accent.opacity(colorScheme == .dark ? 0.32 : 0.22)))
+        return AnyView(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.large, style: .continuous).fill(ColorTokens.accent.opacity(colorScheme == .dark ? 0.32 : 0.22)))
 #endif
     }
 }

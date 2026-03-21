@@ -17,14 +17,14 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
             menuColumnIndex = clickedColumn
 
             guard let dataIndex = menuColumnIndex,
-                  dataIndex < parent.query.displayedColumns.count else { return }
+                  dataIndex < queryState.displayedColumns.count else { return }
 
             selectColumn(at: dataIndex, in: tableView)
 
             let ascendingItem = NSMenuItem(title: "Sort Ascending", action: #selector(sortAscending), keyEquivalent: "")
             ascendingItem.target = self
             if let sort = parent.activeSort,
-               sort.column == parent.query.displayedColumns[dataIndex].name,
+               sort.column == queryState.displayedColumns[dataIndex].name,
                sort.ascending {
                 ascendingItem.state = .on
             }
@@ -33,7 +33,7 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
             let descendingItem = NSMenuItem(title: "Sort Descending", action: #selector(sortDescending), keyEquivalent: "")
             descendingItem.target = self
             if let sort = parent.activeSort,
-               sort.column == parent.query.displayedColumns[dataIndex].name,
+               sort.column == queryState.displayedColumns[dataIndex].name,
                !sort.ascending {
                 descendingItem.state = .on
             }
@@ -138,7 +138,7 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
         isDraggingRowSelection = false
         selectionFocus = QueryResultsTableView.SelectedCell(
             row: row,
-            column: max(parent.query.displayedColumns.count - 1, 0)
+            column: max(queryState.displayedColumns.count - 1, 0)
         )
         contextMenuCell = nil
         tableView.deselectAll(nil)
@@ -158,14 +158,14 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
         }
 
         setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
-        parent.onClearColumnHighlight()
+        notifyClearColumnHighlight()
     }
 
     func hasCopyableSelection() -> Bool {
         guard let tableView else { return false }
 
         if let selectionRegion {
-            let columnCount = parent.query.displayedColumns.count
+            let columnCount = queryState.displayedColumns.count
             let rowCount = tableView.numberOfRows
             guard columnCount > 0, rowCount > 0 else { return false }
 

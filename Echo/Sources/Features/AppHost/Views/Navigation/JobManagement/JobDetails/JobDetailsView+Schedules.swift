@@ -122,6 +122,7 @@ private struct SchedulesTableView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: String.self) { items in
             if let id = items.first, let sch = viewModel.schedules.first(where: { $0.id == id }) {
                 Button("Detach Schedule", role: .destructive) {

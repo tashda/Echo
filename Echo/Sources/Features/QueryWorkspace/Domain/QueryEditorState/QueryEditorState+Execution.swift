@@ -33,6 +33,7 @@ extension QueryEditorState {
         hasAppliedFinalSpoolStats = false
         lastBroadcastSnapshot = nil
         isExecuting = true
+        executionGeneration &+= 1
         wasCancelled = false
         isCancellationRequested = false
         visibleRowLimit = initialVisibleRowBatch

@@ -119,6 +119,7 @@ struct NewDatabaseSheet: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .contentMargins(SpacingTokens.xs)
     }
 
     // MARK: - Detail Pane

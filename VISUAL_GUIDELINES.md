@@ -124,7 +124,8 @@ Use color to highlight **anomalies only** — not to decorate normal values.
 - **Default sort:** On a meaningful column (usually descending for metrics)
 - **Re-sort after refresh:** Apply current `sortOrder` when data reloads
 - **Single-click:** Opens inspector (toggle: false)
-- **Double-click:** Toggles inspector visibility (toggle: true)
+- **Double-click row:** Toggles inspector visibility (toggle: true)
+- **Double-click column divider:** Auto-resizes the column to fit its longest content. This is standard macOS table behavior and must work on every table in the app. SwiftUI `Table` does not expose this natively — use the `.tableColumnAutoResize()` modifier (in `DesignSystem/Components/`) which introspects the underlying `NSTableView` and implements the delegate method
 - **Context menu:** Grouped by concern, dividers between groups
 
 ---
@@ -258,6 +259,7 @@ VStack(spacing: 0) {
 |------|--------|
 | Sidebar width | Fixed 170pt |
 | Sidebar style | `.listStyle(.sidebar)` + `.scrollContentBackground(.hidden)` |
+| Sidebar insets | `.contentMargins(SpacingTokens.xs)` — selection highlight must have padding on all sides from container edges. Matches Apple System Settings / Xcode Settings spacing |
 | Detail pane | `Form { ... }.formStyle(.grouped).scrollContentBackground(.hidden)` |
 | Footer padding | `.padding(SpacingTokens.md)` |
 | Footer layout | `[error text] [Spacer] [spinner] [Cancel .bordered] [Done .borderedProminent]` |

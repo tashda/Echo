@@ -1,10 +1,6 @@
 import XCTest
 
-final class TabOperationsExtendedUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class TabOperationsExtendedUITests: EchoUITestCase {
     // MARK: - Helpers
 
     private func launchApp() -> XCUIApplication {

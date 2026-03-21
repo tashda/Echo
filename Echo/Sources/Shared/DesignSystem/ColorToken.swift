@@ -64,6 +64,8 @@ public enum ColorTokens {
         public static let warning = Color.orange
         public static let error = Color.red
         public static let info = Color.blue
+        /// Active mode indicators in the status bar (e.g. SQLCMD, Statistics).
+        public static let modeIndicator = Color.orange
     }
 
     // Tab Strip
