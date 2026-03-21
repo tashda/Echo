@@ -2,50 +2,17 @@ import XCTest
 import SQLServerKit
 @testable import Echo
 
-final class MSSQLQueryTabIsolationTests: MSSQLDockerTestCase {
-    private var metadataSession: SQLServerSessionAdapter {
-        session as! SQLServerSessionAdapter
-    }
-
-    private func makeDedicatedQuerySession(
-        database: String? = nil
-    ) async throws -> MSSQLDedicatedQuerySession {
-        let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
-            host: "127.0.0.1",
-            port: Self.port,
-            database: database,
-            tls: false,
-            trustServerCertificate: true,
-            sslRootCertPath: nil,
-            mssqlEncryptionMode: .optional,
-            readOnlyIntent: false,
-            authentication: DatabaseAuthenticationConfiguration(
-                method: .sqlPassword,
-                username: Self.username,
-                password: Self.password
-            ),
-            connectTimeoutSeconds: 15
-        )
-        let connection = try await SQLServerConnection.connect(
-            configuration: configuration
-        )
-
-        let querySession = MSSQLDedicatedQuerySession(
-            connection: connection,
-            configuration: configuration,
-            metadataSession: metadataSession
-        )
-
-        addTeardownBlock {
-            await querySession.close()
-        }
-
-        return querySession
-    }
+/// Tests query tab isolation using dedicated sessions.
+///
+/// Uses `MSSQLDedicatedDockerTestCase` to verify that separate query tabs
+/// (each with their own dedicated `SQLServerConnection`) maintain independent
+/// database context, temp tables, and query execution state.
+final class MSSQLQueryTabIsolationTests: MSSQLDedicatedDockerTestCase {
 
     func testDedicatedQueryTabsKeepDatabaseContextIsolated() async throws {
-        let tabOne = try await makeDedicatedQuerySession()
-        let tabTwo = try await makeDedicatedQuerySession()
+        let tabOne = dedicatedSession!
+        let tabTwo = try await makeDedicatedSession()
+        addTeardownBlock { await tabTwo.close() }
 
         _ = try await tabOne.sessionForDatabase("tempdb")
 
@@ -57,8 +24,9 @@ final class MSSQLQueryTabIsolationTests: MSSQLDockerTestCase {
     }
 
     func testDedicatedQueryTabsDoNotShareTemporaryTables() async throws {
-        let tabOne = try await makeDedicatedQuerySession()
-        let tabTwo = try await makeDedicatedQuerySession()
+        let tabOne = dedicatedSession!
+        let tabTwo = try await makeDedicatedSession()
+        addTeardownBlock { await tabTwo.close() }
 
         _ = try await tabOne.executeUpdate("CREATE TABLE #echo_tab_isolation (id INT)")
 
@@ -74,14 +42,15 @@ final class MSSQLQueryTabIsolationTests: MSSQLDockerTestCase {
     }
 
     func testCancellingOneDedicatedQueryTabDoesNotPoisonOtherTabsOrItself() async throws {
-        let tabOne = try await makeDedicatedQuerySession()
-        let tabTwo = try await makeDedicatedQuerySession()
+        let tabOne = dedicatedSession!
+        let tabTwo = try await makeDedicatedSession()
+        addTeardownBlock { await tabTwo.close() }
 
         let longRunningQuery = Task {
             try await tabOne.simpleQuery("WAITFOR DELAY '00:00:10'; SELECT 1 AS delayed")
         }
 
-        try await Task.sleep(for: .milliseconds(300))
+        try await Task.sleep(for: .milliseconds(1000))
         longRunningQuery.cancel()
 
         do {
@@ -101,7 +70,7 @@ final class MSSQLQueryTabIsolationTests: MSSQLDockerTestCase {
     }
 
     func testCancellingStreamedDedicatedQueryDoesNotPoisonTab() async throws {
-        let tab = try await makeDedicatedQuerySession()
+        let tab = dedicatedSession!
 
         let longRunningQuery = Task {
             try await tab.simpleQuery(
@@ -116,7 +85,7 @@ final class MSSQLQueryTabIsolationTests: MSSQLDockerTestCase {
             )
         }
 
-        try await Task.sleep(for: .milliseconds(250))
+        try await Task.sleep(for: .milliseconds(1000))
         longRunningQuery.cancel()
 
         do {

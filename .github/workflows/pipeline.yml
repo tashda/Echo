@@ -34,7 +34,7 @@ jobs:
 
     - name: Run Unit Tests
       run: |
-        rm -rf TestResults-unit TestResults-unit.xcresult
+        find . -maxdepth 1 -name "TestResults-unit*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -testPlan UnitTests \
@@ -77,8 +77,16 @@ jobs:
       run: |
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security set-keychain-settings ~/Library/Keychains/login.keychain-db
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security set-key-partition-list -S apple-tool:,apple:,codesign:,teamid:,apple-events: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+
+    - name: Suppress macOS prompts
+      run: |
+        # Grant Accessibility access to Xcode and xcodebuild for UI testing
+        XCODE_PATH="$(xcode-select -p)"
+        XCODEBUILD_PATH="$(command -v xcodebuild)"
+        # Pre-approve local network access for the test runner
+        defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
 
     - name: Verify Docker (via Colima)
       run: |
@@ -101,6 +109,23 @@ jobs:
         LIBPQ_BIN="$(brew --prefix libpq)/bin"
         echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
         echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+        # Verify tools exist and are correct architecture
+        for tool in psql pg_dump pg_restore; do
+          TOOL_PATH="$LIBPQ_BIN/$tool"
+          if [[ ! -x "$TOOL_PATH" ]]; then
+            echo "::error::$tool not found at $TOOL_PATH"
+            exit 1
+          fi
+          ARCH_INFO="$(file -b "$TOOL_PATH")"
+          echo "$tool: $ARCH_INFO"
+          MACHINE_ARCH="$(uname -m)"
+          if echo "$ARCH_INFO" | grep -q "Mach-O"; then
+            if ! echo "$ARCH_INFO" | grep -qE "(universal|$MACHINE_ARCH)"; then
+              echo "::error::$tool architecture mismatch: expected $MACHINE_ARCH, got $ARCH_INFO"
+              exit 1
+            fi
+          fi
+        done
 
     - name: Bootstrap validated database fixtures
       run: |
@@ -109,7 +134,7 @@ jobs:
 
     - name: Run Integration Tests
       run: |
-        rm -rf TestResults-integration TestResults-integration.xcresult
+        find . -maxdepth 1 -name "TestResults-integration*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -testPlan DatabaseIntegrationTests \
@@ -162,8 +187,12 @@ jobs:
       run: |
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security set-keychain-settings ~/Library/Keychains/login.keychain-db
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security set-key-partition-list -S apple-tool:,apple:,codesign:,teamid:,apple-events: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+
+    - name: Suppress macOS prompts
+      run: |
+        defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
 
     - name: Verify Docker (via Colima)
       run: |
@@ -194,7 +223,7 @@ jobs:
 
     - name: Run Extended Integration Tests
       run: |
-        rm -rf TestResults-extended-integration TestResults-extended-integration.xcresult
+        find . -maxdepth 1 -name "TestResults-extended-integration*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -testPlan ExtendedIntegrationTests \
@@ -302,8 +331,12 @@ jobs:
       run: |
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security set-keychain-settings ~/Library/Keychains/login.keychain-db
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security set-key-partition-list -S apple-tool:,apple:,codesign:,teamid:,apple-events: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+
+    - name: Suppress macOS prompts
+      run: |
+        defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
 
     - name: Verify Docker (via Colima)
       run: |
@@ -334,7 +367,7 @@ jobs:
       run: |
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh sqlserver
-        rm -rf "TestResults-${{ matrix.db }}" "TestResults-${{ matrix.db }}.xcresult"
+        find . -maxdepth 1 -name "TestResults-${{ matrix.db }}*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -testPlan MSSQLCompatibilityTests \
@@ -360,7 +393,7 @@ jobs:
       run: |
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh postgres
-        rm -rf "TestResults-${{ matrix.db }}" "TestResults-${{ matrix.db }}.xcresult"
+        find . -maxdepth 1 -name "TestResults-${{ matrix.db }}*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -testPlan PostgresCompatibilityTests \

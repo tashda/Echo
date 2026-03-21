@@ -47,11 +47,13 @@ final class MSSQLConnectionTests: MSSQLDockerTestCase {
         cleanupSQL("DROP DATABASE [\(dbName)]")
 
         let dbSession = try await session.sessionForDatabase(dbName)
-        defer { Task { @MainActor in await dbSession.close() } }
 
         // Should be able to query in the new database
         let result = try await dbSession.simpleQuery("SELECT DB_NAME() AS current_db")
         XCTAssertEqual(result.rows[0][0], dbName)
+
+        // Close synchronously within the test to avoid EventLoop lifecycle issues
+        await dbSession.close()
     }
 
     func testListDatabasesIncludesMaster() async throws {
@@ -77,10 +79,9 @@ final class MSSQLConnectionTests: MSSQLDockerTestCase {
             ),
             connectTimeoutSeconds: 15
         )
-        defer { Task { @MainActor in await s.close() } }
-
         let result = try await s.simpleQuery("SELECT 1 AS test")
         XCTAssertEqual(result.rows.count, 1)
+        await s.close()
     }
 
     func testConnectionWithReadOnlyIntent() async throws {
@@ -99,10 +100,10 @@ final class MSSQLConnectionTests: MSSQLDockerTestCase {
             ),
             connectTimeoutSeconds: 15
         )
-        defer { Task { @MainActor in await s.close() } }
 
         let result = try await s.simpleQuery("SELECT 1 AS readonly_test")
         XCTAssertEqual(result.rows.count, 1)
+        await s.close()
     }
 
     // MARK: - Error Handling
