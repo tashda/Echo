@@ -9,7 +9,8 @@ extension QueryResultsSection {
             sortCriteria = nil
             highlightedColumnIndex = nil
         }
-        if panelState.selectedSegment == .messages, query.errorMessage == nil {
+        if panelState.selectedSegment == .messages, query.errorMessage == nil,
+           !(connection.databaseType == .microsoftSQL && query.statisticsEnabled) {
             panelState.selectedSegment = .results
         }
         rebuildRowOrder()
@@ -22,6 +23,15 @@ extension QueryResultsSection {
             rowOrder = []
             if panelState.selectedSegment == .messages {
                 panelState.selectedSegment = .results
+            }
+        } else {
+            // When statistics mode is on, auto-switch to Messages so the user
+            // sees the IO/TIME output without having to click manually.
+            if connection.databaseType == .microsoftSQL,
+               query.statisticsEnabled,
+               query.errorMessage == nil {
+                panelState.selectedSegment = .messages
+                if !panelState.isOpen { panelState.isOpen = true }
             }
         }
     }

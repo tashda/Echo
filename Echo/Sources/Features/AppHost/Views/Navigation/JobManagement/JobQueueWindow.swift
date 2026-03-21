@@ -81,10 +81,10 @@ private struct JobQueueWindowContent: View {
             // Play + New Job (same group)
             ToolbarItem(id: "jobqueue.play", placement: .primaryAction) {
                 if let vm = viewModel, vm.selectedJobID != nil {
-                    PlayStopToolbarButton(
+                    ToolbarRunButton(
                         isRunning: vm.isJobRunning,
-                        runningLabel: "Stop Job",
-                        stoppedLabel: "Start Job"
+                        idleLabel: "Start Job",
+                        runningLabel: "Stop Job"
                     ) {
                         Task {
                             if vm.isJobRunning {

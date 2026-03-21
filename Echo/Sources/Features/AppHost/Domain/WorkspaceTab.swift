@@ -69,6 +69,10 @@ final class WorkspaceTab: Identifiable {
     @ObservationIgnored let resultsGridState = QueryResultsGridState()
     let panelState: BottomPanelState
 
+    /// Wired by the container view — allows toolbar buttons to trigger query execution
+    /// on this tab without fragile closure capture chains.
+    @ObservationIgnored var executeQueryAction: ((String) async -> Void)?
+
     init(
         connection: SavedConnection,
         session: DatabaseSession,

@@ -168,6 +168,7 @@ extension SecurityLoginSheet {
                     .width(min: 80, ideal: 100)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableColumnAutoResize()
                 .scrollContentBackground(.visible)
                 .frame(height: min(max(CGFloat(databaseMappingEntries.count) * 28 + 32, 120), 240))
                 .onChange(of: selectedMappingDatabase) { _, newDB in

@@ -31,6 +31,7 @@ struct MSSQLBackupSidebarSheet: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .contentMargins(SpacingTokens.xs)
     }
 
     @ViewBuilder

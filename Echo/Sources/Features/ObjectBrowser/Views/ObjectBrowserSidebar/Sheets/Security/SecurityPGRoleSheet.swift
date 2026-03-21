@@ -103,6 +103,7 @@ struct SecurityPGRoleSheet: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .contentMargins(SpacingTokens.xs)
         .background(ColorTokens.Background.secondary.opacity(0.3))
     }
 

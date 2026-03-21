@@ -9,6 +9,7 @@ extension AppDirector: TabStoreDelegate {
     func tabStore(_ store: TabStore, didAdd tab: WorkspaceTab) {
         if store.activeTabId == tab.id {
             environmentState.sessionGroup.setActiveSession(tab.connectionSessionID)
+            syncSessionActiveTab(for: tab)
         }
     }
 
@@ -62,6 +63,7 @@ extension AppDirector: TabStoreDelegate {
 
         if let activeTab = store.activeTab {
             environmentState.sessionGroup.setActiveSession(activeTab.connectionSessionID)
+            syncSessionActiveTab(for: activeTab)
         } else {
             environmentState.sessionGroup.activeSessionID = nil
         }
@@ -77,9 +79,17 @@ extension AppDirector: TabStoreDelegate {
         }
 
         environmentState.sessionGroup.setActiveSession(tab.connectionSessionID)
+        syncSessionActiveTab(for: tab)
     }
 
     func tabStoreDidReorderTabs(_ store: TabStore) {
         // Future hook for syncing external UI
+    }
+
+    private func syncSessionActiveTab(for tab: WorkspaceTab) {
+        guard let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) else {
+            return
+        }
+        session.activeQueryTabID = tab.id
     }
 }

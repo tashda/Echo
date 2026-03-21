@@ -5,7 +5,6 @@ extension JobQueueViewModel {
 
     // MARK: - Job Activity Polling
 
-    /// Start polling the selected job's execution status.
     func startActivityPolling() {
         stopActivityPolling()
         activityPollTask = Task { [weak self] in
@@ -46,24 +45,21 @@ extension JobQueueViewModel {
                 jobSeenRunning = true
                 isJobRunning = true
             } else if inGracePeriod {
-                // Grace period: keep running state until SQL Agent confirms registration
                 isJobRunning = true
             } else {
                 isJobRunning = false
             }
 
-            // Update running names, but preserve the manually-started job during grace period
             var runningNames = Set(running.map { $0.name })
             if inGracePeriod, let jobName {
                 runningNames.insert(jobName)
             }
             self.runningJobNames = runningNames
 
-            // While running, query current step activity and refresh history
-            // During grace period, keep the optimistic activeStepInfo — don't overwrite it
-            if isJobRunning, let jobID = selectedJobID {
+            // While running, query current step activity via typed API
+            if isJobRunning, let jobName {
                 if !inGracePeriod {
-                    await loadActiveStepInfo(jobID: jobID)
+                    await loadActiveStepInfo(jobName: jobName)
                 }
                 await loadHistory(all: false)
             } else if !polledRunning {
@@ -72,7 +68,6 @@ extension JobQueueViewModel {
 
             // Clear manually-started tracking when that specific job is no longer running
             if let startedName = manuallyStartedJobName, !runningNames.contains(startedName) {
-                // Check the latest history to determine success/failure
                 let lastOutcome = history.first(where: { $0.jobName == startedName && $0.stepId == 0 })?.status
                 let succeeded = lastOutcome == 1
                 if succeeded {
@@ -99,65 +94,24 @@ extension JobQueueViewModel {
         }
     }
 
-    func loadActiveStepInfo(jobID: String) async {
+    // MARK: - Active Step (typed API)
+
+    func loadActiveStepInfo(jobName: String) async {
+        guard let mssql = session as? MSSQLSession else { return }
         do {
-            let sql = """
-            SELECT
-                j.name AS job_name,
-                a.last_executed_step_id,
-                s.step_name,
-                a.start_execution_date,
-                a.last_executed_step_date
-            FROM msdb.dbo.sysjobactivity AS a
-            INNER JOIN msdb.dbo.sysjobs AS j ON j.job_id = a.job_id
-            LEFT JOIN msdb.dbo.sysjobsteps AS s ON s.job_id = a.job_id AND s.step_id = a.last_executed_step_id
-            WHERE a.job_id = CONVERT(uniqueidentifier, N'\(escape(jobID))')
-              AND a.start_execution_date IS NOT NULL
-              AND a.stop_execution_date IS NULL
-              AND a.session_id = (SELECT MAX(session_id) FROM msdb.dbo.syssessions)
-            ORDER BY a.start_execution_date DESC;
-            """
-            let rs = try await session.simpleQuery(sql)
-            if let row = rs.rows.first {
-                let name = row[safe: rs.index(of: "job_name")] ?? ""
-                let stepID = Int(row[safe: rs.index(of: "last_executed_step_id")] ?? "") ?? 0
-                let stepName = row[safe: rs.index(of: "step_name")] ?? "Step \(stepID)"
-                let startDateStr = row[safe: rs.index(of: "start_execution_date")] ?? ""
-                let startDate = parseDateTime(startDateStr) ?? Date()
-                activeStepInfo = ActiveStepInfo(jobName: name, stepID: stepID, stepName: stepName, startTime: startDate)
+            let agent = mssql.agent
+            if let step = try await agent.getActiveJobStep(jobName: jobName) {
+                activeStepInfo = ActiveStepInfo(
+                    jobName: step.jobName,
+                    stepID: step.lastExecutedStepId,
+                    stepName: step.stepName ?? "Step \(step.lastExecutedStepId)",
+                    startTime: step.startExecutionDate ?? Date()
+                )
             } else {
                 activeStepInfo = nil
             }
         } catch {
             // Non-critical — don't surface errors for activity polling
         }
-    }
-
-    /// Format SQL Server Agent date (YYYYMMDD) + time (HHMMSS) integers into a readable string.
-    static func formatAgentDateTime(_ dateInt: Int, _ timeInt: Int) -> String? {
-        guard dateInt > 0 else { return nil }
-        let yyyy = dateInt / 10000
-        let mm = (dateInt / 100) % 100
-        let dd = dateInt % 100
-        let hh = timeInt / 10000
-        let mi = (timeInt / 100) % 100
-        let ss = timeInt % 100
-        let comps = DateComponents(year: yyyy, month: mm, day: dd, hour: hh, minute: mi, second: ss)
-        guard let date = Calendar(identifier: .gregorian).date(from: comps) else { return nil }
-        let fmt = DateFormatter()
-        fmt.dateStyle = .medium
-        fmt.timeStyle = .short
-        return fmt.string(from: date)
-    }
-
-    func parseDateTime(_ str: String) -> Date? {
-        let formatter = DateFormatter()
-        // SQL Server datetime format
-        for format in ["yyyy-MM-dd HH:mm:ss.SSS", "yyyy-MM-dd HH:mm:ss", "MMM dd yyyy hh:mm:ssa", "MMM  d yyyy hh:mm:ssa"] {
-            formatter.dateFormat = format
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            if let d = formatter.date(from: str) { return d }
-        }
-        return nil
     }
 }

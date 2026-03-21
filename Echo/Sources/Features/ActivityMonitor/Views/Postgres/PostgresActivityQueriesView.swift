@@ -85,6 +85,7 @@ struct PostgresExpensiveQueriesTable: View {
             }.width(70)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: PostgresExpensiveQuery.ID.self) { ids in
             if let id = ids.first, let query = queries.first(where: { $0.id == id }) {
                 Button {

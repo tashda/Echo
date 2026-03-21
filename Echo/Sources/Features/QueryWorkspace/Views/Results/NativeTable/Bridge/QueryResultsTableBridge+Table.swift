@@ -5,8 +5,7 @@ import SwiftUI
 extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDataSource {
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        if suppressRowsDuringClear { return 0 }
-        return parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count
+        parent.rowOrder.isEmpty ? queryState.displayedRowCount : parent.rowOrder.count
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
@@ -98,8 +97,8 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
             cellView.apply(text: "", font: resolvedFont(for: style), textColor: style.nsColor)
             cellView.configureIcon(nil); return
         }
-        let rawValue = displayedRowValues(for: sourceIndex)?[safe: dataIndex] ?? parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
-        let columnInfo = dataIndex < parent.query.displayedColumns.count ? parent.query.displayedColumns[dataIndex] : nil
+        let rawValue = displayedRowValues(for: sourceIndex)?[safe: dataIndex] ?? queryState.valueForDisplay(row: sourceIndex, column: dataIndex)
+        let columnInfo = dataIndex < queryState.displayedColumns.count ? queryState.displayedColumns[dataIndex] : nil
         let kind = (rawValue == nil) ? .null : (dataIndex < cachedColumnKinds.count ? cachedColumnKinds[dataIndex] : ResultGridValueClassifier.kind(for: columnInfo, value: rawValue))
         let style = cachedResultGridStyles[kind] ?? { let s = fallbackResultGridStyle(for: kind); cachedResultGridStyles[kind] = s; return s }()
         let font = resolvedFont(for: style); let displayText = rawValue ?? (kind == .null ? "NULL" : "")
@@ -117,7 +116,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
 
     private func displayedRowValues(for sourceIndex: Int) -> [String?]? {
         if let cached = cachedDisplayedRows.get(sourceIndex) { return cached }
-        guard let rowValues = parent.query.displayedRow(at: sourceIndex) else { return nil }
+        guard let rowValues = queryState.displayedRow(at: sourceIndex) else { return nil }
         cachedDisplayedRows.put(sourceIndex, value: rowValues)
         return rowValues
     }
@@ -168,7 +167,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
     }
 
     func resolvedRowIndex(for visibleRow: Int) -> Int {
-        let count = parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count
+        let count = parent.rowOrder.isEmpty ? queryState.displayedRowCount : parent.rowOrder.count
         guard visibleRow >= 0, visibleRow < count else { if visibleRow >= count { scheduleRowCountCorrection() }; return -1 }
         return parent.rowOrder.isEmpty ? visibleRow : parent.rowOrder[visibleRow]
     }

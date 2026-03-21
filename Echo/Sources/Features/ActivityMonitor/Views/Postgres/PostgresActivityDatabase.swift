@@ -59,6 +59,7 @@ struct PostgresActivityDatabase: View {
             }.width(70)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: PostgresDatabaseStatDelta.ID.self) { _ in
         } primaryAction: { _ in
             onDoubleClick?()

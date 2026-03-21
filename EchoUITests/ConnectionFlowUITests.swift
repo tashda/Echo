@@ -1,10 +1,6 @@
 import XCTest
 
-final class ConnectionFlowUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class ConnectionFlowUITests: EchoUITestCase {
     // MARK: - Sidebar
 
     func testSidebarExistsOnLaunch() {

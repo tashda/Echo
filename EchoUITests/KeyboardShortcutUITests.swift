@@ -1,10 +1,6 @@
 import XCTest
 
-final class KeyboardShortcutUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class KeyboardShortcutUITests: EchoUITestCase {
     // MARK: - Tab Management Shortcuts
 
     func testCommandTCreatesNewTab() {

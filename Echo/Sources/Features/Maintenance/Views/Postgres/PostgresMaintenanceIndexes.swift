@@ -103,6 +103,7 @@ struct PostgresMaintenanceIndexes: View {
             }.width(min: 80, ideal: 100)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .onChange(of: sortOrder) { _, newOrder in
             viewModel.indexStats.sort(using: newOrder)
         }

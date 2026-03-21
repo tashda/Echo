@@ -59,7 +59,7 @@ extension QueryResultsTableView.Coordinator {
         } else {
             setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
             selectionAnchor = cell
-            parent.onClearColumnHighlight()
+            notifyClearColumnHighlight()
         }
 
         selectionFocus = cell
@@ -96,7 +96,7 @@ extension QueryResultsTableView.Coordinator {
         setSelectionRegion(region, tableView: tableView)
         selectionAnchor = cell
         selectionFocus = cell
-        parent.onClearColumnHighlight()
+        notifyClearColumnHighlight()
         contextMenuCell = cell
     }
 
@@ -117,7 +117,7 @@ extension QueryResultsTableView.Coordinator {
         // Validate selection after drag ends — data may have changed mid-drag.
         if let region = selectionRegion {
             let maxRow = tableView.numberOfRows
-            let maxColumn = parent.query.displayedColumns.count
+            let maxColumn = queryState.displayedColumns.count
             if maxRow == 0 || maxColumn == 0
                 || region.normalizedRowRange.upperBound >= maxRow
                 || region.normalizedColumnRange.upperBound >= maxColumn {

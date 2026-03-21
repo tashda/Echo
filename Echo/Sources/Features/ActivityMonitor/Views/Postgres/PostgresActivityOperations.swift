@@ -58,6 +58,7 @@ struct PostgresActivityOperations: View {
             }.width(min: 100, ideal: 160)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: PostgresOperationProgress.ID.self) { selection in
             if let id = selection.first, let op = operations.first(where: { $0.id == id }) {
                 Button(role: .destructive) {

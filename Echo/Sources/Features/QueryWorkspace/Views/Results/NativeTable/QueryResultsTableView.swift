@@ -3,7 +3,17 @@ import SwiftUI
 import AppKit
 
 struct QueryResultsTableView: NSViewRepresentable {
-    @Bindable var query: QueryEditorState
+    // Trigger parameters — SwiftUI tracks these and calls updateNSView when they change
+    let displayedRowCount: Int
+    let resultChangeToken: UInt64
+    let executionGeneration: Int
+    let displayedColumns: [ColumnInfo]
+    let dataClassification: DataClassification?
+    let isExecuting: Bool
+
+    // Untracked reference — passed to Coordinator, never read in updateNSView body
+    let queryStateRef: QueryEditorState
+
     var highlightedColumnIndex: Int?
     var activeSort: SortCriteria?
     var rowOrder: [Int]
@@ -19,20 +29,25 @@ struct QueryResultsTableView: NSViewRepresentable {
     var alternateRowShading: Bool = false
     var showRowNumbers: Bool = true
     var colorOverrides: ResultGridColorOverrides = .init()
+    var isDarkMode: Bool = false
 
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
 
     private var effectiveRowOrder: [Int] {
-        let displayedCount = query.displayedRowCount
-        guard displayedCount > 0, rowOrder.count == displayedCount else { return [] }
+        guard displayedRowCount > 0, rowOrder.count == displayedRowCount else { return [] }
         return rowOrder
     }
 
     private var normalizedSelf: QueryResultsTableView {
         QueryResultsTableView(
-            query: query,
+            displayedRowCount: displayedRowCount,
+            resultChangeToken: resultChangeToken,
+            executionGeneration: executionGeneration,
+            displayedColumns: displayedColumns,
+            dataClassification: dataClassification,
+            isExecuting: isExecuting,
+            queryStateRef: queryStateRef,
             highlightedColumnIndex: highlightedColumnIndex,
             activeSort: activeSort,
             rowOrder: effectiveRowOrder,
@@ -47,12 +62,13 @@ struct QueryResultsTableView: NSViewRepresentable {
             isResizing: isResizing,
             alternateRowShading: alternateRowShading,
             showRowNumbers: showRowNumbers,
-            colorOverrides: colorOverrides
+            colorOverrides: colorOverrides,
+            isDarkMode: isDarkMode
         )
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(self, clipboardHistory: clipboardHistory, persistedState: persistedState)
+        Coordinator(self, queryState: queryStateRef, clipboardHistory: clipboardHistory, persistedState: persistedState)
     }
 
     func makeNSView(context: Context) -> ResultTableContainerView {
@@ -86,7 +102,7 @@ struct QueryResultsTableView: NSViewRepresentable {
 
         let container = ResultTableContainerView(scrollView: scrollView, showRowNumbers: showRowNumbers)
         container.updateBackgroundColor(backgroundColor)
-        let rowCount = effectiveRowOrder.isEmpty ? query.displayedRowCount : effectiveRowOrder.count
+        let rowCount = effectiveRowOrder.isEmpty ? displayedRowCount : effectiveRowOrder.count
         container.updateRowNumbers(count: rowCount)
         let coordinator = context.coordinator
         container.setRowNumberCallbacks(
@@ -116,8 +132,9 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
             tableView.needsDisplay = true
         }
+        context.coordinator.queryState = queryStateRef
         container.updateShowRowNumbers(showRowNumbers)
-        let rowCount = effectiveRowOrder.isEmpty ? query.displayedRowCount : effectiveRowOrder.count
+        let rowCount = effectiveRowOrder.isEmpty ? displayedRowCount : effectiveRowOrder.count
         container.updateRowNumbers(count: rowCount)
         container.updateBackgroundColor(backgroundColor)
         context.coordinator.update(parent: normalizedSelf, tableView: tableView)

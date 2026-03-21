@@ -109,6 +109,7 @@ extension TableStructureEditorView {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .environment(\.defaultMinListRowHeight, 28)
     }
 
@@ -208,6 +209,7 @@ extension TableStructureEditorView {
             .width(min: 80, ideal: 140)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .environment(\.defaultMinListRowHeight, 28)
     }
 

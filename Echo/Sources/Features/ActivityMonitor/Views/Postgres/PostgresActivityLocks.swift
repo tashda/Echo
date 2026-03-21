@@ -160,6 +160,7 @@ struct PostgresActivityLocks: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: StickyLockState.StickyLock.ID.self) { _ in
         } primaryAction: { _ in
             onDoubleClick?()

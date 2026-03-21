@@ -60,6 +60,7 @@ struct IdentitiesTableView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SavedIdentity.ID.self) { items in
             if let selectionID = items.first,
                let identity = identities.first(where: { $0.id == selectionID }) {

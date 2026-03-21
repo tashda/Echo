@@ -76,6 +76,7 @@ struct QueryStoreTopQueriesSection: View {
                 .width(min: 80, ideal: 100, max: 120)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
             .contextMenu(forSelectionType: Int.self) { _ in
             } primaryAction: { _ in
                 onDoubleClick?()

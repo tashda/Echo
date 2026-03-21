@@ -65,6 +65,7 @@ struct MSSQLActivityQueries: View {
             }.width(min: 80, ideal: 100)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SQLServerExpensiveQuery.ID.self) { selection in
             if let id = selection.first, let query = queries.first(where: { $0.id == id }) {
                 Button {

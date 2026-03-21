@@ -16,11 +16,11 @@ extension QueryEditorContainer {
     }
 
     var connectionDatabaseName: String? {
-        if let selected = connectionSession?.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines), !selected.isEmpty {
-            return selected
-        }
-        let database = tab.connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
-        return database.isEmpty ? nil : database
+        QueryEditorConnectionContextResolver.resolveDatabaseName(
+            tabDatabaseName: tab.activeDatabaseName,
+            sessionDatabaseName: connectionSession?.selectedDatabaseName,
+            connectionDatabaseName: tab.connection.database
+        )
     }
 
 #if os(macOS)
@@ -86,21 +86,25 @@ extension QueryEditorContainer {
         let session = connectionSession
         let baseConnection = session?.connection ?? tab.connection
         let databaseType = EchoSenseDatabaseType(baseConnection.databaseType)
-        // Prefer the tab's explicit database (set when opening via right-click on a db),
-        // then the session-level selected database, then the connection default.
-        let selectedDatabase = normalized(tab.activeDatabaseName)
-            ?? normalized(session?.selectedDatabaseName)
-            ?? normalized(baseConnection.database)
+        let selectedDatabase = QueryEditorConnectionContextResolver.resolveDatabaseName(
+            tabDatabaseName: tab.activeDatabaseName,
+            sessionDatabaseName: session?.selectedDatabaseName,
+            connectionDatabaseName: baseConnection.database
+        )
         let structure = session?.databaseStructure
             ?? session?.connection.cachedStructure
             ?? tab.connection.cachedStructure
         let defaultSchema = defaultSchema(for: databaseType)
+        let completionStructure = QueryEditorConnectionContextResolver.completionStructure(
+            from: structure,
+            selectedDatabase: selectedDatabase
+        )
 
         return SQLEditorCompletionContext(
             databaseType: databaseType,
             selectedDatabase: selectedDatabase,
             defaultSchema: defaultSchema,
-            structure: structure.flatMap { EchoSenseBridge.makeStructure(from: $0) }
+            structure: completionStructure.flatMap { EchoSenseBridge.makeStructure(from: $0) }
         )
     }
 
@@ -160,21 +164,19 @@ extension QueryEditorContainer {
     }
 
     private func ensureSchemaLoaded(forDatabase databaseName: String, in session: ConnectionSession) {
-        // Skip if a structure load is currently in flight.
-        if case .loading = session.structureLoadingState { return }
-        let hasSchemas = session.databaseStructure?.databases
-            .first(where: { $0.name.caseInsensitiveCompare(databaseName) == .orderedSame })?
-            .schemas.isEmpty == false
-        guard !hasSchemas else { return }
+        guard let normalizedDatabase = normalized(databaseName) else { return }
+        guard !session.hasLoadedSchema(forDatabase: normalizedDatabase) else { return }
+        guard session.beginSchemaLoad(forDatabase: normalizedDatabase) else { return }
+
         Task {
-            await environmentState.loadSchemaForDatabase(databaseName, connectionSession: session)
+            defer { session.finishSchemaLoad(forDatabase: normalizedDatabase) }
+            guard !session.hasLoadedSchema(forDatabase: normalizedDatabase) else { return }
+            await environmentState.loadSchemaForDatabase(normalizedDatabase, connectionSession: session)
         }
     }
 
     func normalized(_ value: String?) -> String? {
-        guard let value else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        QueryEditorConnectionContextResolver.normalize(value)
     }
 
     var tabTitleForBookmark: String? {

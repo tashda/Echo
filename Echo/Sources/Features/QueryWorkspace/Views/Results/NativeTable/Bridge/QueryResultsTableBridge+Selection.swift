@@ -6,7 +6,7 @@ extension QueryResultsTableView.Coordinator {
 
     func beginColumnSelection(at column: Int, modifiers: NSEvent.ModifierFlags) {
         guard tableView != nil else { return }
-        let columnCount = parent.query.displayedColumns.count
+        let columnCount = queryState.displayedColumns.count
         guard columnCount > 0 else { return }
 
         let target = max(0, min(column, columnCount - 1))
@@ -23,7 +23,7 @@ extension QueryResultsTableView.Coordinator {
     func continueColumnSelection(to column: Int) {
         guard let tableView else { return }
         guard let anchor = columnSelectionAnchor else { return }
-        let columnCount = parent.query.displayedColumns.count
+        let columnCount = queryState.displayedColumns.count
         guard columnCount > 0 else { return }
         let clamped = max(0, min(column, columnCount - 1))
         applyColumnSelection(from: anchor, to: clamped)

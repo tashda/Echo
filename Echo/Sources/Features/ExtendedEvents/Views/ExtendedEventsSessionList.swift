@@ -67,6 +67,7 @@ struct ExtendedEventsSessionList: View {
             .width(60)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: String.self) { names in
             if let name = names.first, let session = viewModel.sessions.first(where: { $0.name == name }) {
                 // Group 2: New
@@ -183,6 +184,7 @@ struct ExtendedEventsSessionList: View {
                     .width(min: 80, ideal: 120)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
         }
     }
 
@@ -197,6 +199,7 @@ struct ExtendedEventsSessionList: View {
                 }
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
         }
     }
 

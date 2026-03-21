@@ -97,4 +97,23 @@ public enum TypographyTokens {
     public static let displayLarge = SwiftUI.Font.system(size: 18)
     /// 20pt+ — hero text, large icons
     public static let hero = SwiftUI.Font.system(size: 20)
+
+    // MARK: - AppKit NSFont equivalents
+    // Use these when AppKit APIs require NSFont (NSTextField, NSTextView, CATextLayer, etc.).
+    // Sizes match the SwiftUI tokens above — change both together.
+
+    public enum AppKit {
+        /// 9pt — toolbar badges, compact indicators
+        nonisolated(unsafe) public static let compact = NSFont.systemFont(ofSize: 9)
+        /// 10pt — sidebar counts, small labels
+        nonisolated(unsafe) public static let label = NSFont.systemFont(ofSize: 10)
+        /// 11pt — table cells, footnotes, secondary detail
+        nonisolated(unsafe) public static let detail = NSFont.systemFont(ofSize: 11)
+        /// 12pt — secondary labels, form fields
+        nonisolated(unsafe) public static let caption2 = NSFont.systemFont(ofSize: 12)
+        /// 13pt Regular — primary UI text, body equivalent
+        nonisolated(unsafe) public static let standard = NSFont.systemFont(ofSize: 13)
+        /// 14pt — section headers, prominent labels
+        nonisolated(unsafe) public static let prominent = NSFont.systemFont(ofSize: 14)
+    }
 }

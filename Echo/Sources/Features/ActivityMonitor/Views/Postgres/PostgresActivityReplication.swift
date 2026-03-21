@@ -66,6 +66,7 @@ struct PostgresActivityReplication: View {
                 }.width(min: 80, ideal: 100)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
         }
     }
 }

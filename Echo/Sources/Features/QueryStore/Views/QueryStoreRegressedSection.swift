@@ -68,6 +68,7 @@ struct QueryStoreRegressedSection: View {
                 .width(min: 70, ideal: 90, max: 100)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
             .contextMenu(forSelectionType: Int.self) { _ in
             } primaryAction: { _ in
                 onDoubleClick?()

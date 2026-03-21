@@ -78,6 +78,7 @@ struct NewAgentJobSheet: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .contentMargins(SpacingTokens.xs)
         .frame(width: 170)
     }
 

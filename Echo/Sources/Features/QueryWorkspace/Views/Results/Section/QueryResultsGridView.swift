@@ -13,9 +13,17 @@ struct QueryResultsGridView: View {
     var onClearColumnHighlight: () -> Void
     var gridState: QueryResultsGridState?
 
+    @Environment(AppearanceStore.self) private var appearanceStore
+
     var body: some View {
         QueryResultsTableView(
-            query: query,
+            displayedRowCount: query.displayedRowCount,
+            resultChangeToken: query.resultChangeToken,
+            executionGeneration: query.executionGeneration,
+            displayedColumns: query.displayedColumns,
+            dataClassification: query.dataClassification,
+            isExecuting: query.isExecuting,
+            queryStateRef: query,
             highlightedColumnIndex: highlightedColumnIndex,
             activeSort: activeSort,
             rowOrder: rowOrder,
@@ -36,7 +44,8 @@ struct QueryResultsGridView: View {
             backgroundColor: NSColor(ColorTokens.Background.tertiary),
             onForeignKeyEvent: { _ in },
             onJsonEvent: { _ in },
-            persistedState: gridState
+            persistedState: gridState,
+            isDarkMode: appearanceStore.effectiveColorScheme == .dark
         )
     }
 }

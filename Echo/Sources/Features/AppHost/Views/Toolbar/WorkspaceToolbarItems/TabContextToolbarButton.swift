@@ -1,18 +1,24 @@
 import SwiftUI
 
 /// Toolbar controls for Activity Monitor tabs — separate Liquid Glass group.
+/// Uses eye/eye.slash to distinguish monitoring (passive observation) from execution actions.
 struct ActivityMonitorToolbarItem: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
         if let tab = tabStore.activeTab, let vm = tab.activityMonitor {
-            PlayStopToolbarButton(
-                isRunning: vm.isRunning,
-                runningLabel: "Pause Monitoring",
-                stoppedLabel: "Resume Monitoring"
-            ) {
+            Button {
                 if vm.isRunning { vm.stopStreaming() } else { vm.startStreaming() }
+            } label: {
+                Label(
+                    vm.isRunning ? "Pause Monitoring" : "Resume Monitoring",
+                    systemImage: vm.isRunning ? "eye.fill" : "eye.slash"
+                )
+                .contentTransition(.symbolEffect(.replace))
             }
+            .help(vm.isRunning ? "Pause Monitoring" : "Resume Monitoring")
+            .labelStyle(.iconOnly)
+            .accessibilityLabel(vm.isRunning ? "Pause Monitoring" : "Resume Monitoring")
             .glassEffect(.regular.interactive())
         } else {
             EmptyView()
@@ -26,10 +32,10 @@ struct JobQueuePlayToolbarItem: View {
 
     var body: some View {
         if let tab = tabStore.activeTab, let vm = tab.jobQueue, vm.selectedJobID != nil {
-            PlayStopToolbarButton(
+            ToolbarRunButton(
                 isRunning: vm.isJobRunning,
-                runningLabel: "Stop Job",
-                stoppedLabel: "Start Job"
+                idleLabel: "Start Job",
+                runningLabel: "Stop Job"
             ) {
                 Task {
                     if vm.isJobRunning { await vm.stopSelectedJob() } else { await vm.startSelectedJob() }

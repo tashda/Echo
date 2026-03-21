@@ -73,6 +73,7 @@ struct MSSQLMaintenanceIndexesView: View {
                 .width(100)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
             .contextMenu(forSelectionType: SQLServerIndexFragmentation.ID.self) { ids in
                 if let id = ids.first, let index = viewModel.fragmentedIndexes.first(where: { $0.id == id }) {
                     Button {

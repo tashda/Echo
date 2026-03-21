@@ -163,6 +163,7 @@ struct DatabasePropertiesSheet: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .contentMargins(SpacingTokens.xs)
     }
 
     // MARK: - Detail Pane

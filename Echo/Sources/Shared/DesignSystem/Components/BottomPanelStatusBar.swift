@@ -12,6 +12,7 @@ struct BottomPanelStatusBarConfiguration {
 
     var metrics: Metrics?
     var statusBubble: StatusBubble?
+    var modeIndicators: [ModeIndicator] = []
 
     init(
         connectionText: String,
@@ -42,6 +43,12 @@ struct BottomPanelStatusBarConfiguration {
         let tint: Color
         let isPulsing: Bool
     }
+
+    struct ModeIndicator: Identifiable {
+        let id: String
+        let label: String
+        let icon: String
+    }
 }
 
 /// Universal 24pt status bar at the bottom of every tab.
@@ -54,6 +61,7 @@ struct BottomPanelStatusBar: View {
             HStack(spacing: 0) {
                 connectionLabel
                 segmentToggles
+                modeIndicatorChips
                 Spacer(minLength: SpacingTokens.sm)
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -86,6 +94,24 @@ struct BottomPanelStatusBar: View {
             ForEach(Array(configuration.availableSegments.enumerated()), id: \.element) { index, segment in
                 segmentButton(segment)
                     .padding(.leading, index == 0 ? SpacingTokens.xs : SpacingTokens.xxs)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var modeIndicatorChips: some View {
+        if !configuration.modeIndicators.isEmpty {
+            Divider()
+                .frame(height: 12)
+                .padding(.leading, SpacingTokens.xs)
+            ForEach(configuration.modeIndicators) { indicator in
+                HStack(spacing: SpacingTokens.xxxs) {
+                    Image(systemName: indicator.icon)
+                    Text(indicator.label)
+                }
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Status.modeIndicator)
+                .padding(.leading, SpacingTokens.xs)
             }
         }
     }

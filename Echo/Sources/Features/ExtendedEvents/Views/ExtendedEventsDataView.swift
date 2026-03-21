@@ -53,6 +53,7 @@ struct ExtendedEventsDataView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SQLServerXEEventData.ID.self) { ids in
             Button {
                 Task {

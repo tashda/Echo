@@ -4,7 +4,7 @@ extension QueryResultsSection {
     @ViewBuilder
     var content: some View {
         Group {
-            if query.isExecuting && !hasRows {
+            if query.isExecuting {
                 executingView
             } else if let error = query.errorMessage, !hasRows {
                 errorView(error)
@@ -56,7 +56,13 @@ extension QueryResultsSection {
 #if os(macOS)
     private var primaryResultsTable: some View {
         QueryResultsTableView(
-            query: query,
+            displayedRowCount: query.displayedRowCount,
+            resultChangeToken: query.resultChangeToken,
+            executionGeneration: query.executionGeneration,
+            displayedColumns: query.displayedColumns,
+            dataClassification: query.dataClassification,
+            isExecuting: query.isExecuting,
+            queryStateRef: query,
             highlightedColumnIndex: highlightedColumnIndex,
             activeSort: activeSort,
             rowOrder: rowOrder,
@@ -83,7 +89,8 @@ extension QueryResultsSection {
             isResizing: isResizingResults,
             alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
             showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
-            colorOverrides: projectStore.globalSettings.resultGridColorOverrides
+            colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
+            isDarkMode: appearanceStore.effectiveColorScheme == .dark
         )
     }
 

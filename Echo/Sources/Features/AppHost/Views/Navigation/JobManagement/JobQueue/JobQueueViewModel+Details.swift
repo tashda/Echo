@@ -1,135 +1,109 @@
 import Foundation
+import SQLServerKit
 
 extension JobQueueViewModel {
 
-    // MARK: - Load Details
+    // MARK: - Load Details (typed APIs)
 
     func loadDetails() async {
-        guard let jobID = selectedJobID, !jobID.isEmpty else {
+        guard let jobName = jobs.first(where: { $0.id == selectedJobID })?.name else {
             properties = nil; steps = []; schedules = []; return
         }
+        guard let mssql = session as? MSSQLSession else { return }
         isLoadingDetails = true
         defer { isLoadingDetails = false }
+
         do {
-            let propSQL = """
-            SELECT
-                j.description,
-                owner_name = SUSER_SNAME(j.owner_sid),
-                category = c.name,
-                j.enabled,
-                j.start_step_id,
-                j.name,
-                j.notify_level_email,
-                j.notify_level_eventlog,
-                notify_email_operator = ISNULL(o.name, '')
-            FROM msdb.dbo.sysjobs AS j
-            LEFT JOIN msdb.dbo.syscategories AS c ON c.category_id = j.category_id
-            LEFT JOIN msdb.dbo.sysoperators AS o ON o.id = j.notify_email_operator_id
-            WHERE j.job_id = CONVERT(uniqueidentifier, N'\(jobID)');
-            """
-            let rs = try await session.simpleQuery(propSQL)
-            if let row = rs.rows.first {
-                let desc = row[safe: rs.index(of: "description")]
-                let owner = row[safe: rs.index(of: "owner_name")]
-                let category = row[safe: rs.index(of: "category")]
-                let enabled = (row[safe: rs.index(of: "enabled")] ?? "0") == "1"
-                let start = Int(row[safe: rs.index(of: "start_step_id")] ?? "")
-                let notifyLevel = Int(row[safe: rs.index(of: "notify_level_email")] ?? "0") ?? 0
-                let notifyOp = row[safe: rs.index(of: "notify_email_operator")]
-                let eventlogLevel = Int(row[safe: rs.index(of: "notify_level_eventlog")] ?? "0") ?? 0
-                let jobName = row[safe: rs.index(of: "name")] ?? ""
-                self.properties = PropertySheet(name: jobName, description: desc, owner: owner, category: category, enabled: enabled, startStepId: start, notifyLevelEmail: notifyLevel, notifyEmailOperator: notifyOp?.isEmpty == true ? nil : notifyOp, notifyLevelEventlog: eventlogLevel)
+            let agent = mssql.agent
+
+            // Properties from getJobDetail
+            if let detail = try await agent.getJobDetail(jobName: jobName) {
+                self.properties = PropertySheet(
+                    name: detail.name,
+                    description: detail.description,
+                    owner: detail.ownerLoginName,
+                    category: detail.categoryName,
+                    enabled: detail.enabled,
+                    startStepId: detail.startStepId,
+                    notifyLevelEmail: detail.notifyLevelEmail,
+                    notifyEmailOperator: detail.notifyEmailOperatorName,
+                    notifyLevelEventlog: detail.notifyLevelEventlog
+                )
             } else {
                 self.properties = nil
             }
 
-            let stepsSQL = """
-            SELECT s.step_id, s.step_name, s.subsystem, s.database_name, s.command
-            FROM msdb.dbo.sysjobsteps AS s
-            INNER JOIN msdb.dbo.sysjobs AS j ON j.job_id = s.job_id
-            WHERE j.job_id = CONVERT(uniqueidentifier, N'\(jobID)')
-            ORDER BY s.step_id;
-            """
-            let srs = try await session.simpleQuery(stepsSQL)
-            let sitems: [StepRow] = srs.rows.compactMap { row in
-                let id = Int(row[safe: srs.index(of: "step_id")] ?? "") ?? 0
-                let name = row[safe: srs.index(of: "step_name")] ?? ""
-                let subsystem = row[safe: srs.index(of: "subsystem")] ?? ""
-                let db = row[safe: srs.index(of: "database_name")]
-                let cmd = row[safe: srs.index(of: "command")]
-                return StepRow(id: id, name: name, subsystem: subsystem, database: db, command: cmd)
+            // Steps
+            let stepTuples = try await agent.listSteps(jobName: jobName)
+            self.steps = stepTuples.map { step in
+                StepRow(id: step.id, name: step.name, subsystem: step.subsystem, database: step.database, command: step.command)
             }
-            self.steps = sitems
 
-            let schedSQL = """
-            SELECT sc.schedule_id, sc.name, sc.enabled, sc.freq_type, sc.freq_interval,
-                   js.next_run_date, js.next_run_time
-            FROM msdb.dbo.sysschedules AS sc
-            INNER JOIN msdb.dbo.sysjobschedules AS js ON js.schedule_id = sc.schedule_id
-            WHERE js.job_id = CONVERT(uniqueidentifier, N'\(jobID)')
-            ORDER BY sc.name;
-            """
-            let q = try await session.simpleQuery(schedSQL)
-            let sch: [ScheduleRow] = q.rows.compactMap { row in
-                let id = row[safe: q.index(of: "schedule_id")] ?? UUID().uuidString
-                let name = row[safe: q.index(of: "name")] ?? ""
-                let enabled = (row[safe: q.index(of: "enabled")] ?? "0") == "1"
-                let freq = Int(row[safe: q.index(of: "freq_type")] ?? "") ?? 0
-                let freqInterval = Int(row[safe: q.index(of: "freq_interval")] ?? "") ?? 0
-                let nextDate = Int(row[safe: q.index(of: "next_run_date")] ?? "") ?? 0
-                let nextTime = Int(row[safe: q.index(of: "next_run_time")] ?? "") ?? 0
-                let next = Self.formatAgentDateTime(nextDate, nextTime)
-                return ScheduleRow(id: id, name: name, enabled: enabled, freqType: freq, freqInterval: freqInterval, next: next)
+            // Schedules
+            let scheduleDetails = try await agent.getJobSchedules(jobName: jobName)
+            self.schedules = scheduleDetails.map { sch in
+                let nextRunStr = sch.nextRunDate.map { Self.formatDate($0) }
+                return ScheduleRow(
+                    id: sch.scheduleId,
+                    name: sch.name,
+                    enabled: sch.enabled,
+                    freqType: sch.freqType,
+                    freqInterval: sch.freqInterval ?? 0,
+                    next: nextRunStr
+                )
             }
-            self.schedules = sch
         } catch {
             self.errorMessage = error.localizedDescription
         }
     }
 
-    // MARK: - Load History
+    // MARK: - Load History (typed API)
 
     func loadHistory(all: Bool) async {
+        guard let mssql = session as? MSSQLSession else { return }
         do {
-            let jobIDFilter: String
-            if !all, let jobID = selectedJobID, !jobID.isEmpty {
-                jobIDFilter = "WHERE h.job_id = CONVERT(uniqueidentifier, N'\(escape(jobID))')"
+            let agent = mssql.agent
+            let jobName: String?
+            if !all, let id = selectedJobID, !id.isEmpty {
+                jobName = jobs.first(where: { $0.id == id })?.name
             } else {
-                jobIDFilter = ""
+                jobName = nil
             }
-            let filter = jobIDFilter
-            let sql = """
-            SELECT TOP (200)
-                h.instance_id,
-                j.name AS job_name,
-                h.step_id,
-                h.step_name,
-                h.run_status,
-                h.message,
-                h.run_date,
-                h.run_time,
-                h.run_duration
-            FROM msdb.dbo.sysjobhistory AS h
-            INNER JOIN msdb.dbo.sysjobs AS j ON j.job_id = h.job_id
-            \(filter)
-            ORDER BY h.instance_id DESC;
-            """
-            let rs = try await session.simpleQuery(sql)
-            let items: [HistoryRow] = rs.rows.compactMap { row in
-                let id = Int(row[safe: rs.index(of: "instance_id")] ?? "") ?? 0
-                let job = row[safe: rs.index(of: "job_name")] ?? ""
-                let step = Int(row[safe: rs.index(of: "step_id")] ?? "") ?? 0
-                let stepName = row[safe: rs.index(of: "step_name")] ?? ""
-                let status = Int(row[safe: rs.index(of: "run_status")] ?? "") ?? 0
-                let msg = row[safe: rs.index(of: "message")] ?? ""
-                let rdate = Int(row[safe: rs.index(of: "run_date")] ?? "") ?? 0
-                let rtime = Int(row[safe: rs.index(of: "run_time")] ?? "") ?? 0
-                let dur = Int(row[safe: rs.index(of: "run_duration")] ?? "") ?? 0
-                return HistoryRow(id: id, jobName: job, stepId: step, stepName: stepName, status: status, message: msg, runDate: rdate, runTime: rtime, runDuration: dur)
+
+            let entries = try await agent.getJobHistory(jobName: jobName, top: 200)
+            self.history = entries.enumerated().map { index, entry in
+                // Convert runDateTime back to YYYYMMDD/HHMMSS ints for the existing HistoryRow format
+                let (runDate, runTime) = Self.dateToAgentInts(entry.runDateTime)
+                let durationSeconds = entry.runDurationSeconds ?? 0
+                // Convert seconds back to HHMMSS format for display
+                let durationHHMMSS = (durationSeconds / 3600) * 10000 + ((durationSeconds % 3600) / 60) * 100 + (durationSeconds % 60)
+
+                return HistoryRow(
+                    id: entry.instanceId,
+                    jobName: entry.jobName,
+                    stepId: entry.stepId,
+                    stepName: entry.stepName ?? "Step \(entry.stepId)",
+                    status: entry.runStatus,
+                    message: entry.message,
+                    runDate: runDate,
+                    runTime: runTime,
+                    runDuration: durationHHMMSS
+                )
             }
-            self.history = items
         } catch {
             self.errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Date Helpers
+
+    /// Convert a Date back to SQL Server agent integer format (YYYYMMDD, HHMMSS).
+    private static func dateToAgentInts(_ date: Date?) -> (Int, Int) {
+        guard let date else { return (0, 0) }
+        let cal = Calendar(identifier: .gregorian)
+        let comps = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        let dateInt = (comps.year ?? 0) * 10000 + (comps.month ?? 0) * 100 + (comps.day ?? 0)
+        let timeInt = (comps.hour ?? 0) * 10000 + (comps.minute ?? 0) * 100 + (comps.second ?? 0)
+        return (dateInt, timeInt)
     }
 }

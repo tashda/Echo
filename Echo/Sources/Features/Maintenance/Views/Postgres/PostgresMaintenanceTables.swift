@@ -113,6 +113,7 @@ struct PostgresMaintenanceTables: View {
             }.width(min: 100, ideal: 130)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .onChange(of: sortOrder) { _, newOrder in
             viewModel.tableStats.sort(using: newOrder)
         }

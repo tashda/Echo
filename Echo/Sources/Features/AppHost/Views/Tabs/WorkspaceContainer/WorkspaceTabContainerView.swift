@@ -88,13 +88,8 @@ struct WorkspaceTabContainerView: View {
                         tabStore.closeTab(id: tabId)
                     }
                 )
-            } else if let currentTab = currentWorkspaceTab {
-                WorkspaceContentView(
-                    tab: currentTab,
-                    runQuery: { sql in await runQuery(tabId: currentTab.id, sql: sql) },
-                    cancelQuery: { cancelQuery(tabId: currentTab.id) },
-                    gridStateProvider: { currentTab.resultsGridState }
-                )
+            } else if !tabStore.tabs.isEmpty {
+                aliveTabsContainer
             } else if let activeSession = environmentState.sessionGroup.activeSession {
                 ConnectionDashboardView(session: activeSession)
             } else {
@@ -108,6 +103,37 @@ struct WorkspaceTabContainerView: View {
         .onChange(of: tabStore.activeTabId) { _, _ in
             if appState.showTabOverview {
                 appState.showTabOverview = false
+            }
+        }
+    }
+
+    /// Keeps all tab views alive in a ZStack. The active tab is fully visible and
+    /// interactive; inactive tabs are hidden (opacity 0) but their NSViews persist
+    /// in memory, so switching is instant — no view teardown/rebuild.
+    @ViewBuilder
+    private var aliveTabsContainer: some View {
+        if let hostedWorkspaceTabID,
+           let hostedTab = tabStore.tabs.first(where: { $0.id == hostedWorkspaceTabID }) {
+            // Detached window: show only the hosted tab
+            WorkspaceContentView(
+                tab: hostedTab,
+                runQuery: { sql in await runQuery(tabId: hostedTab.id, sql: sql) },
+                gridStateProvider: { hostedTab.resultsGridState }
+            )
+        } else {
+            let activeId = tabStore.activeTabId
+            ZStack {
+                ForEach(tabStore.tabs) { tab in
+                    let isActive = tab.id == activeId
+                    WorkspaceContentView(
+                        tab: tab,
+                        runQuery: { sql in await runQuery(tabId: tab.id, sql: sql) },
+                        gridStateProvider: { tab.resultsGridState }
+                    )
+                    .opacity(isActive ? 1 : 0)
+                    .allowsHitTesting(isActive)
+                    .accessibilityHidden(!isActive)
+                }
             }
         }
     }

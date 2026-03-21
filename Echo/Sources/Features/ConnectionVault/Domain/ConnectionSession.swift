@@ -29,6 +29,7 @@ final class ConnectionSession: Identifiable {
     @ObservationIgnored private var defaultInitialBatchSize: Int
     @ObservationIgnored private var defaultBackgroundStreamingThreshold: Int
     @ObservationIgnored private var defaultBackgroundFetchSize: Int
+    @ObservationIgnored private var schemaLoadsInFlight: Set<String> = []
 
     // Query tabs specific to this connection
     var queryTabs: [WorkspaceTab] = []
@@ -61,7 +62,7 @@ final class ConnectionSession: Identifiable {
     }
 
     var displayName: String {
-        let db = (selectedDatabaseName ?? connection.database).trimmingCharacters(in: .whitespacesAndNewlines)
+        let db = (activeDatabaseName ?? connection.database).trimmingCharacters(in: .whitespacesAndNewlines)
         if !db.isEmpty {
             return "\(connection.connectionName) • \(db)"
         } else {
@@ -545,6 +546,53 @@ final class ConnectionSession: Identifiable {
             await task.value
         }
     }
+
+    func hasLoadedSchema(forDatabase databaseName: String) -> Bool {
+        let normalizedName = normalizedDatabaseName(databaseName)
+        guard !normalizedName.isEmpty else { return false }
+        return databaseStructure?.databases
+            .first(where: { normalizedDatabaseName($0.name).caseInsensitiveCompare(normalizedName) == .orderedSame })?
+            .schemas.isEmpty == false
+    }
+
+    func beginSchemaLoad(forDatabase databaseName: String) -> Bool {
+        let loadKey = schemaLoadKey(databaseName)
+        guard !loadKey.isEmpty else { return false }
+        if schemaLoadsInFlight.contains(loadKey) {
+            return false
+        }
+        schemaLoadsInFlight.insert(loadKey)
+        return true
+    }
+
+    func finishSchemaLoad(forDatabase databaseName: String) {
+        let loadKey = schemaLoadKey(databaseName)
+        guard !loadKey.isEmpty else { return }
+        schemaLoadsInFlight.remove(loadKey)
+    }
+
+    var activeDatabaseName: String? {
+        let tabDatabase = activeQueryTab?.activeDatabaseName.map(normalizedDatabaseName)
+        if let tabDatabase, !tabDatabase.isEmpty {
+            return tabDatabase
+        }
+
+        let selectedDatabase = selectedDatabaseName.map(normalizedDatabaseName)
+        if let selectedDatabase, !selectedDatabase.isEmpty {
+            return selectedDatabase
+        }
+
+        let connectionDatabase = normalizedDatabaseName(connection.database)
+        return connectionDatabase.isEmpty ? nil : connectionDatabase
+    }
+
+    private func normalizedDatabaseName(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func schemaLoadKey(_ value: String) -> String {
+        normalizedDatabaseName(value).lowercased()
+    }
 }
 
 // MARK: - Multi-Connection Manager
@@ -563,7 +611,7 @@ final class ActiveSessionGroup {
     }
 
     var activeDatabaseName: String? {
-        activeSession?.selectedDatabaseName
+        activeSession?.activeDatabaseName
     }
 
     var activeSession: ConnectionSession? {

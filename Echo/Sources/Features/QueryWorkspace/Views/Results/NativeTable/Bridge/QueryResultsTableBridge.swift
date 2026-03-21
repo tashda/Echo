@@ -7,6 +7,7 @@ extension QueryResultsTableView {
     @MainActor
     final class Coordinator: NSObject {
         var parent: QueryResultsTableView
+        var queryState: QueryEditorState
         let clipboardHistory: ClipboardHistoryStore
         weak var tableView: NSTableView?
         weak var scrollView: NSScrollView?
@@ -52,26 +53,30 @@ extension QueryResultsTableView {
         let defaultAutoscrollInterval: TimeInterval = 1.0 / 60.0
         var autoscrollTimerInterval: TimeInterval = 1.0 / 60.0
         var pendingReloadWorkItems: [DispatchWorkItem] = []
-        var lastSeenExecuting = false
         var pendingRowCountCorrection = false
         var pendingPaletteRefresh: Task<Void, Never>?
         var scrollPaginationWorkItem: DispatchWorkItem?
         var lastPaginationVisibleRange: NSRange = NSRange(location: NSNotFound, length: 0)
         var isSplitResizing = false
         var isResizingColumn = false
-        var suppressRowsDuringClear = false
         nonisolated(unsafe) var columnResizeObserver: NSObjectProtocol?
         nonisolated(unsafe) var rowCountObserver: NSObjectProtocol?
         var isPerformingUpdatePass = false
+        var pendingClearColumnHighlightNotification = false
         nonisolated(unsafe) var rowCountUpdateWorkItem: DispatchWorkItem?
+        var lastObservedExecutionGeneration: Int = 0
         static let isGridDiagnosticsEnabled: Bool = {
             ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
         }()
 
-        init(_ parent: QueryResultsTableView, clipboardHistory: ClipboardHistoryStore, persistedState: QueryResultsGridState?) {
+        init(_ parent: QueryResultsTableView, queryState: QueryEditorState, clipboardHistory: ClipboardHistoryStore, persistedState: QueryResultsGridState?) {
             self.parent = parent
+            self.queryState = queryState
             self.clipboardHistory = clipboardHistory
             self.persistedState = persistedState
+            // Sync with the current execution generation so that a tab switch
+            // (which creates a fresh Coordinator) is not mistaken for a new query run.
+            self.lastObservedExecutionGeneration = parent.executionGeneration
             if let state = persistedState {
                 self.cachedColumnIDs = state.cachedColumnIDs
                 self.cachedRowOrder = state.cachedRowOrder
@@ -93,6 +98,85 @@ extension QueryResultsTableView {
             }
             NotificationCenter.default.removeObserver(self)
             rowCountUpdateWorkItem?.cancel()
+        }
+
+        /// Resets all cached state for a new query execution. This is called when
+        /// `executionGeneration` changes, replacing the old `.id()` approach that
+        /// destroyed and recreated the entire NSViewRepresentable + Coordinator.
+        func resetForNewExecution(tableView: NSTableView) {
+            // Cancel pending work
+            autoscrollTimer?.invalidate(); autoscrollTimer = nil
+            pendingPaletteRefresh?.cancel(); pendingPaletteRefresh = nil
+            for item in pendingReloadWorkItems { item.cancel() }
+            pendingReloadWorkItems.removeAll()
+            rowCountUpdateWorkItem?.cancel(); rowCountUpdateWorkItem = nil
+            scrollPaginationWorkItem?.cancel(); scrollPaginationWorkItem = nil
+
+            // Clear column caches
+            cachedColumnIDs.removeAll()
+            cachedColumnKinds.removeAll()
+
+            // Clear row state
+            cachedRowOrder.removeAll()
+            cachedSort = nil
+            lastRowCount = 0
+            lastResultTokenSnapshot = 0
+            cachedDisplayedRows.clear()
+            pendingRowCountCorrection = false
+
+            // Clear selection
+            selectionRegion = nil
+            selectionAnchor = nil
+            selectionFocus = nil
+            columnSelectionAnchor = nil
+            isDraggingCellSelection = false
+            isDraggingRowSelection = false
+            contextMenuCell = nil
+            activeSelectableField = nil
+            autoscrollVelocity = .zero
+            lastDragLocationInWindow = .zero
+            tableView.deselectAll(nil)
+
+            // Clear style/appearance caches
+            cachedPaletteSignature = nil
+            cachedFontStyles.removeAll(keepingCapacity: true)
+            cachedResultGridStyles.removeAll(keepingCapacity: true)
+            cachedTextColors.removeAll(keepingCapacity: true)
+
+            // Clear foreign key state
+            requestedForeignKeyColumns.removeAll()
+            lastForeignKeySelection = nil
+            lastJsonSelection = nil
+
+            // Clear viewport/pagination state
+            cachedViewportSize = .zero
+            lastPaginationVisibleRange = NSRange(location: NSNotFound, length: 0)
+            pendingPaginationEvaluation = false
+            pendingTableSizeAdjustment = false
+            pendingClearColumnHighlightNotification = false
+            lastParentIsResizing = false
+            lastSelectionHighlightStyle = nil
+
+            // Clear persisted grid state caches (not column widths — those survive)
+            if let state = persistedState {
+                state.cachedColumnIDs.removeAll()
+                state.cachedRowOrder.removeAll()
+                state.cachedSort = nil
+                state.lastRowCount = 0
+                state.lastResultToken = 0
+                state.hiddenColumnIndices.removeAll()
+            }
+
+            // Rebuild columns and reload table from scratch
+            while tableView.tableColumns.count > 0 {
+                tableView.removeTableColumn(tableView.tableColumns[0])
+            }
+            addDataColumns(to: tableView)
+            applyHeaderStyle(to: tableView)
+            tableView.reloadData()
+            refreshVisibleRowBackgrounds(tableView)
+            adjustTableSize()
+            requestPaginationEvaluation()
         }
 
         func configure(tableView: NSTableView, scrollView: NSScrollView) {
@@ -178,6 +262,21 @@ extension QueryResultsTableView {
 
         var isDraggingSelection: Bool {
             isDraggingCellSelection || isDraggingRowSelection
+        }
+
+        func notifyClearColumnHighlight() {
+            if isPerformingUpdatePass {
+                guard !pendingClearColumnHighlightNotification else { return }
+                pendingClearColumnHighlightNotification = true
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    pendingClearColumnHighlightNotification = false
+                    parent.onClearColumnHighlight()
+                }
+                return
+            }
+
+            parent.onClearColumnHighlight()
         }
     }
 }

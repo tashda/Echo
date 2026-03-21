@@ -4,117 +4,87 @@ import EchoSense
 struct AutoCompletionDetailView: View {
     let suggestion: SQLAutoCompletionSuggestion
 
-    private enum Layout {
-        static let cornerRadius: CGFloat = 8
-        static let columnSpacing: CGFloat = SpacingTokens.xxxs
-        static let columnBadgePadding = EdgeInsets(top: 2, leading: 5, bottom: 2, trailing: 5)
-        static let maxColumnListHeight: CGFloat = 180
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            header
-            contentBody
+            nameSection
+            if hasMetadata {
+                Divider()
+                metadataRows
+            }
         }
         .padding(.horizontal, SpacingTokens.xs2)
-        .padding(.vertical, SpacingTokens.xs)
+        .padding(.vertical, SpacingTokens.xs2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(detailBackground)
         .overlay(detailOverlay)
     }
 
-    @ViewBuilder
-    private var contentBody: some View {
-        switch suggestion.kind {
-        case .table, .view, .materializedView: tableDetail
-        case .column: columnDetail
-        default: genericDetail
-        }
-    }
-
-    private var header: some View {
-        Text(suggestion.displayKindTitle)
-            .font(TypographyTokens.detail.weight(.semibold))
-            .foregroundStyle(ColorTokens.Text.secondary)
-            .textCase(.uppercase)
-    }
-
-    @ViewBuilder
-    private var tableDetail: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-            if let schema = suggestion.origin?.schema, let name = suggestion.origin?.object {
-                HStack(spacing: SpacingTokens.xxs2) {
-                    schemaChip(schema)
-                    Text(name)
-                        .font(TypographyTokens.standard.weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.primary)
-                }
-            }
-            if let columns = suggestion.tableColumns, !columns.isEmpty {
-                ColumnListView(columns: columns)
-            } else {
-                Text("No columns available")
-                    .font(TypographyTokens.detail)
+    private var nameSection: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+            HStack(spacing: SpacingTokens.xxs2) {
+                Image(systemName: suggestion.kind.iconSystemName)
+                    .font(TypographyTokens.standard.weight(.medium))
                     .foregroundStyle(ColorTokens.Text.secondary)
+                Text(suggestion.title)
+                    .font(TypographyTokens.standard.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.primary)
+                    .lineLimit(2)
+            }
+            Text(suggestion.displayKindTitle)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.secondary)
+        }
+    }
+
+    private var hasMetadata: Bool {
+        let hasSchema = suggestion.origin?.schema?.isEmpty == false
+        let hasDatabase = suggestion.origin?.database?.isEmpty == false
+        let hasDataType = suggestion.kind == .column && suggestion.dataType?.isEmpty == false
+        let hasTable = suggestion.kind == .column && suggestion.origin?.object?.isEmpty == false
+        return hasSchema || hasDatabase || hasDataType || hasTable
+    }
+
+    @ViewBuilder
+    private var metadataRows: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+            if let schema = suggestion.origin?.schema, !schema.isEmpty {
+                schemaRow(schema)
+            }
+            if let database = suggestion.origin?.database, !database.isEmpty {
+                metadataRow(systemIcon: "externaldrive", value: database)
+            }
+            if suggestion.kind == .column, let dataType = suggestion.dataType, !dataType.isEmpty {
+                metadataRow(systemIcon: "chevron.left.forwardslash.chevron.right", value: dataType)
+            }
+            if suggestion.kind == .column, let table = suggestion.origin?.object, !table.isEmpty {
+                metadataRow(systemIcon: "tablecells", value: table)
             }
         }
     }
 
-    @ViewBuilder
-    private var columnDetail: some View {
-        Text(suggestion.dataType ?? "Column")
-            .font(TypographyTokens.detail)
-            .italic(suggestion.dataType != nil)
-            .foregroundStyle(ColorTokens.Text.secondary)
-    }
-
-    @ViewBuilder
-    private var genericDetail: some View {
-        if let objectPath = suggestion.displayObjectPath {
-            Text(objectPath)
-                .font(TypographyTokens.standard.weight(.medium))
-                .foregroundStyle(ColorTokens.Text.primary)
-        }
-    }
-
-    private func schemaChip(_ schema: String) -> some View {
-        HStack(spacing: SpacingTokens.xxs) {
+    private func schemaRow(_ schema: String) -> some View {
+        HStack(spacing: SpacingTokens.xxs2) {
             Image("schema")
-                .resizable()
                 .renderingMode(.template)
+                .resizable()
                 .scaledToFit()
-                .frame(width: 10, height: 10)
+                .frame(width: 13, height: 13)
+                .foregroundStyle(ColorTokens.Text.tertiary)
             Text(schema)
-                .font(TypographyTokens.detail.weight(.medium))
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
-        .foregroundStyle(ColorTokens.Text.secondary)
-        .padding(.horizontal, SpacingTokens.xxs2)
-        .padding(.vertical, SpacingTokens.xxxs)
-        .background(Capsule(style: .continuous).fill(ColorTokens.Text.primary.opacity(0.06)))
     }
 
-    private struct ColumnListView: View {
-        let columns: [SQLAutoCompletionSuggestion.TableColumn]
-
-        var body: some View {
-            ScrollView(showsIndicators: true) {
-                VStack(alignment: .leading, spacing: Layout.columnSpacing) {
-                    ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
-                        HStack(spacing: SpacingTokens.xxs2) {
-                            Text(column.name)
-                                .font(TypographyTokens.caption2)
-                                .foregroundStyle(ColorTokens.Text.primary)
-                            Spacer(minLength: SpacingTokens.xs2)
-                            Text(EchoFormatters.abbreviatedSQLType(column.dataType))
-                                .font(TypographyTokens.label.weight(.medium))
-                                .foregroundStyle(ColorTokens.Text.secondary)
-                                .padding(Layout.columnBadgePadding)
-                                .background(Capsule(style: .continuous).fill(ColorTokens.Text.primary.opacity(0.06)))
-                        }
-                    }
-                }
-            }
-            .frame(maxHeight: Layout.maxColumnListHeight)
+    private func metadataRow(systemIcon: String, value: String) -> some View {
+        HStack(spacing: SpacingTokens.xxs2) {
+            Image(systemName: systemIcon)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .frame(width: 13)
+            Text(value)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 
@@ -122,8 +92,8 @@ struct AutoCompletionDetailView: View {
     private var detailBackground: some View { Color.clear }
     private var detailOverlay: some View { EmptyView() }
 #else
-    private var detailBackground: some View { RoundedRectangle(cornerRadius: Layout.cornerRadius, style: .continuous).fill(Color.white.opacity(0.95)) }
-    private var detailOverlay: some View { RoundedRectangle(cornerRadius: Layout.cornerRadius, style: .continuous).stroke(Color.black.opacity(0.08), lineWidth: 1) }
+    private var detailBackground: some View { RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium, style: .continuous).fill(Color.white.opacity(0.95)) }
+    private var detailOverlay: some View { RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium, style: .continuous).stroke(Color.black.opacity(0.08), lineWidth: 1) }
 #endif
 }
 

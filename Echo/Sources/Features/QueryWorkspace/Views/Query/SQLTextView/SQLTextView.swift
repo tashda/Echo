@@ -211,7 +211,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     override func didChangeText() {
         super.didChangeText(); sqlDelegate?.sqlTextView(self, didUpdateText: string); lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         notifySelectionChanged(); scheduleHighlighting()
-        if !isApplyingCompletion { deactivateManualCompletionSuppression(); if suppressNextCompletionRefresh { suppressNextCompletionRefresh = false } else if isCompletionVisible { refreshCompletions() } else { hideCompletions() } }
+        if !isApplyingCompletion { deactivateManualCompletionSuppression() }
         updateCompletionIndicator()
     }
 

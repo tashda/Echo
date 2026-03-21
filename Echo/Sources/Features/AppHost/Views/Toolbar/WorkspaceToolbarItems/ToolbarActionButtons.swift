@@ -15,7 +15,7 @@ struct NewTabToolbarButton: View {
         Button {
             environmentState.openQueryTab()
         } label: {
-            Label("New Tab", systemImage: "plus")
+            Label("New Tab", systemImage: "doc.badge.plus")
         }
         .help("Open a new query tab")
         .disabled(!canOpenNewTab)
@@ -41,10 +41,8 @@ struct TabOverviewToolbarButton: View {
         Button {
             appState.showTabOverview.toggle()
         } label: {
-            Label(
-                appState.showTabOverview ? "Hide Tab Overview" : "Tab Overview",
-                systemImage: appState.showTabOverview ? "rectangle.grid.2x2.fill" : "rectangle.grid.2x2"
-            )
+            Label("Tab Overview", systemImage: "rectangle.stack")
+                .symbolVariant(appState.showTabOverview ? .fill : .none)
         }
         .help(appState.showTabOverview ? "Hide Tab Overview" : "Show all tabs")
         .disabled(!tabStore.hasTabs)
@@ -61,10 +59,8 @@ struct InspectorToolbarButton: View {
         Button {
             appState.showInfoSidebar.toggle()
         } label: {
-            Label(
-                appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
-                systemImage: appState.showInfoSidebar ? "sidebar.trailing" : "sidebar.right"
-            )
+            Label("Inspector", systemImage: "sidebar.right")
+                .symbolVariant(appState.showInfoSidebar ? .fill : .none)
         }
         .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
         .labelStyle(.iconOnly)

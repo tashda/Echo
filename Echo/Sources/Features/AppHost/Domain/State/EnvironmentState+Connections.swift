@@ -64,7 +64,6 @@ extension EnvironmentState {
     }
 
     func loadSchemaForDatabase(_ databaseName: String, connectionSession: ConnectionSession) async {
-        connectionSession.selectedDatabaseName = databaseName
         await schemaDiscoveryEngine.loadDatabaseSchemaOnly(databaseName, for: connectionSession)
     }
 

@@ -6,7 +6,7 @@ extension QueryResultsTableView.Coordinator {
 
     func reloadColumns() -> Bool {
         guard let tableView else { return false }
-        let columnIDs = parent.query.displayedColumns.map(\.id)
+        let columnIDs = parent.displayedColumns.map(\.id)
         let columnsChanged = tableView.tableColumns.count != columnIDs.count || columnIDs != cachedColumnIDs
         var headerNeedsRefresh = false
 
@@ -15,7 +15,7 @@ extension QueryResultsTableView.Coordinator {
             addDataColumns(to: tableView)
             headerNeedsRefresh = true
         } else {
-            for (offset, column) in parent.query.displayedColumns.enumerated() {
+            for (offset, column) in parent.displayedColumns.enumerated() {
                 let tableColumn = tableView.tableColumns[offset]
                 if tableColumn.title != column.name { tableColumn.title = column.name; headerNeedsRefresh = true }
                 let minWidth = minimumWidth(for: column)
@@ -33,15 +33,16 @@ extension QueryResultsTableView.Coordinator {
         }
         tableView.headerView?.needsDisplay = true
         if headerNeedsRefresh { applyHeaderStyle(to: tableView) }
-        cachedColumnKinds = parent.query.displayedColumns.map { ResultGridValueClassifier.kind(for: $0, value: "") }
+        cachedColumnKinds = parent.displayedColumns.map { ResultGridValueClassifier.kind(for: $0, value: "") }
         cachedColumnIDs = columnIDs
         return columnsChanged
     }
 
     func addDataColumns(to tableView: NSTableView) {
         let hidden = persistedState?.hiddenColumnIndices ?? []
-        let classification = parent.query.dataClassification
-        for (index, column) in parent.query.displayedColumns.enumerated() {
+        let classification = parent.dataClassification
+        let savedWidths = persistedState?.cachedColumnWidths ?? [:]
+        for (index, column) in parent.displayedColumns.enumerated() {
             guard !hidden.contains(index) else { continue }
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("data-\(column.id)"))
             tableColumn.title = column.name
@@ -58,10 +59,28 @@ extension QueryResultsTableView.Coordinator {
                 tableColumn.headerToolTip = sensitivity.summary + " (\(sensitivity.effectiveRank.displayName))"
             }
             tableView.addTableColumn(tableColumn)
-            let visibleColumnIndex = tableView.tableColumns.count - 1
-            let measuredWidth = idealWidth(forVisibleColumnAt: visibleColumnIndex, in: tableView)
-            tableColumn.width = min(max(measuredWidth, tableColumn.minWidth), tableColumn.maxWidth)
+            // Use persisted width from a previous tab visit when available,
+            // skipping the expensive idealWidth() measurement entirely.
+            if let savedWidth = savedWidths[column.id], savedWidth > 0 {
+                tableColumn.width = min(max(savedWidth, tableColumn.minWidth), tableColumn.maxWidth)
+            } else {
+                let visibleColumnIndex = tableView.tableColumns.count - 1
+                let measuredWidth = idealWidth(forVisibleColumnAt: visibleColumnIndex, in: tableView)
+                tableColumn.width = min(max(measuredWidth, tableColumn.minWidth), tableColumn.maxWidth)
+            }
         }
+    }
+
+    /// Captures current column widths into the persisted grid state so they
+    /// can be restored instantly on tab switch without re-measuring.
+    func saveColumnWidths() {
+        guard let tableView, let state = persistedState else { return }
+        var widths: [String: CGFloat] = [:]
+        for tableColumn in tableView.tableColumns {
+            let id = tableColumn.identifier.rawValue.replacingOccurrences(of: "data-", with: "")
+            widths[id] = tableColumn.width
+        }
+        state.cachedColumnWidths = widths
     }
 
     func minimumWidth(for column: ColumnInfo) -> CGFloat {
@@ -87,7 +106,7 @@ extension QueryResultsTableView.Coordinator {
 
     func idealWidth(forVisibleColumnAt column: Int, in tableView: NSTableView) -> CGFloat {
         guard column >= 0, column < tableView.tableColumns.count else { return 0 }
-        if column >= parent.query.displayedColumns.count {
+        if column >= parent.displayedColumns.count {
             let tableColumn = tableView.tableColumns[column]
             return max(tableColumn.minWidth, tableColumn.width)
         }
@@ -114,7 +133,7 @@ extension QueryResultsTableView.Coordinator {
     func widestCellWidth(forColumn column: Int, tableView: NSTableView) -> CGFloat {
         guard column >= 0, tableView.numberOfRows > 0 else { return 0 }
         let padding = ResultsGridMetrics.contentHorizontalPadding * 2
-        let columnInfo = column < parent.query.displayedColumns.count ? parent.query.displayedColumns[column] : nil
+        let columnInfo = column < parent.displayedColumns.count ? parent.displayedColumns[column] : nil
         var maxWidth = CGFloat.zero
         let sampleCount = isSplitResizing ? min(tableView.numberOfRows, 32) : min(tableView.numberOfRows, ResultsGridMetrics.maxAutoWidthSampleCount)
         if sampleCount == 0 { return ceil(maxWidth) + padding + 6 }
@@ -122,7 +141,7 @@ extension QueryResultsTableView.Coordinator {
         for row in sampledRows {
             let sourceRow = resolvedRowIndex(for: row)
             guard sourceRow >= 0 else { continue }
-            let value = parent.query.valueForDisplay(row: sourceRow, column: column)
+            let value = queryState.valueForDisplay(row: sourceRow, column: column)
             let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
             let style = fallbackResultGridStyle(for: kind)
             let displayString = (value ?? (kind == .null ? "NULL" : "")) as NSString
@@ -141,7 +160,7 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func applyHeaderStyle(to tableView: NSTableView) {
-        let classification = parent.query.dataClassification
+        let classification = parent.dataClassification
         for (offset, column) in tableView.tableColumns.enumerated() {
             if !(column.headerCell is ResultTableHeaderCell) {
                 column.headerCell = ResultTableHeaderCell(textCell: column.title)
@@ -166,7 +185,7 @@ extension QueryResultsTableView.Coordinator {
     func updateHeaderIndicators() {
         guard let tableView else { return }
         for col in tableView.tableColumns { tableView.setIndicatorImage(nil, in: col) }
-        if let sort = parent.activeSort, let idx = parent.query.displayedColumns.firstIndex(where: { $0.name == sort.column }), idx < tableView.tableColumns.count {
+        if let sort = parent.activeSort, let idx = parent.displayedColumns.firstIndex(where: { $0.name == sort.column }), idx < tableView.tableColumns.count {
             let col = tableView.tableColumns[idx]; let img = NSImage(named: sort.ascending ? NSImage.touchBarGoUpTemplateName : NSImage.touchBarGoDownTemplateName)
             tableView.setIndicatorImage(img, in: col)
         }
