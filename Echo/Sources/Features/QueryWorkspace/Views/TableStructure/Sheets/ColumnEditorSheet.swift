@@ -31,6 +31,8 @@ struct ColumnEditorSheet: View {
             Form {
                 generalSection
                 behaviorSection
+                identitySection
+                collationSection
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
@@ -39,14 +41,14 @@ struct ColumnEditorSheet: View {
 
             toolbar
         }
-        .frame(minWidth: 440, idealWidth: 500, minHeight: 360)
+        .frame(minWidth: 440, idealWidth: 500, minHeight: 440)
         .navigationTitle(draft.isEditingExisting ? "Edit Column" : "New Column")
     }
 
     private var generalSection: some View {
         Section {
             PropertyRow(title: "Column Name") {
-                TextField("", text: $draft.name)
+                TextField("", text: $draft.name, prompt: Text("column_name"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
             }
@@ -65,14 +67,14 @@ struct ColumnEditorSheet: View {
                 
                 if draft.selectedDataType == nil {
                     PropertyRow(title: "Custom Data Type") {
-                        TextField("", text: dataTypeInputBinding)
+                        TextField("", text: dataTypeInputBinding, prompt: Text("e.g. int, varchar(255)"))
                             .textFieldStyle(.plain)
                             .multilineTextAlignment(.trailing)
                     }
                 }
             } else {
                 PropertyRow(title: "Data Type") {
-                    TextField("", text: dataTypeInputBinding)
+                    TextField("", text: dataTypeInputBinding, prompt: Text("e.g. int, varchar(255)"))
                         .textFieldStyle(.plain)
                         .multilineTextAlignment(.trailing)
                 }

@@ -77,6 +77,18 @@ public enum TypographyTokens {
 
         /// Tiny kind / tag badges (PK, UQ, IX).
         public static let kindBadge = TypographyTokens.compact.weight(.bold)
+
+        /// Supporting identifier columns (owner, schema, app name, client address).
+        /// Same size as `name` but always paired with `.secondary` / `.tertiary` color.
+        public static let secondaryName = TypographyTokens.standard
+
+        /// File paths, device paths, LSNs, and other technical strings.
+        /// 11pt monospaced — de-emphasised like dates but monospaced for readability.
+        public static let path = SwiftUI.Font.system(size: 11, design: .monospaced)
+
+        /// Inline SQL preview text in table cells.
+        /// 11pt monospaced — same base as `path` today, separate token for future divergence.
+        public static let sql = SwiftUI.Font.system(size: 11, design: .monospaced)
     }
 
     /// 16pt — large headers

@@ -19,6 +19,7 @@ final class SQLAutoCompletionController {
     var flatSuggestions: [SQLAutoCompletionSuggestion] = []
     var selectedIndex: Int = 0
     var lastQuery: SQLAutoCompletionQuery?
+    var lastResponse: SQLCompletionResponse?
     var detailResetToken = UUID()
 
     let minWidth: CGFloat = 200
@@ -84,9 +85,51 @@ final class SQLAutoCompletionController {
         popover.show(relativeTo: caretRect, of: textView, preferredEdge: .maxY)
     }
 
+    func present(suggestions: [SQLAutoCompletionSuggestion], response: SQLCompletionResponse) {
+        guard let textView else {
+            hide()
+            return
+        }
+
+        let appearance = textView.window?.effectiveAppearance ?? textView.effectiveAppearance
+        popover.appearance = appearance
+        hostingController?.view.appearance = appearance
+
+        let previousID = selectedSuggestion?.id
+        flatSuggestions = suggestions
+        guard !flatSuggestions.isEmpty else {
+            hide()
+            return
+        }
+
+        lastResponse = response
+
+        if let previousID, let index = flatSuggestions.firstIndex(where: { $0.id == previousID }) {
+            selectedIndex = index
+        } else {
+            selectedIndex = 0
+        }
+
+        let shouldResetDetail = !popover.isShown
+        if shouldResetDetail {
+            detailResetToken = UUID()
+        }
+
+        updatePopoverContent()
+
+        guard textView.window != nil,
+              let caretRect = caretRectForResponse(response) else {
+            hide()
+            return
+        }
+
+        popover.show(relativeTo: caretRect, of: textView, preferredEdge: .maxY)
+    }
+
     func hide() {
         flatSuggestions.removeAll(keepingCapacity: false)
         lastQuery = nil
+        lastResponse = nil
         selectedIndex = 0
         if popover.isShown {
             popover.performClose(nil)
@@ -156,9 +199,14 @@ final class SQLAutoCompletionController {
 
     func accept(_ suggestion: SQLAutoCompletionSuggestion) {
         guard let textView else { return }
-        let query = lastQuery ?? textView.currentCompletionQuery()
-        guard let query else { hide(); return }
-        textView.applyCompletion(suggestion, query: query)
+        // Prefer response-based acceptance (new API), fall back to query-based (legacy)
+        if let response = lastResponse ?? textView.lastCompletionResponse {
+            textView.applyCompletion(suggestion, response: response)
+        } else {
+            let query = lastQuery ?? textView.currentCompletionQuery()
+            guard let query else { hide(); return }
+            textView.applyCompletion(suggestion, query: query)
+        }
     }
 
     var selectedSuggestion: SQLAutoCompletionSuggestion? {

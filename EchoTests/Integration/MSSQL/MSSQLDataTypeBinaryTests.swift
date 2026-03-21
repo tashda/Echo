@@ -184,16 +184,10 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
         ])
         cleanupSQL("DROP TABLE [\(tableName)]")
 
-        // sql_variant requires CAST in the INSERT, so use raw SQL values
-        _ = try await sqlserverClient.admin.insertRows(
-            into: tableName,
-            columns: ["id", "val"],
-            values: [
-                [.int(1), .raw("CAST(100 AS INT)")],
-                [.int(2), .raw("CAST('text value' AS NVARCHAR(50))")],
-                [.int(3), .raw("CAST(3.14159 AS FLOAT)")]
-            ]
-        )
+        // sql_variant requires CAST expressions — insert one at a time to avoid type conflicts
+        _ = try await execute("INSERT INTO [\(tableName)] (id, val) VALUES (1, CAST(100 AS INT))")
+        _ = try await execute("INSERT INTO [\(tableName)] (id, val) VALUES (2, CAST('text value' AS NVARCHAR(50)))")
+        _ = try await execute("INSERT INTO [\(tableName)] (id, val) VALUES (3, CAST(3.14159 AS FLOAT))")
 
         let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
         IntegrationTestHelpers.assertRowCount(result, expected: 3)

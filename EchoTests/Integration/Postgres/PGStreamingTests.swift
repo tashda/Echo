@@ -17,7 +17,7 @@ final class PGStreamingTests: PostgresDockerTestCase {
             }
         )
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 500)
+        XCTAssertEqual(result.totalRowCount, 500, "Expected 500 total rows")
     }
 
     func testProgressHandlerReceivesColumns() async throws {
@@ -48,7 +48,7 @@ final class PGStreamingTests: PostgresDockerTestCase {
             }
         )
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 1000)
+        XCTAssertEqual(result.totalRowCount, 1000, "Expected 1000 total rows")
 
         // Row counts should be monotonically increasing
         for i in 1..<rowCounts.value.count {
@@ -81,7 +81,7 @@ final class PGStreamingTests: PostgresDockerTestCase {
             SELECT n, 'row_' || n::TEXT AS label, n * 1.5 AS computed
             FROM generate_series(1, 5000) AS n
         """)
-        IntegrationTestHelpers.assertRowCount(result, expected: 5000)
+        XCTAssertEqual(result.totalRowCount, 5000, "Expected 5000 total rows")
         XCTAssertEqual(result.columns.count, 3)
     }
 
@@ -99,14 +99,14 @@ final class PGStreamingTests: PostgresDockerTestCase {
             }
         )
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 5000)
+        XCTAssertEqual(result.totalRowCount, 5000, "Expected 5000 total rows")
     }
 
     func testLargeResultSet10000Rows() async throws {
         let result = try await query("""
             SELECT n, md5(n::TEXT) AS hash FROM generate_series(1, 10000) AS n
         """)
-        IntegrationTestHelpers.assertRowCount(result, expected: 10_000)
+        XCTAssertEqual(result.totalRowCount, 10_000, "Expected 10000 total rows")
     }
 
     func testLargeResultSetDataIntegrity() async throws {
@@ -115,22 +115,19 @@ final class PGStreamingTests: PostgresDockerTestCase {
             FROM generate_series(1, 5000) AS n
             ORDER BY n
         """)
-        IntegrationTestHelpers.assertRowCount(result, expected: 5000)
+        XCTAssertEqual(result.totalRowCount, 5000, "Expected 5000 total rows")
 
-        // Verify first rows
+        // Verify first rows (streaming preview keeps first ~200 rows)
         XCTAssertEqual(result.rows[0][0], "1")
         XCTAssertEqual(result.rows[0][1], "2")
         XCTAssertEqual(result.rows[0][2], "1")
 
-        // Verify a middle row
-        XCTAssertEqual(result.rows[499][0], "500")
-        XCTAssertEqual(result.rows[499][1], "1000")
-        XCTAssertEqual(result.rows[499][2], "250000")
-
-        // Verify last row
-        XCTAssertEqual(result.rows[4999][0], "5000")
-        XCTAssertEqual(result.rows[4999][1], "10000")
-        XCTAssertEqual(result.rows[4999][2], "25000000")
+        // Verify a row within the preview window
+        if result.rows.count > 99 {
+            XCTAssertEqual(result.rows[99][0], "100")
+            XCTAssertEqual(result.rows[99][1], "200")
+            XCTAssertEqual(result.rows[99][2], "10000")
+        }
     }
 
     // MARK: - Many Columns
@@ -157,7 +154,7 @@ final class PGStreamingTests: PostgresDockerTestCase {
             FROM generate_series(1, 1000) AS n
         """)
         XCTAssertEqual(result.columns.count, 15)
-        IntegrationTestHelpers.assertRowCount(result, expected: 1000)
+        XCTAssertEqual(result.totalRowCount, 1000, "Expected 1000 total rows")
     }
 
     // MARK: - Empty Result with Progress Handler
@@ -215,7 +212,7 @@ final class PGStreamingTests: PostgresDockerTestCase {
                 repeat('A', 50) AS text_data
             FROM generate_series(1, 500) AS n
         """)
-        IntegrationTestHelpers.assertRowCount(result, expected: 500)
+        XCTAssertEqual(result.totalRowCount, 500, "Expected 500 total rows")
         XCTAssertEqual(result.columns.count, 5)
     }
 
@@ -238,7 +235,7 @@ final class PGStreamingTests: PostgresDockerTestCase {
             SELECT n, repeat('x', (n % 100) + 1) AS variable_text
             FROM generate_series(1, 1000) AS n
         """)
-        IntegrationTestHelpers.assertRowCount(result, expected: 1000)
+        XCTAssertEqual(result.totalRowCount, 1000, "Expected 1000 total rows")
 
         // Verify variable lengths
         let len1 = result.rows[0][1]?.count ?? 0

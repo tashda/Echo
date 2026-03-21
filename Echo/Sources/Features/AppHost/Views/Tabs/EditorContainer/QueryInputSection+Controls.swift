@@ -61,6 +61,7 @@ extension QueryInputSection {
         .buttonStyle(.plain)
         .disabled(isFormatting || query.sql.isEmpty)
         .help("Format SQL (Shift+Cmd+F)")
+        .accessibilityLabel("Format SQL")
         .accessibilityIdentifier("format-query-button")
         .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
     }

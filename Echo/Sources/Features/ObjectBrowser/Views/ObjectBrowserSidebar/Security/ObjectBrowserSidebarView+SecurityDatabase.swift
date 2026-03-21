@@ -119,6 +119,7 @@ extension ObjectBrowserSidebarView {
             }
         }
         .contextMenu {
+            // Group 3: Open / View
             Button {
                 openScriptTab(
                     sql: """
@@ -150,7 +151,30 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Show Permissions", systemImage: "lock.shield")
             }
+
             Divider()
+
+            // Group 6: Script as
+            Menu("Script as", systemImage: "scroll") {
+                Button {
+                    openScriptTab(
+                        sql: "CREATE USER [\(user.name)] FOR LOGIN [\(user.name)]\(user.defaultSchema.map { " WITH DEFAULT_SCHEMA = [\($0)]" } ?? "");",
+                        session: session
+                    )
+                } label: {
+                    Label("CREATE", systemImage: "plus.rectangle.on.rectangle")
+                }
+                Divider()
+                Button {
+                    openScriptTab(sql: "DROP USER [\(user.name)];", session: session)
+                } label: {
+                    Label("DROP", systemImage: "trash")
+                }
+            }
+
+            Divider()
+
+            // Group 9: Destructive
             Button(role: .destructive) {
                 viewModel.dropSecurityPrincipalTarget = .init(
                     sessionID: session.id,
@@ -163,21 +187,10 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Drop User", systemImage: "trash")
             }
+
             Divider()
-            Menu {
-                Button("CREATE") {
-                    openScriptTab(
-                        sql: "CREATE USER [\(user.name)] FOR LOGIN [\(user.name)]\(user.defaultSchema.map { " WITH DEFAULT_SCHEMA = [\($0)]" } ?? "");",
-                        session: session
-                    )
-                }
-                Button("DROP") {
-                    openScriptTab(sql: "DROP USER [\(user.name)];", session: session)
-                }
-            } label: {
-                Label("Script as", systemImage: "scroll")
-            }
-            Divider()
+
+            // Group 10: Properties — ALWAYS last
             Button {
                 viewModel.securityUserSheetSessionID = session.connection.id
                 viewModel.securityUserSheetDatabaseName = databaseName

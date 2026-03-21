@@ -31,11 +31,15 @@ struct ToolbarNavigationButtons: View {
                 Label("Back", systemImage: "chevron.left")
             }
             .disabled(!canGoBack)
+            .help("Go Back")
+            .accessibilityLabel("Go Back")
 
             Button(action: onForward) {
                 Label("Forward", systemImage: "chevron.right")
             }
             .disabled(!canGoForward)
+            .help("Go Forward")
+            .accessibilityLabel("Go Forward")
         }
         .controlGroupStyle(.navigation)
     }

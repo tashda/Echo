@@ -18,18 +18,36 @@ extension NewAgentJobSheet {
 
             ForEach(Array(steps.enumerated()), id: \.element.id) { index, _ in
                 Section("Step \(index + 1)") {
-                    TextField("Name", text: $steps[index].name)
+                    TextField("Name", text: $steps[index].name, prompt: Text("e.g. Run cleanup query"))
                     Picker("Type", selection: $steps[index].subsystem) {
                         Text("T-SQL").tag(SubsystemChoice.tsql)
                         Text("CmdExec").tag(SubsystemChoice.cmdExec)
                         Text("PowerShell").tag(SubsystemChoice.powershell)
                     }
                     if steps[index].subsystem == .tsql {
-                        TextField("Database", text: $steps[index].database)
+                        Picker("Database", selection: $steps[index].database) {
+                            Text("Default").tag("")
+                            ForEach(databaseNames, id: \.self) { db in
+                                Text(db).tag(db)
+                            }
+                        }
                     }
-                    TextField("Command", text: $steps[index].command, axis: .vertical)
-                        .lineLimit(2...6)
-                        .font(TypographyTokens.monospaced)
+
+                    LabeledContent("Command") {
+                        TextEditor(text: $steps[index].command)
+                            .font(TypographyTokens.body.monospaced())
+                            .frame(minHeight: 60, maxHeight: 120)
+                            .scrollContentBackground(.hidden)
+                            .padding(SpacingTokens.xxs)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(ColorTokens.Background.primary)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(ColorTokens.Text.quaternary.opacity(0.4), lineWidth: 0.5)
+                            )
+                    }
 
                     Button("Remove Step", role: .destructive) {
                         steps.remove(at: index)
@@ -76,7 +94,7 @@ extension NewAgentJobSheet {
 
             ForEach(Array(schedules.enumerated()), id: \.element.id) { index, _ in
                 Section(schedules[index].name.isEmpty ? "Schedule \(index + 1)" : schedules[index].name) {
-                    TextField("Name", text: $schedules[index].name)
+                    TextField("Name", text: $schedules[index].name, prompt: Text("e.g. Daily 9 AM"))
                     Toggle("Enabled", isOn: $schedules[index].enabled)
                     Picker("Frequency", selection: $schedules[index].mode) {
                         ForEach(ScheduleModeChoice.allCases) { mode in
@@ -202,7 +220,7 @@ extension NewAgentJobSheet {
     var notificationsTab: some View {
         Form {
             Section("Email Notification") {
-                TextField("Operator name", text: $notifyOperator)
+                TextField("Operator name", text: $notifyOperator, prompt: Text("e.g. DBA_Team"))
                 Picker("Notify level", selection: $notifyLevel) {
                     ForEach(NotifyLevelChoice.allCases) { level in
                         Text(level.rawValue).tag(level)

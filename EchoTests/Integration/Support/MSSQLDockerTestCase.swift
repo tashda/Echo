@@ -29,6 +29,9 @@ class MSSQLDockerTestCase: XCTestCase {
 
     static let username = "sa"
     static let password = "Password123!"
+    static var requiresValidatedFixtures: Bool {
+        echoTestEnvFlag("ECHO_REQUIRE_VALIDATED_FIXTURES")
+    }
 
     private(set) var session: DatabaseSession!
 
@@ -42,6 +45,12 @@ class MSSQLDockerTestCase: XCTestCase {
     override class func setUp() {
         super.setUp()
         guard echoTestEnvFlag("USE_DOCKER") else { return }
+
+        if echoTestEnvFlag("ECHO_USE_PACKAGE_FIXTURES") || echoTestEnvFlag("ECHO_MSSQL_FIXTURE_VALIDATED") {
+            isDockerReady = true
+            dockerError = nil
+            return
+        }
 
         let resolvedImage = resolvedImageName(for: imageVersion)
 
@@ -76,13 +85,23 @@ class MSSQLDockerTestCase: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        // Prevent hanging tests from blocking the entire CI suite.
+        // Tests that exceed 60 seconds are killed and fail.
+        executionTimeAllowance = 60
         guard echoTestEnvFlag("USE_DOCKER") else {
+            try Self.failIfFixturesRequired("USE_DOCKER not set for MSSQL integration tests")
             throw XCTSkip("USE_DOCKER not set — skipping MSSQL integration tests")
         }
+        if echoTestEnvFlag("ECHO_USE_PACKAGE_FIXTURES") || echoTestEnvFlag("ECHO_MSSQL_FIXTURE_VALIDATED") {
+            session = try await createSession()
+            return
+        }
         if let error = Self.dockerError {
+            try Self.failIfFixturesRequired("MSSQL Docker setup failed: \(error)")
             throw XCTSkip("Docker setup failed: \(error)")
         }
         guard Self.isDockerReady else {
+            try Self.failIfFixturesRequired("MSSQL Docker fixture was not ready")
             throw XCTSkip("Docker not ready")
         }
 
@@ -217,5 +236,14 @@ class MSSQLDockerTestCase: XCTestCase {
         try? process.run()
         process.waitUntilExit()
         return process.terminationStatus == 0
+    }
+
+    private static func failIfFixturesRequired(_ message: String) throws {
+        guard requiresValidatedFixtures else { return }
+        throw NSError(
+            domain: "Echo.IntegrationFixtures",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: message]
+        )
     }
 }

@@ -37,19 +37,21 @@ private struct MSSQLQueryToolbarControls: View {
         Button {
             query.sqlcmdModeEnabled.toggle()
         } label: {
-            Image(systemName: "terminal")
+            Label("SQLCMD", systemImage: "terminal")
                 .symbolVariant(query.sqlcmdModeEnabled ? .fill : .none)
         }
         .help(query.sqlcmdModeEnabled ? "Disable SQLCMD Mode" : "Enable SQLCMD Mode")
+        .accessibilityLabel(query.sqlcmdModeEnabled ? "Disable SQLCMD Mode" : "Enable SQLCMD Mode")
     }
 
     private var statisticsButton: some View {
         Button {
             query.statisticsEnabled.toggle()
         } label: {
-            Image(systemName: "gauge.with.dots.needle.33percent")
+            Label("Statistics", systemImage: "gauge.with.dots.needle.33percent")
                 .symbolVariant(query.statisticsEnabled ? .fill : .none)
         }
         .help(query.statisticsEnabled ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")
+        .accessibilityLabel(query.statisticsEnabled ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")
     }
 }

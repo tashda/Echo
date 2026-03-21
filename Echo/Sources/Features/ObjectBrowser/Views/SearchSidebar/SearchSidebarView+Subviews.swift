@@ -45,6 +45,7 @@ extension SearchSidebarView {
         .buttonStyle(.plain)
         .contentShape(Circle())
         .help(filterLabel)
+        .accessibilityLabel(filterLabel)
         .popover(isPresented: $isFilterPopoverPresented, arrowEdge: .top) {
             SearchFilterPopoverView(
                 selectedCategories: $viewModel.selectedCategories,

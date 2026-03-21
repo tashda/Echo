@@ -35,8 +35,10 @@ struct ShortcutRowView: View {
                     ShortcutKeyCaps(keys: displayKeys, isCustomized: isCustomized)
                         .contextMenu {
                             if isCustomized {
-                                Button("Revert to Default") {
+                                Button {
                                     onReset()
+                                } label: {
+                                    Label("Revert to Default", systemImage: "arrow.uturn.backward")
                                 }
                             }
                         }

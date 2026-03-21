@@ -106,7 +106,7 @@ extension ObjectBrowserSidebarView {
             )
             viewModel.showDropLinkedServerAlert = true
         } label: {
-            Label("Delete", systemImage: "trash")
+            Label("Drop", systemImage: "trash")
         }
     }
 
@@ -120,7 +120,7 @@ extension ObjectBrowserSidebarView {
             SidebarRow(
                 depth: 1,
                 icon: .system("plus.circle"),
-                label: "New Linked Server\u{2026}",
+                label: "New Linked Server",
                 iconColor: ColorTokens.Text.tertiary,
                 labelColor: ColorTokens.Text.tertiary
             )

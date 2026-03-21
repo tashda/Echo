@@ -280,7 +280,11 @@ extension QueryEditorState {
 
     func consumePendingVisibleRowReloadIndexes() -> IndexSet? {
         let pending = pendingVisibleRowReloadIndexes
-        pendingVisibleRowReloadIndexes = nil
+        if pending != nil {
+            Task { @MainActor [weak self] in
+                self?.pendingVisibleRowReloadIndexes = nil
+            }
+        }
         return pending
     }
 

@@ -33,7 +33,7 @@ extension TabOverviewView {
 
         Divider()
 
-        Menu("Move to") {
+        Menu("Move to", systemImage: "arrow.right") {
             moveTabMenuContent(for: tab, currentServerID: serverID, currentDatabaseIdentifier: databaseIdentifier)
         }
 

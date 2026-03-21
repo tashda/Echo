@@ -29,17 +29,20 @@ extension ObjectBrowserSidebarView {
             }
             .contextMenu {
                 Button {
+                    Task {
+                        let handle = AppDirector.shared.activityEngine.begin("Refreshing logins", connectionSessionID: session.id)
+                        await loadServerSecurityAsync(session: session)
+                        handle.succeed()
+                    }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
                     viewModel.securityLoginSheetSessionID = connID
                     viewModel.securityLoginSheetEditName = nil
                     viewModel.showSecurityLoginSheet = true
                 } label: {
-                    Label("New Login", systemImage: "plus")
-                }
-                Divider()
-                Button {
-                    loadServerSecurity(session: session)
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label("New Login", systemImage: "person.badge.plus")
                 }
             }
         }
@@ -107,15 +110,18 @@ extension ObjectBrowserSidebarView {
             }
             .contextMenu {
                 Button {
-                    Task { await createMSSQLServerRole(session: session) }
-                } label: {
-                    Label("New Server Role", systemImage: "plus")
-                }
-                Divider()
-                Button {
-                    loadServerSecurity(session: session)
+                    Task {
+                        let handle = AppDirector.shared.activityEngine.begin("Refreshing server roles", connectionSessionID: session.id)
+                        await loadServerSecurityAsync(session: session)
+                        handle.succeed()
+                    }
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
+                    Task { await createMSSQLServerRole(session: session) }
+                } label: {
+                    Label("New Server Role", systemImage: "person.2.badge.plus")
                 }
             }
         }

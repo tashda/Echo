@@ -18,7 +18,7 @@ extension QueryResultsTableView.Coordinator {
     ) {
         // Preserve selection state during active cell drags to prevent
         // intermittent drag failures when table updates occur mid-drag.
-        let preserveSelection = isDraggingCellSelection
+        let preserveSelection = isDraggingSelection
 
         if columnsChanged {
             if !preserveSelection {
@@ -74,10 +74,14 @@ extension QueryResultsTableView.Coordinator {
         }
 
         if performedFullReload || rowCountIncreased {
-            parent.query.recordTableViewUpdate(
-                visibleRowCount: currentRowCount,
-                totalAvailableRowCount: parent.query.totalAvailableRowCount
-            )
+            let query = parent.query
+            let totalAvailableRowCount = query.totalAvailableRowCount
+            Task { @MainActor in
+                query.recordTableViewUpdate(
+                    visibleRowCount: currentRowCount,
+                    totalAvailableRowCount: totalAvailableRowCount
+                )
+            }
         }
 
         if let state = persistedState {

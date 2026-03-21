@@ -1,0 +1,37 @@
+name: "Echo App: UI Tests"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ui-tests:
+    name: "UI Tests (Dedicated GUI Runner)"
+    runs-on: [self-hosted, echo-ui-runner]
+    timeout-minutes: 45
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security set-keychain-settings ~/Library/Keychains/login.keychain-db
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+
+    - name: Run UI Tests
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -testPlan EchoUITests \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-ui \
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Upload UI Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-ui
+        path: TestResults-ui.xcresult

@@ -61,8 +61,13 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
             if !window.titlebarAppearsTransparent {
                 window.titlebarAppearsTransparent = true
             }
-            if window.titleVisibility != .visible {
-                window.titleVisibility = .visible
+            // Set the window title for dock menu / Cmd+` cycling,
+            // but keep titleVisibility hidden so it doesn't show in the toolbar.
+            if window.title != "Echo" {
+                window.title = "Echo"
+            }
+            if window.titleVisibility != .hidden {
+                window.titleVisibility = .hidden
             }
             if window.toolbarStyle != .unified {
                 window.toolbarStyle = .unified

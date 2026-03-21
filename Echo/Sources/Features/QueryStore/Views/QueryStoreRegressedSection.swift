@@ -10,16 +10,16 @@ struct QueryStoreRegressedSection: View {
 
     var body: some View {
         if viewModel.regressedQueries.isEmpty {
-            EmptyStatePlaceholder(
-                icon: "checkmark.circle",
-                title: "No regressed queries",
-                subtitle: "All queries are performing consistently. Regressions appear when a query has multiple plans with significantly different performance."
-            )
+            ContentUnavailableView {
+                Label("No regressed queries", systemImage: "checkmark.circle")
+            } description: {
+                Text("All queries are performing consistently. Regressions appear when a query has multiple plans with significantly different performance.")
+            }
         } else {
             Table(sortedQueries, selection: $viewModel.selectedQueryId, sortOrder: $sortOrder) {
                 TableColumn("ID", value: \.queryId) { query in
                     Text("\(query.queryId)")
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                 }
                 .width(min: 40, ideal: 55, max: 70)
 
@@ -28,7 +28,7 @@ struct QueryStoreRegressedSection: View {
                         .replacingOccurrences(of: "\r", with: " ")
                         .replacingOccurrences(of: "  ", with: " ")
                     Text(flat.prefix(300))
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.Table.sql)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .help(String(query.queryText.prefix(1000)))
@@ -37,7 +37,7 @@ struct QueryStoreRegressedSection: View {
 
                 TableColumn("Plans", value: \.planCount) { query in
                     Text("\(query.planCount)")
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -45,7 +45,7 @@ struct QueryStoreRegressedSection: View {
 
                 TableColumn("Best Avg", value: \.minAvgDurationUs) { query in
                     Text(formatDuration(query.minAvgDurationUs))
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(ColorTokens.Status.success)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -53,7 +53,7 @@ struct QueryStoreRegressedSection: View {
 
                 TableColumn("Worst Avg", value: \.maxAvgDurationUs) { query in
                     Text(formatDuration(query.maxAvgDurationUs))
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(ColorTokens.Status.error)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -61,7 +61,7 @@ struct QueryStoreRegressedSection: View {
 
                 TableColumn("Regression", value: \.regressionRatio) { query in
                     Text(String(format: "%.1fx", query.regressionRatio))
-                        .font(TypographyTokens.detail.weight(.medium).monospacedDigit())
+                        .font(TypographyTokens.Table.percentage)
                         .foregroundStyle(regressionColor(query.regressionRatio))
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }

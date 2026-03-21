@@ -3,6 +3,7 @@ import EchoSense
 
 struct RefreshButtonContent: View {
     @Bindable var session: ConnectionSession
+    var activityEngine: ActivityEngine
     var accent: Color
     let onRefresh: () -> Void
     let onCancel: () -> Void
@@ -14,6 +15,8 @@ struct RefreshButtonContent: View {
     @State private var hoverEnabled = true
     @State private var hoverEnableTask: Task<Void, Never>?
     @State private var hoverIntent = false
+    @State private var refreshIconOpacity: Double = 1.0
+    @State private var refreshIconScale: CGFloat = 1.0
 
     enum Phase: Equatable {
         case idle
@@ -29,9 +32,13 @@ struct RefreshButtonContent: View {
     private var helpText: String {
         switch phase {
         case .idle: return "Refresh"
-        case .refreshing: return session.structureLoadingMessage ?? "Updating structure\u{2026}"
+        case .refreshing:
+            return activityEngine.activeMessage(for: session.id)
+                ?? activityEngine.activeLabel(for: session.id)
+                ?? session.structureLoadingMessage
+                ?? "Updating structure\u{2026}"
         case .completed: return completionMessage
-        case .failed: return "Failed"
+        case .failed: return completionMessage.isEmpty ? "Failed" : completionMessage
         }
     }
 
@@ -41,8 +48,8 @@ struct RefreshButtonContent: View {
         } label: {
             Label("Refresh", systemImage: "arrow.clockwise")
                 .labelStyle(.iconOnly)
-                .opacity(phase == .idle ? 1 : 0)
-                .animation(.easeInOut(duration: 0.15), value: phase)
+                .scaleEffect(refreshIconScale)
+                .opacity(refreshIconOpacity)
                 .overlay {
                     RefreshAnimatedOverlay(
                         phase: phase,
@@ -69,6 +76,17 @@ struct RefreshButtonContent: View {
         .onChange(of: session.structureLoadingState) { _, newValue in
             synchronizePhase(with: newValue)
         }
+        .onChange(of: activityEngine.isActive(for: session.id)) { _, isActive in
+            if isActive {
+                beginRefreshing()
+            } else if session.structureLoadingState == .idle || session.structureLoadingState == .ready {
+                // Activity engine finished and structure loading isn't running — check for result
+                synchronizeActivityResult()
+            }
+        }
+        .onChange(of: activityEngine.lastResult?.id) { _, _ in
+            synchronizeActivityResult()
+        }
         .onDisappear {
             completionTask?.cancel()
             hoverEnableTask?.cancel()
@@ -94,21 +112,62 @@ struct RefreshButtonContent: View {
     // MARK: - State Management
 
     private func transition(to newPhase: Phase) {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            phase = newPhase
-        }
+        let oldPhase = phase
+        phase = newPhase
+        animateRefreshIcon(from: oldPhase, to: newPhase)
         handleHoverStateChange(for: newPhase)
         if newPhase != .refreshing {
             hoverIntent = false
         }
     }
 
+    private func animateRefreshIcon(from oldPhase: Phase, to newPhase: Phase) {
+        if newPhase == .idle {
+            // Returning to idle — fade the refresh icon back in with a gentle scale-up
+            // Delay slightly so the result symbol has time to shrink first
+            let delay: Double = (oldPhase == .completed || oldPhase == .failed) ? 0.15 : 0
+            withAnimation(.easeOut(duration: 0.25).delay(delay)) {
+                refreshIconOpacity = 1.0
+                refreshIconScale = 1.0
+            }
+        } else if oldPhase == .idle {
+            // Leaving idle — shrink + fade the refresh icon out
+            withAnimation(.easeIn(duration: 0.15)) {
+                refreshIconOpacity = 0
+                refreshIconScale = 0.7
+            }
+        }
+        // For non-idle → non-idle transitions (e.g. refreshing → completed),
+        // the refresh icon stays hidden — no animation needed.
+    }
+
     private func synchronizePhase(with state: StructureLoadingState) {
+        // If the activity engine has active operations for this session, stay in refreshing
+        if activityEngine.isActive(for: session.id) {
+            beginRefreshing()
+            return
+        }
         switch state {
         case .loading: beginRefreshing()
         case .ready: showCompletion()
         case .failed: showFailure()
         case .idle: resetToIdle()
+        }
+    }
+
+    private func synchronizeActivityResult() {
+        guard let result = activityEngine.lastResult,
+              result.connectionSessionID == session.id else { return }
+        // Don't override if structure loading is still in progress
+        if case .loading = session.structureLoadingState { return }
+
+        switch result.outcome {
+        case .succeeded:
+            showCompletion(with: result.label)
+        case .failed(let message):
+            showFailure(with: message.isEmpty ? result.label : "\(result.label): \(message)")
+        case .cancelled:
+            break
         }
     }
 
@@ -130,8 +189,9 @@ struct RefreshButtonContent: View {
         }
     }
 
-    private func showFailure() {
+    private func showFailure(with message: String? = nil) {
         completionTask?.cancel()
+        if let message { completionMessage = message }
         stopHoverDelay(resetIntent: true)
         transition(to: .failed)
         completionTask = Task { @MainActor in

@@ -9,17 +9,41 @@ protocol SQLDialectGenerator: Sendable {
     func rollbackTransaction() -> String
     func dropColumn(table: String, column: String) -> String
     func renameColumn(table: String, from: String, to: String) -> String
-    func addColumn(table: String, name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?) -> String
+    func addColumn(table: String, name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?, identity: (seed: Int, increment: Int, generation: String?)?, collation: String?) -> String
     func alterColumnType(table: String, column: String, newType: String, isNullable: Bool) -> String
     func alterColumnNullability(table: String, column: String, isNullable: Bool, currentType: String) -> String
     func alterColumnSetDefault(table: String, column: String, defaultValue: String) -> String
     func alterColumnDropDefault(table: String, column: String) -> String
-    func addPrimaryKey(table: String, name: String, columns: [String]) -> String
+    func addPrimaryKey(table: String, name: String, columns: [String], isDeferrable: Bool, isInitiallyDeferred: Bool) -> String
     func dropConstraint(table: String, name: String) -> String
-    func createIndex(table: String, name: String, columns: [(name: String, sort: String)], isUnique: Bool, filter: String?) -> String
+    func createIndex(table: String, name: String, columns: [(name: String, sort: String)], includeColumns: [String], isUnique: Bool, filter: String?, indexType: String?) -> String
     func dropIndex(schema: String, name: String, table: String) -> String
-    func addUniqueConstraint(table: String, name: String, columns: [String]) -> String
-    func addForeignKey(table: String, name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?) -> String
+    func addUniqueConstraint(table: String, name: String, columns: [String], isDeferrable: Bool, isInitiallyDeferred: Bool) -> String
+    func addCheckConstraint(table: String, name: String, expression: String) -> String
+    func addForeignKey(table: String, name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?, isDeferrable: Bool, isInitiallyDeferred: Bool) -> String
+    func alterTableProperties(table: String, properties: [(key: String, value: String)]) -> [String]
+}
+
+extension SQLDialectGenerator {
+    func addColumn(table: String, name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?) -> String {
+        addColumn(table: table, name: name, dataType: dataType, isNullable: isNullable, defaultValue: defaultValue, generatedExpression: generatedExpression, identity: nil, collation: nil)
+    }
+
+    func addPrimaryKey(table: String, name: String, columns: [String]) -> String {
+        addPrimaryKey(table: table, name: name, columns: columns, isDeferrable: false, isInitiallyDeferred: false)
+    }
+
+    func createIndex(table: String, name: String, columns: [(name: String, sort: String)], isUnique: Bool, filter: String?) -> String {
+        createIndex(table: table, name: name, columns: columns, includeColumns: [], isUnique: isUnique, filter: filter, indexType: nil)
+    }
+
+    func addUniqueConstraint(table: String, name: String, columns: [String]) -> String {
+        addUniqueConstraint(table: table, name: name, columns: columns, isDeferrable: false, isInitiallyDeferred: false)
+    }
+
+    func addForeignKey(table: String, name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?) -> String {
+        addForeignKey(table: table, name: name, columns: columns, referencedSchema: referencedSchema, referencedTable: referencedTable, referencedColumns: referencedColumns, onUpdate: onUpdate, onDelete: onDelete, isDeferrable: false, isInitiallyDeferred: false)
+    }
 }
 
 struct PostgreSQLDialectGenerator: SQLDialectGenerator {
@@ -45,12 +69,17 @@ struct PostgreSQLDialectGenerator: SQLDialectGenerator {
         "ALTER TABLE \(table) RENAME COLUMN \(quoteIdentifier(from)) TO \(quoteIdentifier(to));"
     }
 
-    func addColumn(table: String, name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?) -> String {
+    func addColumn(table: String, name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?, identity: (seed: Int, increment: Int, generation: String?)?, collation: String?) -> String {
         var clause = "ALTER TABLE \(table) ADD COLUMN \(quoteIdentifier(name)) \(dataType)"
+        if let collation, !collation.isEmpty { clause += " COLLATE \(quoteIdentifier(collation))" }
+        if let identity {
+            let generation = identity.generation ?? "ALWAYS"
+            clause += " GENERATED \(generation) AS IDENTITY (START WITH \(identity.seed) INCREMENT BY \(identity.increment))"
+        }
         if !isNullable { clause += " NOT NULL" }
         if let expression = generatedExpression, !expression.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             clause += " GENERATED ALWAYS AS (\(expression)) STORED"
-        } else if let defaultValue, !defaultValue.isEmpty {
+        } else if identity == nil, let defaultValue, !defaultValue.isEmpty {
             clause += " DEFAULT \(defaultValue)"
         }
         return clause + ";"
@@ -73,18 +102,27 @@ struct PostgreSQLDialectGenerator: SQLDialectGenerator {
         "ALTER TABLE \(table) ALTER COLUMN \(quoteIdentifier(column)) DROP DEFAULT;"
     }
 
-    func addPrimaryKey(table: String, name: String, columns: [String]) -> String {
+    func addPrimaryKey(table: String, name: String, columns: [String], isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
         let cols = columns.map(quoteIdentifier).joined(separator: ", ")
-        return "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) PRIMARY KEY (\(cols));"
+        var sql = "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) PRIMARY KEY (\(cols))"
+        sql += deferrableClause(isDeferrable: isDeferrable, isInitiallyDeferred: isInitiallyDeferred)
+        return sql + ";"
     }
 
     func dropConstraint(table: String, name: String) -> String {
         "ALTER TABLE \(table) DROP CONSTRAINT \(quoteIdentifier(name));"
     }
 
-    func createIndex(table: String, name: String, columns: [(name: String, sort: String)], isUnique: Bool, filter: String?) -> String {
+    func createIndex(table: String, name: String, columns: [(name: String, sort: String)], includeColumns: [String], isUnique: Bool, filter: String?, indexType: String?) -> String {
         let columnsClause = columns.map { "\(quoteIdentifier($0.name)) \($0.sort)" }.joined(separator: ", ")
-        var sql = "CREATE \(isUnique ? "UNIQUE " : "")INDEX \(quoteIdentifier(name)) ON \(table) (\(columnsClause))"
+        var sql = "CREATE \(isUnique ? "UNIQUE " : "")INDEX \(quoteIdentifier(name)) ON \(table)"
+        if let indexType, !indexType.isEmpty, indexType.lowercased() != "btree" {
+            sql += " USING \(indexType.lowercased())"
+        }
+        sql += " (\(columnsClause))"
+        if !includeColumns.isEmpty {
+            sql += " INCLUDE (\(includeColumns.map(quoteIdentifier).joined(separator: ", ")))"
+        }
         if let filter { sql += " WHERE \(filter)" }
         return sql + ";"
     }
@@ -93,19 +131,37 @@ struct PostgreSQLDialectGenerator: SQLDialectGenerator {
         "DROP INDEX IF EXISTS \(quoteIdentifier(schema)).\(quoteIdentifier(name));"
     }
 
-    func addUniqueConstraint(table: String, name: String, columns: [String]) -> String {
+    func addUniqueConstraint(table: String, name: String, columns: [String], isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
         let cols = columns.map(quoteIdentifier).joined(separator: ", ")
-        return "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) UNIQUE (\(cols));"
+        var sql = "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) UNIQUE (\(cols))"
+        sql += deferrableClause(isDeferrable: isDeferrable, isInitiallyDeferred: isInitiallyDeferred)
+        return sql + ";"
     }
 
-    func addForeignKey(table: String, name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?) -> String {
+    func addCheckConstraint(table: String, name: String, expression: String) -> String {
+        "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) CHECK (\(expression));"
+    }
+
+    func addForeignKey(table: String, name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?, isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
         let columnsList = columns.map(quoteIdentifier).joined(separator: ", ")
         let refTable = qualifiedTable(schema: referencedSchema, table: referencedTable)
         let refCols = referencedColumns.map(quoteIdentifier).joined(separator: ", ")
         var sql = "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) FOREIGN KEY (\(columnsList)) REFERENCES \(refTable) (\(refCols))"
         if let onUpdate, !onUpdate.isEmpty { sql += " ON UPDATE \(onUpdate)" }
         if let onDelete, !onDelete.isEmpty { sql += " ON DELETE \(onDelete)" }
+        sql += deferrableClause(isDeferrable: isDeferrable, isInitiallyDeferred: isInitiallyDeferred)
         return sql + ";"
+    }
+
+    func alterTableProperties(table: String, properties: [(key: String, value: String)]) -> [String] {
+        guard !properties.isEmpty else { return [] }
+        let pairs = properties.map { "\($0.key) = \($0.value)" }.joined(separator: ", ")
+        return ["ALTER TABLE \(table) SET (\(pairs));"]
+    }
+
+    private func deferrableClause(isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
+        guard isDeferrable else { return "" }
+        return isInitiallyDeferred ? " DEFERRABLE INITIALLY DEFERRED" : " DEFERRABLE INITIALLY IMMEDIATE"
     }
 }
 
@@ -136,14 +192,16 @@ struct SQLServerDialectGenerator: SQLDialectGenerator {
         return "EXEC sp_rename '\(tableParts).\(from)', '\(to)', 'COLUMN';"
     }
 
-    func addColumn(table: String, name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?) -> String {
+    func addColumn(table: String, name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?, identity: (seed: Int, increment: Int, generation: String?)?, collation: String?) -> String {
         var clause = "ALTER TABLE \(table) ADD \(quoteIdentifier(name)) "
         if let expression = generatedExpression, !expression.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             clause += "AS (\(expression)) PERSISTED"
         } else {
             clause += dataType
+            if let collation, !collation.isEmpty { clause += " COLLATE \(collation)" }
+            if let identity { clause += " IDENTITY(\(identity.seed), \(identity.increment))" }
             clause += isNullable ? " NULL" : " NOT NULL"
-            if let defaultValue, !defaultValue.isEmpty {
+            if identity == nil, let defaultValue, !defaultValue.isEmpty {
                 clause += " DEFAULT \(defaultValue)"
             }
         }
@@ -151,26 +209,21 @@ struct SQLServerDialectGenerator: SQLDialectGenerator {
     }
 
     func alterColumnType(table: String, column: String, newType: String, isNullable: Bool) -> String {
-        // SQL Server requires nullability when altering column type
         let nullClause = isNullable ? "NULL" : "NOT NULL"
         return "ALTER TABLE \(table) ALTER COLUMN \(quoteIdentifier(column)) \(newType) \(nullClause);"
     }
 
     func alterColumnNullability(table: String, column: String, isNullable: Bool, currentType: String) -> String {
-        // SQL Server requires the full type when changing nullability
         let nullClause = isNullable ? "NULL" : "NOT NULL"
         return "ALTER TABLE \(table) ALTER COLUMN \(quoteIdentifier(column)) \(currentType) \(nullClause);"
     }
 
     func alterColumnSetDefault(table: String, column: String, defaultValue: String) -> String {
-        // SQL Server requires naming the default constraint
         let constraintName = "DF_\(column)"
         return "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(constraintName)) DEFAULT \(defaultValue) FOR \(quoteIdentifier(column));"
     }
 
     func alterColumnDropDefault(table: String, column: String) -> String {
-        // SQL Server needs to find and drop the named default constraint
-        // Using a dynamic approach to find the constraint name
         let tableParts = table.replacingOccurrences(of: "[", with: "").replacingOccurrences(of: "]", with: "")
         let parts = tableParts.split(separator: ".")
         let schemaName = parts.count > 1 ? String(parts[0]) : "dbo"
@@ -184,7 +237,7 @@ struct SQLServerDialectGenerator: SQLDialectGenerator {
         """
     }
 
-    func addPrimaryKey(table: String, name: String, columns: [String]) -> String {
+    func addPrimaryKey(table: String, name: String, columns: [String], isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
         let cols = columns.map(quoteIdentifier).joined(separator: ", ")
         return "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) PRIMARY KEY (\(cols));"
     }
@@ -193,9 +246,12 @@ struct SQLServerDialectGenerator: SQLDialectGenerator {
         "ALTER TABLE \(table) DROP CONSTRAINT \(quoteIdentifier(name));"
     }
 
-    func createIndex(table: String, name: String, columns: [(name: String, sort: String)], isUnique: Bool, filter: String?) -> String {
+    func createIndex(table: String, name: String, columns: [(name: String, sort: String)], includeColumns: [String], isUnique: Bool, filter: String?, indexType: String?) -> String {
         let columnsClause = columns.map { "\(quoteIdentifier($0.name)) \($0.sort)" }.joined(separator: ", ")
         var sql = "CREATE \(isUnique ? "UNIQUE " : "")INDEX \(quoteIdentifier(name)) ON \(table) (\(columnsClause))"
+        if !includeColumns.isEmpty {
+            sql += " INCLUDE (\(includeColumns.map(quoteIdentifier).joined(separator: ", ")))"
+        }
         if let filter { sql += " WHERE \(filter)" }
         return sql + ";"
     }
@@ -204,12 +260,16 @@ struct SQLServerDialectGenerator: SQLDialectGenerator {
         "DROP INDEX \(quoteIdentifier(name)) ON \(table);"
     }
 
-    func addUniqueConstraint(table: String, name: String, columns: [String]) -> String {
+    func addUniqueConstraint(table: String, name: String, columns: [String], isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
         let cols = columns.map(quoteIdentifier).joined(separator: ", ")
         return "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) UNIQUE (\(cols));"
     }
 
-    func addForeignKey(table: String, name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?) -> String {
+    func addCheckConstraint(table: String, name: String, expression: String) -> String {
+        "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) CHECK (\(expression));"
+    }
+
+    func addForeignKey(table: String, name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?, isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
         let columnsList = columns.map(quoteIdentifier).joined(separator: ", ")
         let refTable = qualifiedTable(schema: referencedSchema, table: referencedTable)
         let refCols = referencedColumns.map(quoteIdentifier).joined(separator: ", ")
@@ -217,5 +277,21 @@ struct SQLServerDialectGenerator: SQLDialectGenerator {
         if let onUpdate, !onUpdate.isEmpty { sql += " ON UPDATE \(onUpdate)" }
         if let onDelete, !onDelete.isEmpty { sql += " ON DELETE \(onDelete)" }
         return sql + ";"
+    }
+
+    func alterTableProperties(table: String, properties: [(key: String, value: String)]) -> [String] {
+        // MSSQL uses different statements per property type
+        var statements: [String] = []
+        for (key, value) in properties {
+            switch key {
+            case "DATA_COMPRESSION":
+                statements.append("ALTER TABLE \(table) REBUILD WITH (DATA_COMPRESSION = \(value));")
+            case "LOCK_ESCALATION":
+                statements.append("ALTER TABLE \(table) SET (LOCK_ESCALATION = \(value));")
+            default:
+                break
+            }
+        }
+        return statements
     }
 }

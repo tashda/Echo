@@ -77,115 +77,27 @@ extension SQLTextView {
     func forcePresentImmediateCompletions() -> Bool {
         deactivateManualCompletionSuppression()
         clearSnippetPlaceholders()
-        completionEngine.clearPostCommitSuppression()
+        completionEngine.clearSuppression()
         suppressNextCompletionPopover = false
 
-        if var query = makeCompletionQuery() {
-            // Special-case identifiers that end with a dot (e.g. "public.")
-            // so that we treat the preceding components as a completed
-            // database/schema path and start suggesting objects immediately
-            // after the dot, even if no table/view prefix has been typed yet.
-            let selection = selectedRange()
-            let caretIndex = selection.location
-            if caretIndex != NSNotFound,
-               let textStorage,
-               caretIndex <= textStorage.length,
-               caretIndex > 0 {
-                let nsString = string as NSString
-                let previousChar = nsString.character(at: caretIndex - 1)
-                if previousChar == 46 { // "."
-                    let rawToken = query.token.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if rawToken.hasSuffix(".") {
-                        let trimmed = String(rawToken.dropLast())
-                        let parts = trimmed.split(separator: ".", omittingEmptySubsequences: true).map { String($0) }
-                        query = SQLAutoCompletionQuery(
-                            token: "",
-                            prefix: "",
-                            pathComponents: parts,
-                            replacementRange: NSRange(location: caretIndex, length: 0),
-                            precedingKeyword: query.precedingKeyword,
-                            precedingCharacter: query.precedingCharacter,
-                            focusTable: query.focusTable,
-                            tablesInScope: query.tablesInScope,
-                            clause: query.clause
-                        )
-                    }
-                }
-            }
+        completionGeneration += 1
+        completionWorkItem?.cancel()
+        completionWorkItem = nil
+        completionTask?.cancel()
+        completionTask = nil
 
-            let caretLocation = query.replacementRange.location
-            completionEngine.beginManualTrigger()
-            defer { completionEngine.endManualTrigger() }
-            let engineResult = completionEngine.suggestions(for: query,
-                                                            text: string,
-                                                            caretLocation: caretLocation)
-            let activeQuery = enrichedQuery(query, with: engineResult.metadata)
-            var suggestions = filteredSuggestions(from: engineResult.sections, for: activeQuery)
-            suggestions = filterSuggestionsForContext(suggestions, query: activeQuery)
-            suggestions = limitSuggestions(suggestions)
+        let caretLocation = selectedRange().location
+        guard caretLocation != NSNotFound else { return false }
 
-            if suggestions.isEmpty,
-               let suppression = suppressionForTrigger(at: activeQuery.replacementRange.location),
-               suppression.hasFollowUps,
-               let fallback = ruleEngine.fallbackSuggestions(for: suppression.asRuleSuppression,
-                                                             environment: ruleEnvironment),
-               !fallback.isEmpty {
-                suggestions = fallback
-            }
+        let response = completionEngine.manualCompletions(in: string, at: caretLocation)
+        lastCompletionResponse = response
 
-            guard !suggestions.isEmpty else { return false }
-            guard let controller = ensureCompletionController() else { return false }
+        guard response.shouldShow else { return false }
+        guard let controller = ensureCompletionController() else { return false }
 
-            completionGeneration += 1
-            completionWorkItem?.cancel()
-            completionWorkItem = nil
-            completionTask?.cancel()
-            completionTask = nil
-
-            removeCompletionIndicator()
-            controller.present(suggestions: suggestions, query: activeQuery)
-            return true
-        } else if let suppression = suppressionForTrigger(at: selectedRange().location),
-                  suppression.hasFollowUps,
-                  let fallback = ruleEngine.fallbackSuggestions(for: suppression.asRuleSuppression,
-                                                                environment: ruleEnvironment),
-                  !fallback.isEmpty,
-                  let controller = ensureCompletionController() {
-            completionGeneration += 1
-            completionWorkItem?.cancel()
-            completionWorkItem = nil
-            completionTask?.cancel()
-            completionTask = nil
-
-            removeCompletionIndicator()
-
-            let canonical = suppression.canonicalText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let rawComponents = canonical.split(separator: ".").map { String($0) }
-            let pathComponents = rawComponents.dropLast().map { String($0) }
-            let prefix = rawComponents.last ?? canonical
-
-            let parsedContext = SQLContextParser(text: string,
-                                                 caretLocation: suppression.tokenRange.location,
-                                                 dialect: currentSQLDialect(),
-                                                 catalog: SQLDatabaseCatalog(schemas: [])).parse()
-
-            let query = SQLAutoCompletionQuery(
-                token: canonical,
-                prefix: prefix,
-                pathComponents: pathComponents,
-                replacementRange: suppression.tokenRange,
-                precedingKeyword: nil,
-                precedingCharacter: nil,
-                focusTable: nil,
-                tablesInScope: [],
-                clause: parsedContext.clause
-            )
-
-            controller.present(suggestions: fallback, query: query)
-            return true
-        }
-
-        return false
+        removeCompletionIndicator()
+        controller.present(suggestions: response.suggestions, response: response)
+        return true
     }
 
     func handleCommandShortcut(_ event: NSEvent) -> Bool {

@@ -45,6 +45,7 @@ struct EchoApp: App {
                 .environment(coordinator.clipboardHistory)
                 .environment(coordinator.appearanceStore)
                 .environment(coordinator.notificationEngine)
+                .environment(coordinator.activityEngine)
                 .task { await coordinator.initialize() }
         }
         .defaultLaunchBehavior(.presented)
@@ -76,6 +77,7 @@ struct EchoApp: App {
             )
 #endif
         }
+        JobQueueWindow()
         AutocompleteInspectorWindow()
         PerformanceMonitorWindow()
         StreamingTestHarnessWindow()

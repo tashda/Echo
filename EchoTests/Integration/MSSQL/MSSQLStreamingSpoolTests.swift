@@ -3,14 +3,17 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests spool behavior for large result sets through Echo's streaming pipeline.
-final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
+///
+/// Uses `MSSQLDedicatedDockerTestCase` to match how Echo actually streams queries:
+/// streaming always happens through a dedicated `SQLServerConnection` per query tab.
+final class MSSQLStreamingSpoolTests: MSSQLDedicatedDockerTestCase {
 
     // MARK: - Large Dataset Streaming
 
     func testLargeDatasetStreamsWithProgress() async throws {
         let progressUpdates = LockIsolated<[QueryStreamUpdate]>([])
 
-        let result = try await session.simpleQuery(
+        let result = try await dedicatedSession.simpleQuery(
             """
             SELECT TOP 10000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS row_num,
@@ -23,14 +26,14 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
             }
         )
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 10000)
+        XCTAssertEqual(result.totalRowCount, 10000, "Expected 10000 total rows")
         XCTAssertEqual(result.columns.count, 3)
     }
 
     func testProgressUpdatesContainRowCounts() async throws {
         let totalRowCounts = LockIsolated<[Int]>([])
 
-        _ = try await session.simpleQuery(
+        _ = try await dedicatedSession.simpleQuery(
             """
             SELECT TOP 5000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n,
@@ -56,7 +59,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     func testProgressUpdatesContainColumns() async throws {
         let columnsFromProgress = LockIsolated<[Echo.ColumnInfo]>([])
 
-        _ = try await session.simpleQuery(
+        _ = try await dedicatedSession.simpleQuery(
             """
             SELECT TOP 2000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS id,
@@ -82,34 +85,35 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     // MARK: - Row Data Integrity
 
     func testStreamedRowsHaveCorrectData() async throws {
-        let result = try await query("""
+        let result = try await dedicatedQuery("""
             SELECT TOP 3000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS row_num,
                 'constant' AS fixed_text
             FROM sys.all_columns a CROSS JOIN sys.all_columns b
         """)
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 3000)
+        XCTAssertEqual(result.totalRowCount, 3000, "Expected 3000 total rows")
 
-        // Verify first and last rows have expected structure
+        // Verify preview rows have expected structure
+        XCTAssertGreaterThan(result.rows.count, 0, "Should have at least some preview rows")
         XCTAssertEqual(result.rows[0].count, 2, "Each row should have 2 columns")
         XCTAssertNotNil(result.rows[0][0], "row_num should not be null")
         XCTAssertEqual(result.rows[0][1], "constant")
 
-        // Last row should also be valid
-        let lastRow = result.rows[2999]
+        // Last preview row should also be valid
+        let lastRow = result.rows[result.rows.count - 1]
         XCTAssertNotNil(lastRow[0])
         XCTAssertEqual(lastRow[1], "constant")
     }
 
     func testStreamedRowsPreserveOrder() async throws {
-        let result = try await query("""
+        let result = try await dedicatedQuery("""
             SELECT TOP 1000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS seq
             FROM sys.all_columns
         """)
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 1000)
+        XCTAssertEqual(result.totalRowCount, 1000, "Expected 1000 total rows")
 
         // Row numbers should be sequential
         for i in 0..<result.rows.count {
@@ -122,7 +126,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     // MARK: - Mixed Column Types in Large Results
 
     func testLargeResultWithMixedTypes() async throws {
-        let result = try await query("""
+        let result = try await dedicatedQuery("""
             SELECT TOP 5000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS int_col,
                 CAST(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) * 1.5 AS DECIMAL(10,2)) AS dec_col,
@@ -133,7 +137,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
             FROM sys.all_columns a CROSS JOIN sys.all_columns b
         """)
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 5000)
+        XCTAssertEqual(result.totalRowCount, 5000, "Expected 5000 total rows")
         XCTAssertEqual(result.columns.count, 5)
 
         // Spot-check some rows have non-null values for all columns
@@ -150,7 +154,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     // MARK: - Streaming with NULLs
 
     func testStreamingWithInterspersedNulls() async throws {
-        let result = try await query("""
+        let result = try await dedicatedQuery("""
             SELECT TOP 2000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS row_num,
                 CASE WHEN ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) % 3 = 0
@@ -163,7 +167,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
             FROM sys.all_columns a CROSS JOIN sys.all_columns b
         """)
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 2000)
+        XCTAssertEqual(result.totalRowCount, 2000, "Expected 2000 total rows")
 
         // Verify NULLs appear where expected
         var nullCount = 0
@@ -179,7 +183,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     func testStreamingWithSimpleMode() async throws {
         let progressCount = LockIsolated(0)
 
-        let result = try await session.simpleQuery(
+        let result = try await dedicatedSession.simpleQuery(
             """
             SELECT TOP 3000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n
@@ -189,13 +193,13 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
             progressHandler: { _ in progressCount.withValue { $0 += 1 } }
         )
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 3000)
+        XCTAssertEqual(result.totalRowCount, 3000, "Expected 3000 total rows")
     }
 
     func testStreamingWithAutoMode() async throws {
         let progressCount = LockIsolated(0)
 
-        let result = try await session.simpleQuery(
+        let result = try await dedicatedSession.simpleQuery(
             """
             SELECT TOP 3000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n
@@ -205,7 +209,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
             progressHandler: { _ in progressCount.withValue { $0 += 1 } }
         )
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 3000)
+        XCTAssertEqual(result.totalRowCount, 3000, "Expected 3000 total rows")
     }
 
     // MARK: - Metrics
@@ -213,7 +217,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     func testProgressMetricsPresent() async throws {
         let metricsReceived = LockIsolated<[QueryStreamMetrics]>([])
 
-        _ = try await session.simpleQuery(
+        _ = try await dedicatedSession.simpleQuery(
             """
             SELECT TOP 5000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n,
@@ -241,7 +245,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     // MARK: - Wide Rows
 
     func testStreamingWideRows() async throws {
-        let result = try await query("""
+        let result = try await dedicatedQuery("""
             SELECT TOP 1000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS id,
                 REPLICATE('A', 500) AS col1,
@@ -251,7 +255,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
             FROM sys.all_columns a CROSS JOIN sys.all_columns b
         """)
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 1000)
+        XCTAssertEqual(result.totalRowCount, 1000, "Expected 1000 total rows")
 
         // Verify wide values are preserved
         let firstRow = result.rows[0]
@@ -271,7 +275,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
         cleanupSQL("DROP TABLE [\(tableName)]")
 
         let progressCalled = LockIsolated(false)
-        let result = try await session.simpleQuery(
+        let result = try await dedicatedSession.simpleQuery(
             "SELECT * FROM [\(tableName)]",
             progressHandler: { _ in progressCalled.setValue(true) }
         )
@@ -281,7 +285,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     func testStreamingSingleRowWithProgress() async throws {
         let updates = LockIsolated<[QueryStreamUpdate]>([])
 
-        let result = try await session.simpleQuery(
+        let result = try await dedicatedSession.simpleQuery(
             "SELECT 1 AS val",
             progressHandler: { update in updates.withValue { $0.append(update) } }
         )

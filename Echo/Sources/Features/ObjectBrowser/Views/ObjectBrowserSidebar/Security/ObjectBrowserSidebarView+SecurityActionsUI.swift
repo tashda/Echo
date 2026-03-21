@@ -19,6 +19,19 @@ extension ObjectBrowserSidebarView {
     @ViewBuilder
     func securityFolderContextMenu(session: ConnectionSession) -> some View {
         let connID = session.connection.id
+
+        // Group 1: Refresh
+        Button {
+            Task {
+                let handle = AppDirector.shared.activityEngine.begin("Refreshing security", connectionSessionID: session.id)
+                await loadServerSecurityAsync(session: session)
+                handle.succeed()
+            }
+        } label: {
+            Label("Refresh", systemImage: "arrow.clockwise")
+        }
+
+        // Group 2: New
         switch session.connection.databaseType {
         case .microsoftSQL:
             Button {
@@ -26,7 +39,7 @@ extension ObjectBrowserSidebarView {
                 viewModel.securityLoginSheetEditName = nil
                 viewModel.showSecurityLoginSheet = true
             } label: {
-                Label("New Login", systemImage: "plus")
+                Label("New Login", systemImage: "person.badge.plus")
             }
         case .postgresql:
             Button {
@@ -34,25 +47,17 @@ extension ObjectBrowserSidebarView {
                 viewModel.securityPGRoleSheetEditName = nil
                 viewModel.showSecurityPGRoleSheet = true
             } label: {
-                Label("New Login Role", systemImage: "plus")
+                Label("New Login Role", systemImage: "person.badge.plus")
             }
             Button {
                 viewModel.securityPGRoleSheetSessionID = connID
                 viewModel.securityPGRoleSheetEditName = nil
                 viewModel.showSecurityPGRoleSheet = true
             } label: {
-                Label("New Group Role", systemImage: "plus")
+                Label("New Group Role", systemImage: "person.2.badge.plus")
             }
         default:
             EmptyView()
-        }
-
-        Divider()
-
-        Button {
-            loadServerSecurity(session: session)
-        } label: {
-            Label("Refresh", systemImage: "arrow.clockwise")
         }
     }
 

@@ -12,9 +12,9 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createStoredProcedure(
             name: procName,
             parameters: [
-                ProcedureParameter(name: "@value", dataType: .int)
+                ProcedureParameter(name: "value", dataType: .int)
             ],
-            body: "SELECT @value * 2 AS doubled;"
+            body: "BEGIN SELECT @value * 2 AS doubled; END"
         )
         cleanupSQL("DROP PROCEDURE [\(procName)]")
 
@@ -27,10 +27,10 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createStoredProcedure(
             name: procName,
             parameters: [
-                ProcedureParameter(name: "@first", dataType: .nvarchar(length: .length(50))),
-                ProcedureParameter(name: "@last", dataType: .nvarchar(length: .length(50))),
+                ProcedureParameter(name: "first", dataType: .nvarchar(length: .length(50))),
+                ProcedureParameter(name: "last", dataType: .nvarchar(length: .length(50))),
             ],
-            body: "SELECT @first + ' ' + @last AS full_name;"
+            body: "BEGIN SELECT @first + ' ' + @last AS full_name; END"
         )
         cleanupSQL("DROP PROCEDURE [\(procName)]")
 
@@ -48,12 +48,14 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createStoredProcedure(
             name: procName,
             parameters: [
-                ProcedureParameter(name: "@id", dataType: .int),
-                ProcedureParameter(name: "@name", dataType: .nvarchar(length: .length(100))),
+                ProcedureParameter(name: "id", dataType: .int),
+                ProcedureParameter(name: "name", dataType: .nvarchar(length: .length(100))),
             ],
             body: """
-                INSERT INTO [\(tableName)] (id, name) VALUES (@id, @name);
-                SELECT * FROM [\(tableName)] WHERE id = @id;
+                BEGIN
+                    INSERT INTO [\(tableName)] (id, name) VALUES (@id, @name);
+                    SELECT * FROM [\(tableName)] WHERE id = @id;
+                END
             """
         )
         cleanupSQL(
@@ -71,12 +73,12 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
         let procName = uniqueTableName(prefix: "usp")
         try await sqlserverClient.routines.createStoredProcedure(
             name: procName,
-            body: "SELECT 1 AS original;"
+            body: "BEGIN SELECT 1 AS original; END"
         )
         cleanupSQL("DROP PROCEDURE [\(procName)]")
 
         // ALTER PROCEDURE — no typed API, use raw SQL
-        try await execute("ALTER PROCEDURE [\(procName)] AS SELECT 2 AS modified;")
+        try await execute("ALTER PROCEDURE [\(procName)] AS BEGIN SELECT 2 AS modified; END")
 
         let result = try await query("EXEC [\(procName)]")
         XCTAssertEqual(result.rows[0][0], "2")
@@ -88,7 +90,7 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
         let procName = uniqueTableName(prefix: "usp")
         try await sqlserverClient.routines.createStoredProcedure(
             name: procName,
-            body: "SELECT 1;"
+            body: "BEGIN SELECT 1; END"
         )
 
         try await sqlserverClient.routines.dropStoredProcedure(name: procName)
@@ -109,9 +111,9 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createStoredProcedure(
             name: procName,
             parameters: [
-                ProcedureParameter(name: "@id", dataType: .int)
+                ProcedureParameter(name: "id", dataType: .int)
             ],
-            body: "SELECT @id AS result_id;"
+            body: "BEGIN SELECT @id AS result_id; END"
         )
         cleanupSQL("DROP PROCEDURE dbo.[\(procName)]")
 
@@ -128,13 +130,19 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createStoredProcedure(
             name: procName,
             body: """
-                SELECT 1 AS first_set;
-                SELECT 'a' AS col_a, 'b' AS col_b;
+                BEGIN
+                    SELECT 1 AS first_set;
+                    SELECT 'a' AS col_a, 'b' AS col_b;
+                END
             """
         )
         cleanupSQL("DROP PROCEDURE [\(procName)]")
 
-        let result = try await query("EXEC [\(procName)]")
+        // Multiple result sets require the streaming path
+        let result = try await session.simpleQuery(
+            "EXEC [\(procName)]",
+            progressHandler: { _ in }
+        )
         XCTAssertEqual(result.rows.count, 1)
         XCTAssertFalse(result.additionalResults.isEmpty, "Should have multiple result sets")
     }

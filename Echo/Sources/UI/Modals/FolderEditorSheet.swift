@@ -357,6 +357,7 @@ struct FolderEditorSheet: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        .accessibilityLabel("Add identity")
                     }
                 }
             }

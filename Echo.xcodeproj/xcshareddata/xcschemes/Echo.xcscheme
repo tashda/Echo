@@ -59,6 +59,15 @@
             reference = "container:IntegrationTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
+            reference = "container:DatabaseIntegrationTests.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
+            reference = "container:MSSQLCompatibilityTests.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
+            reference = "container:PostgresCompatibilityTests.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
             reference = "container:EchoUITests.xctestplan">
          </TestPlanReference>
       </TestPlans>

@@ -51,6 +51,10 @@ enum NotificationEvent {
     case vacuumFullCompleted(schema: String, table: String)
     case analyzeCompleted(schema: String, table: String)
     case reindexCompleted(schema: String, table: String)
+    case backupCompleted(database: String, destination: String)
+    case backupFailed(database: String, reason: String)
+    case restoreCompleted(database: String)
+    case restoreFailed(database: String, reason: String)
     case maintenanceFailed(operation: String, reason: String)
     case processTerminated(pid: Int)
     case processTerminateFailed(pid: Int, reason: String)
@@ -63,8 +67,10 @@ enum NotificationEvent {
 
     // MARK: - Jobs
 
-    case jobStarted
-    case jobStopped
+    case jobStarted(name: String)
+    case jobStopped(name: String)
+    case jobCompleted(name: String)
+    case jobFailed(name: String)
     case jobError(reason: String)
     case jobScheduleCreated
     case jobNotificationSaved
@@ -103,6 +109,10 @@ enum NotificationEvent {
         case .indexRebuilding: return .generalInfo
         case .indexRebuilt: return .indexRebuilt
         case .indexRebuildFailed: return .indexRebuildFailed
+        case .backupCompleted: return .maintenanceCompleted
+        case .backupFailed: return .maintenanceFailed
+        case .restoreCompleted: return .maintenanceCompleted
+        case .restoreFailed: return .maintenanceFailed
         case .vacuumCompleted, .vacuumAnalyzeCompleted, .vacuumFullCompleted,
              .analyzeCompleted, .reindexCompleted, .processTerminated:
             return .maintenanceCompleted
@@ -113,6 +123,8 @@ enum NotificationEvent {
         case .securityToggleFailed: return .securityToggleFailed
         case .jobStarted: return .jobStarted
         case .jobStopped: return .jobStopped
+        case .jobCompleted: return .jobStarted
+        case .jobFailed: return .jobError
         case .jobError: return .jobError
         case .jobScheduleCreated: return .jobScheduleCreated
         case .jobNotificationSaved: return .jobNotificationSaved
@@ -161,6 +173,12 @@ enum NotificationEvent {
         case .indexRebuilt(let name): return "Index \u{201C}\(name)\u{201D} rebuilt"
         case .indexRebuildFailed(_, let reason): return reason
 
+        // Backup & Restore
+        case .backupCompleted(let database, let destination): return "Backup completed for \(database) to \(destination)"
+        case .backupFailed(let database, let reason): return "Backup failed for \(database): \(reason)"
+        case .restoreCompleted(let database): return "Restore completed for \(database)"
+        case .restoreFailed(let database, let reason): return "Restore failed for \(database): \(reason)"
+
         // Maintenance
         case .vacuumCompleted(let schema, let table): return "Vacuum completed on \(schema).\(table)"
         case .vacuumAnalyzeCompleted(let schema, let table): return "Vacuum Analyze completed on \(schema).\(table)"
@@ -177,8 +195,10 @@ enum NotificationEvent {
         case .securityToggleFailed(let reason): return reason
 
         // Jobs
-        case .jobStarted: return "Job started"
-        case .jobStopped: return "Job stopped"
+        case .jobStarted(let name): return "Started: \(name)"
+        case .jobStopped(let name): return "Stopped: \(name)"
+        case .jobCompleted(let name): return "Completed: \(name)"
+        case .jobFailed(let name): return "Failed: \(name)"
         case .jobError(let reason): return reason
         case .jobScheduleCreated: return "Schedule created"
         case .jobNotificationSaved: return "Notification saved"

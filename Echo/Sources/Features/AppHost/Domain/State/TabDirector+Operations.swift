@@ -56,7 +56,7 @@ extension TabDirector {
     func closeAllTabs() {
         let tabIDs = tabs.map(\.id)
         for id in tabIDs {
-            removeTab(withID: id)
+            _ = closeTab(id: id)
         }
     }
 

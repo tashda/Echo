@@ -118,7 +118,7 @@ extension SecurityPGRoleSheet {
                 set: { roleParameters[safe: index] != nil ? roleParameters[index] = PostgresDatabaseParameter(name: def.name, value: $0) : () }
             )
             HStack(spacing: SpacingTokens.xxs) {
-                TextField("", text: text)
+                TextField("", text: text, prompt: Text("value"))
                     .frame(width: 100)
                     .multilineTextAlignment(.trailing)
                 if !def.unit.isEmpty {
@@ -133,7 +133,7 @@ extension SecurityPGRoleSheet {
                 get: { roleParameters[safe: index]?.value ?? "" },
                 set: { roleParameters[safe: index] != nil ? roleParameters[index] = PostgresDatabaseParameter(name: def.name, value: $0) : () }
             )
-            TextField("", text: text)
+            TextField("", text: text, prompt: Text("value"))
                 .frame(minWidth: 120)
         }
     }

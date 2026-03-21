@@ -8,71 +8,92 @@ extension SecurityPGRoleSheet {
     // MARK: - Membership Table
 
     @ViewBuilder
-    func membershipTable(entries: Binding<[PGRoleMemberEntry]>, availableRoles: [String], selectedNewRole: Binding<String>, onAdd: @escaping () -> Void, onRemove: @escaping (IndexSet) -> Void) -> some View {
-        if entries.wrappedValue.isEmpty {
-            Text("No memberships configured.")
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .font(TypographyTokens.detail)
-        } else {
-            Table(entries.wrappedValue) {
-                TableColumn("Role") { entry in
-                    Text(entry.name)
-                        .font(TypographyTokens.standard)
-                }
-                .width(min: 120, ideal: 180)
-
-                TableColumn("Admin") { entry in
-                    if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
-                        Toggle("", isOn: binding.adminOption)
-                            .labelsHidden()
-                    }
-                }
-                .width(50)
-
-                TableColumn("Inherit") { entry in
-                    if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
-                        Toggle("", isOn: binding.inheritOption)
-                            .labelsHidden()
-                    }
-                }
-                .width(50)
-
-                TableColumn("Set") { entry in
-                    if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
-                        Toggle("", isOn: binding.setOption)
-                            .labelsHidden()
-                    }
-                }
-                .width(50)
+    func membershipTableContent(
+        entries: Binding<[PGRoleMemberEntry]>,
+        selection: Binding<Set<String>>,
+        availableRoles: [String],
+        onAdd: @escaping (String) -> Void,
+        onRemove: @escaping (Set<String>) -> Void
+    ) -> some View {
+        Table(entries.wrappedValue, selection: selection) {
+            TableColumn("Role") { entry in
+                Text(entry.name)
+                    .font(TypographyTokens.Table.name)
             }
-            .tableStyle(.bordered)
-            .scrollContentBackground(.visible)
-            .frame(height: min(max(CGFloat(entries.wrappedValue.count) * 28 + 32, 80), 200))
+            .width(min: 120, ideal: 180)
+
+            TableColumn("Admin") { entry in
+                if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
+                    Toggle("", isOn: binding.adminOption)
+                        .toggleStyle(.checkbox)
+                        .labelsHidden()
+                }
+            }
+            .width(min: 40, ideal: 56)
+
+            TableColumn("Inherit") { entry in
+                if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
+                    Toggle("", isOn: binding.inheritOption)
+                        .toggleStyle(.checkbox)
+                        .labelsHidden()
+                }
+            }
+            .width(min: 40, ideal: 56)
+
+            TableColumn("Set") { entry in
+                if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
+                    Toggle("", isOn: binding.setOption)
+                        .toggleStyle(.checkbox)
+                        .labelsHidden()
+                }
+            }
+            .width(min: 40, ideal: 56)
         }
+        .environment(\.defaultMinListRowHeight, SpacingTokens.lg)
+        .frame(minHeight: 60, maxHeight: 200)
 
-        HStack(spacing: SpacingTokens.xs) {
-            Picker("Add role", selection: selectedNewRole) {
-                Text("Select role\u{2026}").tag("")
-                ForEach(availableRoles, id: \.self) { role in
-                    Text(role).tag(role)
+        HStack(spacing: SpacingTokens.none) {
+            Menu {
+                if availableRoles.isEmpty {
+                    Text("No roles available")
+                } else {
+                    ForEach(availableRoles, id: \.self) { role in
+                        Button(role) { onAdd(role) }
+                    }
                 }
+            } label: {
+                Image(systemName: "plus")
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .frame(width: SpacingTokens.lg, height: SpacingTokens.lg)
+                    .contentShape(Rectangle())
             }
-            .labelsHidden()
-            .frame(minWidth: 160)
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .disabled(availableRoles.isEmpty)
 
-            Button("Add") { onAdd() }
-                .disabled(selectedNewRole.wrappedValue.isEmpty)
+            Divider()
+                .frame(height: SpacingTokens.sm)
+
+            Button {
+                onRemove(selection.wrappedValue)
+            } label: {
+                Image(systemName: "minus")
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(
+                        selection.wrappedValue.isEmpty
+                            ? ColorTokens.Text.quaternary
+                            : ColorTokens.Text.secondary
+                    )
+                    .frame(width: SpacingTokens.lg, height: SpacingTokens.lg)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .fixedSize()
+            .disabled(selection.wrappedValue.isEmpty)
 
             Spacer()
-
-            if !entries.wrappedValue.isEmpty {
-                Button("Remove Selected", role: .destructive) {
-                    // Remove last entry as fallback
-                    if let last = entries.wrappedValue.indices.last {
-                        onRemove(IndexSet(integer: last))
-                    }
-                }
-            }
         }
     }
 

@@ -165,7 +165,12 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
                 dataType: column.typeName,
                 isNullable: column.isNullable,
                 defaultValue: column.defaultDefinition,
-                generatedExpression: column.computedDefinition
+                generatedExpression: column.computedDefinition,
+                isIdentity: column.isIdentity,
+                identitySeed: column.identitySeed,
+                identityIncrement: column.identityIncrement,
+                identityGeneration: column.isIdentity ? "ALWAYS" : nil,
+                collation: column.collationName
             )
         }
 
@@ -202,7 +207,8 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
                         TableStructureDetails.Index.Column(
                             name: column.column,
                             position: column.ordinal,
-                            sortOrder: column.isDescending ? .descending : .ascending
+                            sortOrder: column.isDescending ? .descending : .ascending,
+                            isIncluded: column.isIncluded
                         )
                     }
                 return TableStructureDetails.Index(
@@ -213,13 +219,57 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
                 )
             }
 
+        // Check constraints
+        let checkConstraintSQL = """
+            SELECT cc.name, cc.definition
+            FROM sys.check_constraints cc
+            WHERE cc.parent_object_id = OBJECT_ID('\(schema).\(table)')
+            ORDER BY cc.name
+            """
+        var checkConstraints: [TableStructureDetails.CheckConstraint] = []
+        if let results = try? await client.query(checkConstraintSQL) {
+            for row in results {
+                guard let name = row.column("name")?.string,
+                      let definition = row.column("definition")?.string else { continue }
+                var expression = definition
+                if expression.hasPrefix("(") && expression.hasSuffix(")") {
+                    expression = String(expression.dropFirst().dropLast())
+                }
+                checkConstraints.append(TableStructureDetails.CheckConstraint(name: name, expression: expression))
+            }
+        }
+
+        // Table properties
+        let propsSQL = """
+            SELECT
+                p.data_compression_desc,
+                fg.name AS filegroup_name,
+                t.lock_escalation_desc
+            FROM sys.tables t
+            JOIN sys.partitions p ON p.object_id = t.object_id AND p.index_id IN (0, 1) AND p.partition_number = 1
+            JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id IN (0, 1)
+            JOIN sys.filegroups fg ON fg.data_space_id = i.data_space_id
+            WHERE t.object_id = OBJECT_ID('\(schema).\(table)')
+            """
+        var tableProperties: TableStructureDetails.TableProperties?
+        if let propsRows = try? await client.query(propsSQL) {
+            for row in propsRows {
+                let compression = row.column("data_compression_desc")?.string
+                let fg = row.column("filegroup_name")?.string
+                let lockEsc = row.column("lock_escalation_desc")?.string
+                tableProperties = TableStructureDetails.TableProperties(dataCompression: compression, filegroup: fg, lockEscalation: lockEsc)
+            }
+        }
+
         return TableStructureDetails(
             columns: columns,
             primaryKey: primaryKey,
             indexes: indexes,
             uniqueConstraints: uniqueConstraints,
             foreignKeys: foreignKeys,
-            dependencies: []
+            dependencies: [],
+            checkConstraints: checkConstraints,
+            tableProperties: tableProperties
         )
     }
 
@@ -250,6 +300,10 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
         }
         for trigger in schema.triggers {
             objects.append(makeTriggerObjectInfo(from: trigger))
+        }
+
+        for synonym in schema.synonyms {
+            objects.append(SchemaObjectInfo(name: synonym.name, schema: synonym.schema, type: .synonym, comment: synonym.comment))
         }
 
         if let progress {

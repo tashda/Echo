@@ -26,6 +26,10 @@ final class TabStore {
     var hasTabs: Bool = false
     private var _activeTabId: UUID?
 
+    /// Alert state for confirming close of tabs with pending changes.
+    var showPendingChangesAlert = false
+    var pendingCloseTabID: UUID?
+
     // MARK: - Initialization
 
     init() {
@@ -96,6 +100,16 @@ final class TabStore {
         tabs.firstIndex(where: { $0.id == id })
     }
 
+    func confirmCloseTabWithPendingChanges() {
+        guard let id = pendingCloseTabID else { return }
+        pendingCloseTabID = nil
+        tabDirector.removeTab(withID: id)
+    }
+
+    func cancelCloseTabWithPendingChanges() {
+        pendingCloseTabID = nil
+    }
+
     func clearActiveTab() {
         activeTabId = nil
     }
@@ -129,7 +143,12 @@ extension TabStore: TabDirectorDelegate {
     }
 
     func tabDirector(_ manager: TabDirector, shouldClose tab: WorkspaceTab) -> Bool {
-        true
+        if case .structure(let editor) = tab.content, editor.hasPendingChanges {
+            pendingCloseTabID = tab.id
+            showPendingChangesAlert = true
+            return false
+        }
+        return true
     }
 
     func tabDirector(_ manager: TabDirector, didRemoveTabID tabID: UUID) {

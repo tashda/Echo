@@ -21,7 +21,7 @@ extension StreamingPresetPickerControl {
                 Text("Custom \(title)")
                     .font(TypographyTokens.headline)
 
-                TextField("Value", text: $text)
+                TextField("Value", text: $text, prompt: Text("1000"))
                     .textFieldStyle(.roundedBorder)
 #if os(iOS)
                     .keyboardType(.numberPad)
@@ -36,6 +36,7 @@ extension StreamingPresetPickerControl {
                     Spacer()
                     Button("Cancel", role: .cancel, action: onCancel)
                     Button("Done", action: onSubmit)
+                        .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.defaultAction)
                 }
             }

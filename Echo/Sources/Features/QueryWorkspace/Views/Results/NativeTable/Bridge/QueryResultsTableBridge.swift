@@ -24,6 +24,7 @@ extension QueryResultsTableView {
         var selectionRegion: SelectedRegion?
         var selectionAnchor: QueryResultsTableView.SelectedCell?
         var isDraggingCellSelection = false
+        var isDraggingRowSelection = false
         var selectionFocus: QueryResultsTableView.SelectedCell?
         var columnSelectionAnchor: Int?
         var contextMenuCell: QueryResultsTableView.SelectedCell?
@@ -51,12 +52,14 @@ extension QueryResultsTableView {
         let defaultAutoscrollInterval: TimeInterval = 1.0 / 60.0
         var autoscrollTimerInterval: TimeInterval = 1.0 / 60.0
         var pendingReloadWorkItems: [DispatchWorkItem] = []
+        var lastSeenExecuting = false
         var pendingRowCountCorrection = false
         var pendingPaletteRefresh: Task<Void, Never>?
         var scrollPaginationWorkItem: DispatchWorkItem?
         var lastPaginationVisibleRange: NSRange = NSRange(location: NSNotFound, length: 0)
         var isSplitResizing = false
         var isResizingColumn = false
+        var suppressRowsDuringClear = false
         nonisolated(unsafe) var columnResizeObserver: NSObjectProtocol?
         nonisolated(unsafe) var rowCountObserver: NSObjectProtocol?
         var isPerformingUpdatePass = false
@@ -104,7 +107,7 @@ extension QueryResultsTableView {
             tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
             tableView.headerView?.isHidden = false
             tableView.selectionHighlightStyle = .regular
-            tableView.usesAlternatingRowBackgroundColors = false
+            tableView.usesAlternatingRowBackgroundColors = parent.alternateRowShading
             _ = reloadColumns()
             applyHeaderStyle(to: tableView)
             refreshVisibleRowBackgrounds(tableView)
@@ -171,6 +174,10 @@ extension QueryResultsTableView {
         func debugLog(_ message: String) {
             guard Coordinator.isGridDiagnosticsEnabled else { return }
             print("[GridDebug] \(message)")
+        }
+
+        var isDraggingSelection: Bool {
+            isDraggingCellSelection || isDraggingRowSelection
         }
     }
 }

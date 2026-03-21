@@ -152,6 +152,44 @@ extension ConnectionEditorView {
         }
     }
 
+    var advancedSection: some View {
+        Section("Advanced") {
+            PropertyRow(title: "Connection Timeout") {
+                HStack(spacing: SpacingTokens.xs) {
+                    TextField(
+                        "",
+                        value: $connectionTimeout,
+                        format: .number.grouping(.never),
+                        prompt: Text("30")
+                    )
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 60)
+                    Text("seconds")
+                        .font(TypographyTokens.formDescription)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
+            }
+
+            PropertyRow(title: "Query Timeout") {
+                HStack(spacing: SpacingTokens.xs) {
+                    TextField(
+                        "",
+                        value: $queryTimeout,
+                        format: .number.grouping(.never),
+                        prompt: Text("60")
+                    )
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 60)
+                    Text("seconds")
+                        .font(TypographyTokens.formDescription)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     var inheritedIdentityInfo: some View {
         if let identity = inheritedIdentity {

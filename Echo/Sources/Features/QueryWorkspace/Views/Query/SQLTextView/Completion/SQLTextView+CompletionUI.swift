@@ -70,13 +70,9 @@ extension SQLTextView {
 
     // MARK: - Autocompletion
 
-    func refreshCompletions(immediate: Bool = false) {
+    func refreshCompletions(immediate: Bool = false, manual: Bool = false) {
         if suppressNextCompletionPopover {
             suppressNextCompletionPopover = false
-            return
-        }
-        if isAliasTypingContext() {
-            hideCompletions()
             return
         }
         guard !isApplyingCompletion else { return }
@@ -85,76 +81,56 @@ extension SQLTextView {
             hideCompletions()
             return
         }
-
         guard completionContext != nil else {
             completionTask?.cancel()
             hideCompletions()
             return
         }
-
-        if manualCompletionSuppression {
+        if !manual && manualCompletionSuppression {
             hideCompletions()
             return
         }
 
         completionWorkItem?.cancel()
         completionTask?.cancel()
-
         completionGeneration += 1
 
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
             defer { self.completionWorkItem = nil }
             guard !self.isApplyingCompletion else { return }
-            if self.manualCompletionSuppression {
+            if !manual && self.manualCompletionSuppression {
                 self.hideCompletions()
                 return
             }
             guard let controller = self.ensureCompletionController() else { return }
-            guard let query = self.makeCompletionQuery() else {
+
+            let caretLocation = self.selectedRange().location
+            guard caretLocation != NSNotFound else {
                 self.hideCompletions()
                 return
             }
-
-            let selectionRange = self.selectedRange()
-            let caretLocation = selectionRange.location
             let fullText = self.string
 
-            // Trigger lazy schema load when user types into another database (e.g. "employees.")
-            self.notifySchemaLoadIfNeeded(for: query)
+            // Trigger lazy schema load if needed
+            self.notifySchemaLoadIfNeeded(text: fullText, caretLocation: caretLocation)
 
-            let engineResult = self.completionEngine.suggestions(for: query,
-                                                                 text: fullText,
-                                                                 caretLocation: caretLocation)
-            let activeQuery = self.enrichedQuery(query, with: engineResult.metadata)
-
-            var baseSuggestions = self.filteredSuggestions(from: engineResult.sections, for: activeQuery)
-            baseSuggestions = self.filterSuggestionsForContext(baseSuggestions, query: activeQuery)
-            baseSuggestions = self.limitSuggestions(baseSuggestions)
-
-            if baseSuggestions.isEmpty,
-               let (_, suppression) = self.suppressedCompletionEntry(containing: selectionRange, caretLocation: caretLocation),
-               suppression.hasFollowUps,
-               let fallback = self.ruleEngine.fallbackSuggestions(for: suppression.asRuleSuppression,
-                                                                  environment: self.ruleEnvironment),
-               !fallback.isEmpty {
-                baseSuggestions = fallback
-            }
-
-            if self.shouldSuppressCompletions(query: activeQuery,
-                                              selection: selectionRange,
-                                              caretLocation: caretLocation,
-                                              suggestions: baseSuggestions,
-                                              bypassSuppression: false) {
-                self.hideCompletions()
-                return
-            }
-
-            if baseSuggestions.isEmpty {
-                self.hideCompletions()
+            // Ask EchoSense — it handles ALL intelligence
+            let response: SQLCompletionResponse
+            if manual {
+                response = self.completionEngine.manualCompletions(in: fullText, at: caretLocation)
             } else {
+                response = self.completionEngine.completions(in: fullText, at: caretLocation)
+            }
+
+            // Store the last response for use when accepting a suggestion
+            self.lastCompletionResponse = response
+
+            if response.shouldShow {
                 self.removeCompletionIndicator()
-                controller.present(suggestions: baseSuggestions, query: activeQuery)
+                controller.present(suggestions: response.suggestions, response: response)
+            } else {
+                self.hideCompletions()
             }
         }
 

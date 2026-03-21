@@ -179,6 +179,7 @@ struct GlobalSettings: Codable, Hashable {
     var nativePsqlAllowSystemBinaryFallback: Bool = false
     var nativePsqlAllowShellEscape: Bool = true
     var nativePsqlAllowFileCommands: Bool = true
+    var pgToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarIconSize: SidebarIconSize = .medium
     var sidebarDensity: SidebarDensity = .default
@@ -258,6 +259,7 @@ struct GlobalSettings: Codable, Hashable {
         case nativePsqlAllowSystemBinaryFallback
         case nativePsqlAllowShellEscape
         case nativePsqlAllowFileCommands
+        case pgToolCustomPath
         case sidebarIconColorMode
         case sidebarIconSize
         case sidebarDensity
@@ -352,7 +354,8 @@ struct GlobalSettings: Codable, Hashable {
         nativePsqlAllowSystemBinaryFallback = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowSystemBinaryFallback) ?? false
         nativePsqlAllowShellEscape = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowShellEscape) ?? true
         nativePsqlAllowFileCommands = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowFileCommands) ?? true
-        
+        pgToolCustomPath = try container.decodeIfPresent(String.self, forKey: .pgToolCustomPath)
+
         if let mode = try container.decodeIfPresent(SidebarIconColorMode.self, forKey: .sidebarIconColorMode) {
             sidebarIconColorMode = mode
         } else {
@@ -445,6 +448,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(nativePsqlAllowSystemBinaryFallback, forKey: .nativePsqlAllowSystemBinaryFallback)
         try container.encode(nativePsqlAllowShellEscape, forKey: .nativePsqlAllowShellEscape)
         try container.encode(nativePsqlAllowFileCommands, forKey: .nativePsqlAllowFileCommands)
+        try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
         try container.encode(sidebarIconSize, forKey: .sidebarIconSize)
         try container.encode(sidebarDensity, forKey: .sidebarDensity)

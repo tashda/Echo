@@ -10,11 +10,11 @@ struct ActivityMonitorView: View {
         case .postgresql:
             PostgresActivityMonitorView(viewModel: viewModel)
         default:
-            EmptyStatePlaceholder(
-                icon: "gauge.with.dots.needle.33percent",
-                title: "Activity Monitor",
-                subtitle: "Activity monitoring is not available for this database type"
-            )
+            ContentUnavailableView {
+                Label("Activity Monitor", systemImage: "gauge.with.dots.needle.33percent")
+            } description: {
+                Text("Activity monitoring is not available for this database type.")
+            }
         }
     }
 }
