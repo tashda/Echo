@@ -85,6 +85,9 @@ class MSSQLDockerTestCase: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        // Prevent hanging tests from blocking the entire CI suite.
+        // Tests that exceed 60 seconds are killed and fail.
+        executionTimeAllowance = 60
         guard echoTestEnvFlag("USE_DOCKER") else {
             try Self.failIfFixturesRequired("USE_DOCKER not set for MSSQL integration tests")
             throw XCTSkip("USE_DOCKER not set — skipping MSSQL integration tests")
