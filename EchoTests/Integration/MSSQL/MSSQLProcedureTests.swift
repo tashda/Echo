@@ -138,7 +138,11 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
         )
         cleanupSQL("DROP PROCEDURE [\(procName)]")
 
-        let result = try await query("EXEC [\(procName)]")
+        // Multiple result sets require the streaming path
+        let result = try await session.simpleQuery(
+            "EXEC [\(procName)]",
+            progressHandler: { _ in }
+        )
         XCTAssertEqual(result.rows.count, 1)
         XCTAssertFalse(result.additionalResults.isEmpty, "Should have multiple result sets")
     }
