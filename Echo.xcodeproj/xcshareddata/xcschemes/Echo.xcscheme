@@ -62,6 +62,9 @@
             reference = "container:DatabaseIntegrationTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
+            reference = "container:ExtendedIntegrationTests.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
             reference = "container:MSSQLCompatibilityTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
