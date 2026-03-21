@@ -29,7 +29,8 @@ final class PGSecurityTests: PostgresDockerTestCase {
         """)
         IntegrationTestHelpers.assertRowCount(result, expected: 1)
         XCTAssertEqual(result.rows[0][0], roleName)
-        XCTAssertEqual(result.rows[0][1], "t", "Role should have LOGIN privilege")
+        let loginVal = result.rows[0][1] ?? ""
+        XCTAssertTrue(loginVal == "t" || loginVal == "true", "Role should have LOGIN privilege, got: \(loginVal)")
     }
 
     // MARK: - Grant SELECT on Table
@@ -135,18 +136,21 @@ final class PGSecurityTests: PostgresDockerTestCase {
         // Grant CREATEDB
         try await execute("ALTER ROLE \(roleName) CREATEDB")
         let r1 = try await query("SELECT rolcreatedb FROM pg_roles WHERE rolname = '\(roleName)'")
-        XCTAssertEqual(r1.rows[0][0], "t", "Role should have CREATEDB")
+        let r1Val = r1.rows[0][0] ?? ""
+        XCTAssertTrue(r1Val == "t" || r1Val == "true", "Role should have CREATEDB, got: \(r1Val)")
 
         // Revoke CREATEDB
         try await execute("ALTER ROLE \(roleName) NOCREATEDB")
         let r2 = try await query("SELECT rolcreatedb FROM pg_roles WHERE rolname = '\(roleName)'")
-        XCTAssertEqual(r2.rows[0][0], "f", "Role should not have CREATEDB")
+        let r2Val = r2.rows[0][0] ?? ""
+        XCTAssertTrue(r2Val == "f" || r2Val == "false", "Role should not have CREATEDB, got: \(r2Val)")
 
         // Grant SUPERUSER (only works if connected as superuser)
         do {
             try await execute("ALTER ROLE \(roleName) SUPERUSER")
             let r3 = try await query("SELECT rolsuper FROM pg_roles WHERE rolname = '\(roleName)'")
-            XCTAssertEqual(r3.rows[0][0], "t")
+            let r3Val = r3.rows[0][0] ?? ""
+            XCTAssertTrue(r3Val == "t" || r3Val == "true", "Role should be SUPERUSER, got: \(r3Val)")
             // Clean up
             try await execute("ALTER ROLE \(roleName) NOSUPERUSER")
         } catch {
