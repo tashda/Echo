@@ -82,11 +82,11 @@ jobs:
 
     - name: Suppress macOS prompts
       run: |
-        # Grant Accessibility access to Xcode and xcodebuild for UI testing
-        XCODE_PATH="$(xcode-select -p)"
-        XCODEBUILD_PATH="$(command -v xcodebuild)"
-        # Pre-approve local network access for the test runner
+        # Suppress local network and system service prompts
         defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
+        defaults write com.apple.linkd autoShortcut -bool false 2>/dev/null || true
+        # Disable App Nap to prevent test runner throttling
+        defaults write NSGlobalDomain NSAppSleepDisabled -bool YES 2>/dev/null || true
 
     - name: Verify Docker (via Colima)
       run: |
@@ -193,6 +193,8 @@ jobs:
     - name: Suppress macOS prompts
       run: |
         defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
+        defaults write com.apple.linkd autoShortcut -bool false 2>/dev/null || true
+        defaults write NSGlobalDomain NSAppSleepDisabled -bool YES 2>/dev/null || true
 
     - name: Verify Docker (via Colima)
       run: |
@@ -337,6 +339,8 @@ jobs:
     - name: Suppress macOS prompts
       run: |
         defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
+        defaults write com.apple.linkd autoShortcut -bool false 2>/dev/null || true
+        defaults write NSGlobalDomain NSAppSleepDisabled -bool YES 2>/dev/null || true
 
     - name: Verify Docker (via Colima)
       run: |
