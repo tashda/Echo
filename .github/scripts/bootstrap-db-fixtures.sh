@@ -48,8 +48,10 @@ append_env() {
   local key="$1"
   local value="$2"
   export "${key}=${value}"
+  export "TEST_RUNNER_${key}=${value}"
   if [[ -n "${GITHUB_ENV:-}" ]]; then
     echo "${key}=${value}" >> "$GITHUB_ENV"
+    echo "TEST_RUNNER_${key}=${value}" >> "$GITHUB_ENV"
   fi
   mkdir -p "$FIXTURE_DIR"
   if [[ -f "$FIXTURE_ENV_FILE" ]]; then
