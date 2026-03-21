@@ -16,8 +16,17 @@ class MSSQLBackupRestoreTests: MSSQLDockerTestCase {
     // MARK: - Test Database Setup
 
     private func setupTestDB(_ name: String) async throws {
-        _ = try await sqlserverClient.admin.createDatabase(name: name)
+        // Force-drop if leftover from a previous failed test run
+        _ = try? await execute("""
+            IF DB_ID('\(name)') IS NOT NULL
+            BEGIN
+                ALTER DATABASE [\(name)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                DROP DATABASE [\(name)];
+            END
+        """)
+        _ = try? await sqlserverClient.admin.createDatabase(name: name)
         let dbSession = try await createSession(database: name)
+        _ = try? await dbSession.executeUpdate("DROP TABLE IF EXISTS dbo.test_data")
         _ = try await dbSession.executeUpdate("""
             CREATE TABLE dbo.test_data (
                 id INT IDENTITY(1,1) PRIMARY KEY,
