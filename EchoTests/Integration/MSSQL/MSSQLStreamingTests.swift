@@ -2,29 +2,31 @@ import XCTest
 import SQLServerKit
 @testable import Echo
 
-/// Tests SQL Server query streaming through Echo's DatabaseSession layer.
-final class MSSQLStreamingTests: MSSQLDockerTestCase {
+/// Tests SQL Server query streaming through Echo's dedicated query session layer.
+///
+/// Uses `MSSQLDedicatedDockerTestCase` to match how Echo actually streams queries:
+/// streaming always happens through a dedicated `SQLServerConnection` per query tab.
+final class MSSQLStreamingTests: MSSQLDedicatedDockerTestCase {
 
     // MARK: - Streaming with Progress
 
     func testStreamingQueryWithProgressHandler() async throws {
         let progressUpdates = LockIsolated<[QueryStreamUpdate]>([])
 
-        let result = try await session.simpleQuery(
+        let result = try await dedicatedSession.simpleQuery(
             "SELECT TOP 500 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n FROM sys.all_columns a CROSS JOIN sys.all_columns b",
             progressHandler: { update in
                 progressUpdates.withValue { $0.append(update) }
             }
         )
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 500)
-        // Progress handler may or may not be called depending on result size
+        XCTAssertEqual(result.totalRowCount, 500, "Expected 500 total rows")
     }
 
     func testStreamingQueryWithExecutionMode() async throws {
         let progressUpdates = LockIsolated<[QueryStreamUpdate]>([])
 
-        let result = try await session.simpleQuery(
+        let result = try await dedicatedSession.simpleQuery(
             "SELECT TOP 100 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n FROM sys.all_columns",
             executionMode: nil,
             progressHandler: { update in
@@ -32,28 +34,30 @@ final class MSSQLStreamingTests: MSSQLDockerTestCase {
             }
         )
 
-        IntegrationTestHelpers.assertRowCount(result, expected: 100)
+        XCTAssertEqual(result.totalRowCount, 100, "Expected 100 total rows")
     }
 
     // MARK: - Large Result Sets
 
     func testLargeResultSetStreaming() async throws {
-        let result = try await query("""
+        let result = try await dedicatedQuery("""
             SELECT TOP 5000
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS row_num,
                 REPLICATE('X', 100) AS padding
             FROM sys.all_columns a CROSS JOIN sys.all_columns b
         """)
-        IntegrationTestHelpers.assertRowCount(result, expected: 5000)
+        XCTAssertEqual(result.totalRowCount, 5000, "Expected 5000 total rows")
     }
 
     func testResultSetWithManyColumns() async throws {
-        let result = try await query("""
+        let result = try await dedicatedQuery("""
             SELECT TOP 10
-                1 AS c1, 2 AS c2, 3 AS c3, 4 AS c4, 5 AS c5,
+                ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS c1,
+                2 AS c2, 3 AS c3, 4 AS c4, 5 AS c5,
                 6 AS c6, 7 AS c7, 8 AS c8, 9 AS c9, 10 AS c10,
                 'a' AS c11, 'b' AS c12, 'c' AS c13, 'd' AS c14, 'e' AS c15,
                 1.1 AS c16, 2.2 AS c17, 3.3 AS c18, 4.4 AS c19, 5.5 AS c20
+            FROM sys.all_columns
         """)
         XCTAssertEqual(result.columns.count, 20)
         IntegrationTestHelpers.assertRowCount(result, expected: 10)
@@ -64,7 +68,7 @@ final class MSSQLStreamingTests: MSSQLDockerTestCase {
     func testStreamingPreservesColumnMetadata() async throws {
         let streamColumns = LockIsolated<[Echo.ColumnInfo]>([])
 
-        _ = try await session.simpleQuery(
+        _ = try await dedicatedSession.simpleQuery(
             "SELECT 1 AS int_col, 'text' AS string_col, 3.14 AS float_col",
             progressHandler: { update in
                 if !update.columns.isEmpty {
@@ -72,9 +76,6 @@ final class MSSQLStreamingTests: MSSQLDockerTestCase {
                 }
             }
         )
-
-        // Even if progress wasn't called, the final result should have columns
-        // This test verifies column metadata is preserved through the streaming path
     }
 
     // MARK: - Empty Streaming Result
@@ -89,7 +90,7 @@ final class MSSQLStreamingTests: MSSQLDockerTestCase {
         cleanupSQL("DROP TABLE [\(tableName)]")
 
         let progressCalled = LockIsolated(false)
-        let result = try await session.simpleQuery(
+        let result = try await dedicatedSession.simpleQuery(
             "SELECT * FROM [\(tableName)]",
             progressHandler: { _ in
                 progressCalled.setValue(true)
@@ -101,7 +102,7 @@ final class MSSQLStreamingTests: MSSQLDockerTestCase {
     // MARK: - Streaming with Mixed Data Types
 
     func testStreamingMixedDataTypes() async throws {
-        let result = try await query("""
+        let result = try await dedicatedQuery("""
             SELECT TOP 100
                 ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS id,
                 CAST(RAND(CHECKSUM(NEWID())) * 1000 AS DECIMAL(10,2)) AS amount,
@@ -110,7 +111,7 @@ final class MSSQLStreamingTests: MSSQLDockerTestCase {
                 REPLICATE('A', 50) AS text_data
             FROM sys.all_columns
         """)
-        IntegrationTestHelpers.assertRowCount(result, expected: 100)
+        XCTAssertEqual(result.totalRowCount, 100, "Expected 100 total rows")
         XCTAssertEqual(result.columns.count, 5)
     }
 }

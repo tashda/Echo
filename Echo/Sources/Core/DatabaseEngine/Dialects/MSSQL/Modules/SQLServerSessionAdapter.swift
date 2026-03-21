@@ -21,14 +21,20 @@ private actor MetadataTraceWriter {
 /// Adapter to make SQLServerClient conform to Echo's DatabaseSession protocol
 final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     let client: SQLServerClient
-    let database: String?
+    private let configuration: SQLServerClient.Configuration
+    nonisolated(unsafe) private(set) var database: String?
     let logger = Logger(label: "dk.tippr.echo.mssql.metadata")
     let metadataTraceEnabled = ProcessInfo.processInfo.environment["MSSQL_METADATA_TRACE"] == "1"
     let metadataTracePath: String?
     private static let traceWriter = MetadataTraceWriter()
 
-    init(client: SQLServerClient, database: String?) {
+    init(
+        client: SQLServerClient,
+        configuration: SQLServerClient.Configuration,
+        database: String?
+    ) {
         self.client = client
+        self.configuration = configuration
         self.database = database
         if metadataTraceEnabled {
             let envPath = ProcessInfo.processInfo.environment["MSSQL_METADATA_TRACE_PATH"]
@@ -100,6 +106,16 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
 
     func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
         let nioResult = try await client.maintenance.rebuildIndexes(schema: schema, table: table)
+        return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
+    }
+
+    func reorganizeIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        let nioResult = try await client.maintenance.reorganizeIndex(schema: schema, table: table, name: index)
+        return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
+    }
+
+    func reorganizeIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        let nioResult = try await client.maintenance.reorganizeIndexes(schema: schema, table: table)
         return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
     }
 
@@ -273,13 +289,33 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     }
 
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
-        _ = try await client.execute("USE [\(database.replacingOccurrences(of: "]", with: "]]"))]")
-        return self
+        let trimmedDatabase = database.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedDatabase.isEmpty else {
+            return self
+        }
+
+        if self.database?.caseInsensitiveCompare(trimmedDatabase) == .orderedSame {
+            return self
+        }
+
+        var databaseConfiguration = configuration
+        databaseConfiguration.connection.login.database = trimmedDatabase
+        let databaseClient = try await SQLServerClient.connect(configuration: databaseConfiguration)
+        return SQLServerSessionAdapter(
+            client: databaseClient,
+            configuration: databaseConfiguration,
+            database: trimmedDatabase
+        )
     }
 
     func currentDatabaseName() async throws -> String? {
         let result = try await simpleQuery("SELECT DB_NAME() AS current_db")
         return result.rows.first?.first ?? nil
+    }
+
+    func isSuperuser() async throws -> Bool {
+        let result = try await simpleQuery("SELECT CASE WHEN IS_SRVROLEMEMBER('sysadmin') = 1 THEN 1 ELSE 0 END AS is_superuser")
+        return result.rows.first?.first == "1"
     }
 
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {

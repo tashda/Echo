@@ -109,6 +109,7 @@ struct ProjectIconPickerSheet: View {
                 onSelect(selectedIcon)
                 dismiss()
             }
+            .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
         }
         .padding(SpacingTokens.md2)

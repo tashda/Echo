@@ -50,6 +50,12 @@ enum ResultExportFormat: String, CaseIterable {
     case json
     case sqlInsert
     case markdown
+    case xlsx
+
+    /// Formats suitable for clipboard copy (text-based only).
+    static var copyFormats: [ResultExportFormat] {
+        [.tsv, .csv, .json, .sqlInsert, .markdown]
+    }
 
     var menuTitle: String {
         switch self {
@@ -58,6 +64,7 @@ enum ResultExportFormat: String, CaseIterable {
         case .json: return "JSON"
         case .sqlInsert: return "SQL INSERT"
         case .markdown: return "Markdown"
+        case .xlsx: return "Excel (.xlsx)"
         }
     }
 
@@ -68,7 +75,12 @@ enum ResultExportFormat: String, CaseIterable {
         case .json: return "json"
         case .sqlInsert: return "sql"
         case .markdown: return "md"
+        case .xlsx: return "xlsx"
         }
+    }
+
+    var isBinaryFormat: Bool {
+        self == .xlsx
     }
 
 #if os(macOS)
@@ -79,6 +91,7 @@ enum ResultExportFormat: String, CaseIterable {
         case .json: return [.json]
         case .sqlInsert: return [UTType(filenameExtension: "sql") ?? .plainText]
         case .markdown: return [UTType(filenameExtension: "md") ?? .plainText]
+        case .xlsx: return [UTType(filenameExtension: "xlsx") ?? .data]
         }
     }
 #endif

@@ -13,7 +13,7 @@ struct SidebarStickySectionHeader: View {
         let cornerRadius: CGFloat = isPinned && isExpanded ? 10 : 4
 
         HStack(spacing: SpacingTokens.xxs2) {
-            Text(title.uppercased())
+            Text(title)
                 .font(TypographyTokens.detail.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.secondary)
 

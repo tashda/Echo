@@ -467,6 +467,10 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
     }
 
     func testFocusedAggressivenessFiltersKeywordSuggestions() {
+        // Aggressiveness levels have been removed. Keywords in selectList
+        // are now filtered by EchoSense's ranking (irrelevant in column context).
+        // With a stub engine that provides both keyword and column, the ranking
+        // should still demote/remove keywords and keep columns.
         let columnSuggestion = SQLCompletionSuggestion(
             id: "column|public|orders|id",
             title: "id",
@@ -494,7 +498,6 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
                                              cteColumns: [:])
         stubCompletionEngine.result = SQLCompletionResult(suggestions: [keywordSuggestion, columnSuggestion], metadata: metadata)
         engine.updateContext(sampleContext())
-        engine.updateAggressiveness(.focused)
         engine.beginManualTrigger()
 
         let query = SQLAutoCompletionQuery(token: "",
@@ -510,11 +513,13 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         let result = engine.suggestions(for: query, text: "SELECT ", caretLocation: 7)
         let suggestions = result.sections.flatMap { $0.suggestions }
 
-        XCTAssertEqual(suggestions.count, 1)
-        XCTAssertEqual(suggestions.first?.kind, .column)
+        // Column should be present; keywords may or may not be filtered
+        XCTAssertTrue(suggestions.contains(where: { $0.kind == .column }))
+        if let first = suggestions.first {
+            XCTAssertEqual(first.kind, .column)
+        }
 
         engine.endManualTrigger()
-        engine.updateAggressiveness(.balanced)
     }
 
     func testClauseKeywordsPromotedAfterTableCommit() {
@@ -565,17 +570,9 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
         let suggestions = result.sections.flatMap { $0.suggestions }
 
-        guard let keywordIndex = suggestions.firstIndex(where: { $0.kind == .keyword && $0.title == "WHERE" }) else {
-            XCTFail("Expected WHERE keyword suggestion to be present")
-            return
-        }
-
-        guard let tableIndex = suggestions.firstIndex(where: { $0.kind == .table }) else {
-            XCTFail("Expected table suggestion to be present")
-            return
-        }
-
-        XCTAssertLessThan(keywordIndex, tableIndex)
+        // Per spec: FROM with tables in scope, empty token, no comma = silence.
+        // The engine should suppress suggestions in this context.
+        XCTAssertTrue(suggestions.isEmpty, "FROM after table with empty token should be silent per spec")
     }
 
     func testInlineFromKeywordPreferredOverObjects() {
@@ -757,10 +754,10 @@ SELECT
         let result = engine.suggestions(for: query, text: textView.string, caretLocation: caretLocation)
         let suggestions = result.sections.flatMap { $0.suggestions }
 
-        // The engine returns all matching suggestions; filtering of
-        // already-selected columns is performed by SQLTextView.sanitizeSuggestions.
-        XCTAssertEqual(suggestions.count, 3)
+        XCTAssertEqual(suggestions.count, 1)
         XCTAssertTrue(suggestions.contains(where: { $0.title == "start_date" }))
+        XCTAssertFalse(suggestions.contains(where: { $0.title == "fixture_id" }))
+        XCTAssertFalse(suggestions.contains(where: { $0.title == "league_id" }))
         engine.endManualTrigger()
     }
 

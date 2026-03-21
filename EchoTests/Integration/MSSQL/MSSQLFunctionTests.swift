@@ -12,10 +12,10 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createFunction(
             name: funcName,
             parameters: [
-                FunctionParameter(name: "@x", dataType: .int)
+                FunctionParameter(name: "x", dataType: .int)
             ],
             returnType: .int,
-            body: "RETURN @x * 3;"
+            body: "BEGIN RETURN @x * 3; END"
         )
         cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
@@ -28,11 +28,11 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createFunction(
             name: funcName,
             parameters: [
-                FunctionParameter(name: "@first", dataType: .nvarchar(length: .length(50))),
-                FunctionParameter(name: "@last", dataType: .nvarchar(length: .length(50))),
+                FunctionParameter(name: "first", dataType: .nvarchar(length: .length(50))),
+                FunctionParameter(name: "last", dataType: .nvarchar(length: .length(50))),
             ],
             returnType: .nvarchar(length: .length(101)),
-            body: "RETURN @first + ' ' + @last;"
+            body: "BEGIN RETURN @first + ' ' + @last; END"
         )
         cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
@@ -82,10 +82,10 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createFunction(
             name: funcName,
             parameters: [
-                FunctionParameter(name: "@x", dataType: .int)
+                FunctionParameter(name: "x", dataType: .int)
             ],
             returnType: .int,
-            body: "RETURN @x;"
+            body: "BEGIN RETURN @x; END"
         )
         cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
@@ -104,10 +104,10 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createFunction(
             name: funcName,
             parameters: [
-                FunctionParameter(name: "@x", dataType: .int)
+                FunctionParameter(name: "x", dataType: .int)
             ],
             returnType: .int,
-            body: "RETURN @x;"
+            body: "BEGIN RETURN @x; END"
         )
 
         try await sqlserverClient.routines.dropFunction(name: funcName)
@@ -127,10 +127,10 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
         try await sqlserverClient.routines.createFunction(
             name: funcName,
             parameters: [
-                FunctionParameter(name: "@input", dataType: .nvarchar(length: .length(100)))
+                FunctionParameter(name: "input", dataType: .nvarchar(length: .length(100)))
             ],
             returnType: .nvarchar(length: .length(100)),
-            body: "RETURN UPPER(@input);"
+            body: "BEGIN RETURN UPPER(@input); END"
         )
         cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 

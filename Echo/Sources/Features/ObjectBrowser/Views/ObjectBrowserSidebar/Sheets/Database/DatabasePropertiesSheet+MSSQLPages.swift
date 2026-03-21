@@ -85,7 +85,7 @@ extension DatabasePropertiesSheet {
             .onChange(of: pageVerify) { _, v in applyMSSQLOption(.pageVerify(v)) }
 
             PropertyRow(title: "Target Recovery Time", subtitle: "seconds") {
-                TextField("", value: $targetRecoveryTime, format: .number)
+                TextField("", value: $targetRecoveryTime, format: .number, prompt: Text("60"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .onSubmit { applyMSSQLOption(.targetRecoveryTime(targetRecoveryTime)) }

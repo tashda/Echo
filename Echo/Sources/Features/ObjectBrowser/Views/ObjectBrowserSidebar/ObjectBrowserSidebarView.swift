@@ -13,6 +13,7 @@ struct ObjectBrowserSidebarView: View {
 
     @Environment(EnvironmentState.self) internal var environmentState
     @Environment(AppState.self) private var appState
+    @Environment(\.openWindow) internal var openWindow
 
     @State internal var viewModel = ObjectBrowserSidebarViewModel()
 
@@ -45,13 +46,16 @@ struct ObjectBrowserSidebarView: View {
                     } else {
                         ForEach(pending) { item in
                             pendingConnectionSection(pending: item)
-                                .padding(.bottom, SpacingTokens.sm)
+                                .padding(.bottom, SpacingTokens.xxs)
                         }
 
-                        ForEach(sessions, id: \.connection.id) { session in
+                        ForEach(Array(sessions.enumerated()), id: \.element.connection.id) { index, session in
                             if sidebarSearchQuery == nil || serverMatchesSearch(session) {
+                                if index > 0 || !pending.isEmpty {
+                                    serverSeparator
+                                }
                                 serverSection(session: session, proxy: proxy)
-                                    .padding(.bottom, SpacingTokens.sm)
+                                    .padding(.bottom, SpacingTokens.xxs)
                             }
                         }
 

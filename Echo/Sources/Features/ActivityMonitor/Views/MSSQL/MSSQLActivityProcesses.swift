@@ -9,6 +9,9 @@ struct MSSQLActivityProcesses: View {
     let onKill: (Int) -> Void
     var onDoubleClick: (() -> Void)?
 
+    @State private var showKillAlert = false
+    @State private var pendingKillID: Int?
+
     private var sortedProcesses: [SQLServerProcessInfo] {
         processes.sorted(using: sortOrder)
     }
@@ -75,24 +78,43 @@ struct MSSQLActivityProcesses: View {
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: SQLServerProcessInfo.ID.self) { selection in
             if let id = selection.first, let process = processes.first(where: { $0.id == id }) {
-                Button("Details") {
+                Button {
                     onDoubleClick?()
+                } label: {
+                    Label("Details", systemImage: "info.circle")
                 }
 
                 if process.request?.sqlText != nil {
-                    Button("View SQL") {
+                    Button {
                         if let sql = process.request?.sqlText { onPopout(sql) }
+                    } label: {
+                        Label("View SQL", systemImage: "arrow.up.left.and.arrow.down.right")
                     }
                 }
 
                 Divider()
 
-                Button("Kill Process", role: .destructive) {
-                    onKill(id)
+                Button(role: .destructive) {
+                    pendingKillID = id
+                    showKillAlert = true
+                } label: {
+                    Label("Kill Process", systemImage: "xmark.octagon")
                 }
             }
         } primaryAction: { _ in
             onDoubleClick?()
+        }
+        .alert("Kill Process?", isPresented: $showKillAlert) {
+            Button("Cancel", role: .cancel) { pendingKillID = nil }
+            Button("Kill", role: .destructive) {
+                guard let id = pendingKillID else { return }
+                pendingKillID = nil
+                onKill(id)
+            }
+        } message: {
+            if let id = pendingKillID {
+                Text("Are you sure you want to kill process \(id)? Any uncommitted work will be rolled back.")
+            }
         }
     }
 }

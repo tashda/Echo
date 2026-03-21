@@ -42,7 +42,7 @@ extension DatabaseObjectBrowserView {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -97,13 +97,29 @@ extension DatabaseObjectBrowserView {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Folder Context Menu
 
     @ViewBuilder
     func typeSectionContextMenu(_ type: SchemaObjectInfo.ObjectType) -> some View {
+        // Group 1: Refresh
+        Button {
+            let session = environmentState.sessionGroup.activeSessions.first {
+                $0.connection.id == connection.id
+            }
+            guard let session else { return }
+            Task {
+                let handle = AppDirector.shared.activityEngine.begin("Refreshing \(type.pluralDisplayName)", connectionSessionID: session.id)
+                await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
+                handle.succeed()
+            }
+        } label: {
+            Label("Refresh", systemImage: "arrow.clockwise")
+        }
+
+        // Group 2: New
         let creationTitle = creationTitle(for: type)
         if let creationTitle {
             Button {
@@ -115,21 +131,23 @@ extension DatabaseObjectBrowserView {
                 let sql = creationTemplateSQL(for: creationTitle, databaseType: connection.databaseType, schemaName: schemaName)
                 environmentState.openQueryTab(for: session, presetQuery: sql, database: database.name)
             } label: {
-                Label(creationTitle, systemImage: "plus")
+                Label(creationTitle, systemImage: creationIcon(for: type))
             }
-            Divider()
         }
+    }
 
-        Button {
-            let session = environmentState.sessionGroup.activeSessions.first {
-                $0.connection.id == connection.id
-            }
-            guard let session else { return }
-            Task {
-                await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
-            }
-        } label: {
-            Label("Refresh", systemImage: "arrow.clockwise")
+    private func creationIcon(for type: SchemaObjectInfo.ObjectType) -> String {
+        switch type {
+        case .table: "tablecells"
+        case .view: "eye"
+        case .materializedView: "eye"
+        case .function: "function"
+        case .procedure: "gearshape"
+        case .trigger: "bolt"
+        case .extension: "puzzlepiece.extension"
+        case .sequence: "number"
+        case .type: "t.square"
+        case .synonym: "arrow.triangle.swap"
         }
     }
 
@@ -142,6 +160,9 @@ extension DatabaseObjectBrowserView {
         case .procedure: "New Procedure"
         case .trigger: "New Trigger"
         case .extension: "New Extension"
+        case .sequence: "New Sequence"
+        case .type: "New Type"
+        case .synonym: "New Synonym"
         }
     }
 
@@ -180,6 +201,22 @@ extension DatabaseObjectBrowserView {
             return "CREATE TRIGGER new_trigger\n    AFTER INSERT ON table_name\n    FOR EACH ROW\nBEGIN\n    -- trigger body\nEND;"
         case ("New Extension", _):
             return "CREATE EXTENSION IF NOT EXISTS extension_name;"
+        case ("New Sequence", .microsoftSQL):
+            return "CREATE SEQUENCE [\(schema)].[NewSequence]\n    AS INT\n    START WITH 1\n    INCREMENT BY 1;\nGO"
+        case ("New Sequence", .postgresql):
+            return "CREATE SEQUENCE \(schema).new_sequence\n    START WITH 1\n    INCREMENT BY 1;"
+        case ("New Sequence", _):
+            return "CREATE SEQUENCE new_sequence\n    START WITH 1\n    INCREMENT BY 1;"
+        case ("New Type", .microsoftSQL):
+            return "CREATE TYPE [\(schema)].[NewType] AS TABLE (\n    [Id] INT,\n    [Name] NVARCHAR(100)\n);\nGO"
+        case ("New Type", .postgresql):
+            return "CREATE TYPE \(schema).new_type AS (\n    field1 TEXT,\n    field2 INTEGER\n);"
+        case ("New Type", _):
+            return "-- CREATE TYPE new_type ..."
+        case ("New Synonym", .microsoftSQL):
+            return "CREATE SYNONYM [\(schema)].[NewSynonym]\n    FOR [\(schema)].[TargetObject];\nGO"
+        case ("New Synonym", _):
+            return "-- CREATE SYNONYM new_synonym FOR target_object;"
         default:
             return "-- New \(title)"
         }

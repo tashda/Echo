@@ -17,8 +17,6 @@ struct QueryEditorContainer: View {
 
     let minRatio: CGFloat = 0.25
     let maxRatio: CGFloat = 0.8
-    @State var liveSplitRatioOverride: CGFloat?
-    @State private var lastResizeTimestamp: CFTimeInterval = 0
 #if os(macOS)
     @State var latestForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
     @State var latestJsonSelection: QueryResultsTableView.JsonSelection?
@@ -30,29 +28,26 @@ struct QueryEditorContainer: View {
     private var panelState: BottomPanelState { tab.panelState }
 
     var body: some View {
-        GeometryReader { geometry in
-            let totalHeight = geometry.size.height
-            let backgroundColor = ColorTokens.Background.primary
-            let shouldShowResultsOnly = query.isResultsOnly
-            let panelOpen = panelState.isOpen
-            let handleHeight: CGFloat = panelOpen ? 9 : 0
-            let statusBarHeight: CGFloat = 24
-            let splitHeight = totalHeight - handleHeight - statusBarHeight
-            let baseRatio = min(max(panelState.splitRatio, minRatio), maxRatio)
-            let effectiveRatio = min(max(liveSplitRatioOverride ?? baseRatio, minRatio), maxRatio)
-            let isResizingResults = liveSplitRatioOverride != nil
+        let backgroundColor = ColorTokens.Background.primary
+        let shouldShowResultsOnly = query.isResultsOnly
+        let panelOpen = panelState.isOpen
 
-            VStack(spacing: 0) {
-                if shouldShowResultsOnly {
-                    resultsSection(isResizingResults: isResizingResults)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(backgroundColor)
-                        .transition(.opacity)
-                } else {
-                    let editorHeight: CGFloat = panelOpen
-                        ? splitHeight * effectiveRatio
-                        : totalHeight - statusBarHeight
-
+        VStack(spacing: 0) {
+            if shouldShowResultsOnly {
+                resultsSection(isResizingResults: false)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(backgroundColor)
+                    .transition(.opacity)
+            } else if panelOpen {
+                NativeSplitView(
+                    isVertical: false,
+                    firstMinFraction: minRatio,
+                    secondMinFraction: 1 - maxRatio,
+                    fraction: Binding(
+                        get: { min(max(panelState.splitRatio, minRatio), maxRatio) },
+                        set: { panelState.splitRatio = min(max($0, minRatio), maxRatio) }
+                    )
+                ) {
                     QueryInputSection(
                         query: query,
                         onExecute: { sql in await runQuery(sql) },
@@ -63,38 +58,28 @@ struct QueryEditorContainer: View {
                             ensureSchemaLoaded(forDatabase: dbName)
                         }
                     )
-                    .frame(height: editorHeight)
                     .background(backgroundColor)
-
-                    if panelOpen {
-                        ResizeHandle(
-                            ratio: effectiveRatio,
-                            minRatio: minRatio,
-                            maxRatio: maxRatio,
-                            availableHeight: splitHeight,
-                            onLiveUpdate: { proposed in
-                                let now = CACurrentMediaTime()
-                                guard now - lastResizeTimestamp >= 0.016 else { return }
-                                lastResizeTimestamp = now
-                                liveSplitRatioOverride = proposed
-                            },
-                            onCommit: { proposed in
-                                let clamped = min(max(proposed, minRatio), maxRatio)
-                                liveSplitRatioOverride = nil
-                                panelState.splitRatio = clamped
-                            }
-                        )
-
-                        resultsSection(isResizingResults: isResizingResults)
-                            .frame(maxHeight: .infinity)
-                            .clipped()
-                            .background(backgroundColor)
-                    }
+                } second: {
+                    resultsSection(isResizingResults: false)
+                        .clipped()
+                        .background(backgroundColor)
                 }
-
-                queryStatusBar
+            } else {
+                QueryInputSection(
+                    query: query,
+                    onExecute: { sql in await runQuery(sql) },
+                    onCancel: cancelQuery,
+                    onAddBookmark: handleBookmarkRequest,
+                    completionContext: editorCompletionContext,
+                    onSchemaLoadNeeded: { dbName in
+                        ensureSchemaLoaded(forDatabase: dbName)
+                    }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(backgroundColor)
             }
-            .transaction { $0.disablesAnimations = true }
+
+            queryStatusBar
         }
         .background(ColorTokens.Background.primary)
         .onAppear {
@@ -106,15 +91,9 @@ struct QueryEditorContainer: View {
         .onChange(of: tab.connection.database) { _, _ in
             updateClipboardContext()
         }
-        .onChange(of: query.isResultsOnly) { _, _ in
-            liveSplitRatioOverride = nil
-        }
         .onChange(of: query.hasExecutedAtLeastOnce) { _, executed in
             if executed && !panelState.isOpen && projectStore.globalSettings.autoOpenBottomPanel {
                 panelState.isOpen = true
-            }
-            if !executed {
-                liveSplitRatioOverride = nil
             }
         }
         .task {

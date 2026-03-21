@@ -1,40 +1,65 @@
-import AppKit
 import SwiftUI
 
 extension TableStructureEditorView {
 
     internal var header: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-            HStack(alignment: .center, spacing: SpacingTokens.sm) {
-                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                    Text("\(viewModel.schemaName).\(viewModel.tableName)")
-                        .font(TypographyTokens.prominent.weight(.semibold))
-                        .foregroundStyle(ColorTokens.Text.primary)
-                    Text(tab.connection.connectionName)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.secondary)
+        VStack(spacing: 0) {
+            TabSectionToolbar {
+                Picker("", selection: $selectedSection) {
+                    ForEach(TableStructureSection.allCases) { section in
+                        Text(section.displayName).tag(section)
+                    }
                 }
-
-                Spacer(minLength: SpacingTokens.md)
-
-                if viewModel.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 400)
+            } controls: {
+                sectionAddButton
             }
 
-            Picker("", selection: $selectedSection) {
-                ForEach(TableStructureSection.cases(for: viewModel.databaseType)) { section in
-                    Text(section.displayName).tag(section)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 400)
+            Divider()
         }
-        .padding(.horizontal, SpacingTokens.lg)
-        .padding(.top, SpacingTokens.md)
-        .padding(.bottom, SpacingTokens.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var sectionAddButton: some View {
+        switch selectedSection {
+        case .columns:
+            Button { presentNewColumn() } label: {
+                Label("Add", systemImage: "plus")
+            }
+            .controlSize(.small)
+            .buttonStyle(.bordered)
+
+        case .indexes:
+            Button {
+                let newIndex = viewModel.addIndex()
+                activeIndexEditor = IndexEditorPresentation(indexID: newIndex.id)
+            } label: {
+                Label("Add", systemImage: "plus")
+            }
+            .controlSize(.small)
+            .buttonStyle(.bordered)
+
+        case .constraints:
+            Menu {
+                if viewModel.primaryKey == nil {
+                    Button("Primary Key") { presentPrimaryKeyEditor(isNew: true) }
+                }
+                Button("Unique Constraint") { presentNewUniqueConstraint() }
+                Button("Check Constraint") { presentNewCheckConstraint() }
+            } label: {
+                Label("Add", systemImage: "plus")
+            }
+            .controlSize(.small)
+            .buttonStyle(.bordered)
+
+        case .relations:
+            Button { presentNewForeignKey() } label: {
+                Label("Add", systemImage: "plus")
+            }
+            .controlSize(.small)
+            .buttonStyle(.bordered)
+        }
     }
 
     internal var content: some View {
@@ -57,22 +82,14 @@ extension TableStructureEditorView {
                 case .columns:
                     columnsContent
 
-                    Divider()
-
-                    constraintsPanel
-
                 case .indexes:
                     indexesContent
 
+                case .constraints:
+                    constraintsContent
+
                 case .relations:
                     relationsContent
-
-                case .extendedProperties:
-                    ExtendedPropertiesSection(
-                        session: viewModel.session,
-                        schema: viewModel.schemaName,
-                        tableName: viewModel.tableName
-                    )
                 }
             }
 
@@ -85,12 +102,12 @@ extension TableStructureEditorView {
             Spacer()
 
             Button {
-                Task { await viewModel.reload() }
+                showScriptPreview = true
             } label: {
-                Label("Reload", systemImage: "arrow.clockwise")
+                Label("Script Changes", systemImage: "doc.text")
             }
             .buttonStyle(.bordered)
-            .disabled(viewModel.isApplying)
+            .disabled(!viewModel.hasPendingChanges || viewModel.isApplying)
 
             Button {
                 applyChanges()

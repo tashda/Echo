@@ -31,17 +31,20 @@ extension ObjectBrowserSidebarView {
             }
             .contextMenu {
                 Button {
+                    Task {
+                        let handle = AppDirector.shared.activityEngine.begin("Refreshing logins", connectionSessionID: session.id)
+                        await loadServerSecurityAsync(session: session)
+                        handle.succeed()
+                    }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
                     viewModel.securityLoginSheetSessionID = connID
                     viewModel.securityLoginSheetEditName = nil
                     viewModel.showSecurityLoginSheet = true
                 } label: {
-                    Label("New Login", systemImage: "plus")
-                }
-                Divider()
-                Button {
-                    loadServerSecurity(session: session)
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label("New Login", systemImage: "person.badge.plus")
                 }
             }
 
@@ -115,6 +118,30 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     private func loginRowContextMenu(login: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession) -> some View {
+        // Group 6: Script as
+        Menu("Script as", systemImage: "scroll") {
+            Button {
+                let sql: String
+                if login.loginType == "SQL" {
+                    sql = "CREATE LOGIN [\(login.name)] WITH PASSWORD = N'<password>';"
+                } else {
+                    sql = "CREATE LOGIN [\(login.name)] FROM WINDOWS;"
+                }
+                openScriptTab(sql: sql, session: session)
+            } label: {
+                Label("CREATE", systemImage: "plus.rectangle.on.rectangle")
+            }
+            Divider()
+            Button {
+                openScriptTab(sql: "DROP LOGIN [\(login.name)];", session: session)
+            } label: {
+                Label("DROP", systemImage: "trash")
+            }
+        }
+
+        Divider()
+
+        // Group 8: Enable / Disable
         if login.isDisabled {
             Button {
                 Task { await enableMSSQLLogin(name: login.name, enabled: true, session: session) }
@@ -128,7 +155,10 @@ extension ObjectBrowserSidebarView {
                 Label("Disable Login", systemImage: "nosign")
             }
         }
+
         Divider()
+
+        // Group 9: Destructive
         Button(role: .destructive) {
             viewModel.dropSecurityPrincipalTarget = .init(
                 sessionID: session.id,
@@ -141,24 +171,10 @@ extension ObjectBrowserSidebarView {
         } label: {
             Label("Drop Login", systemImage: "trash")
         }
+
         Divider()
-        Menu {
-            Button("CREATE") {
-                let sql: String
-                if login.loginType == "SQL" {
-                    sql = "CREATE LOGIN [\(login.name)] WITH PASSWORD = N'<password>';"
-                } else {
-                    sql = "CREATE LOGIN [\(login.name)] FROM WINDOWS;"
-                }
-                openScriptTab(sql: sql, session: session)
-            }
-            Button("DROP") {
-                openScriptTab(sql: "DROP LOGIN [\(login.name)];", session: session)
-            }
-        } label: {
-            Label("Script as", systemImage: "scroll")
-        }
-        Divider()
+
+        // Group 10: Properties — ALWAYS last
         Button {
             viewModel.securityLoginSheetSessionID = session.connection.id
             viewModel.securityLoginSheetEditName = login.name

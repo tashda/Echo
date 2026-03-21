@@ -33,10 +33,10 @@ extension TableStructureEditorView {
             }
         }
 
-        private var textColor: Color { ColorTokens.Text.primary }
-        private var placeholderColor: Color { ColorTokens.Text.primary.opacity(appearanceStore.effectiveColorScheme == .dark ? 0.4 : 0.45) }
+        @Environment(\.colorScheme) private var colorScheme
 
-        @Environment(AppearanceStore.self) var appearanceStore
+        private var textColor: Color { ColorTokens.Text.primary }
+        private var placeholderColor: Color { ColorTokens.Text.primary.opacity(colorScheme == .dark ? 0.4 : 0.45) }
 
         var body: some View {
             ZStack(alignment: swiftAlignment) {
@@ -151,6 +151,7 @@ extension TableStructureEditorView {
             }
         }
     }
+
 #else
     internal struct InlineEditableCell: View {
         @Binding var value: String

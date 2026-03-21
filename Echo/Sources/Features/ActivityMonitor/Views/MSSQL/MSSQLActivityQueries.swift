@@ -57,6 +57,9 @@ struct MSSQLActivityQueries: View {
                 if let date = query.lastExecutionTime {
                     Text(date, style: .relative)
                         .font(TypographyTokens.Table.date)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                } else {
+                    Text("\u{2014}")
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }.width(min: 80, ideal: 100)
@@ -64,8 +67,10 @@ struct MSSQLActivityQueries: View {
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: SQLServerExpensiveQuery.ID.self) { selection in
             if let id = selection.first, let query = queries.first(where: { $0.id == id }) {
-                Button("Details") {
+                Button {
                     if let sql = query.sqlText { onPopout(sql) }
+                } label: {
+                    Label("Details", systemImage: "arrow.up.left.and.arrow.down.right")
                 }
                 .disabled(query.sqlText == nil)
             }

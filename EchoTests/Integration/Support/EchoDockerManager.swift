@@ -278,10 +278,43 @@ func echoTestEnv(_ key: String) -> String? {
     if let value = getenv(key) {
         return String(cString: value)
     }
+    if let value = echoFixtureEnvValue(key) {
+        return value
+    }
     return ProcessInfo.processInfo.environment[key]
 }
 
 func echoTestEnvFlag(_ key: String) -> Bool {
     guard let value = echoTestEnv(key)?.lowercased() else { return false }
     return value == "1" || value == "true" || value == "yes"
+}
+
+private func echoFixtureEnvValue(_ key: String) -> String? {
+    let sourceRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+
+    var candidates: [URL] = [
+        sourceRoot.appendingPathComponent(".ci-fixtures/test-fixtures.env")
+    ]
+    var currentURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    for _ in 0..<8 {
+        candidates.append(currentURL.appendingPathComponent(".ci-fixtures/test-fixtures.env"))
+        currentURL.deleteLastPathComponent()
+    }
+
+    for fileURL in candidates {
+        guard let contents = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
+        for line in contents.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { continue }
+            let parts = trimmed.split(separator: "=", maxSplits: 1).map(String.init)
+            guard parts.count == 2, parts[0] == key else { continue }
+            return parts[1]
+        }
+    }
+
+    return nil
 }

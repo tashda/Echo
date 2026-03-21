@@ -17,6 +17,7 @@ DerivedData/
 # IDE and editor configs
 .idea/
 .vscode/
+__pycache__/
 *.xcworkspace/xcuserdata/
 
 # AI agent configs and caches
@@ -42,6 +43,7 @@ format_reports.py
 
 # Feature tracking and working docs (local only)
 SSMS_FEATURE_GAP.md
+GO_LIVE_PLAN.md
 
 # OS-specific
 .DS_Store
@@ -53,8 +55,13 @@ SSMS_FEATURE_GAP.md
 Instruments/
 Archive/
 Docs/
+traces/
+*.trace/
 tmp_trace_export/
 Scripts/
+!.github/scripts/
+!.github/scripts/**
+.github/scripts/__pycache__/
 bin/
 build-release/
 build_output*.txt

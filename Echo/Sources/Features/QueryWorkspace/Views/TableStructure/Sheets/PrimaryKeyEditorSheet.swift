@@ -3,21 +3,23 @@ import SwiftUI
 struct PrimaryKeyEditorSheet: View {
     @Binding var primaryKey: TableStructureEditorViewModel.PrimaryKeyModel
     let availableColumns: [String]
+    let databaseType: DatabaseType
     let onDelete: () -> Void
     let onCancelNew: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State var draft: Draft
-    @State private var hoveredColumnID: UUID?
 
     init(
         primaryKey: Binding<TableStructureEditorViewModel.PrimaryKeyModel>,
         availableColumns: [String],
+        databaseType: DatabaseType,
         onDelete: @escaping () -> Void,
         onCancelNew: @escaping () -> Void
     ) {
         self._primaryKey = primaryKey
         self.availableColumns = availableColumns
+        self.databaseType = databaseType
         self.onDelete = onDelete
         self.onCancelNew = onCancelNew
         _draft = State(initialValue: Draft(model: primaryKey.wrappedValue, availableColumns: availableColumns))
@@ -28,31 +30,42 @@ struct PrimaryKeyEditorSheet: View {
             Form {
                 Section {
                     PropertyRow(title: "Constraint Name") {
-                        TextField("", text: $draft.name)
+                        TextField("", text: $draft.name, prompt: Text("PK_table"))
                             .textFieldStyle(.plain)
                             .multilineTextAlignment(.trailing)
                     }
                 }
 
-                Section("Columns") {
-                    ForEach(Array(draft.columns.enumerated()), id: \.element.id) { _, column in
-                        primaryKeyColumnRow(for: bindingForColumn(column.id))
-                    }
-                    .onMove { from, to in
-                        draft.columns.move(fromOffsets: from, toOffset: to)
-                    }
-
-                    Menu {
-                        ForEach(computedAddableColumns, id: \.self) { name in
-                            Button(name) {
-                                addDraftColumn(named: name)
+                if databaseType == .postgresql {
+                    Section("Deferrable") {
+                        PropertyRow(
+                            title: "Deferrable",
+                            info: "A deferrable constraint can be checked at the end of a transaction instead of immediately. This allows temporary violations during multi-statement operations."
+                        ) {
+                            Toggle("", isOn: $draft.isDeferrable)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .onChange(of: draft.isDeferrable) { _, newValue in
+                                    if !newValue { draft.isInitiallyDeferred = false }
+                                }
+                        }
+                        if draft.isDeferrable {
+                            PropertyRow(title: "Initially Deferred") {
+                                Toggle("", isOn: $draft.isInitiallyDeferred)
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
                             }
                         }
-                    } label: {
-                        Label("Add Column", systemImage: "plus")
                     }
-                    .menuStyle(.borderlessButton)
-                    .disabled(computedAddableColumns.isEmpty)
+                }
+
+                Section("Columns") {
+                    ColumnSelectionList(
+                        columns: $draft.columns,
+                        displayMode: .text,
+                        availableColumns: availableColumns,
+                        minColumns: 0
+                    )
                 }
             }
             .formStyle(.grouped)
@@ -64,32 +77,6 @@ struct PrimaryKeyEditorSheet: View {
         }
         .frame(minWidth: 420, idealWidth: 460, minHeight: 340)
         .navigationTitle(draft.isEditingExisting ? "Edit Primary Key" : "New Primary Key")
-    }
-
-    private func primaryKeyColumnRow(for column: Binding<Draft.Column>) -> some View {
-        HStack(spacing: SpacingTokens.xs) {
-            Image(systemName: "line.3.horizontal")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-
-            Text(column.wrappedValue.name)
-                .font(TypographyTokens.standard)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button(role: .destructive) {
-                removeDraftColumn(withID: column.wrappedValue.id)
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(hoveredColumnID == column.wrappedValue.id ? ColorTokens.Status.error : ColorTokens.Text.secondary)
-            }
-            .buttonStyle(.borderless)
-            .help("Remove column")
-            .disabled(draft.columns.count <= 1)
-            .onHover { isHovered in
-                hoveredColumnID = isHovered ? column.wrappedValue.id : nil
-            }
-        }
     }
 
     private var toolbar: some View {
@@ -109,7 +96,6 @@ struct PrimaryKeyEditorSheet: View {
                 dismiss()
                 cancelIfNew()
             }
-            .buttonStyle(.bordered)
             .keyboardShortcut(.cancelAction)
 
             Button("Save") {
@@ -120,27 +106,28 @@ struct PrimaryKeyEditorSheet: View {
             .disabled(!draft.canSave)
             .keyboardShortcut(.defaultAction)
         }
-        .padding(SpacingTokens.md)
+        .padding(.horizontal, SpacingTokens.md2)
+        .padding(.vertical, SpacingTokens.sm2)
+        .background(.bar)
     }
 
     struct Draft {
-        struct Column: Identifiable {
-            let id = UUID()
-            var name: String
-        }
+        typealias Column = ColumnSelectionList.Column
 
         var name: String
         var columns: [Column]
+        var isDeferrable: Bool
+        var isInitiallyDeferred: Bool
         let isEditingExisting: Bool
 
         init(model: TableStructureEditorViewModel.PrimaryKeyModel, availableColumns: [String]) {
             self.name = model.name
             self.columns = model.columns.map { .init(name: $0) }
+            self.isDeferrable = model.isDeferrable
+            self.isInitiallyDeferred = model.isInitiallyDeferred
             self.isEditingExisting = model.original != nil
 
-            if columns.isEmpty, let first = availableColumns.first {
-                self.columns = [.init(name: first)]
-            }
+            // New constraints start with no columns — user adds from the menu
         }
 
         var canSave: Bool {

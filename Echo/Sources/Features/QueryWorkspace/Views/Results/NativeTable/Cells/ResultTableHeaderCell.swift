@@ -15,7 +15,7 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
     }
 
     override func titleRect(forBounds rect: NSRect) -> NSRect {
-        var adjusted = rect.insetBy(dx: ResultsGridMetrics.horizontalPadding, dy: 0)
+        var adjusted = rect.insetBy(dx: ResultsGridMetrics.contentHorizontalPadding, dy: 0)
         if columnSensitivity != nil {
             adjusted.origin.x += ClassificationIndicatorMetrics.dotDiameter + ClassificationIndicatorMetrics.dotTrailingPadding
             adjusted.size.width -= ClassificationIndicatorMetrics.dotDiameter + ClassificationIndicatorMetrics.dotTrailingPadding
@@ -62,7 +62,7 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
     private func drawClassificationDot(sensitivity: ColumnSensitivity, in cellFrame: NSRect) {
         let color = ClassificationIndicatorMetrics.dotColor(for: sensitivity.effectiveRank)
         let diameter = ClassificationIndicatorMetrics.dotDiameter
-        let x = cellFrame.minX + ResultsGridMetrics.horizontalPadding
+        let x = cellFrame.minX + ResultsGridMetrics.contentHorizontalPadding
         let y = cellFrame.midY - diameter / 2
         let dotRect = NSRect(x: x, y: y, width: diameter, height: diameter)
         color.setFill()

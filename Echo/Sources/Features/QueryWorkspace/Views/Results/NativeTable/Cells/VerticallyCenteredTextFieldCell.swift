@@ -12,6 +12,8 @@ final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
             return cachedDrawingRect
         }
         var newRect = super.drawingRect(forBounds: rect)
+        newRect.origin.x = rect.minX
+        newRect.size.width = rect.width
         let textSize: NSSize
         if let measuredBounds = cachedMeasuredBounds, measuredBounds.equalTo(rect) {
             textSize = cachedMeasuredSize

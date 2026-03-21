@@ -181,7 +181,7 @@ final class ProjectMenuDelegate: NSObject {
 
         menu.addItem(.separator())
 
-        let manage = NSMenuItem(title: "Manage Projects\u{2026}", action: #selector(manageProjects(_:)), keyEquivalent: "")
+        let manage = NSMenuItem(title: "Manage Projects", action: #selector(manageProjects(_:)), keyEquivalent: "")
         manage.target = self
         manage.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         menu.addItem(manage)

@@ -9,7 +9,7 @@ extension BulkColumnEditorSheet {
 
             if needsCustomTypeField {
                 TableStructureSheetComponents.labeledRow(title: "Custom Data Type") {
-                    inlineField(text: $dataType, alignment: .trailing)
+                    inlineField(text: $dataType, alignment: .trailing, prompt: Text("e.g. int, varchar(255)"))
                 }
             }
         }
@@ -84,10 +84,10 @@ extension BulkColumnEditorSheet {
 
     var toolbar: some View {
         HStack(spacing: SpacingTokens.sm) {
+            Spacer()
+
             Button("Cancel") { onCancel() }
                 .keyboardShortcut(.cancelAction)
-
-            Spacer()
 
             Button("Apply") {
                 applyChanges()

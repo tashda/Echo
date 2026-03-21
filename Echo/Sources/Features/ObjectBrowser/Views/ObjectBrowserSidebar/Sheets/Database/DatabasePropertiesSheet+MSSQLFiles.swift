@@ -22,7 +22,7 @@ extension DatabasePropertiesSheet {
 
                     LabeledContent("Size") {
                         HStack(spacing: SpacingTokens.xs) {
-                            TextField("", value: fileSizeMBBinding(index: index), format: .number)
+                            TextField("", value: fileSizeMBBinding(index: index), format: .number, prompt: Text("100"))
                                 .frame(width: 80)
                                 .onSubmit {
                                     let newSize = fileSizeMBValues[index] ?? Int(file.sizeMB)
@@ -42,7 +42,7 @@ extension DatabasePropertiesSheet {
                             .frame(width: 110)
 
                             if currentFileMaxSizeType(index: index, file: file) == .mb {
-                                TextField("", value: fileMaxSizeMBBinding(index: index, file: file), format: .number)
+                                TextField("", value: fileMaxSizeMBBinding(index: index, file: file), format: .number, prompt: Text("-1 for unlimited"))
                                     .frame(width: 80)
                                     .onSubmit {
                                         let newMax = fileMaxSizeMBValues[index] ?? (file.maxSizeMB ?? 256)
@@ -64,7 +64,7 @@ extension DatabasePropertiesSheet {
                             .frame(width: 110)
 
                             if currentFileGrowthType(index: index, file: file) != .none {
-                                TextField("", value: fileGrowthValueBinding(index: index, file: file), format: .number)
+                                TextField("", value: fileGrowthValueBinding(index: index, file: file), format: .number, prompt: Text("10"))
                                     .frame(width: 80)
                                     .onSubmit {
                                         applyFileGrowthChange(index: index, file: file)

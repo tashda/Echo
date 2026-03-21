@@ -43,10 +43,10 @@ final class ResultTableDataCellView: NSTableCellView {
         textField = contentTextField
         textTrailingConstraint = contentTextField.trailingAnchor.constraint(
             equalTo: trailingAnchor,
-            constant: -ResultsGridMetrics.horizontalPadding
+            constant: -ResultsGridMetrics.contentHorizontalPadding
         )
         var constraints = [
-            contentTextField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ResultsGridMetrics.horizontalPadding),
+            contentTextField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ResultsGridMetrics.contentHorizontalPadding - 2),
             contentTextField.centerYAnchor.constraint(equalTo: centerYAnchor),
         ]
         if let textTrailingConstraint {
@@ -100,10 +100,10 @@ final class ResultTableDataCellView: NSTableCellView {
         guard isIconVisible != shouldShow else { return }
         isIconVisible = shouldShow
         if shouldShow {
-            textTrailingConstraint?.constant = -(ResultsGridMetrics.horizontalPadding + 18 + SpacingTokens.xxs2)
+            textTrailingConstraint?.constant = -(ResultsGridMetrics.contentHorizontalPadding + 18 + SpacingTokens.xxs2)
         } else {
             actionButton?.isHidden = true
-            textTrailingConstraint?.constant = -ResultsGridMetrics.horizontalPadding
+            textTrailingConstraint?.constant = -ResultsGridMetrics.contentHorizontalPadding
         }
     }
 
@@ -120,7 +120,7 @@ final class ResultTableDataCellView: NSTableCellView {
         button.translatesAutoresizingMaskIntoConstraints = false
         addSubview(button)
         NSLayoutConstraint.activate([
-            button.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ResultsGridMetrics.horizontalPadding),
+            button.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ResultsGridMetrics.contentHorizontalPadding),
             button.centerYAnchor.constraint(equalTo: centerYAnchor),
             button.widthAnchor.constraint(equalToConstant: 18),
             button.heightAnchor.constraint(equalToConstant: 16)
@@ -135,7 +135,7 @@ final class ResultTableDataCellView: NSTableCellView {
         if isIconVisible {
             isIconVisible = false
             actionButton?.isHidden = true
-            textTrailingConstraint?.constant = -ResultsGridMetrics.horizontalPadding
+            textTrailingConstraint?.constant = -ResultsGridMetrics.contentHorizontalPadding
         }
     }
 

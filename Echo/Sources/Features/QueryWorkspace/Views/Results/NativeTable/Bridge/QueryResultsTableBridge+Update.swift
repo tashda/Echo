@@ -26,6 +26,24 @@ extension QueryResultsTableView.Coordinator {
             isPerformingUpdatePass = false
         }
 
+        // Detect new query execution — schedule an immediate full reload so the
+        // table visually clears before streaming data arrives. Uses
+        // DispatchQueue.main.async (not Task) to avoid "modifying state during
+        // view update" and to run before streaming callbacks.
+        let isExecuting = parent.query.isExecuting
+        let executionJustStarted = isExecuting && !lastSeenExecuting
+        lastSeenExecuting = isExecuting
+        if executionJustStarted {
+            suppressRowsDuringClear = true
+            cachedDisplayedRows.clear()
+            requestedForeignKeyColumns.removeAll()
+            lastRowCount = 0
+            lastResultTokenSnapshot = 0
+            DispatchQueue.main.async { [weak tableView] in
+                tableView?.reloadData()
+            }
+        }
+
         let currentRowOrder = parent.rowOrder
         let currentRowCount = currentRowOrder.isEmpty ? parent.query.displayedRowCount : currentRowOrder.count
         let wasResizing = lastParentIsResizing
@@ -57,6 +75,9 @@ extension QueryResultsTableView.Coordinator {
         let hasPendingRowReloads = pendingRowReloadIndexes?.isEmpty == false
         let resizing = isSplitResizing || isResizingColumn
         let viewportContribution = !resizing && viewportChanged
+        if suppressRowsDuringClear, currentRowCount > 0 || tokenChanged || columnsChanged || sortChanged || rowOrderChanged || !isExecuting {
+            suppressRowsDuringClear = false
+        }
         // Palette changes are handled by a debounced task in applyPostUpdateActions,
         // so they don't need to trigger the main update/reload path.
         let requiresUpdate = columnsChanged

@@ -63,11 +63,11 @@ struct ConnectionsPopoverContent: View {
 
                 divider
 
-                PopoverActionRow(title: "Manage Connections\u{2026}") {
+                PopoverActionRow(title: "Manage Connections") {
                     ManageConnectionsWindowController.shared.present()
                     dismiss()
                 }
-                PopoverActionRow(title: "Quick Connect\u{2026}") {
+                PopoverActionRow(title: "Quick Connect") {
                     AppDirector.shared.appState.showSheet(.quickConnect)
                     dismiss()
                 }

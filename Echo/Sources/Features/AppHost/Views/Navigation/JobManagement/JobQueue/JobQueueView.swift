@@ -5,10 +5,18 @@ struct JobQueueView: View {
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppState.self) private var appState
     @Environment(ProjectStore.self) private var projectStore
+    @Environment(TabStore.self) private var tabStore
+    @Environment(ActivityEngine.self) private var activityEngine
 
     @State private var inspectorAutoOpened = false
     @State private var verticalFraction: CGFloat = 0.70
     @State private var horizontalFraction: CGFloat = 0.50
+    @State private var showNewJobSheet = false
+
+    /// Whether this view is hosted inside a tab (vs. a detached window).
+    private var hostTab: WorkspaceTab? {
+        tabStore.tabs.first { $0.jobQueue === viewModel }
+    }
 
     var body: some View {
         NativeSplitView(
@@ -23,7 +31,11 @@ struct JobQueueView: View {
                 secondMinFraction: 0.25,
                 fraction: $horizontalFraction
             ) {
-                JobListView(viewModel: viewModel, notificationEngine: environmentState.notificationEngine)
+                JobListView(
+                    viewModel: viewModel,
+                    notificationEngine: environmentState.notificationEngine,
+                    onNewJob: { showNewJobSheet = true }
+                )
             } second: {
                 JobDetailsView(
                     viewModel: viewModel,
@@ -33,7 +45,14 @@ struct JobQueueView: View {
         } second: {
             JobHistoryView(viewModel: viewModel)
         }
-        .task { await viewModel.loadInitial() }
+        .task {
+            viewModel.activityEngine = activityEngine
+            viewModel.notificationEngine = environmentState.notificationEngine
+            if let tab = hostTab {
+                viewModel.connectionSessionID = tab.connectionSessionID
+            }
+            await viewModel.loadInitial()
+        }
         .onChange(of: viewModel.selectedHistoryRowID) { _, _ in
             updateInspectorForHistorySelection()
         }
@@ -43,13 +62,29 @@ struct JobQueueView: View {
                 viewModel.selectedHistoryRowID = nil
             }
         }
+        .sheet(isPresented: $showNewJobSheet) {
+            if let session = connectionSession {
+                NewAgentJobSheet(session: session, environmentState: environmentState) {
+                    showNewJobSheet = false
+                    Task { await viewModel.reloadJobs() }
+                }
+            }
+        }
+    }
+
+    private var connectionSession: ConnectionSession? {
+        let sessionID = hostTab?.connectionSessionID ?? viewModel.connectionSessionID
+        guard let sessionID else { return nil }
+        return environmentState.sessionGroup.activeSessions.first { $0.id == sessionID }
     }
 
     private func updateInspectorForHistorySelection() {
+        let isInTab = hostTab != nil
+
         guard let row = viewModel.selectedHistoryRow else {
             environmentState.dataInspectorContent = nil
-            // Auto-close if we auto-opened it
-            if inspectorAutoOpened && appState.showInfoSidebar {
+            // Auto-close if we auto-opened it (only in tab context)
+            if isInTab && inspectorAutoOpened && appState.showInfoSidebar {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     appState.showInfoSidebar = false
                 }
@@ -83,8 +118,8 @@ struct JobQueueView: View {
             )
         )
 
-        // Auto-open inspector if the setting is enabled and it wasn't already open
-        if projectStore.globalSettings.autoOpenInspectorOnSelection && !appState.showInfoSidebar {
+        // Auto-open inspector if the setting is enabled (only in tab context)
+        if isInTab && projectStore.globalSettings.autoOpenInspectorOnSelection && !appState.showInfoSidebar {
             withAnimation(.easeInOut(duration: 0.2)) {
                 appState.showInfoSidebar = true
             }

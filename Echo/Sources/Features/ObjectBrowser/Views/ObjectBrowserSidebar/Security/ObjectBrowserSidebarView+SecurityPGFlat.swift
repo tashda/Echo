@@ -28,17 +28,20 @@ extension ObjectBrowserSidebarView {
             }
             .contextMenu {
                 Button {
+                    Task {
+                        let handle = AppDirector.shared.activityEngine.begin("Refreshing login roles", connectionSessionID: session.id)
+                        await loadServerSecurityAsync(session: session)
+                        handle.succeed()
+                    }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
                     viewModel.securityPGRoleSheetSessionID = connID
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
                 } label: {
-                    Label("New Login Role", systemImage: "plus")
-                }
-                Divider()
-                Button {
-                    loadServerSecurity(session: session)
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label("New Login Role", systemImage: "person.badge.plus")
                 }
             }
         }
@@ -75,17 +78,20 @@ extension ObjectBrowserSidebarView {
             }
             .contextMenu {
                 Button {
+                    Task {
+                        let handle = AppDirector.shared.activityEngine.begin("Refreshing group roles", connectionSessionID: session.id)
+                        await loadServerSecurityAsync(session: session)
+                        handle.succeed()
+                    }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
                     viewModel.securityPGRoleSheetSessionID = connID
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
                 } label: {
-                    Label("New Group Role", systemImage: "plus")
-                }
-                Divider()
-                Button {
-                    loadServerSecurity(session: session)
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label("New Group Role", systemImage: "person.2.badge.plus")
                 }
             }
         }

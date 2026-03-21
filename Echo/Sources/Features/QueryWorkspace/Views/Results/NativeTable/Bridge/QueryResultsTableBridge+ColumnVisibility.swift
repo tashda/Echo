@@ -54,8 +54,8 @@ extension QueryResultsTableView.Coordinator {
             guard !hidden.contains(index) else { continue }
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("data-\(column.id)"))
             tableColumn.title = column.name
-            tableColumn.minWidth = defaultWidth(for: column)
-            tableColumn.width = tableColumn.minWidth
+            tableColumn.minWidth = minimumWidth(for: column)
+            tableColumn.maxWidth = maximumWidth(for: column)
             tableColumn.isEditable = false
             tableColumn.resizingMask = [.userResizingMask]
             if !(tableColumn.headerCell is ResultTableHeaderCell) {
@@ -63,8 +63,11 @@ extension QueryResultsTableView.Coordinator {
             }
             tableColumn.headerCell.controlSize = .regular
             tableColumn.headerCell.alignment = .left
-            tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+            tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .medium)
             tableView.addTableColumn(tableColumn)
+            let visibleColumnIndex = tableView.tableColumns.count - 1
+            let measuredWidth = idealWidth(forVisibleColumnAt: visibleColumnIndex, in: tableView)
+            tableColumn.width = min(max(measuredWidth, tableColumn.minWidth), tableColumn.maxWidth)
         }
         applyHeaderStyle(to: tableView)
         cachedColumnIDs = allColumns.map(\.id)

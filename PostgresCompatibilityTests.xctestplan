@@ -1,0 +1,49 @@
+{
+  "configurations" : [
+    {
+      "id" : "1554180A-746C-4104-AC59-72B6EE4D3534",
+      "name" : "Postgres Compatibility Tests",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "selectedTests" : [
+        "PGActivityMonitorTests",
+        "PGColumnTests",
+        "PGConnectionTests",
+        "PGConstraintTests",
+        "PGDataTypeDateTimeTests",
+        "PGDataTypeNumericTests",
+        "PGDataTypeSpecialTests",
+        "PGDataTypeStringTests",
+        "PGExtensionTests",
+        "PGFunctionTests",
+        "PGIndexTests",
+        "PGMetadataTests",
+        "PGQueryTests",
+        "PGSchemaDiscoveryTests",
+        "PGSecurityTests",
+        "PGSequenceTests",
+        "PGStreamingSpoolTests",
+        "PGStreamingTests",
+        "PGTableOperationsTests",
+        "PGTransactionTests",
+        "PGTriggerTests",
+        "PGViewTests"
+      ],
+      "target" : {
+        "containerPath" : "container:Echo.xcodeproj",
+        "identifier" : "385E60BACCBA4F1A95FC14AF",
+        "name" : "EchoTests"
+      }
+    }
+  ],
+  "version" : 1
+}

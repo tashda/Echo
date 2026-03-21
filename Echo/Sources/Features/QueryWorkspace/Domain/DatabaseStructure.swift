@@ -88,17 +88,20 @@ public struct SchemaInfo: Sendable, Identifiable, Codable, Hashable {
     public nonisolated var functions: [SchemaObjectInfo] { objects.filter { $0.type == .function } }
     public nonisolated var triggers: [SchemaObjectInfo] { objects.filter { $0.type == .trigger } }
     public nonisolated var procedures: [SchemaObjectInfo] { objects.filter { $0.type == .procedure } }
+    public nonisolated var sequences: [SchemaObjectInfo] { objects.filter { $0.type == .sequence } }
+    public nonisolated var types: [SchemaObjectInfo] { objects.filter { $0.type == .type } }
+    public nonisolated var synonyms: [SchemaObjectInfo] { objects.filter { $0.type == .synonym } }
 }
 
 extension SchemaObjectInfo.ObjectType {
     nonisolated static func supported(for databaseType: DatabaseType) -> [SchemaObjectInfo.ObjectType] {
         switch databaseType {
         case .postgresql:
-            return [.table, .view, .materializedView, .function, .trigger, .extension]
+            return [.table, .view, .materializedView, .function, .procedure, .trigger, .sequence, .type, .extension]
         case .mysql:
             return [.table, .view, .function, .procedure, .trigger]
         case .microsoftSQL:
-            return [.table, .view, .function, .procedure, .trigger]
+            return [.table, .view, .function, .procedure, .trigger, .synonym]
         case .sqlite:
             return [.table, .view]
         }

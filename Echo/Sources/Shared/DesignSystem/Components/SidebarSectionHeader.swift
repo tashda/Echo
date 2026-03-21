@@ -35,7 +35,6 @@ public struct SidebarSectionHeader<Trailing: View>: View {
         .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.top, SpacingTokens.sm)
         .padding(.bottom, SpacingTokens.xxxs)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .contentShape(Rectangle())
     }

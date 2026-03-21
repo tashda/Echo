@@ -70,6 +70,22 @@ extension JobQueueViewModel {
                 activeStepInfo = nil
             }
 
+            // Clear manually-started tracking when that specific job is no longer running
+            if let startedName = manuallyStartedJobName, !runningNames.contains(startedName) {
+                // Check the latest history to determine success/failure
+                let lastOutcome = history.first(where: { $0.jobName == startedName && $0.stepId == 0 })?.status
+                let succeeded = lastOutcome == 1
+                if succeeded {
+                    notificationEngine?.post(.jobCompleted(name: startedName))
+                    manualStartHandle?.succeed()
+                } else {
+                    notificationEngine?.post(.jobFailed(name: startedName))
+                    manualStartHandle?.fail(startedName)
+                }
+                manuallyStartedJobName = nil
+                manualStartHandle = nil
+            }
+
             // When job finishes, do a full refresh
             if wasRunning && !isJobRunning {
                 activeStepInfo = nil

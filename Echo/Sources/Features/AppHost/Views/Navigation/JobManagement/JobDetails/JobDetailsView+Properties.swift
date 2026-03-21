@@ -15,7 +15,7 @@ extension JobDetailsView {
 
         return Form {
             Section("General") {
-                TextField("Name", text: boundProps.name)
+                TextField("Name", text: boundProps.name, prompt: Text("job_name"))
 
                 Toggle("Enabled", isOn: boundProps.enabled)
 
@@ -23,19 +23,30 @@ extension JobDetailsView {
                     TextField("", text: Binding(
                         get: { boundProps.wrappedValue.description ?? "" },
                         set: { boundProps.wrappedValue.description = $0 }
-                    ), axis: .vertical)
+                    ), prompt: Text("Job description"), axis: .vertical)
                     .lineLimit(1...3)
                     .multilineTextAlignment(.trailing)
                 }
             }
 
             Section("Ownership") {
-                LabeledContent("Owner") {
-                    TextField("", text: Binding(
+                if viewModel.logins.isEmpty {
+                    LabeledContent("Owner") {
+                        TextField("", text: Binding(
+                            get: { boundProps.wrappedValue.owner ?? "" },
+                            set: { boundProps.wrappedValue.owner = $0 }
+                        ), prompt: Text("sa"))
+                        .multilineTextAlignment(.trailing)
+                    }
+                } else {
+                    Picker("Owner", selection: Binding(
                         get: { boundProps.wrappedValue.owner ?? "" },
                         set: { boundProps.wrappedValue.owner = $0 }
-                    ))
-                    .multilineTextAlignment(.trailing)
+                    )) {
+                        ForEach(viewModel.logins, id: \.self) { login in
+                            Text(login).tag(login)
+                        }
+                    }
                 }
 
                 if viewModel.categories.isEmpty {
@@ -43,7 +54,7 @@ extension JobDetailsView {
                         TextField("", text: Binding(
                             get: { boundProps.wrappedValue.category ?? "" },
                             set: { boundProps.wrappedValue.category = $0 }
-                        ))
+                        ), prompt: Text("Maintenance"))
                         .multilineTextAlignment(.trailing)
                     }
                 } else {
@@ -72,31 +83,6 @@ extension JobDetailsView {
                         ForEach(viewModel.steps) { step in
                             Text("\(step.id). \(step.name)")
                                 .tag(step.id)
-                        }
-                    }
-                }
-
-                LabeledContent("Actions") {
-                    HStack(spacing: SpacingTokens.sm) {
-                        Button("Start Job") {
-                            Task {
-                                await viewModel.startSelectedJob()
-                                if viewModel.errorMessage == nil {
-                                    notificationEngine?.post(category: .jobStarted, message: "Job started")
-                                }
-                            }
-                        }
-                        .disabled(viewModel.isJobRunning)
-
-                        if viewModel.isJobRunning {
-                            Button("Stop Job") {
-                                Task {
-                                    await viewModel.stopSelectedJob()
-                                    if viewModel.errorMessage == nil {
-                                        notificationEngine?.post(category: .jobStopped, message: "Job stopped")
-                                    }
-                                }
-                            }
                         }
                     }
                 }

@@ -28,6 +28,12 @@ struct ForeignKeyEditorPresentation: Identifiable {
     let isNew: Bool
 }
 
+struct CheckConstraintEditorPresentation: Identifiable {
+    let id = UUID()
+    let constraintID: UUID
+    let isNew: Bool
+}
+
 struct BulkColumnEditorPresentation: Identifiable {
     enum Mode {
         case dataType

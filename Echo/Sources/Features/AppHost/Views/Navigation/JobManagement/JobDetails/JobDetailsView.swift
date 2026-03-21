@@ -8,33 +8,33 @@ struct JobDetailsView: View {
     @State var editingProps: JobQueueViewModel.PropertySheet?
 
     // Step editing
-    @State var newStepName = ""
-    @State var newStepSubsystem = "TSQL"
-    @State var newStepDatabase = ""
-    @State var newStepCommand = ""
+    @State var showAddStepSheet = false
+    @State var editingStep: JobQueueViewModel.StepRow?
     @State var selectedStepID: Int?
+    @State var showDeleteStepAlert = false
+    @State var pendingDeleteStepName: String?
 
     // Command editor sheet (item-based for reliable data passing)
     @State var commandEditorContext: CommandEditorContext?
 
     // Schedule editing
-    @State var newScheduleName = ""
-    @State var newScheduleEnabled = true
-    @State var newScheduleFrequency: ScheduleFrequency = .daily
-    @State var newScheduleInterval = 1
-    @State var newScheduleStartHour = 9
-    @State var newScheduleStartMinute = 0
-    @State var newScheduleWeekdays: Set<Int> = [2] // Monday
-    @State var newScheduleMonthDay = 1
-    @State var newScheduleStartDate = Date()
-    @State var newScheduleOneTimeDate = Date()
+    @State var showAddScheduleSheet = false
     @State var selectedScheduleID: Set<String> = []
+
+    enum DetailSection: String, CaseIterable, Identifiable {
+        case properties = "Properties"
+        case steps = "Steps"
+        case schedules = "Schedules"
+        case notifications = "Notifications"
+        var id: String { rawValue }
+    }
 
     // Notification editing
     @State var notifyOperator = ""
     @State var notifyLevel = 0 // 0=Never, 1=Success, 2=Failure, 3=Completion
     @State var notifyEventLogLevel = 0
     @State var notificationsLoaded = false
+    @State var showEditNotificationSheet = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -42,24 +42,33 @@ struct JobDetailsView: View {
                 Text("Details")
                     .font(TypographyTokens.prominent.weight(.semibold))
                 Spacer()
-                if viewModel.isLoadingDetails {
-                    ProgressView()
-                        .controlSize(.small)
-                }
             }
             .padding(.horizontal, SpacingTokens.md)
             .padding(.vertical, SpacingTokens.sm)
 
             if viewModel.properties != nil {
-                TabView {
-                    propertiesTab
-                        .tabItem { Label("Properties", systemImage: "info.circle") }
-                    stepsTab
-                        .tabItem { Label("Steps", systemImage: "list.number") }
-                    schedulesTab
-                        .tabItem { Label("Schedules", systemImage: "calendar") }
-                    notificationsTab
-                        .tabItem { Label("Notifications", systemImage: "bell") }
+                Picker("", selection: Binding(
+                    get: { DetailSection(rawValue: viewModel.selectedDetailSection) ?? .properties },
+                    set: { viewModel.selectedDetailSection = $0.rawValue }
+                )) {
+                    ForEach(DetailSection.allCases) { section in
+                        Text(section.rawValue).tag(section)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, SpacingTokens.xs)
+
+                Group {
+                    let currentSection = DetailSection(rawValue: viewModel.selectedDetailSection) ?? .properties
+                    switch currentSection {
+                    case .properties: propertiesTab
+                    case .steps: stepsTab
+                    case .schedules: schedulesTab
+                    case .notifications: notificationsTab
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.selectedJobID != nil {
@@ -104,8 +113,7 @@ struct JobDetailsView: View {
                     commandEditorContext = nil
                 }
             },
-            onUseCommand: { text in
-                newStepCommand = text
+            onUseCommand: { _ in
                 commandEditorContext = nil
             },
             onCancel: {

@@ -7,13 +7,16 @@ struct PostgresActivityOperations: View {
     let onCancel: (Int) -> Void
     var onDoubleClick: (() -> Void)?
 
+    @State private var showCancelAlert = false
+    @State private var pendingCancelPID: Int?
+
     var body: some View {
         if operations.isEmpty {
-            EmptyStatePlaceholder(
-                icon: "gearshape.arrow.triangle.2.circlepath",
-                title: "No Active Operations",
-                subtitle: "Long-running operations like VACUUM, ANALYZE, CREATE INDEX, and COPY will appear here with progress"
-            )
+            ContentUnavailableView {
+                Label("No Active Operations", systemImage: "gearshape.arrow.triangle.2.circlepath")
+            } description: {
+                Text("Long-running operations like VACUUM, ANALYZE, CREATE INDEX, and COPY will appear here with progress.")
+            }
         } else {
             operationsTable
         }
@@ -43,26 +46,39 @@ struct PostgresActivityOperations: View {
 
             TableColumn("Database") {
                 Text($0.databaseName ?? "\u{2014}")
-                    .font(TypographyTokens.Table.name)
-                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .font(TypographyTokens.Table.secondaryName)
+                    .foregroundStyle($0.databaseName == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
             }.width(min: 80, ideal: 100)
 
             TableColumn("Object") {
                 Text($0.relation ?? "\u{2014}")
-                    .font(TypographyTokens.Table.name)
-                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .font(TypographyTokens.Table.secondaryName)
+                    .foregroundStyle($0.relation == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
                     .lineLimit(1)
             }.width(min: 100, ideal: 160)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: PostgresOperationProgress.ID.self) { selection in
             if let id = selection.first, let op = operations.first(where: { $0.id == id }) {
-                Button("Cancel Operation") {
-                    onCancel(Int(op.pid))
+                Button(role: .destructive) {
+                    pendingCancelPID = Int(op.pid)
+                    showCancelAlert = true
+                } label: {
+                    Label("Cancel Operation", systemImage: "xmark.circle")
                 }
             }
         } primaryAction: { _ in
             onDoubleClick?()
+        }
+        .alert("Cancel Operation?", isPresented: $showCancelAlert) {
+            Button("Keep Running", role: .cancel) { pendingCancelPID = nil }
+            Button("Cancel Operation", role: .destructive) {
+                guard let pid = pendingCancelPID else { return }
+                pendingCancelPID = nil
+                onCancel(pid)
+            }
+        } message: {
+            Text("Are you sure you want to cancel this operation? Partial progress may be lost.")
         }
     }
 }

@@ -266,6 +266,12 @@ final class PGConstraintTests: PostgresDockerTestCase {
 
         try await execute("INSERT INTO public.\(tableName) DEFAULT VALUES")
         let result = try await query("SELECT status FROM public.\(tableName) WHERE id = 1")
-        XCTAssertEqual(result.rows[0][0], "active")
+        // pg_attrdef stores the SQL expression including quotes, so the
+        // value may be "'active'" (with SQL quotes) or "active".
+        let val = result.rows[0][0] ?? ""
+        XCTAssertTrue(
+            val == "active" || val == "'active'",
+            "Expected 'active' (possibly SQL-quoted), got: \(val)"
+        )
     }
 }

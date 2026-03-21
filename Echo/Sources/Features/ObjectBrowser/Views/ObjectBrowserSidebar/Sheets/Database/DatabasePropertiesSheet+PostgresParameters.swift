@@ -142,7 +142,7 @@ extension DatabasePropertiesSheet {
 
         case "integer", "real":
             HStack(spacing: SpacingTokens.xxs) {
-                TextField("", text: pgParamTextBinding(index: index, def: def))
+                TextField("", text: pgParamTextBinding(index: index, def: def), prompt: Text("value"))
                     .frame(width: 80)
                     .textFieldStyle(.roundedBorder)
                 if !def.unit.isEmpty {
@@ -153,7 +153,7 @@ extension DatabasePropertiesSheet {
             }
 
         default:
-            TextField("", text: pgParamTextBinding(index: index, def: def))
+            TextField("", text: pgParamTextBinding(index: index, def: def), prompt: Text("value"))
                 .frame(width: 140)
                 .textFieldStyle(.roundedBorder)
         }

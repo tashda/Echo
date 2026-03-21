@@ -21,7 +21,7 @@ struct MSSQLActivityFileIO: View {
 
             TableColumn("File", value: \.sortableFileName) {
                 Text($0.fileName ?? "File \($0.fileId)")
-                    .font(TypographyTokens.Table.name)
+                    .font(TypographyTokens.Table.secondaryName)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
             }.width(min: 80, ideal: 120)

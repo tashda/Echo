@@ -8,6 +8,21 @@ extension ObjectBrowserSidebarView {
     @ViewBuilder
     func objectGroupContextMenu(type: SchemaObjectInfo.ObjectType, database: DatabaseInfo, session: ConnectionSession) -> some View {
         let connID = session.connection.id
+
+        // Group 1: Refresh
+        Button {
+            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
+            Task {
+                let handle = AppDirector.shared.activityEngine.begin("Refreshing \(type.pluralDisplayName)", connectionSessionID: session.id)
+                await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
+                handle.succeed()
+                viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
+            }
+        } label: {
+            Label("Refresh", systemImage: "arrow.clockwise")
+        }
+
+        // Group 2: New
         let creationTitle = objectGroupCreationTitle(for: type)
         if let title = creationTitle {
             let item = creationOptions(for: session.connection.databaseType).first { $0.title == title }
@@ -15,25 +30,14 @@ extension ObjectBrowserSidebarView {
                 Button {
                     handleCreationAction(item, session: session, database: database)
                 } label: {
-                    Label(title, systemImage: "plus")
+                    Label(title, systemImage: objectGroupCreationIcon(for: type))
                 }
             } else {
                 Button {} label: {
-                    Label(title, systemImage: "plus")
+                    Label(title, systemImage: objectGroupCreationIcon(for: type))
                 }
                 .disabled(true)
             }
-            Divider()
-        }
-
-        Button {
-            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
-            Task {
-                await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
-                viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
-            }
-        } label: {
-            Label("Refresh", systemImage: "arrow.clockwise")
         }
     }
 
@@ -46,6 +50,24 @@ extension ObjectBrowserSidebarView {
         case .procedure: "New Procedure"
         case .trigger: "New Trigger"
         case .extension: "New Extension"
+        case .sequence: "New Sequence"
+        case .type: "New Type"
+        case .synonym: "New Synonym"
+        }
+    }
+
+    func objectGroupCreationIcon(for type: SchemaObjectInfo.ObjectType) -> String {
+        switch type {
+        case .table: "tablecells"
+        case .view: "eye"
+        case .materializedView: "eye"
+        case .function: "function"
+        case .procedure: "gearshape"
+        case .trigger: "bolt"
+        case .extension: "puzzlepiece.extension"
+        case .sequence: "number"
+        case .type: "t.square"
+        case .synonym: "arrow.triangle.swap"
         }
     }
 
@@ -53,21 +75,23 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     func databasesFolderContextMenu(session: ConnectionSession) -> some View {
+        // Group 1: Refresh
+        Button {
+            Task {
+                let handle = AppDirector.shared.activityEngine.begin("Refreshing databases", connectionSessionID: session.id)
+                await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
+                handle.succeed()
+            }
+        } label: {
+            Label("Refresh", systemImage: "arrow.clockwise")
+        }
+
+        // Group 2: New
         Button {
             viewModel.newDatabaseConnectionID = session.connection.id
             viewModel.showNewDatabaseSheet = true
         } label: {
-            Label("New Database", systemImage: "plus")
-        }
-
-        Divider()
-
-        Button {
-            Task {
-                await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
-            }
-        } label: {
-            Label("Refresh", systemImage: "arrow.clockwise")
+            Label("New Database", systemImage: "cylinder")
         }
     }
 
@@ -75,12 +99,36 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     func serverContextMenu(session: ConnectionSession) -> some View {
+        // Group 1: Refresh
+        Button {
+            Task {
+                let handle = AppDirector.shared.activityEngine.begin("Refreshing all databases", connectionSessionID: session.id)
+                await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
+                handle.succeed()
+            }
+        } label: {
+            Label("Refresh All", systemImage: "arrow.clockwise")
+        }
+
+        // Group 2: New
+        Button {
+            environmentState.openQueryTab(for: session)
+        } label: {
+            Label("New Query", systemImage: "doc.text")
+        }
+
+        Divider()
+
+        // Group 3: Open / View
         Button {
             environmentState.openActivityMonitorTab(connectionID: session.connection.id)
         } label: {
             Label("Activity Monitor", systemImage: "gauge.with.dots.needle.33percent")
         }
 
+        Divider()
+
+        // Group 7: Maintenance
         Button {
             environmentState.openMaintenanceTab(connectionID: session.connection.id)
         } label: {
@@ -117,23 +165,8 @@ extension ObjectBrowserSidebarView {
 
         Divider()
 
-        Button {
-            environmentState.openQueryTab(for: session)
-        } label: {
-            Label("New Query", systemImage: "doc.badge.plus")
-        }
-
-        Divider()
-
-        Button {
-            Task {
-                await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
-            }
-        } label: {
-            Label("Refresh All", systemImage: "arrow.clockwise")
-        }
-
-        Button {
+        // Group 10: Destructive
+        Button(role: .destructive) {
             Task {
                 await environmentState.disconnectSession(withID: session.id)
             }

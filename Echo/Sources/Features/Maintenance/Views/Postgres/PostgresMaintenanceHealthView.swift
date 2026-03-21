@@ -7,20 +7,17 @@ struct PostgresMaintenanceHealthView: View {
         if let health = viewModel.healthStats {
             healthContent(health)
         } else if viewModel.isLoadingHealth {
-            VStack(spacing: SpacingTokens.md) {
-                ProgressView()
-                    .controlSize(.large)
-                Text("Loading health data\u{2026}")
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            EmptyStatePlaceholder(
+            TabInitializingPlaceholder(
                 icon: "heart",
-                title: "Health Unavailable",
-                subtitle: "Could not load database health statistics"
+                title: "Loading Health Data",
+                subtitle: "Analyzing database health statistics\u{2026}"
             )
+        } else {
+            ContentUnavailableView {
+                Label("Health Unavailable", systemImage: "heart")
+            } description: {
+                Text("Could not load database health statistics.")
+            }
         }
     }
 

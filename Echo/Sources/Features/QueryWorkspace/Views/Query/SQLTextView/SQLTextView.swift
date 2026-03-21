@@ -26,6 +26,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()
     var completionController: SQLAutoCompletionController?
+    var lastCompletionResponse: SQLCompletionResponse?
     var isApplyingCompletion = false
     var suppressNextCompletionRefresh = false
     var manualCompletionSuppression = false
@@ -101,6 +102,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         isEditable = true; isSelectable = true; isRichText = false; isAutomaticQuoteSubstitutionEnabled = false; isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false; isAutomaticSpellingCorrectionEnabled = false; isGrammarCheckingEnabled = false
         usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: 10, height: 4); allowsUndo = true
+        usesFindBar = true; isIncrementalSearchingEnabled = true
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude); minSize = NSSize(width: 0, height: 320)
         isHorizontallyResizable = false; isVerticallyResizable = true; autoresizingMask = [.width]; wantsLayer = true; layer?.isOpaque = true
         if super.undoManager == nil { self.setValue(fallbackResponder.undoManagerInstance, forKey: "undoManager") }
@@ -138,11 +140,66 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         super.keyDown(with: event)
     }
 
-    override func performKeyEquivalent(with event: NSEvent) -> Bool { if handleCommandShortcut(event) { return true }; return super.performKeyEquivalent(with: event) }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if handleCommandShortcut(event) { return true }
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if modifiers == .command, event.charactersIgnoringModifiers == "l" { showGoToLinePanel(); return true }
+        return super.performKeyEquivalent(with: event)
+    }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
         suppressNextCompletionPopover = false; let trigger = determineCompletionTrigger(for: string); super.insertText(string, replacementRange: replacementRange)
         handleCompletionTrigger(trigger, insertedText: (string as? String) ?? (string as? NSAttributedString)?.string ?? "")
+    }
+
+    override func deleteBackward(_ sender: Any?) {
+        super.deleteBackward(sender)
+        schedulePostDeletionRefresh()
+    }
+
+    override func deleteForward(_ sender: Any?) {
+        super.deleteForward(sender)
+        schedulePostDeletionRefresh()
+    }
+
+    var deletionRefreshWorkItem: DispatchWorkItem?
+
+    private func schedulePostDeletionRefresh() {
+        deletionRefreshWorkItem?.cancel()
+
+        let caretLocation = selectedRange().location
+        guard caretLocation != NSNotFound else { return }
+        let nsString = string as NSString
+        guard caretLocation <= nsString.length else { return }
+
+        // After a dot → immediate (e.g., deleted "Customer" from "Sales.Customer" → now "Sales.")
+        if caretLocation > 0 {
+            let charBefore = nsString.character(at: caretLocation - 1)
+            if charBefore == UnicodeScalar(".").value {
+                deactivateManualCompletionSuppression()
+                refreshCompletions(immediate: true)
+                return
+            }
+        }
+
+        // After a keyword space → immediate (e.g., deleted table name from "FROM users" → now "FROM ")
+        if shouldTriggerAfterKeywordSpace() {
+            deactivateManualCompletionSuppression()
+            refreshCompletions(immediate: true)
+            return
+        }
+
+        // Otherwise → debounced refresh (200ms) for general context re-evaluation
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.deletionRefreshWorkItem = nil
+            if self.isCompletionVisible {
+                self.deactivateManualCompletionSuppression()
+                self.refreshCompletions(immediate: true)
+            }
+        }
+        deletionRefreshWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: workItem)
     }
 
     override func resignFirstResponder() -> Bool { hideCompletions(); return super.resignFirstResponder() }
@@ -154,7 +211,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     override func didChangeText() {
         super.didChangeText(); sqlDelegate?.sqlTextView(self, didUpdateText: string); lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         notifySelectionChanged(); scheduleHighlighting()
-        if !isApplyingCompletion { if suppressNextCompletionRefresh { suppressNextCompletionRefresh = false } else if isCompletionVisible { refreshCompletions() } else { hideCompletions() } }
+        if !isApplyingCompletion { deactivateManualCompletionSuppression(); if suppressNextCompletionRefresh { suppressNextCompletionRefresh = false } else if isCompletionVisible { refreshCompletions() } else { hideCompletions() } }
         updateCompletionIndicator()
     }
 

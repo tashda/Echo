@@ -118,6 +118,16 @@ private struct WorkspaceBody: View {
         } message: {
             Text("All active connections will be closed.")
         }
+        .alert("Unsaved Changes", isPresented: Bindable(tabStore).showPendingChangesAlert) {
+            Button("Cancel", role: .cancel) {
+                tabStore.cancelCloseTabWithPendingChanges()
+            }
+            Button("Discard Changes", role: .destructive) {
+                tabStore.confirmCloseTabWithPendingChanges()
+            }
+        } message: {
+            Text("This tab has pending structure changes that haven't been applied. Are you sure you want to close it?")
+        }
     }
 
     @ViewBuilder

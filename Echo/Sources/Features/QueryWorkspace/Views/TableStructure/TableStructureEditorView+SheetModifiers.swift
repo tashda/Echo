@@ -9,6 +9,7 @@ extension TableStructureEditorView {
                     IndexEditorSheet(
                         index: binding,
                         availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
+                        databaseType: tab.connection.databaseType,
                         onDelete: {
                             viewModel.removeIndex(binding.wrappedValue)
                             activeIndexEditor = nil
@@ -45,6 +46,7 @@ extension TableStructureEditorView {
                     PrimaryKeyEditorSheet(
                         primaryKey: binding,
                         availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
+                        databaseType: tab.connection.databaseType,
                         onDelete: {
                             viewModel.removePrimaryKey()
                             activePrimaryKeyEditor = nil
@@ -63,6 +65,7 @@ extension TableStructureEditorView {
                     UniqueConstraintEditorSheet(
                         constraint: binding,
                         availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
+                        databaseType: tab.connection.databaseType,
                         onDelete: {
                             viewModel.removeUniqueConstraint(binding.wrappedValue)
                             activeUniqueConstraintEditor = nil
@@ -81,6 +84,8 @@ extension TableStructureEditorView {
                     ForeignKeyEditorSheet(
                         foreignKey: binding,
                         availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
+                        databaseType: tab.connection.databaseType,
+                        session: viewModel.session,
                         onDelete: {
                             viewModel.removeForeignKey(binding.wrappedValue)
                             activeForeignKeyEditor = nil
@@ -93,6 +98,26 @@ extension TableStructureEditorView {
                         }
                     )
                 }
+            }
+            .sheet(item: $activeCheckConstraintEditor) { presentation in
+                if let binding = checkConstraintBinding(for: presentation.constraintID) {
+                    CheckConstraintEditorSheet(
+                        constraint: binding,
+                        onDelete: {
+                            viewModel.removeCheckConstraint(binding.wrappedValue)
+                            activeCheckConstraintEditor = nil
+                        },
+                        onCancelNew: {
+                            if binding.wrappedValue.isNew {
+                                viewModel.removeCheckConstraint(binding.wrappedValue)
+                            }
+                            activeCheckConstraintEditor = nil
+                        }
+                    )
+                }
+            }
+            .sheet(isPresented: $showScriptPreview) {
+                ScriptPreviewSheet(statements: viewModel.generateStatements())
             }
             .sheet(item: $bulkColumnEditor) { presentation in
                 BulkColumnEditorSheet(

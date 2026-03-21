@@ -4,11 +4,13 @@ import SwiftUI
 
 final class ResultTableRowNumberView: NSView {
     override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { true }
 
     private var rowCount: Int = 0
+    private var reservedCount: Int = 0
     private var digitWidth: CGFloat = 0
-    private let leadingPadding: CGFloat = SpacingTokens.xxs
-    private let trailingPadding: CGFloat = SpacingTokens.xs
+    private let leadingPadding = ResultsGridMetrics.rowNumberLeadingPadding
+    private let trailingPadding = ResultsGridMetrics.rowNumberTrailingPadding
     private let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
     private let textColor = NSColor(ColorTokens.Text.tertiary)
     private var drawAttributes: [NSAttributedString.Key: Any] = [:]
@@ -20,6 +22,12 @@ final class ResultTableRowNumberView: NSView {
     var onRowSelect: ((Int) -> Void)?
     /// Called when the user extends selection by dragging. Passes the row index.
     var onRowExtendSelect: ((Int) -> Void)?
+    /// Called on every drag event so the coordinator can drive autoscroll.
+    var onRowDragEvent: ((NSEvent) -> Void)?
+    /// Called when a row-number drag ends.
+    var onRowDragEnded: (() -> Void)?
+    /// Called when the user opens a context menu on a row number.
+    var onRowContextMenu: ((Int) -> NSMenu?)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -65,9 +73,10 @@ final class ResultTableRowNumberView: NSView {
         needsDisplay = true
     }
 
-    func update(rowCount: Int) {
-        guard self.rowCount != rowCount else { return }
+    func update(rowCount: Int, reservedCount: Int) {
+        guard self.rowCount != rowCount || self.reservedCount != reservedCount else { return }
         self.rowCount = rowCount
+        self.reservedCount = max(reservedCount, rowCount)
         digitWidth = computeWidth()
         needsDisplay = true
     }
@@ -77,8 +86,12 @@ final class ResultTableRowNumberView: NSView {
     }
 
     private func computeWidth() -> CGFloat {
-        guard rowCount > 0 else { return 0 }
-        let maxLabel = "\(rowCount)" as NSString
+        let effectiveCount = max(reservedCount, rowCount)
+        let digitCount = max(
+            ResultsGridMetrics.minimumRowNumberDigits,
+            max(1, "\(effectiveCount)".count)
+        )
+        let maxLabel = String(repeating: "8", count: digitCount) as NSString
         let size = maxLabel.size(withAttributes: drawAttributes)
         return ceil(size.width) + leadingPadding + trailingPadding
     }
@@ -97,8 +110,9 @@ final class ResultTableRowNumberView: NSView {
     private func rowIndex(at point: NSPoint) -> Int? {
         guard let tableView else { return nil }
         guard point.y >= contentAreaTop else { return nil }
-        let tablePoint = convert(point, to: tableView)
-        let row = tableView.row(at: tablePoint)
+        let converted = convert(point, to: tableView)
+        let probeX = max(tableView.visibleRect.minX + 1, 1)
+        let row = tableView.row(at: NSPoint(x: probeX, y: converted.y))
         guard row >= 0, row < rowCount else { return nil }
         return row
     }
@@ -106,15 +120,31 @@ final class ResultTableRowNumberView: NSView {
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         if let row = rowIndex(at: point) {
+            window?.makeFirstResponder(self)
             onRowSelect?(row)
         }
     }
 
     override func mouseDragged(with event: NSEvent) {
+        onRowDragEvent?(event)
         let point = convert(event.locationInWindow, from: nil)
         if let row = rowIndex(at: point) {
             onRowExtendSelect?(row)
         }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        onRowDragEnded?()
+        super.mouseUp(with: event)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        guard let row = rowIndex(at: point), let menu = onRowContextMenu?(row) else {
+            super.rightMouseDown(with: event)
+            return
+        }
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
     }
 
     // MARK: - Drawing
@@ -147,21 +177,19 @@ final class ResultTableRowNumberView: NSView {
             return
         }
 
-        let rowHeight = tableView.rowHeight
-        let centeringOffset = (rowHeight - font.ascender + font.descender) / 2
-
         for row in firstRow...lastRow {
             let rowRect = tableView.rect(ofRow: row)
             let convertedOrigin = tableView.convert(rowRect.origin, to: self)
-            let y = convertedOrigin.y
-            guard y + rowHeight >= dirtyRect.minY, y <= dirtyRect.maxY else { continue }
+            let convertedRowRect = NSRect(x: 0, y: convertedOrigin.y, width: bounds.width, height: rowRect.height)
+            guard convertedRowRect.maxY >= dirtyRect.minY, convertedRowRect.minY <= dirtyRect.maxY else { continue }
+            let label = "\(row + 1)" as NSString
+            let textSize = label.size(withAttributes: drawAttributes)
             let textRect = NSRect(
                 x: leadingPadding,
-                y: y + centeringOffset,
+                y: floor(convertedRowRect.midY - textSize.height / 2),
                 width: bounds.width - leadingPadding - trailingPadding,
-                height: rowHeight
+                height: textSize.height
             )
-            let label = "\(row + 1)" as NSString
             label.draw(in: textRect, withAttributes: drawAttributes)
         }
 

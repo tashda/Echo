@@ -5,9 +5,15 @@ struct ExecutionPlanView: View {
     @State private var selectedTab: PlanTab = .flow
     @State private var selectedNodeID: Int?
 
+    /// Whether this plan contains MSSQL ShowPlanXML or Postgres text output.
+    var isXMLPlan: Bool {
+        guard let raw = plan.xml else { return false }
+        return raw.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<")
+    }
+
     enum PlanTab: Hashable {
         case flow
-        case xml
+        case rawPlan
         case missingIndexes
     }
 
@@ -23,7 +29,9 @@ struct ExecutionPlanView: View {
         HStack(spacing: SpacingTokens.sm) {
             Picker("View", selection: $selectedTab) {
                 Text("Execution Plan").tag(PlanTab.flow)
-                Text("XML").tag(PlanTab.xml)
+                if plan.xml != nil {
+                    Text(isXMLPlan ? "XML" : "Raw Plan").tag(PlanTab.rawPlan)
+                }
                 if !plan.missingIndexes.isEmpty {
                     Text("Missing Indexes (\(plan.missingIndexes.count))").tag(PlanTab.missingIndexes)
                 }
@@ -49,8 +57,8 @@ struct ExecutionPlanView: View {
         switch selectedTab {
         case .flow:
             flowView
-        case .xml:
-            xmlView
+        case .rawPlan:
+            rawPlanView
         case .missingIndexes:
             missingIndexesView
         }
@@ -95,9 +103,9 @@ struct ExecutionPlanView: View {
         .background(ColorTokens.Background.secondary)
     }
 
-    private var xmlView: some View {
+    private var rawPlanView: some View {
         ScrollView {
-            Text(plan.xml ?? "No XML available")
+            Text(plan.xml ?? "No plan output available")
                 .font(TypographyTokens.detail.monospaced())
                 .textSelection(.enabled)
                 .padding(SpacingTokens.sm)

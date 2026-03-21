@@ -35,11 +35,27 @@ struct BookmarkRow: View {
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onTapGesture(perform: onOpen)
         .contextMenu {
-            Button("Open in New Tab", systemImage: "arrow.up.right.square", action: onOpen)
-            Button("Copy", systemImage: "doc.on.doc", action: onCopy)
-            Button("Rename", systemImage: "pencil", action: beginRenaming)
+            // Group 3: Open
+            Button(action: onOpen) {
+                Label("Open in New Tab", systemImage: "arrow.up.right.square")
+            }
+
+            // Group 4: Edit
+            Button(action: beginRenaming) {
+                Label("Rename", systemImage: "character.cursor.ibeam")
+            }
+
+            // Group 5: Copy
+            Button(action: onCopy) {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+
             Divider()
-            Button("Delete Bookmark", systemImage: "trash", role: .destructive, action: onDelete)
+
+            // Group 10: Destructive
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete Bookmark", systemImage: "trash")
+            }
         }
         .onHover { isHovering = $0 }
         .popover(isPresented: Binding(get: { isInfoPresented }, set: { activePopoverID = $0 ? bookmark.id : nil }), arrowEdge: .leading) { popoverContent.frame(width: 420) }
@@ -57,7 +73,7 @@ struct BookmarkRow: View {
                 TextField("Bookmark title", text: $renameText, onCommit: commitRename).textFieldStyle(.plain).font(TypographyTokens.subheadline.weight(.semibold)).foregroundStyle(ColorTokens.Text.primary).lineLimit(1).focused($renameFieldFocused).onAppear { renameText = currentTitleSeed; Task { renameFieldFocused = true } }.onChange(of: renameFieldFocused) { _, f in if !f { commitRename() } }
             } else { Text(bookmark.primaryLine).font(TypographyTokens.subheadline.weight(.semibold)).foregroundStyle(ColorTokens.Text.primary).lineLimit(1) }
             Spacer(minLength: 0); Text(bookmark.createdAt.formatted(date: .abbreviated, time: .shortened)).font(TypographyTokens.caption2).foregroundStyle(ColorTokens.Text.secondary).opacity(isRenaming ? 0 : 1)
-            if !isRenaming { Button { toggleInfoPopover() } label: { Image(systemName: "info.circle").font(TypographyTokens.standard.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary) }.buttonStyle(.plain) }
+            if !isRenaming { Button { toggleInfoPopover() } label: { Image(systemName: "info.circle").font(TypographyTokens.standard.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary) }.buttonStyle(.plain).accessibilityLabel("Show info") }
         }
     }
 

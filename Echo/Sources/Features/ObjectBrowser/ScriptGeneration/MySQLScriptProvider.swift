@@ -24,7 +24,7 @@ struct MySQLScriptProvider: DatabaseScriptProvider {
             actions.append(.selectLimited(1000))
         case .function, .procedure:
             actions.append(.execute)
-        case .trigger, .extension:
+        case .trigger, .extension, .sequence, .type, .synonym:
             break
         }
         return actions
@@ -70,6 +70,8 @@ struct MySQLScriptProvider: DatabaseScriptProvider {
         case .materializedView:
             return "-- Materialized views are not supported in MySQL."
         case .extension:
+            return nil
+        case .sequence, .type, .synonym:
             return nil
         }
     }

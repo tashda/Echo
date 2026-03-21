@@ -58,11 +58,15 @@ extension SQLServerSessionAdapter {
     }
 
     func dropTable(schema: String?, name: String, ifExists: Bool) async throws {
-        try await client.admin.dropTable(
-            name: name,
-            schema: schema ?? "dbo",
-            database: database
-        )
+        if ifExists {
+            _ = try await simpleQuery("IF OBJECT_ID('[\(schema ?? "dbo")].[\(name)]', 'U') IS NOT NULL DROP TABLE [\(schema ?? "dbo")].[\(name)]")
+        } else {
+            try await client.admin.dropTable(
+                name: name,
+                schema: schema ?? "dbo",
+                database: database
+            )
+        }
     }
 
     func truncateTable(schema: String?, name: String) async throws {
@@ -90,177 +94,173 @@ extension SQLServerSessionAdapter {
             }
         }
 
-        let (connection, stream) = try await client.streamQuery(sql)
+        return try await client.withConnection { [self] connection in
+            let stream = connection.streamQuery(sql)
 
-        // Track which result set we're on (0 = primary, 1+ = additional)
-        var resultSetIndex = -1
+            // Track which result set we're on (0 = primary, 1+ = additional)
+            var resultSetIndex = -1
 
-        // Primary result set state (streamed progressively)
-        var primaryColumns: [ColumnInfo] = []
-        var primaryPreviewRows: [[String?]] = []
-        primaryPreviewRows.reserveCapacity(initialPreviewBatch)
-        var primaryRowCount = 0
-        var worker: ResultStreamBatchWorker?
-        var pendingPayloads: [ResultStreamBatchWorker.Payload] = []
-        pendingPayloads.reserveCapacity(batchEnqueueSize)
-        var firstRowLogged = false
+            // Primary result set state (streamed progressively)
+            var primaryColumns: [ColumnInfo] = []
+            var primaryPreviewRows: [[String?]] = []
+            primaryPreviewRows.reserveCapacity(initialPreviewBatch)
+            var primaryRowCount = 0
+            var worker: ResultStreamBatchWorker?
+            var pendingPayloads: [ResultStreamBatchWorker.Payload] = []
+            pendingPayloads.reserveCapacity(batchEnqueueSize)
+            var firstRowLogged = false
 
-        // Additional result sets (accumulated, not streamed)
-        var additionalResults: [QueryResultSet] = []
-        var currentAdditionalColumns: [ColumnInfo] = []
-        var currentAdditionalRows: [[String?]] = []
+            // Additional result sets (accumulated, not streamed)
+            var additionalResults: [QueryResultSet] = []
+            var currentAdditionalColumns: [ColumnInfo] = []
+            var currentAdditionalRows: [[String?]] = []
 
-        var errorMessage: SQLServerStreamMessage?
-        var infoMessages: [SQLServerStreamMessage] = []
+            var errorMessage: SQLServerStreamMessage?
+            var infoMessages: [SQLServerStreamMessage] = []
 
-        for try await event in stream {
-            if Task.isCancelled {
-                throw CancellationError()
-            }
+            for try await event in stream {
+                try Task.checkCancellation()
 
-            switch event {
-            case .metadata(let columnDescriptions):
-                // Finalize previous additional result set if in progress
-                if resultSetIndex > 0 && !currentAdditionalColumns.isEmpty {
-                    additionalResults.append(QueryResultSet(
-                        columns: currentAdditionalColumns,
-                        rows: currentAdditionalRows,
-                        totalRowCount: currentAdditionalRows.count
-                    ))
-                }
-
-                resultSetIndex += 1
-                let columns = columnDescriptions.map { col in
-                    ColumnInfo(
-                        name: col.name,
-                        dataType: col.type.name,
-                        isPrimaryKey: false,
-                        isNullable: (col.flags & 0x01) != 0,
-                        maxLength: col.length > 0 ? col.length : nil
-                    )
-                }
-
-                if resultSetIndex == 0 {
-                    primaryColumns = columns
-                    worker = ResultStreamBatchWorker(
-                        label: "dk.tippr.echo.mssql.streamWorker",
-                        columns: columns,
-                        streamingPreviewLimit: initialPreviewBatch,
-                        maxFlushLatency: maxFlushLatency,
-                        operationStart: operationStart,
-                        progressHandler: bridgedHandler
-                    )
-                } else {
-                    currentAdditionalColumns = columns
-                    currentAdditionalRows = []
-                }
-
-            case .row(let row):
-                let stringValues = row.values.map { value -> String? in
-                    value.isNull ? nil : value.description
-                }
-
-                if resultSetIndex == 0 {
-                    primaryRowCount += 1
-
-                    if primaryRowCount <= initialPreviewBatch {
-                        primaryPreviewRows.append(stringValues)
-                        pendingPayloads.append(ResultStreamBatchWorker.Payload(
-                            previewValues: stringValues,
-                            storage: .stringValues(stringValues),
-                            totalRowCount: primaryRowCount,
-                            decodeDuration: 0
+                switch event {
+                case .metadata(let columnDescriptions):
+                    if resultSetIndex > 0 && !currentAdditionalColumns.isEmpty {
+                        additionalResults.append(QueryResultSet(
+                            columns: currentAdditionalColumns,
+                            rows: currentAdditionalRows,
+                            totalRowCount: currentAdditionalRows.count
                         ))
+                    }
+
+                    resultSetIndex += 1
+                    let columns = columnDescriptions.map { col in
+                        ColumnInfo(
+                            name: col.name,
+                            dataType: col.typeName,
+                            isPrimaryKey: false,
+                            isNullable: (col.flags & 0x01) != 0,
+                            maxLength: col.length > 0 ? col.length : nil
+                        )
+                    }
+
+                    if resultSetIndex == 0 {
+                        primaryColumns = columns
+                        worker = ResultStreamBatchWorker(
+                            label: "dk.tippr.echo.mssql.streamWorker",
+                            columns: columns,
+                            streamingPreviewLimit: initialPreviewBatch,
+                            maxFlushLatency: maxFlushLatency,
+                            operationStart: operationStart,
+                            progressHandler: bridgedHandler
+                        )
                     } else {
-                        pendingPayloads.append(ResultStreamBatchWorker.Payload(
-                            previewValues: nil,
-                            storage: .stringValues(stringValues),
-                            totalRowCount: primaryRowCount,
-                            decodeDuration: 0
-                        ))
+                        currentAdditionalColumns = columns
+                        currentAdditionalRows = []
                     }
 
-                    if pendingPayloads.count >= batchEnqueueSize {
-                        worker?.enqueueBatch(pendingPayloads)
-                        pendingPayloads.removeAll(keepingCapacity: true)
+                case .row(let row):
+                    let stringValues = row.values.map { value -> String? in
+                        value.isNull ? nil : value.description
                     }
 
-                    if !firstRowLogged {
-                        firstRowLogged = true
-                        let latency = CFAbsoluteTimeGetCurrent() - operationStart
-                        logger.debug("[MSSQLStream] first-row latency=\(String(format: "%.3f", latency))s")
+                    if resultSetIndex == 0 {
+                        primaryRowCount += 1
+
+                        if primaryRowCount <= initialPreviewBatch {
+                            primaryPreviewRows.append(stringValues)
+                            pendingPayloads.append(ResultStreamBatchWorker.Payload(
+                                previewValues: stringValues,
+                                storage: .stringValues(stringValues),
+                                totalRowCount: primaryRowCount,
+                                decodeDuration: 0
+                            ))
+                        } else {
+                            pendingPayloads.append(ResultStreamBatchWorker.Payload(
+                                previewValues: nil,
+                                storage: .stringValues(stringValues),
+                                totalRowCount: primaryRowCount,
+                                decodeDuration: 0
+                            ))
+                        }
+
+                        if pendingPayloads.count >= batchEnqueueSize {
+                            worker?.enqueueBatch(pendingPayloads)
+                            pendingPayloads.removeAll(keepingCapacity: true)
+                        }
+
+                        if !firstRowLogged {
+                            firstRowLogged = true
+                            let latency = CFAbsoluteTimeGetCurrent() - operationStart
+                            self.logger.debug("[MSSQLStream] first-row latency=\(String(format: "%.3f", latency))s")
+                        }
+                    } else {
+                        currentAdditionalRows.append(stringValues)
                     }
-                } else {
-                    currentAdditionalRows.append(stringValues)
-                }
 
-            case .message(let msg):
-                if msg.kind == .error {
-                    errorMessage = msg
-                } else {
-                    infoMessages.append(msg)
-                }
-
-            case .done:
-                break
-            }
-        }
-
-        // Finalize last additional result set if any
-        if resultSetIndex > 0 && !currentAdditionalColumns.isEmpty {
-            additionalResults.append(QueryResultSet(
-                columns: currentAdditionalColumns,
-                rows: currentAdditionalRows,
-                totalRowCount: currentAdditionalRows.count
-            ))
-        }
-
-        if let err = errorMessage {
-            throw DatabaseError.queryError(err.message)
-        }
-
-        if !pendingPayloads.isEmpty {
-            worker?.enqueueBatch(pendingPayloads)
-        }
-
-        if let worker {
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                worker.finish(totalRowCount: primaryRowCount) {
-                    Task { @MainActor in
-                        continuation.resume()
+                case .message(let msg):
+                    if msg.kind == .error {
+                        errorMessage = msg
+                    } else {
+                        infoMessages.append(msg)
                     }
+
+                case .done:
+                    break
                 }
             }
-        }
 
-        // Extract sensitivity classification from the connection after streaming
-        let classification = extractClassification(from: connection, columnCount: primaryColumns.count)
+            if resultSetIndex > 0 && !currentAdditionalColumns.isEmpty {
+                additionalResults.append(QueryResultSet(
+                    columns: currentAdditionalColumns,
+                    rows: currentAdditionalRows,
+                    totalRowCount: currentAdditionalRows.count
+                ))
+            }
 
-        let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
-        logger.debug("[MSSQLStream] completed sets=\(resultSetIndex + 1) primaryRows=\(primaryRowCount) additionalSets=\(additionalResults.count) elapsed=\(String(format: "%.3f", totalElapsed))s")
+            if let err = errorMessage {
+                throw DatabaseError.queryError(err.message)
+            }
 
-        let resolvedColumns = primaryColumns.isEmpty
-            ? [ColumnInfo(name: "result", dataType: "text")]
-            : primaryColumns
+            if !pendingPayloads.isEmpty {
+                worker?.enqueueBatch(pendingPayloads)
+            }
 
-        let serverMessages = infoMessages.map { msg in
-            ServerMessage(
-                kind: .info,
-                number: msg.number,
-                message: msg.message,
-                state: msg.state,
-                severity: msg.severity
+            if let worker {
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    worker.finish(totalRowCount: primaryRowCount) {
+                        Task { @MainActor in
+                            continuation.resume()
+                        }
+                    }
+                }
+            }
+
+            let classification = self.extractClassification(from: connection, columnCount: primaryColumns.count)
+            let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
+            self.logger.debug("[MSSQLStream] completed sets=\(resultSetIndex + 1) primaryRows=\(primaryRowCount) additionalSets=\(additionalResults.count) elapsed=\(String(format: "%.3f", totalElapsed))s")
+
+            let resolvedColumns = primaryColumns.isEmpty
+                ? [ColumnInfo(name: "result", dataType: "text")]
+                : primaryColumns
+
+            let serverMessages = infoMessages.map { msg in
+                ServerMessage(
+                    kind: .info,
+                    number: msg.number,
+                    message: msg.message,
+                    state: msg.state,
+                    severity: msg.severity
+                )
+            }
+
+            return QueryResultSet(
+                columns: resolvedColumns,
+                rows: primaryPreviewRows,
+                totalRowCount: primaryRowCount,
+                additionalResults: additionalResults,
+                dataClassification: classification,
+                serverMessages: serverMessages
             )
         }
-
-        return QueryResultSet(
-            columns: resolvedColumns,
-            rows: primaryPreviewRows,
-            totalRowCount: primaryRowCount,
-            additionalResults: additionalResults,
-            dataClassification: classification,
-            serverMessages: serverMessages
-        )
     }
 
     // MARK: - Classification Extraction
