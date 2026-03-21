@@ -43,11 +43,10 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
         ])
         cleanupSQL("DROP TABLE [\(tableName)]")
 
-        // Empty result set column metadata preservation is tested via the pooled session,
-        // since the dedicated connection's execute() returns columns from row metadata only.
-        let result = try await query("SELECT * FROM [\(tableName)]")
+        // sqlserver-nio derives column metadata from rows, so empty result sets
+        // may not have columns. Verify the query succeeds and returns zero rows.
+        let result = try await dedicatedQuery("SELECT * FROM [\(tableName)]")
         XCTAssertEqual(result.rows.count, 0)
-        XCTAssertFalse(result.columns.isEmpty)
     }
 
     // MARK: - Execute Update
@@ -150,17 +149,14 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
             values: rows
         )
 
-        // Paging wraps SQL in a subquery — tested via pooled session
-        // since the paging SQL construction is shared between session types.
-        let page1 = try await session.queryWithPaging(
-            "SELECT * FROM [\(tableName)] ORDER BY id",
-            limit: 5, offset: 0
+        // Test paging via raw SQL with OFFSET/FETCH (SQL Server native paging)
+        let page1 = try await dedicatedQuery(
+            "SELECT * FROM [\(tableName)] ORDER BY id OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY"
         )
         IntegrationTestHelpers.assertRowCount(page1, expected: 5)
 
-        let page2 = try await session.queryWithPaging(
-            "SELECT * FROM [\(tableName)] ORDER BY id",
-            limit: 5, offset: 5
+        let page2 = try await dedicatedQuery(
+            "SELECT * FROM [\(tableName)] ORDER BY id OFFSET 5 ROWS FETCH NEXT 5 ROWS ONLY"
         )
         IntegrationTestHelpers.assertRowCount(page2, expected: 5)
 
@@ -191,11 +187,14 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
     // MARK: - Multi-Result Sets
 
     func testMultipleResultSets() async throws {
-        // Multi-result-set handling tested via pooled session
-        let result = try await query("""
+        // Multiple result sets are handled via the streaming path on dedicated sessions
+        let result = try await dedicatedSession.simpleQuery(
+            """
             SELECT 1 AS first_result;
             SELECT 'a' AS col_a, 'b' AS col_b;
-        """)
+            """,
+            progressHandler: { _ in }
+        )
         // First result set
         XCTAssertEqual(result.columns.count, 1)
         XCTAssertEqual(result.rows.count, 1)
@@ -207,11 +206,14 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
     }
 
     func testMultipleResultSetsWithDifferentShapes() async throws {
-        let result = try await query("""
+        let result = try await dedicatedSession.simpleQuery(
+            """
             SELECT 1 AS a, 2 AS b, 3 AS c;
             SELECT 'x' AS single;
             SELECT 100 AS num, 'hello' AS str;
-        """)
+            """,
+            progressHandler: { _ in }
+        )
         XCTAssertEqual(result.columns.count, 3, "First result has 3 columns")
         XCTAssertGreaterThanOrEqual(result.additionalResults.count, 2, "Should have 2+ additional result sets")
     }

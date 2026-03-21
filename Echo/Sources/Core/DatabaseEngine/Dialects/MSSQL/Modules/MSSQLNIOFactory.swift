@@ -156,6 +156,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
         // Wrap the SQLServerClient in an adapter that conforms to DatabaseSession
         return SQLServerSessionAdapter(
             client: client,
+            configuration: config,
             database: resolvedDatabase?.isEmpty == false ? resolvedDatabase : nil
         )
     }
