@@ -352,9 +352,8 @@ class MSSQLBackupRestoreTests: MSSQLDockerTestCase {
         _ = try await sqlserverClient.backupRestore.backup(options: options)
 
         let verifyMessages = try await sqlserverClient.backupRestore.verifyBackup(diskPath: path)
-        // VERIFYONLY should complete without throwing
-        let info = verifyMessages.filter { $0.kind == .info }.map(\.message)
-        XCTAssertFalse(info.isEmpty || verifyMessages.isEmpty == false, "Verify should return messages or complete silently")
+        // VERIFYONLY should complete without throwing — messages may or may not be present
+        XCTAssertNotNil(verifyMessages, "Verify should complete without error")
     }
 
     // MARK: - List Operations
@@ -420,11 +419,22 @@ class MSSQLBackupRestoreTests: MSSQLDockerTestCase {
         let countBefore = try await rowCount(database: dbName, table: "dbo.test_data")
         XCTAssertEqual(countBefore, 6)
 
-        // Restore with REPLACE over the existing database
+        // Kill all connections to the database before restore
+        let killSession = try await createSession()
+        _ = try? await killSession.simpleQuery("""
+            ALTER DATABASE [\(dbName)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+        """)
+        await killSession.close()
+
         let restoreOptions = SQLServerRestoreOptions(
             database: dbName, diskPath: path, recoveryMode: .recovery, replace: true
         )
         _ = try await sqlserverClient.backupRestore.restore(options: restoreOptions)
+
+        // Restore multi-user mode
+        let multiSession = try await createSession()
+        _ = try? await multiSession.simpleQuery("ALTER DATABASE [\(dbName)] SET MULTI_USER")
+        await multiSession.close()
 
         let countAfter = try await rowCount(database: dbName, table: "dbo.test_data")
         XCTAssertEqual(countAfter, 5, "REPLACE restore should revert to 5 rows")
@@ -439,6 +449,10 @@ class MSSQLBackupRestoreTests: MSSQLDockerTestCase {
         let backupOptions = SQLServerBackupOptions(database: dbName, diskPath: path, initMedia: true)
         _ = try await sqlserverClient.backupRestore.backup(options: backupOptions)
 
+        // Kill all connections before drop
+        let killSession = try await createSession()
+        _ = try? await killSession.simpleQuery("ALTER DATABASE [\(dbName)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
+        await killSession.close()
         await dropTestDB(dbName)
 
         // Restore with NORECOVERY — database should be in restoring state
@@ -650,6 +664,9 @@ class MSSQLBackupRestoreTests: MSSQLDockerTestCase {
         XCTAssertEqual(sets.count, 2)
 
         // Restore from file number 1 (the first backup with 5 rows)
+        let killSession = try await createSession()
+        _ = try? await killSession.simpleQuery("ALTER DATABASE [\(dbName)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
+        await killSession.close()
         await dropTestDB(dbName)
 
         let restoreOptions = SQLServerRestoreOptions(
