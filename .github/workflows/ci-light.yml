@@ -130,7 +130,7 @@ jobs:
     - name: Run Integration Tests
       run: |
         find . -maxdepth 1 -name "TestResults-integration*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
+        xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
           -scheme Echo \
           -testPlan DatabaseIntegrationTests \
           -destination 'platform=macOS' \
