@@ -90,6 +90,14 @@ jobs:
         ref: dev
         path: vendor/postgres-wire
 
+    - name: Kill stale processes
+      run: |
+        pkill -9 -f xcodebuild 2>/dev/null || true
+        pkill -9 -f Echo.app 2>/dev/null || true
+        pkill -9 -f swift-frontend 2>/dev/null || true
+        sleep 3
+        rm -rf DerivedData-Echo 2>/dev/null || true
+
     - name: Prepare environment
       run: |
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
