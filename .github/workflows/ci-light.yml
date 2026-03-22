@@ -35,7 +35,7 @@ jobs:
           -scheme Echo \
           -testPlan UnitTests \
           -destination 'platform=macOS' \
-          CODE_SIGN_IDENTITY="-" \
+          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep' \
 
   unit-tests:
     name: "Step 2: Unit Tests"
@@ -60,7 +60,7 @@ jobs:
           -testPlan UnitTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-unit \
-          CODE_SIGN_IDENTITY="-" \
+          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep' \
 
     - name: Upload Results
       if: always()
@@ -136,7 +136,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
           -disable-concurrent-destination-testing \
-          CODE_SIGN_IDENTITY="-" \
+          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep' \
 
     - name: Verify Results
       if: always()
