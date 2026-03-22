@@ -135,6 +135,41 @@ class MSSQLDockerTestCase: XCTestCase {
         )
     }
 
+    // MARK: - Compatibility Level
+
+    /// The server's compatibility level, cached per test class.
+    nonisolated(unsafe) private static var _cachedCompatLevel: Int?
+
+    /// Returns the current database's compatibility level.
+    func compatLevel() async throws -> Int {
+        if let cached = Self._cachedCompatLevel { return cached }
+        let result = try await session.simpleQuery(
+            "SELECT compatibility_level FROM sys.databases WHERE name = DB_NAME()"
+        )
+        let levelStr = result.rows.first?.first.flatMap({ $0 }) ?? "0"
+        let level = Int(levelStr) ?? 0
+        Self._cachedCompatLevel = level
+        return level
+    }
+
+    /// Skips the test if the server's compat level is below the requirement.
+    ///
+    /// Common compat levels:
+    /// - 100 = SQL Server 2008
+    /// - 110 = SQL Server 2012
+    /// - 120 = SQL Server 2014
+    /// - 130 = SQL Server 2016
+    /// - 140 = SQL Server 2017
+    /// - 150 = SQL Server 2019
+    /// - 160 = SQL Server 2022
+    func requireCompatLevel(_ minimum: Int, feature: String = "") async throws {
+        let level = try await compatLevel()
+        if level < minimum {
+            let desc = feature.isEmpty ? "" : " (\(feature))"
+            throw XCTSkip("Requires compat level \(minimum)+\(desc), server is at \(level)")
+        }
+    }
+
     // MARK: - Test Helpers
 
     /// Execute a SQL statement and return the result set.

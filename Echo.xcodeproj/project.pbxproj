@@ -26,8 +26,8 @@
 		F17A0E1E2FC1C3BC007F5489 /* JetBrainsMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */; };
 		F17A0E1F2FC1C3BC007F5489 /* RecursiveMonoLinear-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */; };
 		F17A0E202FC1C3BC007F5489 /* SplineSansMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */; };
-		PGT001000000000000000001 /* pg_dump in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000001 /* pg_dump */; };
-		PGT001000000000000000002 /* pg_restore in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000002 /* pg_restore */; };
+		PGT001000000000000000001 /* pg_dump in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000001 /* pg_dump */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000002 /* pg_restore in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000002 /* pg_restore */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		PGT001000000000000000003 /* libpq.5.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000003 /* libpq.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		PGT001000000000000000004 /* libssl.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000004 /* libssl.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		PGT001000000000000000005 /* libcrypto.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000005 /* libcrypto.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -343,7 +343,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2610;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					0ADF94942E78B95200E993F8 = {
 						CreatedOnToolsVersion = 26.0;

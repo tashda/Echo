@@ -66,8 +66,8 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
         ])
         cleanupSQL(
-            "DROP TABLE IF EXISTS dbo.[\(newName)]",
-            "DROP TABLE IF EXISTS dbo.[\(oldName)]"
+            "DROP TABLE dbo.[\(newName)]",
+            "DROP TABLE dbo.[\(oldName)]"
         )
 
         try await session.renameTable(schema: "dbo", oldName: oldName, newName: newName)

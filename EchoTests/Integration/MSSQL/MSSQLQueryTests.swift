@@ -132,6 +132,7 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
     // MARK: - Paged Queries
 
     func testQueryWithPaging() async throws {
+        try await requireCompatLevel(110, feature: "OFFSET/FETCH")
         let tableName = uniqueTableName()
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
@@ -165,6 +166,7 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
     }
 
     func testQueryWithPagingBeyondData() async throws {
+        try await requireCompatLevel(110, feature: "OFFSET/FETCH")
         let tableName = uniqueTableName()
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),

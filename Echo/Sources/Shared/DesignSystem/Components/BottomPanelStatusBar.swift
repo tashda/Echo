@@ -74,7 +74,6 @@ struct BottomPanelStatusBar: View {
             .frame(height: 24)
         }
         .background(.bar)
-        .transaction { $0.animation = nil }
     }
 
     private var connectionLabel: some View {

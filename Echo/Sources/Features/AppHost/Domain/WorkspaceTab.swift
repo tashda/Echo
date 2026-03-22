@@ -56,9 +56,9 @@ final class WorkspaceTab: Identifiable {
 
     let id = UUID()
     @ObservationIgnored let connection: SavedConnection
-    @ObservationIgnored let session: DatabaseSession
+    @ObservationIgnored private(set) var session: DatabaseSession
     @ObservationIgnored let connectionSessionID: UUID
-    @ObservationIgnored let ownsSession: Bool
+    @ObservationIgnored private(set) var ownsSession: Bool
 
     var title: String
     private(set) var content: Content
@@ -95,6 +95,14 @@ final class WorkspaceTab: Identifiable {
         self.bookmarkContext = bookmarkContext
         self.panelState = Self.makePanelState(for: content)
         setupRowCountRefreshHandler()
+    }
+
+    /// Replaces the shared metadata session with a dedicated query session once
+    /// the background connection completes. Called for MSSQL tabs where the
+    /// dedicated connection is established asynchronously after the tab appears.
+    func upgradeToDedicatedSession(_ dedicatedSession: DatabaseSession) {
+        session = dedicatedSession
+        ownsSession = true
     }
 
     var kind: Kind {

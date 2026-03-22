@@ -84,3 +84,4 @@ screenshot*.png
 # Crash Logs
 *.crash
 *.ips
+.ci-fixtures/adventureworks/

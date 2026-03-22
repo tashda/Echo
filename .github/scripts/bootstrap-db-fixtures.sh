@@ -139,10 +139,17 @@ ensure_sqlserver() {
       echo "⚠️  Port conflict, using $port instead"
     fi
 
+    # Only add --platform on ARM machines (Intel runs natively)
+    local platform_args=()
+    local arch=$(uname -m)
+    if [[ "$arch" == "arm64" || "$arch" == "aarch64" ]]; then
+      platform_args=("--platform" "linux/amd64")
+    fi
+
     echo "🚀 Starting SQL Server $version on port $port..."
     docker run -d \
       --name "$container_name" \
-      --platform linux/amd64 \
+      "${platform_args[@]}" \
       -e "ACCEPT_EULA=Y" \
       -e "MSSQL_SA_PASSWORD=$password" \
       -e "MSSQL_AGENT_ENABLED=true" \
