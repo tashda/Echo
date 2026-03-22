@@ -119,7 +119,7 @@ jobs:
     - name: Run Integration Tests
       run: |
         find . -maxdepth 1 -name "TestResults-integration*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
+        xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
           -scheme Echo -testPlan DatabaseIntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
@@ -187,7 +187,7 @@ jobs:
     - name: Run Extended Integration Tests
       run: |
         find . -maxdepth 1 -name "TestResults-extended*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
+        xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
           -scheme Echo -testPlan ExtendedIntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-extended \
@@ -274,7 +274,7 @@ jobs:
     - name: Run ${{ matrix.db }} Tests
       run: |
         find . -maxdepth 1 -name "TestResults-${{ matrix.db }}*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
+        xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
           -scheme Echo -testPlan MSSQLCompatibilityTests \
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-${{ matrix.db }}" \
@@ -340,7 +340,7 @@ jobs:
     - name: Run Postgres ${{ matrix.version }} Tests
       run: |
         find . -maxdepth 1 -name "TestResults-pg${{ matrix.version }}*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
+        xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
           -scheme Echo -testPlan PostgresCompatibilityTests \
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-pg${{ matrix.version }}" \
