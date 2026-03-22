@@ -4,7 +4,18 @@ import SQLServerKit
 extension MSSQLDedicatedQuerySession {
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
         let connection = try await readyConnection()
-        let executionResult = try await connection.execute(sql)
+        let executionResult = try await withThrowingTaskGroup(of: SQLServerExecutionResult.self) { group in
+            group.addTask {
+                try await connection.execute(sql)
+            }
+            group.addTask {
+                try await Task.sleep(for: .seconds(45))
+                throw DatabaseError.queryError("Connection timed out: query did not complete within 45s")
+            }
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
         var queryResult = convertSQLServerRowsToEcho(executionResult.rows)
         if let raw = connection.decodeLastSensitivityClassification() {
             queryResult.dataClassification = extractClassification(from: raw, columnCount: queryResult.columns.count)
