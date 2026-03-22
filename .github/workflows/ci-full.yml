@@ -37,9 +37,7 @@ jobs:
           -scheme Echo \
           -testPlan UnitTests \
           -destination 'platform=macOS' \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-" \
 
   unit-tests:
     name: "Step 2: Unit Tests"
@@ -59,7 +57,7 @@ jobs:
           -scheme Echo -testPlan UnitTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-unit \
-          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-"
     - name: Upload Results
       if: always()
       uses: actions/upload-artifact@v4
@@ -126,7 +124,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
           -disable-concurrent-destination-testing \
-          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-"
     - name: Verify Results
       if: always()
       run: |
@@ -194,7 +192,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-extended \
           -disable-concurrent-destination-testing \
-          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-"
     - name: Verify Results
       if: always()
       run: |
@@ -281,7 +279,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-${{ matrix.db }}" \
           -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-"
     - name: Verify Results
       if: always()
       run: |
@@ -347,7 +345,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-pg${{ matrix.version }}" \
           -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-"
     - name: Verify Results
       if: always()
       run: |
@@ -398,7 +396,7 @@ jobs:
         xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
           MARKETING_VERSION=${{ steps.version.outputs.full }} \
           CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
-          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-"
     - name: Package
       run: |
         mkdir -p release

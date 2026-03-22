@@ -35,9 +35,7 @@ jobs:
           -scheme Echo \
           -testPlan UnitTests \
           -destination 'platform=macOS' \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-" \
 
   unit-tests:
     name: "Step 2: Unit Tests"
@@ -62,9 +60,7 @@ jobs:
           -testPlan UnitTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-unit \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-" \
 
     - name: Upload Results
       if: always()
@@ -140,9 +136,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
           -disable-concurrent-destination-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-" \
 
     - name: Verify Results
       if: always()
