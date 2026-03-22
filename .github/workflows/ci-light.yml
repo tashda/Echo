@@ -128,6 +128,7 @@ jobs:
         .github/scripts/bootstrap-db-fixtures.sh all
 
     - name: Run Integration Tests
+      timeout-minutes: 60
       run: |
         find . -maxdepth 1 -name "TestResults-integration*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \

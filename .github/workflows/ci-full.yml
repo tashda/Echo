@@ -117,6 +117,7 @@ jobs:
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh all
     - name: Run Integration Tests
+      timeout-minutes: 60
       run: |
         find . -maxdepth 1 -name "TestResults-integration*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
@@ -271,6 +272,7 @@ jobs:
       run: |
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh sqlserver
+    timeout-minutes: 60
     - name: Run ${{ matrix.db }} Tests
       run: |
         find . -maxdepth 1 -name "TestResults-${{ matrix.db }}*" -exec rm -rf {} + 2>/dev/null || true
@@ -337,6 +339,7 @@ jobs:
       run: |
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh postgres
+    timeout-minutes: 60
     - name: Run Postgres ${{ matrix.version }} Tests
       run: |
         find . -maxdepth 1 -name "TestResults-pg${{ matrix.version }}*" -exec rm -rf {} + 2>/dev/null || true
