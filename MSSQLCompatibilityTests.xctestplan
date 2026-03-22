@@ -33,8 +33,6 @@
         "MSSQLQueryTests",
         "MSSQLSchemaDiscoveryTests",
         "MSSQLSecurityTests",
-        "MSSQLStreamingSpoolTests",
-        "MSSQLStreamingTests",
         "MSSQLTableOperationsTests",
         "MSSQLTransactionTests",
         "MSSQLTriggerTests",
