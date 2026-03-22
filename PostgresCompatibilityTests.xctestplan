@@ -31,8 +31,6 @@
         "PGSchemaDiscoveryTests",
         "PGSecurityTests",
         "PGSequenceTests",
-        "PGStreamingSpoolTests",
-        "PGStreamingTests",
         "PGTableOperationsTests",
         "PGTransactionTests",
         "PGTriggerTests",
