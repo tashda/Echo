@@ -40,10 +40,13 @@ extension JobQueueViewModel {
         }
         // Immediate visual feedback
         isJobRunning = true
+        manuallyStartedJobName = jobName
+        manualStartHandle?.cancel()
+        manualStartHandle = activityEngine?.begin("Running: \(jobName)", connectionSessionID: connectionSessionID)
         jobStartedAt = Date()
         jobSeenRunning = false
         runningJobNames.insert(jobName)
-        activeStepInfo = ActiveStepInfo(jobName: jobName, stepID: 0, stepName: "Starting…", startTime: Date())
+        activeStepInfo = ActiveStepInfo(jobName: jobName, stepID: 0, stepName: "Starting\u{2026}", startTime: Date())
 
         await performAction { agent in
             try await agent.startJob(named: jobName)
@@ -63,6 +66,9 @@ extension JobQueueViewModel {
             try await agent.stopJob(named: jobName)
         }
         isJobRunning = false
+        manuallyStartedJobName = nil
+        manualStartHandle?.succeed()
+        manualStartHandle = nil
         await loadHistory(all: false)
     }
 

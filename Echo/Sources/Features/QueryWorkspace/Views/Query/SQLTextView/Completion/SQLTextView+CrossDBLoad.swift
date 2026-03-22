@@ -6,16 +6,45 @@ extension SQLTextView {
     /// Fires `onSchemaLoadNeeded` when the current completion token references a database
     /// whose schemas are not yet in the completion context. Called once per completion
     /// trigger so the caller can load schemas on demand without blocking the UI.
+    func notifySchemaLoadIfNeeded(text: String, caretLocation: Int) {
+        guard let context = completionContext,
+              let structure = context.structure else { return }
+
+        // Scan backward from caret to find a "xxx." pattern (cross-database prefix)
+        let nsString = text as NSString
+        guard caretLocation <= nsString.length else { return }
+
+        // Find the token at the caret position
+        let tokenRange = self.tokenRange(at: caretLocation, in: nsString)
+        guard tokenRange.length > 0 else { return }
+
+        let token = nsString.substring(with: tokenRange)
+        let components = token.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+
+        // Need at least a "database." prefix (2+ components)
+        guard components.count >= 2, let dbName = components.first, !dbName.isEmpty else { return }
+
+        // Fire when the database has no schemas loaded yet.
+        // If the database is in the structure but has no schemas, or if the database
+        // is not in the structure at all (user may be referencing a valid DB not yet discovered),
+        // trigger the load.
+        let hasSchemas = structure.databases
+            .first(where: { $0.name.caseInsensitiveCompare(dbName) == .orderedSame })?
+            .schemas.isEmpty == false
+        guard !hasSchemas else { return }
+
+        onSchemaLoadNeeded?(dbName)
+    }
+
+    /// Legacy overload for callers that still use SQLAutoCompletionQuery.
     func notifySchemaLoadIfNeeded(for query: SQLAutoCompletionQuery) {
         guard let dbName = query.pathComponents.first,
               !dbName.isEmpty,
               let context = completionContext,
               let structure = context.structure else { return }
 
-        // Only fire when the first path component is a known database name.
         guard structure.databases.contains(where: { $0.name.caseInsensitiveCompare(dbName) == .orderedSame }) else { return }
 
-        // Fire only when that database has no schemas loaded yet.
         let hasSchemas = structure.databases
             .first(where: { $0.name.caseInsensitiveCompare(dbName) == .orderedSame })?
             .schemas.isEmpty == false

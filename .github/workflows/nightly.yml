@@ -6,57 +6,25 @@ on:
   workflow_dispatch:
 
 jobs:
-  integration-tests:
+  extended-integration:
+    name: "Extended Integration Tests"
     runs-on: [self-hosted, echo-test-server]
-    strategy:
-      matrix:
-        include:
-          - db: mssql-2022
-            ECHO_MSSQL_VERSION: "2022-latest"
-            ECHO_MSSQL_COMPAT: ""
-          - db: mssql-2019
-            ECHO_MSSQL_VERSION: "2019-latest"
-            ECHO_MSSQL_COMPAT: ""
-          - db: mssql-2017
-            ECHO_MSSQL_VERSION: "2017-latest"
-            ECHO_MSSQL_COMPAT: ""
-          - db: mssql-2008r2
-            ECHO_MSSQL_VERSION: "2017-latest"
-            ECHO_MSSQL_COMPAT: "100"
-          - db: mssql-2012
-            ECHO_MSSQL_VERSION: "2017-latest"
-            ECHO_MSSQL_COMPAT: "110"
-          - db: mssql-2014
-            ECHO_MSSQL_VERSION: "2017-latest"
-            ECHO_MSSQL_COMPAT: "120"
-          - db: mssql-2016
-            ECHO_MSSQL_VERSION: "2017-latest"
-            ECHO_MSSQL_COMPAT: "130"
-          - db: mssql-2025
-            ECHO_MSSQL_VERSION: "2025-latest"
-            ECHO_MSSQL_COMPAT: ""
-          - db: postgres-14
-            ECHO_PG_VERSION: "14"
-          - db: postgres-15
-            ECHO_PG_VERSION: "15"
-          - db: postgres-16
-            ECHO_PG_VERSION: "16"
-          - db: postgres-17
-            ECHO_PG_VERSION: "17"
-          - db: postgres-18
-            ECHO_PG_VERSION: "18"
-          - db: postgres-latest
-            ECHO_PG_VERSION: "latest"
-      fail-fast: false
     env:
-      USE_DOCKER: "1"
       DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
-      ECHO_MSSQL_PORT: "14332"
-      ECHO_PG_PORT: "54322"
+      USE_DOCKER: "1"
+      ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
+        repository: tashda/sqlserver-nio
         ref: dev
+        path: vendor/sqlserver-nio
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/postgres-wire
+        ref: dev
+        path: vendor/postgres-wire
 
     - name: Prepare environment
       run: |
@@ -64,7 +32,6 @@ jobs:
         security set-keychain-settings ~/Library/Keychains/login.keychain-db
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-        defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
 
     - name: Verify Docker (via Colima)
       run: |
@@ -76,87 +43,124 @@ jobs:
         docker info > /dev/null 2>&1
         echo "Docker is ready"
 
-    - name: Run Integration Tests (MSSQL)
-      if: startsWith(matrix.db, 'mssql')
-      env:
-        ECHO_MSSQL_VERSION: ${{ matrix.ECHO_MSSQL_VERSION }}
-        ECHO_MSSQL_COMPAT: ${{ matrix.ECHO_MSSQL_COMPAT }}
+    - name: Ensure PostgreSQL client tools
       run: |
+        if ! command -v brew >/dev/null 2>&1; then
+          echo "Homebrew is required on the self-hosted runner to provide PostgreSQL client tools" >&2
+          exit 1
+        fi
+        brew list libpq >/dev/null 2>&1 || brew install libpq
+        LIBPQ_BIN="$(brew --prefix libpq)/bin"
+        echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+        echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+
+    - name: Bootstrap validated database fixtures
+      run: |
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh all
+
+    - name: Run Extended Integration Tests
+      run: |
+        rm -rf TestResults-extended-integration TestResults-extended-integration.xcresult
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
+          -testPlan ExtendedIntegrationTests \
           -destination 'platform=macOS' \
-          -resultBundlePath "TestResults-${{ matrix.db }}" \
-          -only-testing:EchoTests/MSSQLConnectionTests \
-          -only-testing:EchoTests/MSSQLQueryTests \
-          -only-testing:EchoTests/MSSQLSchemaDiscoveryTests \
-          -only-testing:EchoTests/MSSQLMetadataTests \
-          -only-testing:EchoTests/MSSQLTableOperationsTests \
-          -only-testing:EchoTests/MSSQLColumnTests \
-          -only-testing:EchoTests/MSSQLConstraintTests \
-          -only-testing:EchoTests/MSSQLIndexTests \
-          -only-testing:EchoTests/MSSQLViewTests \
-          -only-testing:EchoTests/MSSQLProcedureTests \
-          -only-testing:EchoTests/MSSQLFunctionTests \
-          -only-testing:EchoTests/MSSQLTriggerTests \
-          -only-testing:EchoTests/MSSQLTransactionTests \
-          -only-testing:EchoTests/MSSQLSecurityTests \
-          -only-testing:EchoTests/MSSQLAgentTests \
-          -only-testing:EchoTests/MSSQLActivityMonitorTests \
-          -only-testing:EchoTests/MSSQLDatabaseAdminTests \
-          -only-testing:EchoTests/MSSQLDataTypeNumericTests \
-          -only-testing:EchoTests/MSSQLDataTypeStringTests \
-          -only-testing:EchoTests/MSSQLDataTypeDateTimeTests \
-          -only-testing:EchoTests/MSSQLDataTypeBinaryTests \
-          -only-testing:EchoTests/MSSQLStreamingTests \
-          -only-testing:EchoTests/MSSQLStreamingSpoolTests \
-          -disable-concurrent-testing
+          -resultBundlePath TestResults-extended-integration \
+          -disable-concurrent-destination-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
 
-    - name: Run Integration Tests (Postgres)
-      if: startsWith(matrix.db, 'postgres')
-      env:
-        ECHO_PG_VERSION: ${{ matrix.ECHO_PG_VERSION }}
+    - name: Verify Extended Integration Results
+      if: always()
       run: |
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -destination 'platform=macOS' \
-          -resultBundlePath "TestResults-${{ matrix.db }}" \
-          -only-testing:EchoTests/PGConnectionTests \
-          -only-testing:EchoTests/PGQueryTests \
-          -only-testing:EchoTests/PGSchemaDiscoveryTests \
-          -only-testing:EchoTests/PGMetadataTests \
-          -only-testing:EchoTests/PGTableOperationsTests \
-          -only-testing:EchoTests/PGColumnTests \
-          -only-testing:EchoTests/PGConstraintTests \
-          -only-testing:EchoTests/PGIndexTests \
-          -only-testing:EchoTests/PGViewTests \
-          -only-testing:EchoTests/PGFunctionTests \
-          -only-testing:EchoTests/PGTriggerTests \
-          -only-testing:EchoTests/PGTransactionTests \
-          -only-testing:EchoTests/PGSecurityTests \
-          -only-testing:EchoTests/PGExtensionTests \
-          -only-testing:EchoTests/PGActivityMonitorTests \
-          -only-testing:EchoTests/PGSequenceTests \
-          -only-testing:EchoTests/PGDataTypeNumericTests \
-          -only-testing:EchoTests/PGDataTypeStringTests \
-          -only-testing:EchoTests/PGDataTypeDateTimeTests \
-          -only-testing:EchoTests/PGDataTypeSpecialTests \
-          -only-testing:EchoTests/PGStreamingTests \
-          -only-testing:EchoTests/PGStreamingSpoolTests \
-          -disable-concurrent-testing
+        python3 .github/scripts/verify_xcresult.py \
+          --path TestResults-extended-integration.xcresult \
+          --label "Nightly extended integration tests" \
+          --min-executed 1
 
-    - name: Upload Test Results
+    - name: Upload Extended Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.db }}
-        path: TestResults-${{ matrix.db }}.xcresult
+        name: test-results-extended-integration
+        path: TestResults-extended-integration.xcresult
 
-  ui-tests:
+  # ── Full Compatibility Matrix (same as pipeline Step 3) ──────────────────
+  compatibility-matrix:
+    name: "${{ matrix.db }}"
+    needs: extended-integration
     runs-on: [self-hosted, echo-test-server]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # SQL Server versions
+          - db: "MSSQL 2008 R2"
+            type: mssql
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "100"
+          - db: "MSSQL 2012"
+            type: mssql
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "110"
+          - db: "MSSQL 2014"
+            type: mssql
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "120"
+          - db: "MSSQL 2016"
+            type: mssql
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "130"
+          - db: "MSSQL 2017"
+            type: mssql
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: "MSSQL 2019"
+            type: mssql
+            ECHO_MSSQL_VERSION: "2019-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: "MSSQL 2022"
+            type: mssql
+            ECHO_MSSQL_VERSION: "2022-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: "MSSQL 2025"
+            type: mssql
+            ECHO_MSSQL_VERSION: "2025-latest"
+            ECHO_MSSQL_COMPAT: ""
+          # Postgres versions
+          - db: "Postgres 14"
+            type: postgres
+            ECHO_PG_VERSION: "14"
+          - db: "Postgres 15"
+            type: postgres
+            ECHO_PG_VERSION: "15"
+          - db: "Postgres 16"
+            type: postgres
+            ECHO_PG_VERSION: "16"
+          - db: "Postgres 17"
+            type: postgres
+            ECHO_PG_VERSION: "17"
+          - db: "Postgres 18"
+            type: postgres
+            ECHO_PG_VERSION: "18"
+    env:
+      DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
+      USE_DOCKER: "1"
+      ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
+        repository: tashda/sqlserver-nio
         ref: dev
+        path: vendor/sqlserver-nio
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/postgres-wire
+        ref: dev
+        path: vendor/postgres-wire
 
     - name: Prepare environment
       run: |
@@ -164,22 +168,84 @@ jobs:
         security set-keychain-settings ~/Library/Keychains/login.keychain-db
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-        defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
-        pkill -x Echo 2>/dev/null || true
-        defaults write dk.tippr.echo NSQuitAlwaysKeepsWindows -bool NO 2>/dev/null || true
-        rm -rf ~/Library/Saved\ Application\ State/dk.tippr.echo.savedState 2>/dev/null || true
 
-    - name: Run UI Tests
+    - name: Verify Docker (via Colima)
       run: |
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme EchoUITests \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-ui \
-          -disable-concurrent-testing
+        export PATH="/usr/local/bin:$PATH"
+        if ! /usr/local/bin/colima status > /dev/null 2>&1; then
+          echo "Colima not running — starting..."
+          /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
+        fi
+        docker info > /dev/null 2>&1
+        echo "Docker is ready"
 
-    - name: Upload Test Results
+    - name: Ensure PostgreSQL client tools
+      run: |
+        if ! command -v brew >/dev/null 2>&1; then
+          echo "Homebrew is required on the self-hosted runner to provide PostgreSQL client tools" >&2
+          exit 1
+        fi
+        brew list libpq >/dev/null 2>&1 || brew install libpq
+        LIBPQ_BIN="$(brew --prefix libpq)/bin"
+        echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+        echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+
+    - name: Run MSSQL Compatibility Tests
+      if: matrix.type == 'mssql'
+      env:
+        ECHO_MSSQL_VERSION: ${{ matrix.ECHO_MSSQL_VERSION }}
+        ECHO_MSSQL_COMPAT: ${{ matrix.ECHO_MSSQL_COMPAT }}
+      run: |
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh sqlserver
+        rm -rf "TestResults-${{ matrix.db }}" "TestResults-${{ matrix.db }}.xcresult"
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -testPlan MSSQLCompatibilityTests \
+          -destination 'platform=macOS' \
+          -resultBundlePath "TestResults-${{ matrix.db }}" \
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Verify MSSQL Compatibility Results
+      if: always() && matrix.type == 'mssql'
+      run: |
+        python3 .github/scripts/verify_xcresult.py \
+          --path "TestResults-${{ matrix.db }}.xcresult" \
+          --label "${{ matrix.db }} nightly compatibility tests" \
+          --min-executed 1
+
+    - name: Run Postgres Compatibility Tests
+      if: matrix.type == 'postgres'
+      env:
+        ECHO_PG_VERSION: ${{ matrix.ECHO_PG_VERSION }}
+      run: |
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh postgres
+        rm -rf "TestResults-${{ matrix.db }}" "TestResults-${{ matrix.db }}.xcresult"
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -testPlan PostgresCompatibilityTests \
+          -destination 'platform=macOS' \
+          -resultBundlePath "TestResults-${{ matrix.db }}" \
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Verify Postgres Compatibility Results
+      if: always() && matrix.type == 'postgres'
+      run: |
+        python3 .github/scripts/verify_xcresult.py \
+          --path "TestResults-${{ matrix.db }}.xcresult" \
+          --label "${{ matrix.db }} nightly compatibility tests" \
+          --min-executed 1
+
+    - name: Upload Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-ui
-        path: TestResults-ui.xcresult
+        name: test-results-${{ matrix.db }}
+        path: "TestResults-*.xcresult"

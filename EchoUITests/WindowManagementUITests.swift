@@ -1,10 +1,6 @@
 import XCTest
 
-final class WindowManagementUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class WindowManagementUITests: EchoUITestCase {
     // MARK: - Helpers
 
     private func launchApp() -> XCUIApplication {

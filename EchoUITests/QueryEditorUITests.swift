@@ -1,10 +1,6 @@
 import XCTest
 
-final class QueryEditorUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class QueryEditorUITests: EchoUITestCase {
     func testQueryEditorAcceptsDoubleQuotedIdentifiers() throws {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]

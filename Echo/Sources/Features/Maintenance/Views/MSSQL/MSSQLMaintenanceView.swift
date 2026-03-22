@@ -3,20 +3,27 @@ import SwiftUI
 struct MSSQLMaintenanceView: View {
     @Bindable var viewModel: MSSQLMaintenanceViewModel
     @Bindable var panelState: BottomPanelState
-    @Environment(AppState.self) private var appState
     @Environment(TabStore.self) private var tabStore
     @Environment(ProjectStore.self) private var projectStore
 
     var body: some View {
-        TabContentWithPanel(
+        MaintenanceTabFrame(
             panelState: panelState,
-            statusBarConfiguration: statusBarConfig
+            connectionText: connectionText,
+            isInitialized: viewModel.isInitialized,
+            statusBubble: statusBubble
         ) {
-            mainBody
-        } panelContent: {
-            ExecutionConsoleView(executionMessages: panelState.messages) {
-                panelState.clearMessages()
+            Picker(selection: $viewModel.selectedSection) {
+                ForEach(MSSQLMaintenanceViewModel.MaintenanceSection.allCases, id: \.self) { section in
+                    Text(section.rawValue).tag(section)
+                }
+            } label: {
+                EmptyView()
             }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 340)
+        } content: {
+            sectionContent
         }
         .task {
             await viewModel.loadDatabases()
@@ -38,71 +45,25 @@ struct MSSQLMaintenanceView: View {
         }
     }
 
-    private var statusBarConfig: BottomPanelStatusBarConfiguration {
+    private var connectionText: String {
         let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
         let db = viewModel.selectedDatabase
-        let text = db.map { "\(connText) • \($0)" } ?? connText
+        return db.map { "\(connText) \u{2022} \($0)" } ?? connText
+    }
 
-        var config = BottomPanelStatusBarConfiguration(
-            connectionText: text,
-            availableSegments: panelState.availableSegments,
-            selectedSegment: panelState.selectedSegment,
-            onSelectSegment: { segment in
-                if panelState.isOpen && panelState.selectedSegment == segment {
-                    panelState.isOpen = false
-                } else {
-                    panelState.selectedSegment = segment
-                    if !panelState.isOpen { panelState.isOpen = true }
-                }
-            },
-            onTogglePanel: { panelState.isOpen.toggle() },
-            isPanelOpen: panelState.isOpen
-        )
-
+    private var statusBubble: BottomPanelStatusBarConfiguration.StatusBubble? {
         if viewModel.isCheckingIntegrity {
-            config.statusBubble = .init(label: "Checking Integrity", tint: .orange, isPulsing: true)
+            return .init(label: "Checking Integrity", tint: .orange, isPulsing: true)
         } else if viewModel.isShrinking {
-            config.statusBubble = .init(label: "Shrinking", tint: .orange, isPulsing: true)
+            return .init(label: "Shrinking", tint: .orange, isPulsing: true)
         } else if viewModel.isRefreshingTables {
-            config.statusBubble = .init(label: "Loading Tables", tint: .blue, isPulsing: true)
+            return .init(label: "Loading Tables", tint: .blue, isPulsing: true)
         }
-
-        return config
+        return nil
     }
 
     @ViewBuilder
-    private var mainBody: some View {
-        if !viewModel.isInitialized {
-            TabInitializingPlaceholder(
-                icon: "wrench.and.screwdriver",
-                title: "Initializing Maintenance",
-                subtitle: "Loading database health data\u{2026}"
-            )
-        } else {
-            VStack(spacing: 0) {
-                sectionToolbar
-                Divider()
-                maintenanceContent
-            }
-        }
-    }
-
-    private var sectionToolbar: some View {
-        MaintenanceToolbar {
-            Picker(selection: $viewModel.selectedSection) {
-                ForEach(MSSQLMaintenanceViewModel.MaintenanceSection.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            } label: {
-                EmptyView()
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 340)
-        }
-    }
-
-    @ViewBuilder
-    private var maintenanceContent: some View {
+    private var sectionContent: some View {
         VStack(spacing: 0) {
             switch viewModel.selectedSection {
             case .health:

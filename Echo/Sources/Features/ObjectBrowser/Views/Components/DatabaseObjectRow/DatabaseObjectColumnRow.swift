@@ -7,6 +7,8 @@ struct DatabaseObjectColumnRow: View {
     let onRename: () -> Void
     let onDrop: () -> Void
 
+    @State private var showDropAlert = false
+
     var body: some View {
         HStack(alignment: .center, spacing: ExplorerColumnMetrics.spacing) {
             let (iconName, iconColor, iconSize): (String, Color, CGFloat) = {
@@ -36,7 +38,6 @@ struct DatabaseObjectColumnRow: View {
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
 #if os(macOS)
                         .help(comment)
 #endif
@@ -60,15 +61,36 @@ struct DatabaseObjectColumnRow: View {
         .padding(.leading, CGFloat(ExplorerColumnMetrics.depth) * SidebarRowConstants.indentStep)
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .contextMenu {
-            Button("Copy Name") {
+            // Group 5: Copy
+            Button {
                 onCopyName()
+            } label: {
+                Label("Copy Name", systemImage: "doc.on.doc")
             }
-            Button("Rename Column") {
+
+            // Group 4: Edit
+            Button {
                 onRename()
+            } label: {
+                Label("Rename Column", systemImage: "character.cursor.ibeam")
             }
-            Button("Drop Column", role: .destructive) {
+
+            Divider()
+
+            // Group 10: Destructive
+            Button(role: .destructive) {
+                showDropAlert = true
+            } label: {
+                Label("Drop Column", systemImage: "trash")
+            }
+        }
+        .alert("Drop Column?", isPresented: $showDropAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Drop", role: .destructive) {
                 onDrop()
             }
+        } message: {
+            Text("Are you sure you want to drop \"\(column.name)\"? This action cannot be undone.")
         }
     }
 

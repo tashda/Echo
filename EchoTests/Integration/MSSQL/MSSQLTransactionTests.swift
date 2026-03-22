@@ -3,53 +3,49 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server transaction operations through Echo's DatabaseSession layer.
-final class MSSQLTransactionTests: MSSQLDockerTestCase {
+///
+/// Transaction tests require dedicated connections because transactions are session-local state.
+/// The pooled `SQLServerClient` dispatches each `withConnection` call to potentially different
+/// connections, so BEGIN/COMMIT/ROLLBACK cannot be reliably paired.
+final class MSSQLTransactionTests: MSSQLDedicatedDockerTestCase {
 
     // MARK: - Basic Transactions
 
     func testBeginCommitTransaction() async throws {
         let tableName = uniqueTableName()
-        try await sqlserverClient.admin.createTable(name: tableName, columns: [
-            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
-            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
-        ])
+        try await dedicatedExecute("""
+            CREATE TABLE [\(tableName)] (
+                id INT PRIMARY KEY,
+                name NVARCHAR(100)
+            )
+        """)
         cleanupSQL("DROP TABLE [\(tableName)]")
 
-        try await sqlserverClient.transactions.beginTransaction()
-        try await sqlserverClient.admin.insertRow(
-            into: tableName,
-            values: ["id": .int(1), "name": .nString("Alice")]
-        )
-        try await sqlserverClient.admin.insertRow(
-            into: tableName,
-            values: ["id": .int(2), "name": .nString("Bob")]
-        )
-        try await sqlserverClient.transactions.commitTransaction()
+        try await dedicatedExecute("BEGIN TRANSACTION")
+        try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (1, N'Alice')")
+        try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (2, N'Bob')")
+        try await dedicatedExecute("COMMIT TRANSACTION")
 
-        let result = try await query("SELECT COUNT(*) FROM [\(tableName)]")
+        let result = try await dedicatedQuery("SELECT COUNT(*) FROM [\(tableName)]")
         XCTAssertEqual(result.rows[0][0], "2")
     }
 
     func testBeginRollbackTransaction() async throws {
         let tableName = uniqueTableName()
-        try await sqlserverClient.admin.createTable(name: tableName, columns: [
-            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
-            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
-        ])
+        try await dedicatedExecute("""
+            CREATE TABLE [\(tableName)] (
+                id INT PRIMARY KEY,
+                name NVARCHAR(100)
+            )
+        """)
         cleanupSQL("DROP TABLE [\(tableName)]")
 
-        try await sqlserverClient.admin.insertRow(
-            into: tableName,
-            values: ["id": .int(1), "name": .nString("Before")]
-        )
-        try await sqlserverClient.transactions.beginTransaction()
-        try await sqlserverClient.admin.insertRow(
-            into: tableName,
-            values: ["id": .int(2), "name": .nString("During")]
-        )
-        try await sqlserverClient.transactions.rollbackTransaction()
+        try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (1, N'Before')")
+        try await dedicatedExecute("BEGIN TRANSACTION")
+        try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (2, N'During')")
+        try await dedicatedExecute("ROLLBACK TRANSACTION")
 
-        let result = try await query("SELECT COUNT(*) FROM [\(tableName)]")
+        let result = try await dedicatedQuery("SELECT COUNT(*) FROM [\(tableName)]")
         XCTAssertEqual(result.rows[0][0], "1", "Rolled-back row should not persist")
     }
 
@@ -57,96 +53,84 @@ final class MSSQLTransactionTests: MSSQLDockerTestCase {
 
     func testSavepoint() async throws {
         let tableName = uniqueTableName()
-        try await sqlserverClient.admin.createTable(name: tableName, columns: [
-            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
-            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
-        ])
+        try await dedicatedExecute("""
+            CREATE TABLE [\(tableName)] (
+                id INT PRIMARY KEY,
+                name NVARCHAR(100)
+            )
+        """)
         cleanupSQL("DROP TABLE [\(tableName)]")
 
-        try await sqlserverClient.transactions.beginTransaction()
-        try await sqlserverClient.admin.insertRow(
-            into: tableName,
-            values: ["id": .int(1), "name": .nString("First")]
-        )
-        try await sqlserverClient.transactions.createSavepoint(name: "sp1")
-        try await sqlserverClient.admin.insertRow(
-            into: tableName,
-            values: ["id": .int(2), "name": .nString("Second")]
-        )
-        try await sqlserverClient.transactions.rollbackToSavepoint(name: "sp1")
-        try await sqlserverClient.transactions.commitTransaction()
+        try await dedicatedExecute("BEGIN TRANSACTION")
+        try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (1, N'First')")
+        try await dedicatedExecute("SAVE TRANSACTION sp1")
+        try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (2, N'Second')")
+        try await dedicatedExecute("ROLLBACK TRANSACTION sp1")
+        try await dedicatedExecute("COMMIT TRANSACTION")
 
-        let result = try await query("SELECT COUNT(*) FROM [\(tableName)]")
+        let result = try await dedicatedQuery("SELECT COUNT(*) FROM [\(tableName)]")
         XCTAssertEqual(result.rows[0][0], "1", "Only first insert should persist")
     }
 
     // MARK: - Isolation Levels
 
     func testReadUncommittedIsolation() async throws {
-        try await execute("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED")
-        let result = try await query("SELECT 1 AS test")
+        try await dedicatedExecute("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED")
+        let result = try await dedicatedQuery("SELECT 1 AS test")
         XCTAssertEqual(result.rows[0][0], "1")
     }
 
     func testReadCommittedIsolation() async throws {
-        try await execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
-        let result = try await query("SELECT 1 AS test")
+        try await dedicatedExecute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        let result = try await dedicatedQuery("SELECT 1 AS test")
         XCTAssertEqual(result.rows[0][0], "1")
     }
 
     func testSerializableIsolation() async throws {
         let tableName = uniqueTableName()
-        try await sqlserverClient.admin.createTable(name: tableName, columns: [
-            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
-        ])
+        try await dedicatedExecute("""
+            CREATE TABLE [\(tableName)] (
+                id INT PRIMARY KEY
+            )
+        """)
         cleanupSQL("DROP TABLE [\(tableName)]")
 
-        try await execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
-        try await sqlserverClient.transactions.beginTransaction()
-        try await sqlserverClient.admin.insertRow(
-            into: tableName,
-            values: ["id": .int(1)]
-        )
-        try await sqlserverClient.transactions.commitTransaction()
+        try await dedicatedExecute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
+        try await dedicatedExecute("BEGIN TRANSACTION")
+        try await dedicatedExecute("INSERT INTO [\(tableName)] (id) VALUES (1)")
+        try await dedicatedExecute("COMMIT TRANSACTION")
 
-        let result = try await query("SELECT COUNT(*) FROM [\(tableName)]")
+        let result = try await dedicatedQuery("SELECT COUNT(*) FROM [\(tableName)]")
         XCTAssertEqual(result.rows[0][0], "1")
         // Reset isolation level
-        try await execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        try await dedicatedExecute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
     }
 
     // MARK: - Transaction with Error
 
     func testTransactionRollsBackOnError() async throws {
         let tableName = uniqueTableName()
-        try await sqlserverClient.admin.createTable(name: tableName, columns: [
-            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
-            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
-        ])
+        try await dedicatedExecute("""
+            CREATE TABLE [\(tableName)] (
+                id INT PRIMARY KEY,
+                name NVARCHAR(100)
+            )
+        """)
         cleanupSQL("DROP TABLE [\(tableName)]")
 
-        try await sqlserverClient.admin.insertRow(
-            into: tableName,
-            values: ["id": .int(1), "name": .nString("Existing")]
-        )
+        try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (1, N'Existing')")
 
         do {
-            try await sqlserverClient.transactions.beginTransaction()
-            try await sqlserverClient.admin.insertRow(
-                into: tableName,
-                values: ["id": .int(2), "name": .nString("New")]
-            )
+            try await dedicatedExecute("BEGIN TRANSACTION")
+            try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (2, N'New')")
             // Duplicate PK should fail
-            try await sqlserverClient.admin.insertRow(
-                into: tableName,
-                values: ["id": .int(1), "name": .nString("Duplicate")]
-            )
-            try await sqlserverClient.transactions.commitTransaction()
+            try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (1, N'Duplicate')")
+            try await dedicatedExecute("COMMIT TRANSACTION")
         } catch {
-            try? await execute("IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION")
+            try? await dedicatedExecute("IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION")
         }
 
-        let result = try await query("SELECT COUNT(*) FROM [\(tableName)]")
+        let result = try await dedicatedQuery("SELECT COUNT(*) FROM [\(tableName)]")
         // Should have only the original row
         XCTAssertEqual(result.rows[0][0], "1")
     }

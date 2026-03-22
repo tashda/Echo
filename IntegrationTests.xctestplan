@@ -1,23 +1,19 @@
 {
-  "configurations" : [
+  "configurations": [
     {
-      "id" : "8C065CF7-9944-4AA2-ABF2-E89D0B0C0C5C",
-      "name" : "Integration Tests",
-      "options" : {
-
-      }
+      "id": "8C065CF7-9944-4AA2-ABF2-E89D0B0C0C5C",
+      "name": "Integration Tests",
+      "options": {}
     }
   ],
-  "defaultOptions" : {
-    "performanceAntipatternCheckerEnabled" : true
+  "defaultOptions": {
+    "performanceAntipatternCheckerEnabled": true
   },
-  "testTargets" : [
+  "testTargets": [
     {
-      "parallelizable" : false,
-      "selectedTests" : [
+      "parallelizable": false,
+      "selectedTests": [
         "FactoryConnectionTests",
-        "MSSQLActivityMonitorTests",
-        "MSSQLAgentTests",
         "MSSQLColumnTests",
         "MSSQLConnectionTests",
         "MSSQLConstraintTests",
@@ -28,19 +24,20 @@
         "MSSQLDatabaseAdminTests",
         "MSSQLFunctionTests",
         "MSSQLIndexTests",
-        "MSSQLMaintenanceTests",
         "MSSQLMetadataTests",
         "MSSQLProcedureTests",
         "MSSQLQueryTests",
+        "MSSQLQueryTabIsolationTests",
         "MSSQLSchemaDiscoveryTests",
         "MSSQLSecurityTests",
         "MSSQLStreamingSpoolTests",
         "MSSQLStreamingTests",
+        "MSSQLSynonymTests",
+        "MSSQLTableDesignerTests",
         "MSSQLTableOperationsTests",
         "MSSQLTransactionTests",
         "MSSQLTriggerTests",
         "MSSQLViewTests",
-        "PGActivityMonitorTests",
         "PGColumnTests",
         "PGConnectionTests",
         "PGConstraintTests",
@@ -52,16 +49,19 @@
         "PGFunctionTests",
         "PGIndexTests",
         "PGMetadataTests",
+        "PGNewObjectTypesTests",
         "PGQueryTests",
         "PGSchemaDiscoveryTests",
         "PGSecurityTests",
         "PGSequenceTests",
         "PGStreamingSpoolTests",
         "PGStreamingTests",
+        "PGTableDesignerTests",
         "PGTableOperationsTests",
         "PGTransactionTests",
         "PGTriggerTests",
         "PGViewTests",
+        "SQLiteBulkImportTests",
         "SQLiteConnectionTests",
         "SQLiteDataTypeTests",
         "SQLiteQueryTests",
@@ -69,12 +69,12 @@
         "SQLiteTableOperationsTests",
         "SessionProtocolComplianceTests"
       ],
-      "target" : {
-        "containerPath" : "container:Echo.xcodeproj",
-        "identifier" : "385E60BACCBA4F1A95FC14AF",
-        "name" : "EchoTests"
+      "target": {
+        "containerPath": "container:Echo.xcodeproj",
+        "identifier": "385E60BACCBA4F1A95FC14AF",
+        "name": "EchoTests"
       }
     }
   ],
-  "version" : 1
+  "version": 1
 }

@@ -25,6 +25,7 @@ final class EnvironmentState {
     var pinnedObjectIDs: [String] = []
     var recentConnections: [RecentConnectionRecord] = []
     var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
+    var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
     var dataInspectorContent: DataInspectorContent?
     @ObservationIgnored private var lastPushedInspectorTitle: String?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []
@@ -61,6 +62,7 @@ final class EnvironmentState {
     @ObservationIgnored let diagramCacheStore: DiagramCacheStore
     @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
 
+    @ObservationIgnored let dedicatedConnectionGate = AsyncSemaphore(limit: 3)
     @ObservationIgnored private var diagramRefreshTask: Task<Void, Never>?
     @ObservationIgnored internal var observedSessionIDs: Set<UUID> = []
     @ObservationIgnored private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"
@@ -207,7 +209,7 @@ final class EnvironmentState {
                     mssqlEncryptionMode: connection.mssqlEncryptionMode,
                     readOnlyIntent: connection.readOnlyIntent,
                     authentication: credentials,
-                    connectTimeoutSeconds: 10
+                    connectTimeoutSeconds: Int(connection.connectionTimeout)
                 )
 
                 guard !Task.isCancelled else {

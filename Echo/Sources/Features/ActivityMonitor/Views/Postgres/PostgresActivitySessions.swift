@@ -9,6 +9,9 @@ struct PostgresActivitySessions: View {
     let onKill: (Int) -> Void
     var onDoubleClick: (() -> Void)?
 
+    @State private var showKillAlert = false
+    @State private var pendingKillPID: Int?
+
     private var sortedProcesses: [PostgresProcessInfo] {
         processes.sorted(using: sortOrder)
     }
@@ -39,16 +42,16 @@ struct PostgresActivitySessions: View {
             }.width(min: 70, ideal: 90)
 
             TableColumn("App") {
-                Text($0.applicationName ?? "")
-                    .font(TypographyTokens.Table.name)
-                    .foregroundStyle(ColorTokens.Text.secondary)
+                Text($0.applicationName ?? "\u{2014}")
+                    .font(TypographyTokens.Table.secondaryName)
+                    .foregroundStyle(($0.applicationName ?? "").isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
                     .lineLimit(1)
             }.width(min: 80, ideal: 120)
 
             TableColumn("Client") {
-                Text($0.clientAddress ?? "")
-                    .font(TypographyTokens.Table.name)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
+                Text($0.clientAddress ?? "\u{2014}")
+                    .font(TypographyTokens.Table.secondaryName)
+                    .foregroundStyle(($0.clientAddress ?? "").isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
             }.width(min: 80, ideal: 100)
 
             TableColumn("Query") {
@@ -58,21 +61,39 @@ struct PostgresActivitySessions: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: PostgresProcessInfo.ID.self) { selection in
             if let id = selection.first, let process = processes.first(where: { $0.id == id }) {
-                Button("Details") {
+                Button {
                     if let sql = process.query { onPopout(sql) }
+                } label: {
+                    Label("Details", systemImage: "arrow.up.left.and.arrow.down.right")
                 }
                 .disabled(process.query == nil)
 
                 Divider()
 
-                Button("Kill Process", role: .destructive) {
-                    onKill(Int(id))
+                Button(role: .destructive) {
+                    pendingKillPID = Int(id)
+                    showKillAlert = true
+                } label: {
+                    Label("Kill Process", systemImage: "xmark.octagon")
                 }
             }
         } primaryAction: { _ in
             onDoubleClick?()
+        }
+        .alert("Kill Process?", isPresented: $showKillAlert) {
+            Button("Cancel", role: .cancel) { pendingKillPID = nil }
+            Button("Kill", role: .destructive) {
+                guard let pid = pendingKillPID else { return }
+                pendingKillPID = nil
+                onKill(pid)
+            }
+        } message: {
+            if let pid = pendingKillPID {
+                Text("Are you sure you want to kill process \(pid)? Any uncommitted work will be rolled back.")
+            }
         }
     }
 }
@@ -89,8 +110,7 @@ private struct DurationCell: View {
                 .foregroundStyle(seconds > 60 ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
         } else {
             Text("\u{2014}")
-                .font(TypographyTokens.Table.name)
-                .foregroundStyle(ColorTokens.Text.quaternary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
         }
     }
 

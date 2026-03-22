@@ -55,11 +55,11 @@ extension QueryResultsTableView.Coordinator {
 
         let lower = max(visibleRange.location, 0); let upper = min(tableView.numberOfRows, lower + visibleRange.length)
         guard upper > lower else { return }
-        parent.query.revealMoreRowsIfNeeded(forDisplayedRow: upper - 1)
+        queryState.revealMoreRowsIfNeeded(forDisplayedRow: upper - 1)
         var sourceIndices: [Int] = []; sourceIndices.reserveCapacity(upper - lower)
         if parent.rowOrder.isEmpty { for r in lower..<upper { sourceIndices.append(r) } }
         else { for r in lower..<upper { if r < parent.rowOrder.count { sourceIndices.append(parent.rowOrder[r]) } } }
-        parent.query.updateVisibleGridWindow(displayedRange: lower..<upper, sourceIndices: sourceIndices)
+        queryState.updateVisibleGridWindow(displayedRange: lower..<upper, sourceIndices: sourceIndices)
     }
 
     func requestTableSizeAdjustment(rowCount: Int? = nil) {
@@ -79,7 +79,9 @@ extension QueryResultsTableView.Coordinator {
                     // Once they stop, the flag resets so normal updates resume.
                     Task { @MainActor [weak self] in
                         try? await Task.sleep(for: .seconds(0.15))
-                        self?.isResizingColumn = false
+                        guard let self else { return }
+                        self.isResizingColumn = false
+                        self.saveColumnWidths()
                     }
                 }
             }

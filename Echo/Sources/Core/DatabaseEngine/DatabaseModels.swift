@@ -9,6 +9,9 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         case trigger = "TRIGGER"
         case procedure = "PROCEDURE"
         case `extension` = "EXTENSION"
+        case sequence = "SEQUENCE"
+        case type = "TYPE"
+        case synonym = "SYNONYM"
 
         public nonisolated var pluralDisplayName: String {
             switch self {
@@ -19,6 +22,9 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
             case .procedure: return "Procedures"
             case .trigger: return "Triggers"
             case .extension: return "Extensions"
+            case .sequence: return "Sequences"
+            case .type: return "Types"
+            case .synonym: return "Synonyms"
             }
         }
 
@@ -31,6 +37,9 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
             case .procedure: return "terminal"
             case .trigger: return "bolt.fill"
             case .extension: return "puzzlepiece.fill"
+            case .sequence: return "number"
+            case .type: return "t.square"
+            case .synonym: return "arrow.triangle.branch"
             }
         }
     }
@@ -129,16 +138,26 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         public var isNullable: Bool
         public var defaultValue: String?
         public var generatedExpression: String?
+        public var isIdentity: Bool
+        public var identitySeed: Int?
+        public var identityIncrement: Int?
+        public var identityGeneration: String?
+        public var collation: String?
 
-        public init(name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?) {
+        public init(name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?, isIdentity: Bool = false, identitySeed: Int? = nil, identityIncrement: Int? = nil, identityGeneration: String? = nil, collation: String? = nil) {
             self.name = name; self.dataType = dataType; self.isNullable = isNullable; self.defaultValue = defaultValue; self.generatedExpression = generatedExpression
+            self.isIdentity = isIdentity; self.identitySeed = identitySeed; self.identityIncrement = identityIncrement; self.identityGeneration = identityGeneration; self.collation = collation
         }
     }
 
     public struct PrimaryKey: Sendable, Codable, Hashable {
         public var name: String
         public var columns: [String]
-        public init(name: String, columns: [String]) { self.name = name; self.columns = columns }
+        public var isDeferrable: Bool
+        public var isInitiallyDeferred: Bool
+        public init(name: String, columns: [String], isDeferrable: Bool = false, isInitiallyDeferred: Bool = false) {
+            self.name = name; self.columns = columns; self.isDeferrable = isDeferrable; self.isInitiallyDeferred = isInitiallyDeferred
+        }
     }
 
     public struct Index: Identifiable, Sendable, Codable, Hashable {
@@ -148,21 +167,31 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
             public var name: String
             public var position: Int
             public var sortOrder: SortOrder
-            public init(name: String, position: Int, sortOrder: SortOrder) { self.name = name; self.position = position; self.sortOrder = sortOrder }
+            public var isIncluded: Bool
+            public init(name: String, position: Int, sortOrder: SortOrder, isIncluded: Bool = false) {
+                self.name = name; self.position = position; self.sortOrder = sortOrder; self.isIncluded = isIncluded
+            }
         }
         public var id: String { name }
         public var name: String
         public var columns: [Column]
         public var isUnique: Bool
         public var filterCondition: String?
-        public init(name: String, columns: [Column], isUnique: Bool, filterCondition: String?) { self.name = name; self.columns = columns; self.isUnique = isUnique; self.filterCondition = filterCondition }
+        public var indexType: String?
+        public init(name: String, columns: [Column], isUnique: Bool, filterCondition: String?, indexType: String? = nil) {
+            self.name = name; self.columns = columns; self.isUnique = isUnique; self.filterCondition = filterCondition; self.indexType = indexType
+        }
     }
 
     public struct UniqueConstraint: Identifiable, Sendable, Codable, Hashable {
         public var id: String { name }
         public var name: String
         public var columns: [String]
-        public init(name: String, columns: [String]) { self.name = name; self.columns = columns }
+        public var isDeferrable: Bool
+        public var isInitiallyDeferred: Bool
+        public init(name: String, columns: [String], isDeferrable: Bool = false, isInitiallyDeferred: Bool = false) {
+            self.name = name; self.columns = columns; self.isDeferrable = isDeferrable; self.isInitiallyDeferred = isInitiallyDeferred
+        }
     }
 
     public struct ForeignKey: Identifiable, Sendable, Codable, Hashable {
@@ -174,9 +203,19 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         public var referencedColumns: [String]
         public var onUpdate: String?
         public var onDelete: String?
-        public init(name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?) {
+        public var isDeferrable: Bool
+        public var isInitiallyDeferred: Bool
+        public init(name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?, isDeferrable: Bool = false, isInitiallyDeferred: Bool = false) {
             self.name = name; self.columns = columns; self.referencedSchema = referencedSchema; self.referencedTable = referencedTable; self.referencedColumns = referencedColumns; self.onUpdate = onUpdate; self.onDelete = onDelete
+            self.isDeferrable = isDeferrable; self.isInitiallyDeferred = isInitiallyDeferred
         }
+    }
+
+    public struct CheckConstraint: Identifiable, Sendable, Codable, Hashable {
+        public var id: String { name }
+        public var name: String
+        public var expression: String
+        public init(name: String, expression: String) { self.name = name; self.expression = expression }
     }
 
     public struct Dependency: Identifiable, Sendable, Codable, Hashable {
@@ -192,15 +231,36 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         }
     }
 
+    public struct TableProperties: Sendable, Codable, Hashable {
+        // Common
+        public var fillfactor: Int?
+        // Postgres
+        public var toastTupleTarget: Int?
+        public var autovacuumEnabled: Bool?
+        public var parallelWorkers: Int?
+        public var tablespace: String?
+        // MSSQL
+        public var dataCompression: String?
+        public var filegroup: String?
+        public var lockEscalation: String?
+
+        public init(fillfactor: Int? = nil, toastTupleTarget: Int? = nil, autovacuumEnabled: Bool? = nil, parallelWorkers: Int? = nil, tablespace: String? = nil, dataCompression: String? = nil, filegroup: String? = nil, lockEscalation: String? = nil) {
+            self.fillfactor = fillfactor; self.toastTupleTarget = toastTupleTarget; self.autovacuumEnabled = autovacuumEnabled; self.parallelWorkers = parallelWorkers; self.tablespace = tablespace
+            self.dataCompression = dataCompression; self.filegroup = filegroup; self.lockEscalation = lockEscalation
+        }
+    }
+
     public var columns: [Column]
     public var primaryKey: PrimaryKey?
     public var indexes: [Index]
     public var uniqueConstraints: [UniqueConstraint]
     public var foreignKeys: [ForeignKey]
     public var dependencies: [Dependency]
+    public var checkConstraints: [CheckConstraint]
+    public var tableProperties: TableProperties?
 
-    public init(columns: [Column] = [], primaryKey: PrimaryKey? = nil, indexes: [Index] = [], uniqueConstraints: [UniqueConstraint] = [], foreignKeys: [ForeignKey] = [], dependencies: [Dependency] = []) {
-        self.columns = columns; self.primaryKey = primaryKey; self.indexes = indexes; self.uniqueConstraints = uniqueConstraints; self.foreignKeys = foreignKeys; self.dependencies = dependencies
+    public init(columns: [Column] = [], primaryKey: PrimaryKey? = nil, indexes: [Index] = [], uniqueConstraints: [UniqueConstraint] = [], foreignKeys: [ForeignKey] = [], dependencies: [Dependency] = [], checkConstraints: [CheckConstraint] = [], tableProperties: TableProperties? = nil) {
+        self.columns = columns; self.primaryKey = primaryKey; self.indexes = indexes; self.uniqueConstraints = uniqueConstraints; self.foreignKeys = foreignKeys; self.dependencies = dependencies; self.checkConstraints = checkConstraints; self.tableProperties = tableProperties
     }
 }
 

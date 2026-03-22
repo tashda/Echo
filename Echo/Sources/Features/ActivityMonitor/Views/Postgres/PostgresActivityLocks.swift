@@ -140,8 +140,7 @@ struct PostgresActivityLocks: View {
                         .foregroundStyle(ColorTokens.Status.error)
                 } else {
                     Text("\u{2014}")
-                        .font(TypographyTokens.Table.name)
-                        .foregroundStyle(ColorTokens.Text.quaternary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }.width(min: 70, max: 90)
 
@@ -161,6 +160,7 @@ struct PostgresActivityLocks: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: StickyLockState.StickyLock.ID.self) { _ in
         } primaryAction: { _ in
             onDoubleClick?()

@@ -56,7 +56,13 @@ extension QueryResultsSection {
 #if os(macOS)
     private var primaryResultsTable: some View {
         QueryResultsTableView(
-            query: query,
+            displayedRowCount: query.displayedRowCount,
+            resultChangeToken: query.resultChangeToken,
+            executionGeneration: query.executionGeneration,
+            displayedColumns: query.displayedColumns,
+            dataClassification: query.dataClassification,
+            isExecuting: query.isExecuting,
+            queryStateRef: query,
             highlightedColumnIndex: highlightedColumnIndex,
             activeSort: activeSort,
             rowOrder: rowOrder,
@@ -83,7 +89,8 @@ extension QueryResultsSection {
             isResizing: isResizingResults,
             alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
             showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
-            colorOverrides: projectStore.globalSettings.resultGridColorOverrides
+            colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
+            isDarkMode: appearanceStore.effectiveColorScheme == .dark
         )
     }
 
@@ -151,11 +158,11 @@ extension QueryResultsSection {
 #endif
 
     var noResultsPlaceholder: some View {
-        EmptyStatePlaceholder(
-            icon: "play.rectangle",
-            title: "Run a Query",
-            subtitle: "Execute a query to see results, messages, and execution plans."
-        )
+        ContentUnavailableView {
+            Label("Run a Query", systemImage: "play.rectangle")
+        } description: {
+            Text("Execute a query to see results, messages, and execution plans.")
+        }
     }
 
     var messagesView: some View {

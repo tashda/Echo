@@ -20,47 +20,9 @@ extension SecurityPGRoleSheet {
                 }
             }
         }
-        .frame(minWidth: 200)
 
         if !newParamName.isEmpty, let def = settingDefinition(for: newParamName) {
-            HStack(spacing: SpacingTokens.xs) {
-                switch def.vartype {
-                case "bool":
-                    Picker("Value", selection: $newParamValue) {
-                        Text("on").tag("on")
-                        Text("off").tag("off")
-                    }
-                    .frame(width: 100)
-                    .onAppear { if newParamValue.isEmpty { newParamValue = def.bootVal == "on" ? "on" : "off" } }
-
-                case "enum":
-                    Picker("Value", selection: $newParamValue) {
-                        Text("Select\u{2026}").tag("")
-                        ForEach(def.enumVals, id: \.self) { val in
-                            Text(val).tag(val)
-                        }
-                    }
-                    .frame(minWidth: 120)
-
-                case "integer", "real":
-                    TextField("Value", text: $newParamValue)
-                        .frame(width: 100)
-                    if !def.unit.isEmpty {
-                        Text(def.unit)
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                    }
-
-                default:
-                    TextField("Value", text: $newParamValue)
-                        .frame(minWidth: 120)
-                }
-
-                Button("Add") {
-                    addParameter()
-                }
-                .disabled(newParamValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
+            parameterAddValueRow(def: def)
 
             if !def.shortDesc.isEmpty {
                 Text(def.shortDesc)
@@ -68,6 +30,65 @@ extension SecurityPGRoleSheet {
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
         }
+    }
+
+    @ViewBuilder
+    private func parameterAddValueRow(def: PostgresSettingDefinition) -> some View {
+        switch def.vartype {
+        case "bool":
+            Picker("Value", selection: $newParamValue) {
+                Text("on").tag("on")
+                Text("off").tag("off")
+            }
+            .onAppear { if newParamValue.isEmpty { newParamValue = def.bootVal == "on" ? "on" : "off" } }
+
+        case "enum":
+            Picker("Value", selection: $newParamValue) {
+                Text("Select\u{2026}").tag("")
+                ForEach(def.enumVals, id: \.self) { val in
+                    Text(val).tag(val)
+                }
+            }
+
+        case "integer", "real":
+            LabeledContent("Value") {
+                HStack(spacing: SpacingTokens.xxs) {
+                    TextField("", text: $newParamValue)
+                        .frame(width: 100)
+                        .multilineTextAlignment(.trailing)
+                    if !def.unit.isEmpty {
+                        Text(def.unit)
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                    addParameterButton
+                }
+            }
+
+        default:
+            LabeledContent("Value") {
+                HStack(spacing: SpacingTokens.xs) {
+                    TextField("", text: $newParamValue)
+                        .frame(minWidth: 120)
+                    addParameterButton
+                }
+            }
+        }
+
+        if def.vartype == "bool" || def.vartype == "enum" {
+            LabeledContent {
+                addParameterButton
+            } label: {
+                EmptyView()
+            }
+        }
+    }
+
+    private var addParameterButton: some View {
+        Button("Add") {
+            addParameter()
+        }
+        .disabled(newParamValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
     // MARK: - Security Labels Page
@@ -82,22 +103,20 @@ extension SecurityPGRoleSheet {
             }
 
             ForEach(Array(securityLabels.enumerated()), id: \.offset) { index, label in
-                HStack {
-                    Text(label.provider)
-                        .font(TypographyTokens.standard)
-                        .frame(minWidth: 120, alignment: .leading)
-                    Text(label.label)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                    Spacer()
-                    if isEditing {
-                        Button(role: .destructive) {
-                            securityLabels.remove(at: index)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(ColorTokens.Status.error)
+                LabeledContent(label.provider) {
+                    HStack(spacing: SpacingTokens.xs) {
+                        Text(label.label)
+                            .font(TypographyTokens.standard)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                        if isEditing {
+                            Button(role: .destructive) {
+                                securityLabels.remove(at: index)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(ColorTokens.Status.error)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -105,12 +124,18 @@ extension SecurityPGRoleSheet {
 
         if isEditing {
             Section("Add Security Label") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("Provider", text: $newLabelProvider)
+                LabeledContent("Provider") {
+                    TextField("", text: $newLabelProvider, prompt: Text("e.g. selinux"))
                         .frame(minWidth: 120)
+                }
 
-                    TextField("Label", text: $newLabelValue)
+                LabeledContent("Label") {
+                    TextField("", text: $newLabelValue, prompt: Text("e.g. unconfined_u:object_r:user_t:s0"))
+                        .frame(minWidth: 120)
+                }
 
+                HStack {
+                    Spacer()
                     Button("Add") {
                         addSecurityLabel()
                     }

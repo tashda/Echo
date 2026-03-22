@@ -27,17 +27,20 @@ extension ObjectBrowserSidebarView {
             }
             .contextMenu {
                 Button {
+                    Task {
+                        let handle = AppDirector.shared.activityEngine.begin("Refreshing login roles", connectionSessionID: session.id)
+                        await loadServerSecurityAsync(session: session)
+                        handle.succeed()
+                    }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
                     viewModel.securityPGRoleSheetSessionID = connID
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
                 } label: {
-                    Label("New Login Role", systemImage: "plus")
-                }
-                Divider()
-                Button {
-                    loadServerSecurity(session: session)
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label("New Login Role", systemImage: "person.badge.plus")
                 }
             }
 
@@ -72,17 +75,20 @@ extension ObjectBrowserSidebarView {
             }
             .contextMenu {
                 Button {
+                    Task {
+                        let handle = AppDirector.shared.activityEngine.begin("Refreshing group roles", connectionSessionID: session.id)
+                        await loadServerSecurityAsync(session: session)
+                        handle.succeed()
+                    }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
                     viewModel.securityPGRoleSheetSessionID = connID
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
                 } label: {
-                    Label("New Group Role", systemImage: "plus")
-                }
-                Divider()
-                Button {
-                    loadServerSecurity(session: session)
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label("New Group Role", systemImage: "person.2.badge.plus")
                 }
             }
 
@@ -112,11 +118,34 @@ extension ObjectBrowserSidebarView {
                 .foregroundStyle(ColorTokens.Text.tertiary)
         }
         .contextMenu {
+            // Group 7: Maintenance
             Button {
                 Task { await reassignPGRole(name: role.name, session: session) }
             } label: {
                 Label("Reassign Owned Objects", systemImage: "arrow.triangle.swap")
             }
+
+            Divider()
+
+            // Group 6: Script as
+            Menu("Script as", systemImage: "scroll") {
+                Button {
+                    let loginAttr = role.loginType.contains("Login") || role.loginType.contains("Superuser") ? " LOGIN" : ""
+                    openScriptTab(sql: "CREATE ROLE \"\(role.name)\"\(loginAttr);", session: session)
+                } label: {
+                    Label("CREATE", systemImage: "plus.rectangle.on.rectangle")
+                }
+                Divider()
+                Button {
+                    openScriptTab(sql: "DROP ROLE \"\(role.name)\";", session: session)
+                } label: {
+                    Label("DROP", systemImage: "trash")
+                }
+            }
+
+            Divider()
+
+            // Group 9: Destructive
             Button(role: .destructive) {
                 viewModel.dropSecurityPrincipalTarget = .init(
                     sessionID: session.id,
@@ -129,19 +158,10 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Drop Role", systemImage: "trash")
             }
+
             Divider()
-            Menu {
-                Button("CREATE") {
-                    let loginAttr = role.loginType.contains("Login") || role.loginType.contains("Superuser") ? " LOGIN" : ""
-                    openScriptTab(sql: "CREATE ROLE \"\(role.name)\"\(loginAttr);", session: session)
-                }
-                Button("DROP") {
-                    openScriptTab(sql: "DROP ROLE \"\(role.name)\";", session: session)
-                }
-            } label: {
-                Label("Script as", systemImage: "scroll")
-            }
-            Divider()
+
+            // Group 10: Properties — ALWAYS last
             Button {
                 viewModel.securityPGRoleSheetSessionID = session.connection.id
                 viewModel.securityPGRoleSheetEditName = role.name

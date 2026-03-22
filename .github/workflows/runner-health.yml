@@ -30,59 +30,18 @@ jobs:
         docker info --format '{{.ServerVersion}}' > /dev/null 2>&1
         echo "✅ Docker daemon reachable ($(docker info --format '{{.ServerVersion}}'))"
 
-    - name: Verify test containers
-      env:
-        DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
-        ECHO_MSSQL_PORT: "14332"
-        ECHO_PG_PORT: "54322"
-      run: |
-        HEALTHY=true
-
-        # Check MSSQL container
-        if docker ps --format '{{.Names}}' | grep -q echo-test-mssql; then
-          echo "✅ MSSQL container running"
-        else
-          echo "⚠️ MSSQL container not running — starting..."
-          docker rm -f echo-test-mssql 2>/dev/null || true
-          docker run -d --name echo-test-mssql \
-            --restart unless-stopped \
-            -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=YourStr0ngP@ssword' \
-            -p ${ECHO_MSSQL_PORT}:1433 \
-            mcr.microsoft.com/mssql/server:2022-latest
-          sleep 15
-          echo "✅ MSSQL container started"
-        fi
-
-        # Check Postgres container
-        if docker ps --format '{{.Names}}' | grep -q echo-test-pg; then
-          echo "✅ Postgres container running"
-        else
-          echo "⚠️ Postgres container not running — starting..."
-          docker rm -f echo-test-pg 2>/dev/null || true
-          docker run -d --name echo-test-pg \
-            --restart unless-stopped \
-            -e POSTGRES_PASSWORD=postgres \
-            -p ${ECHO_PG_PORT}:5432 \
-            postgres:16
-          sleep 5
-          echo "✅ Postgres container started"
-        fi
-
-    - name: Verify database connectivity
+    - name: Verify runner capacity
       env:
         DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
       run: |
-        # Test MSSQL responds
-        docker exec echo-test-mssql /opt/mssql-tools18/bin/sqlcmd \
-          -S localhost -U sa -P 'YourStr0ngP@ssword' -C \
-          -Q "SELECT 1" > /dev/null 2>&1 \
-          && echo "✅ MSSQL accepting connections" \
-          || echo "::warning::MSSQL container running but not accepting connections yet"
-
-        # Test Postgres responds
-        docker exec echo-test-pg pg_isready -U postgres > /dev/null 2>&1 \
-          && echo "✅ Postgres accepting connections" \
-          || echo "::warning::Postgres container running but not accepting connections yet"
+        df -h /
+        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        if lsof -nP -iTCP:14332 -sTCP:LISTEN >/dev/null 2>&1; then
+          echo "::warning::Port 14332 already has a listener; fixture bootstrap will need to reconcile it."
+        fi
+        if lsof -nP -iTCP:54322 -sTCP:LISTEN >/dev/null 2>&1; then
+          echo "::warning::Port 54322 already has a listener; fixture bootstrap will need to reconcile it."
+        fi
 
     - name: Summary
       env:
@@ -101,16 +60,10 @@ jobs:
           && echo "| Docker | ✅ Reachable |" >> $GITHUB_STEP_SUMMARY \
           || echo "| Docker | ❌ Unreachable |" >> $GITHUB_STEP_SUMMARY
 
-        docker ps --format '{{.Names}}' | grep -q echo-test-mssql \
-          && echo "| MSSQL Container | ✅ Running |" >> $GITHUB_STEP_SUMMARY \
-          || echo "| MSSQL Container | ❌ Down |" >> $GITHUB_STEP_SUMMARY
-
-        docker ps --format '{{.Names}}' | grep -q echo-test-pg \
-          && echo "| Postgres Container | ✅ Running |" >> $GITHUB_STEP_SUMMARY \
-          || echo "| Postgres Container | ❌ Down |" >> $GITHUB_STEP_SUMMARY
+        echo "| DB Fixtures | ℹ️ Validated in repo workflows, not here |" >> $GITHUB_STEP_SUMMARY
 
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Containers:" >> $GITHUB_STEP_SUMMARY
+        echo "Container inventory:" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" >> $GITHUB_STEP_SUMMARY
+        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY

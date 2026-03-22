@@ -3,21 +3,14 @@ import SwiftUI
 extension TableStructureEditorView {
 
     internal var relationsContent: some View {
-        VStack(spacing: 0) {
-            sectionToolbar(title: "Foreign Keys", count: activeForeignKeys.count) {
-                presentNewForeignKey()
-            }
-
-            Divider()
-
+        Group {
             if activeForeignKeys.isEmpty && viewModel.dependencies.isEmpty {
-                EmptyStatePlaceholder(
-                    icon: "link",
-                    title: "No Relations",
-                    subtitle: "Foreign keys define referential relationships between tables.",
-                    actionTitle: "Add Foreign Key"
-                ) {
-                    presentNewForeignKey()
+                ContentUnavailableView {
+                    Label("No Relations", systemImage: "link")
+                } description: {
+                    Text("Foreign keys define referential relationships between tables.")
+                } actions: {
+                    Button("Add Foreign Key") { presentNewForeignKey() }
                 }
             } else {
                 VStack(spacing: 0) {
@@ -42,48 +35,57 @@ extension TableStructureEditorView {
 
     private var foreignKeysTable: some View {
         Table(of: TableStructureEditorViewModel.ForeignKeyModel.self, selection: $selectedForeignKeyIDs) {
-            TableColumn("Name") { fk in
-                HStack(spacing: SpacingTokens.xxs) {
-                    if fk.isNew || fk.isDirty {
-                        Circle()
-                            .fill(accentColor)
-                            .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
-                    }
-                    Text(fk.name)
-                        .font(TypographyTokens.standard.weight(.medium))
-                        .help(fk.name)
-                }
+            TableColumn("Kind") { _ in
+                Text("FK")
+                    .font(TypographyTokens.Table.kindBadge)
+                    .foregroundStyle(.green)
             }
-            .width(min: 120, ideal: 200)
+            .width(35)
+
+            TableColumn("Name") { fk in
+                Text(fk.name)
+                    .font(TypographyTokens.Table.name)
+                    .help(fk.name)
+            }
+            .width(min: 120, ideal: 180)
 
             TableColumn("Columns") { fk in
                 Text(fk.columns.joined(separator: ", "))
-                    .font(TypographyTokens.detail.monospaced())
+                    .font(TypographyTokens.Table.secondaryName)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
                     .help(fk.columns.joined(separator: ", "))
             }
-            .width(min: 80, ideal: 140)
+            .width(min: 80, ideal: 120)
 
-            TableColumn("References") { fk in
-                Text("\(fk.referencedSchema).\(fk.referencedTable)(\(fk.referencedColumns.joined(separator: ", ")))")
-                    .font(TypographyTokens.detail.monospaced())
+            TableColumn("Referenced Table") { fk in
+                Text("\(fk.referencedSchema).\(fk.referencedTable)")
+                    .font(TypographyTokens.Table.secondaryName)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
-                    .help("\(fk.referencedSchema).\(fk.referencedTable)(\(fk.referencedColumns.joined(separator: ", ")))")
+                    .help("\(fk.referencedSchema).\(fk.referencedTable)")
             }
-            .width(min: 120, ideal: 260)
+            .width(min: 80, ideal: 140)
+
+            TableColumn("Referenced Columns") { fk in
+                Text(fk.referencedColumns.joined(separator: ", "))
+                    .font(TypographyTokens.Table.secondaryName)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+                    .help(fk.referencedColumns.joined(separator: ", "))
+            }
+            .width(min: 80, ideal: 120)
 
             TableColumn("Actions") { fk in
                 HStack(spacing: SpacingTokens.sm) {
                     if let onUpdate = fk.onUpdate, !onUpdate.isEmpty {
                         Text("UPD: \(onUpdate)")
-                            .font(TypographyTokens.label.monospaced())
+                            .font(TypographyTokens.Table.category)
                             .foregroundStyle(ColorTokens.Text.tertiary)
                     }
                     if let onDelete = fk.onDelete, !onDelete.isEmpty {
                         Text("DEL: \(onDelete)")
-                            .font(TypographyTokens.label.monospaced())
+                            .font(TypographyTokens.Table.category)
                             .foregroundStyle(ColorTokens.Text.tertiary)
                     }
                     if fk.onUpdate == nil && fk.onDelete == nil {
@@ -92,7 +94,7 @@ extension TableStructureEditorView {
                     }
                 }
             }
-            .width(min: 80, ideal: 160)
+            .width(min: 80, ideal: 140)
         } rows: {
             ForEach(activeForeignKeys) { fk in
                 TableRow(fk)
@@ -106,15 +108,18 @@ extension TableStructureEditorView {
                 presentForeignKeyEditor(for: fk)
             }
         }
-        .tableStyle(.bordered(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .environment(\.defaultMinListRowHeight, 28)
     }
 
     @ViewBuilder
     private func foreignKeyContextMenu(for selection: Set<TableStructureEditorViewModel.ForeignKeyModel.ID>) -> some View {
-        if let fkID = selection.first,
+        if selection.isEmpty {
+            Button("Add Foreign Key") { presentNewForeignKey() }
+        } else if let fkID = selection.first,
            let fk = activeForeignKeys.first(where: { $0.id == fkID }) {
-            Button("Edit Foreign Key\u{2026}") {
+            Button("Edit Foreign Key") {
                 presentForeignKeyEditor(for: fk)
             }
             Divider()
@@ -153,39 +158,46 @@ extension TableStructureEditorView {
 
     private var dependenciesTable: some View {
         Table(viewModel.dependencies) {
+            TableColumn("Kind") { _ in
+                Text("DEP")
+                    .font(TypographyTokens.Table.kindBadge)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            }
+            .width(35)
+
             TableColumn("Name") { dep in
                 Text(dep.name)
-                    .font(TypographyTokens.standard.weight(.medium))
+                    .font(TypographyTokens.Table.name)
                     .help(dep.name)
             }
-            .width(min: 120, ideal: 200)
+            .width(min: 120, ideal: 180)
 
             TableColumn("Columns") { dep in
                 Text(dep.baseColumns.joined(separator: ", "))
-                    .font(TypographyTokens.detail.monospaced())
+                    .font(TypographyTokens.Table.secondaryName)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
             }
-            .width(min: 80, ideal: 140)
+            .width(min: 80, ideal: 120)
 
             TableColumn("Referenced Table") { dep in
                 Text("\(dep.referencedTable)(\(dep.referencedColumns.joined(separator: ", ")))")
-                    .font(TypographyTokens.detail.monospaced())
+                    .font(TypographyTokens.Table.secondaryName)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
             }
-            .width(min: 120, ideal: 260)
+            .width(min: 120, ideal: 240)
 
             TableColumn("Actions") { dep in
                 HStack(spacing: SpacingTokens.sm) {
                     if let onUpdate = dep.onUpdate, !onUpdate.isEmpty {
                         Text("UPD: \(onUpdate)")
-                            .font(TypographyTokens.label.monospaced())
+                            .font(TypographyTokens.Table.category)
                             .foregroundStyle(ColorTokens.Text.tertiary)
                     }
                     if let onDelete = dep.onDelete, !onDelete.isEmpty {
                         Text("DEL: \(onDelete)")
-                            .font(TypographyTokens.label.monospaced())
+                            .font(TypographyTokens.Table.category)
                             .foregroundStyle(ColorTokens.Text.tertiary)
                     }
                     if dep.onUpdate == nil && dep.onDelete == nil {
@@ -194,13 +206,14 @@ extension TableStructureEditorView {
                     }
                 }
             }
-            .width(min: 80, ideal: 160)
+            .width(min: 80, ideal: 140)
         }
-        .tableStyle(.bordered(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .environment(\.defaultMinListRowHeight, 28)
     }
 
-    private func presentNewForeignKey() {
+    internal func presentNewForeignKey() {
         let model = viewModel.addForeignKey()
         activeForeignKeyEditor = ForeignKeyEditorPresentation(foreignKeyID: model.id, isNew: true)
     }

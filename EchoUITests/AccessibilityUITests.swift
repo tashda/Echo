@@ -1,10 +1,6 @@
 import XCTest
 
-final class AccessibilityUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class AccessibilityUITests: EchoUITestCase {
     // MARK: - Helpers
 
     private func launchApp() -> XCUIApplication {

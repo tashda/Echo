@@ -124,12 +124,8 @@ extension SQLTextView {
             // Period (.) always opens/refreshes — for schema.table.column chaining
             triggerCompletion(immediate: true)
         case .standard:
-            // Letters/underscore: filter if popup is already visible,
-            // or open if we're in an object context (FROM/JOIN/UPDATE/INTO)
-            // where the user is typing a table/schema name.
-            if isCompletionVisible || isObjectNamingContext() {
-                triggerCompletion(immediate: false)
-            }
+            // Always ask EchoSense — it decides whether to show completions.
+            triggerCompletion(immediate: false)
         case .evaluateSpace:
             if shouldTriggerAfterKeywordSpace() {
                 triggerCompletion(immediate: true)
@@ -146,8 +142,6 @@ extension SQLTextView {
     func triggerCompletion(immediate: Bool) {
         guard displayOptions.autoCompletionEnabled else { return }
         guard !manualCompletionSuppression else { return }
-        if isAliasTypingContext() { return }
-        suppressNextCompletionRefresh = true
         refreshCompletions(immediate: immediate)
     }
 
@@ -156,32 +150,6 @@ extension SQLTextView {
         guard !linePrefix.isEmpty else { return false }
         let pattern = #"(?i)(from|join|update|call|exec|execute|into)\s*$"#
         return linePrefix.range(of: pattern, options: .regularExpression) != nil
-    }
-
-    /// Returns true when the caret is in a position where the user is typing
-    /// a database object name (table, view, schema) — i.e. after FROM, JOIN,
-    /// UPDATE, INTO, or after a comma in a FROM clause.
-    /// Letters in these contexts should open the popup.
-    func isObjectNamingContext() -> Bool {
-        let caretLocation = selectedRange().location
-        guard caretLocation != NSNotFound else { return false }
-        let nsString = string as NSString
-        guard caretLocation <= nsString.length else { return false }
-        // Look at text before caret (up to 200 chars back for multiline FROM)
-        let lookback = min(caretLocation, 200)
-        let searchRange = NSRange(location: caretLocation - lookback, length: lookback)
-        let preceding = nsString.substring(with: searchRange)
-        // Match: keyword + whitespace + partial identifier at the end
-        let pattern = #"(?i)\b(from|join|update|into)\s+[A-Za-z_][A-Za-z0-9_]*$"#
-        if preceding.range(of: pattern, options: .regularExpression) != nil {
-            return true
-        }
-        // Match: comma + whitespace + partial identifier (additional tables in FROM)
-        let commaPattern = #"(?i)\b(from|join)\s+.*,\s*[A-Za-z_][A-Za-z0-9_]*$"#
-        if preceding.range(of: commaPattern, options: .regularExpression) != nil {
-            return true
-        }
-        return false
     }
 
     func currentLinePrefix() -> String {
@@ -194,17 +162,50 @@ extension SQLTextView {
         return nsString.substring(with: NSRange(location: lineRange.location, length: prefixLength))
     }
 
-    func isAliasTypingContext() -> Bool {
-        let prefix = currentLinePrefix()
-        guard !prefix.isEmpty else { return false }
-        let pattern = #"(?i)\b(from|join|update|into)\s+([A-Za-z0-9_\.\"`\[\]]+)\s+[A-Za-z_][A-Za-z0-9_]*$"#
-        return prefix.range(of: pattern, options: .regularExpression) != nil
-    }
-
     func isIdentifierContinuation(_ value: String) -> Bool {
         guard !value.isEmpty else { return false }
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "$_"))
         return value.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+
+    // MARK: - Go to Line
+
+    func goToLine(_ lineNumber: Int) {
+        let nsString = string as NSString
+        guard lineNumber >= 1 else { return }
+        let targetLine = lineNumber
+        let location = nsString.locationOfLine(targetLine)
+        guard location != NSNotFound else { return }
+        let lineRange = nsString.lineRange(for: NSRange(location: location, length: 0))
+        setSelectedRange(NSRange(location: lineRange.location, length: 0))
+        scrollRangeToVisible(lineRange)
+        lineNumberRuler?.highlightedLines = IndexSet(integer: targetLine)
+        lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
+    }
+
+    func showGoToLinePanel() {
+        guard let window else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Go to Line"
+        alert.informativeText = "Enter a line number:"
+        alert.addButton(withTitle: "Go")
+        alert.addButton(withTitle: "Cancel")
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+        field.placeholderString = "Line number"
+        field.formatter = NumberFormatter()
+        alert.accessoryView = field
+
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertFirstButtonReturn else { return }
+            if let lineNumber = Int(field.stringValue), lineNumber >= 1 {
+                self?.goToLine(lineNumber)
+            }
+        }
+
+        // Focus the text field
+        alert.window.initialFirstResponder = field
     }
 
 }

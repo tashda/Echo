@@ -18,6 +18,12 @@ extension DatabaseObjectRow {
             return "TRIGGER"
         case .extension:
             return "EXTENSION"
+        case .sequence:
+            return "SEQUENCE"
+        case .type:
+            return "TYPE"
+        case .synonym:
+            return "SYNONYM"
         }
     }
 
@@ -37,6 +43,12 @@ extension DatabaseObjectRow {
             return "Trigger"
         case .extension:
             return "Extension"
+        case .sequence:
+            return "Sequence"
+        case .type:
+            return "Type"
+        case .synonym:
+            return "Synonym"
         }
     }
 

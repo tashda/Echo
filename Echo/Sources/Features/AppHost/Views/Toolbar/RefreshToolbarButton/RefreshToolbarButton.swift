@@ -6,6 +6,7 @@ struct RefreshToolbarButton: View {
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
     @Environment(TabStore.self) private var tabStore
+    @Environment(ActivityEngine.self) private var activityEngine
 
     @State private var refreshTask: Task<Void, Never>?
 
@@ -24,6 +25,7 @@ struct RefreshToolbarButton: View {
     var body: some View {
         if let session = activeSession {
             RefreshButtonContent(session: session,
+                                 activityEngine: activityEngine,
                                  accent: appearanceStore.accentColor,
                                  onRefresh: { startRefresh(for: session) },
                                  onCancel: { cancelRefresh(for: session) })
@@ -85,6 +87,30 @@ struct RefreshToolbarButton: View {
                     refreshTask = Task {
                         await vm.loadSessions()
                         session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
+            case .structure:
+                if let vm = activeTab.structureEditor {
+                    session.structureLoadingState = .loading(progress: nil)
+                    refreshTask = Task {
+                        await vm.reload()
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
+            case .jobQueue:
+                if let vm = activeTab.jobQueue {
+                    let handle = activityEngine.begin("Refresh Agent Jobs", connectionSessionID: session.id)
+                    refreshTask = Task {
+                        await vm.reloadJobs()
+                        if vm.errorMessage != nil {
+                            handle.fail(vm.errorMessage ?? "")
+                        } else {
+                            handle.succeed()
+                        }
                         refreshTask = nil
                     }
                     return

@@ -103,13 +103,11 @@ final class ObjectBrowserSidebarViewModel {
     var showNewDatabaseSheet = false
     var newDatabaseConnectionID: UUID?
 
-    // Backup/Restore sheets
-    var showBackupSheet = false
-    var backupDatabaseName: String?
-    var backupConnectionID: UUID?
-    var showRestoreSheet = false
-    var restoreDatabaseName: String?
-    var restoreConnectionID: UUID?
+    // PostgreSQL Backup/Restore sheets
+    var showPgBackupSheet = false
+    var showPgRestoreSheet = false
+    var pgBackupDatabaseName: String?
+    var pgBackupConnectionID: UUID?
 
     // Database Mail sheet
     var showDatabaseMailSheet = false
@@ -124,11 +122,6 @@ final class ObjectBrowserSidebarViewModel {
     var showFullTextSheet = false
     var fullTextDatabaseName: String?
     var fullTextConnectionID: UUID?
-
-    // Maintenance sheet
-    var showMaintenanceSheet = false
-    var maintenanceDatabaseName: String?
-    var maintenanceConnectionID: UUID?
 
     // Replication sheet
     var showReplicationSheet = false

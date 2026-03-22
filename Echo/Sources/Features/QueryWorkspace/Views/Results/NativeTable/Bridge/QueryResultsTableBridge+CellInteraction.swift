@@ -56,11 +56,11 @@ extension QueryResultsTableView.Coordinator {
 
     func makeJsonSelection(for cell: QueryResultsTableView.SelectedCell) -> QueryResultsTableView.JsonSelection? {
         guard cell.column >= 0,
-              cell.column < parent.query.displayedColumns.count else { return nil }
-        let columnInfo = parent.query.displayedColumns[cell.column]
+              cell.column < queryState.displayedColumns.count else { return nil }
+        let columnInfo = queryState.displayedColumns[cell.column]
         let sourceRowIndex = resolvedRowIndex(for: cell.row)
         guard sourceRowIndex >= 0,
-              let rawValue = parent.query.valueForDisplay(row: sourceRowIndex, column: cell.column) else {
+              let rawValue = queryState.valueForDisplay(row: sourceRowIndex, column: cell.column) else {
             return nil
         }
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -80,8 +80,8 @@ extension QueryResultsTableView.Coordinator {
 
     func makeForeignKeySelection(for cell: QueryResultsTableView.SelectedCell) -> QueryResultsTableView.ForeignKeySelection? {
         guard cell.column >= 0,
-              cell.column < parent.query.displayedColumns.count else { return nil }
-        let columnInfo = parent.query.displayedColumns[cell.column]
+              cell.column < queryState.displayedColumns.count else { return nil }
+        let columnInfo = queryState.displayedColumns[cell.column]
         if columnInfo.foreignKey == nil {
             if !requestedForeignKeyColumns.contains(cell.column) {
                 requestedForeignKeyColumns.insert(cell.column)
@@ -91,7 +91,7 @@ extension QueryResultsTableView.Coordinator {
         }
         guard let reference = columnInfo.foreignKey else { return nil }
         let rowIndex = resolvedRowIndex(for: cell.row)
-        guard let rawValue = parent.query.valueForDisplay(row: rowIndex, column: cell.column) else { return nil }
+        guard let rawValue = queryState.valueForDisplay(row: rowIndex, column: cell.column) else { return nil }
         let kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue)
         return QueryResultsTableView.ForeignKeySelection(
             row: rowIndex,
@@ -111,10 +111,10 @@ extension QueryResultsTableView.Coordinator {
 
     func gatherSelectionData() -> SelectionData? {
         guard let tableView else { return nil }
-        let columns = parent.query.displayedColumns
+        let columns = queryState.displayedColumns
         guard !columns.isEmpty else { return nil }
 
-        let totalRows = parent.query.totalAvailableRowCount
+        let totalRows = queryState.totalAvailableRowCount
         guard totalRows > 0 else { return nil }
 
         let columnIndices: [Int]
@@ -151,7 +151,7 @@ extension QueryResultsTableView.Coordinator {
 
         let headers = columnIndices.map { columns[$0].name }
         let rows: [[String?]] = sourceRows.map { row in
-            columnIndices.map { parent.query.valueForDisplay(row: row, column: $0) }
+            columnIndices.map { queryState.valueForDisplay(row: row, column: $0) }
         }
 
         return SelectionData(headers: headers, rows: rows, columnIndices: columnIndices)
@@ -168,7 +168,7 @@ extension QueryResultsTableView.Coordinator {
         clipboardHistory.record(
             .resultGrid(includeHeaders: includeHeaders),
             content: export,
-            metadata: parent.query.clipboardMetadata
+            metadata: queryState.clipboardMetadata
         )
     }
 
@@ -179,7 +179,7 @@ extension QueryResultsTableView.Coordinator {
         clipboardHistory.record(
             .resultGrid(includeHeaders: true),
             content: export,
-            metadata: parent.query.clipboardMetadata
+            metadata: queryState.clipboardMetadata
         )
     }
 
@@ -212,11 +212,11 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func fireCellInspect(for cell: QueryResultsTableView.SelectedCell) {
-        guard cell.column >= 0, cell.column < parent.query.displayedColumns.count else { return }
-        let columnInfo = parent.query.displayedColumns[cell.column]
+        guard cell.column >= 0, cell.column < queryState.displayedColumns.count else { return }
+        let columnInfo = queryState.displayedColumns[cell.column]
         let sourceRow = resolvedRowIndex(for: cell.row)
         guard sourceRow >= 0 else { return }
-        let rawValue = parent.query.valueForDisplay(row: sourceRow, column: cell.column) ?? "NULL"
+        let rawValue = queryState.valueForDisplay(row: sourceRow, column: cell.column) ?? "NULL"
         let kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue == "NULL" ? nil : rawValue)
         let content = CellValueInspectorContent(
             columnName: columnInfo.name,

@@ -47,15 +47,20 @@ struct ExtendedEventsDataView: View {
             
             TableColumn("Details") { event in
                 Text(summaryFields(event.fields))
-                    .font(TypographyTokens.Table.name)
+                    .font(TypographyTokens.Table.secondaryName)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SQLServerXEEventData.ID.self) { ids in
             Button {
-                Task { await viewModel.loadEventData() }
+                Task {
+                    let handle = AppDirector.shared.activityEngine.begin("Refreshing event data", connectionSessionID: viewModel.connectionSessionID)
+                    await viewModel.loadEventData()
+                    handle.succeed()
+                }
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }

@@ -59,6 +59,7 @@ struct PostgresActivityDatabase: View {
             }.width(70)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: PostgresDatabaseStatDelta.ID.self) { _ in
         } primaryAction: { _ in
             onDoubleClick?()
@@ -76,8 +77,7 @@ private struct CacheHitCell: View {
                 .foregroundStyle(ratio >= 99 ? ColorTokens.Status.success : ratio >= 95 ? ColorTokens.Status.warning : ColorTokens.Status.error)
         } else {
             Text("\u{2014}")
-                .font(TypographyTokens.Table.name)
-                .foregroundStyle(ColorTokens.Text.quaternary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
         }
     }
 }

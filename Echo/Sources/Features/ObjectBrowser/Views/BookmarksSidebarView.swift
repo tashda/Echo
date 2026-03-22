@@ -87,10 +87,18 @@ struct BookmarksSidebarView: View {
     private func rename(bookmark: Bookmark, title: String?) { Task { await environmentState.renameBookmark(bookmark, to: title) } }
 
     private var emptyConnectionsPlaceholder: some View {
-        EmptyStatePlaceholder(icon: "bookmark", title: "No Servers", subtitle: "Add or select a server to start saving bookmarks.")
+        ContentUnavailableView {
+            Label("No Servers", systemImage: "bookmark")
+        } description: {
+            Text("Add or select a server to start saving bookmarks.")
+        }
     }
 
     private func emptyBookmarksPlaceholder(for connection: SavedConnection) -> some View {
-        EmptyStatePlaceholder(icon: "bookmark", title: "No Bookmarks Yet", subtitle: "Highlight a query or right-click a tab to save it for \(connectionDisplayName(connection)).")
+        ContentUnavailableView {
+            Label("No Bookmarks Yet", systemImage: "bookmark")
+        } description: {
+            Text("Highlight a query or right-click a tab to save it for \(connectionDisplayName(connection)).")
+        }
     }
 }

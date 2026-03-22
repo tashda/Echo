@@ -18,8 +18,15 @@ struct MSSQLMaintenanceIndexesView: View {
                 }
                 .width(35)
 
-                TableColumn("Index", value: \.indexName)
-                TableColumn("Table", value: \.tableName)
+                TableColumn("Index") { index in
+                    Text(index.indexName)
+                        .font(TypographyTokens.Table.name)
+                }
+                TableColumn("Table") { index in
+                    Text(index.tableName)
+                        .font(TypographyTokens.Table.name)
+                }
+
                 
                 TableColumn("Type") { index in
                     Text(index.indexType.lowercased())
@@ -66,18 +73,27 @@ struct MSSQLMaintenanceIndexesView: View {
                 .width(100)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
             .contextMenu(forSelectionType: SQLServerIndexFragmentation.ID.self) { ids in
                 if let id = ids.first, let index = viewModel.fragmentedIndexes.first(where: { $0.id == id }) {
                     Button {
-                        Task { 
+                        Task {
                             await viewModel.rebuildIndex(index)
                         }
                     } label: {
                         Label("Rebuild Index", systemImage: "hammer")
                     }
-                    
+
                     Button {
-                        Task { 
+                        Task {
+                            await viewModel.reorganizeIndex(index)
+                        }
+                    } label: {
+                        Label("Reorganize Index", systemImage: "arrow.triangle.2.circlepath")
+                    }
+
+                    Button {
+                        Task {
                             await viewModel.updateStatistics(index)
                         }
                     } label: {

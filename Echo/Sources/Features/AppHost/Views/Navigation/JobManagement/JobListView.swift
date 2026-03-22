@@ -3,24 +3,27 @@ import SwiftUI
 struct JobListView: View {
     var viewModel: JobQueueViewModel
     let notificationEngine: NotificationEngine?
+    var onNewJob: (() -> Void)?
     @State private var tableSelection: Set<String> = []
+    @State private var sortOrder: [KeyPathComparator<JobQueueViewModel.JobRow>] = [
+        .init(\.name, order: .forward)
+    ]
+
+    private var sortedJobs: [JobQueueViewModel.JobRow] {
+        viewModel.jobs.sorted(using: sortOrder)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("Jobs").font(TypographyTokens.headline)
                 Spacer()
-                if viewModel.isLoadingJobs { ProgressView().controlSize(.small) }
-                Button {
-                    Task { await viewModel.reloadJobs() }
-                } label: { Image(systemName: "arrow.clockwise") }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, SpacingTokens.sm)
             .padding(.vertical, SpacingTokens.xxs2)
 
-            Table(of: JobQueueViewModel.JobRow.self, selection: $tableSelection) {
-                TableColumn("Enabled") { job in
+            Table(of: JobQueueViewModel.JobRow.self, selection: $tableSelection, sortOrder: $sortOrder) {
+                TableColumn("Enabled", value: \.enabledSortKey) { job in
                     if viewModel.runningJobNames.contains(job.name) {
                         ProgressView()
                             .controlSize(.mini)
@@ -29,34 +32,46 @@ struct JobListView: View {
                             .foregroundStyle(job.enabled ? ColorTokens.Status.success : ColorTokens.Text.secondary)
                     }
                 }.width(28)
-                TableColumn("Name") { job in
+                TableColumn("Name", value: \.name) { job in
                     Text(job.name)
                         .font(TypographyTokens.Table.name)
                 }
-                TableColumn("Owner") { job in
-                    Text(job.owner ?? "—")
-                        .font(TypographyTokens.Table.name)
-                        .foregroundStyle(job.owner == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
+                TableColumn("Owner", value: \.ownerSortKey) { job in
+                    Text(job.owner ?? "\u{2014}")
+                        .font(TypographyTokens.Table.secondaryName)
+                        .foregroundStyle(job.owner == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
                 }
-                TableColumn("Category") { job in
-                    Text(job.category ?? "—")
-                        .font(TypographyTokens.Table.name)
-                        .foregroundStyle(job.category == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
+                TableColumn("Category", value: \.categorySortKey) { job in
+                    Text(job.category ?? "\u{2014}")
+                        .font(TypographyTokens.Table.secondaryName)
+                        .foregroundStyle(job.category == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
                 }
-                TableColumn("Last Outcome") { job in
-                    Text(job.lastOutcome ?? "—")
+                TableColumn("Status", value: \.statusSortKey) { job in
+                    let isRunning = viewModel.runningJobNames.contains(job.name)
+                    Text(isRunning ? "Running" : "Idle")
+                        .font(TypographyTokens.Table.status)
+                        .foregroundStyle(isRunning ? ColorTokens.Status.warning : ColorTokens.Text.tertiary)
+                }
+                TableColumn("Last Run", value: \.lastRunDateSortKey) { job in
+                    Text(job.lastRunDate ?? "\u{2014}")
+                        .font(TypographyTokens.Table.date)
+                        .foregroundStyle(job.lastRunDate == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
+                }
+                TableColumn("Last Outcome", value: \.outcomeSortKey) { job in
+                    Text(job.lastOutcome ?? "\u{2014}")
                         .font(TypographyTokens.Table.status)
                         .foregroundStyle(jobOutcomeColor(job.lastOutcome))
                 }
-                TableColumn("Next Run") { job in
+                TableColumn("Next Run", value: \.nextRunSortKey) { job in
                     Text(job.nextRun ?? "—")
                         .font(TypographyTokens.Table.date)
                         .foregroundStyle(job.nextRun == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
                 }
             } rows: {
-                ForEach(viewModel.jobs) { job in TableRow(job) }
+                ForEach(sortedJobs) { job in TableRow(job) }
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
             .contextMenu(forSelectionType: String.self) { items in
                 if let id = items.first {
                     let jobIsRunning = viewModel.jobs.first(where: { $0.id == id }).map { viewModel.runningJobNames.contains($0.name) } ?? false
@@ -65,9 +80,10 @@ struct JobListView: View {
                         Button("Start Job") {
                             Task {
                                 viewModel.selectedJobID = id
+                                let jobName = viewModel.jobs.first(where: { $0.id == id })?.name ?? "Job"
                                 await viewModel.startSelectedJob()
                                 if viewModel.errorMessage == nil {
-                                    notificationEngine?.post(category: .jobStarted, message: "Job started")
+                                    notificationEngine?.post(.jobStarted(name: jobName))
                                 }
                             }
                         }
@@ -76,16 +92,21 @@ struct JobListView: View {
                         Button("Stop Job") {
                             Task {
                                 viewModel.selectedJobID = id
+                                let jobName = viewModel.jobs.first(where: { $0.id == id })?.name ?? "Job"
                                 await viewModel.stopSelectedJob()
                                 if viewModel.errorMessage == nil {
-                                    notificationEngine?.post(category: .jobStopped, message: "Job stopped")
+                                    notificationEngine?.post(.jobStopped(name: jobName))
                                 }
                             }
                         }
                     }
                     Divider()
-                    Button("Enable") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(true) } }
-                    Button("Disable") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(false) } }
+                    Button("Enable Job") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(true) } }
+                    Button("Disable Job") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(false) } }
+                } else {
+                    // Empty space context menu
+                    Button("New Job") { onNewJob?() }
+                    Button("Refresh Jobs") { Task { await viewModel.reloadJobs() } }
                 }
             }
             .onChange(of: tableSelection) { _, newValue in

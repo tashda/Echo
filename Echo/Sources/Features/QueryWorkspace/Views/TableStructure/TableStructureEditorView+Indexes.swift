@@ -3,23 +3,17 @@ import SwiftUI
 extension TableStructureEditorView {
 
     internal var indexesContent: some View {
-        VStack(spacing: 0) {
-            sectionToolbar(title: "Indexes", count: activeIndexes.count) {
-                let newIndex = viewModel.addIndex()
-                activeIndexEditor = IndexEditorPresentation(indexID: newIndex.id)
-            }
-
-            Divider()
-
+        Group {
             if activeIndexes.isEmpty {
-                EmptyStatePlaceholder(
-                    icon: "list.bullet.rectangle",
-                    title: "No Indexes",
-                    subtitle: "Indexes improve query performance on frequently searched columns.",
-                    actionTitle: "Add Index"
-                ) {
-                    let newIndex = viewModel.addIndex()
-                    activeIndexEditor = IndexEditorPresentation(indexID: newIndex.id)
+                ContentUnavailableView {
+                    Label("No Indexes", systemImage: "list.bullet.rectangle")
+                } description: {
+                    Text("Indexes improve query performance on frequently searched columns.")
+                } actions: {
+                    Button("Add Index") {
+                        let newIndex = viewModel.addIndex()
+                        activeIndexEditor = IndexEditorPresentation(indexID: newIndex.id)
+                    }
                 }
             } else {
                 indexesTable
@@ -33,37 +27,46 @@ extension TableStructureEditorView {
 
     private var indexesTable: some View {
         Table(of: TableStructureEditorViewModel.IndexModel.self, selection: $selectedIndexIDs) {
+            TableColumn("Kind") { index in
+                Text(index.isUnique ? "UQ" : "IX")
+                    .font(TypographyTokens.Table.kindBadge)
+                    .foregroundStyle(index.isUnique ? .blue : ColorTokens.Text.tertiary)
+            }
+            .width(35)
+
             TableColumn("Name") { index in
-                HStack(spacing: SpacingTokens.xxs) {
-                    if index.isNew || index.isDirty {
-                        Circle()
-                            .fill(accentColor)
-                            .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
-                    }
-                    Text(index.name)
-                        .font(TypographyTokens.standard.weight(.medium))
-                }
+                Text(index.name)
+                    .font(TypographyTokens.Table.name)
             }
             .width(min: 120, ideal: 200)
 
-            TableColumn("Unique") { index in
-                Image(systemName: index.isUnique ? "checkmark" : "minus")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(index.isUnique ? accentColor : ColorTokens.Text.tertiary)
-            }
-            .width(55)
-
-            TableColumn("Columns") { index in
-                Text(indexColumnsDescription(index))
-                    .font(TypographyTokens.detail.monospaced())
+            TableColumn("Type") { index in
+                Text(indexTypeDisplay(index))
+                    .font(TypographyTokens.Table.category)
                     .foregroundStyle(ColorTokens.Text.secondary)
-                    .help(indexColumnsDescription(index))
             }
-            .width(min: 120, ideal: 260)
+            .width(viewModel.databaseType == .microsoftSQL ? 100 : 60)
+
+            TableColumn("Key Columns") { index in
+                Text(indexKeyColumns(index))
+                    .font(TypographyTokens.Table.secondaryName)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .help(indexKeyColumns(index))
+            }
+            .width(min: 100, ideal: 200)
+
+            TableColumn("Include") { index in
+                let included = indexIncludeColumns(index)
+                Text(included.isEmpty ? "\u{2014}" : included)
+                    .font(TypographyTokens.Table.secondaryName)
+                    .foregroundStyle(included.isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
+                    .help(included)
+            }
+            .width(min: 60, ideal: 120)
 
             TableColumn("Filter") { index in
                 Text(index.effectiveFilterCondition ?? "\u{2014}")
-                    .font(TypographyTokens.detail.monospaced())
+                    .font(TypographyTokens.Table.sql)
                     .foregroundStyle(index.effectiveFilterCondition != nil ? ColorTokens.Text.secondary : ColorTokens.Text.tertiary)
                     .help(index.effectiveFilterCondition ?? "")
             }
@@ -74,9 +77,14 @@ extension TableStructureEditorView {
             }
         }
         .contextMenu(forSelectionType: TableStructureEditorViewModel.IndexModel.ID.self) { selection in
-            if let indexID = selection.first,
+            if selection.isEmpty {
+                Button("Add Index") {
+                    let newIndex = viewModel.addIndex()
+                    activeIndexEditor = IndexEditorPresentation(indexID: newIndex.id)
+                }
+            } else if let indexID = selection.first,
                let index = activeIndexes.first(where: { $0.id == indexID }) {
-                Button("Edit Index\u{2026}") {
+                Button("Edit Index") {
                     activeIndexEditor = IndexEditorPresentation(indexID: index.id)
                 }
 
@@ -97,12 +105,13 @@ extension TableStructureEditorView {
                 activeIndexEditor = IndexEditorPresentation(indexID: indexID)
             }
         }
-        .tableStyle(.bordered(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .environment(\.defaultMinListRowHeight, 28)
     }
 
     private func rebuildIndex(_ index: TableStructureEditorViewModel.IndexModel) async {
-        environmentState.notificationEngine?.post(category: .generalInfo, icon: "arrow.triangle.2.circlepath", message: "Rebuilding index \"\(index.name)\"\u{2026}", style: .info)
+        environmentState.notificationEngine?.post(category: .generalInfo, icon: "arrow.triangle.2.circlepath", message: "Rebuilding index \"\(index.name)\"", style: .info)
         await viewModel.rebuildIndex(index)
         if let error = viewModel.lastError {
             environmentState.notificationEngine?.post(category: .indexRebuildFailed, message: error)
@@ -111,9 +120,23 @@ extension TableStructureEditorView {
         }
     }
 
-    private func indexColumnsDescription(_ index: TableStructureEditorViewModel.IndexModel) -> String {
-        index.columns.map { col in
+    private func indexTypeDisplay(_ index: TableStructureEditorViewModel.IndexModel) -> String {
+        if viewModel.databaseType == .microsoftSQL {
+            // MSSQL: "clustered", "nonclustered", etc.
+            return index.indexType.lowercased()
+        } else {
+            // PG: "btree", "gin", "gist", "brin", "hash"
+            return index.indexType.lowercased()
+        }
+    }
+
+    private func indexKeyColumns(_ index: TableStructureEditorViewModel.IndexModel) -> String {
+        index.columns.filter { !$0.isIncluded }.map { col in
             col.sortOrder == .descending ? "\(col.name) DESC" : col.name
         }.joined(separator: ", ")
+    }
+
+    private func indexIncludeColumns(_ index: TableStructureEditorViewModel.IndexModel) -> String {
+        index.columns.filter { $0.isIncluded }.map(\.name).joined(separator: ", ")
     }
 }

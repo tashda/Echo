@@ -100,12 +100,12 @@ final class ConnectToolbarMenuDelegate: NSObject {
             menu.addItem(.separator())
         }
 
-        let manage = NSMenuItem(title: "Manage Connections\u{2026}", action: #selector(manageConnections(_:)), keyEquivalent: "")
+        let manage = NSMenuItem(title: "Manage Connections", action: #selector(manageConnections(_:)), keyEquivalent: "")
         manage.target = self
         manage.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         menu.addItem(manage)
 
-        let quick = NSMenuItem(title: "Quick Connect\u{2026}", action: #selector(quickConnect(_:)), keyEquivalent: "")
+        let quick = NSMenuItem(title: "Quick Connect", action: #selector(quickConnect(_:)), keyEquivalent: "")
         quick.target = self
         quick.image = NSImage(systemSymbolName: "bolt", accessibilityDescription: nil)
         menu.addItem(quick)

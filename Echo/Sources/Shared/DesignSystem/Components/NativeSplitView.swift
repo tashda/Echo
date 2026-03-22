@@ -8,6 +8,7 @@ struct NativeSplitView<First: View, Second: View>: NSViewRepresentable {
     let firstMinFraction: CGFloat
     let secondMinFraction: CGFloat
     @Binding var fraction: CGFloat
+    var onDraggingChanged: ((Bool) -> Void)? = nil
     @ViewBuilder let first: () -> First
     @ViewBuilder let second: () -> Second
 
@@ -42,6 +43,7 @@ struct NativeSplitView<First: View, Second: View>: NSViewRepresentable {
         context.coordinator.secondMinFraction = secondMinFraction
         context.coordinator.fractionBinding = $fraction
         context.coordinator.isVertical = isVertical
+        context.coordinator.onDraggingChanged = onDraggingChanged
 
         // Update child views
         if let firstHost = splitView.arrangedSubviews.first as? NSHostingView<First> {
@@ -62,7 +64,13 @@ struct NativeSplitView<First: View, Second: View>: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(fraction: $fraction, firstMinFraction: firstMinFraction, secondMinFraction: secondMinFraction, isVertical: isVertical)
+        Coordinator(
+            fraction: $fraction,
+            firstMinFraction: firstMinFraction,
+            secondMinFraction: secondMinFraction,
+            isVertical: isVertical,
+            onDraggingChanged: onDraggingChanged
+        )
     }
 
     @MainActor
@@ -72,13 +80,21 @@ struct NativeSplitView<First: View, Second: View>: NSViewRepresentable {
         var secondMinFraction: CGFloat
         var isVertical: Bool
         var isDragging = false
+        var onDraggingChanged: ((Bool) -> Void)?
         weak var splitView: NSSplitView?
 
-        init(fraction: Binding<CGFloat>, firstMinFraction: CGFloat, secondMinFraction: CGFloat, isVertical: Bool) {
+        init(
+            fraction: Binding<CGFloat>,
+            firstMinFraction: CGFloat,
+            secondMinFraction: CGFloat,
+            isVertical: Bool,
+            onDraggingChanged: ((Bool) -> Void)?
+        ) {
             self.fractionBinding = fraction
             self.firstMinFraction = firstMinFraction
             self.secondMinFraction = secondMinFraction
             self.isVertical = isVertical
+            self.onDraggingChanged = onDraggingChanged
         }
 
         nonisolated func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
@@ -98,6 +114,7 @@ struct NativeSplitView<First: View, Second: View>: NSViewRepresentable {
         nonisolated func splitViewWillResizeSubviews(_ notification: Notification) {
             MainActor.assumeIsolated {
                 isDragging = true
+                onDraggingChanged?(true)
             }
         }
 
@@ -138,6 +155,7 @@ struct NativeSplitView<First: View, Second: View>: NSViewRepresentable {
                 }
 
                 isDragging = false
+                onDraggingChanged?(false)
             }
         }
     }

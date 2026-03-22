@@ -14,11 +14,11 @@ struct PostgresMaintenanceTables: View {
             if viewModel.isLoadingTables && viewModel.tableStats.isEmpty {
                 loadingView
             } else if viewModel.tableStats.isEmpty {
-                EmptyStatePlaceholder(
-                    icon: "tablecells",
-                    title: "No Table Statistics",
-                    subtitle: "No user tables found in the selected database"
-                )
+                ContentUnavailableView {
+                    Label("No Table Statistics", systemImage: "tablecells")
+                } description: {
+                    Text("No user tables found in the selected database.")
+                }
             } else {
                 tableView
             }
@@ -55,14 +55,11 @@ struct PostgresMaintenanceTables: View {
     }
 
     private var loadingView: some View {
-        VStack(spacing: SpacingTokens.md) {
-            ProgressView()
-                .controlSize(.large)
-            Text("Loading table statistics\u{2026}")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabInitializingPlaceholder(
+            icon: "tablecells",
+            title: "Loading Tables",
+            subtitle: "Fetching table statistics\u{2026}"
+        )
     }
 
     private var tableView: some View {
@@ -116,6 +113,7 @@ struct PostgresMaintenanceTables: View {
             }.width(min: 100, ideal: 130)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .onChange(of: sortOrder) { _, newOrder in
             viewModel.tableStats.sort(using: newOrder)
         }
@@ -172,7 +170,7 @@ struct PostgresMaintenanceTables: View {
             if tables.count == 1, let table = tables.first {
                 Divider()
 
-                Button("Vacuum Full\u{2026}") {
+                Button("Vacuum Full") {
                     vacuumFullTarget = table
                 }
             }

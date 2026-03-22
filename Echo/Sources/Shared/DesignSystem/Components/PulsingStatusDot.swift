@@ -3,23 +3,26 @@ import SwiftUI
 struct PulsingStatusDot: View {
     let tint: Color
     let isPulsing: Bool
-    @State private var opacity: Double = 1
+    @State private var isAnimating = false
 
     var body: some View {
-        Circle()
-            .fill(tint)
-            .frame(width: 6, height: 6)
-            .opacity(opacity)
-            .onChange(of: isPulsing, initial: true) { _, pulsing in
-                if pulsing {
-                    withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                        opacity = 0.25
-                    }
-                } else {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        opacity = 1
-                    }
-                }
+        ZStack {
+            if isPulsing {
+                Circle()
+                    .fill(tint.opacity(0.35))
+                    .frame(width: 10, height: 10)
+                    .scaleEffect(isAnimating ? 1.0 : 0.5)
+                    .opacity(isAnimating ? 0 : 0.8)
             }
+            Circle()
+                .fill(tint)
+                .frame(width: 6, height: 6)
+                .opacity(isPulsing ? (isAnimating ? 1.0 : 0.4) : 1.0)
+        }
+        .frame(width: 10, height: 10)
+        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isAnimating)
+        .onChange(of: isPulsing, initial: true) { _, pulsing in
+            isAnimating = pulsing
+        }
     }
 }

@@ -26,22 +26,22 @@ struct IdentitiesTableView: View {
 
             TableColumn("Authentication") { identity in
                 Text(identity.authenticationMethod.displayName)
-                    .font(TypographyTokens.Table.name)
+                    .font(TypographyTokens.Table.secondaryName)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
 
             TableColumn("Username", value: \.username) { identity in
                 let trimmed = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
-                Text(trimmed.isEmpty ? "—" : trimmed)
-                    .font(TypographyTokens.Table.name)
+                Text(trimmed.isEmpty ? "\u{2014}" : trimmed)
+                    .font(TypographyTokens.Table.secondaryName)
                     .foregroundStyle(trimmed.isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
             }
 
             TableColumn("Folder") { identity in
-                let folderName = identity.folderID.flatMap { folderLookup[$0]?.displayName } ?? "—"
-                Text(folderName)
-                    .font(TypographyTokens.Table.name)
-                    .foregroundStyle(folderName == "—" ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
+                let folderName = identity.folderID.flatMap { folderLookup[$0]?.displayName }
+                Text(folderName ?? "\u{2014}")
+                    .font(TypographyTokens.Table.secondaryName)
+                    .foregroundStyle(folderName == nil ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
             }
 
             TableColumn("Updated") { identity in
@@ -60,6 +60,7 @@ struct IdentitiesTableView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SavedIdentity.ID.self) { items in
             if let selectionID = items.first,
                let identity = identities.first(where: { $0.id == selectionID }) {

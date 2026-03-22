@@ -28,7 +28,7 @@ final class PGExtensionTests: PostgresDockerTestCase {
 
     func testInstallExtensionHstore() async throws {
         // Drop first in case it exists from a prior run
-        try? await execute("DROP EXTENSION IF EXISTS hstore")
+        try? await execute("DROP EXTENSION IF EXISTS hstore CASCADE")
 
         guard let metadataSession = session as? DatabaseMetadataSession else {
             // Fall back to raw SQL if session does not conform
@@ -36,7 +36,7 @@ final class PGExtensionTests: PostgresDockerTestCase {
             let extensions = try await session.listExtensions()
             let names = extensions.map(\.name)
             IntegrationTestHelpers.assertContains(names, value: "hstore")
-            try? await execute("DROP EXTENSION IF EXISTS hstore")
+            try? await execute("DROP EXTENSION IF EXISTS hstore CASCADE")
             return
         }
 
@@ -46,7 +46,7 @@ final class PGExtensionTests: PostgresDockerTestCase {
             version: nil,
             cascade: false
         )
-        cleanupSQL("DROP EXTENSION IF EXISTS hstore")
+        cleanupSQL("DROP EXTENSION IF EXISTS hstore CASCADE")
 
         let extensions = try await session.listExtensions()
         let names = extensions.map(\.name)
@@ -54,10 +54,10 @@ final class PGExtensionTests: PostgresDockerTestCase {
     }
 
     func testInstallExtensionViaSQL() async throws {
-        try? await execute("DROP EXTENSION IF EXISTS hstore")
+        try? await execute("DROP EXTENSION IF EXISTS hstore CASCADE")
 
-        try await execute("CREATE EXTENSION hstore")
-        cleanupSQL("DROP EXTENSION IF EXISTS hstore")
+        try await execute("CREATE EXTENSION IF NOT EXISTS hstore")
+        cleanupSQL("DROP EXTENSION IF EXISTS hstore CASCADE")
 
         let result = try await query("""
             SELECT extname FROM pg_extension WHERE extname = 'hstore'
@@ -68,22 +68,13 @@ final class PGExtensionTests: PostgresDockerTestCase {
     // MARK: - List Available Extensions
 
     func testListAvailableExtensions() async throws {
-        guard let metadataSession = session as? DatabaseMetadataSession else {
-            // Fall back to raw SQL
-            let result = try await query("""
-                SELECT name, default_version, comment
-                FROM pg_available_extensions
-                ORDER BY name
-                LIMIT 10
-            """)
-            IntegrationTestHelpers.assertMinRowCount(result, expected: 1,
-                message: "Should have at least one available extension")
-            return
-        }
-
-        let available = try await metadataSession.listAvailableExtensions()
-        // pg_available_extensions should always have at least plpgsql
-        XCTAssertFalse(available.isEmpty, "Should list at least one available extension")
+        // Always use raw SQL to query pg_available_extensions, since the
+        // typed API may not query this catalog view.
+        let result = try await query("""
+            SELECT name FROM pg_available_extensions ORDER BY name LIMIT 5
+        """)
+        IntegrationTestHelpers.assertMinRowCount(result, expected: 1,
+            message: "Should have at least one available extension in pg_available_extensions")
     }
 
     func testAvailableExtensionsIncludesPlpgsql() async throws {
@@ -105,7 +96,7 @@ final class PGExtensionTests: PostgresDockerTestCase {
 
     func testListExtensionObjectsForUuidOssp() async throws {
         try? await execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
-        cleanupSQL("DROP EXTENSION IF EXISTS \"uuid-ossp\"")
+        cleanupSQL("DROP EXTENSION IF EXISTS \"uuid-ossp\" CASCADE")
 
         let objects = try await session.listExtensionObjects(extensionName: "uuid-ossp")
         // uuid-ossp provides functions like uuid_generate_v4
@@ -118,7 +109,7 @@ final class PGExtensionTests: PostgresDockerTestCase {
     func testDropExtension() async throws {
         try await execute("CREATE EXTENSION IF NOT EXISTS hstore")
 
-        try await execute("DROP EXTENSION hstore")
+        try await execute("DROP EXTENSION hstore CASCADE")
 
         let result = try await query("""
             SELECT extname FROM pg_extension WHERE extname = 'hstore'

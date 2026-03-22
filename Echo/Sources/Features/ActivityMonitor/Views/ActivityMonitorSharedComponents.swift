@@ -85,8 +85,16 @@ struct SQLQueryCell: View {
             .help("Expand SQL")
         }
         .contextMenu {
-            Button("Expand SQL") { onPopout(sql) }
-            Button("Copy SQL") { PlatformClipboard.copy(sql) }
+            Button {
+                onPopout(sql)
+            } label: {
+                Label("Expand SQL", systemImage: "arrow.up.left.and.arrow.down.right")
+            }
+            Button {
+                PlatformClipboard.copy(sql)
+            } label: {
+                Label("Copy SQL", systemImage: "doc.on.doc")
+            }
         }
     }
 }
@@ -134,6 +142,7 @@ struct SectionInfoButton: View {
                 .foregroundStyle(ColorTokens.Text.tertiary)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Show info")
         .popover(isPresented: $isPresented) {
             Text(info)
                 .font(TypographyTokens.detail)
@@ -148,11 +157,11 @@ struct SectionInfoButton: View {
 
 struct EmptyTablePlaceholder: View {
     var body: some View {
-        EmptyStatePlaceholder(
-            icon: "tablecells",
-            title: "No Activity Data",
-            subtitle: "Waiting for data\u{2026}"
-        )
+        ContentUnavailableView {
+            Label("No Activity Data", systemImage: "tablecells")
+        } description: {
+            Text("Waiting for data\u{2026}")
+        }
     }
 }
 

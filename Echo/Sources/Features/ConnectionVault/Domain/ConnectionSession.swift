@@ -29,6 +29,7 @@ final class ConnectionSession: Identifiable {
     @ObservationIgnored private var defaultInitialBatchSize: Int
     @ObservationIgnored private var defaultBackgroundStreamingThreshold: Int
     @ObservationIgnored private var defaultBackgroundFetchSize: Int
+    @ObservationIgnored private var schemaLoadsInFlight: Set<String> = []
 
     // Query tabs specific to this connection
     var queryTabs: [WorkspaceTab] = []
@@ -61,7 +62,7 @@ final class ConnectionSession: Identifiable {
     }
 
     var displayName: String {
-        let db = (selectedDatabaseName ?? connection.database).trimmingCharacters(in: .whitespacesAndNewlines)
+        let db = (activeDatabaseName ?? connection.database).trimmingCharacters(in: .whitespacesAndNewlines)
         if !db.isEmpty {
             return "\(connection.connectionName) • \(db)"
         } else {
@@ -78,7 +79,12 @@ final class ConnectionSession: Identifiable {
     }
 
     @discardableResult
-    func addQueryTab(withQuery query: String = "", database: String? = nil) -> WorkspaceTab {
+    func addQueryTab(
+        withQuery query: String = "",
+        database: String? = nil,
+        session querySession: DatabaseSession? = nil,
+        ownsSession: Bool = false
+    ) -> WorkspaceTab {
         let previewLimit = max(defaultBackgroundStreamingThreshold, defaultInitialBatchSize)
         let queryState = QueryEditorState(
             sql: query.isEmpty ? "SELECT current_timestamp;" : query,
@@ -113,11 +119,12 @@ final class ConnectionSession: Identifiable {
 
         let tab = WorkspaceTab(
             connection: connection,
-            session: session,
+            session: querySession ?? session,
             connectionSessionID: id,
             title: "Query \(queryTabs.count + 1)",
             content: .query(queryState),
-            activeDatabaseName: databaseName
+            activeDatabaseName: databaseName,
+            ownsSession: ownsSession
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -126,14 +133,18 @@ final class ConnectionSession: Identifiable {
     }
 
     @discardableResult
-    func addJobQueueTab(selectJobID: String? = nil) -> WorkspaceTab {
+    func addJobQueueTab(selectJobID: String? = nil, activityEngine: ActivityEngine? = nil) -> WorkspaceTab {
         let viewModel = JobQueueViewModel(session: session, connection: connection, initialSelectedJobID: selectJobID)
+        viewModel.activityEngine = activityEngine
+        viewModel.connectionSessionID = id
+        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
             title: "Jobs",
-            content: .jobQueue(viewModel)
+            content: .jobQueue(viewModel),
+            activeDatabaseName: connName.isEmpty ? connection.host : connName
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -179,11 +190,13 @@ final class ConnectionSession: Identifiable {
             session: session,
             databaseType: connection.databaseType
         )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
+        viewModel.connectionSessionID = id
         if let focus {
             viewModel.focusSection(focus)
         }
 
-        // For PostgreSQL, resolve a database-specific session if needed
+        // Resolve a database-specific session if a database name is provided
         if let databaseName {
             Task { @MainActor [weak viewModel, session = self.session] in
                 guard let viewModel else { return }
@@ -258,9 +271,8 @@ final class ConnectionSession: Identifiable {
         if let existing = queryTabs.first(where: { $0.mssqlMaintenance != nil }) {
             activeQueryTabID = existing.id
             if let vm = existing.mssqlMaintenance, vm.selectedDatabase != effectiveDatabase {
-                let newDB = effectiveDatabase
-                existing.title = newDB.isEmpty ? "Maintenance" : "Maintenance (\(newDB))"
-                Task { await vm.selectDatabase(newDB) }
+                existing.activeDatabaseName = effectiveDatabase.isEmpty ? nil : effectiveDatabase
+                Task { await vm.selectDatabase(effectiveDatabase) }
             }
             return existing
         }
@@ -272,19 +284,20 @@ final class ConnectionSession: Identifiable {
             initialDatabase: effectiveDatabase.isEmpty ? nil : effectiveDatabase,
             notificationEngine: AppDirector.shared.notificationEngine
         )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
+        viewModel.backupsVM?.activityEngine = AppDirector.shared.activityEngine
+        viewModel.backupsVM?.connectionSessionID = id
+        viewModel.backupsVM?.notificationEngine = AppDirector.shared.notificationEngine
 
-        let title = if let db = databaseName ?? selectedDatabaseName, !db.isEmpty {
-            "Maintenance (\(db))"
-        } else {
-            "Maintenance"
-        }
+        let dbName = databaseName ?? selectedDatabaseName
 
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
-            title: title,
-            content: .mssqlMaintenance(viewModel)
+            title: "Maintenance",
+            content: .mssqlMaintenance(viewModel),
+            activeDatabaseName: (dbName?.isEmpty == false) ? dbName : nil
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -301,8 +314,9 @@ final class ConnectionSession: Identifiable {
             activeQueryTabID = existing.id
             if let vm = existing.maintenance, vm.selectedDatabase != effectiveDatabase {
                 vm.selectedDatabase = effectiveDatabase
-                let title = effectiveDatabase.isEmpty ? "Maintenance" : "Maintenance (\(effectiveDatabase))"
-                existing.title = title
+                vm.pgBackupsVM?.databaseName = effectiveDatabase
+                vm.pgBackupsVM?.restoreDatabaseName = effectiveDatabase
+                existing.activeDatabaseName = effectiveDatabase.isEmpty ? nil : effectiveDatabase
             }
             return existing
         }
@@ -314,19 +328,33 @@ final class ConnectionSession: Identifiable {
             databaseType: connection.databaseType,
             initialDatabase: effectiveDatabase.isEmpty ? nil : effectiveDatabase
         )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
 
-        let title = if let db = databaseName ?? selectedDatabaseName, !db.isEmpty {
-            "Maintenance (\(db))"
-        } else {
-            "Maintenance"
+        if connection.databaseType == .postgresql {
+            let dbName = effectiveDatabase.isEmpty ? (connection.database) : effectiveDatabase
+            let authConfig = AppDirector.shared.identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: nil)
+            let pgVM = PostgresBackupRestoreViewModel(
+                connection: connection,
+                session: session,
+                databaseName: dbName,
+                password: authConfig?.password,
+                resolvedUsername: authConfig?.username
+            )
+            pgVM.activityEngine = AppDirector.shared.activityEngine
+            pgVM.connectionSessionID = id
+            pgVM.notificationEngine = AppDirector.shared.notificationEngine
+            viewModel.pgBackupsVM = pgVM
         }
+
+        let dbName = databaseName ?? selectedDatabaseName
 
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
-            title: title,
-            content: .maintenance(viewModel)
+            title: "Maintenance",
+            content: .maintenance(viewModel),
+            activeDatabaseName: (dbName?.isEmpty == false) ? dbName : nil
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -359,12 +387,14 @@ final class ConnectionSession: Identifiable {
             )
         }
 
+        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
-            title: "Activity Monitor (\(connection.connectionName))",
-            content: .activityMonitor(viewModel)
+            title: "Activity Monitor",
+            content: .activityMonitor(viewModel),
+            activeDatabaseName: connName.isEmpty ? connection.host : connName
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -471,6 +501,12 @@ final class ConnectionSession: Identifiable {
             activityVM.stopStreaming()
         }
 
+        if tab.ownsSession {
+            Task {
+                await tab.session.close()
+            }
+        }
+
         queryTabs.remove(at: index)
 
         // Adjust active tab
@@ -510,6 +546,53 @@ final class ConnectionSession: Identifiable {
             await task.value
         }
     }
+
+    func hasLoadedSchema(forDatabase databaseName: String) -> Bool {
+        let normalizedName = normalizedDatabaseName(databaseName)
+        guard !normalizedName.isEmpty else { return false }
+        return databaseStructure?.databases
+            .first(where: { normalizedDatabaseName($0.name).caseInsensitiveCompare(normalizedName) == .orderedSame })?
+            .schemas.isEmpty == false
+    }
+
+    func beginSchemaLoad(forDatabase databaseName: String) -> Bool {
+        let loadKey = schemaLoadKey(databaseName)
+        guard !loadKey.isEmpty else { return false }
+        if schemaLoadsInFlight.contains(loadKey) {
+            return false
+        }
+        schemaLoadsInFlight.insert(loadKey)
+        return true
+    }
+
+    func finishSchemaLoad(forDatabase databaseName: String) {
+        let loadKey = schemaLoadKey(databaseName)
+        guard !loadKey.isEmpty else { return }
+        schemaLoadsInFlight.remove(loadKey)
+    }
+
+    var activeDatabaseName: String? {
+        let tabDatabase = activeQueryTab?.activeDatabaseName.map(normalizedDatabaseName)
+        if let tabDatabase, !tabDatabase.isEmpty {
+            return tabDatabase
+        }
+
+        let selectedDatabase = selectedDatabaseName.map(normalizedDatabaseName)
+        if let selectedDatabase, !selectedDatabase.isEmpty {
+            return selectedDatabase
+        }
+
+        let connectionDatabase = normalizedDatabaseName(connection.database)
+        return connectionDatabase.isEmpty ? nil : connectionDatabase
+    }
+
+    private func normalizedDatabaseName(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func schemaLoadKey(_ value: String) -> String {
+        normalizedDatabaseName(value).lowercased()
+    }
 }
 
 // MARK: - Multi-Connection Manager
@@ -528,7 +611,7 @@ final class ActiveSessionGroup {
     }
 
     var activeDatabaseName: String? {
-        activeSession?.selectedDatabaseName
+        activeSession?.activeDatabaseName
     }
 
     var activeSession: ConnectionSession? {
@@ -551,6 +634,9 @@ final class ActiveSessionGroup {
         if let existing = activeSessions.first(where: { $0.connection.id == session.connection.id }) {
             let sessionID = existing.id
             Task {
+                for tab in existing.queryTabs where tab.ownsSession {
+                    await tab.session.close()
+                }
                 await existing.session.close()
             }
             activeSessions.removeAll { $0.id == sessionID }
@@ -575,6 +661,9 @@ final class ActiveSessionGroup {
 
         // Close the database session properly to avoid driver crashes on deinit
         Task {
+            for tab in session.queryTabs where tab.ownsSession {
+                await tab.session.close()
+            }
             await session.session.close()
         }
 

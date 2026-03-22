@@ -7,6 +7,7 @@ final class ResultTableContainerView: NSView {
     private var leadingWidthConstraint: NSLayoutConstraint?
     private var backgroundColor: NSColor
     private var showRowNumbers: Bool
+    private var reservedRowNumberCount: Int = 0
 
     init(scrollView: NSScrollView, showRowNumbers: Bool) {
         self.scrollView = scrollView
@@ -48,7 +49,8 @@ final class ResultTableContainerView: NSView {
     }
 
     func updateRowNumbers(count: Int) {
-        rowNumberView.update(rowCount: count)
+        reservedRowNumberCount = max(reservedRowNumberCount, count)
+        rowNumberView.update(rowCount: count, reservedCount: reservedRowNumberCount)
         let width = showRowNumbers ? rowNumberView.requiredWidth : 0
         updateLeadingWidth(width)
     }
@@ -72,9 +74,18 @@ final class ResultTableContainerView: NSView {
         rowNumberView.layer?.backgroundColor = color.cgColor
     }
 
-    func setRowNumberCallbacks(onSelect: @escaping (Int) -> Void, onExtendSelect: @escaping (Int) -> Void) {
+    func setRowNumberCallbacks(
+        onSelect: @escaping (Int) -> Void,
+        onExtendSelect: @escaping (Int) -> Void,
+        onDrag: @escaping (NSEvent) -> Void,
+        onDragEnded: @escaping () -> Void,
+        onContextMenu: @escaping (Int) -> NSMenu?
+    ) {
         rowNumberView.onRowSelect = onSelect
         rowNumberView.onRowExtendSelect = onExtendSelect
+        rowNumberView.onRowDragEvent = onDrag
+        rowNumberView.onRowDragEnded = onDragEnded
+        rowNumberView.onRowContextMenu = onContextMenu
     }
 
     var tableView: NSTableView? {

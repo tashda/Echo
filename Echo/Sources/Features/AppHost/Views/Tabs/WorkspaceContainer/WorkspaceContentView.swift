@@ -7,7 +7,6 @@ import AppKit
 struct WorkspaceContentView: View {
     @Bindable var tab: WorkspaceTab
     let runQuery: (String) async -> Void
-    let cancelQuery: () -> Void
     let gridStateProvider: () -> QueryResultsGridState
     @Environment(AppearanceStore.self) private var appearanceStore
 
@@ -58,7 +57,6 @@ struct WorkspaceContentView: View {
                         tab: tab,
                         query: query,
                         runQuery: runQuery,
-                        cancelQuery: cancelQuery,
                         gridStateProvider: gridStateProvider
                     )
                 } else {

@@ -162,9 +162,9 @@ final class MSSQLDataTypeDateTimeTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName()
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
-            SQLServerColumnDefinition(name: "dt", definition: .standard(.init(dataType: .date))),
-            SQLServerColumnDefinition(name: "dt2", definition: .standard(.init(dataType: .datetime2(precision: 7)))),
-            SQLServerColumnDefinition(name: "dto", definition: .standard(.init(dataType: .datetimeoffset(precision: 7))))
+            SQLServerColumnDefinition(name: "dt", definition: .standard(.init(dataType: .date, isNullable: true))),
+            SQLServerColumnDefinition(name: "dt2", definition: .standard(.init(dataType: .datetime2(precision: 7), isNullable: true))),
+            SQLServerColumnDefinition(name: "dto", definition: .standard(.init(dataType: .datetimeoffset(precision: 7), isNullable: true)))
         ])
         cleanupSQL("DROP TABLE [\(tableName)]")
 
@@ -222,7 +222,7 @@ final class MSSQLDataTypeDateTimeTests: MSSQLDockerTestCase {
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "created_at", definition: .standard(.init(dataType: .datetime2(precision: 7)))),
-            SQLServerColumnDefinition(name: "expires_at", definition: .standard(.init(dataType: .datetime2(precision: 7))))
+            SQLServerColumnDefinition(name: "expires_at", definition: .standard(.init(dataType: .datetime2(precision: 7), isNullable: true)))
         ])
         cleanupSQL("DROP TABLE [\(tableName)]")
 

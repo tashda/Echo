@@ -75,6 +75,7 @@ extension ManageConnectionsView {
                     Text("Export")
                 }
             }
+            .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
             .disabled(exportPassword.isEmpty || isExporting || exportProjectID == nil)
         }

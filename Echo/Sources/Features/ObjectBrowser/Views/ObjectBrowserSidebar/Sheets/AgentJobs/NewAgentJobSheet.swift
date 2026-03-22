@@ -16,6 +16,7 @@ struct NewAgentJobSheet: View {
     // Steps
     @State var steps: [StepEntry] = []
     @State var startStepId: Int = 1
+    @State var databaseNames: [String] = []
 
     // Schedules
     @State var schedules: [ScheduleEntry] = []
@@ -27,7 +28,24 @@ struct NewAgentJobSheet: View {
     @State var errorMessage: String?
     @State var isCreating = false
 
-    @State var selectedTab = 0
+    enum Page: String, CaseIterable, Identifiable {
+        case general = "General"
+        case steps = "Steps"
+        case schedules = "Schedules"
+        case notifications = "Notifications"
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .general: "info.circle"
+            case .steps: "list.number"
+            case .schedules: "calendar"
+            case .notifications: "bell"
+            }
+        }
+    }
+
+    @State private var selectedPage: Page = .general
 
     var isFormValid: Bool {
         !jobName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isCreating
@@ -35,27 +53,45 @@ struct NewAgentJobSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabView(selection: $selectedTab) {
-                generalTab
-                    .tabItem { Label("General", systemImage: "info.circle") }
-                    .tag(0)
-                stepsTab
-                    .tabItem { Label("Steps", systemImage: "list.number") }
-                    .tag(1)
-                schedulesTab
-                    .tabItem { Label("Schedules", systemImage: "calendar") }
-                    .tag(2)
-                notificationsTab
-                    .tabItem { Label("Notifications", systemImage: "bell") }
-                    .tag(3)
+            HStack(spacing: 0) {
+                sidebar
+                Divider()
+                detailPane
             }
 
             Divider()
-
             toolbarView
         }
-        .frame(minWidth: 540, minHeight: 440)
-        .onAppear { loadCurrentLogin() }
+        .frame(minWidth: 620, idealWidth: 660, minHeight: 480, idealHeight: 520)
+        .onAppear {
+            loadCurrentLogin()
+            loadDatabaseNames()
+        }
+    }
+
+    // MARK: - Sidebar
+
+    private var sidebar: some View {
+        List(Page.allCases, id: \.self, selection: $selectedPage) { page in
+            Label(page.rawValue, systemImage: page.icon)
+                .tag(page)
+        }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .contentMargins(SpacingTokens.xs)
+        .frame(width: 170)
+    }
+
+    // MARK: - Detail Pane
+
+    @ViewBuilder
+    private var detailPane: some View {
+        switch selectedPage {
+        case .general: generalTab
+        case .steps: stepsTab
+        case .schedules: schedulesTab
+        case .notifications: notificationsTab
+        }
     }
 
     // MARK: - Toolbar
@@ -81,29 +117,43 @@ struct NewAgentJobSheet: View {
             Button("Create Job") {
                 Task { await createJob() }
             }
+            .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
             .disabled(!isFormValid)
         }
         .padding(SpacingTokens.md2)
     }
 
-    // MARK: - General Tab
+    // MARK: - General Page
 
     var generalTab: some View {
         Form {
             Section("New Agent Job") {
-                TextField("Name", text: $jobName)
-                TextField("Description", text: $jobDescription, axis: .vertical)
+                TextField("Name", text: $jobName, prompt: Text("e.g. Daily Backup"))
+                TextField("Description", text: $jobDescription, prompt: Text("What this job does"), axis: .vertical)
                     .lineLimit(2...4)
                 Toggle("Enabled", isOn: $jobEnabled)
                 Toggle("Start after creation", isOn: $startAfterCreate)
             }
             Section("Ownership") {
-                TextField("Owner", text: $jobOwner, prompt: Text("Current login"))
-                TextField("Category", text: $jobCategory, prompt: Text("None"))
+                TextField("Owner", text: $jobOwner, prompt: Text("sa"))
+                TextField("Category", text: $jobCategory, prompt: Text("[Uncategorized (Local)]"))
             }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Database Loading
+
+    func loadDatabaseNames() {
+        Task {
+            do {
+                let names = try await session.session.listDatabases()
+                await MainActor.run { databaseNames = names }
+            } catch {
+                databaseNames = []
+            }
+        }
     }
 }

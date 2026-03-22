@@ -87,18 +87,22 @@ extension ManageConnectionsView {
 
             Divider()
 
-            if !project.isDefault {
-                Button("Delete", role: .destructive) {
-                    projectToDelete = project
-                    showDeleteConfirmation = true
-                }
-            }
-
             Button {
                 exportProjectID = project.id
                 showExportSheet = true
             } label: {
-                Text("Export")
+                Label("Export", systemImage: "square.and.arrow.up")
+            }
+
+            if !project.isDefault {
+                Divider()
+
+                Button(role: .destructive) {
+                    projectToDelete = project
+                    showDeleteConfirmation = true
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
             }
         }
     }
@@ -111,19 +115,21 @@ extension ManageConnectionsView {
                 Button {
                     createNewFolder(for: section, parent: node.folder)
                 } label: {
-                    Text("New Subfolder")
+                    Label("New Subfolder", systemImage: "folder.badge.plus")
                 }
 
                 Button {
                     editFolder(node.folder)
                 } label: {
-                    Text("Edit")
+                    Label("Edit", systemImage: "pencil")
                 }
 
                 Divider()
 
-                Button("Delete", role: .destructive) {
+                Button(role: .destructive) {
                     handleDeletion(.folder(node.folder))
+                } label: {
+                    Label("Delete", systemImage: "trash")
                 }
             }
             .dropDestination(for: String.self) { items, _ in
@@ -164,7 +170,7 @@ extension ManageConnectionsView {
             Button {
                 isPresentingNewProjectSheet = true
             } label: {
-                Label("New Project", systemImage: "plus")
+                Label("New Project", systemImage: "folder.badge.plus")
             }
             Divider()
             Button {

@@ -22,6 +22,8 @@ public protocol DatabaseSession: Sendable {
     func dropIndex(schema: String, name: String) async throws
     func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult
     func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult
+    func reorganizeIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult
+    func reorganizeIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult
     func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws
     func analyzeTable(schema: String, table: String) async throws
     func reindexTable(schema: String, table: String) async throws
@@ -114,6 +116,14 @@ public extension DatabaseSession {
 
     func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
         throw DatabaseError.queryError("Index rebuild is not supported for this database type")
+    }
+
+    func reorganizeIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Index reorganize is not supported for this database type")
+    }
+
+    func reorganizeIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Index reorganize is not supported for this database type")
     }
 
     func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult {

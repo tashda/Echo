@@ -56,8 +56,9 @@ final class WorkspaceTab: Identifiable {
 
     let id = UUID()
     @ObservationIgnored let connection: SavedConnection
-    @ObservationIgnored let session: DatabaseSession
+    @ObservationIgnored private(set) var session: DatabaseSession
     @ObservationIgnored let connectionSessionID: UUID
+    @ObservationIgnored private(set) var ownsSession: Bool
 
     var title: String
     private(set) var content: Content
@@ -68,6 +69,10 @@ final class WorkspaceTab: Identifiable {
     @ObservationIgnored let resultsGridState = QueryResultsGridState()
     let panelState: BottomPanelState
 
+    /// Wired by the container view — allows toolbar buttons to trigger query execution
+    /// on this tab without fragile closure capture chains.
+    @ObservationIgnored var executeQueryAction: ((String) async -> Void)?
+
     init(
         connection: SavedConnection,
         session: DatabaseSession,
@@ -76,11 +81,13 @@ final class WorkspaceTab: Identifiable {
         content: Content,
         isPinned: Bool = false,
         activeDatabaseName: String? = nil,
-        bookmarkContext: BookmarkTabContext? = nil
+        bookmarkContext: BookmarkTabContext? = nil,
+        ownsSession: Bool = false
     ) {
         self.connection = connection
         self.session = session
         self.connectionSessionID = connectionSessionID
+        self.ownsSession = ownsSession
         self.title = title
         self.content = content
         self.isPinned = isPinned
@@ -88,6 +95,14 @@ final class WorkspaceTab: Identifiable {
         self.bookmarkContext = bookmarkContext
         self.panelState = Self.makePanelState(for: content)
         setupRowCountRefreshHandler()
+    }
+
+    /// Replaces the shared metadata session with a dedicated query session once
+    /// the background connection completes. Called for MSSQL tabs where the
+    /// dedicated connection is established asynchronously after the tab appears.
+    func upgradeToDedicatedSession(_ dedicatedSession: DatabaseSession) {
+        session = dedicatedSession
+        ownsSession = true
     }
 
     var kind: Kind {

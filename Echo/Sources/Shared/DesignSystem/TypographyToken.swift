@@ -77,6 +77,18 @@ public enum TypographyTokens {
 
         /// Tiny kind / tag badges (PK, UQ, IX).
         public static let kindBadge = TypographyTokens.compact.weight(.bold)
+
+        /// Supporting identifier columns (owner, schema, app name, client address).
+        /// Same size as `name` but always paired with `.secondary` / `.tertiary` color.
+        public static let secondaryName = TypographyTokens.standard
+
+        /// File paths, device paths, LSNs, and other technical strings.
+        /// 11pt monospaced — de-emphasised like dates but monospaced for readability.
+        public static let path = SwiftUI.Font.system(size: 11, design: .monospaced)
+
+        /// Inline SQL preview text in table cells.
+        /// 11pt monospaced — same base as `path` today, separate token for future divergence.
+        public static let sql = SwiftUI.Font.system(size: 11, design: .monospaced)
     }
 
     /// 16pt — large headers
@@ -85,4 +97,23 @@ public enum TypographyTokens {
     public static let displayLarge = SwiftUI.Font.system(size: 18)
     /// 20pt+ — hero text, large icons
     public static let hero = SwiftUI.Font.system(size: 20)
+
+    // MARK: - AppKit NSFont equivalents
+    // Use these when AppKit APIs require NSFont (NSTextField, NSTextView, CATextLayer, etc.).
+    // Sizes match the SwiftUI tokens above — change both together.
+
+    public enum AppKit {
+        /// 9pt — toolbar badges, compact indicators
+        nonisolated(unsafe) public static let compact = NSFont.systemFont(ofSize: 9)
+        /// 10pt — sidebar counts, small labels
+        nonisolated(unsafe) public static let label = NSFont.systemFont(ofSize: 10)
+        /// 11pt — table cells, footnotes, secondary detail
+        nonisolated(unsafe) public static let detail = NSFont.systemFont(ofSize: 11)
+        /// 12pt — secondary labels, form fields
+        nonisolated(unsafe) public static let caption2 = NSFont.systemFont(ofSize: 12)
+        /// 13pt Regular — primary UI text, body equivalent
+        nonisolated(unsafe) public static let standard = NSFont.systemFont(ofSize: 13)
+        /// 14pt — section headers, prominent labels
+        nonisolated(unsafe) public static let prominent = NSFont.systemFont(ofSize: 14)
+    }
 }

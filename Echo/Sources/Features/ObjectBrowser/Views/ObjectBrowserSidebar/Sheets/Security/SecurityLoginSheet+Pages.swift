@@ -17,7 +17,7 @@ extension SecurityLoginSheet {
                 }
             } else {
                 PropertyRow(title: "Login Name") {
-                    TextField("", text: $loginName)
+                    TextField("", text: $loginName, prompt: Text("login_name"))
                         .textFieldStyle(.plain)
                         .multilineTextAlignment(.trailing)
                 }
@@ -149,25 +149,26 @@ extension SecurityLoginSheet {
 
                     TableColumn("Database") { entry in
                         Text(entry.databaseName)
-                            .font(TypographyTokens.standard)
+                            .font(TypographyTokens.Table.name)
                     }
                     .width(min: 120, ideal: 160)
 
                     TableColumn("User") { entry in
-                        Text(entry.userName ?? "")
-                            .font(TypographyTokens.standard)
+                        Text(entry.userName ?? "\u{2014}")
+                            .font(TypographyTokens.Table.secondaryName)
                             .foregroundStyle(entry.isMapped ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
                     }
                     .width(min: 100, ideal: 140)
 
                     TableColumn("Default Schema") { entry in
                         Text(entry.defaultSchema ?? "dbo")
-                            .font(TypographyTokens.standard)
+                            .font(TypographyTokens.Table.secondaryName)
                             .foregroundStyle(ColorTokens.Text.secondary)
                     }
                     .width(min: 80, ideal: 100)
                 }
-                .tableStyle(.bordered)
+                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableColumnAutoResize()
                 .scrollContentBackground(.visible)
                 .frame(height: min(max(CGFloat(databaseMappingEntries.count) * 28 + 32, 120), 240))
                 .onChange(of: selectedMappingDatabase) { _, newDB in

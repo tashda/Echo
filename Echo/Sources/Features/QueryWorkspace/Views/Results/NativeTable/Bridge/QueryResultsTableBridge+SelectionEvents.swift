@@ -10,6 +10,7 @@ extension QueryResultsTableView.Coordinator {
         contextMenuCell = nil
         tableView.window?.makeFirstResponder(tableView)
         lastDragLocationInWindow = event.locationInWindow
+        isDraggingRowSelection = false
         stopAutoscroll()
         let point = tableView.convert(event.locationInWindow, from: nil)
         guard let cell = resolvedCell(at: point, in: tableView, allowOutOfBounds: false) else {
@@ -58,7 +59,7 @@ extension QueryResultsTableView.Coordinator {
         } else {
             setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
             selectionAnchor = cell
-            parent.onClearColumnHighlight()
+            notifyClearColumnHighlight()
         }
 
         selectionFocus = cell
@@ -95,7 +96,7 @@ extension QueryResultsTableView.Coordinator {
         setSelectionRegion(region, tableView: tableView)
         selectionAnchor = cell
         selectionFocus = cell
-        parent.onClearColumnHighlight()
+        notifyClearColumnHighlight()
         contextMenuCell = cell
     }
 
@@ -116,13 +117,18 @@ extension QueryResultsTableView.Coordinator {
         // Validate selection after drag ends — data may have changed mid-drag.
         if let region = selectionRegion {
             let maxRow = tableView.numberOfRows
-            let maxColumn = parent.query.displayedColumns.count
+            let maxColumn = queryState.displayedColumns.count
             if maxRow == 0 || maxColumn == 0
                 || region.normalizedRowRange.upperBound >= maxRow
                 || region.normalizedColumnRange.upperBound >= maxColumn {
                 setSelectionRegion(nil, tableView: tableView)
             }
         }
+    }
+
+    func handleRowNumberDrag(_ event: NSEvent) {
+        guard let tableView else { return }
+        updateAutoscroll(for: event, tableView: tableView)
     }
 
     func handleKeyDown(_ event: NSEvent, in tableView: NSTableView) -> Bool {

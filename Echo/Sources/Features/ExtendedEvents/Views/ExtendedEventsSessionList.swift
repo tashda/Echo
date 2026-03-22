@@ -67,15 +67,19 @@ struct ExtendedEventsSessionList: View {
             .width(60)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: String.self) { names in
             if let name = names.first, let session = viewModel.sessions.first(where: { $0.name == name }) {
+                // Group 2: New
                 Button {
-                    Task { await viewModel.toggleSession(session) }
+                    viewModel.showCreateSheet = true
                 } label: {
-                    Label(session.isRunning ? "Stop Session" : "Start Session",
-                          systemImage: session.isRunning ? "stop.fill" : "play.fill")
+                    Label("New Session", systemImage: "waveform.badge.plus")
                 }
 
+                Divider()
+
+                // Group 3: Open / View
                 if session.isRunning {
                     Button {
                         onWatchLiveData(name)
@@ -84,16 +88,17 @@ struct ExtendedEventsSessionList: View {
                     }
                 }
 
-                Divider()
-
+                // Group 8: Enable / Disable
                 Button {
-                    viewModel.showCreateSheet = true
+                    Task { await viewModel.toggleSession(session) }
                 } label: {
-                    Label("New Session", systemImage: "plus")
+                    Label(session.isRunning ? "Stop Session" : "Start Session",
+                          systemImage: session.isRunning ? "stop.fill" : "play.fill")
                 }
 
                 Divider()
 
+                // Group 10: Destructive
                 Button(role: .destructive) {
                     dropSessionTarget = name
                 } label: {
@@ -103,7 +108,7 @@ struct ExtendedEventsSessionList: View {
                 Button {
                     viewModel.showCreateSheet = true
                 } label: {
-                    Label("New Session", systemImage: "plus")
+                    Label("New Session", systemImage: "waveform.badge.plus")
                 }
             }
         }
@@ -167,11 +172,19 @@ struct ExtendedEventsSessionList: View {
             sectionLabel("Configured Events")
             Divider()
             Table(events) {
-                TableColumn("Event Name", value: \.eventName)
-                TableColumn("Package", value: \.packageName)
+                TableColumn("Event Name") { (event: SQLServerXESessionEvent) in
+                    Text(event.eventName)
+                        .font(TypographyTokens.Table.name)
+                }
+                TableColumn("Package") { (event: SQLServerXESessionEvent) in
+                    Text(event.packageName)
+                        .font(TypographyTokens.Table.secondaryName)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
                     .width(min: 80, ideal: 120)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
         }
     }
 
@@ -180,9 +193,13 @@ struct ExtendedEventsSessionList: View {
             sectionLabel("Targets")
             Divider()
             Table(targets) {
-                TableColumn("Target Name", value: \.targetName)
+                TableColumn("Target Name") { (target: SQLServerXESessionTarget) in
+                    Text(target.targetName)
+                        .font(TypographyTokens.Table.name)
+                }
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
         }
     }
 

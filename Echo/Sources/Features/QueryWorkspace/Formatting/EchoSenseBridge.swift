@@ -3,18 +3,21 @@ import EchoSense
 
 @MainActor
 enum EchoSenseBridge {
-    private static var cachedSourceHash: Int?
-    private static var cachedResult: EchoSenseDatabaseStructure?
+    private static let cacheLimit = 8
+    private static var cachedStructures: [Int: EchoSenseDatabaseStructure] = [:]
+    private static var cacheOrder: [Int] = []
 
     /// Returns a cached EchoSenseDatabaseStructure if the source structure hasn't changed.
     static func makeStructure(from structure: DatabaseStructure) -> EchoSenseDatabaseStructure {
         let sourceHash = structure.hashValue
-        if let cached = cachedResult, cachedSourceHash == sourceHash {
+        if let cached = cachedStructures[sourceHash] {
+            touchCacheEntry(for: sourceHash)
             return cached
         }
         let result = buildStructure(from: structure)
-        cachedSourceHash = sourceHash
-        cachedResult = result
+        cachedStructures[sourceHash] = result
+        touchCacheEntry(for: sourceHash)
+        trimCacheIfNeeded()
         return result
     }
 
@@ -55,4 +58,15 @@ enum EchoSenseBridge {
                                           databases: databases)
     }
 
+    private static func touchCacheEntry(for sourceHash: Int) {
+        cacheOrder.removeAll { $0 == sourceHash }
+        cacheOrder.append(sourceHash)
+    }
+
+    private static func trimCacheIfNeeded() {
+        while cacheOrder.count > cacheLimit {
+            let evictedHash = cacheOrder.removeFirst()
+            cachedStructures.removeValue(forKey: evictedHash)
+        }
+    }
 }

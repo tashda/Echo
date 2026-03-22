@@ -152,7 +152,7 @@ extension SecurityPGRoleSheet {
     var membershipPage: some View {
         if loadingRoles {
             Section {
-                HStack {
+                HStack(spacing: SpacingTokens.xs) {
                     ProgressView().controlSize(.small)
                     Text("Loading roles\u{2026}")
                         .font(TypographyTokens.detail)
@@ -161,44 +161,42 @@ extension SecurityPGRoleSheet {
             }
         } else {
             Section("Member Of") {
-                membershipTable(
+                membershipTableContent(
                     entries: $memberOfEntries,
-                    availableRoles: availableRolesForMemberOf,
-                    selectedNewRole: $selectedNewMemberOfRole,
-                    onAdd: {
-                        guard !selectedNewMemberOfRole.isEmpty else { return }
+                    selection: $selectedMemberOfEntries,
+                    availableRoles: availableRolesForMemberOf.filter { role in !memberOfEntries.contains { $0.name == role } },
+                    onAdd: { role in
                         memberOfEntries.append(PGRoleMemberEntry(
-                            name: selectedNewMemberOfRole,
+                            name: role,
                             adminOption: false,
                             inheritOption: true,
                             setOption: true
                         ))
-                        selectedNewMemberOfRole = ""
                     },
-                    onRemove: { indexSet in
-                        memberOfEntries.remove(atOffsets: indexSet)
+                    onRemove: { selected in
+                        memberOfEntries.removeAll { selected.contains($0.name) }
+                        selectedMemberOfEntries.removeAll()
                     }
                 )
             }
 
             if isEditing {
                 Section("Members") {
-                    membershipTable(
+                    membershipTableContent(
                         entries: $memberEntries,
-                        availableRoles: availableRolesForMembers,
-                        selectedNewRole: $selectedNewMemberRole,
-                        onAdd: {
-                            guard !selectedNewMemberRole.isEmpty else { return }
+                        selection: $selectedMemberEntries,
+                        availableRoles: availableRolesForMembers.filter { role in !memberEntries.contains { $0.name == role } },
+                        onAdd: { role in
                             memberEntries.append(PGRoleMemberEntry(
-                                name: selectedNewMemberRole,
+                                name: role,
                                 adminOption: false,
                                 inheritOption: true,
                                 setOption: true
                             ))
-                            selectedNewMemberRole = ""
                         },
-                        onRemove: { indexSet in
-                            memberEntries.remove(atOffsets: indexSet)
+                        onRemove: { selected in
+                            memberEntries.removeAll { selected.contains($0.name) }
+                            selectedMemberEntries.removeAll()
                         }
                     )
                 }

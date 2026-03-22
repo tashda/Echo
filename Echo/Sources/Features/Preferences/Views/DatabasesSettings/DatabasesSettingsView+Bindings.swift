@@ -52,6 +52,17 @@ extension DatabasesSettingsView {
         binding(for: \.nativePsqlAllowFileCommands)
     }
 
+    var pgToolCustomPathBinding: Binding<String> {
+        Binding(
+            get: { settings.pgToolCustomPath ?? "" },
+            set: { newValue in
+                var updated = settings
+                updated.pgToolCustomPath = newValue.isEmpty ? nil : newValue
+                Task { try? await projectStore.updateGlobalSettings(updated) }
+            }
+        )
+    }
+
     // MARK: - Formatters
 
     func formatRowCount(_ value: Int) -> String {

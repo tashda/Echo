@@ -147,6 +147,9 @@ enum ExplorerSidebarPalette {
         case .procedure: return procedures
         case .trigger: return triggers
         case .extension: return extensions
+        case .sequence: return monochrome
+        case .type: return monochrome
+        case .synonym: return monochrome
         }
     }
 }

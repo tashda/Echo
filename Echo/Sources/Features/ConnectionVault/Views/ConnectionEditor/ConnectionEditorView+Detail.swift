@@ -16,6 +16,7 @@ extension ConnectionEditorView {
                         authenticationSection
                         securitySection
                     }
+                    advancedSection
                     testConnectionSection
                         .id("testSection")
                 }

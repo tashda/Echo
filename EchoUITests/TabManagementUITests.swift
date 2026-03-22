@@ -1,10 +1,6 @@
 import XCTest
 
-final class TabManagementUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class TabManagementUITests: EchoUITestCase {
     // MARK: - New Tab
 
     func testCommandTCreatesNewTab() {

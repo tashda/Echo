@@ -1,4 +1,5 @@
 import Foundation
+import SQLServerKit
 
 extension EnvironmentState {
     // MARK: - Session Management
@@ -38,6 +39,7 @@ extension EnvironmentState {
         } else {
             displayName = "server"
         }
+        detachedJobQueueViewModels.removeValue(forKey: id)
         sessionGroup.removeSession(withID: id)
         notificationEngine?.post(category: .connectionDisconnected, message: "Disconnected from \(displayName)")
     }
@@ -62,7 +64,6 @@ extension EnvironmentState {
     }
 
     func loadSchemaForDatabase(_ databaseName: String, connectionSession: ConnectionSession) async {
-        connectionSession.selectedDatabaseName = databaseName
         await schemaDiscoveryEngine.loadDatabaseSchemaOnly(databaseName, for: connectionSession)
     }
 
@@ -83,7 +84,7 @@ extension EnvironmentState {
         removeRecentConnections(for: connection.id)
     }
 
-    func testConnection(_ connection: SavedConnection, passwordOverride: String? = nil, connectTimeoutSeconds: Int = 10) async -> ConnectionTestResult {
+    func testConnection(_ connection: SavedConnection, passwordOverride: String? = nil, connectTimeoutSeconds: Int? = nil) async -> ConnectionTestResult {
         guard let credentials = identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: passwordOverride) else {
             return ConnectionTestResult(isSuccessful: false, message: "Missing credentials", responseTime: nil, serverVersion: nil)
         }
@@ -108,7 +109,7 @@ extension EnvironmentState {
                 mssqlEncryptionMode: connection.mssqlEncryptionMode,
                 readOnlyIntent: connection.readOnlyIntent,
                 authentication: credentials,
-                connectTimeoutSeconds: connectTimeoutSeconds
+                connectTimeoutSeconds: connectTimeoutSeconds ?? Int(connection.connectionTimeout)
             )
             let duration = Date().timeIntervalSince(startTime)
             // Close in the background — shutting down the event loop group can take
@@ -135,8 +136,45 @@ extension EnvironmentState {
     func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String? = nil, autoExecute: Bool = false, database: String? = nil) {
         let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
         guard let targetSession else { return }
-        let tab = targetSession.addQueryTab(withQuery: presetQuery ?? "", database: database)
+
+        // Inherit the active tab's database when no explicit database is provided,
+        // matching SSMS/pgAdmin4 behavior where Cmd+T opens a tab connected to the same database.
+        let resolvedDatabase = database ?? tabStore.activeTab?.activeDatabaseName
+
+        // Create the tab immediately with the shared session so the UI responds instantly.
+        // A dedicated connection is established in the background for query isolation
+        // (transactions, session state, concurrent execution).
+        let tab = targetSession.addQueryTab(
+            withQuery: presetQuery ?? "",
+            database: resolvedDatabase
+        )
         registerTab(tab)
+
+        let connection = targetSession.connection
+        let targetDatabase = resolvedDatabase
+            ?? targetSession.selectedDatabaseName
+            ?? connection.database
+        let gate = dedicatedConnectionGate
+
+        Task {
+            await gate.wait()
+            do {
+                let dedicatedSession = try await makeDedicatedQuerySession(
+                    for: connection,
+                    metadataSession: targetSession.session,
+                    database: targetDatabase
+                )
+                await gate.signal()
+                tab.upgradeToDedicatedSession(dedicatedSession)
+            } catch {
+                await gate.signal()
+                notificationEngine?.post(
+                    category: .connectionFailed,
+                    message: "Dedicated query connection failed: \(error.localizedDescription)",
+                    duration: 5.0
+                )
+            }
+        }
     }
 
     func openMaintenanceTab(connectionID: UUID, databaseName: String? = nil) {
@@ -146,6 +184,30 @@ extension EnvironmentState {
             tab = session.addMSSQLMaintenanceTab(databaseName: databaseName)
         } else {
             tab = session.addMaintenanceTab(databaseName: databaseName)
+        }
+        if tabStore.getTab(id: tab.id) == nil {
+            registerTab(tab)
+        }
+        tabStore.selectTab(tab)
+    }
+
+    enum MaintenanceBackupAction {
+        case backup
+        case restore
+    }
+
+    func openMaintenanceBackups(connectionID: UUID, databaseName: String, action: MaintenanceBackupAction) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab: WorkspaceTab
+        if session.connection.databaseType == .microsoftSQL {
+            tab = session.addMSSQLMaintenanceTab(databaseName: databaseName)
+            if let vm = tab.mssqlMaintenance {
+                vm.selectedSection = .backups
+                vm.backupsActiveForm = action == .backup ? .backup : .restore
+            }
+        } else {
+            // PostgreSQL backup/restore is handled via sheets from the sidebar context menu
+            return
         }
         if tabStore.getTab(id: tab.id) == nil {
             registerTab(tab)
@@ -277,6 +339,79 @@ extension EnvironmentState {
         )
     }
 
+    /// Creates a dedicated query session for any database type using the generic
+    /// `DatabaseFactory`. Each query tab gets its own connection for transaction
+    /// isolation, session state safety, and concurrent execution — matching SSMS
+    /// and pgAdmin4 behavior.
+    private func makeDedicatedQuerySession(
+        for connection: SavedConnection,
+        metadataSession: DatabaseSession,
+        database: String?
+    ) async throws -> DatabaseSession {
+        guard let credentials = identityRepository.resolveAuthenticationConfiguration(
+            for: connection,
+            overridePassword: nil
+        ) else {
+            throw DatabaseError.connectionFailed("Missing credentials")
+        }
+
+        // MSSQL: use the specialized factory that produces MSSQLDedicatedQuerySession
+        // with reconnect support and metadata delegation.
+        if connection.databaseType == .microsoftSQL,
+           let mssqlMetadata = metadataSession as? SQLServerSessionAdapter {
+            let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
+                host: connection.host,
+                port: connection.port,
+                database: database,
+                tls: connection.useTLS,
+                trustServerCertificate: connection.trustServerCertificate,
+                sslRootCertPath: connection.sslRootCertPath,
+                mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                readOnlyIntent: connection.readOnlyIntent,
+                authentication: credentials,
+                connectTimeoutSeconds: 10
+            )
+            let dedicatedConnection = try await SQLServerConnection.connect(
+                configuration: configuration
+            )
+            return MSSQLDedicatedQuerySession(
+                connection: dedicatedConnection,
+                configuration: configuration,
+                metadataSession: mssqlMetadata
+            )
+        }
+
+        // All other engines: use the generic DatabaseFactory to create a fresh connection.
+        guard let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType) else {
+            throw DatabaseError.connectionFailed("No factory for \(connection.databaseType)")
+        }
+
+        let connectDatabase: String?
+        if let database, !database.isEmpty {
+            connectDatabase = database
+        } else if !connection.database.isEmpty {
+            connectDatabase = connection.database
+        } else {
+            connectDatabase = nil
+        }
+
+        return try await factory.connect(
+            host: connection.host,
+            port: connection.port,
+            database: connectDatabase,
+            tls: connection.useTLS,
+            trustServerCertificate: connection.trustServerCertificate,
+            tlsMode: connection.tlsMode,
+            sslRootCertPath: connection.sslRootCertPath,
+            sslCertPath: connection.sslCertPath,
+            sslKeyPath: connection.sslKeyPath,
+            mssqlEncryptionMode: connection.mssqlEncryptionMode,
+            readOnlyIntent: connection.readOnlyIntent,
+            authentication: credentials,
+            connectTimeoutSeconds: Int(connection.connectionTimeout)
+        )
+    }
+
     func openJobQueueTab(for session: ConnectionSession, selectJobID: String? = nil) {
         // Reuse existing Jobs tab for this session if one exists
         if let existingTab = tabStore.tabs.first(where: { $0.kind == .jobQueue && $0.connectionSessionID == session.id }) {
@@ -288,6 +423,31 @@ extension EnvironmentState {
         }
         let tab = session.addJobQueueTab(selectJobID: selectJobID)
         registerTab(tab)
+    }
+
+    /// Prepares a `JobQueueViewModel` for display in a detached window.
+    /// Returns the connection session ID used as the window value.
+    @discardableResult
+    func prepareJobQueueWindow(for session: ConnectionSession, selectJobID: String? = nil) -> UUID {
+        if let existing = detachedJobQueueViewModels[session.id] {
+            if let jobID = selectJobID {
+                existing.resolveAndSelect(jobIdentifier: jobID)
+            }
+            return session.id
+        }
+        let viewModel = JobQueueViewModel(session: session.session, connection: session.connection, initialSelectedJobID: selectJobID)
+        detachedJobQueueViewModels[session.id] = viewModel
+        return session.id
+    }
+
+    /// Moves a Job Queue tab's view model into a detached window.
+    /// Closes the tab and returns the connection session ID for `openWindow`.
+    func popOutJobQueueTab(_ tab: WorkspaceTab) -> UUID? {
+        guard let viewModel = tab.jobQueue else { return nil }
+        let sessionID = tab.connectionSessionID
+        detachedJobQueueViewModels[sessionID] = viewModel
+        tabStore.closeTab(id: tab.id)
+        return sessionID
     }
 
     func openStructureTab(for session: ConnectionSession, object: SchemaObjectInfo, focus: TableStructureSection? = nil, databaseName: String? = nil) {

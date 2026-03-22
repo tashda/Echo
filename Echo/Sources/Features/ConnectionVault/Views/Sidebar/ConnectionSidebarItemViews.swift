@@ -66,11 +66,27 @@ struct ConnectionFolderView: View {
             .onTapGesture { toggleExpansion() }
             .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { isHovering = h } }
             .contextMenu {
-                Button("New Connection", systemImage: "externaldrive.badge.plus") { onCreateConnection(group.folder) }
-                Button("New Folder", systemImage: "folder.badge.plus") { onCreateFolder(group.folder) }
+                // Group 2: New
+                Button { onCreateConnection(group.folder) } label: {
+                    Label("New Connection", systemImage: "network.badge.plus")
+                }
+                Button { onCreateFolder(group.folder) } label: {
+                    Label("New Folder", systemImage: "folder.badge.plus")
+                }
+
                 Divider()
-                Button("Rename Folder", systemImage: "pencil") { onEditFolder(group.folder) }
-                Button("Delete Folder", systemImage: "trash", role: .destructive) { onDelete(.folder(group.folder)) }
+
+                // Group 4: Edit
+                Button { onEditFolder(group.folder) } label: {
+                    Label("Rename Folder", systemImage: "character.cursor.ibeam")
+                }
+
+                Divider()
+
+                // Group 10: Destructive
+                Button(role: .destructive) { onDelete(.folder(group.folder)) } label: {
+                    Label("Delete Folder", systemImage: "trash")
+                }
             }
         }.padding(.horizontal, SpacingTokens.xxs)
     }
@@ -161,11 +177,11 @@ struct ConnectionsEmptyState: View {
     let query: String
     let isSearching: Bool
     var body: some View {
-        EmptyStatePlaceholder(
-            icon: isSearching ? "magnifyingglass" : "externaldrive",
-            title: isSearching ? "No matches for \(query.isEmpty ? "your search" : "'\(query)'")" : "No Connections",
-            subtitle: isSearching ? "Try adjusting your search." : "Use the plus button to add your first connection or organize folders."
-        )
+        ContentUnavailableView {
+            Label(isSearching ? "No matches for \(query.isEmpty ? "your search" : "'\(query)'")" : "No Connections", systemImage: isSearching ? "magnifyingglass" : "externaldrive")
+        } description: {
+            Text(isSearching ? "Try adjusting your search." : "Use the plus button to add your first connection or organize folders.")
+        }
         .frame(maxWidth: .infinity)
         .padding(.vertical, SpacingTokens.xl2)
     }

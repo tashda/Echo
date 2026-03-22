@@ -106,6 +106,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var sslKeyPath: String?
     var mssqlEncryptionMode: MSSQLEncryptionMode
     var readOnlyIntent: Bool
+    var connectionTimeout: TimeInterval
+    var queryTimeout: TimeInterval
     var databaseType: DatabaseType
     var serverVersion: String?
     var colorHex: String
@@ -146,6 +148,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case sslKeyPath
         case mssqlEncryptionMode
         case readOnlyIntent
+        case connectionTimeout
+        case queryTimeout
         case databaseType
         case serverVersion
         case colorHex
@@ -176,6 +180,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         sslKeyPath: String? = nil,
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
         readOnlyIntent: Bool = false,
+        connectionTimeout: TimeInterval = 30,
+        queryTimeout: TimeInterval = 60,
         databaseType: DatabaseType = .postgresql,
         serverVersion: String? = nil,
         colorHex: String = "",
@@ -204,6 +210,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         self.sslKeyPath = sslKeyPath
         self.mssqlEncryptionMode = mssqlEncryptionMode
         self.readOnlyIntent = readOnlyIntent
+        self.connectionTimeout = connectionTimeout
+        self.queryTimeout = queryTimeout
         self.databaseType = databaseType
         self.serverVersion = serverVersion
         self.colorHex = colorHex
@@ -235,6 +243,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         sslKeyPath = try container.decodeIfPresent(String.self, forKey: .sslKeyPath)
         mssqlEncryptionMode = try container.decodeIfPresent(MSSQLEncryptionMode.self, forKey: .mssqlEncryptionMode) ?? .optional
         readOnlyIntent = try container.decodeIfPresent(Bool.self, forKey: .readOnlyIntent) ?? false
+        connectionTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .connectionTimeout) ?? 30
+        queryTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .queryTimeout) ?? 60
         databaseType = try container.decodeIfPresent(DatabaseType.self, forKey: .databaseType) ?? .postgresql
         serverVersion = try container.decodeIfPresent(String.self, forKey: .serverVersion)
         colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? ""
@@ -266,6 +276,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encodeIfPresent(sslKeyPath, forKey: .sslKeyPath)
         try container.encode(mssqlEncryptionMode, forKey: .mssqlEncryptionMode)
         try container.encode(readOnlyIntent, forKey: .readOnlyIntent)
+        try container.encode(connectionTimeout, forKey: .connectionTimeout)
+        try container.encode(queryTimeout, forKey: .queryTimeout)
         try container.encode(databaseType, forKey: .databaseType)
         try container.encodeIfPresent(serverVersion, forKey: .serverVersion)
         try container.encode(colorHex, forKey: .colorHex)

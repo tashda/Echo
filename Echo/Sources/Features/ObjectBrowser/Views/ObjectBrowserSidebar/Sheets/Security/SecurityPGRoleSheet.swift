@@ -32,6 +32,8 @@ struct SecurityPGRoleSheet: View {
     @State var availableRolesForMembers: [String] = []
     @State var selectedNewMemberOfRole = ""
     @State var selectedNewMemberRole = ""
+    @State var selectedMemberOfEntries: Set<String> = []
+    @State var selectedMemberEntries: Set<String> = []
     @State var loadingRoles = false
 
     // Comment
@@ -101,6 +103,7 @@ struct SecurityPGRoleSheet: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .contentMargins(SpacingTokens.xs)
         .background(ColorTokens.Background.secondary.opacity(0.3))
     }
 

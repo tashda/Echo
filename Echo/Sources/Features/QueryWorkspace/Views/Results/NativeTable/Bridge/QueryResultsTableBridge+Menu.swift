@@ -17,14 +17,14 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
             menuColumnIndex = clickedColumn
 
             guard let dataIndex = menuColumnIndex,
-                  dataIndex < parent.query.displayedColumns.count else { return }
+                  dataIndex < queryState.displayedColumns.count else { return }
 
             selectColumn(at: dataIndex, in: tableView)
 
             let ascendingItem = NSMenuItem(title: "Sort Ascending", action: #selector(sortAscending), keyEquivalent: "")
             ascendingItem.target = self
             if let sort = parent.activeSort,
-               sort.column == parent.query.displayedColumns[dataIndex].name,
+               sort.column == queryState.displayedColumns[dataIndex].name,
                sort.ascending {
                 ascendingItem.state = .on
             }
@@ -33,7 +33,7 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
             let descendingItem = NSMenuItem(title: "Sort Descending", action: #selector(sortDescending), keyEquivalent: "")
             descendingItem.target = self
             if let sort = parent.activeSort,
-               sort.column == parent.query.displayedColumns[dataIndex].name,
+               sort.column == queryState.displayedColumns[dataIndex].name,
                !sort.ascending {
                 descendingItem.state = .on
             }
@@ -132,6 +132,20 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
         }
     }
 
+    func prepareRowContextMenu(at row: Int) -> NSMenu? {
+        guard let tableView else { return nil }
+        beginRowSelection(at: row)
+        isDraggingRowSelection = false
+        selectionFocus = QueryResultsTableView.SelectedCell(
+            row: row,
+            column: max(queryState.displayedColumns.count - 1, 0)
+        )
+        contextMenuCell = nil
+        tableView.deselectAll(nil)
+        tableView.selectionHighlightStyle = .none
+        return cellMenu
+    }
+
     func ensureSelectionForContextMenu(tableView: NSTableView) {
         let cell = consumeContextMenuCell()
             ?? resolvedCell(forRow: tableView.clickedRow, column: tableView.clickedColumn, tableView: tableView)
@@ -144,14 +158,14 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
         }
 
         setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
-        parent.onClearColumnHighlight()
+        notifyClearColumnHighlight()
     }
 
     func hasCopyableSelection() -> Bool {
         guard let tableView else { return false }
 
         if let selectionRegion {
-            let columnCount = parent.query.displayedColumns.count
+            let columnCount = queryState.displayedColumns.count
             let rowCount = tableView.numberOfRows
             guard columnCount > 0, rowCount > 0 else { return false }
 
@@ -195,7 +209,7 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
         submenuItem.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: nil)
         let submenu = NSMenu(title: "Copy As")
         let hasSelection = hasCopyableSelection()
-        for format in ResultExportFormat.allCases {
+        for format in ResultExportFormat.copyFormats {
             let action: Selector
             switch format {
             case .tsv: action = #selector(copyAsTSV)
@@ -203,6 +217,7 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
             case .json: action = #selector(copyAsJSON)
             case .sqlInsert: action = #selector(copyAsSQLInsert)
             case .markdown: action = #selector(copyAsMarkdown)
+            case .xlsx: continue
             }
             let item = NSMenuItem(title: format.menuTitle, action: action, keyEquivalent: "")
             item.target = self
@@ -243,6 +258,7 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
             case .json: action = #selector(saveAsJSON)
             case .sqlInsert: action = #selector(saveAsSQLInsert)
             case .markdown: action = #selector(saveAsMarkdown)
+            case .xlsx: action = #selector(saveAsXLSX)
             }
             let item = NSMenuItem(title: format.menuTitle, action: action, keyEquivalent: "")
             item.target = self
@@ -258,10 +274,10 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
     @objc func saveAsJSON() { saveSelectionAs(format: .json) }
     @objc func saveAsSQLInsert() { saveSelectionAs(format: .sqlInsert) }
     @objc func saveAsMarkdown() { saveSelectionAs(format: .markdown) }
+    @objc func saveAsXLSX() { saveSelectionAs(format: .xlsx) }
 
     func saveSelectionAs(format: ResultExportFormat) {
         guard let data = gatherSelectionData() else { return }
-        let content = ResultTableExportFormatter.format(format, headers: data.headers, rows: data.rows)
 
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "results.\(format.fileExtension)"
@@ -270,10 +286,21 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        do {
-            try content.write(to: url, atomically: true, encoding: .utf8)
-        } catch {
-            NSAlert(error: error).runModal()
+        if format.isBinaryFormat {
+            Task {
+                do {
+                    try await XLSXExportWriter.write(headers: data.headers, rows: data.rows, to: url)
+                } catch {
+                    _ = await MainActor.run { NSAlert(error: error).runModal() }
+                }
+            }
+        } else {
+            let content = ResultTableExportFormatter.format(format, headers: data.headers, rows: data.rows)
+            do {
+                try content.write(to: url, atomically: true, encoding: .utf8)
+            } catch {
+                NSAlert(error: error).runModal()
+            }
         }
     }
 }

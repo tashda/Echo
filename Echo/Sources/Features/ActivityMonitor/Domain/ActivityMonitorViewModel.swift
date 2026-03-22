@@ -22,6 +22,18 @@ final class ActivityMonitorViewModel {
     var refreshInterval: TimeInterval = 5.0
     var permissionDenied: Bool = false
 
+    /// True once we have a snapshot with delta data populated (requires at least 2 collection cycles).
+    /// Views should gate content display on this rather than `latestSnapshot != nil`.
+    var isReady: Bool {
+        guard let snapshot = latestSnapshot else { return false }
+        switch snapshot {
+        case .mssql(let snap):
+            return snap.waitsDelta != nil && snap.fileIODelta != nil
+        case .postgres(let snap):
+            return snap.databaseStatsDelta != nil
+        }
+    }
+
     // MSSQL Extended Events (nil for non-MSSQL connections)
     var extendedEventsVM: ExtendedEventsViewModel?
 

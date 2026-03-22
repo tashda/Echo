@@ -16,6 +16,9 @@ final class QueryResultsGridState {
     var lastResultToken: UInt64 = 0
     var hiddenColumnIndices: Set<Int> = []
     var columnOrder: [Int]?
+    /// Persisted column widths keyed by column identifier, used to skip expensive
+    /// `idealWidth()` measurement when rebuilding the table after a tab switch.
+    var cachedColumnWidths: [String: CGFloat] = [:]
     private var isRowCountRefreshScheduled = false
 
     func scheduleRowCountRefresh() {

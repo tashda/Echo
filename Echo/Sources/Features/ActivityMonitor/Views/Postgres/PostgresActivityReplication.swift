@@ -11,11 +11,11 @@ struct PostgresActivityReplication: View {
 
     var body: some View {
         if info.isEmpty {
-            EmptyStatePlaceholder(
-                icon: "arrow.triangle.2.circlepath",
-                title: "No Active Replication",
-                subtitle: "No streaming replication connections detected"
-            )
+            ContentUnavailableView {
+                Label("No Active Replication", systemImage: "arrow.triangle.2.circlepath")
+            } description: {
+                Text("No streaming replication connections detected.")
+            }
         } else {
             Table(sortedInfo, sortOrder: $sortOrder) {
                 TableColumn("PID", value: \.pid) {
@@ -33,9 +33,9 @@ struct PostgresActivityReplication: View {
                 }.width(min: 100, ideal: 140)
 
                 TableColumn("Client") {
-                    Text($0.clientAddr ?? "")
-                        .font(TypographyTokens.Table.name)
-                        .foregroundStyle(ColorTokens.Text.secondary)
+                    Text($0.clientAddr ?? "\u{2014}")
+                        .font(TypographyTokens.Table.secondaryName)
+                        .foregroundStyle(($0.clientAddr ?? "").isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
                 }.width(min: 100, ideal: 120)
 
                 TableColumn("State") {
@@ -44,13 +44,13 @@ struct PostgresActivityReplication: View {
 
                 TableColumn("Sent LSN") {
                     Text($0.sentLsn ?? "\u{2014}")
-                        .font(TypographyTokens.Table.numeric)
+                        .font(TypographyTokens.Table.path)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }.width(min: 90, ideal: 110)
 
                 TableColumn("Replay LSN") {
                     Text($0.replayLsn ?? "\u{2014}")
-                        .font(TypographyTokens.Table.numeric)
+                        .font(TypographyTokens.Table.path)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }.width(min: 90, ideal: 110)
 
@@ -61,12 +61,12 @@ struct PostgresActivityReplication: View {
                             .foregroundStyle(ColorTokens.Status.warning)
                     } else {
                         Text("\u{2014}")
-                            .font(TypographyTokens.Table.name)
-                            .foregroundStyle(ColorTokens.Text.quaternary)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
                     }
                 }.width(min: 80, ideal: 100)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
         }
     }
 }

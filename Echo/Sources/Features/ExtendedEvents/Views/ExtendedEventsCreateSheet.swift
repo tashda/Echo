@@ -86,6 +86,7 @@ struct ExtendedEventsCreateSheet: View {
                     .foregroundStyle(ColorTokens.Status.error)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Remove Event")
         }
     }
 
@@ -176,10 +177,10 @@ struct ExtendedEventsCreateSheet: View {
 
             switch viewModel.createTargetType {
             case .ringBuffer:
-                TextField("Max Memory (KB)", value: $viewModel.createRingBufferKB, format: .number)
+                TextField("Max Memory (KB)", value: $viewModel.createRingBufferKB, format: .number, prompt: Text("4096"))
             case .eventFile:
                 TextField("File Name", text: $viewModel.createEventFileName, prompt: Text("e.g. /var/log/xe_session"))
-                TextField("Max File Size (MB)", value: $viewModel.createEventFileMaxMB, format: .number)
+                TextField("Max File Size (MB)", value: $viewModel.createEventFileMaxMB, format: .number, prompt: Text("100"))
             }
         } header: {
             Text("Target")
@@ -190,7 +191,7 @@ struct ExtendedEventsCreateSheet: View {
 
     private var optionsSection: some View {
         Section {
-            TextField("Session Memory (KB)", value: $viewModel.createMaxMemoryKB, format: .number)
+            TextField("Session Memory (KB)", value: $viewModel.createMaxMemoryKB, format: .number, prompt: Text("4096"))
             Toggle("Start with Server", isOn: $viewModel.createStartupState)
         } header: {
             Text("Options")
@@ -207,6 +208,7 @@ struct ExtendedEventsCreateSheet: View {
             Button("Create") {
                 Task { await viewModel.createSession() }
             }
+            .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
             .disabled(viewModel.createSessionName.isEmpty || viewModel.createEvents.isEmpty || viewModel.isCreating)
         }

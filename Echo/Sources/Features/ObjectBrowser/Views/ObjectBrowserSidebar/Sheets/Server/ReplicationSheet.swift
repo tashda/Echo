@@ -61,7 +61,8 @@ struct ReplicationSheet: View {
         HStack {
             Spacer()
             Button("Done") { onDismiss() }
-                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.cancelAction)
         }
         .padding(SpacingTokens.md)
     }

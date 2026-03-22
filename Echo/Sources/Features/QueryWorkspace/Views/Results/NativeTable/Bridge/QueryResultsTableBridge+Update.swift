@@ -15,6 +15,20 @@ extension QueryResultsTableView.Coordinator {
         if let scrollView {
             registerScrollObservation(for: scrollView)
         }
+
+        // Detect new query execution and reset all cached state instead of
+        // relying on SwiftUI .id() to destroy/recreate the entire view.
+        let currentGeneration = parent.executionGeneration
+        if currentGeneration != lastObservedExecutionGeneration {
+            lastObservedExecutionGeneration = currentGeneration
+            // Only reset if this isn't the very first update (generation 0 → fresh table)
+            if tableView.tableColumns.count > 0 || lastRowCount > 0 {
+                saveColumnWidths()
+                resetForNewExecution(tableView: tableView)
+                return
+            }
+        }
+
         if pendingRowCountCorrection, rowCountUpdateWorkItem == nil {
             scheduleRowCountUpdate(for: tableView)
         }
@@ -27,7 +41,7 @@ extension QueryResultsTableView.Coordinator {
         }
 
         let currentRowOrder = parent.rowOrder
-        let currentRowCount = currentRowOrder.isEmpty ? parent.query.displayedRowCount : currentRowOrder.count
+        let currentRowCount = currentRowOrder.isEmpty ? parent.displayedRowCount : currentRowOrder.count
         let wasResizing = lastParentIsResizing
         defer {
             let endedResize = wasResizing && !isSplitResizing
@@ -43,9 +57,9 @@ extension QueryResultsTableView.Coordinator {
         let currentPaletteSignature = paletteSignature()
         let paletteChanged = currentPaletteSignature != cachedPaletteSignature
         cachedPaletteSignature = currentPaletteSignature
-        let dirtyToken = parent.query.resultChangeToken
+        let dirtyToken = parent.resultChangeToken
         let tokenChanged = dirtyToken != lastResultTokenSnapshot
-        let pendingRowReloadIndexes = parent.query.consumePendingVisibleRowReloadIndexes()
+        let pendingRowReloadIndexes = queryState.consumePendingVisibleRowReloadIndexes()
         let rowCountDecreased = currentRowCount < lastRowCount
         let rowCountIncreased = currentRowCount > lastRowCount
         let currentViewportSize = scrollView?.contentView.bounds.size ?? .zero

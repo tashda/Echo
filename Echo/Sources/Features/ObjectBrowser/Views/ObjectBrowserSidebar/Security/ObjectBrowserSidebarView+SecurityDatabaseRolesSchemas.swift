@@ -47,6 +47,7 @@ extension ObjectBrowserSidebarView {
             }
         }
         .contextMenu {
+            // Group 3: Open / View
             Button {
                 openScriptTab(
                     sql: """
@@ -61,17 +62,22 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("List Members", systemImage: "person.2")
             }
+
+            // Group 6: Script as
             if !role.isFixed {
                 Divider()
-                Menu {
-                    Button("CREATE") {
+                Menu("Script as", systemImage: "scroll") {
+                    Button {
                         openScriptTab(sql: "CREATE ROLE [\(role.name)];", session: session)
+                    } label: {
+                        Label("CREATE", systemImage: "plus.rectangle.on.rectangle")
                     }
-                    Button("DROP") {
+                    Divider()
+                    Button {
                         openScriptTab(sql: "DROP ROLE [\(role.name)];", session: session)
+                    } label: {
+                        Label("DROP", systemImage: "trash")
                     }
-                } label: {
-                    Label("Script as", systemImage: "scroll")
                 }
             }
         }
@@ -121,18 +127,21 @@ extension ObjectBrowserSidebarView {
             }
         }
         .contextMenu {
-            Menu {
-                Button("CREATE") {
+            Menu("Script as", systemImage: "scroll") {
+                Button {
                     openScriptTab(
                         sql: "CREATE APPLICATION ROLE [\(appRole.name)] WITH PASSWORD = N'<password>'\(appRole.defaultSchema.map { ", DEFAULT_SCHEMA = [\($0)]" } ?? "");",
                         session: session
                     )
+                } label: {
+                    Label("CREATE", systemImage: "plus.rectangle.on.rectangle")
                 }
-                Button("DROP") {
+                Divider()
+                Button {
                     openScriptTab(sql: "DROP APPLICATION ROLE [\(appRole.name)];", session: session)
+                } label: {
+                    Label("DROP", systemImage: "trash")
                 }
-            } label: {
-                Label("Script as", systemImage: "scroll")
             }
         }
     }

@@ -18,7 +18,7 @@ extension QueryResultsTableView.Coordinator {
     ) {
         // Preserve selection state during active cell drags to prevent
         // intermittent drag failures when table updates occur mid-drag.
-        let preserveSelection = isDraggingCellSelection
+        let preserveSelection = isDraggingSelection
 
         if columnsChanged {
             if !preserveSelection {
@@ -34,13 +34,13 @@ extension QueryResultsTableView.Coordinator {
 
         if !preserveSelection, let region = selectionRegion {
             let maxRow = tableView.numberOfRows
-            let maxColumn = parent.query.displayedColumns.count
+            let maxColumn = parent.displayedColumns.count
             if maxRow == 0 || maxColumn == 0 || region.normalizedRowRange.upperBound >= maxRow || region.normalizedColumnRange.upperBound >= maxColumn {
                 setSelectionRegion(nil, tableView: tableView)
             }
         }
 
-        if !preserveSelection && parent.query.isExecuting && parent.query.displayedRowCount == 0 {
+        if !preserveSelection && parent.isExecuting && parent.displayedRowCount == 0 {
             setSelectionRegion(nil, tableView: tableView)
         }
 
@@ -74,10 +74,14 @@ extension QueryResultsTableView.Coordinator {
         }
 
         if performedFullReload || rowCountIncreased {
-            parent.query.recordTableViewUpdate(
-                visibleRowCount: currentRowCount,
-                totalAvailableRowCount: parent.query.totalAvailableRowCount
-            )
+            let qs = queryState
+            let totalAvailableRowCount = qs.totalAvailableRowCount
+            Task { @MainActor in
+                qs.recordTableViewUpdate(
+                    visibleRowCount: currentRowCount,
+                    totalAvailableRowCount: totalAvailableRowCount
+                )
+            }
         }
 
         if let state = persistedState {
@@ -86,6 +90,12 @@ extension QueryResultsTableView.Coordinator {
             state.cachedSort = cachedSort
             state.lastRowCount = lastRowCount
             state.lastResultToken = dirtyToken
+        }
+
+        // Persist column widths after structural changes so tab switches
+        // can restore them instantly without expensive re-measurement.
+        if columnsChanged || performedFullReload {
+            saveColumnWidths()
         }
     }
 }

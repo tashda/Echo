@@ -15,6 +15,7 @@ struct EchoApp: App {
     @State private var coordinator = AppDirector.shared
 
     init() {
+        EchoApp.raiseFileDescriptorLimit()
         FontRegistrar.registerBundledFonts()
         #if os(macOS)
         if let forced = ProcessInfo.processInfo.environment["ECHO_FORCE_APPEARANCE"] {
@@ -45,6 +46,7 @@ struct EchoApp: App {
                 .environment(coordinator.clipboardHistory)
                 .environment(coordinator.appearanceStore)
                 .environment(coordinator.notificationEngine)
+                .environment(coordinator.activityEngine)
                 .task { await coordinator.initialize() }
         }
         .defaultLaunchBehavior(.presented)
@@ -76,10 +78,20 @@ struct EchoApp: App {
             )
 #endif
         }
+        JobQueueWindow()
         AutocompleteInspectorWindow()
         PerformanceMonitorWindow()
         StreamingTestHarnessWindow()
         SettingsWindowScene()
+    }
+
+    /// Raises the per-process file descriptor limit so NIO's kqueue and the many
+    /// dedicated SQL Server connections don't exhaust the default 256 fd ceiling.
+    private static func raiseFileDescriptorLimit() {
+        var limits = rlimit()
+        guard getrlimit(RLIMIT_NOFILE, &limits) == 0 else { return }
+        limits.rlim_cur = min(limits.rlim_max, 8192)
+        setrlimit(RLIMIT_NOFILE, &limits)
     }
 }
 

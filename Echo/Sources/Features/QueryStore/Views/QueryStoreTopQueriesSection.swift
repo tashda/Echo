@@ -10,16 +10,16 @@ struct QueryStoreTopQueriesSection: View {
 
     var body: some View {
         if viewModel.topQueries.isEmpty {
-            EmptyStatePlaceholder(
-                icon: "chart.bar.xaxis",
-                title: "No queries captured",
-                subtitle: "Query Store is collecting data. Queries will appear here once executed."
-            )
+            ContentUnavailableView {
+                Label("No queries captured", systemImage: "chart.bar.xaxis")
+            } description: {
+                Text("Query Store is collecting data. Queries will appear here once executed.")
+            }
         } else {
             Table(sortedQueries, selection: $viewModel.selectedQueryId, sortOrder: $sortOrder) {
                 TableColumn("ID", value: \.queryId) { query in
                     Text("\(query.queryId)")
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                 }
                 .width(min: 40, ideal: 55, max: 70)
 
@@ -28,7 +28,7 @@ struct QueryStoreTopQueriesSection: View {
                         .replacingOccurrences(of: "\r", with: " ")
                         .replacingOccurrences(of: "  ", with: " ")
                     Text(flat.prefix(300))
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.Table.sql)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .help(String(query.queryText.prefix(1000)))
@@ -37,7 +37,7 @@ struct QueryStoreTopQueriesSection: View {
 
                 TableColumn("Executions", value: \.totalExecutions) { query in
                     Text(formatCount(query.totalExecutions))
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -45,7 +45,7 @@ struct QueryStoreTopQueriesSection: View {
 
                 TableColumn("Total Duration", value: \.totalDurationUs) { query in
                     Text(formatDuration(query.totalDurationUs))
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -53,7 +53,7 @@ struct QueryStoreTopQueriesSection: View {
 
                 TableColumn("Total CPU", value: \.totalCPUUs) { query in
                     Text(formatDuration(query.totalCPUUs))
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -61,7 +61,7 @@ struct QueryStoreTopQueriesSection: View {
 
                 TableColumn("Total I/O", value: \.totalIOReads) { query in
                     Text(formatCount(Int(query.totalIOReads)))
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -69,13 +69,14 @@ struct QueryStoreTopQueriesSection: View {
 
                 TableColumn("Avg Duration", value: \.avgDurationUs) { query in
                     Text(formatDuration(query.avgDurationUs))
-                        .font(TypographyTokens.detail.monospacedDigit())
+                        .font(TypographyTokens.Table.numeric)
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .width(min: 80, ideal: 100, max: 120)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableColumnAutoResize()
             .contextMenu(forSelectionType: Int.self) { _ in
             } primaryAction: { _ in
                 onDoubleClick?()

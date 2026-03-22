@@ -10,49 +10,29 @@ struct TabContentWithPanel<MainContent: View, PanelContent: View>: View {
     private let minRatio: CGFloat = 0.2
     private let maxRatio: CGFloat = 0.85
 
-    @State private var liveSplitOverride: CGFloat?
-    @State private var lastResizeTimestamp: CFTimeInterval = 0
-
     var body: some View {
-        GeometryReader { geometry in
-            let totalHeight = geometry.size.height
-            let handleHeight: CGFloat = panelState.isOpen ? 9 : 0
-            let statusBarHeight: CGFloat = 24
-            let splitHeight = totalHeight - handleHeight - statusBarHeight
-            let baseRatio = clampedRatio(panelState.splitRatio)
-            let effectiveRatio = clampedRatio(liveSplitOverride ?? baseRatio)
-
-            VStack(spacing: 0) {
-                mainContent()
-                    .frame(height: panelState.isOpen ? splitHeight * effectiveRatio : totalHeight - statusBarHeight)
-
-                if panelState.isOpen {
-                    ResizeHandle(
-                        ratio: effectiveRatio,
-                        minRatio: minRatio,
-                        maxRatio: maxRatio,
-                        availableHeight: splitHeight,
-                        onLiveUpdate: { proposed in
-                            let now = CACurrentMediaTime()
-                            guard now - lastResizeTimestamp >= 0.016 else { return }
-                            lastResizeTimestamp = now
-                            liveSplitOverride = proposed
-                        },
-                        onCommit: { proposed in
-                            let clamped = clampedRatio(proposed)
-                            liveSplitOverride = nil
-                            panelState.splitRatio = clamped
-                        }
+        VStack(spacing: 0) {
+            if panelState.isOpen {
+                NativeSplitView(
+                    isVertical: false,
+                    firstMinFraction: minRatio,
+                    secondMinFraction: 1 - maxRatio,
+                    fraction: Binding(
+                        get: { clampedRatio(panelState.splitRatio) },
+                        set: { panelState.splitRatio = clampedRatio($0) }
                     )
-
+                ) {
+                    mainContent()
+                } second: {
                     panelContent()
-                        .frame(maxHeight: .infinity)
                         .clipped()
                 }
-
-                BottomPanelStatusBar(configuration: statusBarConfiguration)
+            } else {
+                mainContent()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .transaction { $0.disablesAnimations = true }
+
+            BottomPanelStatusBar(configuration: statusBarConfiguration)
         }
         .background(ColorTokens.Background.primary)
     }

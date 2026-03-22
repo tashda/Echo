@@ -45,14 +45,13 @@ struct ConnectionsTableView: View {
                 if let decoration = identityDecorationProvider(connection) {
                     Label {
                         Text(decoration.name)
-                            .font(TypographyTokens.Table.name)
+                            .font(TypographyTokens.Table.secondaryName)
                     } icon: {
                         Image(systemName: decoration.icon)
                     }
                     .foregroundStyle(ColorTokens.Text.secondary)
                 } else {
-                    Text("—")
-                        .font(TypographyTokens.Table.name)
+                    Text("\u{2014}")
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
@@ -61,10 +60,10 @@ struct ConnectionsTableView: View {
                 if let folderID = connection.folderID,
                    let folder = folderLookup[folderID] {
                     Text(folder.displayName)
-                        .font(TypographyTokens.Table.name)
+                        .font(TypographyTokens.Table.secondaryName)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 } else {
-                    Text("—")
-                        .font(TypographyTokens.Table.name)
+                    Text("\u{2014}")
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
@@ -77,6 +76,7 @@ struct ConnectionsTableView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SavedConnection.ID.self) { items in
             if let selectionID = items.first,
                let connection = connections.first(where: { $0.id == selectionID }) {

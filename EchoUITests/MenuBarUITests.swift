@@ -1,10 +1,6 @@
 import XCTest
 
-final class MenuBarUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
+final class MenuBarUITests: EchoUITestCase {
     // MARK: - Helpers
 
     private func launchApp() -> XCUIApplication {

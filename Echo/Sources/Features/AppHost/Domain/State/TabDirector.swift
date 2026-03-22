@@ -77,6 +77,11 @@ final class TabDirector {
         // Proactively clean up tab resources to stop background tasks/streaming
         tab.query?.cancelExecution()
         tab.activityMonitor?.stopStreaming()
+        if tab.ownsSession {
+            Task {
+                await tab.session.close()
+            }
+        }
 
         let removedTabIsActive = (activeTabId == id)
         let fallbackTabId: UUID? = {
@@ -180,6 +185,7 @@ final class TabDirector {
     }
 
     private func recordClosedTab(_ tab: WorkspaceTab, index: Int) {
+        guard !tab.ownsSession else { return }
         closedTabHistory.removeAll { $0.tab.id == tab.id }
         closedTabHistory.append(.init(tab: tab, index: index))
         if closedTabHistory.count > closedTabHistoryLimit {

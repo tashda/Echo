@@ -59,11 +59,11 @@ enum ConnectionsMenuBuilder {
         // MARK: - Actions
         menu.addItem(.separator())
 
-        let manageItem = NSMenuItem(title: "Manage Connections\u{2026}", action: #selector(ConnectionsMenuActions.manageConnections(_:)), keyEquivalent: "")
+        let manageItem = NSMenuItem(title: "Manage Connections", action: #selector(ConnectionsMenuActions.manageConnections(_:)), keyEquivalent: "")
         manageItem.target = ConnectionsMenuActions.shared
         menu.addItem(manageItem)
 
-        let quickItem = NSMenuItem(title: "Quick Connect\u{2026}", action: #selector(ConnectionsMenuActions.quickConnect(_:)), keyEquivalent: "")
+        let quickItem = NSMenuItem(title: "Quick Connect", action: #selector(ConnectionsMenuActions.quickConnect(_:)), keyEquivalent: "")
         quickItem.target = ConnectionsMenuActions.shared
         menu.addItem(quickItem)
 

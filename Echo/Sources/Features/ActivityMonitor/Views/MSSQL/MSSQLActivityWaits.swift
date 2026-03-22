@@ -53,6 +53,7 @@ struct MSSQLActivityWaits: View {
             }.width(min: 50, ideal: 60)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableColumnAutoResize()
         .contextMenu(forSelectionType: SQLServerWaitStatDelta.ID.self) { _ in
         } primaryAction: { _ in
             onDoubleClick?()

@@ -54,6 +54,8 @@ struct QueryPanelStatusBar: View {
             config.statusBubble = buildStatusBubble()
         }
 
+        config.modeIndicators = buildModeIndicators()
+
         return config
     }
 
@@ -67,6 +69,17 @@ struct QueryPanelStatusBar: View {
         return .init(rowCountText: rowCount, rowCountLabel: rowLabel, durationText: durationText)
     }
 
+    private func buildModeIndicators() -> [BottomPanelStatusBarConfiguration.ModeIndicator] {
+        var indicators: [BottomPanelStatusBarConfiguration.ModeIndicator] = []
+        if query.sqlcmdModeEnabled {
+            indicators.append(.init(id: "sqlcmd", label: "SQLCMD", icon: "terminal"))
+        }
+        if query.statisticsEnabled {
+            indicators.append(.init(id: "statistics", label: "Statistics", icon: "chart.bar"))
+        }
+        return indicators
+    }
+
     private func buildStatusBubble() -> BottomPanelStatusBarConfiguration.StatusBubble {
         if query.isExecuting {
             return .init(label: "Executing", tint: .orange, isPulsing: true)
@@ -78,7 +91,13 @@ struct QueryPanelStatusBar: View {
             return .init(label: "Error", tint: .red, isPulsing: false)
         }
         if query.hasExecutedAtLeastOnce {
-            return .init(label: "Completed", tint: .green, isPulsing: false)
+            let isMaterializing = query.rowProgress.materialized < query.rowProgress.totalReported
+                && query.rowProgress.totalReported > 0
+            return .init(
+                label: isMaterializing ? "Loading rows" : "Completed",
+                tint: .green,
+                isPulsing: isMaterializing
+            )
         }
         return .init(label: "Ready", tint: .secondary, isPulsing: false)
     }

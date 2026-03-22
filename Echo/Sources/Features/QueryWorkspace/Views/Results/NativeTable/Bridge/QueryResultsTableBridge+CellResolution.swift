@@ -6,7 +6,7 @@ extension QueryResultsTableView.Coordinator {
     func resolvedCell(forRow row: Int, column: Int, tableView: NSTableView) -> QueryResultsTableView.SelectedCell? {
         guard row >= 0, row < tableView.numberOfRows else { return nil }
         guard column >= 0, column < tableView.tableColumns.count else { return nil }
-        guard column < parent.query.displayedColumns.count else { return nil }
+        guard column < queryState.displayedColumns.count else { return nil }
         return QueryResultsTableView.SelectedCell(row: row, column: column)
     }
 

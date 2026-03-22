@@ -5,7 +5,7 @@ import SwiftUI
 extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDataSource {
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count
+        parent.rowOrder.isEmpty ? queryState.displayedRowCount : parent.rowOrder.count
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
@@ -32,15 +32,10 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         return cellView
     }
 
-    func tableView(_ tableView: NSTableView, shouldReorderColumn columnIndex: Int, toColumn newColumnIndex: Int) -> Bool { true }
+    func tableView(_ tableView: NSTableView, shouldReorderColumn columnIndex: Int, toColumn newColumnIndex: Int) -> Bool { false }
 
     func tableView(_ tableView: NSTableView, sizeToFitWidthOfColumn column: Int) -> CGFloat {
-        guard column >= 0, column < tableView.tableColumns.count else { return 0 }
-        if column >= parent.query.displayedColumns.count { return max(tableView.tableColumns[column].minWidth, tableView.tableColumns[column].width) }
-        let tableColumn = tableView.tableColumns[column]
-        let desired = max(headerContentWidth(for: tableColumn, in: tableView), widestCellWidth(forColumn: column, tableView: tableView))
-        let maxWidth = tableColumn.maxWidth > 0 ? tableColumn.maxWidth : .greatestFiniteMagnitude
-        return min(max(desired, tableColumn.minWidth), maxWidth)
+        idealWidth(forVisibleColumnAt: column, in: tableView)
     }
 
     func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
@@ -102,12 +97,12 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
             cellView.apply(text: "", font: resolvedFont(for: style), textColor: style.nsColor)
             cellView.configureIcon(nil); return
         }
-        let rawValue = displayedRowValues(for: sourceIndex)?[safe: dataIndex] ?? parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
-        let columnInfo = dataIndex < parent.query.displayedColumns.count ? parent.query.displayedColumns[dataIndex] : nil
+        let rawValue = displayedRowValues(for: sourceIndex)?[safe: dataIndex] ?? queryState.valueForDisplay(row: sourceIndex, column: dataIndex)
+        let columnInfo = dataIndex < queryState.displayedColumns.count ? queryState.displayedColumns[dataIndex] : nil
         let kind = (rawValue == nil) ? .null : (dataIndex < cachedColumnKinds.count ? cachedColumnKinds[dataIndex] : ResultGridValueClassifier.kind(for: columnInfo, value: rawValue))
         let style = cachedResultGridStyles[kind] ?? { let s = fallbackResultGridStyle(for: kind); cachedResultGridStyles[kind] = s; return s }()
         let font = resolvedFont(for: style); let displayText = rawValue ?? (kind == .null ? "NULL" : "")
-        let baseTextColor = cachedTextColors[kind] ?? { let c = style.nsColor; cachedTextColors[kind] = c; return c }()
+        let baseTextColor = cachedTextColors[kind] ?? { let c = dynamicNSColor(for: kind, style: style); cachedTextColors[kind] = c; return c }()
         cellView.apply(text: displayText, font: font, textColor: baseTextColor)
         let cellPosition = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
         if shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue) {
@@ -121,7 +116,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
 
     private func displayedRowValues(for sourceIndex: Int) -> [String?]? {
         if let cached = cachedDisplayedRows.get(sourceIndex) { return cached }
-        guard let rowValues = parent.query.displayedRow(at: sourceIndex) else { return nil }
+        guard let rowValues = queryState.displayedRow(at: sourceIndex) else { return nil }
         cachedDisplayedRows.put(sourceIndex, value: rowValues)
         return rowValues
     }
@@ -146,6 +141,11 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         if let selection = makeJsonSelection(for: cell) { parent.onJsonEvent(.activate(selection)) }
     }
 
+    private func dynamicNSColor(for kind: ResultGridValueKind, style: SQLEditorTokenPalette.ResultGridStyle) -> NSColor {
+        if kind == .text, parent.colorOverrides.textHex == nil { return .labelColor }
+        return style.nsColor
+    }
+
     func refreshVisibleRowBackgrounds(_ tableView: NSTableView) {
         let visibleRange = tableView.rows(in: tableView.visibleRect)
         guard visibleRange.length > 0 else { return }
@@ -167,7 +167,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
     }
 
     func resolvedRowIndex(for visibleRow: Int) -> Int {
-        let count = parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count
+        let count = parent.rowOrder.isEmpty ? queryState.displayedRowCount : parent.rowOrder.count
         guard visibleRow >= 0, visibleRow < count else { if visibleRow >= count { scheduleRowCountCorrection() }; return -1 }
         return parent.rowOrder.isEmpty ? visibleRow : parent.rowOrder[visibleRow]
     }

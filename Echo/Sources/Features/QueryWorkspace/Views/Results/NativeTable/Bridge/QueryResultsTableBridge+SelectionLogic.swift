@@ -6,7 +6,7 @@ extension QueryResultsTableView.Coordinator {
 
     func applyColumnSelection(from start: Int, to end: Int) {
         guard let tableView else { return }
-        let columnCount = parent.query.displayedColumns.count
+        let columnCount = queryState.displayedColumns.count
         guard columnCount > 0 else { return }
 
         let clampedStart = max(0, min(start, columnCount - 1))
@@ -60,7 +60,7 @@ extension QueryResultsTableView.Coordinator {
            region.start.column < tableView.tableColumns.count {
             tableView.highlightedTableColumn = tableView.tableColumns[region.start.column]
         } else {
-            parent.onClearColumnHighlight()
+            notifyClearColumnHighlight()
         }
 
         refreshVisibleRowBackgrounds(tableView)
@@ -168,10 +168,12 @@ extension QueryResultsTableView.Coordinator {
     var hasActiveCellSelection: Bool { selectionRegion != nil }
 
     /// Selects the entire row (all columns) when the user clicks a row number.
-    func selectFullRow(_ row: Int) {
+    func beginRowSelection(at row: Int) {
         guard let tableView else { return }
-        let columnCount = parent.query.displayedColumns.count
+        let columnCount = queryState.displayedColumns.count
         guard columnCount > 0, row >= 0, row < tableView.numberOfRows else { return }
+        isDraggingCellSelection = false
+        isDraggingRowSelection = true
         let start = QueryResultsTableView.SelectedCell(row: row, column: 0)
         let end = QueryResultsTableView.SelectedCell(row: row, column: columnCount - 1)
         setSelectionRegion(SelectedRegion(start: start, end: end), tableView: tableView)
@@ -180,7 +182,7 @@ extension QueryResultsTableView.Coordinator {
     /// Extends the current row selection to include the given row (for drag on row numbers).
     func extendRowSelection(to row: Int) {
         guard let tableView else { return }
-        let columnCount = parent.query.displayedColumns.count
+        let columnCount = queryState.displayedColumns.count
         guard columnCount > 0, row >= 0, row < tableView.numberOfRows else { return }
         let anchorRow = selectionAnchor?.row ?? row
         let startRow = min(anchorRow, row)
@@ -197,6 +199,21 @@ extension QueryResultsTableView.Coordinator {
         }
         refreshSelectionTransition(from: previous, to: region, tableView: tableView)
         refreshVisibleRowBackgrounds(tableView)
+    }
+
+    func resolvedRowForDragSelection(at point: NSPoint, in tableView: NSTableView) -> Int? {
+        guard tableView.numberOfRows > 0 else { return nil }
+        let row = tableView.row(at: point)
+        if row >= 0 {
+            return min(row, tableView.numberOfRows - 1)
+        }
+        if point.y < tableView.visibleRect.minY {
+            return 0
+        }
+        if point.y > tableView.visibleRect.maxY {
+            return tableView.numberOfRows - 1
+        }
+        return nil
     }
 }
 #endif

@@ -12,6 +12,7 @@ struct BottomPanelStatusBarConfiguration {
 
     var metrics: Metrics?
     var statusBubble: StatusBubble?
+    var modeIndicators: [ModeIndicator] = []
 
     init(
         connectionText: String,
@@ -42,6 +43,12 @@ struct BottomPanelStatusBarConfiguration {
         let tint: Color
         let isPulsing: Bool
     }
+
+    struct ModeIndicator: Identifiable {
+        let id: String
+        let label: String
+        let icon: String
+    }
 }
 
 /// Universal 24pt status bar at the bottom of every tab.
@@ -54,6 +61,7 @@ struct BottomPanelStatusBar: View {
             HStack(spacing: 0) {
                 connectionLabel
                 segmentToggles
+                modeIndicatorChips
                 Spacer(minLength: SpacingTokens.sm)
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -66,7 +74,6 @@ struct BottomPanelStatusBar: View {
             .frame(height: 24)
         }
         .background(.bar)
-        .transaction { $0.animation = nil }
     }
 
     private var connectionLabel: some View {
@@ -90,6 +97,24 @@ struct BottomPanelStatusBar: View {
         }
     }
 
+    @ViewBuilder
+    private var modeIndicatorChips: some View {
+        if !configuration.modeIndicators.isEmpty {
+            Divider()
+                .frame(height: 12)
+                .padding(.leading, SpacingTokens.xs)
+            ForEach(configuration.modeIndicators) { indicator in
+                HStack(spacing: SpacingTokens.xxxs) {
+                    Image(systemName: indicator.icon)
+                    Text(indicator.label)
+                }
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Status.modeIndicator)
+                .padding(.leading, SpacingTokens.xs)
+            }
+        }
+    }
+
     private func segmentButton(_ segment: PanelSegment) -> some View {
         let isActive = configuration.isPanelOpen && configuration.selectedSegment == segment
         let isDisabled = configuration.disabledSegments.contains(segment)
@@ -104,6 +129,7 @@ struct BottomPanelStatusBar: View {
         .opacity(isDisabled ? 0.3 : 1)
         .disabled(isDisabled)
         .help(isDisabled ? segment.label : (isActive ? "Show Results" : "Show \(segment.label)"))
+        .accessibilityLabel(segment.label)
     }
 
     @ViewBuilder

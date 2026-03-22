@@ -123,7 +123,7 @@ private struct AgentSectionHeader: View {
     let title: String
     var body: some View {
         HStack {
-            Text(title.uppercased()).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
+            Text(title).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, SpacingTokens.md).padding(.vertical, SpacingTokens.xs).background(ColorTokens.Background.secondary)
