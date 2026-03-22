@@ -14,8 +14,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         try await execute("CREATE TABLE dbo.[\(tableName)] (id INT)")
         try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
         cleanupSQL(
-            "DROP SYNONYM IF EXISTS dbo.[\(synName)]",
-            "DROP TABLE IF EXISTS dbo.[\(tableName)]"
+            "DROP SYNONYM dbo.[\(synName)]",
+            "DROP TABLE dbo.[\(tableName)]"
         )
 
         guard let metaSession = session as? DatabaseMetadataSession else {
@@ -38,8 +38,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         try await execute("CREATE TABLE dbo.[\(tableName)] (id INT, name NVARCHAR(100))")
         try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
         cleanupSQL(
-            "DROP SYNONYM IF EXISTS dbo.[\(synName)]",
-            "DROP TABLE IF EXISTS dbo.[\(tableName)]"
+            "DROP SYNONYM dbo.[\(synName)]",
+            "DROP TABLE dbo.[\(tableName)]"
         )
 
         guard let metaSession = session as? DatabaseMetadataSession else {
@@ -65,8 +65,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         try await execute("INSERT INTO dbo.[\(tableName)] VALUES (1, N'Alice'), (2, N'Bob')")
         try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
         cleanupSQL(
-            "DROP SYNONYM IF EXISTS dbo.[\(synName)]",
-            "DROP TABLE IF EXISTS dbo.[\(tableName)]"
+            "DROP SYNONYM dbo.[\(synName)]",
+            "DROP TABLE dbo.[\(tableName)]"
         )
 
         let result = try await query("SELECT * FROM dbo.[\(synName)] ORDER BY id")
@@ -84,8 +84,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         try await execute("CREATE TABLE dbo.[\(tableName)] (id INT, value NVARCHAR(50))")
         try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
         cleanupSQL(
-            "DROP SYNONYM IF EXISTS dbo.[\(synName)]",
-            "DROP TABLE IF EXISTS dbo.[\(tableName)]"
+            "DROP SYNONYM dbo.[\(synName)]",
+            "DROP TABLE dbo.[\(tableName)]"
         )
 
         try await execute("INSERT INTO dbo.[\(synName)] VALUES (1, N'test_value')")
@@ -107,9 +107,9 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         try await execute("CREATE VIEW dbo.[\(viewName)] AS SELECT id FROM dbo.[\(tableName)] WHERE active = 1")
         try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(viewName)]")
         cleanupSQL(
-            "DROP SYNONYM IF EXISTS dbo.[\(synName)]",
-            "DROP VIEW IF EXISTS dbo.[\(viewName)]",
-            "DROP TABLE IF EXISTS dbo.[\(tableName)]"
+            "DROP SYNONYM dbo.[\(synName)]",
+            "DROP VIEW dbo.[\(viewName)]",
+            "DROP TABLE dbo.[\(tableName)]"
         )
 
         let result = try await query("SELECT * FROM dbo.[\(synName)] ORDER BY id")
@@ -132,8 +132,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         """)
         try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(procName)]")
         cleanupSQL(
-            "DROP SYNONYM IF EXISTS dbo.[\(synName)]",
-            "DROP PROCEDURE IF EXISTS dbo.[\(procName)]"
+            "DROP SYNONYM dbo.[\(synName)]",
+            "DROP PROCEDURE dbo.[\(procName)]"
         )
 
         let result = try await query("EXEC dbo.[\(synName)] @x = 5")
@@ -149,7 +149,7 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
 
         try await execute("CREATE TABLE dbo.[\(tableName)] (id INT)")
         try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
-        cleanupSQL("DROP TABLE IF EXISTS dbo.[\(tableName)]")
+        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         // Verify synonym exists
         guard let metaSession = session as? DatabaseMetadataSession else {
@@ -183,8 +183,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         try await execute("CREATE TABLE [\(schemaName)].[\(tableName)] (id INT)")
         try await execute("CREATE SYNONYM [\(schemaName)].[\(synName)] FOR [\(schemaName)].[\(tableName)]")
         cleanupSQL(
-            "DROP SYNONYM IF EXISTS [\(schemaName)].[\(synName)]",
-            "DROP TABLE IF EXISTS [\(schemaName)].[\(tableName)]",
+            "DROP SYNONYM [\(schemaName)].[\(synName)]",
+            "DROP TABLE [\(schemaName)].[\(tableName)]",
             "DROP SCHEMA [\(schemaName)]"
         )
 

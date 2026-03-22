@@ -62,6 +62,7 @@ final class EnvironmentState {
     @ObservationIgnored let diagramCacheStore: DiagramCacheStore
     @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
 
+    @ObservationIgnored let dedicatedConnectionGate = AsyncSemaphore(limit: 3)
     @ObservationIgnored private var diagramRefreshTask: Task<Void, Never>?
     @ObservationIgnored internal var observedSessionIDs: Set<UUID> = []
     @ObservationIgnored private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"

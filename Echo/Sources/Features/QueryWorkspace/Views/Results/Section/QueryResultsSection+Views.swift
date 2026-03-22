@@ -4,7 +4,7 @@ extension QueryResultsSection {
     @ViewBuilder
     var content: some View {
         Group {
-            if query.isExecuting {
+            if query.isExecuting && !hasRows {
                 executingView
             } else if let error = query.errorMessage, !hasRows {
                 errorView(error)

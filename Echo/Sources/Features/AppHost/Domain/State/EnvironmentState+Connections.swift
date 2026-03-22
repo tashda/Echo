@@ -136,40 +136,45 @@ extension EnvironmentState {
     func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String? = nil, autoExecute: Bool = false, database: String? = nil) {
         let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
         guard let targetSession else { return }
-        if targetSession.connection.databaseType == .microsoftSQL,
-           let metadataSession = targetSession.session as? SQLServerSessionAdapter {
-            let queryText = presetQuery ?? ""
-            Task {
-                do {
-                    let dedicatedSession = try await makeDedicatedMSSQLQuerySession(
-                        for: targetSession.connection,
-                        metadataSession: metadataSession,
-                        database: database ?? targetSession.selectedDatabaseName ?? targetSession.connection.database
-                    )
-                    await MainActor.run {
-                        let tab = targetSession.addQueryTab(
-                            withQuery: queryText,
-                            database: database,
-                            session: dedicatedSession,
-                            ownsSession: true
-                        )
-                        registerTab(tab)
-                    }
-                } catch {
-                    await MainActor.run {
-                        notificationEngine?.post(
-                            category: .connectionFailed,
-                            message: "SQL Server query tab failed: \(error.localizedDescription)",
-                            duration: 5.0
-                        )
-                    }
-                }
-            }
-            return
-        }
 
-        let tab = targetSession.addQueryTab(withQuery: presetQuery ?? "", database: database)
+        // Inherit the active tab's database when no explicit database is provided,
+        // matching SSMS/pgAdmin4 behavior where Cmd+T opens a tab connected to the same database.
+        let resolvedDatabase = database ?? tabStore.activeTab?.activeDatabaseName
+
+        // Create the tab immediately with the shared session so the UI responds instantly.
+        // A dedicated connection is established in the background for query isolation
+        // (transactions, session state, concurrent execution).
+        let tab = targetSession.addQueryTab(
+            withQuery: presetQuery ?? "",
+            database: resolvedDatabase
+        )
         registerTab(tab)
+
+        let connection = targetSession.connection
+        let targetDatabase = resolvedDatabase
+            ?? targetSession.selectedDatabaseName
+            ?? connection.database
+        let gate = dedicatedConnectionGate
+
+        Task {
+            await gate.wait()
+            do {
+                let dedicatedSession = try await makeDedicatedQuerySession(
+                    for: connection,
+                    metadataSession: targetSession.session,
+                    database: targetDatabase
+                )
+                await gate.signal()
+                tab.upgradeToDedicatedSession(dedicatedSession)
+            } catch {
+                await gate.signal()
+                notificationEngine?.post(
+                    category: .connectionFailed,
+                    message: "Dedicated query connection failed: \(error.localizedDescription)",
+                    duration: 5.0
+                )
+            }
+        }
     }
 
     func openMaintenanceTab(connectionID: UUID, databaseName: String? = nil) {
@@ -334,9 +339,13 @@ extension EnvironmentState {
         )
     }
 
-    private func makeDedicatedMSSQLQuerySession(
+    /// Creates a dedicated query session for any database type using the generic
+    /// `DatabaseFactory`. Each query tab gets its own connection for transaction
+    /// isolation, session state safety, and concurrent execution — matching SSMS
+    /// and pgAdmin4 behavior.
+    private func makeDedicatedQuerySession(
         for connection: SavedConnection,
-        metadataSession: SQLServerSessionAdapter,
+        metadataSession: DatabaseSession,
         database: String?
     ) async throws -> DatabaseSession {
         guard let credentials = identityRepository.resolveAuthenticationConfiguration(
@@ -346,26 +355,60 @@ extension EnvironmentState {
             throw DatabaseError.connectionFailed("Missing credentials")
         }
 
-        let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
+        // MSSQL: use the specialized factory that produces MSSQLDedicatedQuerySession
+        // with reconnect support and metadata delegation.
+        if connection.databaseType == .microsoftSQL,
+           let mssqlMetadata = metadataSession as? SQLServerSessionAdapter {
+            let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
+                host: connection.host,
+                port: connection.port,
+                database: database,
+                tls: connection.useTLS,
+                trustServerCertificate: connection.trustServerCertificate,
+                sslRootCertPath: connection.sslRootCertPath,
+                mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                readOnlyIntent: connection.readOnlyIntent,
+                authentication: credentials,
+                connectTimeoutSeconds: 10
+            )
+            let dedicatedConnection = try await SQLServerConnection.connect(
+                configuration: configuration
+            )
+            return MSSQLDedicatedQuerySession(
+                connection: dedicatedConnection,
+                configuration: configuration,
+                metadataSession: mssqlMetadata
+            )
+        }
+
+        // All other engines: use the generic DatabaseFactory to create a fresh connection.
+        guard let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType) else {
+            throw DatabaseError.connectionFailed("No factory for \(connection.databaseType)")
+        }
+
+        let connectDatabase: String?
+        if let database, !database.isEmpty {
+            connectDatabase = database
+        } else if !connection.database.isEmpty {
+            connectDatabase = connection.database
+        } else {
+            connectDatabase = nil
+        }
+
+        return try await factory.connect(
             host: connection.host,
             port: connection.port,
-            database: database,
+            database: connectDatabase,
             tls: connection.useTLS,
             trustServerCertificate: connection.trustServerCertificate,
+            tlsMode: connection.tlsMode,
             sslRootCertPath: connection.sslRootCertPath,
+            sslCertPath: connection.sslCertPath,
+            sslKeyPath: connection.sslKeyPath,
             mssqlEncryptionMode: connection.mssqlEncryptionMode,
             readOnlyIntent: connection.readOnlyIntent,
             authentication: credentials,
-            connectTimeoutSeconds: 10
-        )
-        let dedicatedConnection = try await SQLServerConnection.connect(
-            configuration: configuration
-        )
-
-        return MSSQLDedicatedQuerySession(
-            connection: dedicatedConnection,
-            configuration: configuration,
-            metadataSession: metadataSession
+            connectTimeoutSeconds: Int(connection.connectionTimeout)
         )
     }
 

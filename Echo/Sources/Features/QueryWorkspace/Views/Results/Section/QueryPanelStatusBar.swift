@@ -91,7 +91,13 @@ struct QueryPanelStatusBar: View {
             return .init(label: "Error", tint: .red, isPulsing: false)
         }
         if query.hasExecutedAtLeastOnce {
-            return .init(label: "Completed", tint: .green, isPulsing: false)
+            let isMaterializing = query.rowProgress.materialized < query.rowProgress.totalReported
+                && query.rowProgress.totalReported > 0
+            return .init(
+                label: isMaterializing ? "Loading rows" : "Completed",
+                tint: .green,
+                isPulsing: isMaterializing
+            )
         }
         return .init(label: "Ready", tint: .secondary, isPulsing: false)
     }

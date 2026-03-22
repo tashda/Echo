@@ -9,7 +9,7 @@ final class MSSQLMaintenanceTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName(prefix: "maint_frag")
         try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, val NVARCHAR(200))")
         try await execute("CREATE INDEX [IX_\(tableName)] ON [\(tableName)](val)")
-        cleanupSQL("DROP TABLE IF EXISTS [\(tableName)]")
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
         // Fragmentation might be 0 for a new table, but the query should still succeed
         let fragmented = try await session.listFragmentedIndexes()

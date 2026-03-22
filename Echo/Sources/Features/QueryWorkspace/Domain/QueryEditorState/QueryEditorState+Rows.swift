@@ -27,18 +27,18 @@ extension QueryEditorState {
     }
 
     var totalAvailableRowCount: Int {
-        let materialized = max(materializedHighWaterMark, streamingRows.count, rowProgress.materialized)
         if spoolHandle != nil {
-            // Only report materialized rows — the grid expands as rows are
-            // decoded from the spool. This prevents null placeholders from
-            // appearing while background formatting catches up.
-            return materialized
+            // Spool path: only report rows that have been materialized from
+            // the spool back into memory. The grid expands as
+            // beginProgressiveMaterialization reads batches from disk.
+            return rowProgress.materialized
         }
-        let received = max(streamedRowCount, rowProgress.totalReceived)
-        if rowProgress.totalReported > 0 {
-            return min(rowProgress.totalReported, materialized)
-        }
-        return max(materialized, received)
+        // Non-spool path: use materializedHighWaterMark which is maintained
+        // by integrateFormattedRows. Never report received-but-unformatted
+        // rows — that causes NULL placeholders. Avoid calling
+        // contiguousMaterializedCount() here as it takes a lock and sorts
+        // page keys on every access (hot path during streaming).
+        return max(streamingRows.count, materializedHighWaterMark)
     }
 
     func displayedRow(at index: Int) -> [String?]? {

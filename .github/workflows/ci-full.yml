@@ -1,20 +1,19 @@
-name: "Echo App: Validation & Delivery Pipeline"
+name: "CI (Full)"
 
 on:
-  push:
-    branches: [ dev, main ]
   pull_request:
-    branches: [ dev, main ]
+    branches: [ main ]
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
-  group: pipeline-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: ci-full-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
-  # ── Step 1: Compilation & Core Unit Tests (GitHub-hosted) ────────────────
-  unit-tests:
-    name: "Step 1: Compilation & Unit Tests"
+  build:
+    name: "Step 1: Build"
     runs-on: macos-26
     steps:
     - uses: actions/checkout@v4
@@ -32,28 +31,46 @@ jobs:
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
-    - name: Run Unit Tests
+    - name: Build
       run: |
-        find . -maxdepth 1 -name "TestResults-unit*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
+        xcodebuild build-for-testing -project Echo.xcodeproj \
           -scheme Echo \
           -testPlan UnitTests \
           -destination 'platform=macOS' \
-          -resultBundlePath TestResults-unit \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
 
-    - name: Upload Unit Results
+  unit-tests:
+    name: "Step 2: Unit Tests"
+    needs: build
+    runs-on: macos-26
+    steps:
+    - uses: actions/checkout@v4
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26'
+    - name: Resolve packages
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
+    - name: Run Unit Tests
+      run: |
+        find . -maxdepth 1 -name "TestResults-unit*" -exec rm -rf {} + 2>/dev/null || true
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo -testPlan UnitTests \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-unit \
+          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+    - name: Upload Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-unit
         path: TestResults-unit.xcresult
 
-  # ── Step 2: Integration Tests (self-hosted, every push) ──────────────────
+  # ── Self-hosted runner steps ─────────────────────────────────────────────
+
   integration-tests:
-    name: "Step 2: Integration Tests"
+    name: "Step 3: Integration Tests"
     needs: unit-tests
     runs-on: [self-hosted, echo-test-server]
     env:
@@ -72,99 +89,60 @@ jobs:
         repository: tashda/postgres-wire
         ref: dev
         path: vendor/postgres-wire
-
     - name: Prepare environment
       run: |
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security set-keychain-settings ~/Library/Keychains/login.keychain-db
         security set-key-partition-list -S apple-tool:,apple:,codesign:,teamid:,apple-events: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-
     - name: Suppress macOS prompts
       run: |
-        # Suppress local network and system service prompts
         defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
         defaults write com.apple.linkd autoShortcut -bool false 2>/dev/null || true
-        # Disable App Nap to prevent test runner throttling
         defaults write NSGlobalDomain NSAppSleepDisabled -bool YES 2>/dev/null || true
-
-    - name: Verify Docker (via Colima)
+    - name: Verify Docker
       run: |
         export PATH="/usr/local/bin:$PATH"
         if ! /usr/local/bin/colima status > /dev/null 2>&1; then
-          echo "Colima not running — starting..."
           /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
         fi
         docker info > /dev/null 2>&1
-        echo "Docker is ready"
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
     - name: Ensure PostgreSQL client tools
       run: |
-        if ! command -v brew >/dev/null 2>&1; then
-          echo "Homebrew is required on the self-hosted runner to provide PostgreSQL client tools" >&2
-          exit 1
-        fi
         brew list libpq >/dev/null 2>&1 || brew install libpq
         LIBPQ_BIN="$(brew --prefix libpq)/bin"
         echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
         echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
-        # Verify tools exist and are correct architecture
-        for tool in psql pg_dump pg_restore; do
-          TOOL_PATH="$LIBPQ_BIN/$tool"
-          if [[ ! -x "$TOOL_PATH" ]]; then
-            echo "::error::$tool not found at $TOOL_PATH"
-            exit 1
-          fi
-          ARCH_INFO="$(file -b "$TOOL_PATH")"
-          echo "$tool: $ARCH_INFO"
-          MACHINE_ARCH="$(uname -m)"
-          if echo "$ARCH_INFO" | grep -q "Mach-O"; then
-            if ! echo "$ARCH_INFO" | grep -qE "(universal|$MACHINE_ARCH)"; then
-              echo "::error::$tool architecture mismatch: expected $MACHINE_ARCH, got $ARCH_INFO"
-              exit 1
-            fi
-          fi
-        done
-
-    - name: Bootstrap validated database fixtures
+    - name: Bootstrap database fixtures
       run: |
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh all
-
     - name: Run Integration Tests
       run: |
         find . -maxdepth 1 -name "TestResults-integration*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -testPlan DatabaseIntegrationTests \
+          -scheme Echo -testPlan DatabaseIntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
           -disable-concurrent-destination-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
-
-    - name: Verify Integration Results
+          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+    - name: Verify Results
       if: always()
       run: |
         python3 .github/scripts/verify_xcresult.py \
           --path TestResults-integration.xcresult \
-          --label "Step 2 integration tests" \
-          --min-executed 1
-
-    - name: Upload Integration Results
+          --label "Integration tests" --min-executed 1
+    - name: Upload Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-integration
         path: TestResults-integration.xcresult
 
-  # ── Step 2b: Extended Operational Integration Tests ──────────────────────
   extended-integration:
-    name: "Step 2b: Extended Integration Tests"
+    name: "Step 4: Extended Integration Tests"
     needs: integration-tests
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.base_ref == 'main')
     runs-on: [self-hosted, echo-test-server]
     env:
       DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
@@ -182,140 +160,95 @@ jobs:
         repository: tashda/postgres-wire
         ref: dev
         path: vendor/postgres-wire
-
     - name: Prepare environment
       run: |
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security set-keychain-settings ~/Library/Keychains/login.keychain-db
         security set-key-partition-list -S apple-tool:,apple:,codesign:,teamid:,apple-events: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-
-    - name: Suppress macOS prompts
-      run: |
         defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
         defaults write com.apple.linkd autoShortcut -bool false 2>/dev/null || true
         defaults write NSGlobalDomain NSAppSleepDisabled -bool YES 2>/dev/null || true
-
-    - name: Verify Docker (via Colima)
+    - name: Verify Docker
       run: |
         export PATH="/usr/local/bin:$PATH"
         if ! /usr/local/bin/colima status > /dev/null 2>&1; then
-          echo "Colima not running — starting..."
           /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
         fi
         docker info > /dev/null 2>&1
-        echo "Docker is ready"
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
     - name: Ensure PostgreSQL client tools
       run: |
-        if ! command -v brew >/dev/null 2>&1; then
-          echo "Homebrew is required on the self-hosted runner to provide PostgreSQL client tools" >&2
-          exit 1
-        fi
         brew list libpq >/dev/null 2>&1 || brew install libpq
         LIBPQ_BIN="$(brew --prefix libpq)/bin"
         echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
         echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
-
-    - name: Bootstrap validated database fixtures
+    - name: Bootstrap database fixtures
       run: |
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh all
-
     - name: Run Extended Integration Tests
       run: |
-        find . -maxdepth 1 -name "TestResults-extended-integration*" -exec rm -rf {} + 2>/dev/null || true
+        find . -maxdepth 1 -name "TestResults-extended*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -testPlan ExtendedIntegrationTests \
+          -scheme Echo -testPlan ExtendedIntegrationTests \
           -destination 'platform=macOS' \
-          -resultBundlePath TestResults-extended-integration \
+          -resultBundlePath TestResults-extended \
           -disable-concurrent-destination-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
-
-    - name: Verify Extended Integration Results
+          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+    - name: Verify Results
       if: always()
       run: |
         python3 .github/scripts/verify_xcresult.py \
-          --path TestResults-extended-integration.xcresult \
-          --label "Step 2b extended integration tests" \
-          --min-executed 1
-
-    - name: Upload Extended Integration Results
+          --path TestResults-extended.xcresult \
+          --label "Extended integration tests" --min-executed 1
+    - name: Upload Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-extended-integration
-        path: TestResults-extended-integration.xcresult
+        name: test-results-extended
+        path: TestResults-extended.xcresult
 
-  # ── Step 3: Full Compatibility Matrix (self-hosted, PRs to main only) ────
-  # Runs the full test suite against every supported database version.
-  # This is the gate before production — every version must pass.
-  compatibility-matrix:
-    name: "Step 3: ${{ matrix.db }}"
+  # ── Step 5: Compatibility Matrix ─────────────────────────────────────────
+
+  mssql-compatibility:
+    name: "Step 5: ${{ matrix.db }}"
     needs: integration-tests
-    if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.ref == 'refs/heads/main')
     runs-on: [self-hosted, echo-test-server]
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
-          # SQL Server versions (compat level emulation via 2017 image)
           - db: "MSSQL 2008 R2"
-            type: mssql
             ECHO_MSSQL_VERSION: "2017-latest"
             ECHO_MSSQL_COMPAT: "100"
           - db: "MSSQL 2012"
-            type: mssql
             ECHO_MSSQL_VERSION: "2017-latest"
             ECHO_MSSQL_COMPAT: "110"
           - db: "MSSQL 2014"
-            type: mssql
             ECHO_MSSQL_VERSION: "2017-latest"
             ECHO_MSSQL_COMPAT: "120"
           - db: "MSSQL 2016"
-            type: mssql
             ECHO_MSSQL_VERSION: "2017-latest"
             ECHO_MSSQL_COMPAT: "130"
           - db: "MSSQL 2017"
-            type: mssql
             ECHO_MSSQL_VERSION: "2017-latest"
             ECHO_MSSQL_COMPAT: ""
           - db: "MSSQL 2019"
-            type: mssql
             ECHO_MSSQL_VERSION: "2019-latest"
             ECHO_MSSQL_COMPAT: ""
           - db: "MSSQL 2022"
-            type: mssql
             ECHO_MSSQL_VERSION: "2022-latest"
             ECHO_MSSQL_COMPAT: ""
           - db: "MSSQL 2025"
-            type: mssql
             ECHO_MSSQL_VERSION: "2025-latest"
             ECHO_MSSQL_COMPAT: ""
-          # Postgres versions
-          - db: "Postgres 14"
-            type: postgres
-            ECHO_PG_VERSION: "14"
-          - db: "Postgres 15"
-            type: postgres
-            ECHO_PG_VERSION: "15"
-          - db: "Postgres 16"
-            type: postgres
-            ECHO_PG_VERSION: "16"
-          - db: "Postgres 17"
-            type: postgres
-            ECHO_PG_VERSION: "17"
-          - db: "Postgres 18"
-            type: postgres
-            ECHO_PG_VERSION: "18"
     env:
       DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
       USE_DOCKER: "1"
       ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
+      ECHO_MSSQL_VERSION: ${{ matrix.ECHO_MSSQL_VERSION }}
+      ECHO_MSSQL_COMPAT: ${{ matrix.ECHO_MSSQL_COMPAT }}
     steps:
     - uses: actions/checkout@v4
     - uses: actions/checkout@v4
@@ -323,99 +256,38 @@ jobs:
         repository: tashda/sqlserver-nio
         ref: dev
         path: vendor/sqlserver-nio
-    - uses: actions/checkout@v4
-      with:
-        repository: tashda/postgres-wire
-        ref: dev
-        path: vendor/postgres-wire
-
-    - name: Prepare environment
+    - name: Prepare
       run: |
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security set-keychain-settings ~/Library/Keychains/login.keychain-db
         security set-key-partition-list -S apple-tool:,apple:,codesign:,teamid:,apple-events: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-
-    - name: Suppress macOS prompts
-      run: |
-        defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
-        defaults write com.apple.linkd autoShortcut -bool false 2>/dev/null || true
         defaults write NSGlobalDomain NSAppSleepDisabled -bool YES 2>/dev/null || true
-
-    - name: Verify Docker (via Colima)
+    - name: Verify Docker
       run: |
         export PATH="/usr/local/bin:$PATH"
         if ! /usr/local/bin/colima status > /dev/null 2>&1; then
-          echo "Colima not running — starting..."
           /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
         fi
         docker info > /dev/null 2>&1
-        echo "Docker is ready"
-
-    - name: Ensure PostgreSQL client tools
-      run: |
-        if ! command -v brew >/dev/null 2>&1; then
-          echo "Homebrew is required on the self-hosted runner to provide PostgreSQL client tools" >&2
-          exit 1
-        fi
-        brew list libpq >/dev/null 2>&1 || brew install libpq
-        LIBPQ_BIN="$(brew --prefix libpq)/bin"
-        echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
-        echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
-
-    - name: Run MSSQL Compatibility Tests
-      if: matrix.type == 'mssql'
-      env:
-        ECHO_MSSQL_VERSION: ${{ matrix.ECHO_MSSQL_VERSION }}
-        ECHO_MSSQL_COMPAT: ${{ matrix.ECHO_MSSQL_COMPAT }}
+    - name: Bootstrap ${{ matrix.db }}
       run: |
         chmod +x .github/scripts/bootstrap-db-fixtures.sh
         .github/scripts/bootstrap-db-fixtures.sh sqlserver
+    - name: Run ${{ matrix.db }} Tests
+      run: |
         find . -maxdepth 1 -name "TestResults-${{ matrix.db }}*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -testPlan MSSQLCompatibilityTests \
+          -scheme Echo -testPlan MSSQLCompatibilityTests \
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-${{ matrix.db }}" \
           -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
-
-    - name: Verify MSSQL Compatibility Results
-      if: always() && matrix.type == 'mssql'
+          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+    - name: Verify Results
+      if: always()
       run: |
         python3 .github/scripts/verify_xcresult.py \
           --path "TestResults-${{ matrix.db }}.xcresult" \
-          --label "${{ matrix.db }} compatibility tests" \
-          --min-executed 1
-
-    - name: Run Postgres Compatibility Tests
-      if: matrix.type == 'postgres'
-      env:
-        ECHO_PG_VERSION: ${{ matrix.ECHO_PG_VERSION }}
-      run: |
-        chmod +x .github/scripts/bootstrap-db-fixtures.sh
-        .github/scripts/bootstrap-db-fixtures.sh postgres
-        find . -maxdepth 1 -name "TestResults-${{ matrix.db }}*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -testPlan PostgresCompatibilityTests \
-          -destination 'platform=macOS' \
-          -resultBundlePath "TestResults-${{ matrix.db }}" \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
-
-    - name: Verify Postgres Compatibility Results
-      if: always() && matrix.type == 'postgres'
-      run: |
-        python3 .github/scripts/verify_xcresult.py \
-          --path "TestResults-${{ matrix.db }}.xcresult" \
-          --label "${{ matrix.db }} compatibility tests" \
-          --min-executed 1
-
+          --label "${{ matrix.db }}" --min-executed 1
     - name: Upload Results
       if: always()
       uses: actions/upload-artifact@v4
@@ -423,11 +295,78 @@ jobs:
         name: test-results-${{ matrix.db }}
         path: "TestResults-*.xcresult"
 
-  # ── Step 4: Production Build & Sparkle Release ───────────────────────────
+  postgres-compatibility:
+    name: "Step 5: Postgres ${{ matrix.version }}"
+    needs: integration-tests
+    runs-on: [self-hosted, echo-test-server]
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        version: ["14", "15", "16", "17", "18"]
+    env:
+      DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
+      USE_DOCKER: "1"
+      ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
+      ECHO_PG_VERSION: ${{ matrix.version }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      with:
+        repository: tashda/postgres-wire
+        ref: dev
+        path: vendor/postgres-wire
+    - name: Prepare
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security set-key-partition-list -S apple-tool:,apple:,codesign:,teamid:,apple-events: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        defaults write NSGlobalDomain NSAppSleepDisabled -bool YES 2>/dev/null || true
+    - name: Verify Docker
+      run: |
+        export PATH="/usr/local/bin:$PATH"
+        if ! /usr/local/bin/colima status > /dev/null 2>&1; then
+          /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
+        fi
+        docker info > /dev/null 2>&1
+    - name: Ensure PostgreSQL client tools
+      run: |
+        brew list libpq >/dev/null 2>&1 || brew install libpq
+        LIBPQ_BIN="$(brew --prefix libpq)/bin"
+        echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+        echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
+    - name: Bootstrap Postgres ${{ matrix.version }}
+      run: |
+        chmod +x .github/scripts/bootstrap-db-fixtures.sh
+        .github/scripts/bootstrap-db-fixtures.sh postgres
+    - name: Run Postgres ${{ matrix.version }} Tests
+      run: |
+        find . -maxdepth 1 -name "TestResults-pg${{ matrix.version }}*" -exec rm -rf {} + 2>/dev/null || true
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo -testPlan PostgresCompatibilityTests \
+          -destination 'platform=macOS' \
+          -resultBundlePath "TestResults-pg${{ matrix.version }}" \
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+    - name: Verify Results
+      if: always()
+      run: |
+        python3 .github/scripts/verify_xcresult.py \
+          --path "TestResults-pg${{ matrix.version }}.xcresult" \
+          --label "Postgres ${{ matrix.version }}" --min-executed 1
+    - name: Upload Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-pg${{ matrix.version }}
+        path: "TestResults-*.xcresult"
+
+  # ── Step 6: Production Build & Release ───────────────────────────────────
+
   release:
-    name: "Step 4: Production Build & Release"
+    name: "Step 6: Production Build & Release"
     runs-on: macos-26
-    needs: [unit-tests, integration-tests, extended-integration, compatibility-matrix]
+    needs: [unit-tests, integration-tests, extended-integration, mssql-compatibility, postgres-compatibility]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
@@ -435,64 +374,38 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
-    - name: Select Xcode
-      uses: maxim-lobanov/setup-xcode@v1
+    - uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '26'
-
-    - name: Clear SPM cache
-      run: |
-        rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
-        rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
-
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
-
     - name: Determine version
       id: version
       run: |
-        # Read the marketing version from the Xcode project (e.g. "1.0", "1.1")
         MARKETING_VERSION=$(xcodebuild -project Echo.xcodeproj -scheme Echo -showBuildSettings 2>/dev/null \
           | grep 'MARKETING_VERSION' | head -1 | awk '{print $3}')
-        echo "Marketing version: $MARKETING_VERSION"
-
-        # Find the highest existing patch for this marketing version from git tags
-        # Tags follow the pattern v1.0.0, v1.0.1, v1.0.2, ...
-        LATEST_TAG=$(git tag --list "v${MARKETING_VERSION}.*" --sort=-version:refname \
-          | head -1 \
-        )
+        LATEST_TAG=$(git tag --list "v${MARKETING_VERSION}.*" --sort=-version:refname | head -1)
         LATEST_PATCH=$(printf "%s" "$LATEST_TAG" | sed "s/v${MARKETING_VERSION}\.\([0-9]*\)/\1/")
-
-        if [ -z "$LATEST_PATCH" ]; then
-          PATCH=0
-        else
-          PATCH=$((LATEST_PATCH + 1))
-        fi
-
+        PATCH=${LATEST_PATCH:+$((LATEST_PATCH + 1))}
+        PATCH=${PATCH:-0}
         FULL_VERSION="${MARKETING_VERSION}.${PATCH}"
-        echo "Next version: $FULL_VERSION"
-        echo "previous_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
         echo "full=$FULL_VERSION" >> $GITHUB_OUTPUT
+        echo "previous_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
         echo "patch=$PATCH" >> $GITHUB_OUTPUT
         echo "tag=v$FULL_VERSION" >> $GITHUB_OUTPUT
-
-    - name: Build App (Release)
+    - name: Build Release
       run: |
         xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
           MARKETING_VERSION=${{ steps.version.outputs.full }} \
           CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
           CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-
-    - name: Package & Sign (Ad-Hoc)
+    - name: Package
       run: |
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
         codesign --force --deep -s - release/Echo.app
-        cd release
-        ditto -c -k --sequesterRsrc --keepParent Echo.app Echo.zip
-
-    - name: Setup Sparkle & Generate Appcast
+        cd release && ditto -c -k --sequesterRsrc --keepParent Echo.app Echo.zip
+    - name: Sparkle & Appcast
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
@@ -503,18 +416,14 @@ jobs:
         else
           ./bin/generate_appcast release/
         fi
-        mv release/appcast.xml .
-        mv release/Echo.zip .
-
-    - name: Generate Release Notes
+        mv release/appcast.xml . && mv release/Echo.zip .
+    - name: Release Notes
       run: |
         python3 .github/scripts/generate_release_notes.py \
-          --repo-key echo \
-          --repo-name Echo \
+          --repo-key echo --repo-name Echo \
           --new-tag "${{ steps.version.outputs.tag }}" \
           --previous-tag "${{ steps.version.outputs.previous_tag }}" \
           --output release-notes.md
-
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
