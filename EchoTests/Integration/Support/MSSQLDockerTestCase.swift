@@ -172,15 +172,33 @@ class MSSQLDockerTestCase: XCTestCase {
 
     // MARK: - Test Helpers
 
-    /// Execute a SQL statement and return the result set.
+    /// Execute a SQL statement and return the result set (with 45s timeout).
     func query(_ sql: String) async throws -> QueryResultSet {
-        try await session.simpleQuery(sql)
+        try await withThrowingTaskGroup(of: QueryResultSet.self) { group in
+            group.addTask { try await self.session.simpleQuery(sql) }
+            group.addTask {
+                try await Task.sleep(for: .seconds(45))
+                throw DatabaseError.queryError("Query timed out after 45s")
+            }
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
     }
 
-    /// Execute a SQL update and return affected row count.
+    /// Execute a SQL update and return affected row count (with 45s timeout).
     @discardableResult
     func execute(_ sql: String) async throws -> Int {
-        try await session.executeUpdate(sql)
+        try await withThrowingTaskGroup(of: Int.self) { group in
+            group.addTask { try await self.session.executeUpdate(sql) }
+            group.addTask {
+                try await Task.sleep(for: .seconds(45))
+                throw DatabaseError.queryError("Execute timed out after 45s")
+            }
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
     }
 
     /// Generate a unique table name to avoid test collisions.
