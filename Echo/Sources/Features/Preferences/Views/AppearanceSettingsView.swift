@@ -3,8 +3,8 @@ import Foundation
 import AppKit
 
 struct AppearanceSettingsView: View {
-    @Environment(ProjectStore.self) private var projectStore
-    @Environment(AppearanceStore.self) private var appearanceStore
+    @Environment(ProjectStore.self) var projectStore
+    @Environment(AppearanceStore.self) var appearanceStore
 
     var body: some View {
         Form {
@@ -112,8 +112,6 @@ struct AppearanceSettingsView: View {
 
     // MARK: - Constants
 
-    // MARK: - Constants
-
     private static let fontSizeOptions: [Double] = stride(from: 8.0, through: 24.0, by: 0.5).map { $0 }
 
     private static func fontSizeLabel(_ size: Double) -> String {
@@ -121,96 +119,4 @@ struct AppearanceSettingsView: View {
             ? "\(Int(size)),0 pt"
             : String(format: "%.1f pt", size).replacingOccurrences(of: ".", with: ",")
     }
-
-    // MARK: - Bindings
-
-    private var appearanceModeBinding: Binding<AppearanceMode> {
-        Binding(
-            get: { projectStore.globalSettings.appearanceMode },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.appearanceMode = newValue
-                Task {
-                    try? await projectStore.updateGlobalSettings(settings)
-                    appearanceStore.applyAppearanceMode(newValue)
-                }
-            }
-        )
-    }
-
-    private var sidebarIconSizeBinding: Binding<SidebarIconSize> {
-        Binding(
-            get: { projectStore.globalSettings.sidebarIconSize },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.sidebarIconSize = newValue
-                Task {
-                    try? await projectStore.updateGlobalSettings(settings)
-                }
-            }
-        )
-    }
-
-    private var sidebarDensityBinding: Binding<SidebarDensity> {
-        Binding(
-            get: { projectStore.globalSettings.sidebarDensity },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.sidebarDensity = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var sidebarIconColorModeBinding: Binding<SidebarIconColorMode> {
-        Binding(
-            get: { projectStore.globalSettings.sidebarIconColorMode },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.sidebarIconColorMode = newValue
-                Task {
-                    try? await projectStore.updateGlobalSettings(settings)
-                }
-            }
-        )
-    }
-
-    private var accentColorSourceBinding: Binding<AccentColorSource> {
-        Binding(
-            get: { projectStore.globalSettings.accentColorSource },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.accentColorSource = newValue
-                let hex = settings.customAccentColorHex
-                Task {
-                    try? await projectStore.updateGlobalSettings(settings)
-                    switch newValue {
-                    case .system, .connection:
-                        appearanceStore.setAccentColor(nil)
-                    case .custom:
-                        if let hex, let color = Color(hex: hex) {
-                            appearanceStore.setAccentColor(color)
-                        }
-                    }
-                }
-            }
-        )
-    }
-
-    private var customAccentColorHexBinding: Binding<String> {
-        Binding(
-            get: { projectStore.globalSettings.customAccentColorHex ?? "" },
-            set: { newHex in
-                var settings = projectStore.globalSettings
-                settings.customAccentColorHex = newHex.isEmpty ? nil : newHex
-                Task {
-                    try? await projectStore.updateGlobalSettings(settings)
-                    if let color = Color(hex: newHex) {
-                        appearanceStore.setAccentColor(color)
-                    }
-                }
-            }
-        )
-    }
 }
-
