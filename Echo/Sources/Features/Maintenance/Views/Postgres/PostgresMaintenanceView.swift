@@ -119,7 +119,7 @@ struct PostgresMaintenanceView: View {
     @ViewBuilder
     private var sectionContent: some View {
         if !(session?.permissions?.canVacuumFull ?? true) {
-            PermissionBanner(requiredRole: "superuser")
+            PermissionBanner(message: "Some operations require the superuser role.")
         }
         switch selectedSection {
         case .health:

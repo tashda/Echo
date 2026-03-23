@@ -1,36 +1,49 @@
 import SwiftUI
 
-/// A persistent inline banner indicating the user has read-only access.
+/// A persistent inline banner indicating the user lacks permissions.
 ///
 /// Placed at the top of sheets and detail panes when the current user lacks
-/// the permissions required to modify the content below. The banner is
+/// the permissions required to view or modify the content below. The banner is
 /// non-dismissible — it stays visible as long as the permission restriction applies.
 ///
-/// Usage:
-/// ```swift
-/// VStack(spacing: 0) {
-///     if !canConfigure {
-///         PermissionBanner(requiredRole: "sysadmin")
-///     }
-///     // ... rest of content
-/// }
-/// ```
+/// Two severity levels:
+/// - `.readOnly` — user can view but not modify (yellow/warning)
+/// - `.noAccess` — user cannot view or modify at all (red/error)
 struct PermissionBanner: View {
-    let requiredRole: String
-    var message: String?
+    let message: String
+    var severity: Severity = .readOnly
+
+    enum Severity {
+        case readOnly
+        case noAccess
+    }
+
+    private var icon: String {
+        switch severity {
+        case .readOnly: "lock.fill"
+        case .noAccess: "lock.shield"
+        }
+    }
+
+    private var tintColor: Color {
+        switch severity {
+        case .readOnly: ColorTokens.Status.warning
+        case .noAccess: ColorTokens.Status.error
+        }
+    }
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
-            Image(systemName: "lock.fill")
+            Image(systemName: icon)
                 .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Status.warning)
-            Text(message ?? "Read-only — configuration requires the \(requiredRole) role.")
+                .foregroundStyle(tintColor)
+            Text(message)
                 .font(TypographyTokens.detail)
                 .foregroundStyle(ColorTokens.Text.secondary)
             Spacer()
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs)
-        .background(ColorTokens.Status.warning.opacity(0.08))
+        .background(tintColor.opacity(0.08))
     }
 }

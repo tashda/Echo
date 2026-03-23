@@ -71,7 +71,7 @@ struct MSSQLMaintenanceView: View {
     private var sectionContent: some View {
         VStack(spacing: 0) {
             if !(session?.permissions?.canBackupRestore ?? true) {
-                PermissionBanner(requiredRole: "sysadmin or db_backupoperator")
+                PermissionBanner(message: "Some operations require the sysadmin or db_backupoperator role.")
             }
             switch viewModel.selectedSection {
             case .health:

@@ -35,7 +35,7 @@ struct ChangeTrackingSheet: View {
         VStack(spacing: 0) {
             headerBar
             if !canManageState {
-                PermissionBanner(requiredRole: "sysadmin", message: "Read-only — enabling CDC requires elevated permissions.")
+                PermissionBanner(message: "Enabling or disabling CDC requires the sysadmin role.")
             }
             Divider()
 

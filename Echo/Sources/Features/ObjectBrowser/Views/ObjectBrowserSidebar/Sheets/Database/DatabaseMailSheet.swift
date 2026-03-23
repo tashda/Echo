@@ -64,7 +64,7 @@ struct DatabaseMailSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             if !canConfigure {
-                PermissionBanner(requiredRole: "sysadmin")
+                PermissionBanner(message: "Database Mail configuration requires the sysadmin role.")
             }
             HStack(spacing: 0) {
                 sidebar
