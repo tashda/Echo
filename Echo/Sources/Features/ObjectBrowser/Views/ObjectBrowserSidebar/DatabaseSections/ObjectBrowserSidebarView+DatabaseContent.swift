@@ -57,14 +57,8 @@ extension ObjectBrowserSidebarView {
                     labelFont: TypographyTokens.detail
                 )
             } else {
-                // Show minimal loading text — the database header row already has a spinner
-                SidebarRow(
-                    depth: 2,
-                    icon: .none,
-                    label: "Loading\u{2026}",
-                    labelColor: ColorTokens.Text.tertiary,
-                    labelFont: TypographyTokens.detail
-                )
+                // Invisible anchor — must be a real view so .onAppear fires and triggers schema loading.
+                Color.clear.frame(height: 0)
             }
         }
         .onAppear {

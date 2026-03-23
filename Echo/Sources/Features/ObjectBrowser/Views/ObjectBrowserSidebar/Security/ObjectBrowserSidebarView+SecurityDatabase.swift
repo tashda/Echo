@@ -36,6 +36,14 @@ extension ObjectBrowserSidebarView {
                 )
             }
             .buttonStyle(.plain)
+            .contextMenu {
+                Button {
+                    let dbName = databaseNameFromKey(dbKey)
+                    environmentState.openDatabaseSecurityTab(connectionID: session.connection.id, databaseName: dbName)
+                } label: {
+                    Label("Open Security Management", systemImage: "lock.shield")
+                }
+            }
 
             if isExpanded {
                 databaseSecurityContent(database: database, session: session, dbKey: dbKey)
@@ -45,14 +53,6 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     func databaseSecurityContent(database: DatabaseInfo, session: ConnectionSession, dbKey: String) -> some View {
-        let isLoading = viewModel.dbSecurityLoadingByDB[dbKey] ?? false
-        let hasData = !(viewModel.dbSecurityUsersByDB[dbKey] ?? []).isEmpty
-            || !(viewModel.dbSecuritySchemasByDB[dbKey] ?? []).isEmpty
-
-        if isLoading && !hasData {
-            securityLoadingRow(depth: SecuritySidebarDepth.databaseSection, "Loading security")
-        }
-
         switch session.connection.databaseType {
         case .microsoftSQL:
             dbUsersSection(session: session, dbKey: dbKey)
@@ -70,7 +70,6 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     func dbUsersSection(session: ConnectionSession, dbKey: String) -> some View {
-        let connID = session.connection.id
         let users = viewModel.dbSecurityUsersByDB[dbKey] ?? []
         let isExpanded = viewModel.dbSecurityUsersExpandedByDB[dbKey] ?? false
         let dbName = databaseNameFromKey(dbKey)
@@ -89,17 +88,19 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                ForEach(users) { user in
-                    dbUserRow(user: user, session: session, databaseName: dbName)
+                if users.isEmpty {
+                    SidebarRow(
+                        depth: SecuritySidebarDepth.databaseLeaf,
+                        icon: .none,
+                        label: "No users found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                } else {
+                    ForEach(users) { user in
+                        dbUserRow(user: user, session: session, databaseName: dbName)
+                    }
                 }
-
-                newItemButton(depth: SecuritySidebarDepth.databaseLeaf, title: "New User") {
-                    viewModel.securityUserSheetSessionID = connID
-                    viewModel.securityUserSheetDatabaseName = dbName
-                    viewModel.securityUserSheetEditName = nil
-                    viewModel.showSecurityUserSheet = true
-                }
-                .disabled(!(session.permissions?.canManageRoles ?? true))
             }
         }
     }
@@ -194,10 +195,12 @@ extension ObjectBrowserSidebarView {
 
             // Group 10: Properties — ALWAYS last
             Button {
-                viewModel.securityUserSheetSessionID = session.connection.id
-                viewModel.securityUserSheetDatabaseName = databaseName
-                viewModel.securityUserSheetEditName = user.name
-                viewModel.showSecurityUserSheet = true
+                let value = environmentState.prepareUserEditorWindow(
+                    connectionSessionID: session.connection.id,
+                    database: databaseName,
+                    existingUser: user.name
+                )
+                openWindow(id: UserEditorWindow.sceneID, value: value)
             } label: {
                 Label("Properties", systemImage: "info.circle")
             }

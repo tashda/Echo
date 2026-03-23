@@ -1,12 +1,11 @@
 import Foundation
-import os.log
-import os.signpost
+import OSLog
 
 extension QueryEditorState {
     func startExecution() {
         if rowDiagnosticsEnabled && !hasAnnouncedRowDiagnostics {
             hasAnnouncedRowDiagnostics = true
-            print("[RowDiagnostics] Enabled for query '\(sql)'")
+            Logger.query.debug("RowDiagnostics enabled for query '\(self.sql)'")
         }
         performanceTracker = QueryPerformanceTracker(initialBatchTarget: initialVisibleRowBatch)
         lastPerformanceReport = nil

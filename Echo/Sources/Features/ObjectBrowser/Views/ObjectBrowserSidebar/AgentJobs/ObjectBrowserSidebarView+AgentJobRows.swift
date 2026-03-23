@@ -22,16 +22,21 @@ extension ObjectBrowserSidebarView {
                 }
             }
 
-        if isLoading {
-            agentJobsLoadingIndicator()
-        } else if !jobs.isEmpty {
-            ForEach(jobs) { job in
-                agentJobRow(job: job, session: session)
+        if !isLoading {
+            if jobs.isEmpty {
+                SidebarRow(
+                    depth: 1,
+                    icon: .none,
+                    label: "No jobs found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
+                ForEach(jobs) { job in
+                    agentJobRow(job: job, session: session)
+                }
             }
         }
-
-        // New Job button -- at bottom of list
-        newJobButton(session: session)
     }
 
     func agentJobsOverviewButton(session: ConnectionSession) -> some View {
@@ -44,29 +49,6 @@ extension ObjectBrowserSidebarView {
                 icon: .system("list.bullet.rectangle"),
                 label: "Agent Jobs Overview",
                 iconColor: ExplorerSidebarPalette.folderIconColor(title: "Agent Jobs", colored: colored)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    func agentJobsLoadingIndicator() -> some View {
-        SidebarRow(depth: 1, icon: .none, label: "Loading jobs\u{2026}", labelColor: ColorTokens.Text.secondary, labelFont: TypographyTokens.detail) {
-            ProgressView()
-                .controlSize(.mini)
-        }
-    }
-
-    func newJobButton(session: ConnectionSession) -> some View {
-        Button {
-            viewModel.newJobSessionID = session.connection.id
-            viewModel.showNewJobSheet = true
-        } label: {
-            SidebarRow(
-                depth: 1,
-                icon: .system("plus.circle"),
-                label: "New Job",
-                iconColor: ColorTokens.Text.tertiary,
-                labelColor: ColorTokens.Text.tertiary
             )
         }
         .buttonStyle(.plain)

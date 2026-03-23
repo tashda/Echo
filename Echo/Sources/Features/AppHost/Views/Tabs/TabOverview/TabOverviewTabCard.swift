@@ -207,7 +207,23 @@ struct TabPreviewCard: View {
             ExtendedEventsPreview()
         case .availabilityGroups:
             AvailabilityGroupsPreview()
+        case .databaseSecurity, .serverSecurity:
+            SecurityPreview()
         }
+    }
+}
+
+struct SecurityPreview: View {
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "lock.shield")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Security Management")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

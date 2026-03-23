@@ -40,9 +40,11 @@ extension ObjectBrowserSidebarView {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 Button {
-                    viewModel.securityLoginSheetSessionID = connID
-                    viewModel.securityLoginSheetEditName = nil
-                    viewModel.showSecurityLoginSheet = true
+                    let value = environmentState.prepareLoginEditorWindow(
+                        connectionSessionID: connID,
+                        existingLogin: nil
+                    )
+                    openWindow(id: LoginEditorWindow.sceneID, value: value)
                 } label: {
                     Label("New Login", systemImage: "person.badge.plus")
                 }
@@ -51,13 +53,23 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                ForEach(standardLogins) { login in
-                    loginRow(login: login, session: session)
-                }
+                if standardLogins.isEmpty && certLogins.isEmpty {
+                    SidebarRow(
+                        depth: SecuritySidebarDepth.serverLeaf,
+                        icon: .none,
+                        label: "No logins found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                } else {
+                    ForEach(standardLogins) { login in
+                        loginRow(login: login, session: session)
+                    }
 
-                // Certificates subfolder
-                if !certLogins.isEmpty {
-                    certificateLoginsSubfolder(certLogins: certLogins, session: session)
+                    // Certificates subfolder
+                    if !certLogins.isEmpty {
+                        certificateLoginsSubfolder(certLogins: certLogins, session: session)
+                    }
                 }
             }
         }
@@ -181,9 +193,11 @@ extension ObjectBrowserSidebarView {
 
         // Group 10: Properties — ALWAYS last
         Button {
-            viewModel.securityLoginSheetSessionID = session.connection.id
-            viewModel.securityLoginSheetEditName = login.name
-            viewModel.showSecurityLoginSheet = true
+            let value = environmentState.prepareLoginEditorWindow(
+                connectionSessionID: session.connection.id,
+                existingLogin: login.name
+            )
+            openWindow(id: LoginEditorWindow.sceneID, value: value)
         } label: {
             Label("Properties", systemImage: "info.circle")
         }

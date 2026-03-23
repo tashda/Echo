@@ -83,13 +83,6 @@ final class ObjectBrowserSidebarViewModel {
     var dbSecurityLoadingByDB: [String: Bool] = [:]
 
     // Security sheets
-    var showSecurityLoginSheet = false
-    var securityLoginSheetEditName: String?
-    var securityLoginSheetSessionID: UUID?
-    var showSecurityUserSheet = false
-    var securityUserSheetEditName: String?
-    var securityUserSheetSessionID: UUID?
-    var securityUserSheetDatabaseName: String?
     var showSecurityPGRoleSheet = false
     var securityPGRoleSheetEditName: String?
     var securityPGRoleSheetSessionID: UUID?

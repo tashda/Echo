@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 extension ResultSpoolHandle {
     func statsStream() -> AsyncStream<ResultSpoolStats> {
@@ -17,17 +18,13 @@ extension ResultSpoolHandle {
 
     func addContinuation(_ id: UUID, _ continuation: AsyncStream<ResultSpoolStats>.Continuation) async {
         statContinuations[id] = continuation
-#if DEBUG
         debugLog("statsStream subscribed id=\(id.uuidString.prefix(8)) continuations=\(statContinuations.count)")
-#endif
         continuation.yield(currentStats(lastBatch: 0, metrics: nil, isFinished: metadata.isFinished))
     }
 
     func removeContinuation(_ id: UUID) async {
         statContinuations.removeValue(forKey: id)
-#if DEBUG
         debugLog("statsStream removed id=\(id.uuidString.prefix(8)) remaining=\(statContinuations.count)")
-#endif
     }
 
     func persistStats(lastBatch: Int, metrics: QueryStreamMetrics?, isFinished: Bool) {
@@ -42,7 +39,7 @@ extension ResultSpoolHandle {
                 }
                 try data.write(to: statsURL, options: .atomic)
             } catch {
-                print("ResultSpoolHandle: Failed to persist stats \(error)")
+                Logger.spool.error("Failed to persist stats: \(error)")
             }
         }
         statContinuations.values.forEach { $0.yield(stats) }

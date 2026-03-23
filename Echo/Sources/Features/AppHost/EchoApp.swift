@@ -79,6 +79,8 @@ struct EchoApp: App {
 #endif
         }
         JobQueueWindow()
+        UserEditorWindow()
+        LoginEditorWindow()
         AutocompleteInspectorWindow()
         PerformanceMonitorWindow()
         StreamingTestHarnessWindow()

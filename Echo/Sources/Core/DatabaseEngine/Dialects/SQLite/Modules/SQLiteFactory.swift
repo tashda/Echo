@@ -2,9 +2,10 @@ import Foundation
 import Logging
 import SQLiteNIO
 import NIOCore
+import os
 
 struct SQLiteFactory: DatabaseFactory {
-    private let logger = Logger(label: "dk.tippr.echo.sqlite")
+    private let packageLogger = Logging.Logger(label: "dk.tippr.echo.sqlite")
 
     func connect(
         host: String,
@@ -27,8 +28,8 @@ struct SQLiteFactory: DatabaseFactory {
             let storage: SQLiteConnection.Storage = resolvedPath == ":memory:"
                 ? .memory
                 : .file(path: resolvedPath)
-            let connection = try await SQLiteConnection.open(storage: storage, logger: logger)
-            let session = SQLiteSession(logger: logger)
+            let connection = try await SQLiteConnection.open(storage: storage, logger: packageLogger)
+            let session = SQLiteSession(logger: packageLogger)
             await session.bootstrap(with: connection)
             return session
         } catch {

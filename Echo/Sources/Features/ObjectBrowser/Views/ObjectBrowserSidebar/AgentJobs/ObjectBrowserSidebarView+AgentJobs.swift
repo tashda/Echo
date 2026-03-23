@@ -67,21 +67,24 @@ extension ObjectBrowserSidebarView {
                 agentJobsOverviewButton(session: session)
             }
 
-            if isLoading {
-                sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                    agentJobsLoadingIndicator()
-                }
-            } else {
-                ForEach(jobs) { job in
+            if !isLoading {
+                if jobs.isEmpty {
                     sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                        agentJobRow(job: job, session: session)
+                        SidebarRow(
+                            depth: 0,
+                            icon: .none,
+                            label: "No jobs found",
+                            labelColor: ColorTokens.Text.tertiary,
+                            labelFont: TypographyTokens.detail
+                        )
+                    }
+                } else {
+                    ForEach(jobs) { job in
+                        sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                            agentJobRow(job: job, session: session)
+                        }
                     }
                 }
-            }
-
-            // New Job button
-            sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                newJobButton(session: session)
             }
         }
     }

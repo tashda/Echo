@@ -2,11 +2,12 @@ import Foundation
 import PostgresKit
 import PostgresWire
 import Logging
+import os
 
 typealias PostgresQueryResult = PostgresRowSequence
 
 struct PostgresNIOFactory: DatabaseFactory {
-    private let logger = Logger(label: "dk.tippr.echo.postgres")
+    private let packageLogger = Logging.Logger(label: "dk.tippr.echo.postgres")
 
     func connect(
         host: String,
@@ -28,7 +29,7 @@ struct PostgresNIOFactory: DatabaseFactory {
         }
         let effectiveDatabase = (database?.isEmpty == false) ? database : "postgres"
         let databaseLabel = effectiveDatabase ?? "postgres"
-        logger.info("Connecting to PostgreSQL at \(host):\(port)/\(databaseLabel)")
+        os.Logger.postgres.info("Connecting to PostgreSQL at \(host):\(port)/\(databaseLabel)")
 
         let wireSslMode: PostgresSSLMode = switch tlsMode {
         case .disable: .disable
@@ -55,13 +56,13 @@ struct PostgresNIOFactory: DatabaseFactory {
 
         let serverConnection = try await PostgresServerConnection.connect(
             configuration: configuration,
-            logger: logger
+            logger: packageLogger
         )
 
         return PostgresSession(
             client: serverConnection.primaryClient,
             serverConnection: serverConnection,
-            logger: logger
+            packageLogger: packageLogger
         )
     }
 }
@@ -71,12 +72,12 @@ extension PostgresSession: @unchecked Sendable {}
 final class PostgresSession: DatabaseSession {
     let client: PostgresKit.PostgresClient
     let serverConnection: PostgresServerConnection?
-    let logger: Logger
+    let packageLogger: Logging.Logger
 
-    init(client: PostgresKit.PostgresClient, serverConnection: PostgresServerConnection? = nil, logger: Logger) {
+    init(client: PostgresKit.PostgresClient, serverConnection: PostgresServerConnection? = nil, packageLogger: Logging.Logger) {
         self.client = client
         self.serverConnection = serverConnection
-        self.logger = logger
+        self.packageLogger = packageLogger
     }
 
     func close() async {
@@ -101,7 +102,7 @@ final class PostgresSession: DatabaseSession {
         guard let serverConnection else { return self }
         let dbClient = try await serverConnection.client(for: database)
         if dbClient === client { return self }
-        return PostgresSession(client: dbClient, serverConnection: serverConnection, logger: logger)
+        return PostgresSession(client: dbClient, serverConnection: serverConnection, packageLogger: packageLogger)
     }
 
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {

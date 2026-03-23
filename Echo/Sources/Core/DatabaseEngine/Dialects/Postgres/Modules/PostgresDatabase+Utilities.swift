@@ -1,7 +1,7 @@
 import Foundation
 import PostgresKit
 import PostgresWire
-import Logging
+import os
 
 extension PostgresSession {
     nonisolated func sanitizeSQL(_ sql: String) -> String {
@@ -45,7 +45,7 @@ extension PostgresSession {
         }
 
         let message = lines.joined(separator: "\n")
-        logger.error(.init(stringLiteral: "PostgreSQL error: \(message)"))
+        os.Logger.postgres.error("PostgreSQL error: \(message)")
         return DatabaseError.queryError(message)
     }
 

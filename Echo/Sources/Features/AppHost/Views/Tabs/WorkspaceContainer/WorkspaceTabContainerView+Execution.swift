@@ -36,8 +36,10 @@ extension WorkspaceTabContainerView {
             effectiveSQL = baseSQL
         }
 
-        // Resolve the execution session -- for PostgreSQL, route through the database-specific session
+        // Resolve the execution session — for PostgreSQL, route through database-specific session.
+        // MSSQL dedicated session wait is deferred to inside the Task so startExecution() runs immediately.
         let executionSession: DatabaseSession
+        let needsDedicatedSessionWait = tab.isAwaitingDedicatedSession
         if tab.connection.databaseType == .postgresql,
            let activeDB = tab.activeDatabaseName, !activeDB.isEmpty {
             executionSession = (try? await tab.session.sessionForDatabase(activeDB)) ?? tab.session
@@ -48,8 +50,11 @@ extension WorkspaceTabContainerView {
         // For pooled MSSQL sessions we still need to set database context explicitly.
         // Dedicated query tabs are already connected to their target database, and sending
         // an extra USE batch before the query creates an unnecessary multi-statement stream.
+        // Prepend USE [db] only for pooled MSSQL sessions that are NOT awaiting
+        // a dedicated session upgrade. Dedicated sessions connect to the target database.
         if tab.connection.databaseType == .microsoftSQL,
            let selectedDB = tab.activeDatabaseName, !selectedDB.isEmpty,
+           !needsDedicatedSessionWait,
            (executionSession as? MSSQLDedicatedQuerySession) == nil {
             effectiveSQL = "USE [\(selectedDB)];\n\(effectiveSQL)"
         }
@@ -78,9 +83,17 @@ extension WorkspaceTabContainerView {
                         state.updateForeignKeyResolutionContext(schema: nil, table: nil)
                     }
                 }
+                // Wait for dedicated MSSQL session if still connecting
+                let resolvedSession: DatabaseSession
+                if needsDedicatedSessionWait {
+                    resolvedSession = await tab.awaitDedicatedSession()
+                } else {
+                    resolvedSession = executionSession
+                }
+
                 let perQueryMode = await MainActor.run { state.streamingModeOverride }
                 let executionMode: ResultStreamingExecutionMode? = perQueryMode == .auto ? nil : perQueryMode
-                let result = try await executionSession.simpleQuery(effectiveSQL, executionMode: executionMode) { [weak state] update in
+                let result = try await resolvedSession.simpleQuery(effectiveSQL, executionMode: executionMode) { [weak state] update in
                     guard let state else { return }
 
                     Task { @MainActor in

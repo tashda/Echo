@@ -36,6 +36,8 @@ final class WorkspaceTab: Identifiable {
         case queryStore
         case extendedEvents
         case availabilityGroups
+        case databaseSecurity
+        case serverSecurity
     }
 
     enum Content {
@@ -52,6 +54,8 @@ final class WorkspaceTab: Identifiable {
         case queryStore(QueryStoreViewModel)
         case extendedEvents(ExtendedEventsViewModel)
         case availabilityGroups(AvailabilityGroupsViewModel)
+        case databaseSecurity(DatabaseSecurityViewModel)
+        case serverSecurity(ServerSecurityViewModel)
     }
 
     let id = UUID()
@@ -59,6 +63,10 @@ final class WorkspaceTab: Identifiable {
     @ObservationIgnored private(set) var session: DatabaseSession
     @ObservationIgnored let connectionSessionID: UUID
     @ObservationIgnored private(set) var ownsSession: Bool
+    /// Waiters for the dedicated session upgrade. Resolved when `upgradeToDedicatedSession` is called.
+    @ObservationIgnored private var sessionUpgradeWaiters: [CheckedContinuation<DatabaseSession, Never>] = []
+    /// Whether a dedicated session upgrade is in progress.
+    @ObservationIgnored private(set) var isAwaitingDedicatedSession: Bool = false
 
     var title: String
     private(set) var content: Content
@@ -97,12 +105,38 @@ final class WorkspaceTab: Identifiable {
         setupRowCountRefreshHandler()
     }
 
+    /// Marks this tab as expecting a dedicated session upgrade.
+    func markAwaitingDedicatedSession() {
+        isAwaitingDedicatedSession = true
+    }
+
     /// Replaces the shared metadata session with a dedicated query session once
     /// the background connection completes. Called for MSSQL tabs where the
     /// dedicated connection is established asynchronously after the tab appears.
     func upgradeToDedicatedSession(_ dedicatedSession: DatabaseSession) {
         session = dedicatedSession
         ownsSession = true
+        isAwaitingDedicatedSession = false
+        // Resume any waiters blocked on the upgrade
+        let waiters = sessionUpgradeWaiters
+        sessionUpgradeWaiters.removeAll()
+        for waiter in waiters {
+            waiter.resume(returning: dedicatedSession)
+        }
+    }
+
+    /// Returns the dedicated session, waiting for the background upgrade if still in progress.
+    /// If no upgrade is pending, returns the current session immediately.
+    func awaitDedicatedSession() async -> DatabaseSession {
+        if !isAwaitingDedicatedSession { return session }
+        return await withCheckedContinuation { continuation in
+            if !isAwaitingDedicatedSession {
+                // Upgrade completed between the check and here
+                continuation.resume(returning: session)
+            } else {
+                sessionUpgradeWaiters.append(continuation)
+            }
+        }
     }
 
     var kind: Kind {
@@ -120,6 +154,8 @@ final class WorkspaceTab: Identifiable {
         case .queryStore: return .queryStore
         case .extendedEvents: return .extendedEvents
         case .availabilityGroups: return .availabilityGroups
+        case .databaseSecurity: return .databaseSecurity
+        case .serverSecurity: return .serverSecurity
         }
     }
 
@@ -188,6 +224,16 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var databaseSecurity: DatabaseSecurityViewModel? {
+        if case .databaseSecurity(let vm) = content { return vm }
+        return nil
+    }
+
+    var serverSecurity: ServerSecurityViewModel? {
+        if case .serverSecurity(let vm) = content { return vm }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         setupRowCountRefreshHandler()
@@ -222,6 +268,8 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .availabilityGroups(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
+        case .databaseSecurity, .serverSecurity:
+            return baseOverhead + 256 * 1024
         }
     }
 
@@ -229,7 +277,7 @@ final class WorkspaceTab: Identifiable {
         switch content {
         case .query:
             return .forQueryTab()
-        case .maintenance, .mssqlMaintenance:
+        case .maintenance, .mssqlMaintenance, .databaseSecurity, .serverSecurity:
             return .forMaintenanceTab()
         case .extendedEvents:
             return .forExtendedEventsTab()

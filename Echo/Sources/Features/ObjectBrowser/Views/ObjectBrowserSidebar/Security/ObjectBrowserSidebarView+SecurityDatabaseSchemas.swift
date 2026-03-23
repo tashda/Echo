@@ -24,8 +24,18 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                ForEach(schemas) { schema in
-                    dbSchemaRow(schema: schema, session: session)
+                if schemas.isEmpty {
+                    SidebarRow(
+                        depth: SecuritySidebarDepth.databaseLeaf,
+                        icon: .none,
+                        label: "No schemas found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                } else {
+                    ForEach(schemas) { schema in
+                        dbSchemaRow(schema: schema, session: session)
+                    }
                 }
             }
         }

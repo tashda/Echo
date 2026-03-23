@@ -36,38 +36,6 @@ extension ObjectBrowserSidebarView {
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showSecurityLoginSheet) {
-                if let connID = viewModel.securityLoginSheetSessionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    SecurityLoginSheet(
-                        session: session,
-                        environmentState: environmentState,
-                        existingLoginName: viewModel.securityLoginSheetEditName
-                    ) {
-                        viewModel.showSecurityLoginSheet = false
-                        loadServerSecurity(session: session)
-                    }
-                }
-            }
-            .sheet(isPresented: $viewModel.showSecurityUserSheet) {
-                if let connID = viewModel.securityUserSheetSessionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.securityUserSheetDatabaseName {
-                    SecurityUserSheet(
-                        session: session,
-                        environmentState: environmentState,
-                        databaseName: dbName,
-                        existingUserName: viewModel.securityUserSheetEditName
-                    ) {
-                        viewModel.showSecurityUserSheet = false
-                        // Reload database-level security
-                        if let structure = session.databaseStructure,
-                           let db = structure.databases.first(where: { $0.name == dbName }) {
-                            loadDatabaseSecurity(database: db, session: session)
-                        }
-                    }
-                }
-            }
             .sheet(isPresented: $viewModel.showSecurityPGRoleSheet) {
                 if let connID = viewModel.securityPGRoleSheetSessionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {

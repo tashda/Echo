@@ -78,6 +78,10 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
         return ("waveform.path.ecg", "Ready", ColorTokens.Text.secondary)
     case .availabilityGroups:
         return ("server.rack", "Ready", ColorTokens.Text.secondary)
+    case .databaseSecurity:
+        return ("lock.shield", "Ready", ColorTokens.Text.secondary)
+    case .serverSecurity:
+        return ("lock.shield", "Ready", ColorTokens.Text.secondary)
     }
 }
 
@@ -113,6 +117,8 @@ extension TabPreviewCard {
         case .extendedEvents:
             return []
         case .availabilityGroups:
+            return []
+        case .databaseSecurity, .serverSecurity:
             return []
         }
     }
@@ -213,6 +219,10 @@ extension TabPreviewCard {
             return "Extended Events"
         case .availabilityGroups:
             return "Availability Groups"
+        case .databaseSecurity:
+            return "Database Security"
+        case .serverSecurity:
+            return "Server Security"
         }
     }
 }

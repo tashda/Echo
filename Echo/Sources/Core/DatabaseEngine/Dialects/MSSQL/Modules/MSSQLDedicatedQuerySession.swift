@@ -1,13 +1,13 @@
 import Foundation
 import SQLServerKit
-import Logging
+import OSLog
 
-final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSession, @unchecked Sendable {
+nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSession, @unchecked Sendable {
     private var connection: SQLServerConnection
     private let connectionConfiguration: SQLServerConnection.Configuration
     private var reconnectTask: Task<SQLServerConnection, Error>?
     let metadataSession: SQLServerSessionAdapter
-    let logger = Logger(label: "dk.tippr.echo.mssql.query")
+    let logger = Logger.query
 
     init(
         connection: SQLServerConnection,

@@ -20,7 +20,12 @@ struct PulsingStatusDot: View {
                 .opacity(isPulsing ? (isAnimating ? 1.0 : 0.4) : 1.0)
         }
         .frame(width: 10, height: 10)
-        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isAnimating)
+        .animation(
+            isPulsing
+                ? .easeInOut(duration: 1.0).repeatForever(autoreverses: true)
+                : .default,
+            value: isAnimating
+        )
         .onChange(of: isPulsing, initial: true) { _, pulsing in
             isAnimating = pulsing
         }

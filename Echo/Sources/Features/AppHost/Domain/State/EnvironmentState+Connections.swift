@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SQLServerKit
 
 extension EnvironmentState {
@@ -40,6 +41,11 @@ extension EnvironmentState {
             displayName = "server"
         }
         detachedJobQueueViewModels.removeValue(forKey: id)
+        // Clean up editor windows for this connection
+        let userEditorKeys = userEditorViewModels.keys.filter { $0.connectionSessionID == id }
+        for key in userEditorKeys { userEditorViewModels.removeValue(forKey: key) }
+        let loginEditorKeys = loginEditorViewModels.keys.filter { $0.connectionSessionID == id }
+        for key in loginEditorKeys { loginEditorViewModels.removeValue(forKey: key) }
         sessionGroup.removeSession(withID: id)
         notificationEngine?.post(category: .connectionDisconnected, message: "Disconnected from \(displayName)")
     }
@@ -147,30 +153,38 @@ extension EnvironmentState {
             ?? targetSession.selectedDatabaseName
             ?? connection.database
 
-        // MSSQL: create dedicated session before showing the tab. Each MSSQL query tab
-        // needs its own connection for transaction isolation and session state. The shared
-        // pooled session uses USE [db] prefix which causes streaming issues.
+        // MSSQL: show the tab immediately with the shared session, then upgrade
+        // to a dedicated connection in the background. The shared session works for
+        // queries (USE [db] prefix), and the upgrade provides transaction isolation.
         if connection.databaseType == .microsoftSQL,
            let metadataSession = targetSession.session as? SQLServerSessionAdapter {
             let queryText = presetQuery ?? ""
+            let tab = targetSession.addQueryTab(
+                withQuery: queryText,
+                database: resolvedDatabase
+            )
+            tab.markAwaitingDedicatedSession()
+            tab.query?.isEstablishingConnection = true
+            registerTab(tab)
+
             Task {
+                let t0 = CFAbsoluteTimeGetCurrent()
                 do {
                     let dedicatedSession = try await makeDedicatedQuerySession(
                         for: connection,
                         metadataSession: metadataSession,
                         database: targetDatabase
                     )
-                    let tab = targetSession.addQueryTab(
-                        withQuery: queryText,
-                        database: resolvedDatabase,
-                        session: dedicatedSession,
-                        ownsSession: true
-                    )
-                    registerTab(tab)
+                    let elapsed = String(format: "%.3f", CFAbsoluteTimeGetCurrent() - t0)
+                    Logger.connection.info("[DedicatedSession] ready in \(elapsed)s for \(targetDatabase ?? "nil")")
+                    tab.upgradeToDedicatedSession(dedicatedSession)
+                    tab.query?.isEstablishingConnection = false
                 } catch {
+                    tab.upgradeToDedicatedSession(tab.session)
+                    tab.query?.isEstablishingConnection = false
                     notificationEngine?.post(
                         category: .connectionFailed,
-                        message: "SQL Server query tab failed: \(error.localizedDescription)",
+                        message: "Dedicated connection failed: \(error.localizedDescription)",
                         duration: 5.0
                     )
                 }
@@ -391,6 +405,7 @@ extension EnvironmentState {
         // with reconnect support and metadata delegation.
         if connection.databaseType == .microsoftSQL,
            let mssqlMetadata = metadataSession as? SQLServerSessionAdapter {
+            let t0 = CFAbsoluteTimeGetCurrent()
             let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
                 host: connection.host,
                 port: connection.port,
@@ -403,9 +418,13 @@ extension EnvironmentState {
                 authentication: credentials,
                 connectTimeoutSeconds: 10
             )
+            let t1 = CFAbsoluteTimeGetCurrent()
+            Logger.connection.info("[DedicatedSession] config built in \(String(format: "%.3f", t1 - t0))s")
             let dedicatedConnection = try await SQLServerConnection.connect(
                 configuration: configuration
             )
+            let t2 = CFAbsoluteTimeGetCurrent()
+            Logger.connection.info("[DedicatedSession] SQLServerConnection.connect() took \(String(format: "%.3f", t2 - t1))s")
             return MSSQLDedicatedQuerySession(
                 connection: dedicatedConnection,
                 configuration: configuration,
@@ -549,5 +568,69 @@ extension EnvironmentState {
             relatedKeys: [],
             projectID: session.connection.projectID ?? projectStore.selectedProject?.id ?? UUID()
         )
+    }
+
+    // MARK: - User Editor Windows
+
+    // MARK: - Security Tabs
+
+    func openDatabaseSecurityTab(connectionID: UUID, databaseName: String? = nil) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addDatabaseSecurityTab(databaseName: databaseName)
+        if tabStore.getTab(id: tab.id) == nil {
+            registerTab(tab)
+        }
+        tabStore.selectTab(tab)
+    }
+
+    func openServerSecurityTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addServerSecurityTab()
+        if tabStore.getTab(id: tab.id) == nil {
+            registerTab(tab)
+        }
+        tabStore.selectTab(tab)
+    }
+
+    @discardableResult
+    func prepareLoginEditorWindow(
+        connectionSessionID: UUID,
+        existingLogin: String?
+    ) -> LoginEditorWindowValue {
+        let value = LoginEditorWindowValue(
+            connectionSessionID: connectionSessionID,
+            existingLoginName: existingLogin
+        )
+        if loginEditorViewModels[value] == nil {
+            loginEditorViewModels[value] = LoginEditorViewModel(
+                connectionSessionID: connectionSessionID,
+                existingLoginName: existingLogin
+            )
+        }
+        activeLoginEditorValue = value
+        return value
+    }
+
+    @discardableResult
+    func prepareUserEditorWindow(
+        connectionSessionID: UUID,
+        database: String,
+        existingUser: String?
+    ) -> UserEditorWindowValue {
+        let value = UserEditorWindowValue(
+            connectionSessionID: connectionSessionID,
+            databaseName: database,
+            existingUserName: existingUser
+        )
+        if userEditorViewModels[value] == nil {
+            let vm = UserEditorViewModel(
+                connectionSessionID: connectionSessionID,
+                databaseName: database,
+                existingUserName: existingUser
+            )
+            userEditorViewModels[value] = vm
+        }
+        activeUserEditorValue = value
+        return value
     }
 }

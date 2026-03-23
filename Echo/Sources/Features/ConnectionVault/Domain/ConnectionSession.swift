@@ -31,6 +31,12 @@ final class ConnectionSession: Identifiable {
     /// Views use fail-open: `permissions?.canDoX ?? true` — if nil, controls stay enabled.
     var permissions: (any DatabasePermissionProviding)?
 
+    /// Pre-warmed dedicated session for the next MSSQL query tab.
+    /// Created in the background after the initial connection so the first
+    /// tab gets a ready connection instantly without waiting for TCP+TLS+login.
+    @ObservationIgnored var preWarmedDedicatedSession: DatabaseSession?
+    @ObservationIgnored var preWarmTask: Task<Void, Never>?
+
     @ObservationIgnored private var defaultInitialBatchSize: Int
     @ObservationIgnored private var defaultBackgroundStreamingThreshold: Int
     @ObservationIgnored private var defaultBackgroundFetchSize: Int
@@ -491,6 +497,74 @@ final class ConnectionSession: Identifiable {
             connectionSessionID: id,
             title: "Availability Groups",
             content: .availabilityGroups(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    // MARK: - Security Tabs
+
+    @discardableResult
+    func addDatabaseSecurityTab(databaseName: String? = nil) -> WorkspaceTab {
+        let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
+
+        if let existing = queryTabs.first(where: { $0.databaseSecurity != nil }) {
+            activeQueryTabID = existing.id
+            if let vm = existing.databaseSecurity, vm.selectedDatabase != effectiveDatabase {
+                existing.activeDatabaseName = effectiveDatabase.isEmpty ? nil : effectiveDatabase
+                Task { await vm.selectDatabase(effectiveDatabase) }
+            }
+            return existing
+        }
+
+        let viewModel = DatabaseSecurityViewModel(
+            session: session,
+            connectionID: connection.id,
+            connectionSessionID: id,
+            initialDatabase: effectiveDatabase.isEmpty ? nil : effectiveDatabase
+        )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
+
+        let dbName = databaseName ?? selectedDatabaseName
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Database Security",
+            content: .databaseSecurity(viewModel),
+            activeDatabaseName: (dbName?.isEmpty == false) ? dbName : nil
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addServerSecurityTab() -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.serverSecurity != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = ServerSecurityViewModel(
+            session: session,
+            connectionID: connection.id,
+            connectionSessionID: id
+        )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
+
+        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let serverLabel = connName.isEmpty ? connection.host : connName
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Server Security",
+            content: .serverSecurity(viewModel),
+            activeDatabaseName: serverLabel
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id

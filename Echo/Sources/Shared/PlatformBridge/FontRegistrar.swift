@@ -1,23 +1,13 @@
 import Foundation
 import CoreText
-#if os(macOS)
 import AppKit
-#else
-import UIKit
-#endif
+import OSLog
 
 /// Registers bundled custom fonts so they are available throughout the app
 enum FontRegistrar {
     private static let fontSubdirectory = "Fonts"
     private nonisolated(unsafe) static var hasRegistered = false
     private static let lock = NSLock()
-
-#if DEBUG
-    private static func debugLog(_ message: @autoclosure () -> String) {
-        guard ProcessInfo.processInfo.environment["ECHO_FONT_DEBUG"] == "1" else { return }
-        print(message())
-    }
-#endif
 
     static func registerBundledFonts() {
         lock.lock()
@@ -36,13 +26,13 @@ enum FontRegistrar {
                 let directoryContents = try FileManager.default.contentsOfDirectory(at: resourceRoot, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
                 collected.append(contentsOf: directoryContents.filter { $0.pathExtension.lowercased() == "ttf" })
             } catch {
-                print("[FontRegistrar] Failed to enumerate Fonts directory: \(error)")
+                Logger.fonts.error("Failed to enumerate Fonts directory: \(error)")
             }
         }
 
         let urls = Array(Set(collected))
         guard !urls.isEmpty else {
-            print("[FontRegistrar] No font URLs found in \(fontSubdirectory)")
+            Logger.fonts.warning("No font URLs found in \(fontSubdirectory)")
             return
         }
 
@@ -56,20 +46,13 @@ enum FontRegistrar {
                     let domain = nsError.domain
                     let code = nsError.code
                     if domain == kCTFontManagerErrorDomain as String && code == alreadyRegisteredCode {
-#if DEBUG
-                        debugLog("[FontRegistrar] Font already registered: \(url.lastPathComponent)")
-#endif
+                        Logger.fonts.debug("Font already registered: \(url.lastPathComponent)")
                     } else {
-                        print("[FontRegistrar] Failed to register font at \(url.lastPathComponent): \(cfError)")
+                        Logger.fonts.error("Failed to register font at \(url.lastPathComponent): \(cfError)")
                     }
                 }
             } else {
-#if DEBUG
-                if let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor] {
-                    let names = descriptors.compactMap { CTFontDescriptorCopyAttribute($0, kCTFontNameAttribute) as? String }
-                    debugLog("[FontRegistrar] Registered fonts: \(names)")
-                }
-#endif
+                Logger.fonts.debug("Registered font: \(url.lastPathComponent)")
             }
         }
 

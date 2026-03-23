@@ -38,9 +38,11 @@ extension ObjectBrowserSidebarView {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 Button {
-                    viewModel.securityLoginSheetSessionID = connID
-                    viewModel.securityLoginSheetEditName = nil
-                    viewModel.showSecurityLoginSheet = true
+                    let value = environmentState.prepareLoginEditorWindow(
+                        connectionSessionID: connID,
+                        existingLogin: nil
+                    )
+                    openWindow(id: LoginEditorWindow.sceneID, value: value)
                 } label: {
                     Label("New Login", systemImage: "person.badge.plus")
                 }
@@ -48,14 +50,26 @@ extension ObjectBrowserSidebarView {
         }
 
         if isExpanded {
-            ForEach(standardLogins) { login in
+            if standardLogins.isEmpty && certLogins.isEmpty {
                 sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                    loginRow(login: login, session: session)
+                    SidebarRow(
+                        depth: 0,
+                        icon: .none,
+                        label: "No logins found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
                 }
-            }
+            } else {
+                ForEach(standardLogins) { login in
+                    sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                        loginRow(login: login, session: session)
+                    }
+                }
 
-            if !certLogins.isEmpty {
-                certificateLoginsListRows(certLogins: certLogins, session: session, baseIndent: baseIndent + SidebarRowConstants.indentStep)
+                if !certLogins.isEmpty {
+                    certificateLoginsListRows(certLogins: certLogins, session: session, baseIndent: baseIndent + SidebarRowConstants.indentStep)
+                }
             }
         }
     }
@@ -127,9 +141,21 @@ extension ObjectBrowserSidebarView {
         }
 
         if isExpanded {
-            ForEach(roles) { role in
+            if roles.isEmpty {
                 sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                    serverRoleRow(role: role, session: session)
+                    SidebarRow(
+                        depth: 0,
+                        icon: .none,
+                        label: "No server roles found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                }
+            } else {
+                ForEach(roles) { role in
+                    sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                        serverRoleRow(role: role, session: session)
+                    }
                 }
             }
         }

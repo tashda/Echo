@@ -1,6 +1,6 @@
 import Foundation
 import SQLServerKit
-import Logging
+import OSLog
 
 /// Serializes metadata trace file writes to avoid data races
 private actor MetadataTraceWriter {
@@ -19,11 +19,11 @@ private actor MetadataTraceWriter {
 }
 
 /// Adapter to make SQLServerClient conform to Echo's DatabaseSession protocol
-final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
+nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     let client: SQLServerClient
     private let configuration: SQLServerClient.Configuration
     nonisolated(unsafe) private(set) var database: String?
-    let logger = Logger(label: "dk.tippr.echo.mssql.metadata")
+    let logger = Logger.mssql
     let metadataTraceEnabled = ProcessInfo.processInfo.environment["MSSQL_METADATA_TRACE"] == "1"
     let metadataTracePath: String?
     private static let traceWriter = MetadataTraceWriter()
@@ -55,7 +55,6 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     func metadataTrace(_ line: String) {
         guard metadataTraceEnabled else { return }
         logger.info("\(line)")
-        print(line)
         guard let path = metadataTracePath else { return }
         let payload = line + "\n"
         guard let data = payload.data(using: .utf8) else { return }

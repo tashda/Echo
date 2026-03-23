@@ -26,6 +26,10 @@ final class EnvironmentState {
     var recentConnections: [RecentConnectionRecord] = []
     var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
     var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
+    var userEditorViewModels: [UserEditorWindowValue: UserEditorViewModel] = [:]
+    var loginEditorViewModels: [LoginEditorWindowValue: LoginEditorViewModel] = [:]
+    var activeLoginEditorValue: LoginEditorWindowValue?
+    var activeUserEditorValue: UserEditorWindowValue?
     var dataInspectorContent: DataInspectorContent?
     @ObservationIgnored private var lastPushedInspectorTitle: String?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []

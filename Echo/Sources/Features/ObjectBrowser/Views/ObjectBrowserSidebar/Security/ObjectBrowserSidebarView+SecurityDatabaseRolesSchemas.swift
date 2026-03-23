@@ -25,8 +25,18 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                ForEach(roles) { role in
-                    dbRoleRow(role: role, session: session)
+                if roles.isEmpty {
+                    SidebarRow(
+                        depth: SecuritySidebarDepth.databaseLeaf,
+                        icon: .none,
+                        label: "No database roles found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                } else {
+                    ForEach(roles) { role in
+                        dbRoleRow(role: role, session: session)
+                    }
                 }
             }
         }
@@ -104,8 +114,18 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                ForEach(appRoles) { appRole in
-                    dbAppRoleRow(appRole: appRole, session: session)
+                if appRoles.isEmpty {
+                    SidebarRow(
+                        depth: SecuritySidebarDepth.databaseLeaf,
+                        icon: .none,
+                        label: "No application roles found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                } else {
+                    ForEach(appRoles) { appRole in
+                        dbAppRoleRow(appRole: appRole, session: session)
+                    }
                 }
             }
         }

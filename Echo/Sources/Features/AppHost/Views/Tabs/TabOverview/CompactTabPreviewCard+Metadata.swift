@@ -38,6 +38,8 @@ extension CompactTabPreviewCard {
             return []
         case .availabilityGroups:
             return []
+        case .databaseSecurity, .serverSecurity:
+            return []
         }
         }
 
@@ -72,6 +74,10 @@ extension CompactTabPreviewCard {
             return "Extended Events"
         case .availabilityGroups:
             return "Availability Groups"
+        case .databaseSecurity:
+            return "Database Security"
+        case .serverSecurity:
+            return "Server Security"
         }
         }
 
@@ -107,6 +113,10 @@ extension CompactTabPreviewCard {
             return "Extended Events session monitoring"
         case .availabilityGroups:
             return "Always On Availability Groups dashboard"
+        case .databaseSecurity:
+            return "Database security management"
+        case .serverSecurity:
+            return "Server security management"
         }
         }
 

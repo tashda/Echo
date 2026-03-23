@@ -1,7 +1,7 @@
 import Foundation
 import PostgresKit
 import PostgresWire
-import Logging
+import os
 
 extension PostgresSession {
     func streamQuery(
@@ -22,7 +22,6 @@ extension PostgresSession {
         progressHandler: @escaping QueryProgressHandler,
         previewLimit: Int? = nil
     ) async throws -> QueryResultSet {
-        let logger = self.logger
         let operationStart = CFAbsoluteTimeGetCurrent()
 
         let initialPreviewBatch = 200
@@ -144,7 +143,7 @@ extension PostgresSession {
                     if !firstRowLogged {
                         firstRowLogged = true
                         let firstRowLatency = CFAbsoluteTimeGetCurrent() - operationStart
-                        logger.debug("[PostgresStream] first-row latency=\(String(format: "%.3f", firstRowLatency))s")
+                        os.Logger.postgres.debug("[PostgresStream] first-row latency=\(String(format: "%.3f", firstRowLatency))s")
                     }
                 }
             } catch {
@@ -170,7 +169,7 @@ extension PostgresSession {
             }
 
             let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
-            logger.debug("[PostgresStream] completed rows=\(totalRowCount) elapsed=\(String(format: "%.3f", totalElapsed))s previewRows=\(previewRows.count)")
+            os.Logger.postgres.debug("[PostgresStream] completed rows=\(totalRowCount) elapsed=\(String(format: "%.3f", totalElapsed))s previewRows=\(previewRows.count)")
 
             let resolvedColumns = columns.isEmpty
                 ? [ColumnInfo(name: "result", dataType: "text")]

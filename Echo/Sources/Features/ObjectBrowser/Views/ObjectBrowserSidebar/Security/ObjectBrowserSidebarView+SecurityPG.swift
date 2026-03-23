@@ -46,8 +46,18 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                ForEach(loginRoles) { role in
-                    pgRoleRow(role: role, session: session)
+                if loginRoles.isEmpty {
+                    SidebarRow(
+                        depth: SecuritySidebarDepth.serverLeaf,
+                        icon: .none,
+                        label: "No login roles found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                } else {
+                    ForEach(loginRoles) { role in
+                        pgRoleRow(role: role, session: session)
+                    }
                 }
             }
         }
@@ -95,8 +105,18 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                ForEach(groupRoles) { role in
-                    pgRoleRow(role: role, session: session)
+                if groupRoles.isEmpty {
+                    SidebarRow(
+                        depth: SecuritySidebarDepth.serverLeaf,
+                        icon: .none,
+                        label: "No group roles found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                } else {
+                    ForEach(groupRoles) { role in
+                        pgRoleRow(role: role, session: session)
+                    }
                 }
             }
         }

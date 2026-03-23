@@ -43,15 +43,21 @@ extension ObjectBrowserSidebarView {
         servers: [ObjectBrowserSidebarViewModel.LinkedServerItem],
         isLoading: Bool
     ) -> some View {
-        if isLoading {
-            linkedServersLoadingIndicator()
-        } else if !servers.isEmpty {
-            ForEach(servers) { server in
-                linkedServerRow(server: server, session: session)
+        if !isLoading {
+            if servers.isEmpty {
+                SidebarRow(
+                    depth: 1,
+                    icon: .none,
+                    label: "No linked servers",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
+                ForEach(servers) { server in
+                    linkedServerRow(server: server, session: session)
+                }
             }
         }
-
-        newLinkedServerButton(session: session)
     }
 
     // MARK: - Row
@@ -110,35 +116,6 @@ extension ObjectBrowserSidebarView {
         }
         .disabled(!(session.permissions?.canManageLinkedServers ?? true))
         .help(session.permissions?.canManageLinkedServers ?? true ? "" : "Requires sysadmin or setupadmin role")
-    }
-
-    // MARK: - New Linked Server Button
-
-    func newLinkedServerButton(session: ConnectionSession) -> some View {
-        Button {
-            viewModel.newLinkedServerSessionID = session.connection.id
-            viewModel.showNewLinkedServerSheet = true
-        } label: {
-            SidebarRow(
-                depth: 1,
-                icon: .system("plus.circle"),
-                label: "New Linked Server",
-                iconColor: ColorTokens.Text.tertiary,
-                labelColor: ColorTokens.Text.tertiary
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(!(session.permissions?.canManageLinkedServers ?? true))
-        .help(session.permissions?.canManageLinkedServers ?? true ? "" : "Requires sysadmin or setupadmin role")
-    }
-
-    // MARK: - Loading Indicator
-
-    func linkedServersLoadingIndicator() -> some View {
-        SidebarRow(depth: 1, icon: .none, label: "Loading linked servers\u{2026}", labelColor: ColorTokens.Text.secondary, labelFont: TypographyTokens.detail) {
-            ProgressView()
-                .controlSize(.mini)
-        }
     }
 
 }

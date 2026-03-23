@@ -2,6 +2,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import OSLog
 
 extension QueryResultsTableView {
     @MainActor
@@ -65,9 +66,7 @@ extension QueryResultsTableView {
         var pendingClearColumnHighlightNotification = false
         nonisolated(unsafe) var rowCountUpdateWorkItem: DispatchWorkItem?
         var lastObservedExecutionGeneration: Int = 0
-        static let isGridDiagnosticsEnabled: Bool = {
-            ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
-        }()
+        static let isGridDiagnosticsEnabled = false
 
         init(_ parent: QueryResultsTableView, queryState: QueryEditorState, clipboardHistory: ClipboardHistoryStore, persistedState: QueryResultsGridState?) {
             self.parent = parent
@@ -256,8 +255,7 @@ extension QueryResultsTableView {
         }
 
         func debugLog(_ message: String) {
-            guard Coordinator.isGridDiagnosticsEnabled else { return }
-            print("[GridDebug] \(message)")
+            Logger.grid.debug("\(message)")
         }
 
         var isDraggingSelection: Bool {

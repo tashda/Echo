@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import OSLog
 
 extension DiagramBuilder {
     func buildSchemaDiagram(
@@ -73,9 +74,7 @@ extension DiagramBuilder {
                     )
                     tableDetails[key] = details
                 } catch {
-                    #if DEBUG
-                    print("Failed to fetch diagram details for \(key.schema).\(key.name): \(String(reflecting: error))")
-                    #endif
+                    Logger.diagram.debug("Failed to fetch diagram details for \(key.schema).\(key.name): \(String(reflecting: error))")
                 }
             }
 

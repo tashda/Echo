@@ -12,6 +12,10 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         case encoded(ResultBinaryRow)
         case raw(RawRow)
         case stringValues([String?])
+        /// Deferred string conversion — the closure is called on the worker's GCD queue,
+        /// not on the hot row-iteration path. Used by MSSQL to defer expensive per-cell
+        /// type decoding to a background thread.
+        case deferred(@Sendable () -> [String?])
     }
 
     private struct SendableBufferPointer<Element>: @unchecked Sendable {
@@ -161,6 +165,8 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                         )
                     case .stringValues(let values):
                         return ResultBinaryRowCodec.encode(row: values)
+                    case .deferred(let convert):
+                        return ResultBinaryRowCodec.encode(row: convert())
                     }
                 }
             }
@@ -186,6 +192,8 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                             )
                         case .stringValues(let values):
                             encodedRow = ResultBinaryRowCodec.encode(row: values)
+                        case .deferred(let convert):
+                            encodedRow = ResultBinaryRowCodec.encode(row: convert())
                         }
                         pointer[index] = encodedRow
                         index &+= concurrency

@@ -52,6 +52,12 @@ struct WorkspaceContentView: View {
                 } else if let agVM = tab.availabilityGroupsVM {
                     AvailabilityGroupsView(viewModel: agVM)
                         .background(ColorTokens.Background.primary)
+                } else if tab.databaseSecurity != nil {
+                    DatabaseSecurityView(tab: tab)
+                        .background(ColorTokens.Background.primary)
+                } else if tab.serverSecurity != nil {
+                    ServerSecurityView(tab: tab)
+                        .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,

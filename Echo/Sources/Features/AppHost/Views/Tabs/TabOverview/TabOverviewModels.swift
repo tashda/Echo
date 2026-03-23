@@ -34,6 +34,8 @@ extension WorkspaceTab.Kind {
         case .queryStore: return "Query Store"
         case .extendedEvents: return "Extended Events"
         case .availabilityGroups: return "Availability Groups"
+        case .databaseSecurity: return "Database Security"
+        case .serverSecurity: return "Server Security"
         }
     }
 
@@ -51,6 +53,7 @@ extension WorkspaceTab.Kind {
         case .queryStore: return "chart.bar.xaxis"
         case .extendedEvents: return "bolt.horizontal"
         case .availabilityGroups: return "server.rack"
+        case .databaseSecurity, .serverSecurity: return "lock.shield"
         }
     }
 }

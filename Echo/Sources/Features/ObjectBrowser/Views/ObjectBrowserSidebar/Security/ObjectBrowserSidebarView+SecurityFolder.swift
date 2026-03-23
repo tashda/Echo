@@ -27,6 +27,9 @@ extension ObjectBrowserSidebarView {
                 },
                 depth: 0
             )
+            .contextMenu {
+                securityFolderContextMenu(session: session)
+            }
 
             if isExpanded {
                 serverSecurityContent(session: session)
@@ -68,17 +71,6 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     func serverSecurityListRows(session: ConnectionSession, baseIndent: CGFloat) -> some View {
-        let connID = session.connection.id
-        let isLoading = viewModel.securityServerLoadingBySession[connID] ?? false
-        let hasData = !(viewModel.securityLoginsBySession[connID] ?? []).isEmpty
-            || !(viewModel.securityServerRolesBySession[connID] ?? []).isEmpty
-
-        if isLoading && !hasData {
-            sidebarListRow(leading: baseIndent) {
-                securityLoadingRow(depth: 1, "Loading security\u{2026}")
-            }
-        }
-
         switch session.connection.databaseType {
         case .microsoftSQL:
             loginsListRows(session: session, baseIndent: baseIndent)
@@ -94,15 +86,6 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     func serverSecurityContent(session: ConnectionSession) -> some View {
-        let connID = session.connection.id
-        let isLoading = viewModel.securityServerLoadingBySession[connID] ?? false
-        let hasData = !(viewModel.securityLoginsBySession[connID] ?? []).isEmpty
-            || !(viewModel.securityServerRolesBySession[connID] ?? []).isEmpty
-
-        if isLoading && !hasData {
-            securityLoadingRow(depth: 1, "Loading security\u{2026}")
-        }
-
         switch session.connection.databaseType {
         case .microsoftSQL:
             loginsSection(session: session)

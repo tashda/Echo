@@ -35,9 +35,11 @@ extension ObjectBrowserSidebarView {
         switch session.connection.databaseType {
         case .microsoftSQL:
             Button {
-                viewModel.securityLoginSheetSessionID = connID
-                viewModel.securityLoginSheetEditName = nil
-                viewModel.showSecurityLoginSheet = true
+                let value = environmentState.prepareLoginEditorWindow(
+                    connectionSessionID: connID,
+                    existingLogin: nil
+                )
+                openWindow(id: LoginEditorWindow.sceneID, value: value)
             } label: {
                 Label("New Login", systemImage: "person.badge.plus")
             }
@@ -58,6 +60,17 @@ extension ObjectBrowserSidebarView {
             }
         default:
             EmptyView()
+        }
+
+        Divider()
+
+        // Group 3: Open Security Management Tab
+        if session.connection.databaseType == .microsoftSQL {
+            Button {
+                environmentState.openServerSecurityTab(connectionID: session.connection.id)
+            } label: {
+                Label("Open Security Management", systemImage: "lock.shield")
+            }
         }
     }
 
@@ -86,31 +99,6 @@ extension ObjectBrowserSidebarView {
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
-        }
-        .buttonStyle(.plain)
-    }
-
-    func securityLoadingRow(depth: Int, _ text: String) -> some View {
-        SidebarRow(
-            depth: depth,
-            icon: .none,
-            label: text,
-            labelColor: ColorTokens.Text.secondary,
-            labelFont: TypographyTokens.detail
-        )
-    }
-
-    // MARK: - New Item Button
-
-    func newItemButton(depth: Int, title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            SidebarRow(
-                depth: depth,
-                icon: .system("plus.circle"),
-                label: title,
-                iconColor: ColorTokens.Text.tertiary,
-                labelColor: ColorTokens.Text.tertiary
-            )
         }
         .buttonStyle(.plain)
     }

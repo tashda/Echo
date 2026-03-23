@@ -1,6 +1,5 @@
 import Foundation
-import os.log
-import os.signpost
+import OSLog
 
 extension QueryEditorState {
 
@@ -55,9 +54,7 @@ extension QueryEditorState {
         columns: [ColumnInfo]
     ) {
         guard !rows.isEmpty else { return }
-        #if DEBUG
-        print("[WorkspaceTab] integrateFormattedRows rows=\(rows.count) range=\(range) totalRowCount=\(totalRowCount)")
-        #endif
+        Logger.grid.debug("integrateFormattedRows rows=\(rows.count) range=\(range) totalRowCount=\(totalRowCount)")
         let token = formattingGeneration
         let resetTask = formattingResetTask
         Task.detached(priority: .utility) { [weak self] in
@@ -99,14 +96,12 @@ extension QueryEditorState {
         columns: [ColumnInfo]
     ) {
         guard !rows.isEmpty else { return }
-        let gridPipelineLog = OSLog(subsystem: "dk.tippr.echo", category: .pointsOfInterest)
-        os_log("IntegrateFormattedRows begin rows=%{public}d", log: gridPipelineLog, type: .info, rows.count)
-        print("[Signpost] IntegrateFormattedRows begin rows=\(rows.count)")
-        os_signpost(.begin, log: gridPipelineLog, name: "IntegrateFormattedRows", "%{public}d rows", rows.count)
+        let signposter = OSSignposter(logger: Logger.grid)
+        let signpostState = signposter.beginInterval("IntegrateFormattedRows", "\(rows.count) rows")
+        Logger.grid.debug("IntegrateFormattedRows begin rows=\(rows.count)")
         defer {
-            os_log("IntegrateFormattedRows end", log: gridPipelineLog, type: .info)
-            print("[Signpost] IntegrateFormattedRows end")
-            os_signpost(.end, log: gridPipelineLog, name: "IntegrateFormattedRows")
+            signposter.endInterval("IntegrateFormattedRows", signpostState)
+            Logger.grid.debug("IntegrateFormattedRows end")
         }
         if rowDiagnosticsEnabled {
             if totalRowCount >= 0 && range.upperBound > totalRowCount {
@@ -137,7 +132,6 @@ extension QueryEditorState {
                 let remainingCapacity = bufferLimit - streamingRows.count
                 if remainingCapacity > 0 {
                     streamingRows.append(contentsOf: slice.prefix(remainingCapacity))
-#if DEBUG
                     if rowDiagnosticsEnabled {
                         let appendedSlice = Array(slice.prefix(remainingCapacity))
                         if let badIndex = appendedSlice.firstIndex(where: { $0.allSatisfy { $0 == nil } }) {
@@ -145,7 +139,6 @@ extension QueryEditorState {
                             debugReportRowAnomaly(stage: "integrateFormattedRows", message: "appended all-nil row at \(absoluteRow) columns=\(appendedSlice[badIndex].count)")
                         }
                     }
-#endif
                 }
             }
         }
@@ -214,16 +207,14 @@ extension QueryEditorState {
         }
     }
 
-    func debugReportRowAnomaly(stage: String, message: @autoclosure () -> String) {
+    func debugReportRowAnomaly(stage: String, message: String) {
         guard rowDiagnosticsEnabled else { return }
-        print("[RowDiagnostics][\(stage)] \(message()) streamingRows=\(streamingRows.count) materialized=\(materializedHighWaterMark) reported=\(rowProgress.totalReported) received=\(rowProgress.totalReceived) streamedCount=\(streamedRowCount)")
+        Logger.grid.warning("[RowDiagnostics][\(stage)] \(message) streamingRows=\(self.streamingRows.count) materialized=\(self.materializedHighWaterMark) reported=\(self.rowProgress.totalReported) received=\(self.rowProgress.totalReceived) streamedCount=\(self.streamedRowCount)")
     }
 
-    func debugTrackRowCountChange(event: String, previous: Int, current: Int, details: @autoclosure () -> String) {
-#if DEBUG
+    func debugTrackRowCountChange(event: String, previous: Int, current: Int, details: String) {
         guard rowDiagnosticsEnabled, previous != current else { return }
-        print("[RowDiagnostics][\(event)] streamedRowCount \(previous) -> \(current) \(details())")
-#endif
+        Logger.grid.debug("[RowDiagnostics][\(event)] streamedRowCount \(previous) -> \(current) \(details)")
     }
 
     func computeContiguousMaterializedCount() -> Int {

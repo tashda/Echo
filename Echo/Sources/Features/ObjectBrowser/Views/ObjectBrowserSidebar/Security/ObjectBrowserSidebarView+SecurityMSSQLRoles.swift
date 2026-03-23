@@ -44,8 +44,18 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                ForEach(roles) { role in
-                    serverRoleRow(role: role, session: session)
+                if roles.isEmpty {
+                    SidebarRow(
+                        depth: SecuritySidebarDepth.serverLeaf,
+                        icon: .none,
+                        label: "No server roles found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                } else {
+                    ForEach(roles) { role in
+                        serverRoleRow(role: role, session: session)
+                    }
                 }
             }
         }
