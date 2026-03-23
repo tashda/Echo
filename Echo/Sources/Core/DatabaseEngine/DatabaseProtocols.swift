@@ -3,6 +3,7 @@ import Foundation
 public protocol DatabaseSession: Sendable {
     func close() async
     func isSuperuser() async throws -> Bool
+    func fetchPermissions() async throws -> (any DatabasePermissionProviding)?
     func simpleQuery(_ sql: String) async throws -> QueryResultSet
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet
     func simpleQuery(_ sql: String, executionMode: ResultStreamingExecutionMode?, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet
@@ -100,6 +101,10 @@ public protocol DatabaseSchemaSummaryProviding: AnyObject {
 public extension DatabaseSession {
     func isSuperuser() async throws -> Bool {
         false
+    }
+
+    func fetchPermissions() async throws -> (any DatabasePermissionProviding)? {
+        nil
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {

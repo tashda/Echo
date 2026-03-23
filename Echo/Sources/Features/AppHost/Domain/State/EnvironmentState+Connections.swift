@@ -60,6 +60,7 @@ extension EnvironmentState {
         if let databaseOverride {
             session.selectedDatabaseName = databaseOverride
         }
+        Task { await session.refreshPermissions() }
         await schemaDiscoveryEngine.refreshStructure(for: session, scope: scope)
     }
 
@@ -141,19 +142,50 @@ extension EnvironmentState {
         // matching SSMS/pgAdmin4 behavior where Cmd+T opens a tab connected to the same database.
         let resolvedDatabase = database ?? tabStore.activeTab?.activeDatabaseName
 
-        // Create the tab immediately with the shared session so the UI responds instantly.
-        // A dedicated connection is established in the background for query isolation
-        // (transactions, session state, concurrent execution).
+        let connection = targetSession.connection
+        let targetDatabase = resolvedDatabase
+            ?? targetSession.selectedDatabaseName
+            ?? connection.database
+
+        // MSSQL: create dedicated session before showing the tab. Each MSSQL query tab
+        // needs its own connection for transaction isolation and session state. The shared
+        // pooled session uses USE [db] prefix which causes streaming issues.
+        if connection.databaseType == .microsoftSQL,
+           let metadataSession = targetSession.session as? SQLServerSessionAdapter {
+            let queryText = presetQuery ?? ""
+            Task {
+                do {
+                    let dedicatedSession = try await makeDedicatedQuerySession(
+                        for: connection,
+                        metadataSession: metadataSession,
+                        database: targetDatabase
+                    )
+                    let tab = targetSession.addQueryTab(
+                        withQuery: queryText,
+                        database: resolvedDatabase,
+                        session: dedicatedSession,
+                        ownsSession: true
+                    )
+                    registerTab(tab)
+                } catch {
+                    notificationEngine?.post(
+                        category: .connectionFailed,
+                        message: "SQL Server query tab failed: \(error.localizedDescription)",
+                        duration: 5.0
+                    )
+                }
+            }
+            return
+        }
+
+        // Other engines: create the tab immediately with the shared session.
+        // A dedicated connection is established in the background for query isolation.
         let tab = targetSession.addQueryTab(
             withQuery: presetQuery ?? "",
             database: resolvedDatabase
         )
         registerTab(tab)
 
-        let connection = targetSession.connection
-        let targetDatabase = resolvedDatabase
-            ?? targetSession.selectedDatabaseName
-            ?? connection.database
         let gate = dedicatedConnectionGate
 
         Task {

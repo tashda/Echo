@@ -92,6 +92,11 @@ final class PostgresSession: DatabaseSession {
         return try await meta.isSuperuser(using: client)
     }
 
+    func fetchPermissions() async throws -> (any DatabasePermissionProviding)? {
+        let perms = try await client.security.currentPermissions()
+        return PostgresPermissionAdapter(permissions: perms)
+    }
+
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
         guard let serverConnection else { return self }
         let dbClient = try await serverConnection.client(for: database)

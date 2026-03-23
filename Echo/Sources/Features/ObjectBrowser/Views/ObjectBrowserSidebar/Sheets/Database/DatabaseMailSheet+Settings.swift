@@ -25,7 +25,8 @@ extension DatabaseMailSheet {
                 Button("Apply Changes") {
                     Task { await applySettings() }
                 }
-                .disabled(isSaving || !hasSettingsChanges)
+                .disabled(isSaving || !hasSettingsChanges || !canConfigure)
+                .help(canConfigure ? "" : "Requires sysadmin role")
             }
         }
         .formStyle(.grouped)

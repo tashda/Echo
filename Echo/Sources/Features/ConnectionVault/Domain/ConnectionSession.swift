@@ -26,6 +26,11 @@ final class ConnectionSession: Identifiable {
     var lastActivity: Date = Date()
     var structureLoadingState: StructureLoadingState = .idle
     var structureLoadingMessage: String?
+
+    /// Cached permissions for the current user. Fetched at connection time, refreshed on toolbar refresh.
+    /// Views use fail-open: `permissions?.canDoX ?? true` — if nil, controls stay enabled.
+    var permissions: (any DatabasePermissionProviding)?
+
     @ObservationIgnored private var defaultInitialBatchSize: Int
     @ObservationIgnored private var defaultBackgroundStreamingThreshold: Int
     @ObservationIgnored private var defaultBackgroundFetchSize: Int
@@ -76,6 +81,12 @@ final class ConnectionSession: Identifiable {
 
     var isConnected: Bool {
         return connectionState.isConnected
+    }
+
+    /// Fetches the current user's permissions from the server and caches them.
+    /// Called at connection time and on toolbar refresh.
+    func refreshPermissions() async {
+        permissions = try? await session.fetchPermissions()
     }
 
     @discardableResult

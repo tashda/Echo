@@ -69,6 +69,7 @@ extension DatabaseMailSheet {
                     )
                 }
             }
+            .disabled(!canConfigure)
         }
     }
 
@@ -80,7 +81,8 @@ extension DatabaseMailSheet {
                 Label("Grant Access", systemImage: "plus")
             }
             .controlSize(.small)
-            .disabled(profiles.isEmpty)
+            .disabled(profiles.isEmpty || !canConfigure)
+            .help(canConfigure ? "Grant a principal access to a profile" : "Requires sysadmin role")
             Spacer()
         }
         .padding(SpacingTokens.sm)

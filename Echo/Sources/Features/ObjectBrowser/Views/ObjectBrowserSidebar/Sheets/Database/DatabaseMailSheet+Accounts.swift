@@ -60,8 +60,10 @@ extension DatabaseMailSheet {
         .padding(.vertical, SpacingTokens.xxs)
         .contextMenu {
             Button("Edit\u{2026}") { editingAccount = account }
+                .disabled(!canConfigure)
             Divider()
             Button("Delete", role: .destructive) { confirmDeleteAccount = account }
+                .disabled(!canConfigure)
         }
     }
 
@@ -73,6 +75,8 @@ extension DatabaseMailSheet {
                 Label("Add Account", systemImage: "plus")
             }
             .controlSize(.small)
+            .disabled(!canConfigure)
+            .help(canConfigure ? "Create a new SMTP account" : "Requires sysadmin role")
             Spacer()
         }
         .padding(SpacingTokens.sm)

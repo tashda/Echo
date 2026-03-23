@@ -37,6 +37,12 @@ struct DatabaseMailSheet: View {
     @State var confirmDeleteProfile: SQLServerMailProfile?
     @State var confirmDeleteAccount: SQLServerMailAccount?
 
+    /// Whether the current user can configure Database Mail (sysadmin only).
+    /// Fail-open: if permissions haven't loaded, assume enabled.
+    var canConfigure: Bool {
+        session.permissions?.canConfigureDatabaseMail ?? true
+    }
+
     enum MailPage: String, CaseIterable {
         case profiles = "Profiles"
         case accounts = "Accounts"
@@ -181,11 +187,17 @@ struct DatabaseMailSheet: View {
                 .foregroundStyle(ColorTokens.Text.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 300)
-            Button("Enable Database Mail") {
-                Task { await enableFeature() }
+            if canConfigure {
+                Button("Enable Database Mail") {
+                    Task { await enableFeature() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isSaving)
+            } else {
+                Text("Contact your server administrator to enable Database Mail.")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(isSaving)
             Spacer()
         }
         .padding()
@@ -222,7 +234,8 @@ struct DatabaseMailSheet: View {
                     }
                 }
                 .controlSize(.small)
-                .disabled(isSaving)
+                .disabled(isSaving || !canConfigure)
+                .help(canConfigure ? "" : "Requires sysadmin role")
             }
 
             if !profiles.isEmpty {
@@ -230,6 +243,8 @@ struct DatabaseMailSheet: View {
                     showSendTest = true
                 }
                 .controlSize(.small)
+                .disabled(!canConfigure)
+                .help(canConfigure ? "" : "Requires sysadmin role")
             }
 
             if let error = saveError {

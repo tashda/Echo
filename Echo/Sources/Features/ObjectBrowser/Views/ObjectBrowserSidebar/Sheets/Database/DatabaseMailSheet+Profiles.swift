@@ -60,7 +60,8 @@ extension DatabaseMailSheet {
                                     .foregroundStyle(ColorTokens.Status.error)
                             }
                             .buttonStyle(.plain)
-                            .help("Remove account from profile")
+                            .disabled(!canConfigure)
+                            .help(canConfigure ? "Remove account from profile" : "Requires sysadmin role")
                         }
                     }
                 }
@@ -99,8 +100,10 @@ extension DatabaseMailSheet {
         .padding(.vertical, SpacingTokens.xxs)
         .contextMenu {
             Button("Edit\u{2026}") { editingProfile = profile }
+                .disabled(!canConfigure)
             Divider()
             Button("Delete", role: .destructive) { confirmDeleteProfile = profile }
+                .disabled(!canConfigure)
         }
     }
 
@@ -112,6 +115,8 @@ extension DatabaseMailSheet {
                 Label("Add Profile", systemImage: "plus")
             }
             .controlSize(.small)
+            .disabled(!canConfigure)
+            .help(canConfigure ? "Create a new mail profile" : "Requires sysadmin role")
             Spacer()
         }
         .padding(SpacingTokens.sm)

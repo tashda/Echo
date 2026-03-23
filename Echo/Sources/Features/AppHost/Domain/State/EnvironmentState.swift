@@ -229,6 +229,7 @@ final class EnvironmentState {
                 connectionStates[connection.id] = .connected
                 recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
                 startStructureLoadTask(for: connectionSession)
+                Task { await connectionSession.refreshPermissions() }
                 notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")
             } catch {
                 guard !Task.isCancelled else { return }

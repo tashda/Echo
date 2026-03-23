@@ -318,6 +318,11 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
         return result.rows.first?.first == "1"
     }
 
+    func fetchPermissions() async throws -> (any DatabasePermissionProviding)? {
+        let perms = try await client.metadata.checkServerPermissions()
+        return MSSQLPermissionAdapter(permissions: perms)
+    }
+
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
         SQLServerActivityMonitorWrapper(client.activity)
     }
