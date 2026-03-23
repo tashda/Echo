@@ -4,6 +4,7 @@ import SQLServerKit
 struct ExtendedEventsCreateSheet: View {
     @Bindable var viewModel: ExtendedEventsViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
         VStack(spacing: 0) {
@@ -210,7 +211,8 @@ struct ExtendedEventsCreateSheet: View {
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
-            .disabled(viewModel.createSessionName.isEmpty || viewModel.createEvents.isEmpty || viewModel.isCreating)
+            .disabled(viewModel.createSessionName.isEmpty || viewModel.createEvents.isEmpty || viewModel.isCreating
+                || !(environmentState.sessionGroup.activeSessions.first { $0.id == viewModel.connectionSessionID }?.permissions?.canManageServerState ?? true))
         }
         .padding(SpacingTokens.md)
     }

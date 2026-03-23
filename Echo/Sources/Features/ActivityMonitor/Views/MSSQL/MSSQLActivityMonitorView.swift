@@ -97,6 +97,7 @@ struct MSSQLActivityMonitorView: View {
                     selection: $selectedProcessIDs,
                     onPopout: popout,
                     onKill: kill,
+                    canKill: environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)?.permissions?.canManageServerState ?? true,
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
                 )
             case .waits:

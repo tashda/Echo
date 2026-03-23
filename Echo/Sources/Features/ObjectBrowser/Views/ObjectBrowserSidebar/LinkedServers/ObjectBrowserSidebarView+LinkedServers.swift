@@ -108,6 +108,8 @@ extension ObjectBrowserSidebarView {
         } label: {
             Label("Drop", systemImage: "trash")
         }
+        .disabled(!(session.permissions?.canManageLinkedServers ?? true))
+        .help(session.permissions?.canManageLinkedServers ?? true ? "" : "Requires sysadmin or setupadmin role")
     }
 
     // MARK: - New Linked Server Button
@@ -126,6 +128,8 @@ extension ObjectBrowserSidebarView {
             )
         }
         .buttonStyle(.plain)
+        .disabled(!(session.permissions?.canManageLinkedServers ?? true))
+        .help(session.permissions?.canManageLinkedServers ?? true ? "" : "Requires sysadmin or setupadmin role")
     }
 
     // MARK: - Loading Indicator

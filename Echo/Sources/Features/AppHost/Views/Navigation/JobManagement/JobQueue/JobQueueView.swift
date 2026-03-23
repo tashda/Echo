@@ -34,6 +34,7 @@ struct JobQueueView: View {
                 JobListView(
                     viewModel: viewModel,
                     notificationEngine: environmentState.notificationEngine,
+                    permissions: connectionSession?.permissions,
                     onNewJob: { showNewJobSheet = true }
                 )
             } second: {

@@ -93,6 +93,7 @@ extension ObjectBrowserSidebarView {
         } label: {
             Label("New Database", systemImage: "cylinder")
         }
+        .disabled(!(session.permissions?.canCreateDatabases ?? true))
     }
 
     // MARK: - Server Context Menu

@@ -9,6 +9,10 @@ struct PostgresMaintenanceTables: View {
 
     @State private var vacuumFullTarget: PostgresMaintenanceTableStat?
 
+    private var session: ConnectionSession? {
+        environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
+    }
+
     var body: some View {
         Group {
             if viewModel.isLoadingTables && viewModel.tableStats.isEmpty {
@@ -149,6 +153,7 @@ struct PostgresMaintenanceTables: View {
                 return .reindexCompleted(schema: table.schemaName, table: table.tableName)
             }
         }
+        .disabled(!(session?.permissions?.canVacuumFull ?? true))
 
         Divider()
 
@@ -173,6 +178,7 @@ struct PostgresMaintenanceTables: View {
                 Button("Vacuum Full") {
                     vacuumFullTarget = table
                 }
+                .disabled(!(session?.permissions?.canVacuumFull ?? true))
             }
         }
     }

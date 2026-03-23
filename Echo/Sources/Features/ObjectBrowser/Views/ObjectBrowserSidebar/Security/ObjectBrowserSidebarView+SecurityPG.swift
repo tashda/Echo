@@ -42,6 +42,7 @@ extension ObjectBrowserSidebarView {
                 } label: {
                     Label("New Login Role", systemImage: "person.badge.plus")
                 }
+                .disabled(!(session.permissions?.canManageRoles ?? true))
             }
 
             if isExpanded {
@@ -90,6 +91,7 @@ extension ObjectBrowserSidebarView {
                 } label: {
                     Label("New Group Role", systemImage: "person.2.badge.plus")
                 }
+                .disabled(!(session.permissions?.canManageRoles ?? true))
             }
 
             if isExpanded {
@@ -124,6 +126,7 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Reassign Owned Objects", systemImage: "arrow.triangle.swap")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
 
             Divider()
 
@@ -158,6 +161,7 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Drop Role", systemImage: "trash")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
 
             Divider()
 

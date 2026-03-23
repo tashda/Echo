@@ -80,6 +80,7 @@ extension ChangeTrackingSheet {
                             )
                         }
                         .controlSize(.small)
+                        .disabled(!(session.permissions?.canManageServerState ?? true))
                     }
                     .padding(SpacingTokens.xs)
                     .background(

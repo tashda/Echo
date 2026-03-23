@@ -97,6 +97,7 @@ struct PostgresActivityMonitorView: View {
                     selection: $selectedSessionIDs,
                     onPopout: popout,
                     onKill: kill,
+                    canKill: environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)?.permissions?.canManageServerState ?? true,
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
                 )
             case .locks:

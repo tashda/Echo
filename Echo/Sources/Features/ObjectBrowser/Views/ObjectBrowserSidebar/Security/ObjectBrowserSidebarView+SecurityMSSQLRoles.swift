@@ -40,6 +40,7 @@ extension ObjectBrowserSidebarView {
                 } label: {
                     Label("New Server Role", systemImage: "person.2.badge.plus")
                 }
+                .disabled(!(session.permissions?.canManageRoles ?? true))
             }
 
             if isExpanded {
@@ -120,6 +121,7 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Drop Server Role", systemImage: "trash")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
         }
     }
 

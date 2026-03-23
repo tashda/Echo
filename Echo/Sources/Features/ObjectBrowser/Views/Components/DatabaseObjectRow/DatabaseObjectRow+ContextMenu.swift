@@ -95,6 +95,7 @@ extension DatabaseObjectRow {
         } label: {
             Label(item.title, systemImage: item.systemImage)
         }
+        .disabled(item.isDisabled)
     }
 
     @ViewBuilder
@@ -257,6 +258,7 @@ extension DatabaseObjectRow {
                 title: connection.databaseType == .sqlite ? "Rename (Limited)" : "Rename",
                 systemImage: "character.cursor.ibeam",
                 role: nil,
+                isDisabled: !canModifySchema,
                 action: { initiateRename() }
             )
         )
@@ -326,6 +328,7 @@ extension DatabaseObjectRow {
                     title: "Truncate Table",
                     systemImage: "xmark.bin",
                     role: .destructive,
+                    isDisabled: !canModifySchema,
                     action: { initiateTruncate() }
                 )
             )
@@ -337,6 +340,7 @@ extension DatabaseObjectRow {
                 title: "Drop",
                 systemImage: "trash",
                 role: .destructive,
+                isDisabled: !canModifySchema,
                 action: { initiateDrop(includeIfExists: false) }
             )
         )
@@ -349,6 +353,7 @@ extension DatabaseObjectRow {
         let title: String
         let systemImage: String
         let role: ButtonRole?
+        let isDisabled: Bool
         let action: () -> Void
 
         init(
@@ -356,12 +361,14 @@ extension DatabaseObjectRow {
             title: String,
             systemImage: String,
             role: ButtonRole?,
+            isDisabled: Bool = false,
             action: @escaping () -> Void
         ) {
             self.id = id ?? title
             self.title = title
             self.systemImage = systemImage
             self.role = role
+            self.isDisabled = isDisabled
             self.action = action
         }
     }
@@ -431,6 +438,12 @@ extension DatabaseObjectRow {
             default: return false
             }
         }
+    }
+
+    /// Whether schema-modifying operations (drop, truncate, rename) are allowed based on permissions.
+    private var canModifySchema: Bool {
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return true }
+        return session.permissions?.canCreateSchemas ?? true
     }
 
     internal var supportsStructure: Bool {

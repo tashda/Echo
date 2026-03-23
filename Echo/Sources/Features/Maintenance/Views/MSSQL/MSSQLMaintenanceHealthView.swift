@@ -2,6 +2,11 @@ import SwiftUI
 
 struct MSSQLMaintenanceHealthView: View {
     @Bindable var viewModel: MSSQLMaintenanceViewModel
+    @Environment(EnvironmentState.self) private var environmentState
+
+    private var session: ConnectionSession? {
+        environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
+    }
 
     var body: some View {
         Form {
@@ -61,7 +66,7 @@ struct MSSQLMaintenanceHealthView: View {
                             Text("Check Integrity")
                         }
                     }
-                    .disabled(viewModel.isCheckingIntegrity)
+                    .disabled(viewModel.isCheckingIntegrity || !(session?.permissions?.canBackupRestore ?? true))
                 }
 
                 PropertyRow(
@@ -79,7 +84,7 @@ struct MSSQLMaintenanceHealthView: View {
                             Text("Shrink")
                         }
                     }
-                    .disabled(viewModel.isShrinking)
+                    .disabled(viewModel.isShrinking || !(session?.permissions?.canBackupRestore ?? true))
                 }
             }
         }

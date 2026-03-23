@@ -46,6 +46,8 @@ extension ObjectBrowserSidebarView {
                 } label: {
                     Label("New Login", systemImage: "person.badge.plus")
                 }
+                .disabled(!(session.permissions?.canManageRoles ?? true))
+                .help(session.permissions?.canManageRoles ?? true ? "" : "Requires securityadmin or sysadmin role")
             }
 
             if isExpanded {
@@ -148,12 +150,14 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Enable Login", systemImage: "checkmark.circle")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
         } else {
             Button {
                 Task { await enableMSSQLLogin(name: login.name, enabled: false, session: session) }
             } label: {
                 Label("Disable Login", systemImage: "nosign")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
         }
 
         Divider()
@@ -171,6 +175,7 @@ extension ObjectBrowserSidebarView {
         } label: {
             Label("Drop Login", systemImage: "trash")
         }
+        .disabled(!(session.permissions?.canManageRoles ?? true))
 
         Divider()
 

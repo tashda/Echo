@@ -11,6 +11,10 @@ struct MSSQLMaintenanceBackupsView: View {
     @State private var showBackupSheet = false
     @State private var showRestoreSheet = false
 
+    private var session: ConnectionSession? {
+        environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
+    }
+
     var body: some View {
         if let permissionError = viewModel.backupPermissionError {
             ContentUnavailableView {
@@ -55,6 +59,7 @@ struct MSSQLMaintenanceBackupsView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+            .disabled(!(session?.permissions?.canBackupRestore ?? true))
 
             Button {
                 viewModel.backupsVM?.resetRestoreState()
@@ -64,6 +69,7 @@ struct MSSQLMaintenanceBackupsView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+            .disabled(!(session?.permissions?.canBackupRestore ?? true))
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs)
@@ -119,6 +125,7 @@ struct MSSQLMaintenanceBackupsView: View {
                 } label: {
                     Label("Restore from this Backup", systemImage: "arrow.counterclockwise")
                 }
+                .disabled(!(session?.permissions?.canBackupRestore ?? true))
             }
         } primaryAction: { _ in
             if let id = selection.first, let entry = viewModel.backupHistory.first(where: { $0.id == id }) {

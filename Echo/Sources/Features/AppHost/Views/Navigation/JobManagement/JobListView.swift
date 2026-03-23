@@ -3,6 +3,7 @@ import SwiftUI
 struct JobListView: View {
     var viewModel: JobQueueViewModel
     let notificationEngine: NotificationEngine?
+    var permissions: (any DatabasePermissionProviding)?
     var onNewJob: (() -> Void)?
     @State private var tableSelection: Set<String> = []
     @State private var sortOrder: [KeyPathComparator<JobQueueViewModel.JobRow>] = [
@@ -87,6 +88,7 @@ struct JobListView: View {
                                 }
                             }
                         }
+                        .disabled(!(permissions?.canManageAgent ?? true))
                     }
                     if jobIsRunning {
                         Button("Stop Job") {
@@ -99,13 +101,17 @@ struct JobListView: View {
                                 }
                             }
                         }
+                        .disabled(!(permissions?.canManageAgent ?? true))
                     }
                     Divider()
                     Button("Enable Job") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(true) } }
+                        .disabled(!(permissions?.canManageAgent ?? true))
                     Button("Disable Job") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(false) } }
+                        .disabled(!(permissions?.canManageAgent ?? true))
                 } else {
                     // Empty space context menu
                     Button("New Job") { onNewJob?() }
+                        .disabled(!(permissions?.canManageAgent ?? true))
                     Button("Refresh Jobs") { Task { await viewModel.reloadJobs() } }
                 }
             }

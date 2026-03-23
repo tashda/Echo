@@ -8,6 +8,10 @@ struct MSSQLMaintenanceTablesView: View {
     @State private var sortOrder = [KeyPathComparator(\SQLServerTableStat.rowCount, order: .reverse)]
     @State private var selection: Set<SQLServerTableStat.ID> = []
 
+    private var session: ConnectionSession? {
+        environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             if viewModel.isRefreshingTables && viewModel.tableStats.isEmpty {
@@ -143,24 +147,28 @@ struct MSSQLMaintenanceTablesView: View {
         } label: {
             Label("Update Statistics", systemImage: "chart.bar")
         }
+        .disabled(!(session?.permissions?.canManageServerState ?? true))
 
         Button {
             Task { await viewModel.checkTable(table) }
         } label: {
             Label("Check Table", systemImage: "checkmark.shield")
         }
+        .disabled(!(session?.permissions?.canBackupRestore ?? true))
 
         Button {
             Task { await viewModel.rebuildAllIndexes(table) }
         } label: {
             Label("Rebuild All Indexes", systemImage: "hammer")
         }
+        .disabled(!(session?.permissions?.canManageServerState ?? true))
 
         Button {
             Task { await viewModel.reorganizeAllIndexes(table) }
         } label: {
             Label("Reorganize All Indexes", systemImage: "arrow.triangle.2.circlepath")
         }
+        .disabled(!(session?.permissions?.canManageServerState ?? true))
 
         Divider()
 
@@ -169,6 +177,7 @@ struct MSSQLMaintenanceTablesView: View {
         } label: {
             Label("Rebuild Table", systemImage: "arrow.clockwise")
         }
+        .disabled(!(session?.permissions?.canManageServerState ?? true))
 
         Divider()
 

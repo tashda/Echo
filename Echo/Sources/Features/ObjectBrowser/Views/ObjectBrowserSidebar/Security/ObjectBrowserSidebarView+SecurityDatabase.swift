@@ -99,6 +99,7 @@ extension ObjectBrowserSidebarView {
                     viewModel.securityUserSheetEditName = nil
                     viewModel.showSecurityUserSheet = true
                 }
+                .disabled(!(session.permissions?.canManageRoles ?? true))
             }
         }
     }
@@ -187,6 +188,7 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Drop User", systemImage: "trash")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
 
             Divider()
 
