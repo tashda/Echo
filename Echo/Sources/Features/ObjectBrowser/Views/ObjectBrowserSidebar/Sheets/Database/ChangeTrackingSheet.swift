@@ -27,9 +27,16 @@ struct ChangeTrackingSheet: View {
         let captureInstance: String?
     }
 
+    private var canManageState: Bool {
+        session.permissions?.canManageServerState ?? true
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             headerBar
+            if !canManageState {
+                PermissionBanner(requiredRole: "sysadmin", message: "Read-only — enabling CDC requires elevated permissions.")
+            }
             Divider()
 
             if isLoading {

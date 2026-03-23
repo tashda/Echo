@@ -5,6 +5,11 @@ struct MSSQLMaintenanceView: View {
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
     @Environment(ProjectStore.self) private var projectStore
+    @Environment(EnvironmentState.self) private var environmentState
+
+    private var session: ConnectionSession? {
+        environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
+    }
 
     var body: some View {
         MaintenanceTabFrame(
@@ -65,6 +70,9 @@ struct MSSQLMaintenanceView: View {
     @ViewBuilder
     private var sectionContent: some View {
         VStack(spacing: 0) {
+            if !(session?.permissions?.canBackupRestore ?? true) {
+                PermissionBanner(requiredRole: "sysadmin or db_backupoperator")
+            }
             switch viewModel.selectedSection {
             case .health:
                 MSSQLMaintenanceHealthView(viewModel: viewModel)

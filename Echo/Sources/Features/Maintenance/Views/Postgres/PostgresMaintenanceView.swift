@@ -112,8 +112,15 @@ struct PostgresMaintenanceView: View {
 
     // MARK: - Section Content
 
+    private var session: ConnectionSession? {
+        environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
+    }
+
     @ViewBuilder
     private var sectionContent: some View {
+        if !(session?.permissions?.canVacuumFull ?? true) {
+            PermissionBanner(requiredRole: "superuser")
+        }
         switch selectedSection {
         case .health:
             PostgresMaintenanceHealthView(viewModel: viewModel)

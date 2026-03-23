@@ -19,6 +19,10 @@ struct JobQueueView: View {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+        if !(connectionSession?.permissions?.canManageAgent ?? true) {
+            PermissionBanner(requiredRole: "sysadmin or SQLAgentOperatorRole")
+        }
         NativeSplitView(
             isVertical: false,
             firstMinFraction: 0.30,
@@ -71,6 +75,7 @@ struct JobQueueView: View {
                 }
             }
         }
+        } // VStack
     }
 
     private var connectionSession: ConnectionSession? {

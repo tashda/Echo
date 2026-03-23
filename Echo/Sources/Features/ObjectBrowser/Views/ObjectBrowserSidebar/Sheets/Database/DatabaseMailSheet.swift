@@ -63,6 +63,9 @@ struct DatabaseMailSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if !canConfigure {
+                PermissionBanner(requiredRole: "sysadmin")
+            }
             HStack(spacing: 0) {
                 sidebar
                     .frame(width: 160)
