@@ -9,18 +9,30 @@ final class ProfilerViewModel {
     var events: [SQLServerProfilerEvent] = []
     var selectedEventID: UUID?
     var targetDatabase: String?
+    var databaseList: [String] = []
     var selectedTraceEvents: Set<SQLTraceEvent> = [.sqlBatchCompleted, .rpcCompleted]
-    
-    private let profilerClient: SQLServerProfilerClient?
-    private let connectionSessionID: UUID
+
+    @ObservationIgnored private let profilerClient: SQLServerProfilerClient?
+    @ObservationIgnored let session: DatabaseSession?
+    @ObservationIgnored let connectionSessionID: UUID
     private var timer: Timer?
     private let logger = Logger(label: "ProfilerViewModel")
     private let sessionName: String
 
-    init(profilerClient: SQLServerProfilerClient?, connectionSessionID: UUID) {
+    init(profilerClient: SQLServerProfilerClient?, session: DatabaseSession?, connectionSessionID: UUID) {
         self.profilerClient = profilerClient
+        self.session = session
         self.connectionSessionID = connectionSessionID
         self.sessionName = "Echo_Profiler_\(UUID().uuidString.prefix(8))"
+    }
+
+    func loadDatabases() async {
+        guard let session else { return }
+        do {
+            databaseList = try await session.listDatabases().sorted()
+        } catch {
+            logger.error("Failed to load databases: \(error)")
+        }
     }
 
     func toggleTracing() {

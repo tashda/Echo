@@ -17,6 +17,7 @@ struct ProfilerView: View {
             }
         }
         .background(ColorTokens.Background.primary)
+        .task { await viewModel.loadDatabases() }
     }
     
     private var toolbar: some View {
@@ -38,7 +39,21 @@ struct ProfilerView: View {
                 Label("Clear", systemImage: "trash")
             }
             .disabled(viewModel.events.isEmpty)
-            
+
+            Divider().frame(height: 16)
+
+            Picker("Database", selection: Binding(
+                get: { viewModel.targetDatabase ?? "" },
+                set: { viewModel.targetDatabase = $0.isEmpty ? nil : $0 }
+            )) {
+                Text("All Databases").tag("")
+                ForEach(viewModel.databaseList, id: \.self) { db in
+                    Text(db).tag(db)
+                }
+            }
+            .frame(width: 180)
+            .disabled(viewModel.isRunning)
+
             Spacer()
             
             if viewModel.isRunning {

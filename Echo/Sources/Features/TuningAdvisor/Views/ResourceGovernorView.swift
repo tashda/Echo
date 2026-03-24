@@ -55,18 +55,34 @@ struct ResourceGovernorView: View {
                     Text(config.isEnabled ? "Enabled" : "Disabled")
                         .font(TypographyTokens.detail)
                 }
-                
+
+                Button(config.isEnabled ? "Disable" : "Enable") {
+                    Task { await viewModel.toggleEnabled() }
+                }
+                .controlSize(.small)
+                .disabled(viewModel.isToggling)
+
                 if let classifier = config.classifierFunction {
                     Text("Classifier: \(classifier)")
                         .font(TypographyTokens.detail)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 if config.isReconfigurationPending {
-                    Text("Pending Reconfigure")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(.orange)
+                    Button("Apply Changes") {
+                        Task { await viewModel.reconfigure() }
+                    }
+                    .controlSize(.small)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.orange)
                 }
+            }
+
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Status.error)
+                    .lineLimit(1)
             }
             
             Spacer()

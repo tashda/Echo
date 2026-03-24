@@ -59,4 +59,28 @@ final class PolicyManagementViewModel {
     var selectedPolicy: SQLServerPolicy? {
         policies.first { $0.policyId == selectedPolicyID }
     }
+
+    func togglePolicy(name: String, currentlyEnabled: Bool) async {
+        guard let client = policyClient else { return }
+        do {
+            if currentlyEnabled {
+                try await client.disablePolicy(name: name)
+            } else {
+                try await client.enablePolicy(name: name)
+            }
+            refresh()
+        } catch {
+            logger.error("Failed to toggle policy '\(name)': \(error)")
+        }
+    }
+
+    func evaluatePolicy(name: String) async {
+        guard let client = policyClient else { return }
+        do {
+            try await client.evaluatePolicy(name: name)
+            refresh()
+        } catch {
+            logger.error("Failed to evaluate policy '\(name)': \(error)")
+        }
+    }
 }

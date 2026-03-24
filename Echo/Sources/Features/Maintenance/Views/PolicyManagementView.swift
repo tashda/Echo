@@ -72,6 +72,28 @@ struct PolicyManagementView: View {
                 Text(executionModeLabel(p.executionMode))
             }
         }
+        .contextMenu(forSelectionType: Int32.self) { selection in
+            if let policyId = selection.first,
+               let policy = viewModel.policies.first(where: { $0.policyId == policyId }) {
+                Button {
+                    Task { await viewModel.togglePolicy(name: policy.name, currentlyEnabled: policy.isEnabled) }
+                } label: {
+                    Label(policy.isEnabled ? "Disable" : "Enable", systemImage: policy.isEnabled ? "xmark.circle" : "checkmark.circle")
+                }
+
+                Button {
+                    Task { await viewModel.evaluatePolicy(name: policy.name) }
+                } label: {
+                    Label("Evaluate Now", systemImage: "play.circle")
+                }
+            } else {
+                Button {
+                    viewModel.refresh()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+            }
+        } primaryAction: { _ in }
     }
     
     private var conditionsTable: some View {

@@ -397,6 +397,7 @@ extension ConnectionSession {
 
         let viewModel = ProfilerViewModel(
             profilerClient: session.profiler,
+            session: session,
             connectionSessionID: id
         )
         let tab = WorkspaceTab(
@@ -423,6 +424,7 @@ extension ConnectionSession {
             rgClient: session.resourceGovernor,
             connectionSessionID: id
         )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
