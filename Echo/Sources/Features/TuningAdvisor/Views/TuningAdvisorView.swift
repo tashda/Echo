@@ -7,22 +7,40 @@ struct TuningAdvisorView: View {
     var body: some View {
         VStack(spacing: 0) {
             toolbar
-            
-            if viewModel.recommendations.isEmpty && !viewModel.isRefreshing {
-                emptyState
-            } else {
-                VSplitView {
-                    recommendationTable
-                        .frame(minHeight: 150)
-                    
-                    recommendationDetailView
-                        .frame(minHeight: 150)
+
+            Picker("", selection: $viewModel.selectedTab) {
+                ForEach(TuningAdvisorViewModel.TuningTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
                 }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 280)
+            .padding(SpacingTokens.xs)
+
+            switch viewModel.selectedTab {
+            case .missingIndexes:
+                if viewModel.recommendations.isEmpty && !viewModel.isRefreshing {
+                    emptyState
+                } else {
+                    VSplitView {
+                        recommendationTable
+                            .frame(minHeight: 150)
+                        recommendationDetailView
+                            .frame(minHeight: 150)
+                    }
+                }
+            case .indexUsage:
+                IndexUsageSection(stats: viewModel.indexUsageStats)
             }
         }
         .background(ColorTokens.Background.primary)
         .onAppear {
             viewModel.refresh()
+        }
+        .onChange(of: viewModel.selectedTab) { _, newTab in
+            if newTab == .indexUsage && viewModel.indexUsageStats.isEmpty {
+                viewModel.loadIndexUsageStats()
+            }
         }
     }
     

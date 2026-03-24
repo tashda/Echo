@@ -6,10 +6,17 @@ import Logging
 @Observable @MainActor
 final class TuningAdvisorViewModel {
     var recommendations: [SQLServerMissingIndexRecommendation] = []
+    var indexUsageStats: [SQLServerTuningClient.SQLServerIndexUsageStat] = []
     var isRefreshing = false
     var isCreatingIndex = false
     var selectedRecommendationID: Int?
     var errorMessage: String?
+    var selectedTab: TuningTab = .missingIndexes
+
+    enum TuningTab: String, CaseIterable {
+        case missingIndexes = "Missing Indexes"
+        case indexUsage = "Index Usage"
+    }
 
     @ObservationIgnored private let tuningClient: SQLServerTuningClient?
     @ObservationIgnored let session: DatabaseSession?
@@ -33,6 +40,20 @@ final class TuningAdvisorViewModel {
                 isRefreshing = false
             } catch {
                 logger.error("Failed to load recommendations: \(error)")
+                isRefreshing = false
+            }
+        }
+    }
+
+    func loadIndexUsageStats() {
+        guard let client = tuningClient else { return }
+        isRefreshing = true
+        Task {
+            do {
+                indexUsageStats = try await client.indexUsageStats()
+                isRefreshing = false
+            } catch {
+                logger.error("Failed to load index usage stats: \(error)")
                 isRefreshing = false
             }
         }
