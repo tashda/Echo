@@ -171,7 +171,8 @@ extension JobQueueViewModel {
         freqInterval: Int,
         activeStartTime: Int? = nil,
         freqRecurrenceFactor: Int? = nil,
-        activeStartDate: Int? = nil
+        activeStartDate: Int? = nil,
+        activeEndDate: Int? = nil
     ) async {
         guard let jobName = selectedJobName() else {
             errorMessage = "No job selected"
@@ -185,6 +186,7 @@ extension JobQueueViewModel {
                 freqInterval: freqInterval,
                 activeStartDate: activeStartDate,
                 activeStartTime: activeStartTime,
+                activeEndDate: activeEndDate,
                 freqRecurrenceFactor: freqRecurrenceFactor
             )
             try await agent.attachSchedule(scheduleName: name, toJob: jobName)

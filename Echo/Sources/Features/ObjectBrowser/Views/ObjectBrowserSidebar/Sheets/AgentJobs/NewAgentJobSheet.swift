@@ -12,6 +12,10 @@ struct NewAgentJobSheet: View {
     @State var jobOwner = ""
     @State var jobCategory = ""
     @State var startAfterCreate = false
+    @State var availableCategories: [String] = []
+    @State var showNewCategorySheet = false
+    @State var newCategoryName = ""
+    @State var newCategoryError: String?
 
     // Steps
     @State var steps: [StepEntry] = []
@@ -66,6 +70,17 @@ struct NewAgentJobSheet: View {
         .onAppear {
             loadCurrentLogin()
             loadDatabaseNames()
+            loadCategories()
+        }
+        .sheet(isPresented: $showNewCategorySheet) {
+            NewAgentCategorySheet(
+                categoryName: $newCategoryName,
+                errorMessage: $newCategoryError,
+                onCreate: {
+                    Task { await createCategory() }
+                },
+                onCancel: { showNewCategorySheet = false }
+            )
         }
     }
 
@@ -137,7 +152,23 @@ struct NewAgentJobSheet: View {
             }
             Section("Ownership") {
                 TextField("Owner", text: $jobOwner, prompt: Text("sa"))
-                TextField("Category", text: $jobCategory, prompt: Text("[Uncategorized (Local)]"))
+                HStack {
+                    Picker("Category", selection: $jobCategory) {
+                        Text("[Uncategorized (Local)]").tag("")
+                        ForEach(availableCategories, id: \.self) { cat in
+                            Text(cat).tag(cat)
+                        }
+                    }
+                    Button {
+                        newCategoryName = ""
+                        newCategoryError = nil
+                        showNewCategorySheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Create new category")
+                }
             }
         }
         .formStyle(.grouped)

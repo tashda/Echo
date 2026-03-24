@@ -57,6 +57,7 @@ struct AgentSidebarView: View {
     @State internal var expandedOperators = false
     @State internal var expandedProxies = false
     @State internal var expandedErrorLogs = false
+    @State internal var selectedProxy: AgentSidebarViewModel.AgentProxy?
 
     internal var selectedSession: ConnectionSession? {
         guard let id = selectedConnectionID else { return nil }
@@ -87,6 +88,11 @@ struct AgentSidebarView: View {
         .onAppear { Task { await viewModel.reload(for: selectedSession) } }
         .onChange(of: selectedConnectionID) { _, _ in Task { await viewModel.reload(for: selectedSession) } }
         .sheet(isPresented: $showNewJobSheet) { newJobSheetContent }
+        .sheet(item: $selectedProxy) { proxy in
+            AgentProxyPropertiesSheet(proxy: proxy) {
+                selectedProxy = nil
+            }
+        }
     }
 
     internal func createJobWithBuilder() async {

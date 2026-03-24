@@ -33,12 +33,13 @@ extension JobDetailsView {
             AgentJobScheduleEditorSheet(
                 title: "New Schedule",
                 actionLabel: "Create Schedule"
-            ) { name, enabled, frequency, interval, startHour, startMinute, weekdays, monthDay, startDate, oneTimeDate in
+            ) { name, enabled, frequency, interval, startHour, startMinute, weekdays, monthDay, startDate, oneTimeDate, useActiveWindow, windowStartDate, windowEndDate in
                 let freqType: Int
                 let freqInterval: Int
                 let activeStartTime: Int? = startHour * 10000 + startMinute * 100
                 var freqRecurrenceFactor: Int? = nil
                 var activeStartDate: Int? = nil
+                var activeEndDate: Int? = nil
 
                 switch frequency {
                 case .daily:
@@ -53,6 +54,13 @@ extension JobDetailsView {
                     activeStartDate = (comps.year ?? 2026) * 10000 + (comps.month ?? 1) * 100 + (comps.day ?? 1)
                 }
 
+                if useActiveWindow && frequency != .once {
+                    let startComps = Calendar.current.dateComponents([.year, .month, .day], from: windowStartDate)
+                    activeStartDate = (startComps.year ?? 2026) * 10000 + (startComps.month ?? 1) * 100 + (startComps.day ?? 1)
+                    let endComps = Calendar.current.dateComponents([.year, .month, .day], from: windowEndDate)
+                    activeEndDate = (endComps.year ?? 2027) * 10000 + (endComps.month ?? 1) * 100 + (endComps.day ?? 1)
+                }
+
                 Task {
                     await viewModel.addAndAttachSchedule(
                         name: name,
@@ -61,7 +69,8 @@ extension JobDetailsView {
                         freqInterval: freqInterval,
                         activeStartTime: activeStartTime,
                         freqRecurrenceFactor: freqRecurrenceFactor,
-                        activeStartDate: activeStartDate
+                        activeStartDate: activeStartDate,
+                        activeEndDate: activeEndDate
                     )
                     showAddScheduleSheet = false
                 }

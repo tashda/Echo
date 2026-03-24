@@ -87,11 +87,26 @@ struct ScheduleEntry: Identifiable {
     var monthDay: Int = 1
     var weekdays: Set<Weekday> = [.monday]
     var oneTimeDate: Date = Date()
+    var useActiveWindow: Bool = false
+    var activeStartDate: Date = Date()
+    var activeEndDate: Date = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
 
     var startTimeInt: Int { startHour * 10000 + startMinute * 100 }
 
     var weekdayBitmask: Int {
         weekdays.reduce(0) { $0 | $1.bitmask }
+    }
+
+    var activeStartDateInt: Int? {
+        guard useActiveWindow else { return nil }
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: activeStartDate)
+        return (comps.year ?? 2026) * 10000 + (comps.month ?? 1) * 100 + (comps.day ?? 1)
+    }
+
+    var activeEndDateInt: Int? {
+        guard useActiveWindow else { return nil }
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: activeEndDate)
+        return (comps.year ?? 2027) * 10000 + (comps.month ?? 1) * 100 + (comps.day ?? 1)
     }
 }
 

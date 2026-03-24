@@ -291,10 +291,18 @@ extension ObjectBrowserSidebarView {
             // Phase 6 — Generate Scripts
             .sheet(isPresented: $viewModel.showGenerateScriptsWizard) {
                 if let connID = viewModel.generateScriptsConnectionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    GenerateScriptsWizardView(
-                        viewModel: GenerateScriptsWizardViewModel(session: session.session)
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.generateScriptsDatabaseName {
+                    let vm = GenerateScriptsWizardViewModel(
+                        session: session.session,
+                        databaseName: dbName
                     )
+                    GenerateScriptsWizardView(viewModel: vm)
+                        .onAppear {
+                            vm.onOpenInQueryTab = { script in
+                                environmentState.openQueryTab(for: session, presetQuery: script, database: dbName)
+                            }
+                        }
                 }
             }
             // Phase 6 — Import Flat File

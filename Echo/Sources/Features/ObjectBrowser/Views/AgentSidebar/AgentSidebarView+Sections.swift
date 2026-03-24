@@ -65,15 +65,7 @@ extension AgentSidebarView {
                 placeholder("No proxies found")
             } else {
                 ForEach(viewModel.proxies) { px in
-                    HStack(spacing: SpacingTokens.xs) {
-                        Image(systemName: px.enabled ? "shield.fill" : "shield")
-                        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                            Text(px.name).lineLimit(1)
-                            if let cred = px.credentialName { Text(cred).font(TypographyTokens.caption2).foregroundStyle(ColorTokens.Text.secondary).lineLimit(1) }
-                        }
-                    }
-                    .padding(.horizontal, SpacingTokens.md)
-                    .padding(.vertical, SpacingTokens.xxs)
+                    proxyRow(px)
                 }
             }
         }
@@ -115,6 +107,24 @@ extension AgentSidebarView {
             .buttonStyle(.plain)
             if isExpanded.wrappedValue {
                 content()
+            }
+        }
+    }
+
+    @ViewBuilder
+    func proxyRow(_ px: AgentSidebarViewModel.AgentProxy) -> some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Image(systemName: px.enabled ? "shield.fill" : "shield")
+            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+                Text(px.name).lineLimit(1)
+                if let cred = px.credentialName { Text(cred).font(TypographyTokens.caption2).foregroundStyle(ColorTokens.Text.secondary).lineLimit(1) }
+            }
+        }
+        .padding(.horizontal, SpacingTokens.md)
+        .padding(.vertical, SpacingTokens.xxs)
+        .contextMenu {
+            Button("Properties") {
+                selectedProxy = px
             }
         }
     }

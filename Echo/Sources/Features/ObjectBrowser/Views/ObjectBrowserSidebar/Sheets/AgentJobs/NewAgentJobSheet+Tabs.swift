@@ -104,6 +104,10 @@ extension NewAgentJobSheet {
 
                     scheduleFrequencyOptions(index: index)
 
+                    if schedules[index].mode != .once {
+                        activeWindowSection(index: index)
+                    }
+
                     scheduleSummary(for: schedules[index])
 
                     Button("Remove Schedule", role: .destructive) {
@@ -173,6 +177,15 @@ extension NewAgentJobSheet {
                 .toggleStyle(.button)
                 .controlSize(.small)
             }
+        }
+    }
+
+    @ViewBuilder
+    func activeWindowSection(index: Int) -> some View {
+        Toggle("Limit active window", isOn: $schedules[index].useActiveWindow)
+        if schedules[index].useActiveWindow {
+            DatePicker("Active start date", selection: $schedules[index].activeStartDate, displayedComponents: .date)
+            DatePicker("Active end date", selection: $schedules[index].activeEndDate, displayedComponents: .date)
         }
     }
 

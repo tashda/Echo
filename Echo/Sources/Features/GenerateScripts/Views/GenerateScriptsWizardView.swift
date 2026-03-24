@@ -1,182 +1,128 @@
 import SwiftUI
 import SQLServerKit
 
+/// Multi-step wizard sheet for bulk scripting database objects.
 struct GenerateScriptsWizardView: View {
     @Bindable var viewModel: GenerateScriptsWizardViewModel
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            header
-            
-            Divider()
-            
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            
+
             Divider()
-            
+
             footer
         }
-        .frame(width: 600, height: 500)
+        .frame(width: 600, height: 520)
+        .navigationTitle("Generate Scripts")
         .onAppear {
             viewModel.loadObjects()
         }
     }
-    
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Generate Scripts")
-                    .font(TypographyTokens.title)
-                Text(stepDescription)
-                    .font(TypographyTokens.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Image(systemName: "script.badge.plus")
-                .font(.system(size: 32))
-                .foregroundStyle(Color.accentColor)
-        }
-        .padding(SpacingTokens.lg)
-    }
-    
+
+    // MARK: - Content
+
     @ViewBuilder
     private var content: some View {
-        if viewModel.isScripting {
-            VStack(spacing: SpacingTokens.md) {
-                ProgressView(value: viewModel.progress)
-                    .progressViewStyle(.linear)
-                Text(viewModel.statusMessage)
-                    .font(TypographyTokens.detail)
-            }
-            .padding(SpacingTokens.xl)
+        if viewModel.isGenerating {
+            generatingOverlay
+        } else if viewModel.generationSucceeded {
+            successOverlay
         } else {
             switch viewModel.currentStep {
             case .selectObjects:
-                selectObjectsStep
+                GenerateScriptsSelectObjectsStep(viewModel: viewModel)
             case .setOptions:
-                setOptionsStep
-            case .outputDestination:
-                outputDestinationStep
-            case .summary:
-                summaryStep
+                GenerateScriptsOptionsStep(viewModel: viewModel)
+            case .output:
+                GenerateScriptsOutputStep(viewModel: viewModel)
             }
         }
     }
-    
-    private var selectObjectsStep: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-            Text("Select the objects you want to script:")
-                .padding(.horizontal, SpacingTokens.lg)
-            
-            if viewModel.isLoadingObjects {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(viewModel.objects, id: \.self, selection: $viewModel.selectedObjectIDs) { obj in
-                    HStack {
-                        Image(systemName: iconForType(obj.type))
-                            .foregroundStyle(.secondary)
-                        Text(obj.qualifiedName)
-                        Spacer()
-                        Text(obj.type)
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .listStyle(.bordered)
-            }
+
+    // MARK: - Generating Overlay
+
+    private var generatingOverlay: some View {
+        VStack(spacing: SpacingTokens.md) {
+            ProgressView(value: viewModel.progress)
+                .progressViewStyle(.linear)
+            Text(viewModel.statusMessage)
+                .font(TypographyTokens.detail)
+                .foregroundStyle(.secondary)
         }
+        .padding(SpacingTokens.xl)
     }
-    
-    private var setOptionsStep: some View {
-        Form {
-            Section("General Scripting Options") {
-                Toggle("Include Dependencies", isOn: $viewModel.includeDependencies)
-                Toggle("Check for existence (IF EXISTS)", isOn: $viewModel.checkForExistence)
-                Toggle("Script DROP and CREATE", isOn: $viewModel.scriptDropAndCreate)
-            }
-            
-            Section("Data Options") {
-                Toggle("Script Data (INSERT statements)", isOn: $viewModel.scriptData)
-            }
-        }
-        .formStyle(.grouped)
-    }
-    
-    private var outputDestinationStep: some View {
-        Form {
-            Section("Output Destination") {
-                Picker("Destination", selection: $viewModel.destination) {
-                    ForEach(GenerateScriptsWizardViewModel.Destination.allCases) { dest in
-                        Text(dest.rawValue).tag(dest)
-                    }
-                }
-                .pickerStyle(.radioGroup)
-            }
-        }
-        .formStyle(.grouped)
-    }
-    
-    private var summaryStep: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.md) {
-            Label("Script generation successful", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+
+    // MARK: - Success Overlay
+
+    private var successOverlay: some View {
+        VStack(spacing: SpacingTokens.md) {
+            Label("Script generated successfully", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(ColorTokens.Status.success)
                 .font(TypographyTokens.headline)
-            
+
+            if let error = viewModel.generationError {
+                Text(error)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Status.error)
+            }
+
             ScrollView {
-                Text(viewModel.resultScript)
+                Text(viewModel.generatedScript.prefix(5000))
                     .font(.system(.body, design: .monospaced))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(SpacingTokens.sm)
+                    .textSelection(.enabled)
             }
-            .background(Color.black.opacity(0.05))
-            .cornerRadius(4)
+            .background(ColorTokens.Background.secondary.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .padding(SpacingTokens.lg)
     }
-    
+
+    // MARK: - Footer
+
     private var footer: some View {
-        HStack {
-            Button("Cancel") { dismiss() }
-                .buttonStyle(.plain)
-            
+        HStack(spacing: SpacingTokens.sm) {
+            if viewModel.generationSucceeded && viewModel.outputDestination == .file {
+                Button("Save to File") {
+                    viewModel.saveToFile()
+                }
+                .buttonStyle(.bordered)
+            }
+
             Spacer()
-            
-            if viewModel.currentStep.rawValue > 1 && viewModel.currentStep != .summary {
-                Button("Previous") { viewModel.prevStep() }
+
+            Button("Cancel") { dismiss() }
+                .keyboardShortcut(.cancelAction)
+
+            if !viewModel.generationSucceeded && !viewModel.isGenerating {
+                if viewModel.currentStep.rawValue > 1 {
+                    Button("Back") { viewModel.previousStep() }
+                }
+
+                if viewModel.currentStep == .output {
+                    Button("Generate") { viewModel.generate() }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Next") { viewModel.nextStep() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!viewModel.canGoNext)
+                        .keyboardShortcut(.defaultAction)
+                }
             }
-            
-            if viewModel.currentStep == .outputDestination {
-                Button("Generate") { viewModel.generate() }
+
+            if viewModel.generationSucceeded {
+                Button("Done") { dismiss() }
                     .buttonStyle(.borderedProminent)
-            } else if viewModel.currentStep == .summary {
-                Button("Finish") { dismiss() }
-                    .buttonStyle(.borderedProminent)
-            } else {
-                Button("Next") { viewModel.nextStep() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.selectedObjectIDs.isEmpty)
+                    .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(SpacingTokens.lg)
-    }
-    
-    private var stepDescription: String {
-        switch viewModel.currentStep {
-        case .selectObjects: return "Step 1: Choose database objects"
-        case .setOptions: return "Step 2: Configure scripting options"
-        case .outputDestination: return "Step 3: Select output method"
-        case .summary: return "Generation Summary"
-        }
-    }
-    
-    private func iconForType(_ type: String) -> String {
-        switch type {
-        case "U": return "tablecells"
-        case "V": return "view.2d"
-        case "P": return "gearshape.fill"
-        default: return "cube"
-        }
+        .padding(.horizontal, SpacingTokens.md2)
+        .padding(.vertical, SpacingTokens.sm2)
+        .background(.bar)
     }
 }

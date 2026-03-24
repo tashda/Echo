@@ -279,11 +279,7 @@ extension QueryResultsSection {
     }
 
     var spatialView: some View {
-        ContentUnavailableView {
-            Label("Spatial Results", systemImage: "map")
-        } description: {
-            Text("Spatial data visualization is coming soon.")
-        }
+        SpatialResultsView(query: query)
     }
 
     var tuningView: some View {

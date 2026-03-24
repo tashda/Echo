@@ -106,10 +106,18 @@ struct DatabaseObjectRow: View, Equatable {
             }
         }
         .sheet(isPresented: $showGenerateScriptsWizard) {
-            if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
-                GenerateScriptsWizardView(
-                    viewModel: GenerateScriptsWizardViewModel(session: session.session)
+            if let session = environmentState.sessionGroup.sessionForConnection(connection.id),
+               let dbName = databaseName {
+                let vm = GenerateScriptsWizardViewModel(
+                    session: session.session,
+                    databaseName: dbName
                 )
+                GenerateScriptsWizardView(viewModel: vm)
+                    .onAppear {
+                        vm.onOpenInQueryTab = { script in
+                            environmentState.openQueryTab(for: session, presetQuery: script, database: dbName)
+                        }
+                    }
             }
         }
     }

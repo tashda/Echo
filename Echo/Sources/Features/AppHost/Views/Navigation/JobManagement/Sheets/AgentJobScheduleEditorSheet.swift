@@ -13,16 +13,19 @@ struct AgentJobScheduleEditorSheet: View {
     @State var monthDay: Int = 1
     @State var startDate: Date = Date()
     @State var oneTimeDate: Date = Date()
+    @State var useActiveWindow: Bool = false
+    @State var activeStartDate: Date = Date()
+    @State var activeEndDate: Date = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
 
     let title: String
     let actionLabel: String
-    let onSave: (String, Bool, ScheduleFrequency, Int, Int, Int, Set<Int>, Int, Date, Date) -> Void
+    let onSave: (String, Bool, ScheduleFrequency, Int, Int, Int, Set<Int>, Int, Date, Date, Bool, Date, Date) -> Void
     let onCancel: () -> Void
 
     init(
         title: String = "New Schedule",
         actionLabel: String = "Create Schedule",
-        onSave: @escaping (String, Bool, ScheduleFrequency, Int, Int, Int, Set<Int>, Int, Date, Date) -> Void,
+        onSave: @escaping (String, Bool, ScheduleFrequency, Int, Int, Int, Set<Int>, Int, Date, Date, Bool, Date, Date) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.title = title
@@ -57,6 +60,14 @@ struct AgentJobScheduleEditorSheet: View {
                     Section {
                         DatePicker("Starting from", selection: $startDate, displayedComponents: .date)
                     }
+
+                    Section("Active Window") {
+                        Toggle("Limit active window", isOn: $useActiveWindow)
+                        if useActiveWindow {
+                            DatePicker("Active start date", selection: $activeStartDate, displayedComponents: .date)
+                            DatePicker("Active end date", selection: $activeEndDate, displayedComponents: .date)
+                        }
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -69,7 +80,7 @@ struct AgentJobScheduleEditorSheet: View {
                 Button("Cancel", role: .cancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
                 Button(actionLabel) {
-                    onSave(name, enabled, frequency, interval, startHour, startMinute, weekdays, monthDay, startDate, oneTimeDate)
+                    onSave(name, enabled, frequency, interval, startHour, startMinute, weekdays, monthDay, startDate, oneTimeDate, useActiveWindow, activeStartDate, activeEndDate)
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!isValid)
