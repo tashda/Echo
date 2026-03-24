@@ -3,6 +3,7 @@ import SQLServerKit
 
 struct MSSQLSecurityRolesSection: View {
     @Bindable var viewModel: DatabaseSecurityViewModel
+    var onNewRole: () -> Void = {}
     @Environment(EnvironmentState.self) private var environmentState
 
     @State private var sortOrder = [KeyPathComparator(\RoleInfo.name)]
@@ -83,6 +84,10 @@ struct MSSQLSecurityRolesSection: View {
                     Task { await viewModel.loadCurrentSection() }
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
+                }
+
+                Button { onNewRole() } label: {
+                    Label("New Role\u{2026}", systemImage: "person.badge.plus")
                 }
             }
         } primaryAction: { selection in

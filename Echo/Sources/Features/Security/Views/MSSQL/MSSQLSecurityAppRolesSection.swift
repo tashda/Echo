@@ -3,7 +3,11 @@ import SQLServerKit
 
 struct MSSQLSecurityAppRolesSection: View {
     @Bindable var viewModel: DatabaseSecurityViewModel
+    var onNewAppRole: () -> Void = {}
     @Environment(EnvironmentState.self) private var environmentState
+
+    @State private var showDropAlert = false
+    @State private var pendingDropName: String?
 
     var body: some View {
         Table(viewModel.appRoles, selection: $viewModel.selectedAppRoleName) {
@@ -50,6 +54,16 @@ struct MSSQLSecurityAppRolesSection: View {
                         Label("DROP", systemImage: "minus.square")
                     }
                 }
+
+                Divider()
+
+                // Group 9: Destructive
+                Button(role: .destructive) {
+                    pendingDropName = name
+                    showDropAlert = true
+                } label: {
+                    Label("Drop Application Role", systemImage: "trash")
+                }
             } else {
                 // Empty-space menu
                 Button {
@@ -57,8 +71,22 @@ struct MSSQLSecurityAppRolesSection: View {
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
+
+                Button { onNewAppRole() } label: {
+                    Label("New Application Role\u{2026}", systemImage: "person.badge.plus")
+                }
             }
         } primaryAction: { _ in }
+        .alert("Drop Application Role?", isPresented: $showDropAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Drop", role: .destructive) {
+                if let name = pendingDropName {
+                    Task { await viewModel.dropAppRole(name) }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to drop the application role \(pendingDropName ?? "")? This action cannot be undone.")
+        }
     }
 
     private func scriptCreate(name: String) {

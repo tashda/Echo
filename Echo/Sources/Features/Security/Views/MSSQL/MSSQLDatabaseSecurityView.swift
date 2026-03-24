@@ -6,6 +6,9 @@ struct MSSQLDatabaseSecurityView: View {
     @Environment(TabStore.self) private var tabStore
     @Environment(EnvironmentState.self) private var environmentState
 
+    @State private var showNewRoleSheet = false
+    @State private var showNewSchemaSheet = false
+    @State private var showNewAppRoleSheet = false
     @State private var showNewMaskSheet = false
     @State private var showNewAuditSpecSheet = false
     @State private var showNewCMKSheet = false
@@ -38,6 +41,24 @@ struct MSSQLDatabaseSecurityView: View {
             if let tab = tabStore.activeTab, tab.databaseSecurity != nil {
                 tab.title = "Database Security (\(newDB))"
                 tab.activeDatabaseName = newDB
+            }
+        }
+        .sheet(isPresented: $showNewRoleSheet) {
+            NewDatabaseRoleSheet(viewModel: viewModel) {
+                showNewRoleSheet = false
+                Task { await viewModel.loadCurrentSection() }
+            }
+        }
+        .sheet(isPresented: $showNewSchemaSheet) {
+            NewSchemaSheet(viewModel: viewModel) {
+                showNewSchemaSheet = false
+                Task { await viewModel.loadCurrentSection() }
+            }
+        }
+        .sheet(isPresented: $showNewAppRoleSheet) {
+            NewAppRoleSheet(viewModel: viewModel) {
+                showNewAppRoleSheet = false
+                Task { await viewModel.loadCurrentSection() }
             }
         }
         .sheet(isPresented: $showNewMaskSheet) {
@@ -116,11 +137,20 @@ struct MSSQLDatabaseSecurityView: View {
             case .users:
                 MSSQLSecurityUsersSection(viewModel: viewModel)
             case .roles:
-                MSSQLSecurityRolesSection(viewModel: viewModel)
+                MSSQLSecurityRolesSection(
+                    viewModel: viewModel,
+                    onNewRole: { showNewRoleSheet = true }
+                )
             case .appRoles:
-                MSSQLSecurityAppRolesSection(viewModel: viewModel)
+                MSSQLSecurityAppRolesSection(
+                    viewModel: viewModel,
+                    onNewAppRole: { showNewAppRoleSheet = true }
+                )
             case .schemas:
-                MSSQLSecuritySchemasSection(viewModel: viewModel)
+                MSSQLSecuritySchemasSection(
+                    viewModel: viewModel,
+                    onNewSchema: { showNewSchemaSheet = true }
+                )
             case .masking:
                 MSSQLSecurityMaskingSection(
                     viewModel: viewModel,

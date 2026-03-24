@@ -214,4 +214,65 @@ final class DatabaseSecurityViewModel {
             panelState?.appendMessage("Failed to drop schema '\(name)': \(error.localizedDescription)", severity: .error)
         }
     }
+
+    func createRole(name: String, owner: String?) async {
+        guard let mssql = session as? MSSQLSession else { return }
+        let handle = activityEngine?.begin("Creating role \(name)", connectionSessionID: connectionSessionID)
+        do {
+            _ = try? await session.sessionForDatabase(selectedDatabase ?? "")
+            let options = RoleOptions(owner: owner)
+            try await mssql.security.createRole(name: name, options: options)
+            handle?.succeed()
+            panelState?.appendMessage("Created role '\(name)'")
+            await loadRoles(mssql: mssql)
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to create role '\(name)': \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func createSchema(name: String, authorization: String?) async {
+        guard let mssql = session as? MSSQLSession else { return }
+        let handle = activityEngine?.begin("Creating schema \(name)", connectionSessionID: connectionSessionID)
+        do {
+            _ = try? await session.sessionForDatabase(selectedDatabase ?? "")
+            try await mssql.security.createSchema(name: name, authorization: authorization)
+            handle?.succeed()
+            panelState?.appendMessage("Created schema '\(name)'")
+            await loadSchemas(mssql: mssql)
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to create schema '\(name)': \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func createAppRole(name: String, password: String, defaultSchema: String?) async {
+        guard let mssql = session as? MSSQLSession else { return }
+        let handle = activityEngine?.begin("Creating application role \(name)", connectionSessionID: connectionSessionID)
+        do {
+            _ = try? await session.sessionForDatabase(selectedDatabase ?? "")
+            try await mssql.security.createApplicationRole(name: name, password: password, defaultSchema: defaultSchema)
+            handle?.succeed()
+            panelState?.appendMessage("Created application role '\(name)'")
+            await loadAppRoles(mssql: mssql)
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to create application role '\(name)': \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func dropAppRole(_ name: String) async {
+        guard let mssql = session as? MSSQLSession else { return }
+        let handle = activityEngine?.begin("Dropping application role \(name)", connectionSessionID: connectionSessionID)
+        do {
+            _ = try? await session.sessionForDatabase(selectedDatabase ?? "")
+            try await mssql.security.dropApplicationRole(name: name)
+            handle?.succeed()
+            panelState?.appendMessage("Dropped application role '\(name)'")
+            await loadAppRoles(mssql: mssql)
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to drop application role '\(name)': \(error.localizedDescription)", severity: .error)
+        }
+    }
 }

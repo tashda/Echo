@@ -3,6 +3,7 @@ import SQLServerKit
 
 struct MSSQLSecuritySchemasSection: View {
     @Bindable var viewModel: DatabaseSecurityViewModel
+    var onNewSchema: () -> Void = {}
     @Environment(EnvironmentState.self) private var environmentState
 
     @State private var showDropAlert = false
@@ -63,6 +64,10 @@ struct MSSQLSecuritySchemasSection: View {
                     Task { await viewModel.loadCurrentSection() }
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
+                }
+
+                Button { onNewSchema() } label: {
+                    Label("New Schema\u{2026}", systemImage: "folder.badge.plus")
                 }
             }
         } primaryAction: { _ in }
