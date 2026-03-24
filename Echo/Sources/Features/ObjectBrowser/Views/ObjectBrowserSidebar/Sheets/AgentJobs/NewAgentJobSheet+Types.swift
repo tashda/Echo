@@ -3,14 +3,36 @@ import SQLServerKit
 
 // MARK: - Supporting Types
 
-enum SubsystemChoice: String, CaseIterable {
-    case tsql, cmdExec, powershell
+enum SubsystemChoice: String, CaseIterable, Identifiable {
+    case tsql = "T-SQL"
+    case cmdExec = "CmdExec"
+    case powershell = "PowerShell"
+    case ssis = "SSIS Package"
+    case snapshot = "Snapshot Agent"
+    case logReader = "Log Reader Agent"
+    case distribution = "Distribution Agent"
+    case merge = "Merge Agent"
+    case queueReader = "Queue Reader Agent"
+    case analysisCommand = "Analysis Services Command"
+    case analysisQuery = "Analysis Services Query"
+    case activeScripting = "ActiveScripting"
+
+    var id: String { rawValue }
 
     var builderSubsystem: SQLServerAgentJobStep.Subsystem {
         switch self {
         case .tsql: return .tsql
         case .cmdExec: return .cmdExec
         case .powershell: return .powershell
+        case .ssis: return .ssis
+        case .snapshot: return .snapshot
+        case .logReader: return .logReader
+        case .distribution: return .distribution
+        case .merge: return .merge
+        case .queueReader: return .queueReader
+        case .analysisCommand: return .analysisCommand
+        case .analysisQuery: return .analysisQuery
+        case .activeScripting: return .activeScripting
         }
     }
 }
