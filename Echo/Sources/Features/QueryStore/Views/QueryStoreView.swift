@@ -110,6 +110,17 @@ struct QueryStoreView: View {
                 Divider()
                 QueryStorePlanDetailSection(viewModel: viewModel)
                     .frame(maxHeight: 220)
+
+                if !viewModel.waitStats.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Wait Statistics")
+                            .font(TypographyTokens.headline)
+                            .padding(SpacingTokens.sm)
+                        QueryStoreWaitStatsSection(waitStats: viewModel.waitStats)
+                    }
+                    .frame(maxHeight: 180)
+                }
             }
         }
     }

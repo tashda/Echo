@@ -29,6 +29,7 @@ final class QueryStoreViewModel {
     var selectedQueryId: Int?
     var queryPlans: [SQLServerQueryStorePlan] = []
     var plansLoadingState: LoadingState = .idle
+    var waitStats: [SQLServerQueryStoreClient.SQLServerQueryStoreWaitStat] = []
     var orderBy: SQLServerQueryStoreTopQueryOrder = .totalDuration
     var forcingPlanId: Int?
 
@@ -119,10 +120,17 @@ final class QueryStoreViewModel {
     func selectQuery(_ queryId: Int) async {
         selectedQueryId = queryId
         plansLoadingState = .loading
+        waitStats = []
         do {
             queryPlans = try await queryStoreClient.queryPlans(
                 database: databaseName, queryId: queryId
             )
+            // Load wait stats for the first plan
+            if let firstPlan = queryPlans.first {
+                waitStats = try await queryStoreClient.waitStats(
+                    database: databaseName, planId: firstPlan.planId
+                )
+            }
             plansLoadingState = .loaded
         } catch {
             plansLoadingState = .error(error.localizedDescription)
