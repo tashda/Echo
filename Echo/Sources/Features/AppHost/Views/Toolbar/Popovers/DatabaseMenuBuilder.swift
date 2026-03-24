@@ -18,7 +18,7 @@ enum DatabaseMenuBuilder {
         }
 
         let databases = session.databaseStructure?.databases ?? []
-        let selectedName = session.selectedDatabaseName
+        let selectedName = session.sidebarFocusedDatabase
 
         if databases.isEmpty {
             let loadingItem = NSMenuItem(title: "Loading databases", action: nil, keyEquivalent: "")

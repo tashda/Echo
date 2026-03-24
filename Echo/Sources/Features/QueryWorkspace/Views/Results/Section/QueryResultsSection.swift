@@ -40,6 +40,9 @@ struct QueryResultsSection: View {
         case .executionPlan: return .executionPlan
         case .jsonInspector: return .jsonInspector
         case .liveData: return .results
+        case .spatial: return .spatial
+        case .tuning: return .tuning
+        case .policyManagement: return .policyManagement
         }
     }
 
@@ -49,6 +52,9 @@ struct QueryResultsSection: View {
 #if os(macOS)
         case jsonInspector
         case executionPlan
+        case spatial
+        case tuning
+        case policyManagement
 #endif
     }
 

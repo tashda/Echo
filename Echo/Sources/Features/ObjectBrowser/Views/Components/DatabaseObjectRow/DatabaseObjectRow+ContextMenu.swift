@@ -283,6 +283,18 @@ extension DatabaseObjectRow {
     private func computeMaintenanceItems() -> [ContextMenuActionItem] {
         var items: [ContextMenuActionItem] = []
 
+        if connection.databaseType == .microsoftSQL {
+            items.append(
+                ContextMenuActionItem(
+                    id: "generateScripts",
+                    title: "Generate Scripts...",
+                    systemImage: "script.badge.plus",
+                    role: nil,
+                    action: { showGenerateScriptsWizard = true }
+                )
+            )
+        }
+
         if supportsBulkImport {
             items.append(
                 ContextMenuActionItem(
@@ -295,7 +307,45 @@ extension DatabaseObjectRow {
             )
         }
 
+        // Temporal table actions
+        if object.type == .table && connection.databaseType == .microsoftSQL {
+            if object.isSystemVersioned == true {
+                items.append(
+                    ContextMenuActionItem(
+                        id: "queryHistory",
+                        title: "Query History...",
+                        systemImage: "clock.arrow.circlepath",
+                        role: nil,
+                        action: { openTemporalHistoryQuery() }
+                    )
+                )
+            }
+            if object.isSystemVersioned != true && object.isHistoryTable != true {
+                items.append(
+                    ContextMenuActionItem(
+                        id: "enableVersioning",
+                        title: "Enable System Versioning...",
+                        systemImage: "clock.badge.checkmark",
+                        role: nil,
+                        action: {
+                            viewModel.enableVersioningConnectionID = connection.id
+                            viewModel.enableVersioningDatabaseName = databaseName
+                            viewModel.enableVersioningSchemaName = object.schema
+                            viewModel.enableVersioningTableName = object.name
+                            viewModel.showEnableVersioningSheet = true
+                        }
+                    )
+                )
+            }
+        }
+
         return items
+    }
+
+    private func openTemporalHistoryQuery() {
+        let qualified = "[\(object.schema)].[\(object.name)]"
+        let sql = "SELECT * FROM \(qualified) FOR SYSTEM_TIME ALL ORDER BY ValidFrom DESC;"
+        environmentState.openQueryTab(presetQuery: sql)
     }
 
     /// Group 9: Properties

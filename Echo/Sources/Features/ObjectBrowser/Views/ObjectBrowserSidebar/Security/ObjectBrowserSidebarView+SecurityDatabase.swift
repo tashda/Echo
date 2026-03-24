@@ -13,41 +13,41 @@ extension ObjectBrowserSidebarView {
         let isExpanded = viewModel.dbSecurityExpandedByDB[dbKey] ?? false
         let expandedBinding = Binding<Bool>(
             get: { isExpanded },
-            set: { _ in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.dbSecurityExpandedByDB[dbKey] = !isExpanded
+            set: { newValue in
+                withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
+                    viewModel.dbSecurityExpandedByDB[dbKey] = newValue
                 }
-                if !isExpanded {
+                if newValue {
                     loadDatabaseSecurityIfNeeded(database: database, session: session)
                 }
             }
         )
 
-        VStack(alignment: .leading, spacing: 0) {
+        Button {
+            expandedBinding.wrappedValue.toggle()
+        } label: {
+            SidebarRow(
+                depth: SecuritySidebarDepth.serverNestedSection,
+                icon: .system("shield"),
+                label: "Security",
+                isExpanded: expandedBinding,
+                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Security", colored: projectStore.globalSettings.sidebarIconColorMode == .colorful)
+            )
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contextMenu {
             Button {
-                expandedBinding.wrappedValue.toggle()
+                let dbName = databaseNameFromKey(dbKey)
+                environmentState.openDatabaseSecurityTab(connectionID: session.connection.id, databaseName: dbName)
             } label: {
-                SidebarRow(
-                    depth: SecuritySidebarDepth.serverNestedSection,
-                    icon: .system("shield"),
-                    label: "Security",
-                    isExpanded: expandedBinding,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(title: "Security", colored: projectStore.globalSettings.sidebarIconColorMode == .colorful)
-                )
+                Label("Open Security Management", systemImage: "lock.shield")
             }
-            .buttonStyle(.plain)
-            .contextMenu {
-                Button {
-                    let dbName = databaseNameFromKey(dbKey)
-                    environmentState.openDatabaseSecurityTab(connectionID: session.connection.id, databaseName: dbName)
-                } label: {
-                    Label("Open Security Management", systemImage: "lock.shield")
-                }
-            }
+        }
 
-            if isExpanded {
-                databaseSecurityContent(database: database, session: session, dbKey: dbKey)
-            }
+        if isExpanded {
+            databaseSecurityContent(database: database, session: session, dbKey: dbKey)
+                .transition(.opacity)
         }
     }
 
@@ -74,33 +74,31 @@ extension ObjectBrowserSidebarView {
         let isExpanded = viewModel.dbSecurityUsersExpandedByDB[dbKey] ?? false
         let dbName = databaseNameFromKey(dbKey)
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.databaseSection,
-                title: "Users",
-                icon: "person",
-                count: users.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.dbSecurityUsersExpandedByDB[dbKey] = !isExpanded
-                }
-            }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.databaseSection,
+            title: "Users",
+            icon: "person",
+            count: users.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.dbSecurityUsersExpandedByDB[dbKey] = newValue }
+            )
+        )
 
-            if isExpanded {
-                if users.isEmpty {
-                    SidebarRow(
-                        depth: SecuritySidebarDepth.databaseLeaf,
-                        icon: .none,
-                        label: "No users found",
-                        labelColor: ColorTokens.Text.tertiary,
-                        labelFont: TypographyTokens.detail
-                    )
-                } else {
-                    ForEach(users) { user in
-                        dbUserRow(user: user, session: session, databaseName: dbName)
-                    }
+        if isExpanded {
+            if users.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.databaseLeaf,
+                    icon: .none,
+                    label: "No users found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
+                ForEach(users) { user in
+                    dbUserRow(user: user, session: session, databaseName: dbName)
                 }
+                .transition(.opacity)
             }
         }
     }

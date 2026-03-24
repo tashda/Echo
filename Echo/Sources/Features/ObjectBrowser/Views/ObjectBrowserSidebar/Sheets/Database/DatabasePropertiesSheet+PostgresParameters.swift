@@ -106,7 +106,7 @@ extension DatabasePropertiesSheet {
 
     @ViewBuilder
     func pgInfoPopover(text: String) -> some View {
-        InfoPopoverButton(text: text)
+        PgSettingInfoButton(text: text)
     }
 
     // MARK: - Value Editors
@@ -248,16 +248,12 @@ extension DatabasePropertiesSheet {
     }
 }
 
-// MARK: - Info Popover Button
-
-private struct InfoPopoverButton: View {
+private struct PgSettingInfoButton: View {
     let text: String
     @State private var isShowing = false
 
     var body: some View {
-        Button {
-            isShowing.toggle()
-        } label: {
+        Button { isShowing.toggle() } label: {
             Image(systemName: "info.circle")
                 .font(TypographyTokens.detail)
                 .foregroundStyle(ColorTokens.Text.tertiary)

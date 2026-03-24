@@ -15,7 +15,7 @@ extension ObjectBrowserSidebarView {
     }
 
     func selectedDatabase(in structure: DatabaseStructure, for session: ConnectionSession) -> DatabaseInfo? {
-        if let selectedName = session.selectedDatabaseName,
+        if let selectedName = session.sidebarFocusedDatabase,
            let match = structure.databases.first(where: { $0.name == selectedName }) {
             return match
         }

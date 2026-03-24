@@ -68,28 +68,14 @@ struct SearchSidebarResult: Identifiable, Hashable {
     let payload: Payload?
 }
 
-struct SearchSidebarCache: Equatable {
+/// Cache for the global search sidebar state.
+struct GlobalSearchSidebarCache: Equatable {
     var query: String = ""
     var selectedCategories: Set<SearchSidebarCategory> = Set(SearchSidebarCategory.allCases.filter { $0.defaultSelected })
-    var results: [SearchSidebarResult] = []
+    var scope: SearchScope = .allServers
+    var results: [GlobalSearchResult] = []
     var errorMessage: String?
     var isSearching: Bool = false
-}
-
-struct SearchSidebarContextKey: Hashable {
-    let connectionID: UUID
-    private let normalizedDatabaseName: String?
-
-    init(connectionID: UUID, databaseName: String?) {
-        self.connectionID = connectionID
-        if let trimmed = databaseName?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty {
-            normalizedDatabaseName = trimmed
-        } else {
-            normalizedDatabaseName = nil
-        }
-    }
-
-    var databaseName: String? { normalizedDatabaseName }
 }
 
 struct SearchSidebarQueryTabSnapshot: Equatable {

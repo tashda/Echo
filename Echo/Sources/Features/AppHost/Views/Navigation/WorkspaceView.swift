@@ -9,11 +9,21 @@ import AppKit
 /// This prevents SwiftUI from re-creating ToolbarItem structs, which
 /// was causing NSToolbar to re-layout and shift the action button group.
 struct WorkspaceView: View {
+    @Environment(TabStore.self) private var tabStore
+
     var body: some View {
         WorkspaceBody()
             .toolbar(id: "workspace") {
                 WorkspaceToolbarItems()
             }
+            .searchable(text: universalSearchText, placement: .toolbar, prompt: "Search")
+    }
+
+    private var universalSearchText: Binding<String> {
+        if let vm = tabStore.activeTab?.errorLogVM {
+            return Bindable(vm).searchText
+        }
+        return .constant("")
     }
 }
 
@@ -69,7 +79,7 @@ private struct WorkspaceBody: View {
                 }
         }
         .navigationSplitViewStyle(.balanced)
-        .navigationTitle("")
+        .navigationTitle("Echo")
         .background(WorkspaceWindowConfigurator(tabBarStyle: tabBarStyle))
         .sheet(isPresented: Binding(get: { appState.activeSheet == .connectionEditor }, set: { if !$0 { appState.dismissSheet() } })) {
             connectionEditorSheet
@@ -204,3 +214,4 @@ private struct WorkspaceBody: View {
         .environment(appState)
     }
 }
+

@@ -5,19 +5,7 @@ struct LoginEditorUserMappingPage: View {
     let session: ConnectionSession
 
     var body: some View {
-        if viewModel.isLoadingMappings {
-            Section {
-                HStack {
-                    ProgressView().controlSize(.small)
-                    Text("Loading database mappings\u{2026}")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
-        } else {
-            mappingTableSection
-            roleMembershipSection
-        }
+        mappingTableSection
     }
 
     // MARK: - Mapping Table
@@ -62,67 +50,76 @@ struct LoginEditorUserMappingPage: View {
         }
     }
 
-    // MARK: - Role Membership
-
-    @ViewBuilder
-    private var roleMembershipSection: some View {
-        if let selectedDB = viewModel.selectedMappingDatabase,
-           let entry = viewModel.mappingEntries.first(where: { $0.databaseName == selectedDB }),
-           entry.isMapped {
-            Section("Database role membership for: \(selectedDB)") {
-                if viewModel.isLoadingDBRoles {
-                    HStack {
-                        ProgressView().controlSize(.small)
-                        Text("Loading roles\u{2026}")
-                            .font(TypographyTokens.formDescription)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                } else if viewModel.databaseRoleMemberships.isEmpty {
-                    Text("No fixed database roles available.")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                } else {
-                    ForEach($viewModel.databaseRoleMemberships) { $role in
-                        PropertyRow(title: role.roleName) {
-                            Toggle("", isOn: $role.isMember)
-                                .labelsHidden()
-                                .toggleStyle(.switch)
-                                .onChange(of: role.isMember) { _, newValue in
-                                    Task {
-                                        await viewModel.toggleDatabaseRole(
-                                            database: selectedDB,
-                                            role: role.roleName,
-                                            isMember: newValue,
-                                            session: session
-                                        )
-                                    }
-                                }
-                        }
-                    }
-                }
-            }
-        } else if viewModel.selectedMappingDatabase != nil {
-            Section("Database role membership") {
-                Text("Map the login to this database first to manage role membership.")
-                    .font(TypographyTokens.formDescription)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            }
-        }
-    }
-
     // MARK: - Mapping Toggle Binding
 
     private func mappingToggleBinding(for database: String) -> Binding<Bool> {
         Binding(
             get: { viewModel.mappingEntries.first(where: { $0.databaseName == database })?.isMapped ?? false },
             set: { newValue in
-                Task {
-                    if newValue {
-                        await viewModel.mapToDatabase(database: database, session: session)
+                viewModel.toggleMapping(database: database, isMapped: newValue)
+            }
+        )
+    }
+}
+
+// MARK: - Role Membership Inspector Content
+
+struct LoginEditorUserMappingInspector: View {
+    @Bindable var viewModel: LoginEditorViewModel
+    let session: ConnectionSession
+
+    var body: some View {
+        if let selectedDB = viewModel.selectedMappingDatabase,
+           let entry = viewModel.mappingEntries.first(where: { $0.databaseName == selectedDB }),
+           entry.isMapped {
+            Form {
+                Section("Database roles for \(selectedDB)") {
+                    if viewModel.isLoadingDBRoles {
+                        HStack {
+                            ProgressView().controlSize(.small)
+                            Text("Loading roles\u{2026}")
+                                .font(TypographyTokens.formDescription)
+                                .foregroundStyle(ColorTokens.Text.secondary)
+                        }
+                    } else if viewModel.databaseRoleMemberships.isEmpty {
+                        Text("No database roles available.")
+                            .font(TypographyTokens.formDescription)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                     } else {
-                        await viewModel.unmapFromDatabase(database: database, session: session)
+                        ForEach(viewModel.databaseRoleMemberships) { role in
+                            PropertyRow(title: role.roleName) {
+                                Toggle("", isOn: roleToggleBinding(database: selectedDB, roleName: role.roleName))
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
+                            }
+                        }
                     }
                 }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        } else if viewModel.selectedMappingDatabase != nil {
+            ContentUnavailableView(
+                "Not Mapped",
+                systemImage: "person.crop.circle.badge.xmark",
+                description: Text("Map this login to the selected database to manage role membership.")
+            )
+        } else {
+            ContentUnavailableView(
+                "Select a Database",
+                systemImage: "externaldrive",
+                description: Text("Select a database from the mapping table to view role membership.")
+            )
+        }
+    }
+
+    private func roleToggleBinding(database: String, roleName: String) -> Binding<Bool> {
+        Binding(
+            get: {
+                viewModel.databaseRolesPerDB[database]?.first(where: { $0.roleName == roleName })?.isMember ?? false
+            },
+            set: { newValue in
+                viewModel.toggleDatabaseRoleLocally(database: database, roleName: roleName, isMember: newValue)
             }
         )
     }

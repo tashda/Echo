@@ -44,9 +44,14 @@ extension ObjectBrowserSidebarView {
         }
     }
 
-    func createMSSQLServerRole(session: ConnectionSession) async {
-        // Open a script tab with a CREATE SERVER ROLE template
-        openScriptTab(sql: "CREATE SERVER ROLE [NewServerRole];", session: session)
+    func createMSSQLServerRole(session: ConnectionSession) {
+        viewModel.newSecuritySheetSessionID = session.id
+        viewModel.showNewServerRoleSheet = true
+    }
+
+    func createMSSQLCredential(session: ConnectionSession) {
+        viewModel.newSecuritySheetSessionID = session.id
+        viewModel.showNewCredentialSheet = true
     }
 
     func dropMSSQLServerRole(name: String, session: ConnectionSession) async {

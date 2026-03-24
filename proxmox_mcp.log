@@ -168,3 +168,15 @@
 2026-03-23 10:54:33,966 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
 2026-03-23 10:54:33,966 - mcp.server.lowlevel.server - INFO - Processing request of type ListPromptsRequest
 2026-03-23 10:54:33,967 - mcp.server.lowlevel.server - INFO - Processing request of type ListResourcesRequest
+2026-03-24 07:26:32,490 - proxmox-mcp.proxmox - INFO - Connecting to Proxmox host: 192.168.1.150
+2026-03-24 07:26:32,566 - proxmox-mcp.proxmox - INFO - Successfully connected to Proxmox API
+2026-03-24 07:26:32,573 - proxmox-mcp - INFO - Starting MCP server...
+2026-03-24 07:26:32,582 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-03-24 07:26:32,583 - mcp.server.lowlevel.server - INFO - Processing request of type ListPromptsRequest
+2026-03-24 07:26:32,583 - mcp.server.lowlevel.server - INFO - Processing request of type ListResourcesRequest
+2026-03-24 12:47:37,502 - proxmox-mcp.proxmox - INFO - Connecting to Proxmox host: 192.168.1.150
+2026-03-24 12:47:37,566 - proxmox-mcp.proxmox - INFO - Successfully connected to Proxmox API
+2026-03-24 12:47:37,571 - proxmox-mcp - INFO - Starting MCP server...
+2026-03-24 12:47:37,578 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-03-24 12:47:37,578 - mcp.server.lowlevel.server - INFO - Processing request of type ListPromptsRequest
+2026-03-24 12:47:37,579 - mcp.server.lowlevel.server - INFO - Processing request of type ListResourcesRequest

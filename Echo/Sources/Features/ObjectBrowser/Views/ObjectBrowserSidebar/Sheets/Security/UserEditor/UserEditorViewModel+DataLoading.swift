@@ -7,7 +7,10 @@ extension UserEditorViewModel {
 
     func loadGeneralData(session: ConnectionSession) async {
         isLoadingGeneral = true
-        defer { isLoadingGeneral = false }
+        defer {
+            isLoadingGeneral = false
+            takeSnapshot()
+        }
 
         guard let mssql = session.session as? MSSQLSession else { return }
 
@@ -105,6 +108,7 @@ extension UserEditorViewModel {
                     originallyOwned: isOwned
                 )
             }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            takeSnapshot()
         } catch { }
     }
 
@@ -154,6 +158,7 @@ extension UserEditorViewModel {
             }
 
             roleEntries = entries
+            takeSnapshot()
         } catch { }
     }
 

@@ -23,7 +23,7 @@ struct UserEditorWindow: Scene {
                     .environment(coordinator.activityEngine)
             }
         }
-        .defaultSize(width: 760, height: 560)
+        .defaultSize(width: 900, height: 560)
         .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
         .restorationBehavior(.disabled)
@@ -55,11 +55,8 @@ private struct UserEditorWindowContent: View {
             }
             .onAppear {
                 viewModel.activityEngine = activityEngine
-                Task { @MainActor in
-                    guard let window = NSApp.keyWindow else { return }
-                    window.tabbingMode = .disallowed
-                }
             }
+            .background(PropertiesWindowConfigurator())
             .preferredColorScheme(appearanceStore.effectiveColorScheme)
             .accentColor(appearanceStore.accentColor)
             .onChange(of: viewModel.didComplete) { _, completed in

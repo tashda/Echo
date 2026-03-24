@@ -32,6 +32,15 @@ final class MSSQLMaintenanceViewModel {
     var healthPermissionError: String?
     var isCheckingIntegrity = false
     var isShrinking = false
+    var isShrinkingFile = false
+
+    // Shrink Options
+    var shrinkTargetPercent: Int = 10
+    var shrinkOption: ShrinkOptionChoice = .defaultBehavior
+    var databaseFiles: [SQLServerDatabaseFile] = []
+    var shrinkFileName: String = ""
+    var shrinkFileTargetMB: Int = 0
+    var isLoadingFiles = false
 
     // Table State
     var tableStats: [SQLServerTableStat] = []

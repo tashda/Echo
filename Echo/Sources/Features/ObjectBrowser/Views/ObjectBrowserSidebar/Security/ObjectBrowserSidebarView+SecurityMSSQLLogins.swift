@@ -17,59 +17,57 @@ extension ObjectBrowserSidebarView {
         let certLogins = allLogins.filter { Self.certificateLoginTypes.contains($0.loginType) }
         let isExpanded = viewModel.securityLoginsExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.serverSection,
-                title: "Logins",
-                icon: "person.2",
-                count: standardLogins.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityLoginsExpandedBySession[connID] = !isExpanded
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.serverSection,
+            title: "Logins",
+            icon: "person.2",
+            count: standardLogins.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.securityLoginsExpandedBySession[connID] = newValue }
+            )
+        )
+        .contextMenu {
+            Button {
+                Task {
+                    let handle = AppDirector.shared.activityEngine.begin("Refreshing logins", connectionSessionID: session.id)
+                    await loadServerSecurityAsync(session: session)
+                    handle.succeed()
                 }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .contextMenu {
-                Button {
-                    Task {
-                        let handle = AppDirector.shared.activityEngine.begin("Refreshing logins", connectionSessionID: session.id)
-                        await loadServerSecurityAsync(session: session)
-                        handle.succeed()
-                    }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                Button {
-                    let value = environmentState.prepareLoginEditorWindow(
-                        connectionSessionID: connID,
-                        existingLogin: nil
-                    )
-                    openWindow(id: LoginEditorWindow.sceneID, value: value)
-                } label: {
-                    Label("New Login", systemImage: "person.badge.plus")
-                }
-                .disabled(!(session.permissions?.canManageRoles ?? true))
-                .help(session.permissions?.canManageRoles ?? true ? "" : "Requires securityadmin or sysadmin role")
+            Button {
+                let value = environmentState.prepareLoginEditorWindow(
+                    connectionSessionID: connID,
+                    existingLogin: nil
+                )
+                openWindow(id: LoginEditorWindow.sceneID, value: value)
+            } label: {
+                Label("New Login", systemImage: "person.badge.plus")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
+            .help(session.permissions?.canManageRoles ?? true ? "" : "Requires securityadmin or sysadmin role")
+        }
 
-            if isExpanded {
-                if standardLogins.isEmpty && certLogins.isEmpty {
-                    SidebarRow(
-                        depth: SecuritySidebarDepth.serverLeaf,
-                        icon: .none,
-                        label: "No logins found",
-                        labelColor: ColorTokens.Text.tertiary,
-                        labelFont: TypographyTokens.detail
-                    )
-                } else {
-                    ForEach(standardLogins) { login in
-                        loginRow(login: login, session: session)
-                    }
+        if isExpanded {
+            if standardLogins.isEmpty && certLogins.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.serverLeaf,
+                    icon: .none,
+                    label: "No logins found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
+                ForEach(standardLogins) { login in
+                    loginRow(login: login, session: session)
+                }
+                .transition(.opacity)
 
-                    // Certificates subfolder
-                    if !certLogins.isEmpty {
-                        certificateLoginsSubfolder(certLogins: certLogins, session: session)
-                    }
+                // Certificates subfolder
+                if !certLogins.isEmpty {
+                    certificateLoginsSubfolder(certLogins: certLogins, session: session)
                 }
             }
         }
@@ -80,24 +78,22 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isExpanded = viewModel.securityCertLoginsExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.serverNestedSection,
-                title: "Certificate Logins",
-                icon: "doc.badge.lock",
-                count: certLogins.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityCertLoginsExpandedBySession[connID] = !isExpanded
-                }
-            }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.serverNestedSection,
+            title: "Certificate Logins",
+            icon: "doc.badge.lock",
+            count: certLogins.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.securityCertLoginsExpandedBySession[connID] = newValue }
+            )
+        )
 
-            if isExpanded {
-                ForEach(certLogins) { login in
-                    loginRow(login: login, session: session, depth: 4)
-                }
+        if isExpanded {
+            ForEach(certLogins) { login in
+                loginRow(login: login, session: session, depth: 4)
             }
+            .transition(.opacity)
         }
     }
 

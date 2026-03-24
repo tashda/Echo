@@ -119,7 +119,7 @@ struct DatabaseBreadcrumbMenu: View {
 
     private func isSelected(_ database: DatabaseInfo) -> Bool {
         guard let connectionID else { return false }
-        return environmentState.sessionGroup.sessionForConnection(connectionID)?.selectedDatabaseName == database.name
+        return environmentState.sessionGroup.sessionForConnection(connectionID)?.sidebarFocusedDatabase == database.name
     }
 
     private func selectDatabase(_ database: DatabaseInfo) {

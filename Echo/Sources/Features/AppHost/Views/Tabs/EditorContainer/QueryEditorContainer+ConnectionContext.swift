@@ -18,7 +18,7 @@ extension QueryEditorContainer {
     var connectionDatabaseName: String? {
         QueryEditorConnectionContextResolver.resolveDatabaseName(
             tabDatabaseName: tab.activeDatabaseName,
-            sessionDatabaseName: connectionSession?.selectedDatabaseName,
+            sessionDatabaseName: connectionSession?.sidebarFocusedDatabase,
             connectionDatabaseName: tab.connection.database
         )
     }
@@ -88,7 +88,7 @@ extension QueryEditorContainer {
         let databaseType = EchoSenseDatabaseType(baseConnection.databaseType)
         let selectedDatabase = QueryEditorConnectionContextResolver.resolveDatabaseName(
             tabDatabaseName: tab.activeDatabaseName,
-            sessionDatabaseName: session?.selectedDatabaseName,
+            sessionDatabaseName: session?.sidebarFocusedDatabase,
             connectionDatabaseName: baseConnection.database
         )
         let structure = session?.databaseStructure

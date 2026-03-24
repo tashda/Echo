@@ -10,33 +10,31 @@ extension ObjectBrowserSidebarView {
         let schemas = viewModel.dbSecuritySchemasByDB[dbKey] ?? []
         let isExpanded = viewModel.dbSecuritySchemasExpandedByDB[dbKey] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.databaseSection,
-                title: "Schemas",
-                icon: "folder",
-                count: schemas.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.dbSecuritySchemasExpandedByDB[dbKey] = !isExpanded
-                }
-            }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.databaseSection,
+            title: "Schemas",
+            icon: "folder",
+            count: schemas.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.dbSecuritySchemasExpandedByDB[dbKey] = newValue }
+            )
+        )
 
-            if isExpanded {
-                if schemas.isEmpty {
-                    SidebarRow(
-                        depth: SecuritySidebarDepth.databaseLeaf,
-                        icon: .none,
-                        label: "No schemas found",
-                        labelColor: ColorTokens.Text.tertiary,
-                        labelFont: TypographyTokens.detail
-                    )
-                } else {
-                    ForEach(schemas) { schema in
-                        dbSchemaRow(schema: schema, session: session)
-                    }
+        if isExpanded {
+            if schemas.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.databaseLeaf,
+                    icon: .none,
+                    label: "No schemas found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
+                ForEach(schemas) { schema in
+                    dbSchemaRow(schema: schema, session: session)
                 }
+                .transition(.opacity)
             }
         }
     }

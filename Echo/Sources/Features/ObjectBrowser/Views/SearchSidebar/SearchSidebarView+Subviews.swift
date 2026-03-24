@@ -1,28 +1,49 @@
 import SwiftUI
 
 extension SearchSidebarView {
-    var isSearchFieldDisabled: Bool {
-        guard viewModel.selectedCategories.contains(where: { $0 != .queryTabs }) else { return false }
-        guard let session = activeSession else { return true }
-        return session.selectedDatabaseName?.isEmpty != false
-    }
 
     var isFilterActive: Bool {
         viewModel.selectedCategories.count != SearchSidebarCategory.allCases.count
     }
 
     var searchBar: some View {
-        SidebarSearchBar(
-            placeholder: "Search tables, views, query tabs...",
-            text: $viewModel.query,
-            isDisabled: isSearchFieldDisabled,
-            showsClearButton: !viewModel.query.isEmpty,
-            onClear: { viewModel.clearQuery() },
-            focusBinding: $isSearchFieldFocused,
-            clearShortcut: .cancelAction
-        ) {
-            filterButton
+        VStack(spacing: SpacingTokens.xxs2) {
+            SidebarSearchBar(
+                placeholder: "Search all connections...",
+                text: $viewModel.query,
+                isDisabled: false,
+                showsClearButton: !viewModel.query.isEmpty,
+                onClear: { viewModel.clearQuery() },
+                focusBinding: $isSearchFieldFocused,
+                clearShortcut: .cancelAction
+            ) {
+                filterButton
+            }
+
+            if viewModel.availableServers.count > 1 {
+                scopePicker
+            }
         }
+    }
+
+    var scopePicker: some View {
+        HStack(spacing: SpacingTokens.xxs2) {
+            Picker("Scope", selection: $viewModel.scope) {
+                Text("All Servers")
+                    .tag(SearchScope.allServers)
+
+                ForEach(viewModel.availableServers, id: \.id) { server in
+                    Text(server.name)
+                        .tag(SearchScope.server(connectionSessionID: server.id))
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .controlSize(.small)
+            .fixedSize()
+        }
+        .padding(.horizontal, SpacingTokens.sm)
+        .padding(.bottom, SpacingTokens.xxs2)
     }
 
     var filterButton: some View {

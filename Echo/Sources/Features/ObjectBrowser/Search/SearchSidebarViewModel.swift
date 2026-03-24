@@ -10,19 +10,20 @@ final class SearchSidebarViewModel {
         didSet { performScheduleSearch() }
     }
 
-    var results: [SearchSidebarResult] = []
+    var scope: SearchScope = .allServers {
+        didSet { performScheduleSearch() }
+    }
+
+    var results: [GlobalSearchResult] = []
     var isSearching: Bool = false
     var errorMessage: String?
 
-    internal var databaseSession: DatabaseSession?
-    internal var databaseType: DatabaseType?
-    var activeDatabaseName: String?
+    /// All active sessions — set by the view when context changes.
+    internal var sessions: [ConnectionSession] = []
+
     @ObservationIgnored internal var searchTask: Task<Void, Never>?
     @ObservationIgnored private let minimumQueryLength = 2
     @ObservationIgnored private var isRestoring = false
-    @ObservationIgnored private var lastContextSession: ObjectIdentifier?
-    @ObservationIgnored private var lastContextDatabaseName: String?
-    @ObservationIgnored private var lastContextDatabaseType: DatabaseType?
     @ObservationIgnored internal var queryTabProvider: () -> [SearchSidebarQueryTabSnapshot] = { [] }
 
     var minimumSearchLength: Int { minimumQueryLength }
@@ -35,39 +36,42 @@ final class SearchSidebarViewModel {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    func updateContext(databaseSession: DatabaseSession?, databaseName: String?, databaseType: DatabaseType?) {
-        let normalizedName = databaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sessionIdentifier = databaseSession.map { ObjectIdentifier($0 as AnyObject) }
-        let contextType = databaseType
-        let isSameContext = sessionIdentifier == lastContextSession
-            && normalizedName == lastContextDatabaseName
-            && contextType == lastContextDatabaseType
+    var hasSessions: Bool {
+        !sessions.isEmpty
+    }
 
-        databaseSessionUpdated(databaseSession)
-        self.databaseType = databaseType
-        activeDatabaseName = normalizedName
+    /// Available servers for the scope picker.
+    var availableServers: [(id: UUID, name: String)] {
+        sessions.map { session in
+            let name = session.connection.connectionName.isEmpty
+                ? session.connection.host
+                : session.connection.connectionName
+            return (id: session.id, name: name)
+        }
+    }
 
-        lastContextSession = sessionIdentifier
-        lastContextDatabaseName = normalizedName
-        lastContextDatabaseType = contextType
+    func updateSessions(_ newSessions: [ConnectionSession]) {
+        let oldIDs = Set(sessions.map(\.id))
+        let newIDs = Set(newSessions.map(\.id))
+        sessions = newSessions
 
-        if databaseSession == nil {
-            if selectedCategories.contains(.queryTabs) {
-                performScheduleSearch()
-            } else {
-                cancelSearch()
-                results = []
-                isSearching = false
-                errorMessage = nil
+        // Validate scope — if the scoped server disconnected, reset to allServers
+        switch scope {
+        case .allServers:
+            break
+        case .server(let id):
+            if !newIDs.contains(id) {
+                scope = .allServers
             }
-            return
+        case .database(let id, _):
+            if !newIDs.contains(id) {
+                scope = .allServers
+            }
         }
 
-        if isSameContext {
-            return
+        if oldIDs != newIDs {
+            performScheduleSearch()
         }
-
-        performScheduleSearch()
     }
 
     func resetFilters() {
@@ -90,21 +94,23 @@ final class SearchSidebarViewModel {
         performScheduleSearch()
     }
 
-    func restore(from cache: SearchSidebarCache) {
+    func restore(from cache: GlobalSearchSidebarCache) {
         isRestoring = true
         searchTask?.cancel()
         query = cache.query
         selectedCategories = cache.selectedCategories
+        scope = cache.scope
         results = cache.results
         isSearching = cache.isSearching
         errorMessage = cache.errorMessage
         isRestoring = false
     }
 
-    func snapshot() -> SearchSidebarCache {
-        SearchSidebarCache(
+    func snapshot() -> GlobalSearchSidebarCache {
+        GlobalSearchSidebarCache(
             query: query,
             selectedCategories: selectedCategories,
+            scope: scope,
             results: results,
             errorMessage: errorMessage,
             isSearching: isSearching
@@ -124,7 +130,8 @@ final class SearchSidebarViewModel {
 
     var isRestoringState: Bool { isRestoring }
 
-    private func databaseSessionUpdated(_ session: DatabaseSession?) {
-        databaseSession = session
+    /// Resolves a session by ID from the current sessions list.
+    func session(for connectionSessionID: UUID) -> ConnectionSession? {
+        sessions.first { $0.id == connectionSessionID }
     }
 }

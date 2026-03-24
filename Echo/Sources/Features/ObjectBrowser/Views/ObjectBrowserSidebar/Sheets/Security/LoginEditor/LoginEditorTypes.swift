@@ -15,7 +15,6 @@ enum LoginEditorPage: String, CaseIterable, Hashable, Identifiable {
     case serverRoles
     case userMapping
     case securables
-    case status
 
     var id: String { rawValue }
 
@@ -25,7 +24,6 @@ enum LoginEditorPage: String, CaseIterable, Hashable, Identifiable {
         case .serverRoles: "Server Roles"
         case .userMapping: "User Mapping"
         case .securables: "Securables"
-        case .status: "Status"
         }
     }
 
@@ -35,7 +33,6 @@ enum LoginEditorPage: String, CaseIterable, Hashable, Identifiable {
         case .serverRoles: "shield"
         case .userMapping: "externaldrive.connected.to.line.below"
         case .securables: "lock.shield"
-        case .status: "power"
         }
     }
 }
@@ -63,6 +60,7 @@ struct LoginEditorMappingEntry: Identifiable, Hashable {
     var id: String { databaseName }
     let databaseName: String
     var isMapped: Bool
+    let originallyMapped: Bool
     var userName: String?
     var defaultSchema: String?
 }
@@ -73,6 +71,7 @@ struct LoginEditorDBRoleEntry: Identifiable, Hashable {
     var id: String { roleName }
     let roleName: String
     var isMember: Bool
+    let originallyMember: Bool
 }
 
 // MARK: - Server Permission Entry

@@ -72,6 +72,12 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
         }
         .sharedBackgroundVisibility(.hidden)
 
+        ToolbarItem(id: "workspace.primary.errorlogcycle", placement: .primaryAction) {
+            ErrorLogCycleToolbarItem()
+                .glassEffect(.regular.interactive())
+        }
+        .sharedBackgroundVisibility(.hidden)
+
         ToolbarItem(id: "workspace.primary.tabcontext", placement: .primaryAction) {
             TabContextToolbarButton()
         }
@@ -100,15 +106,6 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
 
     @ToolbarContentBuilder
     private var workspaceActionItems: some CustomizableToolbarContent {
-        // Tab Overview + New Tab — shared glass group
-        ToolbarItem(id: "workspace.primary.taboverview", placement: .primaryAction) {
-            TabOverviewToolbarButton()
-        }
-
-        ToolbarItem(id: "workspace.primary.newtab", placement: .primaryAction) {
-            NewTabToolbarButton()
-        }
-
         // Refresh — standalone with own glass
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
             RefreshToolbarButton()

@@ -14,14 +14,14 @@ struct QueryTabDatabaseContextTests {
 
     private func makeConnectionSession(
         database: String = "master",
-        selectedDatabaseName: String? = nil
+        sidebarFocusedDatabase: String? = nil
     ) -> ConnectionSession {
         let session = ConnectionSession(
             connection: TestFixtures.savedConnection(connectionName: "Test Server", database: database),
             session: MockDatabaseSession(),
             spoolManager: makeSpoolManager()
         )
-        session.selectedDatabaseName = selectedDatabaseName
+        session.sidebarFocusedDatabase = sidebarFocusedDatabase
         return session
     }
 
@@ -54,7 +54,7 @@ struct QueryTabDatabaseContextTests {
     }
 
     @Test func sessionActiveDatabaseFollowsActiveTab() {
-        let session = makeConnectionSession(database: "defaultdb", selectedDatabaseName: "master")
+        let session = makeConnectionSession(database: "defaultdb", sidebarFocusedDatabase: "master")
         let firstTab = session.addQueryTab(withQuery: "SELECT 1", database: "master")
         let secondTab = session.addQueryTab(withQuery: "SELECT 2", database: "analytics")
 

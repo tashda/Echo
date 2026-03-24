@@ -8,18 +8,17 @@ extension ObjectBrowserSidebarView {
     func serverSection(session: ConnectionSession, proxy: ScrollViewProxy) -> some View {
         let connID = session.connection.id
         let isExpanded = viewModel.expandedServerIDs.contains(connID)
-        let isSearching = sidebarSearchQuery != nil
         let isNewlyConnected = viewModel.recentlyConnectedIDs.contains(connID)
 
         VStack(alignment: .leading, spacing: 0) {
-            serverSectionHeader(session: session, isExpanded: isExpanded || isSearching)
+            serverSectionHeader(session: session, isExpanded: isExpanded)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            if isExpanded || isSearching {
+            if isExpanded {
                 serverContent(session: session, proxy: proxy)
                     .transition(.opacity)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(
             StatusWaveOverlay(
                 color: ColorTokens.Status.success,
@@ -86,18 +85,18 @@ extension ObjectBrowserSidebarView {
         switch session.structureLoadingState {
         case .ready, .loading:
             if let structure = session.databaseStructure, !structure.databases.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    databasesFolderSection(session: session, structure: structure, proxy: proxy)
+                databasesFolderSection(session: session, structure: structure, proxy: proxy)
 
-                    if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
-                        securityFolderSection(session: session)
-                    }
+                if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
+                    securityFolderSection(session: session)
+                }
 
-                    if session.connection.databaseType == .microsoftSQL {
-                        agentJobsSection(session: session)
-                        managementFolderSection(session: session)
-                        linkedServersSection(session: session)
-                    }
+                if session.connection.databaseType == .microsoftSQL {
+                    databaseSnapshotsFolderSection(session: session)
+                    agentJobsSection(session: session)
+                    managementFolderSection(session: session)
+                    linkedServersSection(session: session)
+                    serverTriggersSection(session: session)
                 }
             } else if session.databaseStructure != nil {
                 loadingHint()

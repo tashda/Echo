@@ -11,33 +11,31 @@ extension ObjectBrowserSidebarView {
         let roles = viewModel.dbSecurityRolesByDB[dbKey] ?? []
         let isExpanded = viewModel.dbSecurityRolesExpandedByDB[dbKey] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.databaseSection,
-                title: "Database Roles",
-                icon: "shield",
-                count: roles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.dbSecurityRolesExpandedByDB[dbKey] = !isExpanded
-                }
-            }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.databaseSection,
+            title: "Database Roles",
+            icon: "shield",
+            count: roles.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.dbSecurityRolesExpandedByDB[dbKey] = newValue }
+            )
+        )
 
-            if isExpanded {
-                if roles.isEmpty {
-                    SidebarRow(
-                        depth: SecuritySidebarDepth.databaseLeaf,
-                        icon: .none,
-                        label: "No database roles found",
-                        labelColor: ColorTokens.Text.tertiary,
-                        labelFont: TypographyTokens.detail
-                    )
-                } else {
-                    ForEach(roles) { role in
-                        dbRoleRow(role: role, session: session)
-                    }
+        if isExpanded {
+            if roles.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.databaseLeaf,
+                    icon: .none,
+                    label: "No database roles found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
+                ForEach(roles) { role in
+                    dbRoleRow(role: role, session: session)
                 }
+                .transition(.opacity)
             }
         }
     }
@@ -100,33 +98,31 @@ extension ObjectBrowserSidebarView {
         let appRoles = viewModel.dbSecurityAppRolesByDB[dbKey] ?? []
         let isExpanded = viewModel.dbSecurityAppRolesExpandedByDB[dbKey] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.databaseSection,
-                title: "Application Roles",
-                icon: "app.badge",
-                count: appRoles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.dbSecurityAppRolesExpandedByDB[dbKey] = !isExpanded
-                }
-            }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.databaseSection,
+            title: "Application Roles",
+            icon: "app.badge",
+            count: appRoles.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.dbSecurityAppRolesExpandedByDB[dbKey] = newValue }
+            )
+        )
 
-            if isExpanded {
-                if appRoles.isEmpty {
-                    SidebarRow(
-                        depth: SecuritySidebarDepth.databaseLeaf,
-                        icon: .none,
-                        label: "No application roles found",
-                        labelColor: ColorTokens.Text.tertiary,
-                        labelFont: TypographyTokens.detail
-                    )
-                } else {
-                    ForEach(appRoles) { appRole in
-                        dbAppRoleRow(appRole: appRole, session: session)
-                    }
+        if isExpanded {
+            if appRoles.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.databaseLeaf,
+                    icon: .none,
+                    label: "No application roles found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
+                ForEach(appRoles) { appRole in
+                    dbAppRoleRow(appRole: appRole, session: session)
                 }
+                .transition(.opacity)
             }
         }
     }

@@ -28,6 +28,32 @@ struct SidebarRow<Trailing: View>: View {
     var accentColor: Color = ColorTokens.accent
     @ViewBuilder var trailing: () -> Trailing
 
+    init(
+        depth: Int,
+        icon: Icon,
+        label: String,
+        subtitle: String? = nil,
+        isExpanded: Binding<Bool>? = nil,
+        isSelected: Bool = false,
+        iconColor: Color = ColorTokens.Sidebar.symbol,
+        labelColor: Color = ColorTokens.Text.primary,
+        labelFont: Font = SidebarRowConstants.labelFont,
+        accentColor: Color = ColorTokens.accent,
+        @ViewBuilder trailing: @escaping () -> Trailing
+    ) {
+        self.depth = depth
+        self.icon = icon
+        self.label = label
+        self.subtitle = subtitle
+        self.isExpanded = isExpanded
+        self.isSelected = isSelected
+        self.iconColor = iconColor
+        self.labelColor = labelColor
+        self.labelFont = labelFont
+        self.accentColor = accentColor
+        self.trailing = trailing
+    }
+
     @Environment(\.sidebarDensity) private var density
 
     @State private var isHovered = false

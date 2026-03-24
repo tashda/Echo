@@ -19,21 +19,22 @@ struct UserEditorView: View {
                     .tag(page)
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
         } detail: {
-            Group {
+            Form {
+                if !viewModel.isLoadingGeneral {
+                    pageContent
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .overlay {
                 if viewModel.isLoadingGeneral {
-                    VStack {
-                        Spacer()
-                        ProgressView("Loading user properties\u{2026}")
-                        Spacer()
-                    }
-                } else {
-                    Form {
-                        pageContent
-                    }
-                    .formStyle(.grouped)
-                    .scrollContentBackground(.hidden)
+                    TabInitializingPlaceholder(
+                        icon: "person.circle",
+                        title: "Loading User Properties",
+                        subtitle: "Fetching data from server\u{2026}"
+                    )
                 }
             }
             .id(selectedPage)
@@ -50,7 +51,7 @@ struct UserEditorView: View {
                         Label("Apply", systemImage: "arrow.right.circle")
                     }
                     .labelStyle(.iconOnly)
-                    .disabled(!viewModel.isFormValid || viewModel.isSubmitting)
+                    .disabled(!viewModel.isFormValid || viewModel.isSubmitting || !viewModel.hasChanges)
                     .help("Apply changes without closing")
                     .glassEffect(.regular.interactive())
                 }
@@ -63,7 +64,7 @@ struct UserEditorView: View {
                         Label("Save", systemImage: "checkmark")
                     }
                     .labelStyle(.iconOnly)
-                    .disabled(!viewModel.isFormValid || viewModel.isSubmitting)
+                    .disabled(!viewModel.isFormValid || viewModel.isSubmitting || !viewModel.hasChanges)
                     .help(viewModel.isEditing ? "Save and close" : "Create and close")
                     .glassEffect(.regular.interactive())
                 }
@@ -71,6 +72,10 @@ struct UserEditorView: View {
             }
         }
         .background(PocketSeparatorHider())
+        .background(UnsavedChangesGuard(
+            hasChanges: viewModel.hasChanges,
+            onDiscard: onDismiss
+        ))
         .task {
             viewModel.errorMessage = nil
             await viewModel.loadGeneralData(session: session)

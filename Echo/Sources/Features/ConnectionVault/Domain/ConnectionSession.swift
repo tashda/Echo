@@ -20,7 +20,10 @@ final class ConnectionSession: Identifiable {
     @ObservationIgnored let session: DatabaseSession
     @ObservationIgnored let spoolManager: ResultSpooler
 
-    var selectedDatabaseName: String?
+    /// The database currently focused in the Object Browser sidebar tree.
+    /// This is NOT the active tab's database — tabs carry their own `activeDatabaseName`.
+    /// Only set by sidebar interactions (expanding a database, explicit selection).
+    var sidebarFocusedDatabase: String?
     var databaseStructure: DatabaseStructure?
     var connectionState: ConnectionState = .connected
     var lastActivity: Date = Date()
@@ -64,7 +67,7 @@ final class ConnectionSession: Identifiable {
         self.defaultBackgroundFetchSize = max(128, min(defaultBackgroundFetchSize, 16_384))
         self.spoolManager = spoolManager
 
-        self.selectedDatabaseName = nil
+        self.sidebarFocusedDatabase = nil
     }
 
     var activeQueryTab: WorkspaceTab? {

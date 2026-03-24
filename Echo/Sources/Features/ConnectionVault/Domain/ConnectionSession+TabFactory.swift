@@ -33,7 +33,7 @@ extension ConnectionSession {
 
         if let value = database, let normalizedValue = normalized(value) {
             databaseName = normalizedValue
-        } else if let selected = selectedDatabaseName, let normalizedSelected = normalized(selected) {
+        } else if let selected = sidebarFocusedDatabase, let normalizedSelected = normalized(selected) {
             databaseName = normalizedSelected
         } else {
             databaseName = normalized(connection.database)
@@ -86,7 +86,7 @@ extension ConnectionSession {
         database: String? = nil,
         sessionFactory: @escaping @Sendable (String) async throws -> DatabaseSession
     ) -> WorkspaceTab {
-        let targetDatabase = database ?? selectedDatabaseName ?? connection.database
+        let targetDatabase = database ?? sidebarFocusedDatabase ?? connection.database
         let viewModel = PSQLTabViewModel(
             connection: connection,
             session: dedicatedSession,
@@ -193,7 +193,7 @@ extension ConnectionSession {
 
     @discardableResult
     func addMSSQLMaintenanceTab(databaseName: String? = nil) -> WorkspaceTab {
-        let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
+        let effectiveDatabase = databaseName ?? sidebarFocusedDatabase ?? connection.database
 
         // Only one MSSQL maintenance tab per connection — reuse if present, switch database
         if let existing = queryTabs.first(where: { $0.mssqlMaintenance != nil }) {
@@ -217,7 +217,7 @@ extension ConnectionSession {
         viewModel.backupsVM?.connectionSessionID = id
         viewModel.backupsVM?.notificationEngine = AppDirector.shared.notificationEngine
 
-        let dbName = databaseName ?? selectedDatabaseName
+        let dbName = databaseName ?? sidebarFocusedDatabase
 
         let tab = WorkspaceTab(
             connection: connection,
@@ -235,7 +235,7 @@ extension ConnectionSession {
 
     @discardableResult
     func addMaintenanceTab(databaseName: String? = nil) -> WorkspaceTab {
-        let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
+        let effectiveDatabase = databaseName ?? sidebarFocusedDatabase ?? connection.database
 
         // Only one maintenance tab per connection — reuse if present, switch database
         if let existing = queryTabs.first(where: { $0.maintenance != nil }) {
@@ -274,7 +274,7 @@ extension ConnectionSession {
             viewModel.pgBackupsVM = pgVM
         }
 
-        let dbName = databaseName ?? selectedDatabaseName
+        let dbName = databaseName ?? sidebarFocusedDatabase
 
         let tab = WorkspaceTab(
             connection: connection,
@@ -389,6 +389,125 @@ extension ConnectionSession {
     }
 
     @discardableResult
+    func addProfilerTab() -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.profilerVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = ProfilerViewModel(
+            profilerClient: session.profiler,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "SQL Profiler",
+            content: .profiler(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addResourceGovernorTab() -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.resourceGovernorVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = ResourceGovernorViewModel(
+            rgClient: session.resourceGovernor,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Resource Governor",
+            content: .resourceGovernor(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addServerPropertiesTab() -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.serverPropertiesVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = ServerPropertiesViewModel(
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Server Properties",
+            content: .serverProperties(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addTuningAdvisorTab() -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.tuningAdvisorVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = TuningAdvisorViewModel(
+            tuningClient: session.tuning,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Tuning Advisor",
+            content: .tuningAdvisor(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addPolicyManagementTab() -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.policyManagementVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = PolicyManagementViewModel(
+            policyClient: session.policy,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Policy Management",
+            content: .policyManagement(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
     func addAvailabilityGroupsTab() -> WorkspaceTab? {
         guard let mssql = session as? MSSQLSession else { return nil }
 
@@ -415,11 +534,39 @@ extension ConnectionSession {
         return tab
     }
 
+    // MARK: - Error Log Tab
+
+    @discardableResult
+    func addErrorLogTab() -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.errorLogVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = ErrorLogViewModel(session: session, connectionSessionID: id)
+        viewModel.activityEngine = AppDirector.shared.activityEngine
+        viewModel.notificationEngine = AppDirector.shared.notificationEngine
+
+        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Error Log",
+            content: .errorLog(viewModel),
+            activeDatabaseName: connName.isEmpty ? connection.host : connName
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
     // MARK: - Security Tabs
 
     @discardableResult
     func addDatabaseSecurityTab(databaseName: String? = nil) -> WorkspaceTab {
-        let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
+        let effectiveDatabase = databaseName ?? sidebarFocusedDatabase ?? connection.database
 
         if let existing = queryTabs.first(where: { $0.databaseSecurity != nil }) {
             activeQueryTabID = existing.id
@@ -438,7 +585,7 @@ extension ConnectionSession {
         )
         viewModel.activityEngine = AppDirector.shared.activityEngine
 
-        let dbName = databaseName ?? selectedDatabaseName
+        let dbName = databaseName ?? sidebarFocusedDatabase
         let tab = WorkspaceTab(
             connection: connection,
             session: session,

@@ -10,11 +10,15 @@ final class DatabaseSecurityViewModel {
         case roles = "Roles"
         case appRoles = "App Roles"
         case schemas = "Schemas"
+        case masking = "Masking"
+        case securityPolicies = "RLS"
+        case auditSpecifications = "Audit Specs"
+        case alwaysEncrypted = "Encryption"
     }
 
     let connectionID: UUID
     let connectionSessionID: UUID
-    @ObservationIgnored private let session: DatabaseSession
+    @ObservationIgnored let session: DatabaseSession
     @ObservationIgnored private(set) var panelState: BottomPanelState?
     @ObservationIgnored var activityEngine: ActivityEngine?
 
@@ -42,6 +46,28 @@ final class DatabaseSecurityViewModel {
     var schemas: [SQLServerKit.SchemaInfo] = []
     var selectedSchemaName: Set<String> = []
     var isLoadingSchemas = false
+
+    // Dynamic Data Masking
+    var maskedColumns: [MaskedColumnInfo] = []
+    var selectedMaskedColumnID: Set<String> = []
+    var isLoadingMaskedColumns = false
+
+    // Row-Level Security
+    var securityPolicies: [SecurityPolicyInfo] = []
+    var selectedPolicyID: Set<String> = []
+    var isLoadingSecurityPolicies = false
+
+    // Database Audit Specifications
+    var dbAuditSpecs: [AuditSpecificationInfo] = []
+    var selectedDBAuditSpecName: Set<String> = []
+    var isLoadingDBAuditSpecs = false
+
+    // Always Encrypted
+    var columnMasterKeys: [ColumnMasterKeyInfo] = []
+    var columnEncryptionKeys: [ColumnEncryptionKeyInfo] = []
+    var selectedCMKName: Set<String> = []
+    var selectedCEKName: Set<String> = []
+    var isLoadingAlwaysEncrypted = false
 
     init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID, initialDatabase: String?) {
         self.session = session
@@ -91,6 +117,14 @@ final class DatabaseSecurityViewModel {
             await loadAppRoles(mssql: mssql)
         case .schemas:
             await loadSchemas(mssql: mssql)
+        case .masking:
+            await loadMaskedColumns(mssql: mssql)
+        case .securityPolicies:
+            await loadSecurityPolicies(mssql: mssql)
+        case .auditSpecifications:
+            await loadDBAuditSpecs(mssql: mssql)
+        case .alwaysEncrypted:
+            await loadAlwaysEncrypted(mssql: mssql)
         }
     }
 

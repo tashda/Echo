@@ -59,52 +59,6 @@ extension ObjectBrowserSidebarView {
         .padding(.vertical, SpacingTokens.xs)
     }
 
-    // MARK: - Global Search Filtering
-
-    /// Normalized sidebar search query, nil when empty.
-    var sidebarSearchQuery: String? {
-        let trimmed = viewModel.debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed.lowercased()
-    }
-
-    /// Returns true if a server or any of its children match the search.
-    func serverMatchesSearch(_ session: ConnectionSession) -> Bool {
-        guard let query = sidebarSearchQuery else { return true }
-        // Server name match
-        if serverDisplayName(session).lowercased().contains(query) { return true }
-        // Check databases
-        if let structure = session.databaseStructure {
-            for db in structure.databases {
-                if db.name.lowercased().contains(query) { return true }
-                // Check objects in schemas
-                for schema in db.schemas {
-                    for obj in schema.objects {
-                        if obj.name.lowercased().contains(query) || obj.fullName.lowercased().contains(query) { return true }
-                    }
-                }
-            }
-        }
-        // Check security items
-        let connID = session.connection.id
-        if let logins = viewModel.securityLoginsBySession[connID] {
-            if logins.contains(where: { $0.name.lowercased().contains(query) }) { return true }
-        }
-        return false
-    }
-
-    /// Returns true if a database or its objects match the search.
-    func databaseMatchesSearch(_ database: DatabaseInfo, session: ConnectionSession) -> Bool {
-        guard let query = sidebarSearchQuery else { return true }
-        if database.name.lowercased().contains(query) { return true }
-        for schema in database.schemas {
-            for obj in schema.objects {
-                if obj.name.lowercased().contains(query) || obj.fullName.lowercased().contains(query) { return true }
-                if obj.columns.contains(where: { $0.name.lowercased().contains(query) }) { return true }
-            }
-        }
-        return false
-    }
-
     // MARK: - Display Helpers
 
     func serverDisplayName(_ session: ConnectionSession) -> String {

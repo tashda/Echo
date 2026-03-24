@@ -46,12 +46,16 @@ extension EnvironmentState {
         for key in userEditorKeys { userEditorViewModels.removeValue(forKey: key) }
         let loginEditorKeys = loginEditorViewModels.keys.filter { $0.connectionSessionID == id }
         for key in loginEditorKeys { loginEditorViewModels.removeValue(forKey: key) }
+        let dbEditorKeys = databaseEditorViewModels.keys.filter { $0.connectionSessionID == id }
+        for key in dbEditorKeys { databaseEditorViewModels.removeValue(forKey: key) }
+        let serverEditorKeys = serverEditorViewModels.keys.filter { $0.connectionSessionID == id }
+        for key in serverEditorKeys { serverEditorViewModels.removeValue(forKey: key) }
         sessionGroup.removeSession(withID: id)
         notificationEngine?.post(category: .connectionDisconnected, message: "Disconnected from \(displayName)")
     }
 
     func reconnectSession(_ session: ConnectionSession, to databaseName: String) async {
-        session.selectedDatabaseName = databaseName
+        session.sidebarFocusedDatabase = databaseName
         await schemaDiscoveryEngine.refreshStructure(for: session, scope: .selectedDatabase)
     }
 
@@ -64,7 +68,7 @@ extension EnvironmentState {
     func refreshDatabaseStructure(for sessionID: UUID, scope: StructureRefreshScope = .selectedDatabase, databaseOverride: String? = nil) async {
         guard let session = sessionGroup.activeSessions.first(where: { $0.id == sessionID }) else { return }
         if let databaseOverride {
-            session.selectedDatabaseName = databaseOverride
+            session.sidebarFocusedDatabase = databaseOverride
         }
         Task { await session.refreshPermissions() }
         await schemaDiscoveryEngine.refreshStructure(for: session, scope: scope)
@@ -150,7 +154,7 @@ extension EnvironmentState {
 
         let connection = targetSession.connection
         let targetDatabase = resolvedDatabase
-            ?? targetSession.selectedDatabaseName
+            ?? targetSession.sidebarFocusedDatabase
             ?? connection.database
 
         // MSSQL: show the tab immediately with the shared session, then upgrade
@@ -304,6 +308,37 @@ extension EnvironmentState {
         }
     }
 
+    func openProfilerTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        // Profiler requires a new tab kind
+        let tab = session.addProfilerTab()
+        registerTab(tab)
+    }
+
+    func openResourceGovernorTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addResourceGovernorTab()
+        registerTab(tab)
+    }
+
+    func openTuningAdvisorTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addTuningAdvisorTab()
+        registerTab(tab)
+    }
+
+    func openPolicyManagementTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addPolicyManagementTab()
+        registerTab(tab)
+    }
+
+    func openServerPropertiesTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addServerPropertiesTab()
+        registerTab(tab)
+    }
+
     func openAvailabilityGroupsTab(connectionID: UUID) {
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
         if let tab = session.addAvailabilityGroupsTab() {
@@ -315,7 +350,7 @@ extension EnvironmentState {
         guard projectStore.globalSettings.managedPostgresConsoleEnabled else { return }
         let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
         guard let targetSession else { return }
-        let requestedDatabase = (database ?? targetSession.selectedDatabaseName ?? targetSession.connection.database)
+        let requestedDatabase = (database ?? targetSession.sidebarFocusedDatabase ?? targetSession.connection.database)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let effectiveDatabase = requestedDatabase.isEmpty ? "postgres" : requestedDatabase
         let connection = targetSession.connection
@@ -551,7 +586,7 @@ extension EnvironmentState {
     func updateNavigation(for session: ConnectionSession?) {
         if let session {
             navigationStore.navigationState.selectConnection(session.connection)
-            if let db = session.selectedDatabaseName {
+            if let db = session.sidebarFocusedDatabase {
                 navigationStore.navigationState.selectDatabase(db)
             }
         }
@@ -577,6 +612,15 @@ extension EnvironmentState {
     func openDatabaseSecurityTab(connectionID: UUID, databaseName: String? = nil) {
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
         let tab = session.addDatabaseSecurityTab(databaseName: databaseName)
+        if tabStore.getTab(id: tab.id) == nil {
+            registerTab(tab)
+        }
+        tabStore.selectTab(tab)
+    }
+
+    func openErrorLogTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addErrorLogTab()
         if tabStore.getTab(id: tab.id) == nil {
             registerTab(tab)
         }
@@ -631,6 +675,41 @@ extension EnvironmentState {
             userEditorViewModels[value] = vm
         }
         activeUserEditorValue = value
+        return value
+    }
+
+    @discardableResult
+    func prepareDatabaseEditorWindow(
+        connectionSessionID: UUID,
+        databaseName: String,
+        databaseType: DatabaseType
+    ) -> DatabaseEditorWindowValue {
+        let value = DatabaseEditorWindowValue(
+            connectionSessionID: connectionSessionID,
+            databaseName: databaseName
+        )
+        // Reuse existing ViewModel if the window is already open — avoids
+        // replacing a loaded ViewModel with a fresh one stuck at isLoading.
+        if databaseEditorViewModels[value] == nil {
+            databaseEditorViewModels[value] = DatabaseEditorViewModel(
+                connectionSessionID: connectionSessionID,
+                databaseName: databaseName,
+                databaseType: databaseType
+            )
+        }
+        activeDatabaseEditorValue = value
+        return value
+    }
+
+    @discardableResult
+    func prepareServerEditorWindow(
+        connectionSessionID: UUID
+    ) -> ServerEditorWindowValue {
+        let value = ServerEditorWindowValue(connectionSessionID: connectionSessionID)
+        if serverEditorViewModels[value] == nil {
+            serverEditorViewModels[value] = ServerEditorViewModel(connectionSessionID: connectionSessionID)
+        }
+        activeServerEditorValue = value
         return value
     }
 }

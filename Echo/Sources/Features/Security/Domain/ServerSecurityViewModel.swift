@@ -9,6 +9,7 @@ final class ServerSecurityViewModel {
         case logins = "Logins"
         case serverRoles = "Server Roles"
         case credentials = "Credentials"
+        case audits = "Audits"
     }
 
     let connectionID: UUID
@@ -34,6 +35,11 @@ final class ServerSecurityViewModel {
     var credentials: [SQLServerServerSecurityClient.CredentialInfo] = []
     var selectedCredentialName: Set<String> = []
     var isLoadingCredentials = false
+
+    // Audits
+    var audits: [ServerAuditInfo] = []
+    var selectedAuditName: Set<String> = []
+    var isLoadingAudits = false
 
     init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID) {
         self.session = session
@@ -62,6 +68,8 @@ final class ServerSecurityViewModel {
             await loadServerRoles(mssql: mssql)
         case .credentials:
             await loadCredentials(mssql: mssql)
+        case .audits:
+            await loadAudits(mssql: mssql)
         }
     }
 
@@ -95,7 +103,42 @@ final class ServerSecurityViewModel {
         }
     }
 
+    private func loadAudits(mssql: MSSQLSession) async {
+        isLoadingAudits = true
+        defer { isLoadingAudits = false }
+        do {
+            audits = try await mssql.audit.listServerAudits()
+        } catch {
+            panelState?.appendMessage("Failed to load audits: \(error.localizedDescription)", severity: .error)
+        }
+    }
+
     // MARK: - Actions
+
+    func toggleAudit(_ name: String, enabled: Bool) async {
+        guard let mssql = session as? MSSQLSession else { return }
+        do {
+            try await mssql.audit.setAuditState(name: name, enabled: enabled)
+            panelState?.appendMessage(enabled ? "Enabled audit '\(name)'" : "Disabled audit '\(name)'")
+            await loadAudits(mssql: mssql)
+        } catch {
+            panelState?.appendMessage("Failed to \(enabled ? "enable" : "disable") audit '\(name)': \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func dropAudit(_ name: String) async {
+        guard let mssql = session as? MSSQLSession else { return }
+        let handle = activityEngine?.begin("Dropping audit \(name)", connectionSessionID: connectionSessionID)
+        do {
+            try await mssql.audit.dropServerAudit(name: name)
+            handle?.succeed()
+            panelState?.appendMessage("Dropped audit '\(name)'")
+            await loadAudits(mssql: mssql)
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to drop audit '\(name)': \(error.localizedDescription)", severity: .error)
+        }
+    }
 
     func dropLogin(_ name: String) async {
         guard let mssql = session as? MSSQLSession else { return }

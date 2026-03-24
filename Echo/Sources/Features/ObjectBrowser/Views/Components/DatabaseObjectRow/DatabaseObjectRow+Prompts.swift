@@ -26,7 +26,7 @@ extension DatabaseObjectRow {
                 await environmentState.refreshDatabaseStructure(
                     for: session.id,
                     scope: .selectedDatabase,
-                    databaseOverride: session.selectedDatabaseName
+                    databaseOverride: session.sidebarFocusedDatabase
                 )
             } catch {
                 await MainActor.run {
@@ -66,7 +66,7 @@ extension DatabaseObjectRow {
                 await environmentState.refreshDatabaseStructure(
                     for: session.id,
                     scope: .selectedDatabase,
-                    databaseOverride: session.selectedDatabaseName
+                    databaseOverride: session.sidebarFocusedDatabase
                 )
             } catch {
                 await MainActor.run {

@@ -101,20 +101,23 @@ struct UserEditorSecurablesPage: View {
 
                             Spacer()
 
-                            Toggle("Grant", isOn: $perm.isGranted)
+                            Toggle("", isOn: $perm.isGranted)
+                                .labelsHidden()
                                 .toggleStyle(.checkbox)
                                 .onChange(of: perm.isGranted) { _, granted in
                                     if granted { perm.isDenied = false }
                                 }
 
-                            Toggle("With Grant", isOn: $perm.withGrantOption)
+                            Toggle("", isOn: $perm.withGrantOption)
+                                .labelsHidden()
                                 .toggleStyle(.checkbox)
                                 .disabled(!perm.isGranted)
                                 .onChange(of: perm.withGrantOption) { _, withGrant in
                                     if withGrant { perm.isGranted = true; perm.isDenied = false }
                                 }
 
-                            Toggle("Deny", isOn: $perm.isDenied)
+                            Toggle("", isOn: $perm.isDenied)
+                                .labelsHidden()
                                 .toggleStyle(.checkbox)
                                 .onChange(of: perm.isDenied) { _, denied in
                                     if denied { perm.isGranted = false; perm.withGrantOption = false }

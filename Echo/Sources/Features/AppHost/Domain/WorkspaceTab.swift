@@ -38,6 +38,12 @@ final class WorkspaceTab: Identifiable {
         case availabilityGroups
         case databaseSecurity
         case serverSecurity
+        case errorLog
+        case profiler
+        case resourceGovernor
+        case serverProperties
+        case tuningAdvisor
+        case policyManagement
     }
 
     enum Content {
@@ -56,6 +62,12 @@ final class WorkspaceTab: Identifiable {
         case availabilityGroups(AvailabilityGroupsViewModel)
         case databaseSecurity(DatabaseSecurityViewModel)
         case serverSecurity(ServerSecurityViewModel)
+        case errorLog(ErrorLogViewModel)
+        case profiler(ProfilerViewModel)
+        case resourceGovernor(ResourceGovernorViewModel)
+        case serverProperties(ServerPropertiesViewModel)
+        case tuningAdvisor(TuningAdvisorViewModel)
+        case policyManagement(PolicyManagementViewModel)
     }
 
     let id = UUID()
@@ -156,6 +168,12 @@ final class WorkspaceTab: Identifiable {
         case .availabilityGroups: return .availabilityGroups
         case .databaseSecurity: return .databaseSecurity
         case .serverSecurity: return .serverSecurity
+        case .errorLog: return .errorLog
+        case .profiler: return .profiler
+        case .resourceGovernor: return .resourceGovernor
+        case .serverProperties: return .serverProperties
+        case .tuningAdvisor: return .tuningAdvisor
+        case .policyManagement: return .policyManagement
         }
     }
 
@@ -234,6 +252,36 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var errorLogVM: ErrorLogViewModel? {
+        if case .errorLog(let vm) = content { return vm }
+        return nil
+    }
+
+    var profilerVM: ProfilerViewModel? {
+        if case .profiler(let vm) = content { return vm }
+        return nil
+    }
+
+    var resourceGovernorVM: ResourceGovernorViewModel? {
+        if case .resourceGovernor(let vm) = content { return vm }
+        return nil
+    }
+
+    var serverPropertiesVM: ServerPropertiesViewModel? {
+        if case .serverProperties(let vm) = content { return vm }
+        return nil
+    }
+
+    var tuningAdvisorVM: TuningAdvisorViewModel? {
+        if case .tuningAdvisor(let vm) = content { return vm }
+        return nil
+    }
+
+    var policyManagementVM: PolicyManagementViewModel? {
+        if case .policyManagement(let vm) = content { return vm }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         setupRowCountRefreshHandler()
@@ -270,6 +318,18 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .databaseSecurity, .serverSecurity:
             return baseOverhead + 256 * 1024
+        case .errorLog:
+            return baseOverhead + 256 * 1024
+        case .profiler:
+            return baseOverhead + 1024 * 1024
+        case .resourceGovernor:
+            return baseOverhead + 1024 * 1024
+        case .serverProperties:
+            return baseOverhead + 1024 * 1024
+        case .tuningAdvisor:
+            return baseOverhead + 1024 * 1024
+        case .policyManagement:
+            return baseOverhead + 1024 * 1024
         }
     }
 
@@ -277,9 +337,9 @@ final class WorkspaceTab: Identifiable {
         switch content {
         case .query:
             return .forQueryTab()
-        case .maintenance, .mssqlMaintenance, .databaseSecurity, .serverSecurity:
+        case .maintenance, .mssqlMaintenance, .databaseSecurity, .serverSecurity, .errorLog, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
             return .forMaintenanceTab()
-        case .extendedEvents:
+        case .extendedEvents, .profiler:
             return .forExtendedEventsTab()
         default:
             return .forGenericTab()

@@ -57,6 +57,7 @@ extension QueryEditorState {
         results = nil
         additionalResults.removeAll()
         selectedResultSetIndex = 0
+        batchResultMetadata = nil
         dataClassification = nil
         markResultDataChanged()
 

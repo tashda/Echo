@@ -43,7 +43,7 @@ extension ConnectionSession {
             return tabDatabase
         }
 
-        let selectedDatabase = selectedDatabaseName.map(normalizedDatabaseName)
+        let selectedDatabase = sidebarFocusedDatabase.map(normalizedDatabaseName)
         if let selectedDatabase, !selectedDatabase.isEmpty {
             return selectedDatabase
         }

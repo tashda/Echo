@@ -47,7 +47,7 @@ struct ConnectedServerCard: View {
                         ForEach(availableDatabases) { database in
                             CompactDatabaseCard(
                                 database: database,
-                                isSelected: database.name == session.selectedDatabaseName,
+                                isSelected: database.name == session.sidebarFocusedDatabase,
                                 serverColor: session.connection.color,
                                 onSelect: {
                                     onPickDatabase(database.name)
@@ -92,7 +92,7 @@ struct ConnectedServerCard: View {
 
                 Spacer(minLength: SpacingTokens.xs)
 
-                if showCurrentDatabase, let database = session.selectedDatabaseName {
+                if showCurrentDatabase, let database = session.sidebarFocusedDatabase {
                     Text(database)
                         .font(TypographyTokens.detail.weight(.medium))
                         .foregroundStyle(ColorTokens.Text.primary)

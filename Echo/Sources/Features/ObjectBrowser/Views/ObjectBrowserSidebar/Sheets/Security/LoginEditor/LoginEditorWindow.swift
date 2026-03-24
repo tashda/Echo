@@ -23,7 +23,7 @@ struct LoginEditorWindow: Scene {
                     .environment(coordinator.activityEngine)
             }
         }
-        .defaultSize(width: 720, height: 540)
+        .defaultSize(width: 900, height: 540)
         .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
         .restorationBehavior(.disabled)
@@ -55,11 +55,8 @@ private struct LoginEditorWindowContent: View {
             }
             .onAppear {
                 viewModel.activityEngine = activityEngine
-                Task { @MainActor in
-                    guard let window = NSApp.keyWindow else { return }
-                    window.tabbingMode = .disallowed
-                }
             }
+            .background(PropertiesWindowConfigurator())
             .preferredColorScheme(appearanceStore.effectiveColorScheme)
             .accentColor(appearanceStore.accentColor)
             .onChange(of: viewModel.didComplete) { _, completed in

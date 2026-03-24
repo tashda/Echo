@@ -17,7 +17,6 @@ extension ObjectBrowserSidebarView {
         }
 
         await MainActor.run {
-            viewModel.searchText = ""
             if selectedConnectionID != focus.connectionID {
                 selectedConnectionID = focus.connectionID
             }
@@ -26,7 +25,7 @@ extension ObjectBrowserSidebarView {
             viewModel.ensureDatabaseExpanded(connectionID: focus.connectionID, databaseName: focus.databaseName)
         }
 
-        if session.selectedDatabaseName?.localizedCaseInsensitiveCompare(focus.databaseName) != .orderedSame {
+        if session.sidebarFocusedDatabase?.localizedCaseInsensitiveCompare(focus.databaseName) != .orderedSame {
             await environmentState.reconnectSession(session, to: focus.databaseName)
         }
 
@@ -52,11 +51,6 @@ extension ObjectBrowserSidebarView {
         if !groups.contains(focus.objectType) {
             groups.insert(focus.objectType)
             viewModel.expandedObjectGroupsBySession[dbKey] = groups
-        }
-
-        let currentSchema = viewModel.selectedSchemaNameBySession[dbKey]
-        if currentSchema?.caseInsensitiveCompare(focus.schemaName) != .orderedSame {
-            viewModel.selectedSchemaNameBySession[dbKey] = focus.schemaName
         }
 
         guard let structure = session.databaseStructure,

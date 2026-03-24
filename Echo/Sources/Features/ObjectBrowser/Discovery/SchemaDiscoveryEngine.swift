@@ -53,7 +53,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
         }
 
         let selectedDatabase: String?
-        if let selected = connectionSession.selectedDatabaseName, !selected.isEmpty {
+        if let selected = connectionSession.sidebarFocusedDatabase, !selected.isEmpty {
             selectedDatabase = selected
         } else {
             selectedDatabase = nil
@@ -240,9 +240,9 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
     private func ensureSelectedDatabaseIfNeeded(for session: ConnectionSession, availableDatabases: [DatabaseInfo]) {
         // Only fix invalid selections (database no longer exists); never auto-select when nil
-        if let selected = session.selectedDatabaseName,
+        if let selected = session.sidebarFocusedDatabase,
            !availableDatabases.contains(where: { $0.name == selected }) {
-            session.selectedDatabaseName = nil
+            session.sidebarFocusedDatabase = nil
         }
     }
 

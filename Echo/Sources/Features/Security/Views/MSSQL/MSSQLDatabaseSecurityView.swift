@@ -6,6 +6,11 @@ struct MSSQLDatabaseSecurityView: View {
     @Environment(TabStore.self) private var tabStore
     @Environment(EnvironmentState.self) private var environmentState
 
+    @State private var showNewMaskSheet = false
+    @State private var showNewAuditSpecSheet = false
+    @State private var showNewCMKSheet = false
+    @State private var showNewCEKSheet = false
+
     private var session: ConnectionSession? {
         environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
     }
@@ -35,6 +40,38 @@ struct MSSQLDatabaseSecurityView: View {
                 tab.activeDatabaseName = newDB
             }
         }
+        .sheet(isPresented: $showNewMaskSheet) {
+            if let session {
+                NewMaskSheet(session: session, database: viewModel.selectedDatabase) {
+                    showNewMaskSheet = false
+                    Task { await viewModel.loadCurrentSection() }
+                }
+            }
+        }
+        .sheet(isPresented: $showNewAuditSpecSheet) {
+            if let session {
+                NewDBAuditSpecSheet(session: session, database: viewModel.selectedDatabase) {
+                    showNewAuditSpecSheet = false
+                    Task { await viewModel.loadCurrentSection() }
+                }
+            }
+        }
+        .sheet(isPresented: $showNewCMKSheet) {
+            if let session {
+                NewColumnMasterKeySheet(session: session, database: viewModel.selectedDatabase) {
+                    showNewCMKSheet = false
+                    Task { await viewModel.loadCurrentSection() }
+                }
+            }
+        }
+        .sheet(isPresented: $showNewCEKSheet) {
+            if let session {
+                NewColumnEncryptionKeySheet(session: session, database: viewModel.selectedDatabase) {
+                    showNewCEKSheet = false
+                    Task { await viewModel.loadCurrentSection() }
+                }
+            }
+        }
     }
 
     private var connectionText: String {
@@ -45,7 +82,9 @@ struct MSSQLDatabaseSecurityView: View {
 
     private var statusBubble: BottomPanelStatusBarConfiguration.StatusBubble? {
         if viewModel.isLoadingUsers || viewModel.isLoadingRoles ||
-           viewModel.isLoadingAppRoles || viewModel.isLoadingSchemas {
+           viewModel.isLoadingAppRoles || viewModel.isLoadingSchemas ||
+           viewModel.isLoadingMaskedColumns || viewModel.isLoadingSecurityPolicies ||
+           viewModel.isLoadingDBAuditSpecs || viewModel.isLoadingAlwaysEncrypted {
             return .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true)
         }
         return nil
@@ -54,25 +93,15 @@ struct MSSQLDatabaseSecurityView: View {
     // MARK: - Section Picker
 
     private var sectionPicker: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Picker("Database", selection: $viewModel.selectedDatabase) {
-                ForEach(viewModel.databaseList, id: \.self) { db in
-                    Text(db).tag(Optional(db))
-                }
+        Picker(selection: $viewModel.selectedSection) {
+            ForEach(DatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
+                Text(section.rawValue).tag(section)
             }
-            .pickerStyle(.menu)
-            .frame(maxWidth: 180)
-
-            Picker(selection: $viewModel.selectedSection) {
-                ForEach(DatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            } label: {
-                EmptyView()
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 340)
+        } label: {
+            EmptyView()
         }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 580)
     }
 
     // MARK: - Section Content
@@ -92,6 +121,24 @@ struct MSSQLDatabaseSecurityView: View {
                 MSSQLSecurityAppRolesSection(viewModel: viewModel)
             case .schemas:
                 MSSQLSecuritySchemasSection(viewModel: viewModel)
+            case .masking:
+                MSSQLSecurityMaskingSection(
+                    viewModel: viewModel,
+                    onNewMask: { showNewMaskSheet = true }
+                )
+            case .securityPolicies:
+                MSSQLSecurityPoliciesSection(viewModel: viewModel)
+            case .auditSpecifications:
+                MSSQLSecurityDBAuditSpecSection(
+                    viewModel: viewModel,
+                    onNewSpec: { showNewAuditSpecSheet = true }
+                )
+            case .alwaysEncrypted:
+                MSSQLSecurityAlwaysEncryptedSection(
+                    viewModel: viewModel,
+                    onNewCMK: { showNewCMKSheet = true },
+                    onNewCEK: { showNewCEKSheet = true }
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

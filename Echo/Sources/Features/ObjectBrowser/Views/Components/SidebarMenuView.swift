@@ -58,7 +58,6 @@ struct SidebarMenu: View {
         VStack(spacing: 0) {
             navigationBar
                 .padding(.horizontal, SpacingTokens.xxs2)
-                .padding(.bottom, SpacingTokens.xs)
 
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

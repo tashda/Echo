@@ -9,7 +9,7 @@ struct ConnectionDashboardTools: View {
     }
 
     private var defaultDatabase: String {
-        session.selectedDatabaseName ?? session.connection.database
+        session.sidebarFocusedDatabase ?? session.connection.database
     }
 
     var body: some View {

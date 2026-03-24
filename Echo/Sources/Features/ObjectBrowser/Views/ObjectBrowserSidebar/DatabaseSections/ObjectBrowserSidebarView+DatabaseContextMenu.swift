@@ -142,6 +142,44 @@ extension ObjectBrowserSidebarView {
                     } label: {
                         Label("Take Offline", systemImage: "bolt.slash")
                     }
+
+                    Divider()
+
+                    Button {
+                        viewModel.detachDatabaseName = database.name
+                        viewModel.detachConnectionID = connID
+                        viewModel.showDetachSheet = true
+                    } label: {
+                        Label("Detach Database...", systemImage: "externaldrive.badge.minus")
+                    }
+
+                    Divider()
+
+                    Button {
+                        viewModel.generateScriptsDatabaseName = database.name
+                        viewModel.generateScriptsConnectionID = connID
+                        viewModel.showGenerateScriptsWizard = true
+                    } label: {
+                        Label("Generate Scripts...", systemImage: "script.badge.plus")
+                    }
+
+                    Button {
+                        viewModel.quickImportDatabaseName = database.name
+                        viewModel.quickImportConnectionID = connID
+                        viewModel.showQuickImportSheet = true
+                    } label: {
+                        Label("Import Flat File...", systemImage: "square.and.arrow.down.on.square")
+                    }
+
+                    Divider()
+
+                    Button {
+                        viewModel.dacWizardDatabaseName = database.name
+                        viewModel.dacWizardConnectionID = connID
+                        viewModel.showDACWizard = true
+                    } label: {
+                        Label("Data-tier Application Tasks...", systemImage: "archivebox")
+                    }
                 } else {
                     Button {
                         Task { await runMSSQLTask(session: session, database: database.name, task: .bringOnline) }
@@ -195,9 +233,12 @@ extension ObjectBrowserSidebarView {
 
         // Group 10: Properties — ALWAYS last
         Button {
-            viewModel.propertiesDatabaseName = database.name
-            viewModel.propertiesConnectionID = connID
-            viewModel.showDatabaseProperties = true
+            let value = environmentState.prepareDatabaseEditorWindow(
+                connectionSessionID: session.connection.id,
+                databaseName: database.name,
+                databaseType: session.connection.databaseType
+            )
+            openWindow(id: DatabaseEditorWindow.sceneID, value: value)
         } label: {
             Label("Properties", systemImage: "info.circle")
         }

@@ -28,20 +28,6 @@ extension ObjectBrowserSidebarViewModel {
         )
     }
 
-    func selectedSchemaNameBinding(for connectionID: UUID, database: String) -> Binding<String?> {
-        let key = "\(connectionID.uuidString)#\(database)"
-        return Binding(
-            get: { [weak self] in self?.selectedSchemaNameBySession[key] },
-            set: { [weak self] newValue in
-                if let newValue {
-                    self?.selectedSchemaNameBySession[key] = newValue
-                } else {
-                    self?.selectedSchemaNameBySession.removeValue(forKey: key)
-                }
-            }
-        )
-    }
-
     func ensureServerExpanded(for connectionID: UUID, sessions: [ConnectionSession]) {
         expandedServerIDs = expandedServerIDs.filter { id in
             sessions.contains { $0.connection.id == id }

@@ -10,23 +10,25 @@ extension ObjectBrowserSidebarView {
         let isExpanded = viewModel.managementFolderExpandedBySession[connID] ?? false
         let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
 
-        VStack(alignment: .leading, spacing: 0) {
-            folderHeaderRow(
-                title: "Management",
-                icon: "wrench.and.screwdriver",
-                count: nil,
-                isExpanded: isExpanded,
-                action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        viewModel.managementFolderExpandedBySession[connID] = !isExpanded
-                    }
-                },
-                depth: 0
-            )
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { newValue in
+                viewModel.managementFolderExpandedBySession[connID] = newValue
+            }
+        )
 
-            if isExpanded {
+        folderHeaderRow(
+            title: "Management",
+            icon: "wrench.and.screwdriver",
+            count: nil,
+            isExpanded: expandedBinding,
+            depth: 0
+        )
+
+        if isExpanded {
+            Group {
                 Button {
-                    environmentState.openExtendedEventsTab(connectionID: connID)
+                    environmentState.openMaintenanceTab(connectionID: connID)
                 } label: {
                     SidebarRow(depth: 1, icon: .system("waveform.path.ecg"), label: "Extended Events",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Extended Events", colored: colored))
@@ -43,13 +45,54 @@ extension ObjectBrowserSidebarView {
                 .buttonStyle(.plain)
 
                 Button {
+                    environmentState.openProfilerTab(connectionID: connID)
+                } label: {
+                    SidebarRow(depth: 1, icon: .system("waveform.path.ecg.rectangle"), label: "SQL Profiler",
+                               iconColor: ExplorerSidebarPalette.folderIconColor(title: "SQL Profiler", colored: colored))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    environmentState.openResourceGovernorTab(connectionID: connID)
+                } label: {
+                    SidebarRow(depth: 1, icon: .system("r.square.on.square"), label: "Resource Governor",
+                               iconColor: ExplorerSidebarPalette.folderIconColor(title: "Resource Governor", colored: colored))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    environmentState.openTuningAdvisorTab(connectionID: connID)
+                } label: {
+                    SidebarRow(depth: 1, icon: .system("wand.and.stars"), label: "Tuning Advisor",
+                               iconColor: ExplorerSidebarPalette.folderIconColor(title: "Tuning Advisor", colored: colored))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    environmentState.openPolicyManagementTab(connectionID: connID)
+                } label: {
+                    SidebarRow(depth: 1, icon: .system("checkmark.seal"), label: "Policy Management",
+                               iconColor: ExplorerSidebarPalette.folderIconColor(title: "Policy Management", colored: colored))
+                }
+                .buttonStyle(.plain)
+
+                Button {
                     environmentState.openActivityMonitorTab(connectionID: connID)
                 } label: {
                     SidebarRow(depth: 1, icon: .system("gauge.with.dots.needle.33percent"), label: "Activity Monitor",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Activity Monitor", colored: colored))
                 }
                 .buttonStyle(.plain)
+
+                Button {
+                    environmentState.openErrorLogTab(connectionID: connID)
+                } label: {
+                    SidebarRow(depth: 1, icon: .system("doc.text"), label: "SQL Server Logs",
+                               iconColor: ExplorerSidebarPalette.folderIconColor(title: "SQL Server Logs", colored: colored))
+                }
+                .buttonStyle(.plain)
             }
+            .transition(.opacity)
         }
     }
 }

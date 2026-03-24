@@ -108,6 +108,8 @@ import OSLog
     @ObservationIgnored var progressiveMaterializationTask: Task<Void, Never>?
     var additionalResults: [QueryResultSet] = []
     var selectedResultSetIndex: Int = 0
+    /// Batch labels for multi-batch (GO) results. Nil for single-batch execution.
+    var batchResultMetadata: [BatchResultLabel]?
     var executionPlan: ExecutionPlanData?
     var isLoadingExecutionPlan: Bool = false
     var dataClassification: DataClassification?

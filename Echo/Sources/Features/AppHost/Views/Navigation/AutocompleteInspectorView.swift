@@ -45,7 +45,7 @@ struct AutocompleteInspectorRootView: View {
         guard let session = environmentState.sessionGroup.activeSession else { return nil }
         let connection = session.connection
         let databaseType = EchoSenseDatabaseType(connection.databaseType)
-        let selectedDatabase = normalize(session.selectedDatabaseName)
+        let selectedDatabase = normalize(session.sidebarFocusedDatabase)
             ?? normalize(connection.database)
         let structure = session.databaseStructure
             ?? connection.cachedStructure
@@ -60,7 +60,7 @@ struct AutocompleteInspectorRootView: View {
     var activeConnectionSummary: String? {
         guard let session = environmentState.sessionGroup.activeSession else { return nil }
         let connection = session.connection
-        let databasePart = normalize(session.selectedDatabaseName) ?? normalize(connection.database)
+        let databasePart = normalize(session.sidebarFocusedDatabase) ?? normalize(connection.database)
         if let databasePart, !databasePart.isEmpty {
             return "\(connection.connectionName) \u{2022} \(databasePart)"
         }

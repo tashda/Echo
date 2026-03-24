@@ -23,7 +23,7 @@ private struct AppearanceModeCard: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: SpacingTokens.xxs2) {
             AppearancePreviewThumbnail(mode: mode)
                 .frame(width: 96, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium, style: .continuous))
@@ -80,13 +80,13 @@ private struct AppearancePreviewBase: View {
             // Floating window
             VStack(spacing: 0) {
                 // Title bar
-                HStack(spacing: 2.5) {
-                    Circle().fill(Color(red: 1.00, green: 0.37, blue: 0.34)).frame(width: 3.5, height: 3.5)
-                    Circle().fill(Color(red: 1.00, green: 0.73, blue: 0.20)).frame(width: 3.5, height: 3.5)
-                    Circle().fill(Color(red: 0.29, green: 0.78, blue: 0.35)).frame(width: 3.5, height: 3.5)
+                HStack(spacing: SpacingTokens.xxxs1) {
+                    Circle().fill(Color(red: 1.00, green: 0.37, blue: 0.34)).frame(width: SpacingTokens.nano1, height: SpacingTokens.nano1)
+                    Circle().fill(Color(red: 1.00, green: 0.73, blue: 0.20)).frame(width: SpacingTokens.nano1, height: SpacingTokens.nano1)
+                    Circle().fill(Color(red: 0.29, green: 0.78, blue: 0.35)).frame(width: SpacingTokens.nano1, height: SpacingTokens.nano1)
                     Spacer()
                 }
-                .padding(.leading, 6)
+                .padding(.leading, SpacingTokens.xxs2)
                 .frame(maxWidth: .infinity)
                 .frame(height: 11)
                 .background(isDark ? Color(white: 0.24) : Color(white: 0.88))
@@ -94,12 +94,12 @@ private struct AppearancePreviewBase: View {
                 // Content area
                 HStack(spacing: 0) {
                     (isDark ? Color(white: 0.19) : Color(white: 0.93)).frame(width: 18)
-                    VStack(alignment: .leading, spacing: 2.5) {
+                    VStack(alignment: .leading, spacing: SpacingTokens.xxxs1) {
                         RoundedRectangle(cornerRadius: 0.5).fill(ColorTokens.accent.opacity(0.55)).frame(width: 26, height: 3)
                         RoundedRectangle(cornerRadius: 0.5).fill(Color.primary.opacity(0.10)).frame(width: 36, height: 2)
                         RoundedRectangle(cornerRadius: 0.5).fill(Color.primary.opacity(0.10)).frame(width: 30, height: 2)
                     }
-                    .padding(.leading, 5).padding(.vertical, 4)
+                    .padding(.leading, SpacingTokens.xxs1).padding(.vertical, SpacingTokens.xxs)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
@@ -107,8 +107,8 @@ private struct AppearancePreviewBase: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
             .shadow(color: .black.opacity(isDark ? 0.4 : 0.18), radius: 4, x: 0, y: 2)
-            .padding(.horizontal, 7)
-            .padding(.bottom, 5)
+            .padding(.horizontal, SpacingTokens.xxs3)
+            .padding(.bottom, SpacingTokens.xxs1)
         }
     }
 }
@@ -133,7 +133,7 @@ private struct SidebarIconCard: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: SpacingTokens.xxs2) {
             previewThumbnail
                 .frame(width: 96, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium, style: .continuous))
@@ -153,17 +153,17 @@ private struct SidebarIconCard: View {
         ZStack(alignment: .leading) {
             ColorTokens.Background.secondary
             
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: SpacingTokens.nano) {
                 previewRow(icon: "cylinder.fill", color: mode == .colorful ? .blue : .primary.opacity(0.6))
                 previewRow(icon: "tablecells.fill", color: mode == .colorful ? .orange : .primary.opacity(0.6))
                 previewRow(icon: "eye.fill", color: mode == .colorful ? .purple : .primary.opacity(0.6))
             }
-            .padding(.leading, 8)
+            .padding(.leading, SpacingTokens.xs)
         }
     }
     
     private func previewRow(icon: String, color: Color) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: SpacingTokens.xxs) {
             Image(systemName: icon)
                 .font(.system(size: 6))
                 .foregroundStyle(color)
@@ -198,7 +198,7 @@ private struct SidebarDensityCard: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: SpacingTokens.xxs2) {
             previewThumbnail
                 .frame(width: 96, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium, style: .continuous))
@@ -225,12 +225,12 @@ private struct SidebarDensityCard: View {
                 densityRow(icon: "tablecells.fill")
                 densityRow(icon: "eye.fill")
             }
-            .padding(.leading, 8)
+            .padding(.leading, SpacingTokens.xs)
         }
     }
 
     private func densityRow(icon: String) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: SpacingTokens.xxs) {
             Image(systemName: icon)
                 .font(.system(size: density == .large ? 8 : 6))
                 .foregroundStyle(Color.primary.opacity(0.55))
@@ -280,7 +280,7 @@ struct AccentColorPalette: View {
                         if isSelected {
                             Circle()
                                 .strokeBorder(ColorTokens.accent, lineWidth: 2)
-                                .padding(-3)
+                                .padding(-SpacingTokens.nano)
                         }
                     }
                     .overlay(Circle().strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5))
@@ -336,7 +336,7 @@ struct EditorFontPreview: View {
             .background(headerBg)
 
             // Code lines
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs1) {
                 codeLine(number: 1, content: line1)
                 codeLine(number: 2, content: line2)
                 codeLine(number: 3, content: line3)

@@ -40,6 +40,10 @@ extension CompactTabPreviewCard {
             return []
         case .databaseSecurity, .serverSecurity:
             return []
+        case .errorLog:
+            return []
+        case .profiler, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
+            return []
         }
         }
 
@@ -78,6 +82,18 @@ extension CompactTabPreviewCard {
             return "Database Security"
         case .serverSecurity:
             return "Server Security"
+        case .errorLog:
+            return "Error Log"
+        case .profiler:
+            return "SQL Profiler"
+        case .resourceGovernor:
+            return "Resource Governor"
+        case .serverProperties:
+            return "Server Properties"
+        case .tuningAdvisor:
+            return "Tuning Advisor"
+        case .policyManagement:
+            return "Policy Management"
         }
         }
 
@@ -117,6 +133,18 @@ extension CompactTabPreviewCard {
             return "Database security management"
         case .serverSecurity:
             return "Server security management"
+        case .errorLog:
+            return "SQL Server error log viewer"
+        case .profiler:
+            return "SQL Profiler session and trace management"
+        case .resourceGovernor:
+            return "Configure and monitor Resource Governor"
+        case .serverProperties:
+            return "View and modify server configuration properties"
+        case .tuningAdvisor:
+            return "Database Engine Tuning Advisor recommendations"
+        case .policyManagement:
+            return "Manage database policies and compliance"
         }
         }
 

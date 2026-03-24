@@ -58,6 +58,24 @@ struct WorkspaceContentView: View {
                 } else if tab.serverSecurity != nil {
                     ServerSecurityView(tab: tab)
                         .background(ColorTokens.Background.primary)
+                } else if let errorLogVM = tab.errorLogVM {
+                    ErrorLogView(viewModel: errorLogVM)
+                        .background(ColorTokens.Background.primary)
+                } else if let profilerVM = tab.profilerVM {
+                    ProfilerView(viewModel: profilerVM)
+                        .background(ColorTokens.Background.primary)
+                } else if let rgVM = tab.resourceGovernorVM {
+                    ResourceGovernorView(viewModel: rgVM)
+                        .background(ColorTokens.Background.primary)
+                } else if let tuningVM = tab.tuningAdvisorVM {
+                    TuningAdvisorView(viewModel: tuningVM)
+                        .background(ColorTokens.Background.primary)
+                } else if let policyVM = tab.policyManagementVM {
+                    PolicyManagementView(viewModel: policyVM)
+                        .background(ColorTokens.Background.primary)
+                } else if let spVM = tab.serverPropertiesVM {
+                    ServerPropertiesView(viewModel: spVM)
+                        .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,

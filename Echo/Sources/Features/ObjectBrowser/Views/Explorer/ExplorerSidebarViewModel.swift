@@ -1,11 +1,9 @@
 import SwiftUI
 import EchoSense
+import SQLServerKit
 
 @MainActor @Observable
 final class ObjectBrowserSidebarViewModel {
-    var searchText = ""
-    var debouncedSearchText = ""
-    var isSearchFieldFocused = false
     var expandedServerIDs: Set<UUID> = []
     var selectedObjectID: String?
     var knownSessionIDs: Set<UUID> = []
@@ -19,7 +17,6 @@ final class ObjectBrowserSidebarViewModel {
     var expandedDatabasesBySession: [UUID: Set<String>] = [:]
     var expandedObjectGroupsBySession: [String: Set<SchemaObjectInfo.ObjectType>] = [:]
     var expandedObjectIDsBySession: [String: Set<String>] = [:]
-    var selectedSchemaNameBySession: [String: String] = [:]
     /// Stores the auto-expand object types per connection, derived from sidebar settings at init time.
     @ObservationIgnored internal var defaultExpandedObjectTypes: [UUID: Set<SchemaObjectInfo.ObjectType>] = [:]
     var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
@@ -86,11 +83,9 @@ final class ObjectBrowserSidebarViewModel {
     var showSecurityPGRoleSheet = false
     var securityPGRoleSheetEditName: String?
     var securityPGRoleSheetSessionID: UUID?
-
-    // Database properties sheet
-    var showDatabaseProperties = false
-    var propertiesDatabaseName: String?
-    var propertiesConnectionID: UUID?
+    var showNewServerRoleSheet = false
+    var showNewCredentialSheet = false
+    var newSecuritySheetSessionID: UUID?
 
     // New database sheet
     var showNewDatabaseSheet = false
@@ -124,6 +119,22 @@ final class ObjectBrowserSidebarViewModel {
     // CMS sheet
     var showCMSSheet = false
     var cmsConnectionID: UUID?
+
+    // Detach Database sheet
+    var showDetachSheet = false
+    var detachDatabaseName: String?
+    var detachConnectionID: UUID?
+
+    // Attach Database sheet
+    var showAttachSheet = false
+    var attachConnectionID: UUID?
+
+    // Database Snapshots (per-connection, MSSQL only)
+    var databaseSnapshotsExpandedBySession: [UUID: Bool] = [:]
+    var databaseSnapshotsBySession: [UUID: [SQLServerDatabaseSnapshot]] = [:]
+    var databaseSnapshotsLoadingBySession: [UUID: Bool] = [:]
+    var showCreateSnapshotSheet = false
+    var createSnapshotConnectionID: UUID?
 
     // Drop database confirmation
     var showDropDatabaseAlert = false
@@ -224,66 +235,13 @@ final class ObjectBrowserSidebarViewModel {
         let owner: String?
     }
 
-    @ObservationIgnored private var searchDebounceTask: Task<Void, Never>?
-    /// Tracks whether a debounce observer is already running.
-    @ObservationIgnored private var isDebounceActive = false
-
-    func setupSearchDebounce(proxy: ScrollViewProxy) {
-        guard !isDebounceActive else { return }
-        isDebounceActive = true
-
-        // Use onChange-driven debounce via Task-based approach.
-        // The caller should wire onChange(of: searchText) to call handleSearchTextChanged(proxy:).
-    }
-
-    func handleSearchTextChanged(proxy: ScrollViewProxy) {
-        searchDebounceTask?.cancel()
-        let newValue = searchText
-        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmed.isEmpty {
-            debouncedSearchText = ""
-            searchDebounceTask = Task {
-                await Task.yield()
-                guard !Task.isCancelled else { return }
-                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-            }
-        } else {
-            let pending = newValue
-            searchDebounceTask = Task {
-                try? await Task.sleep(nanoseconds: 200_000_000)
-                guard !Task.isCancelled else { return }
-                debouncedSearchText = pending
-                await Task.yield()
-                guard !Task.isCancelled else { return }
-                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-            }
-        }
-    }
-
-    func stopSearchDebounce() {
-        searchDebounceTask?.cancel()
-        searchDebounceTask = nil
-        isDebounceActive = false
-    }
-
-    func resetFilters(for session: ConnectionSession?, selectedSession: ConnectionSession?) {
-        if !searchText.isEmpty {
-            searchText = ""
-            debouncedSearchText = ""
-        }
+    func resetExpandedState(for session: ConnectionSession?, selectedSession: ConnectionSession?) {
         guard let targetSession = session ?? selectedSession else { return }
         let connID = targetSession.connection.id
         let prefix = connID.uuidString + "#"
-        for key in selectedSchemaNameBySession.keys where key.hasPrefix(prefix) { selectedSchemaNameBySession.removeValue(forKey: key) }
         for key in expandedObjectIDsBySession.keys where key.hasPrefix(prefix) { expandedObjectIDsBySession.removeValue(forKey: key) }
         let defaults = defaultExpandedObjectTypes[connID] ?? Set(SchemaObjectInfo.ObjectType.allCases)
         for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) { expandedObjectGroupsBySession[key] = defaults }
-    }
-
-    private func supportedObjectTypes(for session: ConnectionSession?) -> [SchemaObjectInfo.ObjectType] {
-        guard let session else { return SchemaObjectInfo.ObjectType.allCases }
-        return SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
     }
 
     // MARK: - Database Expansion
@@ -317,5 +275,112 @@ final class ObjectBrowserSidebarViewModel {
     func isDatabaseSchemaLoadedOnce(connectionID: UUID, databaseName: String) -> Bool {
         databaseSchemaLoadedOnce.contains(pinnedStorageKey(connectionID: connectionID, databaseName: databaseName))
     }
+
+    // Server Triggers (per-connection, MSSQL only)
+    var serverTriggersExpandedBySession: [UUID: Bool] = [:]
+    var serverTriggersBySession: [UUID: [ServerTriggerItem]] = [:]
+    var serverTriggersLoadingBySession: [UUID: Bool] = [:]
+
+    struct ServerTriggerItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let isDisabled: Bool
+        let typeDescription: String
+        let events: [String]
+    }
+
+    // Database DDL Triggers (keyed by "connID#dbName")
+    var dbDDLTriggersExpandedByDB: [String: Bool] = [:]
+    var dbDDLTriggersByDB: [String: [DatabaseDDLTriggerItem]] = [:]
+    var dbDDLTriggersLoadingByDB: [String: Bool] = [:]
+
+    struct DatabaseDDLTriggerItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let isDisabled: Bool
+        let events: [String]
+    }
+
+    // Service Broker (keyed by "connID#dbName")
+    var serviceBrokerExpandedByDB: [String: Bool] = [:]
+    var serviceBrokerSubExpandedByDB: [String: Set<String>] = [:]
+    var serviceBrokerLoadingByDB: [String: Bool] = [:]
+    var serviceBrokerMessageTypesByDB: [String: [String]] = [:]
+    var serviceBrokerContractsByDB: [String: [String]] = [:]
+    var serviceBrokerQueuesByDB: [String: [String]] = [:]
+    var serviceBrokerServicesByDB: [String: [String]] = [:]
+    var serviceBrokerRoutesByDB: [String: [String]] = [:]
+    var serviceBrokerBindingsByDB: [String: [String]] = [:]
+
+    // External Resources / PolyBase (keyed by "connID#dbName")
+    var externalResourcesExpandedByDB: [String: Bool] = [:]
+    var externalResourcesSubExpandedByDB: [String: Set<String>] = [:]
+    var externalResourcesLoadingByDB: [String: Bool] = [:]
+    var externalDataSourcesByDB: [String: [String]] = [:]
+    var externalTablesByDB: [String: [String]] = [:]
+    var externalFileFormatsByDB: [String: [String]] = [:]
+
+    // Sheet triggers — Server Triggers
+    var showNewServerTriggerSheet = false
+    var newServerTriggerConnectionID: UUID?
+
+    // Sheet triggers — Database DDL Triggers
+    var showNewDBDDLTriggerSheet = false
+    var newDBDDLTriggerConnectionID: UUID?
+    var newDBDDLTriggerDatabaseName: String?
+
+    // Sheet triggers — Service Broker
+    var showNewMessageTypeSheet = false
+    var newMessageTypeConnectionID: UUID?
+    var newMessageTypeDatabaseName: String?
+
+    var showNewContractSheet = false
+    var newContractConnectionID: UUID?
+    var newContractDatabaseName: String?
+
+    var showNewQueueSheet = false
+    var newQueueConnectionID: UUID?
+    var newQueueDatabaseName: String?
+
+    var showNewServiceSheet = false
+    var newServiceConnectionID: UUID?
+    var newServiceDatabaseName: String?
+
+    var showNewRouteSheet = false
+    var newRouteConnectionID: UUID?
+    var newRouteDatabaseName: String?
+
+    // Sheet triggers — External Resources (PolyBase)
+    var showNewExternalDataSourceSheet = false
+    var newExternalDataSourceConnectionID: UUID?
+    var newExternalDataSourceDatabaseName: String?
+
+    var showNewExternalFileFormatSheet = false
+    var newExternalFileFormatConnectionID: UUID?
+    var newExternalFileFormatDatabaseName: String?
+
+    var showNewExternalTableSheet = false
+    var newExternalTableConnectionID: UUID?
+    var newExternalTableDatabaseName: String?
+
+    // Sheet triggers — Phase 6
+    var showGenerateScriptsWizard = false
+    var generateScriptsConnectionID: UUID?
+    var generateScriptsDatabaseName: String?
+
+    var showQuickImportSheet = false
+    var quickImportConnectionID: UUID?
+    var quickImportDatabaseName: String?
+
+    var showDACWizard = false
+    var dacWizardConnectionID: UUID?
+    var dacWizardDatabaseName: String?
+
+    // Sheet triggers — Temporal
+    var showEnableVersioningSheet = false
+    var enableVersioningConnectionID: UUID?
+    var enableVersioningDatabaseName: String?
+    var enableVersioningSchemaName: String?
+    var enableVersioningTableName: String?
 
 }

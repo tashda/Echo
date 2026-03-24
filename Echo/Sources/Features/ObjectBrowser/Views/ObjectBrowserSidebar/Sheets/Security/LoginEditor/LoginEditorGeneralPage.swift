@@ -22,6 +22,15 @@ struct LoginEditorGeneralPage: View {
                 .pickerStyle(.menu)
                 .disabled(viewModel.isEditing)
             }
+
+            PropertyRow(
+                title: "Login enabled",
+                info: "When disabled, the login cannot connect to SQL Server. Existing connections are not affected."
+            ) {
+                Toggle("", isOn: $viewModel.loginEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
         }
 
         if viewModel.authType == .sql {

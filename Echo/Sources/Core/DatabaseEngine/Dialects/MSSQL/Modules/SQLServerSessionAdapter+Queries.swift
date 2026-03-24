@@ -306,7 +306,7 @@ extension SQLServerSessionAdapter {
 
     // MARK: - Non-Streaming Conversion
 
-    private func convertSQLServerRowsToEcho(_ rows: [SQLServerRow]) -> QueryResultSet {
+    func convertSQLServerRowsToEcho(_ rows: [SQLServerRow]) -> QueryResultSet {
         var echoColumns: [ColumnInfo] = []
         var echoRows: [[String?]] = []
 
@@ -333,4 +333,5 @@ extension SQLServerSessionAdapter {
             commandTag: nil
         )
     }
+
 }

@@ -81,6 +81,16 @@ struct RefreshToolbarButton: View {
                     }
                     return
                 }
+            case .errorLog:
+                if let vm = activeTab.errorLogVM {
+                    session.structureLoadingState = .loading(progress: nil)
+                    refreshTask = Task {
+                        await vm.refresh()
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
             case .extendedEvents:
                 if let vm = activeTab.extendedEventsVM {
                     session.structureLoadingState = .loading(progress: nil)
@@ -115,6 +125,29 @@ struct RefreshToolbarButton: View {
                     }
                     return
                 }
+            case .profiler:
+                if let vm = activeTab.profilerVM {
+                    vm.refresh() // Non-async but might start tasks
+                    return
+                }
+            case .resourceGovernor:
+                if let vm = activeTab.resourceGovernorVM {
+                    vm.refresh()
+                    return
+                }
+            case .serverProperties:
+                // TODO: Implement server properties refresh
+                break
+            case .tuningAdvisor:
+                if let vm = activeTab.tuningAdvisorVM {
+                    vm.refresh()
+                    return
+                }
+            case .policyManagement:
+                if let vm = activeTab.policyManagementVM {
+                    vm.refresh()
+                    return
+                }
             default:
                 break
             }
@@ -146,7 +179,7 @@ struct RefreshToolbarButton: View {
                 scope: .selectedDatabase,
                 databaseOverride: database
             )
-        } else if let selected = session.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines),
+        } else if let selected = session.sidebarFocusedDatabase?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !selected.isEmpty {
             await environmentState.refreshDatabaseStructure(
                 for: session.id,

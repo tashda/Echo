@@ -8,6 +8,7 @@ struct MSSQLServerSecurityView: View {
 
     @State private var showNewRoleSheet = false
     @State private var showNewCredentialSheet = false
+    @State private var showNewAuditSheet = false
 
     private var session: ConnectionSession? {
         environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
@@ -47,6 +48,14 @@ struct MSSQLServerSecurityView: View {
                 }
             }
         }
+        .sheet(isPresented: $showNewAuditSheet) {
+            if let session {
+                NewServerAuditSheet(session: session) {
+                    showNewAuditSheet = false
+                    Task { await viewModel.loadCurrentSection() }
+                }
+            }
+        }
     }
 
     private var connectionText: String {
@@ -54,7 +63,7 @@ struct MSSQLServerSecurityView: View {
     }
 
     private var statusBubble: BottomPanelStatusBarConfiguration.StatusBubble? {
-        if viewModel.isLoadingLogins || viewModel.isLoadingServerRoles || viewModel.isLoadingCredentials {
+        if viewModel.isLoadingLogins || viewModel.isLoadingServerRoles || viewModel.isLoadingCredentials || viewModel.isLoadingAudits {
             return .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true)
         }
         return nil
@@ -71,7 +80,7 @@ struct MSSQLServerSecurityView: View {
             EmptyView()
         }
         .pickerStyle(.segmented)
-        .frame(maxWidth: 300)
+        .frame(maxWidth: 380)
     }
 
     // MARK: - Section Content
@@ -94,6 +103,11 @@ struct MSSQLServerSecurityView: View {
                 MSSQLSecurityCredentialsSection(
                     viewModel: viewModel,
                     onNewCredential: { showNewCredentialSheet = true }
+                )
+            case .audits:
+                MSSQLSecurityAuditsSection(
+                    viewModel: viewModel,
+                    onNewAudit: { showNewAuditSheet = true }
                 )
             }
         }

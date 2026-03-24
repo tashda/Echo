@@ -209,7 +209,33 @@ struct TabPreviewCard: View {
             AvailabilityGroupsPreview()
         case .databaseSecurity, .serverSecurity:
             SecurityPreview()
+        case .errorLog:
+            EmptyPreviewPlaceholder(message: "Error Log")
+        case .profiler:
+            EmptyPreviewPlaceholder(message: "SQL Profiler")
+        case .resourceGovernor:
+            EmptyPreviewPlaceholder(message: "Resource Governor")
+        case .serverProperties:
+            EmptyPreviewPlaceholder(message: "Server Properties")
+        case .tuningAdvisor:
+            EmptyPreviewPlaceholder(message: "Tuning Advisor")
+        case .policyManagement:
+            PolicyManagementPreview()
         }
+    }
+}
+
+struct PolicyManagementPreview: View {
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "checkmark.seal")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Policy Management")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

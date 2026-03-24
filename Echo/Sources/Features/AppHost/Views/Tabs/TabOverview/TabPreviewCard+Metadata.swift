@@ -82,6 +82,18 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
         return ("lock.shield", "Ready", ColorTokens.Text.secondary)
     case .serverSecurity:
         return ("lock.shield", "Ready", ColorTokens.Text.secondary)
+    case .errorLog:
+        return ("doc.text", "Ready", ColorTokens.Text.secondary)
+    case .profiler:
+        return ("trace", "Ready", ColorTokens.Text.secondary)
+    case .resourceGovernor:
+        return ("r.square.on.square", "Ready", ColorTokens.Text.secondary)
+    case .serverProperties:
+        return ("gearshape.2", "Ready", ColorTokens.Text.secondary)
+    case .tuningAdvisor:
+        return ("wand.and.stars", "Ready", ColorTokens.Text.secondary)
+    case .policyManagement:
+        return ("checkmark.seal", "Ready", ColorTokens.Text.secondary)
     }
 }
 
@@ -119,6 +131,10 @@ extension TabPreviewCard {
         case .availabilityGroups:
             return []
         case .databaseSecurity, .serverSecurity:
+            return []
+        case .errorLog:
+            return []
+        case .profiler, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
             return []
         }
     }
@@ -223,6 +239,18 @@ extension TabPreviewCard {
             return "Database Security"
         case .serverSecurity:
             return "Server Security"
+        case .errorLog:
+            return "Error Log"
+        case .profiler:
+            return "SQL Profiler"
+        case .resourceGovernor:
+            return "Resource Governor"
+        case .serverProperties:
+            return "Server Properties"
+        case .tuningAdvisor:
+            return "Tuning Advisor"
+        case .policyManagement:
+            return "Policy Management"
         }
     }
 }

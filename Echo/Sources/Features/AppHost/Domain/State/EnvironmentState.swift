@@ -24,12 +24,16 @@ final class EnvironmentState {
     var sessionGroup = ActiveSessionGroup()
     var pinnedObjectIDs: [String] = []
     var recentConnections: [RecentConnectionRecord] = []
-    var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
+    var searchSidebarCache: GlobalSearchSidebarCache = GlobalSearchSidebarCache()
     var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
     var userEditorViewModels: [UserEditorWindowValue: UserEditorViewModel] = [:]
     var loginEditorViewModels: [LoginEditorWindowValue: LoginEditorViewModel] = [:]
+    var databaseEditorViewModels: [DatabaseEditorWindowValue: DatabaseEditorViewModel] = [:]
+    var serverEditorViewModels: [ServerEditorWindowValue: ServerEditorViewModel] = [:]
     var activeLoginEditorValue: LoginEditorWindowValue?
     var activeUserEditorValue: UserEditorWindowValue?
+    var activeDatabaseEditorValue: DatabaseEditorWindowValue?
+    var activeServerEditorValue: ServerEditorWindowValue?
     var dataInspectorContent: DataInspectorContent?
     @ObservationIgnored private var lastPushedInspectorTitle: String?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []
@@ -231,7 +235,7 @@ final class EnvironmentState {
                 pendingConnections.removeAll { $0.id == connection.id }
                 sessionGroup.addSession(connectionSession)
                 connectionStates[connection.id] = .connected
-                recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
+                recordRecentConnection(for: connection, databaseName: connectionSession.sidebarFocusedDatabase)
                 startStructureLoadTask(for: connectionSession)
                 Task { await connectionSession.refreshPermissions() }
                 notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")

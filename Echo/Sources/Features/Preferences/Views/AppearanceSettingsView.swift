@@ -9,32 +9,22 @@ struct AppearanceSettingsView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent {
+                PropertyRow(title: "Appearance") {
                     AppearanceModePicker(selection: appearanceModeBinding)
-                } label: {
-                    Text("Appearance")
                 }
 
-                LabeledContent {
+                PropertyRow(
+                    title: "Explorer Sidebar",
+                    subtitle: "Choose the row density for the explorer sidebar."
+                ) {
                     SidebarDensityPicker(selection: sidebarDensityBinding)
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Explorer Sidebar")
-                        Text("Choose the row density for the explorer sidebar.")
-                            .font(TypographyTokens.formDescription)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
                 }
 
-                LabeledContent {
+                PropertyRow(
+                    title: "Sidebar Icons",
+                    subtitle: "Choose your preferred look for sidebar icons."
+                ) {
                     SidebarIconPicker(selection: sidebarIconColorModeBinding)
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Sidebar Icons")
-                        Text("Choose your preferred look for sidebar icons.")
-                            .font(TypographyTokens.formDescription)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
                 }
             }
 
@@ -86,14 +76,18 @@ struct AppearanceSettingsView: View {
                     .pickerStyle(.menu)
                 }
 
-                Toggle("Enable Ligatures", isOn: Binding(
-                    get: { projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true },
-                    set: { newValue in
-                        var settings = projectStore.globalSettings
-                        settings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] = newValue
-                        Task { try? await projectStore.updateGlobalSettings(settings) }
-                    }
-                ))
+                PropertyRow(title: "Enable Ligatures") {
+                    Toggle("", isOn: Binding(
+                        get: { projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true },
+                        set: { newValue in
+                            var settings = projectStore.globalSettings
+                            settings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] = newValue
+                            Task { try? await projectStore.updateGlobalSettings(settings) }
+                        }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                }
             }
 
             Section {

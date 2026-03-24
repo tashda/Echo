@@ -21,12 +21,11 @@ extension ObjectBrowserSidebarView {
                 title: "Logins",
                 icon: "person.2",
                 count: standardLogins.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityLoginsExpandedBySession[connID] = !isExpanded
-                }
-            }
+                isExpanded: Binding<Bool>(
+                    get: { isExpanded },
+                    set: { newValue in viewModel.securityLoginsExpandedBySession[connID] = newValue }
+                )
+            )
             .contextMenu {
                 Button {
                     Task {
@@ -85,12 +84,11 @@ extension ObjectBrowserSidebarView {
                 title: "Certificate Logins",
                 icon: "doc.badge.lock",
                 count: certLogins.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityCertLoginsExpandedBySession[connID] = !isExpanded
-                }
-            }
+                isExpanded: Binding<Bool>(
+                    get: { isExpanded },
+                    set: { newValue in viewModel.securityCertLoginsExpandedBySession[connID] = newValue }
+                )
+            )
         }
 
         if isExpanded {
@@ -116,12 +114,11 @@ extension ObjectBrowserSidebarView {
                 title: "Server Roles",
                 icon: "shield",
                 count: roles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityServerRolesExpandedBySession[connID] = !isExpanded
-                }
-            }
+                isExpanded: Binding<Bool>(
+                    get: { isExpanded },
+                    set: { newValue in viewModel.securityServerRolesExpandedBySession[connID] = newValue }
+                )
+            )
             .contextMenu {
                 Button {
                     Task {
@@ -133,7 +130,7 @@ extension ObjectBrowserSidebarView {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 Button {
-                    Task { await createMSSQLServerRole(session: session) }
+                    createMSSQLServerRole(session: session)
                 } label: {
                     Label("New Server Role", systemImage: "person.2.badge.plus")
                 }
@@ -175,10 +172,16 @@ extension ObjectBrowserSidebarView {
                 title: "Credentials",
                 icon: "key",
                 count: credentials.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityCredentialsExpandedBySession[connID] = !isExpanded
+                isExpanded: Binding<Bool>(
+                    get: { isExpanded },
+                    set: { newValue in viewModel.securityCredentialsExpandedBySession[connID] = newValue }
+                )
+            )
+            .contextMenu {
+                Button {
+                    createMSSQLCredential(session: session)
+                } label: {
+                    Label("New Credential", systemImage: "key.badge.plus")
                 }
             }
         }

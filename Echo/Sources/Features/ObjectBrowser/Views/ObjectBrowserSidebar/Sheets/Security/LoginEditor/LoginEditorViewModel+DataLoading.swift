@@ -7,7 +7,10 @@ extension LoginEditorViewModel {
 
     func loadGeneralData(session: ConnectionSession) async {
         isLoadingGeneral = true
-        defer { isLoadingGeneral = false }
+        defer {
+            isLoadingGeneral = false
+            takeSnapshot()
+        }
 
         guard let mssql = session.session as? MSSQLSession else { return }
 
@@ -75,6 +78,7 @@ extension LoginEditorViewModel {
             }
 
             roleEntries = entries
+            takeSnapshot()
         } catch { }
     }
 
@@ -90,19 +94,8 @@ extension LoginEditorViewModel {
         guard let mssql = session.session as? MSSQLSession,
               let existingName = existingLoginName else { return }
 
-        await fetchAndApplyMappings(mssql: mssql, loginName: existingName)
-    }
-
-    func reloadMappings(session: ConnectionSession) async {
-        guard let mssql = session.session as? MSSQLSession,
-              let existingName = existingLoginName else { return }
-
-        await fetchAndApplyMappings(mssql: mssql, loginName: existingName)
-    }
-
-    private func fetchAndApplyMappings(mssql: MSSQLSession, loginName: String) async {
         do {
-            let mappings = try await mssql.serverSecurity.listLoginDatabaseMappings(login: loginName)
+            let mappings = try await mssql.serverSecurity.listLoginDatabaseMappings(login: existingName)
             let mappedSet = Dictionary(
                 mappings.map { ($0.databaseName.lowercased(), $0) },
                 uniquingKeysWith: { first, _ in first }
@@ -110,19 +103,29 @@ extension LoginEditorViewModel {
 
             mappingEntries = availableDatabases.map { db in
                 if let mapping = mappedSet[db.lowercased()] {
-                    LoginEditorMappingEntry(databaseName: db, isMapped: true, userName: mapping.userName, defaultSchema: mapping.defaultSchema)
+                    LoginEditorMappingEntry(
+                        databaseName: db, isMapped: true, originallyMapped: true,
+                        userName: mapping.userName, defaultSchema: mapping.defaultSchema
+                    )
                 } else {
-                    LoginEditorMappingEntry(databaseName: db, isMapped: false, userName: nil, defaultSchema: nil)
+                    LoginEditorMappingEntry(
+                        databaseName: db, isMapped: false, originallyMapped: false,
+                        userName: nil, defaultSchema: nil
+                    )
                 }
             }
         } catch { }
     }
 
     func loadDatabaseRoles(database: String, session: ConnectionSession) async {
+        // If we already loaded roles for this DB, just show the cached state
+        if databaseRolesPerDB[database] != nil { return }
+
         guard let mssql = session.session as? MSSQLSession else { return }
         let entry = mappingEntries.first { $0.databaseName == database }
-        guard let userName = entry?.userName, entry?.isMapped == true else {
-            databaseRoleMemberships = []
+        guard let userName = entry?.userName, entry?.isMapped == true, entry?.originallyMapped == true else {
+            // New mapping or unmapped — no server roles to load
+            databaseRolesPerDB[database] = defaultDatabaseRoles()
             return
         }
 
@@ -130,64 +133,59 @@ extension LoginEditorViewModel {
         do {
             let ssec = mssql.serverSecurity
             let roles = try await ssec.listDatabaseRolesForUser(database: database, userName: userName)
-            databaseRoleMemberships = roles.map { LoginEditorDBRoleEntry(roleName: $0.roleName, isMember: $0.isMember) }
-            isLoadingDBRoles = false
-        } catch {
-            isLoadingDBRoles = false
-        }
-    }
-
-    func mapToDatabase(database: String, session: ConnectionSession) async {
-        guard let mssql = session.session as? MSSQLSession else { return }
-        let name = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-
-        do {
-            try await mssql.serverSecurity.mapLoginToDatabase(login: name, database: database)
-        } catch {
-            // "already exists" means the mapping is there — not a real error
-            let msg = error.localizedDescription
-            if !msg.contains("already exists") {
-                errorMessage = msg
+            databaseRolesPerDB[database] = roles.map {
+                LoginEditorDBRoleEntry(roleName: $0.roleName, isMember: $0.isMember, originallyMember: $0.isMember)
             }
+            isLoadingDBRoles = false
+        } catch {
+            databaseRolesPerDB[database] = defaultDatabaseRoles()
+            isLoadingDBRoles = false
         }
-        // Always reload to reflect actual state
-        await reloadMappings(session: session)
     }
 
-    func unmapFromDatabase(database: String, session: ConnectionSession) async {
-        guard let mssql = session.session as? MSSQLSession else { return }
-        let name = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
+    /// Default database roles for new mappings (all unchecked).
+    private func defaultDatabaseRoles() -> [LoginEditorDBRoleEntry] {
+        let standardRoles = [
+            "db_accessadmin", "db_backupoperator", "db_datareader", "db_datawriter",
+            "db_ddladmin", "db_denydatareader", "db_denydatawriter", "db_owner", "db_securityadmin"
+        ]
+        return standardRoles.map { LoginEditorDBRoleEntry(roleName: $0, isMember: false, originallyMember: false) }
+    }
 
-        let entry = mappingEntries.first { $0.databaseName == database }
-        do {
-            try await mssql.serverSecurity.unmapLoginFromDatabase(login: name, database: database, userName: entry?.userName)
-            await reloadMappings(session: session)
+    // MARK: - Local-Only Mapping Toggles
+
+    func toggleMapping(database: String, isMapped: Bool) {
+        guard let idx = mappingEntries.firstIndex(where: { $0.databaseName == database }) else { return }
+        mappingEntries[idx].isMapped = isMapped
+        if isMapped {
+            // Default userName to login name for new mappings
+            if mappingEntries[idx].userName == nil {
+                mappingEntries[idx].userName = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            if mappingEntries[idx].defaultSchema == nil {
+                mappingEntries[idx].defaultSchema = "dbo"
+            }
+            // Ensure roles are available for the inspector
+            if databaseRolesPerDB[database] == nil {
+                databaseRolesPerDB[database] = defaultDatabaseRoles()
+            }
+        } else {
+            // When unmapping, clear roles but keep them in cache for undo
             if selectedMappingDatabase == database {
-                databaseRoleMemberships = []
+                // Roles still visible in inspector but disabled via the "Not Mapped" state
             }
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 
-    func toggleDatabaseRole(database: String, role: String, isMember: Bool, session: ConnectionSession) async {
-        guard let mssql = session.session as? MSSQLSession else { return }
-        let entry = mappingEntries.first { $0.databaseName == database }
-        guard let userName = entry?.userName else { return }
-
-        do {
-            let ssec = mssql.serverSecurity
-            if isMember {
-                try await ssec.addUserToDatabaseRole(database: database, userName: userName, role: role)
-            } else {
-                try await ssec.removeUserFromDatabaseRole(database: database, userName: userName, role: role)
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-            await loadDatabaseRoles(database: database, session: session)
-        }
+    func toggleDatabaseRoleLocally(database: String, roleName: String, isMember: Bool) {
+        guard var roles = databaseRolesPerDB[database],
+              let idx = roles.firstIndex(where: { $0.roleName == roleName }) else { return }
+        roles[idx] = LoginEditorDBRoleEntry(
+            roleName: roles[idx].roleName,
+            isMember: isMember,
+            originallyMember: roles[idx].originallyMember
+        )
+        databaseRolesPerDB[database] = roles
     }
 
     // MARK: - Securables
@@ -199,25 +197,38 @@ extension LoginEditorViewModel {
             hasLoadedSecurables = true
         }
 
-        guard let mssql = session.session as? MSSQLSession,
-              let existingName = existingLoginName else { return }
+        guard let mssql = session.session as? MSSQLSession else { return }
 
         do {
-            let perms = try await mssql.serverSecurity.listPermissions(principal: existingName)
-            serverPermissions = perms.map { perm in
+            // Get all available server permissions
+            let allPermissions = try await mssql.serverSecurity.listAllServerPermissions()
+
+            // Get existing grants/denies for this login
+            var existingByName: [String: (state: String, grantor: String?)] = [:]
+            if let existingName = existingLoginName {
+                let existing = try await mssql.serverSecurity.listPermissions(principal: existingName)
+                for perm in existing {
+                    existingByName[perm.permission] = (state: perm.state, grantor: perm.grantor)
+                }
+            }
+
+            // Build entries for all permissions, merging existing state
+            serverPermissions = allPermissions.map { permName in
+                let existing = existingByName[permName]
                 let state = PermissionState(
-                    isGranted: perm.state == "GRANT" || perm.state == "GRANT_WITH_GRANT_OPTION",
-                    withGrantOption: perm.state == "GRANT_WITH_GRANT_OPTION",
-                    isDenied: perm.state == "DENY"
+                    isGranted: existing?.state == "GRANT" || existing?.state == "GRANT_WITH_GRANT_OPTION",
+                    withGrantOption: existing?.state == "GRANT_WITH_GRANT_OPTION",
+                    isDenied: existing?.state == "DENY"
                 )
                 return LoginEditorPermissionEntry(
-                    permission: perm.permission,
+                    permission: permName,
                     isGranted: state.isGranted,
                     withGrantOption: state.withGrantOption,
                     isDenied: state.isDenied,
                     originalState: state
                 )
             }
+            takeSnapshot()
         } catch { }
     }
 }

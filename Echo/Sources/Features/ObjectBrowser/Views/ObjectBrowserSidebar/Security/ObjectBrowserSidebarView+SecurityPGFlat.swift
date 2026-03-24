@@ -20,12 +20,11 @@ extension ObjectBrowserSidebarView {
                 title: "Login Roles",
                 icon: "person.crop.circle",
                 count: loginRoles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityPGLoginRolesExpandedBySession[connID] = !isExpanded
-                }
-            }
+                isExpanded: Binding<Bool>(
+                    get: { isExpanded },
+                    set: { newValue in viewModel.securityPGLoginRolesExpandedBySession[connID] = newValue }
+                )
+            )
             .contextMenu {
                 Button {
                     Task {
@@ -82,12 +81,11 @@ extension ObjectBrowserSidebarView {
                 title: "Group Roles",
                 icon: "person.2.circle",
                 count: groupRoles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityPGGroupRolesExpandedBySession[connID] = !isExpanded
-                }
-            }
+                isExpanded: Binding<Bool>(
+                    get: { isExpanded },
+                    set: { newValue in viewModel.securityPGGroupRolesExpandedBySession[connID] = newValue }
+                )
+            )
             .contextMenu {
                 Button {
                     Task {

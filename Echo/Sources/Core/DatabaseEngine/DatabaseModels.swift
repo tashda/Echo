@@ -58,6 +58,12 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
     public let triggerAction: String?
     public let triggerTable: String?
     public let comment: String?
+    /// True when this table has system-versioning enabled (MSSQL temporal table).
+    public var isSystemVersioned: Bool?
+    /// True when this table is a history table for a system-versioned table.
+    public var isHistoryTable: Bool?
+    /// True when this table is memory-optimized (MSSQL In-Memory OLTP).
+    public var isMemoryOptimized: Bool?
 
     public nonisolated init(
         name: String,
@@ -67,7 +73,10 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         parameters: [ProcedureParameterInfo] = [],
         triggerAction: String? = nil,
         triggerTable: String? = nil,
-        comment: String? = nil
+        comment: String? = nil,
+        isSystemVersioned: Bool? = nil,
+        isHistoryTable: Bool? = nil,
+        isMemoryOptimized: Bool? = nil
     ) {
         self.name = name
         self.schema = schema
@@ -77,6 +86,9 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         self.triggerAction = triggerAction
         self.triggerTable = triggerTable
         self.comment = comment
+        self.isSystemVersioned = isSystemVersioned
+        self.isHistoryTable = isHistoryTable
+        self.isMemoryOptimized = isMemoryOptimized
     }
 
     public nonisolated var fullName: String {
@@ -85,6 +97,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case name, schema, type, columns, parameters, triggerAction, triggerTable, comment
+        case isSystemVersioned, isHistoryTable, isMemoryOptimized
     }
 
     public nonisolated init(from decoder: Decoder) throws {
@@ -97,6 +110,9 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         self.triggerAction = try container.decodeIfPresent(String.self, forKey: .triggerAction)
         self.triggerTable = try container.decodeIfPresent(String.self, forKey: .triggerTable)
         self.comment = try container.decodeIfPresent(String.self, forKey: .comment)
+        self.isSystemVersioned = try container.decodeIfPresent(Bool.self, forKey: .isSystemVersioned)
+        self.isHistoryTable = try container.decodeIfPresent(Bool.self, forKey: .isHistoryTable)
+        self.isMemoryOptimized = try container.decodeIfPresent(Bool.self, forKey: .isMemoryOptimized)
     }
 
     public nonisolated func encode(to encoder: Encoder) throws {
@@ -109,6 +125,9 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         try container.encodeIfPresent(triggerAction, forKey: .triggerAction)
         try container.encodeIfPresent(triggerTable, forKey: .triggerTable)
         try container.encodeIfPresent(comment, forKey: .comment)
+        try container.encodeIfPresent(isSystemVersioned, forKey: .isSystemVersioned)
+        try container.encodeIfPresent(isHistoryTable, forKey: .isHistoryTable)
+        try container.encodeIfPresent(isMemoryOptimized, forKey: .isMemoryOptimized)
     }
 }
 
@@ -243,10 +262,29 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         public var dataCompression: String?
         public var filegroup: String?
         public var lockEscalation: String?
+        // MSSQL — Temporal
+        public var isSystemVersioned: Bool?
+        public var historyTableSchema: String?
+        public var historyTableName: String?
+        public var periodStartColumn: String?
+        public var periodEndColumn: String?
+        // MSSQL — In-Memory OLTP
+        public var isMemoryOptimized: Bool?
+        public var memoryOptimizedDurability: String?
 
-        public init(fillfactor: Int? = nil, toastTupleTarget: Int? = nil, autovacuumEnabled: Bool? = nil, parallelWorkers: Int? = nil, tablespace: String? = nil, dataCompression: String? = nil, filegroup: String? = nil, lockEscalation: String? = nil) {
+        public init(
+            fillfactor: Int? = nil, toastTupleTarget: Int? = nil, autovacuumEnabled: Bool? = nil,
+            parallelWorkers: Int? = nil, tablespace: String? = nil, dataCompression: String? = nil,
+            filegroup: String? = nil, lockEscalation: String? = nil,
+            isSystemVersioned: Bool? = nil, historyTableSchema: String? = nil, historyTableName: String? = nil,
+            periodStartColumn: String? = nil, periodEndColumn: String? = nil,
+            isMemoryOptimized: Bool? = nil, memoryOptimizedDurability: String? = nil
+        ) {
             self.fillfactor = fillfactor; self.toastTupleTarget = toastTupleTarget; self.autovacuumEnabled = autovacuumEnabled; self.parallelWorkers = parallelWorkers; self.tablespace = tablespace
             self.dataCompression = dataCompression; self.filegroup = filegroup; self.lockEscalation = lockEscalation
+            self.isSystemVersioned = isSystemVersioned; self.historyTableSchema = historyTableSchema; self.historyTableName = historyTableName
+            self.periodStartColumn = periodStartColumn; self.periodEndColumn = periodEndColumn
+            self.isMemoryOptimized = isMemoryOptimized; self.memoryOptimizedDurability = memoryOptimizedDurability
         }
     }
 

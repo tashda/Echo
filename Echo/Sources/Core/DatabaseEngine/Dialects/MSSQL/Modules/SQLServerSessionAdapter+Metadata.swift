@@ -17,7 +17,10 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
                 name: table.name,
                 schema: table.schema,
                 type: objectType,
-                comment: table.comment
+                comment: table.comment,
+                isSystemVersioned: table.isSystemVersioned ? true : nil,
+                isHistoryTable: table.isHistoryTable ? true : nil,
+                isMemoryOptimized: table.isMemoryOptimized ? true : nil
             )
         }
     }
@@ -239,16 +242,28 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
             }
         }
 
-        // Table properties
+        // Table properties (including temporal and in-memory OLTP)
         let propsSQL = """
             SELECT
                 p.data_compression_desc,
                 fg.name AS filegroup_name,
-                t.lock_escalation_desc
+                t.lock_escalation_desc,
+                t.temporal_type,
+                hs.name AS history_schema,
+                ht.name AS history_table,
+                pc_start.name AS period_start_column,
+                pc_end.name AS period_end_column,
+                t.is_memory_optimized,
+                t.durability_desc
             FROM sys.tables t
             JOIN sys.partitions p ON p.object_id = t.object_id AND p.index_id IN (0, 1) AND p.partition_number = 1
             JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id IN (0, 1)
             JOIN sys.filegroups fg ON fg.data_space_id = i.data_space_id
+            LEFT JOIN sys.tables ht ON ht.object_id = t.history_table_id
+            LEFT JOIN sys.schemas hs ON hs.schema_id = ht.schema_id
+            LEFT JOIN sys.periods pr ON pr.object_id = t.object_id
+            LEFT JOIN sys.columns pc_start ON pc_start.object_id = t.object_id AND pc_start.column_id = pr.start_column_id
+            LEFT JOIN sys.columns pc_end ON pc_end.object_id = t.object_id AND pc_end.column_id = pr.end_column_id
             WHERE t.object_id = OBJECT_ID('\(schema).\(table)')
             """
         var tableProperties: TableStructureDetails.TableProperties?
@@ -257,7 +272,18 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
                 let compression = row.column("data_compression_desc")?.string
                 let fg = row.column("filegroup_name")?.string
                 let lockEsc = row.column("lock_escalation_desc")?.string
-                tableProperties = TableStructureDetails.TableProperties(dataCompression: compression, filegroup: fg, lockEscalation: lockEsc)
+                let temporalType = row.column("temporal_type")?.int ?? 0
+                let isMemOpt = (row.column("is_memory_optimized")?.int ?? 0) != 0
+                tableProperties = TableStructureDetails.TableProperties(
+                    dataCompression: compression, filegroup: fg, lockEscalation: lockEsc,
+                    isSystemVersioned: temporalType == 2 ? true : nil,
+                    historyTableSchema: row.column("history_schema")?.string,
+                    historyTableName: row.column("history_table")?.string,
+                    periodStartColumn: row.column("period_start_column")?.string,
+                    periodEndColumn: row.column("period_end_column")?.string,
+                    isMemoryOptimized: isMemOpt ? true : nil,
+                    memoryOptimizedDurability: isMemOpt ? row.column("durability_desc")?.string : nil
+                )
             }
         }
 

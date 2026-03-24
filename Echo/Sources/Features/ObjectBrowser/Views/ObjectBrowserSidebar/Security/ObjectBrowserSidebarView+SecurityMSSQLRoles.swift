@@ -13,50 +13,48 @@ extension ObjectBrowserSidebarView {
         let roles = viewModel.securityServerRolesBySession[connID] ?? []
         let isExpanded = viewModel.securityServerRolesExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.serverSection,
-                title: "Server Roles",
-                icon: "shield",
-                count: roles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityServerRolesExpandedBySession[connID] = !isExpanded
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.serverSection,
+            title: "Server Roles",
+            icon: "shield",
+            count: roles.count,
+            isExpanded: Binding<Bool>(
+                get: { viewModel.securityServerRolesExpandedBySession[connID] ?? false },
+                set: { newValue in viewModel.securityServerRolesExpandedBySession[connID] = newValue }
+            )
+        )
+        .contextMenu {
+            Button {
+                Task {
+                    let handle = AppDirector.shared.activityEngine.begin("Refreshing server roles", connectionSessionID: session.id)
+                    await loadServerSecurityAsync(session: session)
+                    handle.succeed()
                 }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .contextMenu {
-                Button {
-                    Task {
-                        let handle = AppDirector.shared.activityEngine.begin("Refreshing server roles", connectionSessionID: session.id)
-                        await loadServerSecurityAsync(session: session)
-                        handle.succeed()
-                    }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                Button {
-                    Task { await createMSSQLServerRole(session: session) }
-                } label: {
-                    Label("New Server Role", systemImage: "person.2.badge.plus")
-                }
-                .disabled(!(session.permissions?.canManageRoles ?? true))
+            Button {
+                createMSSQLServerRole(session: session)
+            } label: {
+                Label("New Server Role", systemImage: "person.2.badge.plus")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
+        }
 
-            if isExpanded {
-                if roles.isEmpty {
-                    SidebarRow(
-                        depth: SecuritySidebarDepth.serverLeaf,
-                        icon: .none,
-                        label: "No server roles found",
-                        labelColor: ColorTokens.Text.tertiary,
-                        labelFont: TypographyTokens.detail
-                    )
-                } else {
-                    ForEach(roles) { role in
-                        serverRoleRow(role: role, session: session)
-                    }
+        if viewModel.securityServerRolesExpandedBySession[connID] ?? false {
+            if roles.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.serverLeaf,
+                    icon: .none,
+                    label: "No server roles found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
+                ForEach(roles) { role in
+                    serverRoleRow(role: role, session: session)
                 }
+                .transition(.opacity)
             }
         }
     }
@@ -143,33 +141,39 @@ extension ObjectBrowserSidebarView {
         let credentials = viewModel.securityCredentialsBySession[connID] ?? []
         let isExpanded = viewModel.securityCredentialsExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.serverSection,
-                title: "Credentials",
-                icon: "key",
-                count: credentials.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityCredentialsExpandedBySession[connID] = !isExpanded
-                }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.serverSection,
+            title: "Credentials",
+            icon: "key",
+            count: credentials.count,
+            isExpanded: Binding<Bool>(
+                get: { viewModel.securityCredentialsExpandedBySession[connID] ?? false },
+                set: { newValue in viewModel.securityCredentialsExpandedBySession[connID] = newValue }
+            )
+        )
+        .contextMenu {
+            Button {
+                createMSSQLCredential(session: session)
+            } label: {
+                Label("New Credential", systemImage: "key.badge.plus")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
+        }
 
-            if isExpanded {
-                if credentials.isEmpty {
-                    SidebarRow(
-                        depth: SecuritySidebarDepth.serverLeaf,
-                        icon: .none,
-                        label: "No credentials found",
-                        labelColor: ColorTokens.Text.tertiary,
-                        labelFont: TypographyTokens.detail
-                    )
-                } else {
-                    ForEach(credentials) { credential in
-                        credentialRow(credential: credential, session: session)
-                    }
+        if viewModel.securityCredentialsExpandedBySession[connID] ?? false {
+            if credentials.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.serverLeaf,
+                    icon: .none,
+                    label: "No credentials found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
+                ForEach(credentials) { credential in
+                    credentialRow(credential: credential, session: session)
                 }
+                .transition(.opacity)
             }
         }
     }

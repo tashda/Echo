@@ -19,21 +19,22 @@ struct LoginEditorView: View {
                     .tag(page)
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
         } detail: {
-            Group {
-                if viewModel.isLoadingGeneral {
-                    VStack {
-                        Spacer()
-                        ProgressView("Loading login properties\u{2026}")
-                        Spacer()
-                    }
-                } else {
-                    Form {
-                        pageContent
-                    }
-                    .formStyle(.grouped)
-                    .scrollContentBackground(.hidden)
+            Form {
+                if !viewModel.isLoadingGeneral && !isPageLoading {
+                    pageContent
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .overlay {
+                if viewModel.isLoadingGeneral || isPageLoading {
+                    TabInitializingPlaceholder(
+                        icon: pageLoadingIcon,
+                        title: pageLoadingTitle,
+                        subtitle: pageLoadingSubtitle
+                    )
                 }
             }
             .id(selectedPage)
@@ -50,7 +51,7 @@ struct LoginEditorView: View {
                         Label("Apply", systemImage: "arrow.right.circle")
                     }
                     .labelStyle(.iconOnly)
-                    .disabled(!viewModel.isFormValid || viewModel.isSubmitting)
+                    .disabled(!viewModel.isFormValid || viewModel.isSubmitting || !viewModel.hasChanges)
                     .help("Apply changes without closing")
                     .glassEffect(.regular.interactive())
                 }
@@ -63,14 +64,22 @@ struct LoginEditorView: View {
                         Label("Save", systemImage: "checkmark")
                     }
                     .labelStyle(.iconOnly)
-                    .disabled(!viewModel.isFormValid || viewModel.isSubmitting)
+                    .disabled(!viewModel.isFormValid || viewModel.isSubmitting || !viewModel.hasChanges)
                     .help(viewModel.isEditing ? "Save and close" : "Create and close")
                     .glassEffect(.regular.interactive())
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
         }
+        .inspector(isPresented: .constant(showInspector)) {
+            LoginEditorUserMappingInspector(viewModel: viewModel, session: session)
+                .inspectorColumnWidth(min: 220, ideal: 260, max: 320)
+        }
         .background(PocketSeparatorHider())
+        .background(UnsavedChangesGuard(
+            hasChanges: viewModel.hasChanges,
+            onDiscard: onDismiss
+        ))
         .task {
             viewModel.errorMessage = nil
             await viewModel.loadGeneralData(session: session)
@@ -105,6 +114,12 @@ struct LoginEditorView: View {
         .animation(.easeInOut(duration: 0.2), value: viewModel.errorMessage)
     }
 
+    // MARK: - Inspector
+
+    private var showInspector: Bool {
+        selectedPage == .userMapping && viewModel.selectedMappingDatabase != nil
+    }
+
     // MARK: - Title
 
     private var navigationTitleText: String {
@@ -117,6 +132,41 @@ struct LoginEditorView: View {
         guard let page = selectedPage else { return "" }
         if page == .general { return "" }
         return loginDisplayName
+    }
+
+    // MARK: - Per-Page Loading
+
+    private var isPageLoading: Bool {
+        switch selectedPage {
+        case .serverRoles: return viewModel.isLoadingRoles
+        case .userMapping: return viewModel.isLoadingMappings
+        case .securables: return viewModel.isLoadingSecurables
+        default: return false
+        }
+    }
+
+    private var pageLoadingIcon: String {
+        if viewModel.isLoadingGeneral { return "person.circle" }
+        switch selectedPage {
+        case .serverRoles: return "shield"
+        case .userMapping: return "externaldrive.connected.to.line.below"
+        case .securables: return "lock.shield"
+        default: return "person.circle"
+        }
+    }
+
+    private var pageLoadingTitle: String {
+        if viewModel.isLoadingGeneral { return "Loading Login Properties" }
+        switch selectedPage {
+        case .serverRoles: return "Loading Server Roles"
+        case .userMapping: return "Loading Database Mappings"
+        case .securables: return "Loading Server Permissions"
+        default: return "Loading"
+        }
+    }
+
+    private var pageLoadingSubtitle: String {
+        "Fetching data from server\u{2026}"
     }
 
     // MARK: - Page Content
@@ -132,8 +182,6 @@ struct LoginEditorView: View {
             LoginEditorUserMappingPage(viewModel: viewModel, session: session)
         case .securables:
             LoginEditorSecurablesPage(viewModel: viewModel)
-        case .status:
-            LoginEditorStatusPage(viewModel: viewModel)
         case nil:
             EmptyView()
         }

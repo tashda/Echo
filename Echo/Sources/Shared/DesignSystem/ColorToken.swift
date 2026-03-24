@@ -204,6 +204,15 @@ public enum ColorTokens {
         public static let extendedEvents = Color.teal
         public static let databaseMail = Color.blue
         public static let activityMonitor = Color.orange
+        public static let serverTriggers = Color(red: 0.95, green: 0.75, blue: 0.0)
+        public static let databaseTriggers = Color(red: 0.95, green: 0.75, blue: 0.0)
+        public static let serviceBroker = Color.teal
+        public static let externalResources = Color.cyan
+        public static let databaseSnapshots = Color.blue
+        public static let sqlProfiler = Color.red
+        public static let resourceGovernor = Color.mint
+        public static let tuningAdvisor = Color.purple
+        public static let policyManagement = Color.teal
     }
 }
 

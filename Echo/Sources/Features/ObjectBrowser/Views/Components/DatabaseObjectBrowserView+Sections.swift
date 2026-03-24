@@ -8,41 +8,40 @@ extension DatabaseObjectBrowserView {
             set: { isPinnedSectionExpanded = $0 }
         )
 
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) { isPinnedSectionExpanded.toggle() }
-            } label: {
-                SidebarRow(
-                    depth: 2,
-                    icon: .system("pin"),
-                    label: "Pinned",
-                    isExpanded: expandedBinding,
-                    iconColor: ExplorerSidebarPalette.monochrome
-                ) {
-                    Text("\(pinnedList.count)")
-                        .font(SidebarRowConstants.trailingFont)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
-            }
-
-            if isPinnedSectionExpanded {
-                ForEach(pinnedList, id: \.id) { object in
-                    DatabaseObjectRow(
-                        object: object,
-                        displayName: displayName(for: object),
-                        connection: connection,
-                        databaseName: database.name,
-                        showColumns: shouldShowColumns(for: object),
-                        isExpanded: expansionBinding(for: object.id),
-                        isPinned: true,
-                        onTogglePin: { togglePin(for: object) },
-                        onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
-                    )
-                    .id("pinned-\(object.id)")
-                }
+        Button {
+            withAnimation(.easeInOut(duration: 0.25)) { isPinnedSectionExpanded.toggle() }
+        } label: {
+            SidebarRow(
+                depth: 2,
+                icon: .system("pin"),
+                label: "Pinned",
+                isExpanded: expandedBinding,
+                iconColor: ExplorerSidebarPalette.monochrome
+            ) {
+                Text("\(pinnedList.count)")
+                    .font(SidebarRowConstants.trailingFont)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
             }
         }
-    .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+        if isPinnedSectionExpanded {
+            ForEach(pinnedList, id: \.id) { object in
+                DatabaseObjectRow(
+                    object: object,
+                    displayName: displayName(for: object),
+                    connection: connection,
+                    databaseName: database.name,
+                    showColumns: shouldShowColumns(for: object),
+                    isExpanded: expansionBinding(for: object.id),
+                    isPinned: true,
+                    onTogglePin: { togglePin(for: object) },
+                    onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
+                )
+                .equatable()
+                .id("pinned-\(object.id)")
+            }
+        }
     }
 
     @ViewBuilder
@@ -59,45 +58,43 @@ extension DatabaseObjectBrowserView {
             }
         )
 
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                expandedBinding.wrappedValue.toggle()
-            } label: {
-                SidebarRow(
-                    depth: 2,
-                    icon: .system(type.systemImage),
-                    label: type.pluralDisplayName,
-                    isExpanded: expandedBinding,
-                    iconColor: ExplorerSidebarPalette.objectGroupIconColor(for: type, colored: colored)
-                ) {
-                    Text("\(objects.count)")
-                        .font(SidebarRowConstants.trailingFont)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
-            }
-            .contextMenu {
-                typeSectionContextMenu(type)
-            }
-
-            if isExpanded {
-                ForEach(objects, id: \.id) { object in
-                    DatabaseObjectRow(
-                        object: object,
-                        displayName: displayName(for: object),
-                        connection: connection,
-                        databaseName: database.name,
-                        showColumns: shouldShowColumns(for: object),
-                        isExpanded: expansionBinding(for: object.id),
-                        isPinned: pinnedObjectIDs.contains(object.id),
-                        onTogglePin: { togglePin(for: object) },
-                        onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
-                    )
-                    .equatable()
-                    .id(object.id)
-                }
+        Button {
+            expandedBinding.wrappedValue.toggle()
+        } label: {
+            SidebarRow(
+                depth: 2,
+                icon: .system(type.systemImage),
+                label: type.pluralDisplayName,
+                isExpanded: expandedBinding,
+                iconColor: ExplorerSidebarPalette.objectGroupIconColor(for: type, colored: colored)
+            ) {
+                Text("\(objects.count)")
+                    .font(SidebarRowConstants.trailingFont)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
             }
         }
-    .frame(maxWidth: .infinity, alignment: .leading)
+        .contextMenu {
+            typeSectionContextMenu(type)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+        if isExpanded {
+            ForEach(objects, id: \.id) { object in
+                DatabaseObjectRow(
+                    object: object,
+                    displayName: displayName(for: object),
+                    connection: connection,
+                    databaseName: database.name,
+                    showColumns: shouldShowColumns(for: object),
+                    isExpanded: expansionBinding(for: object.id),
+                    isPinned: pinnedObjectIDs.contains(object.id),
+                    onTogglePin: { togglePin(for: object) },
+                    onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
+                )
+                .equatable()
+                .id(object.id)
+            }
+        }
     }
 
     // MARK: - Folder Context Menu
@@ -127,7 +124,7 @@ extension DatabaseObjectBrowserView {
                     $0.connection.id == connection.id
                 }
                 guard let session else { return }
-                let schemaName = selectedSchemaName ?? (connection.databaseType == .microsoftSQL ? "dbo" : "public")
+                let schemaName = connection.databaseType == .microsoftSQL ? "dbo" : "public"
                 let sql = creationTemplateSQL(for: creationTitle, databaseType: connection.databaseType, schemaName: schemaName)
                 environmentState.openQueryTab(for: session, presetQuery: sql, database: database.name)
             } label: {

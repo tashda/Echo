@@ -30,85 +30,53 @@ extension SearchSidebarViewModel {
         }
 
         let categories = selectedCategories
-        let databaseCategories = Set(categories.filter { $0 != .queryTabs })
-        let shouldSearchDatabase = databaseSession != nil && !databaseCategories.isEmpty
+        let metadataCategories = Set(categories.filter { $0 != .queryTabs })
         let shouldSearchQueryTabs = categories.contains(.queryTabs)
-
-        if !shouldSearchDatabase && !shouldSearchQueryTabs {
-            results = []
-            isSearching = false
-            searchTask = nil
-            return
-        }
-
-        let session = databaseSession
-        let selectedType = databaseType ?? .postgresql
-        let selectedDatabase = activeDatabaseName
+        let currentScope = scope
+        let currentSessions = sessions
         let tabSnapshots = queryTabProvider()
 
-        isSearching = true
+        // Tier 1: In-memory metadata search (instant, no debounce)
+        if !metadataCategories.isEmpty && !currentSessions.isEmpty {
+            let metadataResults = MetadataSearchEngine.search(
+                query: searchText,
+                scope: currentScope,
+                sessions: currentSessions,
+                categories: metadataCategories
+            )
+            results = metadataResults
+        } else {
+            results = []
+        }
 
-        searchTask = Task { [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: 250_000_000) // 250ms debounce
-                try Task.checkCancellation()
+        // Tier 1.5: Query tab search (needs debounce since it reads SQL content)
+        if shouldSearchQueryTabs {
+            isSearching = true
+            searchTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 150_000_000) // 150ms debounce
+                guard !Task.isCancelled, let self else { return }
 
-                guard let self else { return }
-                var aggregated: [SearchSidebarResult] = []
-                var dbErrorDescription: String?
-
-                if shouldSearchDatabase, let session {
-                    let service = ObjectSearchProvider(
-                        session: session,
-                        databaseType: selectedType,
-                        activeDatabase: selectedDatabase
-                    )
-                    do {
-                        let fetched = try await service.search(query: searchText, categories: databaseCategories)
-                        aggregated.append(contentsOf: fetched)
-                    } catch is CancellationError {
-                        throw CancellationError()
-                    } catch {
-                        dbErrorDescription = DatabaseError.from(error).errorDescription ?? error.localizedDescription
-                    }
-                }
-
-                let tabResults = self.searchQueryTabs(with: searchText, snapshots: tabSnapshots, includeQueryTabs: shouldSearchQueryTabs)
-                aggregated.append(contentsOf: tabResults)
-
-                let sorted = self.sortResults(aggregated)
+                let tabResults = self.searchQueryTabs(with: searchText, snapshots: tabSnapshots)
 
                 await MainActor.run {
-                    self.results = sorted
+                    // Append tab results to existing metadata results
+                    var combined = self.results.filter { $0.category != .queryTabs }
+                    combined.append(contentsOf: tabResults)
+                    self.results = combined
                     self.isSearching = false
-                    self.errorMessage = dbErrorDescription
-                    self.searchTask = nil
-                }
-            } catch is CancellationError {
-                guard let self else { return }
-                await MainActor.run {
-                    self.searchTask = nil
-                }
-            } catch {
-                let dbError = DatabaseError.from(error)
-                guard let self else { return }
-                await MainActor.run {
-                    let tabResults = self.searchQueryTabs(with: searchText, snapshots: tabSnapshots, includeQueryTabs: shouldSearchQueryTabs)
-                    self.results = self.sortResults(tabResults)
-                    self.isSearching = false
-                    self.errorMessage = dbError.errorDescription ?? error.localizedDescription
                     self.searchTask = nil
                 }
             }
+        } else {
+            isSearching = false
+            searchTask = nil
         }
     }
 
     internal func searchQueryTabs(
         with query: String,
-        snapshots: [SearchSidebarQueryTabSnapshot],
-        includeQueryTabs: Bool
-    ) -> [SearchSidebarResult] {
-        guard includeQueryTabs else { return [] }
+        snapshots: [SearchSidebarQueryTabSnapshot]
+    ) -> [GlobalSearchResult] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
 
@@ -116,6 +84,15 @@ extension SearchSidebarViewModel {
             let titleMatch = snapshot.title.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) != nil
             let sqlMatchRange = snapshot.sql.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive])
             guard titleMatch || sqlMatchRange != nil else { return nil }
+
+            // Resolve server name from sessions
+            let session = sessions.first { $0.id == snapshot.connectionSessionID }
+            let serverName: String = {
+                guard let session else { return "Unknown" }
+                let name = session.connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+                return name.isEmpty ? session.connection.host : name
+            }()
+            let databaseType = session?.connection.databaseType ?? .postgresql
 
             let snippet: String? = {
                 if let match = sqlMatchRange {
@@ -135,7 +112,11 @@ extension SearchSidebarViewModel {
                 return nil
             }()
 
-            return SearchSidebarResult(
+            return GlobalSearchResult(
+                connectionSessionID: snapshot.connectionSessionID,
+                serverName: serverName,
+                databaseName: snapshot.metadata ?? "",
+                databaseType: databaseType,
                 category: .queryTabs,
                 title: snapshot.title,
                 subtitle: snapshot.subtitle,
@@ -169,15 +150,6 @@ extension SearchSidebarViewModel {
             snippet += "…"
         }
         return snippet
-    }
-
-    internal func sortResults(_ results: [SearchSidebarResult]) -> [SearchSidebarResult] {
-        results.sorted { lhs, rhs in
-            if lhs.category == rhs.category {
-                return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-            }
-            return lhs.category.displayName.localizedCaseInsensitiveCompare(rhs.category.displayName) == .orderedAscending
-        }
     }
 
     internal func cancelSearch() {

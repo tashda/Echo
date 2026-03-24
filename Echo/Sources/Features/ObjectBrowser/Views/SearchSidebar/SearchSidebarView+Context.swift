@@ -2,46 +2,32 @@ import SwiftUI
 
 extension SearchSidebarView {
     func syncContext(forceRestore: Bool = false) {
-        let session = activeSession
-        let newKey = session.map { SearchSidebarContextKey(connectionID: $0.connection.id, databaseName: $0.selectedDatabaseName) }
+        let sessions = environmentState.sessionGroup.activeSessions
+        viewModel.updateSessions(sessions)
 
-        if forceRestore || newKey != activeCacheKey {
-            persistActiveCache()
-            activeCacheKey = newKey
-            restoreCache(for: newKey)
-        }
-
-        if let session {
-            viewModel.updateContext(
-                databaseSession: session.session,
-                databaseName: session.selectedDatabaseName,
-                databaseType: session.connection.databaseType
-            )
-        } else {
-            viewModel.updateContext(databaseSession: nil, databaseName: nil, databaseType: nil)
+        if forceRestore {
+            restoreCache()
         }
     }
 
-    func restoreCache(for key: SearchSidebarContextKey?) {
-        let cache = key.flatMap { environmentState.searchSidebarCaches[$0] } ?? SearchSidebarCache()
+    func restoreCache() {
+        let cache = environmentState.searchSidebarCache
         viewModel.restore(from: cache)
     }
 
-    func persistActiveCache() {
+    func persistCache() {
         guard didRestoreCache, !viewModel.isRestoringState else { return }
-        guard let key = activeCacheKey else { return }
         let snapshot = viewModel.snapshot()
-        if environmentState.searchSidebarCaches[key] != snapshot {
-            environmentState.searchSidebarCaches[key] = snapshot
+        if environmentState.searchSidebarCache != snapshot {
+            environmentState.searchSidebarCache = snapshot
         }
     }
 
     func cacheState() {
         guard didRestoreCache, !viewModel.isRestoringState else { return }
-        guard let key = activeCacheKey else { return }
         let snapshot = viewModel.snapshot()
-        if environmentState.searchSidebarCaches[key] != snapshot {
-            environmentState.searchSidebarCaches[key] = snapshot
+        if environmentState.searchSidebarCache != snapshot {
+            environmentState.searchSidebarCache = snapshot
         }
     }
 }

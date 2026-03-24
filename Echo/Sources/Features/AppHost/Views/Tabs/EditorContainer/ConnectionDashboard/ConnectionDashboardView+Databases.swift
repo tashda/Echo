@@ -51,7 +51,7 @@ struct ConnectionDashboardDatabases: View {
                 DashboardDatabaseCard(
                     name: db.name,
                     stateDescription: db.stateDescription,
-                    isSelected: db.name == session.selectedDatabaseName
+                    isSelected: db.name == session.sidebarFocusedDatabase
                 ) {
                     environmentState.openQueryTab(for: session, database: db.name)
                 }

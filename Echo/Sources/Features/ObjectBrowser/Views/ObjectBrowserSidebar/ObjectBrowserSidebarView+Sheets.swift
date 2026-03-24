@@ -24,16 +24,22 @@ extension ObjectBrowserSidebarView {
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showDatabaseProperties) {
-                if let dbName = viewModel.propertiesDatabaseName,
-                   let connID = viewModel.propertiesConnectionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    DatabasePropertiesSheet(
-                        databaseName: dbName,
-                        session: session,
-                        environmentState: environmentState,
-                        onDismiss: { viewModel.showDatabaseProperties = false }
-                    )
+            .sheet(isPresented: $viewModel.showNewServerRoleSheet) {
+                if let connID = viewModel.newSecuritySheetSessionID,
+                   let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == connID }) {
+                    NewServerRoleSheet(session: session) {
+                        viewModel.showNewServerRoleSheet = false
+                        loadServerSecurity(session: session)
+                    }
+                }
+            }
+            .sheet(isPresented: $viewModel.showNewCredentialSheet) {
+                if let connID = viewModel.newSecuritySheetSessionID,
+                   let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == connID }) {
+                    NewCredentialSheet(session: session) {
+                        viewModel.showNewCredentialSheet = false
+                        loadServerSecurity(session: session)
+                    }
                 }
             }
             .sheet(isPresented: $viewModel.showSecurityPGRoleSheet) {
@@ -134,6 +140,181 @@ extension ObjectBrowserSidebarView {
                     CMSSheet(
                         session: session,
                         onDismiss: { viewModel.showCMSSheet = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showDetachSheet) {
+                if let dbName = viewModel.detachDatabaseName,
+                   let connID = viewModel.detachConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    DetachDatabaseSheet(
+                        databaseName: dbName,
+                        session: session,
+                        environmentState: environmentState,
+                        onDismiss: { viewModel.showDetachSheet = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showAttachSheet) {
+                if let connID = viewModel.attachConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    AttachDatabaseSheet(
+                        session: session,
+                        environmentState: environmentState,
+                        onDismiss: { viewModel.showAttachSheet = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showCreateSnapshotSheet) {
+                if let connID = viewModel.createSnapshotConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    CreateSnapshotSheet(
+                        session: session,
+                        environmentState: environmentState,
+                        onDismiss: {
+                            viewModel.showCreateSnapshotSheet = false
+                            loadDatabaseSnapshots(session: session)
+                        }
+                    )
+                }
+            }
+            // Phase 3 — Server Trigger
+            .sheet(isPresented: $viewModel.showNewServerTriggerSheet) {
+                if let connID = viewModel.newServerTriggerConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    NewServerTriggerSheet(session: session, environmentState: environmentState) {
+                        viewModel.showNewServerTriggerSheet = false
+                        loadServerTriggers(session: session)
+                    }
+                }
+            }
+            // Phase 3 — Database DDL Trigger
+            .sheet(isPresented: $viewModel.showNewDBDDLTriggerSheet) {
+                if let connID = viewModel.newDBDDLTriggerConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.newDBDDLTriggerDatabaseName {
+                    NewDatabaseDDLTriggerSheet(databaseName: dbName, session: session, environmentState: environmentState) {
+                        viewModel.showNewDBDDLTriggerSheet = false
+                    }
+                }
+            }
+            // Phase 3 — Service Broker
+            .sheet(isPresented: $viewModel.showNewMessageTypeSheet) {
+                if let connID = viewModel.newMessageTypeConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.newMessageTypeDatabaseName {
+                    NewMessageTypeSheet(databaseName: dbName, session: session, environmentState: environmentState) {
+                        viewModel.showNewMessageTypeSheet = false
+                    }
+                }
+            }
+            .sheet(isPresented: $viewModel.showNewContractSheet) {
+                if let connID = viewModel.newContractConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.newContractDatabaseName {
+                    NewContractSheet(databaseName: dbName, session: session, environmentState: environmentState) {
+                        viewModel.showNewContractSheet = false
+                    }
+                }
+            }
+            .sheet(isPresented: $viewModel.showNewQueueSheet) {
+                if let connID = viewModel.newQueueConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.newQueueDatabaseName {
+                    NewQueueSheet(databaseName: dbName, session: session, environmentState: environmentState) {
+                        viewModel.showNewQueueSheet = false
+                    }
+                }
+            }
+            .sheet(isPresented: $viewModel.showNewServiceSheet) {
+                if let connID = viewModel.newServiceConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.newServiceDatabaseName {
+                    NewServiceSheet(databaseName: dbName, session: session, environmentState: environmentState) {
+                        viewModel.showNewServiceSheet = false
+                    }
+                }
+            }
+            .sheet(isPresented: $viewModel.showNewRouteSheet) {
+                if let connID = viewModel.newRouteConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.newRouteDatabaseName {
+                    NewRouteSheet(databaseName: dbName, session: session, environmentState: environmentState) {
+                        viewModel.showNewRouteSheet = false
+                    }
+                }
+            }
+            // Phase 3 — External Resources (PolyBase)
+            .sheet(isPresented: $viewModel.showNewExternalDataSourceSheet) {
+                if let connID = viewModel.newExternalDataSourceConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.newExternalDataSourceDatabaseName {
+                    NewExternalDataSourceSheet(databaseName: dbName, session: session, environmentState: environmentState) {
+                        viewModel.showNewExternalDataSourceSheet = false
+                    }
+                }
+            }
+            .sheet(isPresented: $viewModel.showNewExternalFileFormatSheet) {
+                if let connID = viewModel.newExternalFileFormatConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.newExternalFileFormatDatabaseName {
+                    NewExternalFileFormatSheet(databaseName: dbName, session: session, environmentState: environmentState) {
+                        viewModel.showNewExternalFileFormatSheet = false
+                    }
+                }
+            }
+            .sheet(isPresented: $viewModel.showNewExternalTableSheet) {
+                if let connID = viewModel.newExternalTableConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let dbName = viewModel.newExternalTableDatabaseName {
+                    NewExternalTableSheet(databaseName: dbName, session: session, environmentState: environmentState) {
+                        viewModel.showNewExternalTableSheet = false
+                    }
+                }
+            }
+            // Phase 3 — Temporal
+            .sheet(isPresented: $viewModel.showEnableVersioningSheet) {
+                if let connID = viewModel.enableVersioningConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let schema = viewModel.enableVersioningSchemaName,
+                   let table = viewModel.enableVersioningTableName {
+                    EnableSystemVersioningSheet(
+                        tableName: table,
+                        schemaName: schema,
+                        session: session,
+                        environmentState: environmentState
+                    ) {
+                        viewModel.showEnableVersioningSheet = false
+                    }
+                }
+            }
+            // Phase 6 — Generate Scripts
+            .sheet(isPresented: $viewModel.showGenerateScriptsWizard) {
+                if let connID = viewModel.generateScriptsConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    GenerateScriptsWizardView(
+                        viewModel: GenerateScriptsWizardViewModel(session: session.session)
+                    )
+                }
+            }
+            // Phase 6 — Import Flat File
+            .sheet(isPresented: $viewModel.showQuickImportSheet) {
+                if let connID = viewModel.quickImportConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    QuickImportSheet(
+                        viewModel: QuickImportViewModel(session: session.session)
+                    )
+                }
+            }
+            // Phase 6 — DAC Wizard
+            .sheet(isPresented: $viewModel.showDACWizard) {
+                if let connID = viewModel.dacWizardConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    DACWizardView(
+                        viewModel: DACWizardViewModel(
+                            session: session.session,
+                            databaseName: viewModel.dacWizardDatabaseName ?? ""
+                        )
                     )
                 }
             }

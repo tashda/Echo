@@ -7,14 +7,20 @@ public enum SpacingTokens {
     public static let micro: CGFloat = 1
     /// 2pt
     public static let xxxs: CGFloat = 2
+    /// 2.5pt
+    public static let xxxs1: CGFloat = 2.5
     /// 3pt
     public static let nano: CGFloat = 3
+    /// 3.5pt
+    public static let nano1: CGFloat = 3.5
     /// 4pt
     public static let xxs: CGFloat = 4
     /// 5pt
     public static let xxs1: CGFloat = 5
     /// 6pt
     public static let xxs2: CGFloat = 6
+    /// 7pt
+    public static let xxs3: CGFloat = 7
     /// 8pt
     public static let xs: CGFloat = 8
     /// 10pt

@@ -76,7 +76,7 @@ struct DatabasePopoverView: View {
 
     @ViewBuilder
     private func databaseRow(_ db: DatabaseInfo) -> some View {
-        let isSelected = selectedDatabaseName == db.name
+        let isSelected = sidebarFocusedDatabase == db.name
 
         Button {
             selectDatabase(db)
@@ -129,9 +129,9 @@ struct DatabasePopoverView: View {
         return databases.filter { $0.name.localizedCaseInsensitiveContains(filter) }
     }
 
-    private var selectedDatabaseName: String? {
+    private var sidebarFocusedDatabase: String? {
         guard let id = connectionStore.selectedConnectionID else { return nil }
-        return environmentState.sessionGroup.sessionForConnection(id)?.selectedDatabaseName
+        return environmentState.sessionGroup.sessionForConnection(id)?.sidebarFocusedDatabase
     }
 
     private func loadDatabases() async {

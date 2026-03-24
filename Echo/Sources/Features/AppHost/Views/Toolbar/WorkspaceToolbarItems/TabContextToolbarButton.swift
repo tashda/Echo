@@ -109,6 +109,8 @@ struct TabContextToolbarButton: View {
                 )
                 .glassEffect(.regular.interactive())
             }
+        case .profiler, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
+            EmptyView()
         default:
             EmptyView()
         }

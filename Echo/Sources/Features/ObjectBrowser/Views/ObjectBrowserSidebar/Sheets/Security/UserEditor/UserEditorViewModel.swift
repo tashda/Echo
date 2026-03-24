@@ -70,6 +70,77 @@ final class UserEditorViewModel {
 
     @ObservationIgnored var activityEngine: ActivityEngine?
 
+    // MARK: - Dirty Tracking
+
+    @ObservationIgnored private var snapshot: Snapshot?
+
+    struct Snapshot {
+        let defaultSchema: String
+        let userType: DatabaseUserTypeChoice
+        let loginName: String
+        let selectedCertificate: String
+        let selectedAsymmetricKey: String
+        let defaultLanguage: String
+        let roleMemberships: [String: Bool]
+        let schemaOwnership: [String: Bool]
+    }
+
+    func takeSnapshot() {
+        snapshot = Snapshot(
+            defaultSchema: defaultSchema,
+            userType: userType,
+            loginName: loginName,
+            selectedCertificate: selectedCertificate,
+            selectedAsymmetricKey: selectedAsymmetricKey,
+            defaultLanguage: defaultLanguage,
+            roleMemberships: Dictionary(roleEntries.map { ($0.name, $0.isMember) }, uniquingKeysWith: { a, _ in a }),
+            schemaOwnership: Dictionary(schemaEntries.map { ($0.name, $0.isOwned) }, uniquingKeysWith: { a, _ in a })
+        )
+    }
+
+    var hasChanges: Bool {
+        guard let snapshot else { return !isEditing }
+
+        if !password.isEmpty { return true }
+        if defaultSchema != snapshot.defaultSchema { return true }
+        if userType != snapshot.userType { return true }
+        if loginName != snapshot.loginName { return true }
+        if selectedCertificate != snapshot.selectedCertificate { return true }
+        if selectedAsymmetricKey != snapshot.selectedAsymmetricKey { return true }
+        if defaultLanguage != snapshot.defaultLanguage { return true }
+
+        for entry in roleEntries {
+            if entry.isMember != (snapshot.roleMemberships[entry.name] ?? entry.originallyMember) {
+                return true
+            }
+        }
+
+        for entry in schemaEntries {
+            if entry.isOwned != (snapshot.schemaOwnership[entry.name] ?? entry.originallyOwned) {
+                return true
+            }
+        }
+
+        // Check securables
+        for sec in securableEntries {
+            for perm in sec.permissions {
+                if perm.isGranted != perm.originalState.isGranted ||
+                    perm.withGrantOption != perm.originalState.withGrantOption ||
+                    perm.isDenied != perm.originalState.isDenied {
+                    return true
+                }
+            }
+        }
+
+        // Check extended properties
+        for prop in extendedPropertyEntries {
+            if prop.isNew || prop.isDeleted { return true }
+            if prop.name != prop.originalName || prop.value != prop.originalValue { return true }
+        }
+
+        return false
+    }
+
     // MARK: - Init
 
     init(connectionSessionID: UUID, databaseName: String, existingUserName: String?) {

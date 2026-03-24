@@ -23,6 +23,7 @@ struct DatabaseObjectRow: View, Equatable {
     @State internal var renameText = ""
     @State internal var pendingDropIncludeIfExists = false
     @State internal var showBulkImportSheet = false
+    @State internal var showGenerateScriptsWizard = false
 
     private var canExpand: Bool {
         showColumns && !object.columns.isEmpty
@@ -104,6 +105,13 @@ struct DatabaseObjectRow: View, Equatable {
                 )
             }
         }
+        .sheet(isPresented: $showGenerateScriptsWizard) {
+            if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+                GenerateScriptsWizardView(
+                    viewModel: GenerateScriptsWizardViewModel(session: session.session)
+                )
+            }
+        }
     }
 
     static func == (lhs: DatabaseObjectRow, rhs: DatabaseObjectRow) -> Bool {
@@ -144,8 +152,42 @@ struct DatabaseObjectRow: View, Equatable {
                 isSelected: isSelected,
                 iconColor: iconColor,
                 accentColor: accentColor
-            )
+            ) {
+                tableFeatureBadges
+            }
         }
         .contextMenu { contextMenuContent }
+    }
+
+    @ViewBuilder
+    private var tableFeatureBadges: some View {
+        if object.type == .table {
+            HStack(spacing: SpacingTokens.xxs) {
+                if object.isSystemVersioned == true {
+                    Text("Temporal")
+                        .font(TypographyTokens.detail.weight(.medium))
+                        .foregroundStyle(ColorTokens.Status.info.opacity(0.8))
+                        .padding(.horizontal, SpacingTokens.xxs2)
+                        .padding(.vertical, 1)
+                        .background(ColorTokens.Status.info.opacity(0.1), in: Capsule())
+                }
+                if object.isHistoryTable == true {
+                    Text("History")
+                        .font(TypographyTokens.detail.weight(.medium))
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .padding(.horizontal, SpacingTokens.xxs2)
+                        .padding(.vertical, 1)
+                        .background(ColorTokens.Text.tertiary.opacity(0.1), in: Capsule())
+                }
+                if object.isMemoryOptimized == true {
+                    Text("In-Memory")
+                        .font(TypographyTokens.detail.weight(.medium))
+                        .foregroundStyle(ColorTokens.Status.warning.opacity(0.8))
+                        .padding(.horizontal, SpacingTokens.xxs2)
+                        .padding(.vertical, 1)
+                        .background(ColorTokens.Status.warning.opacity(0.1), in: Capsule())
+                }
+            }
+        }
     }
 }

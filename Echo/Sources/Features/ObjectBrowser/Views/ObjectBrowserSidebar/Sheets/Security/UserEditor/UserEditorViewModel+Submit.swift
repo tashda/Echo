@@ -53,6 +53,9 @@ extension UserEditorViewModel {
 
             handle?.succeed()
             isSubmitting = false
+            password = ""
+            confirmPassword = ""
+            takeSnapshot()
             return true
         } catch {
             handle?.fail(error.localizedDescription)

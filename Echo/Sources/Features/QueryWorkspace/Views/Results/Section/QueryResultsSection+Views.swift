@@ -19,6 +19,12 @@ extension QueryResultsSection {
                     jsonInspectorView()
                 case .executionPlan:
                     executionPlanView
+                case .spatial:
+                    spatialView
+                case .tuning:
+                    tuningView
+                case .policyManagement:
+                    EmptyView()
 #endif
                 }
             }
@@ -123,7 +129,7 @@ extension QueryResultsSection {
                     query.selectedResultSetIndex = index
                 } label: {
                     HStack(spacing: SpacingTokens.xxs) {
-                        Text("Result \(index + 1)")
+                        Text(resultSetTabLabel(at: index))
                             .font(TypographyTokens.detail)
                         Text("(\(rowCount))")
                             .font(TypographyTokens.compact)
@@ -145,6 +151,19 @@ extension QueryResultsSection {
         .padding(.horizontal, SpacingTokens.xs)
         .padding(.vertical, SpacingTokens.xxs2)
         .background(ColorTokens.Background.secondary)
+    }
+
+    private func resultSetTabLabel(at index: Int) -> String {
+        guard let metadata = query.batchResultMetadata, index < metadata.count else {
+            return "Result \(index + 1)"
+        }
+        let label = metadata[index]
+        // Count how many result sets are in this batch
+        let batchResultCount = metadata.filter { $0.batchIndex == label.batchIndex }.count
+        if batchResultCount > 1 {
+            return "Batch \(label.batchIndex + 1): Result \(label.resultSetIndexInBatch + 1)"
+        }
+        return "Batch \(label.batchIndex + 1)"
     }
 
     private func resultSetRowCount(at index: Int) -> Int {
@@ -256,6 +275,22 @@ extension QueryResultsSection {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+    }
+
+    var spatialView: some View {
+        ContentUnavailableView {
+            Label("Spatial Results", systemImage: "map")
+        } description: {
+            Text("Spatial data visualization is coming soon.")
+        }
+    }
+
+    var tuningView: some View {
+        ContentUnavailableView {
+            Label("Tuning Advisor", systemImage: "wand.and.stars")
+        } description: {
+            Text("Missing index recommendations will appear here.")
         }
     }
 #endif

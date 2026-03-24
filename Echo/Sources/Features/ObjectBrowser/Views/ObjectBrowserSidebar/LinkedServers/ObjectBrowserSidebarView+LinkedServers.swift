@@ -12,26 +12,28 @@ extension ObjectBrowserSidebarView {
         let servers = viewModel.linkedServersBySession[connID] ?? []
         let isLoading = viewModel.linkedServersLoadingBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-            folderHeaderRow(
-                title: "Linked Servers",
-                icon: "link",
-                count: servers.isEmpty ? nil : servers.count,
-                isExpanded: isExpanded,
-                action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        viewModel.linkedServersExpandedBySession[connID] = !isExpanded
-                    }
-                    if !isExpanded && servers.isEmpty && !isLoading {
-                        loadLinkedServers(session: session)
-                    }
-                },
-                depth: 0
-            )
-
-            if isExpanded {
-                linkedServersContent(session: session, servers: servers, isLoading: isLoading)
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { newValue in
+                viewModel.linkedServersExpandedBySession[connID] = newValue
+                if newValue && servers.isEmpty && !isLoading {
+                    loadLinkedServers(session: session)
+                }
             }
+        )
+
+        folderHeaderRow(
+            title: "Linked Servers",
+            icon: "link",
+            count: servers.isEmpty ? nil : servers.count,
+            isExpanded: expandedBinding,
+            isLoading: isLoading,
+            depth: 0
+        )
+
+        if isExpanded {
+            linkedServersContent(session: session, servers: servers, isLoading: isLoading)
+                .transition(.opacity)
         }
     }
 

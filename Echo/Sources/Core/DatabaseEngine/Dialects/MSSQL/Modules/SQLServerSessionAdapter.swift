@@ -97,6 +97,23 @@ nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     var maintenance: SQLServerMaintenanceClient { client.maintenance }
     var replication: SQLServerReplicationClient { client.replication }
     var cms: SQLServerCMSClient { client.cms }
+    var errorLog: SQLServerErrorLogClient { client.errorLog }
+    var audit: SQLServerAuditClient { client.audit }
+    var alwaysEncrypted: SQLServerAlwaysEncryptedClient { client.alwaysEncrypted }
+    var triggers: SQLServerTriggerClient { client.triggers }
+    var temporal: SQLServerTemporalClient { client.temporal }
+    var serviceBroker: SQLServerServiceBrokerClient { client.serviceBroker }
+    var polyBase: SQLServerPolyBaseClient { client.polyBase }
+    var tuning: SQLServerTuningClient { client.tuning }
+    var profiler: SQLServerProfilerClient { client.profiler }
+    var resourceGovernor: SQLServerResourceGovernorClient { client.resourceGovernor }
+    var policy: SQLServerPolicyClient { client.policy }
+    var dependencies: SQLServerDependencyClient { client.dependencies }
+    var dac: SQLServerDACClient { client.dac }
+    var bulkCopy: SQLServerBulkCopyClient { SQLServerBulkCopyClient(client: client) }
+    var ssis: SQLServerSSISClient { client.ssis }
+    var ssas: SQLServerSSASClient { client.ssas }
+    var ssrs: SQLServerSSRSClient { client.ssrs }
 
     func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
         let nioResult = try await client.maintenance.rebuildIndex(schema: schema, table: table, name: index)
@@ -275,6 +292,52 @@ nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
         }
         let nioResult = try await client.maintenance.shrinkDatabase(database: dbName)
         return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
+    }
+
+    func shrinkDatabase(targetPercent: Int, truncateOnly: Bool) async throws -> DatabaseMaintenanceResult {
+        guard let dbName = try await currentDatabaseName() else {
+            return DatabaseMaintenanceResult(operation: "Shrink Database", messages: ["No active database context"], succeeded: false)
+        }
+        let option: SQLServerShrinkOption = truncateOnly ? .truncateOnly : .defaultBehavior
+        let nioResult = try await client.maintenance.shrinkDatabase(database: dbName, targetPercent: targetPercent, option: option)
+        return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
+    }
+
+    func shrinkFile(fileName: String, targetSizeMB: Int) async throws -> DatabaseMaintenanceResult {
+        guard let dbName = try await currentDatabaseName() else {
+            return DatabaseMaintenanceResult(operation: "Shrink File", messages: ["No active database context"], succeeded: false)
+        }
+        let nioResult = try await client.maintenance.shrinkFile(database: dbName, fileName: fileName, targetSizeMB: targetSizeMB)
+        return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
+    }
+
+    func listDatabaseFiles() async throws -> [SQLServerDatabaseFile] {
+        guard let dbName = try await currentDatabaseName() else { return [] }
+        return try await client.admin.fetchDatabaseFiles(name: dbName)
+    }
+
+    func detachDatabase(name: String, skipChecks: Bool) async throws {
+        _ = try await client.admin.detachDatabase(name: name, skipChecks: skipChecks)
+    }
+
+    func attachDatabase(name: String, files: [String]) async throws {
+        _ = try await client.admin.attachDatabase(name: name, files: files)
+    }
+
+    func listDatabaseSnapshots() async throws -> [SQLServerDatabaseSnapshot] {
+        try await client.admin.listSnapshots()
+    }
+
+    func createDatabaseSnapshot(name: String, sourceDatabase: String) async throws {
+        _ = try await client.admin.createSnapshot(name: name, sourceDatabase: sourceDatabase)
+    }
+
+    func deleteDatabaseSnapshot(name: String) async throws {
+        _ = try await client.admin.dropSnapshot(name: name)
+    }
+
+    func revertToSnapshot(snapshotName: String) async throws {
+        _ = try await client.admin.revertToSnapshot(snapshotName: snapshotName)
     }
 
     func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult {

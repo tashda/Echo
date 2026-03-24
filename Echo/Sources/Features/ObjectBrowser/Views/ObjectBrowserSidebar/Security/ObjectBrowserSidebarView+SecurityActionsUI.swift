@@ -76,21 +76,26 @@ extension ObjectBrowserSidebarView {
 
     // MARK: - Shared UI Helpers
 
-    func securitySectionHeader(depth: Int, title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
-        let expandedBinding = Binding<Bool>(
-            get: { isExpanded },
-            set: { _ in action() }
-        )
-
+    func securitySectionHeader(depth: Int, title: String, icon: String, count: Int?, isExpanded: Binding<Bool>, isLoading: Bool = false) -> some View {
         let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
         let iconColor = ExplorerSidebarPalette.folderIconColor(title: title, colored: colored)
+        let animatedBinding = Binding<Bool>(
+            get: { isExpanded.wrappedValue },
+            set: { newValue in
+                withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
+                    isExpanded.wrappedValue = newValue
+                }
+            }
+        )
 
-        return Button(action: action) {
+        return Button {
+            animatedBinding.wrappedValue.toggle()
+        } label: {
             SidebarRow(
                 depth: depth,
                 icon: .system(icon),
                 label: title,
-                isExpanded: expandedBinding,
+                isExpanded: animatedBinding,
                 iconColor: iconColor
             ) {
                 if let count {
@@ -98,8 +103,13 @@ extension ObjectBrowserSidebarView {
                         .font(SidebarRowConstants.trailingFont)
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.mini)
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
     }
 

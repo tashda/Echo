@@ -12,8 +12,8 @@ func queryTabSnapshots(from environmentState: EnvironmentState?) -> [SearchSideb
         guard let queryState = tab.query else { continue }
         let session = sessionsByID[tab.connectionSessionID]
         let connection = tab.connection
-        let trimmedSelectedDatabase = session?.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let databaseName = (trimmedSelectedDatabase?.isEmpty == false ? trimmedSelectedDatabase : nil)
+        let tabDatabase = tab.activeDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let databaseName = (tabDatabase?.isEmpty == false ? tabDatabase : nil)
             ?? connection.database.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
         let serverText = connectionSummary(for: connection)
         var subtitleComponents: [String] = []

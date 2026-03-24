@@ -4,46 +4,39 @@ struct LoginEditorServerRolesPage: View {
     @Bindable var viewModel: LoginEditorViewModel
 
     private var fixedRoles: [Binding<LoginEditorRoleEntry>] {
-        $viewModel.roleEntries.filter { $0.wrappedValue.isFixed }
+        $viewModel.roleEntries.filter { isFixedOrSystem($0.wrappedValue) }
     }
 
     private var customRoles: [Binding<LoginEditorRoleEntry>] {
-        $viewModel.roleEntries.filter { !$0.wrappedValue.isFixed }
+        $viewModel.roleEntries.filter { !isFixedOrSystem($0.wrappedValue) }
+    }
+
+    private func isFixedOrSystem(_ entry: LoginEditorRoleEntry) -> Bool {
+        entry.isFixed || entry.name == "public" || entry.name.hasPrefix("##MS_")
     }
 
     var body: some View {
-        if viewModel.isLoadingRoles {
+        if !customRoles.isEmpty {
+            Section("Custom Server Roles") {
+                ForEach(customRoles) { $role in
+                    roleRow(role: $role)
+                }
+            }
+        }
+
+        if !fixedRoles.isEmpty {
+            Section("Fixed Server Roles") {
+                ForEach(fixedRoles) { $role in
+                    roleRow(role: $role)
+                }
+            }
+        }
+
+        if fixedRoles.isEmpty && customRoles.isEmpty {
             Section {
-                HStack {
-                    ProgressView().controlSize(.small)
-                    Text("Loading server roles\u{2026}")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
-        } else {
-            if !fixedRoles.isEmpty {
-                Section("Fixed Server Roles") {
-                    ForEach(fixedRoles) { $role in
-                        roleRow(role: $role)
-                    }
-                }
-            }
-
-            if !customRoles.isEmpty {
-                Section("Custom Server Roles") {
-                    ForEach(customRoles) { $role in
-                        roleRow(role: $role)
-                    }
-                }
-            }
-
-            if fixedRoles.isEmpty && customRoles.isEmpty {
-                Section {
-                    Text("No server roles available.")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+                Text("No server roles available.")
+                    .font(TypographyTokens.formDescription)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
         }
     }

@@ -171,7 +171,7 @@ struct PostgresActivityMonitorView: View {
 
     private func openExtensionManager() {
         guard let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) else { return }
-        let database = session.selectedDatabaseName ?? session.connection.database
+        let database = session.sidebarFocusedDatabase ?? session.connection.database
         environmentState.openExtensionsManagerTab(connectionID: viewModel.connectionID, databaseName: database)
     }
 }

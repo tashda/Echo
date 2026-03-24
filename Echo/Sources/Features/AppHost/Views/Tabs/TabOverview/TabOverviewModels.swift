@@ -36,6 +36,12 @@ extension WorkspaceTab.Kind {
         case .availabilityGroups: return "Availability Groups"
         case .databaseSecurity: return "Database Security"
         case .serverSecurity: return "Server Security"
+        case .errorLog: return "Error Log"
+        case .profiler: return "SQL Profiler"
+        case .resourceGovernor: return "Resource Governor"
+        case .serverProperties: return "Server Properties"
+        case .tuningAdvisor: return "Tuning Advisor"
+        case .policyManagement: return "Policy Management"
         }
     }
 
@@ -54,6 +60,12 @@ extension WorkspaceTab.Kind {
         case .extendedEvents: return "bolt.horizontal"
         case .availabilityGroups: return "server.rack"
         case .databaseSecurity, .serverSecurity: return "lock.shield"
+        case .errorLog: return "doc.text"
+        case .profiler: return "trace"
+        case .resourceGovernor: return "r.square.on.square"
+        case .serverProperties: return "gearshape.2"
+        case .tuningAdvisor: return "wand.and.stars"
+        case .policyManagement: return "checkmark.seal"
         }
     }
 }

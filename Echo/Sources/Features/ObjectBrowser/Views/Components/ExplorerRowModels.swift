@@ -115,6 +115,17 @@ enum ExplorerSidebarPalette {
     static let databaseMail = ColorTokens.Explorer.databaseMail
     static let activityMonitor = ColorTokens.Explorer.activityMonitor
 
+    // Phase 3 Colors
+    static let serverTriggers = ColorTokens.Explorer.serverTriggers
+    static let databaseTriggers = ColorTokens.Explorer.databaseTriggers
+    static let serviceBroker = ColorTokens.Explorer.serviceBroker
+    static let externalResources = ColorTokens.Explorer.externalResources
+    static let databaseSnapshots = ColorTokens.Explorer.databaseSnapshots
+    static let sqlProfiler = ColorTokens.Explorer.sqlProfiler
+    static let resourceGovernor = ColorTokens.Explorer.resourceGovernor
+    static let tuningAdvisor = ColorTokens.Explorer.tuningAdvisor
+    static let policyManagement = ColorTokens.Explorer.policyManagement
+
     static func folderIconColor(title: String, colored: Bool = true) -> Color {
         guard colored else { return monochrome }
         switch title {
@@ -133,6 +144,16 @@ enum ExplorerSidebarPalette {
         case "Query Store": return queryStore
         case "Extensions": return extensions
         case "Linked Servers": return linkedServers
+        case "Server Triggers": return serverTriggers
+        case "Database Triggers": return databaseTriggers
+        case "Service Broker": return serviceBroker
+        case "External Resources": return externalResources
+        case "Database Snapshots": return databaseSnapshots
+        case "SQL Server Logs": return management
+        case "SQL Profiler": return sqlProfiler
+        case "Resource Governor": return resourceGovernor
+        case "Tuning Advisor": return tuningAdvisor
+        case "Policy Management": return policyManagement
         default: return monochrome
         }
     }

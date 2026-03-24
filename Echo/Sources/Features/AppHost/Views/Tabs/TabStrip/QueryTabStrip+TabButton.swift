@@ -94,9 +94,6 @@ extension QueryTabStrip {
                                 connectionColorHex: queryState.clipboardMetadata.connectionColorHex
                             )
                         }
-                        if let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
-                            session.selectedDatabaseName = databaseName
-                        }
                         environmentState.notificationEngine?.post(category: .databaseSwitched, message: "Switched to \(databaseName)")
                     }
                 } catch {
@@ -119,14 +116,6 @@ extension QueryTabStrip {
                                 databaseName: databaseName,
                                 connectionColorHex: queryState.clipboardMetadata.connectionColorHex
                             )
-                        }
-                        // For PostgreSQL, we can't swap the tab's session (it's `let`),
-                        // so we update the connection session's selected database.
-                        // The next query execution will use the correct session
-                        // via the USE prepend logic for MSSQL, or for PG the session
-                        // itself is already connected to the right database.
-                        if let connSession = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
-                            connSession.selectedDatabaseName = databaseName
                         }
                         _ = newSession // Session is cached in PostgresServerConnection
                         environmentState.notificationEngine?.post(category: .databaseSwitched, message: "Switched to \(databaseName)")

@@ -8,6 +8,9 @@ enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
     case executionPlan
     case jsonInspector
     case liveData
+    case spatial
+    case tuning
+    case policyManagement
     var id: String { rawValue }
 
     var label: String {
@@ -17,6 +20,9 @@ enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
         case .executionPlan: return "Execution Plan"
         case .jsonInspector: return "JSON Inspector"
         case .liveData: return "Live Data"
+        case .spatial: return "Spatial"
+        case .tuning: return "Tuning"
+        case .policyManagement: return "Policy Management"
         }
     }
 
@@ -27,6 +33,9 @@ enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
         case .executionPlan: return "chart.bar.doc.horizontal"
         case .jsonInspector: return "curlybraces"
         case .liveData: return "waveform.path.ecg"
+        case .spatial: return "map"
+        case .tuning: return "wand.and.stars"
+        case .policyManagement: return "checkmark.seal"
         }
     }
 }
@@ -91,7 +100,7 @@ final class BottomPanelState {
             isOpen: false,
             splitRatio: 0.5,
             selectedSegment: .results,
-            availableSegments: [.results, .messages, .executionPlan]
+            availableSegments: [.results, .messages, .spatial, .executionPlan, .tuning]
         )
     }
 
@@ -100,7 +109,7 @@ final class BottomPanelState {
             isOpen: false,
             splitRatio: 0.65,
             selectedSegment: .messages,
-            availableSegments: [.messages]
+            availableSegments: [.messages, .policyManagement]
         )
     }
 
