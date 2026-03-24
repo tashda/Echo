@@ -98,11 +98,45 @@ struct TuningAdvisorView: View {
                     }
                     
                     GroupBox("SQL Recommendation") {
-                        Text(generateCreateIndexSQL(rec))
-                            .font(.system(.body, design: .monospaced))
-                            .textSelection(.enabled)
-                            .padding(SpacingTokens.sm)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                            Text(generateCreateIndexSQL(rec))
+                                .font(.system(.body, design: .monospaced))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Divider()
+
+                            HStack(spacing: SpacingTokens.sm) {
+                                if let error = viewModel.errorMessage {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundStyle(ColorTokens.Status.warning)
+                                    Text(error)
+                                        .font(TypographyTokens.detail)
+                                        .foregroundStyle(ColorTokens.Status.error)
+                                        .lineLimit(2)
+                                }
+
+                                Spacer()
+
+                                Button {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(generateCreateIndexSQL(rec), forType: .string)
+                                } label: {
+                                    Label("Copy Script", systemImage: "doc.on.doc")
+                                }
+
+                                Button {
+                                    let sql = generateCreateIndexSQL(rec)
+                                    let name = extractIndexName(sql)
+                                    Task { await viewModel.createIndex(sql: sql, indexName: name) }
+                                } label: {
+                                    Label("Create Index", systemImage: "bolt.fill")
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(viewModel.isCreatingIndex)
+                            }
+                        }
+                        .padding(SpacingTokens.sm)
                     }
                 }
                 .padding(SpacingTokens.md)
@@ -150,6 +184,12 @@ struct TuningAdvisorView: View {
         return .accentColor
     }
     
+    private func extractIndexName(_ sql: String) -> String {
+        guard let start = sql.range(of: "["),
+              let end = sql.range(of: "]") else { return "index" }
+        return String(sql[start.upperBound..<end.lowerBound])
+    }
+
     private func generateCreateIndexSQL(_ rec: SQLServerMissingIndexRecommendation) -> String {
         let name = "IX_\(rec.tableName)_\(UUID().uuidString.prefix(6))"
         var sql = "CREATE INDEX [\(name)] ON [\(rec.schemaName)].[\(rec.tableName)] ("

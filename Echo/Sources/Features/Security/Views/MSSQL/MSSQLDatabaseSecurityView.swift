@@ -104,8 +104,9 @@ struct MSSQLDatabaseSecurityView: View {
     private var statusBubble: BottomPanelStatusBarConfiguration.StatusBubble? {
         if viewModel.isLoadingUsers || viewModel.isLoadingRoles ||
            viewModel.isLoadingAppRoles || viewModel.isLoadingSchemas ||
-           viewModel.isLoadingMaskedColumns || viewModel.isLoadingSecurityPolicies ||
-           viewModel.isLoadingDBAuditSpecs || viewModel.isLoadingAlwaysEncrypted {
+           viewModel.isLoadingCertificates || viewModel.isLoadingMaskedColumns ||
+           viewModel.isLoadingSecurityPolicies || viewModel.isLoadingDBAuditSpecs ||
+           viewModel.isLoadingAlwaysEncrypted {
             return .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true)
         }
         return nil
@@ -151,6 +152,8 @@ struct MSSQLDatabaseSecurityView: View {
                     viewModel: viewModel,
                     onNewSchema: { showNewSchemaSheet = true }
                 )
+            case .certificates:
+                MSSQLSecurityCertificatesSection(viewModel: viewModel)
             case .masking:
                 MSSQLSecurityMaskingSection(
                     viewModel: viewModel,

@@ -10,6 +10,7 @@ final class DatabaseSecurityViewModel {
         case roles = "Roles"
         case appRoles = "App Roles"
         case schemas = "Schemas"
+        case certificates = "Certificates"
         case masking = "Masking"
         case securityPolicies = "RLS"
         case auditSpecifications = "Audit Specs"
@@ -46,6 +47,11 @@ final class DatabaseSecurityViewModel {
     var schemas: [SQLServerKit.SchemaInfo] = []
     var selectedSchemaName: Set<String> = []
     var isLoadingSchemas = false
+
+    // Certificates & Keys
+    var certificates: [CertificateInfo] = []
+    var asymmetricKeys: [AsymmetricKeyInfo] = []
+    var isLoadingCertificates = false
 
     // Dynamic Data Masking
     var maskedColumns: [MaskedColumnInfo] = []
@@ -117,6 +123,8 @@ final class DatabaseSecurityViewModel {
             await loadAppRoles(mssql: mssql)
         case .schemas:
             await loadSchemas(mssql: mssql)
+        case .certificates:
+            await loadCertificates(mssql: mssql)
         case .masking:
             await loadMaskedColumns(mssql: mssql)
         case .securityPolicies:
@@ -165,6 +173,17 @@ final class DatabaseSecurityViewModel {
             schemas = try await mssql.security.listSchemas()
         } catch {
             panelState?.appendMessage("Failed to load schemas: \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    private func loadCertificates(mssql: MSSQLSession) async {
+        isLoadingCertificates = true
+        defer { isLoadingCertificates = false }
+        do {
+            certificates = try await mssql.security.listCertificates()
+            asymmetricKeys = try await mssql.security.listAsymmetricKeys()
+        } catch {
+            panelState?.appendMessage("Failed to load certificates: \(error.localizedDescription)", severity: .error)
         }
     }
 
