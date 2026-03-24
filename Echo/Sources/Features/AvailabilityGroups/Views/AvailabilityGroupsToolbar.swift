@@ -18,6 +18,19 @@ struct AvailabilityGroupsToolbar: View {
             Spacer()
 
             if let group = viewModel.selectedGroup {
+                Picker("Backup Preference", selection: Binding(
+                    get: { group.automatedBackupPreference },
+                    set: { newValue in
+                        Task { await viewModel.setBackupPreference(groupName: group.name, preference: newValue) }
+                    }
+                )) {
+                    Text("Primary").tag("PRIMARY")
+                    Text("Secondary Only").tag("SECONDARY_ONLY")
+                    Text("Prefer Secondary").tag("SECONDARY")
+                    Text("Any Replica").tag("NONE")
+                }
+                .frame(width: 180)
+
                 Button {
                     viewModel.requestFailover(groupName: group.name)
                 } label: {

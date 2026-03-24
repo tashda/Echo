@@ -98,6 +98,15 @@ final class AvailabilityGroupsViewModel {
         await loadAll()
     }
 
+    func setBackupPreference(groupName: String, preference: String) async {
+        do {
+            try await agClient.setBackupPreference(groupName: groupName, preference: preference)
+            await loadAll()
+        } catch {
+            loadingState = .error(error.localizedDescription)
+        }
+    }
+
     func removeDatabase(groupName: String, databaseName: String) async {
         do {
             try await agClient.removeDatabase(groupName: groupName, databaseName: databaseName)
