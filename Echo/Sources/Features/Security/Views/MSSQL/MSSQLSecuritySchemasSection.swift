@@ -67,7 +67,7 @@ struct MSSQLSecuritySchemasSection: View {
                 }
 
                 Button { onNewSchema() } label: {
-                    Label("New Schema\u{2026}", systemImage: "folder.badge.plus")
+                    Label("New Schema", systemImage: "rectangle.stack")
                 }
             }
         } primaryAction: { _ in }

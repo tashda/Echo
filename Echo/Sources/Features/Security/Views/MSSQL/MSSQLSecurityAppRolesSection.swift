@@ -73,7 +73,7 @@ struct MSSQLSecurityAppRolesSection: View {
                 }
 
                 Button { onNewAppRole() } label: {
-                    Label("New Application Role\u{2026}", systemImage: "person.badge.plus")
+                    Label("New Application Role", systemImage: "person.badge.key")
                 }
             }
         } primaryAction: { _ in }

@@ -87,7 +87,7 @@ struct MSSQLSecurityRolesSection: View {
                 }
 
                 Button { onNewRole() } label: {
-                    Label("New Role\u{2026}", systemImage: "person.badge.plus")
+                    Label("New Role", systemImage: "person.2")
                 }
             }
         } primaryAction: { selection in
