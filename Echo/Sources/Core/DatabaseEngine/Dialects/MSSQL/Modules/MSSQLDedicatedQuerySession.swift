@@ -100,7 +100,7 @@ nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSessio
     var policy: SQLServerPolicyClient { metadataSession.policy }
     var dependencies: SQLServerDependencyClient { metadataSession.dependencies }
     var dac: SQLServerDACClient { metadataSession.dac }
-    var bulkCopy: SQLServerBulkCopyClient? { metadataSession.bulkCopy }
+    var bulkCopy: SQLServerBulkCopyClient { metadataSession.bulkCopy! }
     var ssis: SQLServerSSISClient { metadataSession.ssis }
     var ssas: SQLServerSSASClient { metadataSession.ssas }
     var ssrs: SQLServerSSRSClient { metadataSession.ssrs }
