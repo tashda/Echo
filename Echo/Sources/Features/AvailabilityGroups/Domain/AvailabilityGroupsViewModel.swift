@@ -98,6 +98,28 @@ final class AvailabilityGroupsViewModel {
         await loadAll()
     }
 
+    func removeDatabase(groupName: String, databaseName: String) async {
+        do {
+            try await agClient.removeDatabase(groupName: groupName, databaseName: databaseName)
+            if let groupId = selectedGroupId {
+                await loadGroupDetails(groupId: groupId)
+            }
+        } catch {
+            detailLoadingState = .error(error.localizedDescription)
+        }
+    }
+
+    func addDatabase(groupName: String, databaseName: String) async {
+        do {
+            try await agClient.addDatabase(groupName: groupName, databaseName: databaseName)
+            if let groupId = selectedGroupId {
+                await loadGroupDetails(groupId: groupId)
+            }
+        } catch {
+            detailLoadingState = .error(error.localizedDescription)
+        }
+    }
+
     func estimatedMemoryUsageBytes() -> Int {
         let groupsSize = groups.count * 128
         let replicasSize = replicas.count * 256
