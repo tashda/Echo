@@ -8,9 +8,22 @@ struct ExtendedEventsDataView: View {
     
     @State private var selection: Set<SQLServerXEEventData.ID> = []
     @State private var eventSortOrder: [KeyPathComparator<SQLServerXEEventData>] = []
+    @State private var searchText = ""
+
+    private var filteredEvents: [SQLServerXEEventData] {
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !trimmed.isEmpty else { return viewModel.eventData }
+        return viewModel.eventData.filter { event in
+            event.eventName.lowercased().contains(trimmed)
+            || event.fields.values.contains(where: { $0.lowercased().contains(trimmed) })
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if viewModel.selectedSessionName != nil && !viewModel.eventData.isEmpty {
+                searchBar
+            }
             if viewModel.selectedSessionName == nil {
                 noSessionPlaceholder
             } else if viewModel.eventDataLoadingState == .loading && viewModel.eventData.isEmpty {
@@ -27,10 +40,38 @@ struct ExtendedEventsDataView: View {
         .background(ColorTokens.Background.primary)
     }
 
+    // MARK: - Search Bar
+
+    private var searchBar: some View {
+        HStack(spacing: SpacingTokens.sm) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            TextField("Filter events", text: $searchText, prompt: Text("Search by event name or field value"))
+                .textFieldStyle(.plain)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Text("\(filteredEvents.count) of \(viewModel.eventData.count)")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        }
+        .padding(.horizontal, SpacingTokens.md)
+        .padding(.vertical, SpacingTokens.xs)
+        .background(ColorTokens.Background.secondary)
+    }
+
     // MARK: - Event Table
 
     private var eventTable: some View {
-        Table(viewModel.eventData.sorted(using: eventSortOrder), selection: $selection, sortOrder: $eventSortOrder) {
+        Table(filteredEvents.sorted(using: eventSortOrder), selection: $selection, sortOrder: $eventSortOrder) {
             TableColumn("Timestamp", value: \.sortableTimestamp) { event in
                 Text(formattedTimestamp(event.timestamp))
                     .font(TypographyTokens.Table.date)

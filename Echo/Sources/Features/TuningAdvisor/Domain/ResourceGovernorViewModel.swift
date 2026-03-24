@@ -80,6 +80,58 @@ final class ResourceGovernorViewModel {
         }
     }
 
+    func createPool(name: String, minCpu: Int, maxCpu: Int, minMem: Int, maxMem: Int) async {
+        guard let client = rgClient else { return }
+        let handle = activityEngine?.begin("Creating pool \(name)", connectionSessionID: connectionSessionID)
+        do {
+            try await client.createResourcePool(name: name, minCpuPercent: minCpu, maxCpuPercent: maxCpu, minMemoryPercent: minMem, maxMemoryPercent: maxMem)
+            handle?.succeed()
+            refresh()
+        } catch {
+            handle?.fail(error.localizedDescription)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func dropPool(name: String) async {
+        guard let client = rgClient else { return }
+        let handle = activityEngine?.begin("Dropping pool \(name)", connectionSessionID: connectionSessionID)
+        do {
+            try await client.dropResourcePool(name: name)
+            handle?.succeed()
+            refresh()
+        } catch {
+            handle?.fail(error.localizedDescription)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func createGroup(name: String, poolName: String, importance: String, maxMemGrant: Int, maxCpuTime: Int, maxDop: Int, maxRequests: Int) async {
+        guard let client = rgClient else { return }
+        let handle = activityEngine?.begin("Creating group \(name)", connectionSessionID: connectionSessionID)
+        do {
+            try await client.createWorkloadGroup(name: name, poolName: poolName, importance: importance, requestMaxMemoryGrantPercent: maxMemGrant, requestMaxCpuTimeSec: maxCpuTime, maxDop: maxDop, groupMaxRequests: maxRequests)
+            handle?.succeed()
+            refresh()
+        } catch {
+            handle?.fail(error.localizedDescription)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func dropGroup(name: String) async {
+        guard let client = rgClient else { return }
+        let handle = activityEngine?.begin("Dropping group \(name)", connectionSessionID: connectionSessionID)
+        do {
+            try await client.dropWorkloadGroup(name: name)
+            handle?.succeed()
+            refresh()
+        } catch {
+            handle?.fail(error.localizedDescription)
+            errorMessage = error.localizedDescription
+        }
+    }
+
     var selectedPool: SQLServerResourcePool? {
         pools.first { $0.poolId == selectedPoolID }
     }

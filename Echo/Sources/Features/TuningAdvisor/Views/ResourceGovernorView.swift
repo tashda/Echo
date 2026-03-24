@@ -3,7 +3,12 @@ import SQLServerKit
 
 struct ResourceGovernorView: View {
     @Bindable var viewModel: ResourceGovernorViewModel
-    
+
+    @State private var showNewPoolSheet = false
+    @State private var showNewGroupSheet = false
+    @State private var pendingDropPool: String?
+    @State private var pendingDropGroup: String?
+
     var body: some View {
         VStack(spacing: 0) {
             toolbar
@@ -29,6 +34,40 @@ struct ResourceGovernorView: View {
         .background(ColorTokens.Background.primary)
         .onAppear {
             viewModel.refresh()
+        }
+        .sheet(isPresented: $showNewPoolSheet) {
+            NewResourcePoolSheet(viewModel: viewModel) { showNewPoolSheet = false }
+        }
+        .sheet(isPresented: $showNewGroupSheet) {
+            NewWorkloadGroupSheet(viewModel: viewModel) { showNewGroupSheet = false }
+        }
+        .alert("Drop Resource Pool?", isPresented: Binding(
+            get: { pendingDropPool != nil },
+            set: { if !$0 { pendingDropPool = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { pendingDropPool = nil }
+            Button("Drop", role: .destructive) {
+                if let name = pendingDropPool {
+                    pendingDropPool = nil
+                    Task { await viewModel.dropPool(name: name) }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to drop the pool \(pendingDropPool ?? "")? This action cannot be undone.")
+        }
+        .alert("Drop Workload Group?", isPresented: Binding(
+            get: { pendingDropGroup != nil },
+            set: { if !$0 { pendingDropGroup = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { pendingDropGroup = nil }
+            Button("Drop", role: .destructive) {
+                if let name = pendingDropGroup {
+                    pendingDropGroup = nil
+                    Task { await viewModel.dropGroup(name: name) }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to drop the workload group \(pendingDropGroup ?? "")? This action cannot be undone.")
         }
     }
     
@@ -113,6 +152,21 @@ struct ResourceGovernorView: View {
             }
             .width(100)
         }
+        .contextMenu(forSelectionType: Int32.self) { selection in
+            if let id = selection.first, let pool = viewModel.pools.first(where: { $0.poolId == id }) {
+                let isBuiltIn = pool.name == "internal" || pool.name == "default"
+                Button(role: .destructive) {
+                    pendingDropPool = pool.name
+                } label: {
+                    Label("Drop Pool", systemImage: "trash")
+                }
+                .disabled(isBuiltIn)
+            } else {
+                Button { showNewPoolSheet = true } label: {
+                    Label("New Pool", systemImage: "cpu")
+                }
+            }
+        } primaryAction: { _ in }
     }
     
     private var groupsTable: some View {
@@ -130,6 +184,21 @@ struct ResourceGovernorView: View {
             }
             .width(60)
         }
+        .contextMenu(forSelectionType: Int32.self) { selection in
+            if let id = selection.first, let group = viewModel.groups.first(where: { $0.groupId == id }) {
+                let isBuiltIn = group.name == "internal" || group.name == "default"
+                Button(role: .destructive) {
+                    pendingDropGroup = group.name
+                } label: {
+                    Label("Drop Group", systemImage: "trash")
+                }
+                .disabled(isBuiltIn)
+            } else {
+                Button { showNewGroupSheet = true } label: {
+                    Label("New Workload Group", systemImage: "person.3")
+                }
+            }
+        } primaryAction: { _ in }
     }
     
     private func usageBar(value: Double) -> some View {
