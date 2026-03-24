@@ -21,6 +21,7 @@ final class AvailabilityGroupsViewModel {
     var selectedGroupId: String?
     var replicas: [SQLServerAGReplica] = []
     var databases: [SQLServerAGDatabase] = []
+    var listeners: [SQLServerAvailabilityGroupsClient.SQLServerAGListener] = []
     var detailLoadingState: LoadingState = .idle
     var showFailoverConfirmation = false
     var failoverGroupName: String?
@@ -66,6 +67,7 @@ final class AvailabilityGroupsViewModel {
         do {
             replicas = try await agClient.listReplicas(groupId: groupId)
             databases = try await agClient.listDatabases(groupId: groupId)
+            listeners = try await agClient.listListeners(groupId: groupId)
             detailLoadingState = .loaded
         } catch {
             detailLoadingState = .error(error.localizedDescription)

@@ -115,6 +115,7 @@ struct AvailabilityGroupsView: View {
                             }
                         }
                     )
+                    AGListenerSection(listeners: viewModel.listeners, detailState: viewModel.detailLoadingState)
                 }
                 .padding(SpacingTokens.lg)
             }

@@ -8,10 +8,63 @@ extension ReplicationSheet {
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.lg) {
                 distributorSection
+                agentStatusSection
                 publicationsSection
                 subscriptionsSection
             }
             .padding(SpacingTokens.md)
+        }
+    }
+
+    @ViewBuilder
+    var agentStatusSection: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            Text("Agent Status")
+                .font(TypographyTokens.standard.weight(.semibold))
+
+            if agentStatuses.isEmpty {
+                Text("No replication agents configured.")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            } else {
+                ForEach(agentStatuses) { agent in
+                    HStack(spacing: SpacingTokens.sm) {
+                        Circle()
+                            .fill(agentStatusColor(agent.status))
+                            .frame(width: 8, height: 8)
+                        Text(agent.name)
+                            .font(TypographyTokens.standard)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(agent.agentType)
+                            .font(TypographyTokens.compact)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                        Text(agent.status)
+                            .font(TypographyTokens.compact.weight(.medium))
+                            .foregroundStyle(agentStatusColor(agent.status))
+                        if let lastRun = agent.lastRunTime {
+                            Text(lastRun)
+                                .font(TypographyTokens.detail)
+                                .foregroundStyle(ColorTokens.Text.tertiary)
+                        }
+                    }
+                    .padding(SpacingTokens.xs)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(ColorTokens.Background.secondary)
+                    )
+                }
+            }
+        }
+    }
+
+    func agentStatusColor(_ status: String) -> Color {
+        switch status {
+        case "Succeeded", "Idle": return ColorTokens.Status.success
+        case "In progress", "Started": return ColorTokens.Status.info
+        case "Retrying": return ColorTokens.Status.warning
+        case "Failed": return ColorTokens.Status.error
+        default: return ColorTokens.Text.tertiary
         }
     }
 

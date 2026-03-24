@@ -15,6 +15,7 @@ struct ReplicationSheet: View {
     @State var subscriptions: [SQLServerSubscription] = []
     @State var expandedPublication: String?
     @State var articles: [SQLServerReplicationArticle] = []
+    @State var agentStatuses: [SQLServerReplicationClient.SQLServerReplicationAgentStatus] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -77,6 +78,7 @@ struct ReplicationSheet: View {
             distributorConfigured = try await mssql.replication.isDistributorConfigured()
             publications = try await mssql.replication.listPublications()
             subscriptions = try await mssql.replication.listSubscriptions()
+            agentStatuses = try await mssql.replication.agentStatus()
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription
