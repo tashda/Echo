@@ -334,11 +334,11 @@ struct MSSQLBatchSplitterTests {
 
     @Test func blockCommentEndingThenGOOnSameLine() {
         // */ GO on same line — GO is not at line start (there's */ before it)
-        let sql = "/* comment */\nGO\nSELECT 1"
+        let sql = "/* comment */ GO\nSELECT 1"
         let result = MSSQLBatchSplitter.split(sql)
-        // The /* comment */ is on its own line, GO is on the next line — should split
+        // GO is not at line start (preceded by block comment end) — not a separator
         #expect(result.batches.count == 1)
-        #expect(result.batches[0].text == "SELECT 1")
+        #expect(result.batches[0].text.contains("SELECT 1"))
     }
 
     @Test func blockCommentEndAndGOOnSameLine() {

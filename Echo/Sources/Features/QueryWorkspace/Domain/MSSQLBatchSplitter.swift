@@ -27,7 +27,7 @@ nonisolated struct MSSQLBatchSplitter {
     // MARK: - Public API
 
     static func split(_ sql: String) -> SplitResult {
-        let lines = sql.components(separatedBy: "\n")
+        let lines = sql.components(separatedBy: .newlines)
         var batches: [Batch] = []
         var currentBatchLines: [String] = []
         var batchStartLine = 0

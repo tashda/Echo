@@ -95,6 +95,7 @@ extension ObjectBrowserSidebarView {
                     databaseSnapshotsFolderSection(session: session)
                     agentJobsSection(session: session)
                     managementFolderSection(session: session)
+                    ssisSection(session: session)
                     linkedServersSection(session: session)
                     serverTriggersSection(session: session)
                 }

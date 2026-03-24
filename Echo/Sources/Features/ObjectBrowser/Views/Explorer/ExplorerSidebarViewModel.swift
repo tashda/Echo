@@ -129,6 +129,11 @@ final class ObjectBrowserSidebarViewModel {
     var showAttachSheet = false
     var attachConnectionID: UUID?
 
+    // SSIS (per-connection, MSSQL only)
+    var ssisExpandedBySession: [UUID: Bool] = [:]
+    var ssisFoldersBySession: [UUID: [SQLServerSSISFolder]] = [:]
+    var ssisLoadingBySession: [UUID: Bool] = [:]
+
     // Database Snapshots (per-connection, MSSQL only)
     var databaseSnapshotsExpandedBySession: [UUID: Bool] = [:]
     var databaseSnapshotsBySession: [UUID: [SQLServerDatabaseSnapshot]] = [:]
