@@ -92,8 +92,17 @@ extension ReplicationSheet {
     @ViewBuilder
     var publicationsSection: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Publications")
-                .font(TypographyTokens.standard.weight(.semibold))
+            HStack {
+                Text("Publications")
+                    .font(TypographyTokens.standard.weight(.semibold))
+                Spacer()
+                Button {
+                    showNewPublicationSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+            }
 
             if publications.isEmpty {
                 Text("No publications found in this database.")
@@ -102,6 +111,11 @@ extension ReplicationSheet {
             } else {
                 ForEach(publications) { pub in
                     publicationRow(pub)
+                        .contextMenu {
+                            Button("Delete", role: .destructive) {
+                                Task { await deletePublication(pub) }
+                            }
+                        }
                 }
             }
         }
@@ -185,8 +199,18 @@ extension ReplicationSheet {
     @ViewBuilder
     var subscriptionsSection: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Subscriptions")
-                .font(TypographyTokens.standard.weight(.semibold))
+            HStack {
+                Text("Subscriptions")
+                    .font(TypographyTokens.standard.weight(.semibold))
+                Spacer()
+                Button {
+                    showNewSubscriptionSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+                .disabled(publications.isEmpty)
+            }
 
             if subscriptions.isEmpty {
                 Text("No subscriptions found.")
@@ -212,6 +236,17 @@ extension ReplicationSheet {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(ColorTokens.Background.secondary)
                     )
+                    .contextMenu {
+                        Button("Delete", role: .destructive) {
+                            Task {
+                                // Use first publication name as context;
+                                // sp_dropsubscription needs the publication
+                                if let firstPub = publications.first?.name {
+                                    await deleteSubscription(sub, publicationName: firstPub)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

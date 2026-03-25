@@ -16,6 +16,8 @@ struct ReplicationSheet: View {
     @State var expandedPublication: String?
     @State var articles: [SQLServerReplicationArticle] = []
     @State var agentStatuses: [SQLServerReplicationClient.SQLServerReplicationAgentStatus] = []
+    @State var showNewPublicationSheet = false
+    @State var showNewSubscriptionSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,6 +44,22 @@ struct ReplicationSheet: View {
         .frame(minWidth: 520, minHeight: 380)
         .frame(idealWidth: 580, idealHeight: 460)
         .task { await loadData() }
+        .sheet(isPresented: $showNewPublicationSheet) {
+            NewPublicationSheet(
+                databaseName: databaseName,
+                session: session,
+                onCreated: { Task { await loadData() } },
+                onDismiss: { showNewPublicationSheet = false }
+            )
+        }
+        .sheet(isPresented: $showNewSubscriptionSheet) {
+            NewSubscriptionSheet(
+                publications: publications,
+                session: session,
+                onCreated: { Task { await loadData() } },
+                onDismiss: { showNewSubscriptionSheet = false }
+            )
+        }
     }
 
     private var headerBar: some View {
@@ -92,6 +110,42 @@ struct ReplicationSheet: View {
             articles = try await mssql.replication.listArticles(publicationName: publicationName)
         } catch {
             articles = []
+        }
+    }
+
+    func deletePublication(_ pub: SQLServerPublication) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        let handle = AppDirector.shared.activityEngine.begin(
+            "Drop publication \(pub.name)",
+            connectionSessionID: session.id
+        )
+        do {
+            try await mssql.replication.dropPublication(name: pub.name)
+            handle.succeed()
+            await loadData()
+        } catch {
+            handle.fail(error.localizedDescription)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func deleteSubscription(_ sub: SQLServerSubscription, publicationName: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        let handle = AppDirector.shared.activityEngine.begin(
+            "Drop subscription \(sub.subscriberServer).\(sub.subscriberDB)",
+            connectionSessionID: session.id
+        )
+        do {
+            try await mssql.replication.dropSubscription(
+                publicationName: publicationName,
+                subscriberServer: sub.subscriberServer,
+                subscriberDB: sub.subscriberDB
+            )
+            handle.succeed()
+            await loadData()
+        } catch {
+            handle.fail(error.localizedDescription)
+            errorMessage = error.localizedDescription
         }
     }
 }
