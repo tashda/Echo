@@ -181,7 +181,7 @@ struct DatabaseMailSheet: View {
         VStack(spacing: SpacingTokens.md) {
             Spacer()
             Image(systemName: "envelope.badge.shield.half.filled")
-                .font(.system(size: 40))
+                .font(TypographyTokens.iconLarge)
                 .foregroundStyle(ColorTokens.Text.tertiary)
             Text("Database Mail is not enabled")
                 .font(TypographyTokens.prominent.weight(.medium))

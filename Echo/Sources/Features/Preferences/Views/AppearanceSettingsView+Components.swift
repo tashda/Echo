@@ -165,7 +165,7 @@ private struct SidebarIconCard: View {
     private func previewRow(icon: String, color: Color) -> some View {
         HStack(spacing: SpacingTokens.xxs) {
             Image(systemName: icon)
-                .font(.system(size: 6))
+                .font(TypographyTokens.micro)
                 .foregroundStyle(color)
                 .frame(width: 6)
             

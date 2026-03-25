@@ -74,7 +74,7 @@ struct NotificationInspectorView: View {
     private var emptyState: some View {
         VStack(spacing: SpacingTokens.sm) {
             Image(systemName: "bell.slash")
-                .font(.system(size: 28))
+                .font(TypographyTokens.iconMedium)
                 .foregroundStyle(ColorTokens.Text.tertiary)
             Text("No Notifications")
                 .font(TypographyTokens.standard.weight(.medium))

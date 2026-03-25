@@ -75,7 +75,7 @@ struct ExtendedEventsCreateSheet: View {
 
                 if let predicate = entry.predicate {
                     Text("WHERE \(predicate)")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(TypographyTokens.Table.sql)
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }

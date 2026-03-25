@@ -112,7 +112,7 @@ private struct PlanDisclosureRow: View {
         HStack(spacing: SpacingTokens.sm) {
             // Disclosure chevron
             Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                .font(.system(size: 9, weight: .semibold))
+                .font(TypographyTokens.compact.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.tertiary)
                 .frame(width: 12)
 
@@ -194,7 +194,7 @@ private struct PlanDisclosureRow: View {
     private func planXMLView(_ xml: String) -> some View {
         ScrollView(.vertical) {
             Text(formatXML(xml))
-                .font(.system(size: 11, design: .monospaced))
+                .font(TypographyTokens.Table.sql)
                 .foregroundStyle(ColorTokens.Text.secondary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)

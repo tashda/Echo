@@ -54,7 +54,7 @@ struct QuickImportSheet: View {
             }
             Spacer()
             Image(systemName: "square.and.arrow.down.on.square")
-                .font(.system(size: 32))
+                .font(TypographyTokens.iconDisplay)
                 .foregroundStyle(Color.accentColor)
         }
         .padding(SpacingTokens.lg)

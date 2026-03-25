@@ -91,6 +91,18 @@ public enum TypographyTokens {
         public static let sql = SwiftUI.Font.system(size: 11, design: .monospaced)
     }
 
+    // MARK: - Icon / Empty State Sizes
+    /// 6pt — density preview micro dots
+    public static let micro = SwiftUI.Font.system(size: 6)
+    /// 28pt — medium empty state icons
+    public static let iconMedium = SwiftUI.Font.system(size: 28)
+    /// 32pt — standard empty state icons, wizard graphics
+    public static let iconDisplay = SwiftUI.Font.system(size: 32)
+    /// 40pt — large empty state icons
+    public static let iconLarge = SwiftUI.Font.system(size: 40)
+    /// 48pt — hero wizard icons
+    public static let iconHero = SwiftUI.Font.system(size: 48)
+
     /// 16pt — large headers
     public static let display = SwiftUI.Font.system(size: 16)
     /// 18pt — large display headers

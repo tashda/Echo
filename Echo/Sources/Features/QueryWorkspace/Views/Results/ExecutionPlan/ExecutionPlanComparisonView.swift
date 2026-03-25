@@ -21,7 +21,7 @@ struct ExecutionPlanComparisonView: View {
     private var loadPrompt: some View {
         VStack(spacing: SpacingTokens.md) {
             Image(systemName: "arrow.left.arrow.right")
-                .font(.system(size: 32))
+                .font(TypographyTokens.iconDisplay)
                 .foregroundStyle(ColorTokens.Text.tertiary)
 
             Text("Compare Execution Plans")

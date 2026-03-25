@@ -55,7 +55,7 @@ extension DatabaseMailSheet {
         VStack(spacing: SpacingTokens.sm) {
             Spacer()
             Image(systemName: icon)
-                .font(.system(size: 28))
+                .font(TypographyTokens.iconMedium)
                 .foregroundStyle(ColorTokens.Text.quaternary)
             Text(message)
                 .font(TypographyTokens.standard)

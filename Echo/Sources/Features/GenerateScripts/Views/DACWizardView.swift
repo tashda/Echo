@@ -32,7 +32,7 @@ struct DACWizardView: View {
             }
             Spacer()
             Image(systemName: "archivebox")
-                .font(.system(size: 32))
+                .font(TypographyTokens.iconDisplay)
                 .foregroundStyle(Color.accentColor)
         }
         .padding(SpacingTokens.lg)
@@ -118,7 +118,7 @@ struct DACWizardView: View {
         VStack(spacing: SpacingTokens.md) {
             if let error = viewModel.errorMessage {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 48))
+                    .font(TypographyTokens.iconHero)
                     .foregroundStyle(.red)
                 Text("Operation Failed")
                     .font(TypographyTokens.title)
@@ -127,7 +127,7 @@ struct DACWizardView: View {
                     .multilineTextAlignment(.center)
             } else {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 48))
+                    .font(TypographyTokens.iconHero)
                     .foregroundStyle(.green)
                 Text("Success")
                     .font(TypographyTokens.title)

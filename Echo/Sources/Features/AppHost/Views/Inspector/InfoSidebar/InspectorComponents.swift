@@ -117,7 +117,7 @@ struct InspectorSQLBlock: View {
             }
 
             Text(sql)
-                .font(.system(size: 11, design: .monospaced))
+                .font(TypographyTokens.Table.sql)
                 .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(8)
                 .frame(maxWidth: .infinity, alignment: .leading)

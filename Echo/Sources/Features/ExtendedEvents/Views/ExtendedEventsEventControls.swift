@@ -76,7 +76,7 @@ struct ExtendedEventsEventControls: View {
 
     private var predicateField: some View {
         TextField("WHERE predicate (optional)", text: $viewModel.newEventPredicate, prompt: Text("e.g. duration > 1000000"))
-            .font(.system(size: 11, design: .monospaced))
+            .font(TypographyTokens.Table.sql)
     }
 
     static let commonActions: [String] = [

@@ -152,7 +152,7 @@ struct QueryTabStrip: View {
             environmentState.openQueryTab()
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 14, weight: .medium))
+                .font(TypographyTokens.prominent.weight(.medium))
                 .foregroundStyle(.primary)
                 .frame(width: newTabButtonSize, height: newTabButtonSize)
                 .background {
