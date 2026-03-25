@@ -63,7 +63,6 @@ extension ObjectBrowserSidebarView {
                 ForEach(standardLogins) { login in
                     loginRow(login: login, session: session)
                 }
-                .transition(.opacity)
 
                 // Certificates subfolder
                 if !certLogins.isEmpty {
@@ -93,7 +92,6 @@ extension ObjectBrowserSidebarView {
             ForEach(certLogins) { login in
                 loginRow(login: login, session: session, depth: 4)
             }
-            .transition(.opacity)
         }
     }
 

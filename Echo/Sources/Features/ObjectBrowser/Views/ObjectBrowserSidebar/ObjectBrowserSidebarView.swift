@@ -39,6 +39,10 @@ struct ObjectBrowserSidebarView: View {
                             .padding(.horizontal, SpacingTokens.md)
                             .padding(.top, SpacingTokens.xl)
                     } else {
+                        // Top inset so the first row doesn't sit flush with the icon menu
+                        Color.clear
+                            .frame(height: SpacingTokens.xs)
+
                         ForEach(pending) { item in
                             pendingConnectionSection(pending: item)
                                 .padding(.bottom, SpacingTokens.xxs)
@@ -46,10 +50,10 @@ struct ObjectBrowserSidebarView: View {
 
                         ForEach(Array(sessions.enumerated()), id: \.element.connection.id) { index, session in
                             if index > 0 || !pending.isEmpty {
-                                serverSeparator
+                                Spacer()
+                                    .frame(height: SpacingTokens.xs)
                             }
                             serverSection(session: session, proxy: proxy)
-                                .padding(.bottom, SpacingTokens.xxs)
                         }
 
                         Color.clear

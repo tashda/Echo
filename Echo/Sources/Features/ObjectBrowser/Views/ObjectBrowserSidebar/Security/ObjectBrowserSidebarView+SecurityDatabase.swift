@@ -47,7 +47,6 @@ extension ObjectBrowserSidebarView {
 
         if isExpanded {
             databaseSecurityContent(database: database, session: session, dbKey: dbKey)
-                .transition(.opacity)
         }
     }
 
@@ -98,7 +97,6 @@ extension ObjectBrowserSidebarView {
                 ForEach(users) { user in
                     dbUserRow(user: user, session: session, databaseName: dbName)
                 }
-                .transition(.opacity)
             }
         }
     }

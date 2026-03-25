@@ -51,7 +51,6 @@ extension ObjectBrowserSidebarView {
             ForEach(visibleDatabases, id: \.name) { database in
                 databaseSection(database: database, session: session, proxy: proxy)
             }
-            .transition(.opacity)
         }
     }
 
@@ -120,8 +119,7 @@ extension ObjectBrowserSidebarView {
         if isExpanded {
             let hasSchemas = !database.schemas.isEmpty && database.schemas.contains(where: { !$0.objects.isEmpty })
             databaseContent(database: database, session: session, hasSchemas: hasSchemas, proxy: proxy)
-                .transition(.opacity)
-        }
+            }
     }
 
     func databaseHeaderRow(database: DatabaseInfo, session: ConnectionSession, isExpanded: Bool, isSelected: Bool, accentColor: Color) -> some View {

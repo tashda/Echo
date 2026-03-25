@@ -25,7 +25,7 @@ extension ObjectBrowserSidebarView {
 
         folderHeaderRow(
             title: "Database Triggers",
-            icon: "bolt.shield",
+            icon: "bolt",
             count: triggers.isEmpty ? nil : triggers.count,
             isExpanded: expandedBinding,
             isLoading: isLoading,
@@ -51,7 +51,6 @@ extension ObjectBrowserSidebarView {
 
         if isExpanded {
             dbDDLTriggersContent(database: database, session: session, triggers: triggers, isLoading: isLoading)
-                .transition(.opacity)
         }
     }
 
@@ -64,19 +63,17 @@ extension ObjectBrowserSidebarView {
         triggers: [ObjectBrowserSidebarViewModel.DatabaseDDLTriggerItem],
         isLoading: Bool
     ) -> some View {
-        if !isLoading {
-            if triggers.isEmpty {
-                SidebarRow(
-                    depth: 3,
-                    icon: .none,
-                    label: "No database triggers",
-                    labelColor: ColorTokens.Text.tertiary,
-                    labelFont: TypographyTokens.detail
-                )
-            } else {
-                ForEach(triggers) { trigger in
-                    dbDDLTriggerRow(trigger: trigger, database: database, session: session)
-                }
+        if triggers.isEmpty {
+            SidebarRow(
+                depth: 3,
+                icon: .none,
+                label: isLoading ? "Loading…" : "No database triggers",
+                labelColor: ColorTokens.Text.tertiary,
+                labelFont: TypographyTokens.detail
+            )
+        } else {
+            ForEach(triggers) { trigger in
+                dbDDLTriggerRow(trigger: trigger, database: database, session: session)
             }
         }
     }
@@ -94,7 +91,7 @@ extension ObjectBrowserSidebarView {
         } label: {
             SidebarRow(
                 depth: 3,
-                icon: .system("bolt.shield"),
+                icon: .system("bolt"),
                 label: trigger.name,
                 iconColor: colored ? ExplorerSidebarPalette.triggers : ExplorerSidebarPalette.monochrome,
                 labelColor: trigger.isDisabled ? ColorTokens.Text.tertiary : ColorTokens.Text.primary

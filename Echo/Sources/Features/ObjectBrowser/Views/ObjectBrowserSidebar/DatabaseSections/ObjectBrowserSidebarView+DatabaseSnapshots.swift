@@ -62,11 +62,11 @@ extension ObjectBrowserSidebarView {
         .frame(maxWidth: .infinity, alignment: .leading)
 
         if isExpanded {
-            if snapshots.isEmpty && !isLoading {
+            if snapshots.isEmpty {
                 SidebarRow(
                     depth: 1,
                     icon: .none,
-                    label: "No snapshots",
+                    label: isLoading ? "Loading…" : "No snapshots",
                     labelColor: ColorTokens.Text.tertiary,
                     labelFont: TypographyTokens.detail
                 )
@@ -92,7 +92,6 @@ extension ObjectBrowserSidebarView {
                     snapshotContextMenu(snapshot: snapshot, session: session)
                 }
             }
-            .transition(.opacity)
         }
     }
 

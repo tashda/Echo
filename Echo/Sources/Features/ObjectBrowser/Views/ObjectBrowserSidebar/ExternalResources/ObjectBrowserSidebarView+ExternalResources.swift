@@ -24,7 +24,7 @@ extension ObjectBrowserSidebarView {
 
         folderHeaderRow(
             title: "External Resources",
-            icon: "externaldrive.connected.to.line.below",
+            icon: "externaldrive",
             count: nil,
             isExpanded: expandedBinding,
             isLoading: isLoading,
@@ -51,7 +51,6 @@ extension ObjectBrowserSidebarView {
                     viewModel.showNewExternalFileFormatSheet = true
                 }
             }
-            .transition(.opacity)
         }
     }
 

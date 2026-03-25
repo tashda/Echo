@@ -24,7 +24,7 @@ extension ObjectBrowserSidebarView {
 
         folderHeaderRow(
             title: "Server Triggers",
-            icon: "bolt.shield",
+            icon: "bolt",
             count: triggers.isEmpty ? nil : triggers.count,
             isExpanded: expandedBinding,
             isLoading: isLoading,
@@ -47,7 +47,6 @@ extension ObjectBrowserSidebarView {
 
         if isExpanded {
             serverTriggersContent(session: session, triggers: triggers, isLoading: isLoading)
-                .transition(.opacity)
         }
     }
 
@@ -59,19 +58,17 @@ extension ObjectBrowserSidebarView {
         triggers: [ObjectBrowserSidebarViewModel.ServerTriggerItem],
         isLoading: Bool
     ) -> some View {
-        if !isLoading {
-            if triggers.isEmpty {
-                SidebarRow(
-                    depth: 1,
-                    icon: .none,
-                    label: "No server triggers",
-                    labelColor: ColorTokens.Text.tertiary,
-                    labelFont: TypographyTokens.detail
-                )
-            } else {
-                ForEach(triggers) { trigger in
-                    serverTriggerRow(trigger: trigger, session: session)
-                }
+        if triggers.isEmpty {
+            SidebarRow(
+                depth: 1,
+                icon: .none,
+                label: isLoading ? "Loading…" : "No server triggers",
+                labelColor: ColorTokens.Text.tertiary,
+                labelFont: TypographyTokens.detail
+            )
+        } else {
+            ForEach(triggers) { trigger in
+                serverTriggerRow(trigger: trigger, session: session)
             }
         }
     }
@@ -88,7 +85,7 @@ extension ObjectBrowserSidebarView {
         } label: {
             SidebarRow(
                 depth: 1,
-                icon: .system("bolt.shield"),
+                icon: .system("bolt"),
                 label: trigger.name,
                 iconColor: colored ? ExplorerSidebarPalette.triggers : ExplorerSidebarPalette.monochrome,
                 labelColor: trigger.isDisabled ? ColorTokens.Text.tertiary : ColorTokens.Text.primary

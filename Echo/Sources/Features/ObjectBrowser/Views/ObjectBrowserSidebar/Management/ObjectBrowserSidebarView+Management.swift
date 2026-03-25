@@ -19,7 +19,7 @@ extension ObjectBrowserSidebarView {
 
         folderHeaderRow(
             title: "Management",
-            icon: "wrench.and.screwdriver",
+            icon: "gearshape",
             count: nil,
             isExpanded: expandedBinding,
             depth: 0
@@ -30,7 +30,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     environmentState.openMaintenanceTab(connectionID: connID)
                 } label: {
-                    SidebarRow(depth: 1, icon: .system("waveform.path.ecg"), label: "Extended Events",
+                    SidebarRow(depth: 1, icon: .system("list.bullet.rectangle"), label: "Extended Events",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Extended Events", colored: colored))
                 }
                 .buttonStyle(.plain)
@@ -47,7 +47,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     environmentState.openProfilerTab(connectionID: connID)
                 } label: {
-                    SidebarRow(depth: 1, icon: .system("waveform.path.ecg.rectangle"), label: "SQL Profiler",
+                    SidebarRow(depth: 1, icon: .system("chart.line.uptrend.xyaxis"), label: "SQL Profiler",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "SQL Profiler", colored: colored))
                 }
                 .buttonStyle(.plain)
@@ -55,7 +55,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     environmentState.openResourceGovernorTab(connectionID: connID)
                 } label: {
-                    SidebarRow(depth: 1, icon: .system("r.square.on.square"), label: "Resource Governor",
+                    SidebarRow(depth: 1, icon: .system("slider.horizontal.3"), label: "Resource Governor",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Resource Governor", colored: colored))
                 }
                 .buttonStyle(.plain)
@@ -71,7 +71,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     environmentState.openPolicyManagementTab(connectionID: connID)
                 } label: {
-                    SidebarRow(depth: 1, icon: .system("checkmark.seal"), label: "Policy Management",
+                    SidebarRow(depth: 1, icon: .system("checkmark.shield"), label: "Policy Management",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Policy Management", colored: colored))
                 }
                 .buttonStyle(.plain)
@@ -79,7 +79,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     environmentState.openActivityMonitorTab(connectionID: connID)
                 } label: {
-                    SidebarRow(depth: 1, icon: .system("gauge.with.dots.needle.33percent"), label: "Activity Monitor",
+                    SidebarRow(depth: 1, icon: .system("gauge.high"), label: "Activity Monitor",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Activity Monitor", colored: colored))
                 }
                 .buttonStyle(.plain)
@@ -92,7 +92,6 @@ extension ObjectBrowserSidebarView {
                 }
                 .buttonStyle(.plain)
             }
-            .transition(.opacity)
         }
     }
 }

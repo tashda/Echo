@@ -34,7 +34,6 @@ extension ObjectBrowserSidebarView {
 
         if isExpanded {
             serverSecurityContent(session: session)
-                .transition(.opacity)
         }
     }
 

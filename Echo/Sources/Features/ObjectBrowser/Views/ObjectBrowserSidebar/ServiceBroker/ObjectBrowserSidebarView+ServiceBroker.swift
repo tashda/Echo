@@ -24,7 +24,7 @@ extension ObjectBrowserSidebarView {
 
         folderHeaderRow(
             title: "Service Broker",
-            icon: "envelope.arrow.triangle.branch",
+            icon: "tray.2",
             count: nil,
             isExpanded: expandedBinding,
             isLoading: isLoading,
@@ -62,7 +62,6 @@ extension ObjectBrowserSidebarView {
                 }
                 brokerSubFolder(title: "Remote Service Bindings", items: viewModel.serviceBrokerBindingsByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey, onCreate: nil)
             }
-            .transition(.opacity)
         }
     }
 

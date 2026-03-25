@@ -22,19 +22,17 @@ extension ObjectBrowserSidebarView {
                 }
             }
 
-        if !isLoading {
-            if jobs.isEmpty {
-                SidebarRow(
-                    depth: 1,
-                    icon: .none,
-                    label: "No jobs found",
-                    labelColor: ColorTokens.Text.tertiary,
-                    labelFont: TypographyTokens.detail
-                )
-            } else {
-                ForEach(jobs) { job in
-                    agentJobRow(job: job, session: session)
-                }
+        if jobs.isEmpty {
+            SidebarRow(
+                depth: 1,
+                icon: .none,
+                label: isLoading ? "Loading…" : "No jobs found",
+                labelColor: ColorTokens.Text.tertiary,
+                labelFont: TypographyTokens.detail
+            )
+        } else {
+            ForEach(jobs) { job in
+                agentJobRow(job: job, session: session)
             }
         }
     }

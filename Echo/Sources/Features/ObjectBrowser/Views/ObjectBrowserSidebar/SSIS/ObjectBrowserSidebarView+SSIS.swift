@@ -21,7 +21,7 @@ extension ObjectBrowserSidebarView {
         
         folderHeaderRow(
             title: "Integration Services Catalogs",
-            icon: "folder.badge.gearshape",
+            icon: "shippingbox",
             count: folders.isEmpty ? nil : folders.count,
             isExpanded: isExpanded,
             isLoading: isLoading,
@@ -36,11 +36,11 @@ extension ObjectBrowserSidebarView {
         }
         
         if isExpanded.wrappedValue {
-            if folders.isEmpty && !isLoading {
+            if folders.isEmpty {
                 SidebarRow(
                     depth: 1,
                     icon: .none,
-                    label: "No catalogs found",
+                    label: isLoading ? "Loading…" : "No catalogs found",
                     labelColor: ColorTokens.Text.tertiary,
                     labelFont: TypographyTokens.detail
                 )

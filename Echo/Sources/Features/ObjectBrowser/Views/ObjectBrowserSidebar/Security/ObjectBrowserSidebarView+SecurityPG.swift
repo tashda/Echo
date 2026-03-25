@@ -56,7 +56,6 @@ extension ObjectBrowserSidebarView {
                 ForEach(loginRoles) { role in
                     pgRoleRow(role: role, session: session)
                 }
-                .transition(.opacity)
             }
         }
     }
@@ -113,7 +112,6 @@ extension ObjectBrowserSidebarView {
                 ForEach(groupRoles) { role in
                     pgRoleRow(role: role, session: session)
                 }
-                .transition(.opacity)
             }
         }
     }

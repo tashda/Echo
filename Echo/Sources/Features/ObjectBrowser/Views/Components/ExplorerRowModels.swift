@@ -115,7 +115,8 @@ enum ExplorerSidebarPalette {
     static let databaseMail = ColorTokens.Explorer.databaseMail
     static let activityMonitor = ColorTokens.Explorer.activityMonitor
 
-    // Phase 3 Colors
+    // Server-level colors
+    static let integrationServices = ColorTokens.Explorer.integrationServices
     static let serverTriggers = ColorTokens.Explorer.serverTriggers
     static let databaseTriggers = ColorTokens.Explorer.databaseTriggers
     static let serviceBroker = ColorTokens.Explorer.serviceBroker
@@ -149,6 +150,7 @@ enum ExplorerSidebarPalette {
         case "Service Broker": return serviceBroker
         case "External Resources": return externalResources
         case "Database Snapshots": return databaseSnapshots
+        case "Integration Services Catalogs": return integrationServices
         case "SQL Server Logs": return management
         case "SQL Profiler": return sqlProfiler
         case "Resource Governor": return resourceGovernor

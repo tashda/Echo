@@ -41,7 +41,7 @@ struct DatabaseObjectRow: View, Equatable {
         case .function: return "function"
         case .trigger: return "bolt"
         case .procedure: return "terminal"
-        case .extension: return "puzzlepiece.extension"
+        case .extension: return "puzzlepiece"
         case .sequence: return "number"
         case .type: return "t.square"
         case .synonym: return "arrow.triangle.branch"

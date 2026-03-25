@@ -160,6 +160,7 @@ struct SidebarRow<Trailing: View>: View {
         case .system(let name):
             Image(systemName: name)
                 .font(densityIconFont)
+                .imageScale(.medium)
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(resolvedIconColor)
                 .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)

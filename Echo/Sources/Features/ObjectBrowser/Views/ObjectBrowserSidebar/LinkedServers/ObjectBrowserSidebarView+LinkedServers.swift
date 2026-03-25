@@ -33,7 +33,6 @@ extension ObjectBrowserSidebarView {
 
         if isExpanded {
             linkedServersContent(session: session, servers: servers, isLoading: isLoading)
-                .transition(.opacity)
         }
     }
 
@@ -45,19 +44,17 @@ extension ObjectBrowserSidebarView {
         servers: [ObjectBrowserSidebarViewModel.LinkedServerItem],
         isLoading: Bool
     ) -> some View {
-        if !isLoading {
-            if servers.isEmpty {
-                SidebarRow(
-                    depth: 1,
-                    icon: .none,
-                    label: "No linked servers",
-                    labelColor: ColorTokens.Text.tertiary,
-                    labelFont: TypographyTokens.detail
-                )
-            } else {
-                ForEach(servers) { server in
-                    linkedServerRow(server: server, session: session)
-                }
+        if servers.isEmpty {
+            SidebarRow(
+                depth: 1,
+                icon: .none,
+                label: isLoading ? "Loading…" : "No linked servers",
+                labelColor: ColorTokens.Text.tertiary,
+                labelFont: TypographyTokens.detail
+            )
+        } else {
+            ForEach(servers) { server in
+                linkedServerRow(server: server, session: session)
             }
         }
     }

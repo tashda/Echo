@@ -36,7 +36,6 @@ extension ObjectBrowserSidebarView {
                 ForEach(roles) { role in
                     dbRoleRow(role: role, session: session, databaseName: dbName)
                 }
-                .transition(.opacity)
             }
         }
     }
@@ -137,7 +136,6 @@ extension ObjectBrowserSidebarView {
                 ForEach(appRoles) { appRole in
                     dbAppRoleRow(appRole: appRole, session: session)
                 }
-                .transition(.opacity)
             }
         }
     }

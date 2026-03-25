@@ -85,3 +85,4 @@ screenshot*.png
 *.crash
 *.ips
 .ci-fixtures/adventureworks/
+.planning/

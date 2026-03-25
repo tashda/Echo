@@ -54,7 +54,6 @@ extension ObjectBrowserSidebarView {
                 ForEach(roles) { role in
                     serverRoleRow(role: role, session: session)
                 }
-                .transition(.opacity)
             }
         }
     }
@@ -173,7 +172,6 @@ extension ObjectBrowserSidebarView {
                 ForEach(credentials) { credential in
                     credentialRow(credential: credential, session: session)
                 }
-                .transition(.opacity)
             }
         }
     }

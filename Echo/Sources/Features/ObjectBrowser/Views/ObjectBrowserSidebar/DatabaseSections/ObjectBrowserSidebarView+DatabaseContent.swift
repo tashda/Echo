@@ -84,7 +84,7 @@ extension ObjectBrowserSidebarView {
         } label: {
             SidebarRow(
                 depth: 2,
-                icon: .system("chart.bar.xaxis"),
+                icon: .system("chart.bar"),
                 label: "Query Store",
                 iconColor: ExplorerSidebarPalette.folderIconColor(title: "Query Store", colored: colored)
             )

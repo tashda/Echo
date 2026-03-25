@@ -16,7 +16,6 @@ extension ObjectBrowserSidebarView {
 
             if isExpanded {
                 serverContent(session: session, proxy: proxy)
-                    .transition(.opacity)
             }
         }
         .overlay(

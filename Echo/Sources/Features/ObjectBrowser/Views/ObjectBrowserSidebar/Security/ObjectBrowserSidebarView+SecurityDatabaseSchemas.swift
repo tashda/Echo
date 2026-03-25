@@ -34,7 +34,6 @@ extension ObjectBrowserSidebarView {
                 ForEach(schemas) { schema in
                     dbSchemaRow(schema: schema, session: session)
                 }
-                .transition(.opacity)
             }
         }
     }
