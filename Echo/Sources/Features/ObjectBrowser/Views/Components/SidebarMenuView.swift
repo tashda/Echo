@@ -23,7 +23,6 @@ struct SidebarMenu: View {
         case snippets = "Snippets"
         case history = "History"
         case connections = "Connections"
-        case database = "Database Administration"
 
         var icon: String {
             switch self {
@@ -34,7 +33,6 @@ struct SidebarMenu: View {
             case .snippets: return "curlybraces"
             case .history: return "clock"
             case .connections: return "externaldrive"
-            case .database: return "cylinder.split.1x2"
             }
         }
 
@@ -47,7 +45,6 @@ struct SidebarMenu: View {
             case .snippets: return "curlybraces"
             case .history: return "clock.fill"
             case .connections: return "externaldrive.fill"
-            case .database: return "cylinder.split.1x2.fill"
             }
         }
 
