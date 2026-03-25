@@ -50,6 +50,8 @@ extension EnvironmentState {
         for key in dbEditorKeys { databaseEditorViewModels.removeValue(forKey: key) }
         let serverEditorKeys = serverEditorViewModels.keys.filter { $0.connectionSessionID == id }
         for key in serverEditorKeys { serverEditorViewModels.removeValue(forKey: key) }
+        let roleEditorKeys = roleEditorViewModels.keys.filter { $0.connectionSessionID == id }
+        for key in roleEditorKeys { roleEditorViewModels.removeValue(forKey: key) }
         sessionGroup.removeSession(withID: id)
         notificationEngine?.post(category: .connectionDisconnected, message: "Disconnected from \(displayName)")
     }
@@ -675,6 +677,29 @@ extension EnvironmentState {
             userEditorViewModels[value] = vm
         }
         activeUserEditorValue = value
+        return value
+    }
+
+    @discardableResult
+    func prepareRoleEditorWindow(
+        connectionSessionID: UUID,
+        database: String,
+        existingRole: String?
+    ) -> RoleEditorWindowValue {
+        let value = RoleEditorWindowValue(
+            connectionSessionID: connectionSessionID,
+            databaseName: database,
+            existingRoleName: existingRole
+        )
+        if roleEditorViewModels[value] == nil {
+            let vm = RoleEditorViewModel(
+                connectionSessionID: connectionSessionID,
+                databaseName: database,
+                existingRoleName: existingRole
+            )
+            roleEditorViewModels[value] = vm
+        }
+        activeRoleEditorValue = value
         return value
     }
 

@@ -18,6 +18,8 @@ struct ReplicationSheet: View {
     @State var agentStatuses: [SQLServerReplicationClient.SQLServerReplicationAgentStatus] = []
     @State var showNewPublicationSheet = false
     @State var showNewSubscriptionSheet = false
+    @State var showConfigureDistribution = false
+    @State var showRemoveDistributionAlert = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -59,6 +61,30 @@ struct ReplicationSheet: View {
                 onCreated: { Task { await loadData() } },
                 onDismiss: { showNewSubscriptionSheet = false }
             )
+        }
+        .sheet(isPresented: $showConfigureDistribution) {
+            ConfigureDistributionSheet(session: session) {
+                showConfigureDistribution = false
+                Task { await loadData() }
+            }
+        }
+        .alert("Remove Distribution?", isPresented: $showRemoveDistributionAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Remove", role: .destructive) {
+                Task { await removeDistribution() }
+            }
+        } message: {
+            Text("This will remove the distributor configuration, distribution database, and all associated publications. This action cannot be undone.")
+        }
+    }
+
+    func removeDistribution() async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        do {
+            try await mssql.replication.removeDistributor(force: true)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

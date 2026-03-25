@@ -30,6 +30,9 @@ struct ExtendedEventsView: View {
         .sheet(isPresented: $viewModel.showCreateSheet) {
             ExtendedEventsCreateSheet(viewModel: viewModel)
         }
+        .sheet(isPresented: $viewModel.showEditSheet) {
+            ExtendedEventsEditSheet(viewModel: viewModel)
+        }
     }
 
     @ViewBuilder

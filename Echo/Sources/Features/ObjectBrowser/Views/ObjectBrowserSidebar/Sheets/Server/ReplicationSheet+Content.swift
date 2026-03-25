@@ -79,6 +79,23 @@ extension ReplicationSheet {
                     .foregroundStyle(distributorConfigured ? ColorTokens.Status.success : ColorTokens.Text.tertiary)
                 Text(distributorConfigured ? "Distribution is configured" : "Distribution is not configured")
                     .font(TypographyTokens.standard)
+                Spacer()
+                if distributorConfigured {
+                    Button(role: .destructive) {
+                        showRemoveDistributionAlert = true
+                    } label: {
+                        Label("Remove", systemImage: "trash")
+                    }
+                    .controlSize(.small)
+                } else {
+                    Button {
+                        showConfigureDistribution = true
+                    } label: {
+                        Label("Configure Distribution", systemImage: "gearshape")
+                    }
+                    .controlSize(.small)
+                    .buttonStyle(.borderedProminent)
+                }
             }
             .padding(SpacingTokens.xs)
             .frame(maxWidth: .infinity, alignment: .leading)

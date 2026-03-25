@@ -5,6 +5,7 @@ struct MSSQLSecurityRolesSection: View {
     @Bindable var viewModel: DatabaseSecurityViewModel
     var onNewRole: () -> Void = {}
     @Environment(EnvironmentState.self) private var environmentState
+    @Environment(\.openWindow) private var openWindow
 
     @State private var sortOrder = [KeyPathComparator(\RoleInfo.name)]
     @State private var showDropAlert = false
@@ -78,6 +79,13 @@ struct MSSQLSecurityRolesSection: View {
                         Label("Drop Role", systemImage: "trash")
                     }
                 }
+
+                Divider()
+
+                // Group 10: Properties
+                Button { openRoleEditor(name: name) } label: {
+                    Label("Properties", systemImage: "info.circle")
+                }
             } else {
                 // Empty-space menu
                 Button {
@@ -86,7 +94,7 @@ struct MSSQLSecurityRolesSection: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
 
-                Button { onNewRole() } label: {
+                Button { openRoleEditor(name: nil) } label: {
                     Label("New Role", systemImage: "person.2")
                 }
             }
@@ -105,6 +113,18 @@ struct MSSQLSecurityRolesSection: View {
         } message: {
             Text("Are you sure you want to drop the role \(pendingDropName ?? "")? This action cannot be undone.")
         }
+    }
+
+    // MARK: - Open Editor
+
+    private func openRoleEditor(name: String?) {
+        guard let db = viewModel.selectedDatabase else { return }
+        let value = environmentState.prepareRoleEditorWindow(
+            connectionSessionID: viewModel.connectionID,
+            database: db,
+            existingRole: name
+        )
+        openWindow(id: RoleEditorWindow.sceneID, value: value)
     }
 
     // MARK: - Inspector

@@ -1,20 +1,21 @@
 import SwiftUI
 import SQLServerKit
 
-struct ExtendedEventsCreateSheet: View {
+struct ExtendedEventsEditSheet: View {
     @Bindable var viewModel: ExtendedEventsViewModel
     @Environment(\.dismiss) private var dismiss
-    @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                generalSection
+                sessionInfoSection
+                if viewModel.editWasRunning {
+                    runningWarningSection
+                }
                 eventsSection
-                targetSection
-                optionsSection
+                targetsSection
 
-                if let error = viewModel.createErrorMessage {
+                if let error = viewModel.editErrorMessage {
                     Section {
                         Label(error, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(ColorTokens.Status.error)
@@ -22,21 +23,37 @@ struct ExtendedEventsCreateSheet: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
 
             Divider()
-            actionButtons
+            footerButtons
         }
         .frame(width: 560, height: 580)
+        .navigationTitle("Edit Session")
         .task { await viewModel.loadAvailableEvents() }
     }
 
-    // MARK: - General
+    // MARK: - Session Info
 
-    private var generalSection: some View {
+    private var sessionInfoSection: some View {
         Section {
-            TextField("Session Name", text: $viewModel.createSessionName, prompt: Text("e.g. SlowQueries"))
+            PropertyRow(title: "Session Name") {
+                Text(viewModel.editingSessionName ?? "")
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
         } header: {
-            Text("New Extended Events Session")
+            Text("Session")
+        }
+    }
+
+    // MARK: - Running Warning
+
+    private var runningWarningSection: some View {
+        Section {
+            PermissionBanner(
+                message: "This session is running. It will be stopped while changes are applied, then restarted.",
+                severity: .readOnly
+            )
         }
     }
 
@@ -44,17 +61,17 @@ struct ExtendedEventsCreateSheet: View {
 
     private var eventsSection: some View {
         Section {
-            if viewModel.createEvents.isEmpty {
-                Text("No events added yet. Add at least one event below.")
+            if viewModel.editEvents.isEmpty {
+                Text("No events configured. Add at least one event.")
                     .foregroundStyle(ColorTokens.Text.tertiary)
             } else {
-                ForEach(viewModel.createEvents) { entry in
+                ForEach(viewModel.editEvents) { entry in
                     eventRow(entry)
                 }
             }
 
             ExtendedEventsEventControls(viewModel: viewModel) {
-                viewModel.addEventEntry()
+                viewModel.addEditEventEntry()
             }
         } header: {
             Text("Events")
@@ -83,7 +100,7 @@ struct ExtendedEventsCreateSheet: View {
             Spacer()
 
             Button {
-                viewModel.removeEventEntry(entry.id)
+                viewModel.removeEditEvent(entry.id)
             } label: {
                 Image(systemName: "minus.circle.fill")
                     .foregroundStyle(ColorTokens.Status.error)
@@ -93,55 +110,50 @@ struct ExtendedEventsCreateSheet: View {
         }
     }
 
-    // MARK: - Target
+    // MARK: - Targets
 
-    private var targetSection: some View {
+    private var targetsSection: some View {
         Section {
-            Picker("Target", selection: $viewModel.createTargetType) {
-                ForEach(ExtendedEventsViewModel.TargetChoice.allCases, id: \.self) { choice in
-                    Text(choice.rawValue).tag(choice)
+            if viewModel.editTargets.isEmpty {
+                Text("No targets configured.")
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            } else {
+                ForEach(viewModel.editTargets) { target in
+                    HStack {
+                        Text(target.targetName)
+                            .font(TypographyTokens.standard.weight(.medium))
+                        Spacer()
+                    }
                 }
             }
-
-            switch viewModel.createTargetType {
-            case .ringBuffer:
-                TextField("Max Memory (KB)", value: $viewModel.createRingBufferKB, format: .number, prompt: Text("4096"))
-            case .eventFile:
-                TextField("File Name", text: $viewModel.createEventFileName, prompt: Text("e.g. /var/log/xe_session"))
-                TextField("Max File Size (MB)", value: $viewModel.createEventFileMaxMB, format: .number, prompt: Text("100"))
-            }
         } header: {
-            Text("Target")
+            Text("Targets")
         }
     }
 
-    // MARK: - Options
+    // MARK: - Footer
 
-    private var optionsSection: some View {
-        Section {
-            TextField("Session Memory (KB)", value: $viewModel.createMaxMemoryKB, format: .number, prompt: Text("4096"))
-            Toggle("Start with Server", isOn: $viewModel.createStartupState)
-        } header: {
-            Text("Options")
-        }
-    }
-
-    // MARK: - Buttons
-
-    private var actionButtons: some View {
-        HStack {
+    private var footerButtons: some View {
+        HStack(spacing: SpacingTokens.sm) {
             Spacer()
+
             Button("Cancel") { dismiss() }
                 .keyboardShortcut(.cancelAction)
-            Button("Create") {
-                Task { await viewModel.createSession() }
+
+            Button("Save Changes") {
+                Task { await viewModel.saveEditSession() }
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
-            .disabled(viewModel.createSessionName.isEmpty || viewModel.createEvents.isEmpty || viewModel.isCreating
-                || !(environmentState.sessionGroup.activeSessions.first { $0.id == viewModel.connectionSessionID }?.permissions?.canManageServerState ?? true))
+            .disabled(viewModel.editEvents.isEmpty || viewModel.isSavingEdits || !hasChanges)
         }
-        .padding(SpacingTokens.md)
+        .padding(.horizontal, SpacingTokens.md2)
+        .padding(.vertical, SpacingTokens.sm2)
+        .background(.bar)
     }
 
+    private var hasChanges: Bool {
+        let diff = viewModel.computeEditDiff()
+        return !diff.eventsToAdd.isEmpty || !diff.eventsToDrop.isEmpty
+    }
 }

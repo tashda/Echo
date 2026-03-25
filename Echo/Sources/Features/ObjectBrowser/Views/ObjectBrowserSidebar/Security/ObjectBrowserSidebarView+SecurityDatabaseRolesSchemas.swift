@@ -10,6 +10,7 @@ extension ObjectBrowserSidebarView {
     func dbRolesSection(session: ConnectionSession, dbKey: String) -> some View {
         let roles = viewModel.dbSecurityRolesByDB[dbKey] ?? []
         let isExpanded = viewModel.dbSecurityRolesExpandedByDB[dbKey] ?? false
+        let dbName = databaseNameFromKey(dbKey)
 
         securitySectionHeader(
             depth: SecuritySidebarDepth.databaseSection,
@@ -33,14 +34,14 @@ extension ObjectBrowserSidebarView {
                 )
             } else {
                 ForEach(roles) { role in
-                    dbRoleRow(role: role, session: session)
+                    dbRoleRow(role: role, session: session, databaseName: dbName)
                 }
                 .transition(.opacity)
             }
         }
     }
 
-    func dbRoleRow(role: ObjectBrowserSidebarViewModel.SecurityDatabaseRoleItem, session: ConnectionSession) -> some View {
+    func dbRoleRow(role: ObjectBrowserSidebarViewModel.SecurityDatabaseRoleItem, session: ConnectionSession, databaseName: String) -> some View {
         let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
         return SidebarRow(
             depth: SecuritySidebarDepth.databaseLeaf,
@@ -87,6 +88,20 @@ extension ObjectBrowserSidebarView {
                         Label("DROP", systemImage: "trash")
                     }
                 }
+            }
+
+            Divider()
+
+            // Group 10: Properties — ALWAYS last
+            Button {
+                let value = environmentState.prepareRoleEditorWindow(
+                    connectionSessionID: session.connection.id,
+                    database: databaseName,
+                    existingRole: role.name
+                )
+                openWindow(id: RoleEditorWindow.sceneID, value: value)
+            } label: {
+                Label("Properties", systemImage: "info.circle")
             }
         }
     }

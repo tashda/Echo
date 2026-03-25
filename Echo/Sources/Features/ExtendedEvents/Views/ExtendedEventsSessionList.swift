@@ -88,6 +88,15 @@ struct ExtendedEventsSessionList: View {
                     }
                 }
 
+                // Group 4: Edit
+                Button {
+                    Task { await viewModel.prepareEditSession(name) }
+                } label: {
+                    Label("Edit Session", systemImage: "pencil")
+                }
+
+                Divider()
+
                 // Group 8: Enable / Disable
                 Button {
                     Task { await viewModel.toggleSession(session) }

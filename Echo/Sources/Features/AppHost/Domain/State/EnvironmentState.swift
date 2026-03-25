@@ -30,10 +30,12 @@ final class EnvironmentState {
     var loginEditorViewModels: [LoginEditorWindowValue: LoginEditorViewModel] = [:]
     var databaseEditorViewModels: [DatabaseEditorWindowValue: DatabaseEditorViewModel] = [:]
     var serverEditorViewModels: [ServerEditorWindowValue: ServerEditorViewModel] = [:]
+    var roleEditorViewModels: [RoleEditorWindowValue: RoleEditorViewModel] = [:]
     var activeLoginEditorValue: LoginEditorWindowValue?
     var activeUserEditorValue: UserEditorWindowValue?
     var activeDatabaseEditorValue: DatabaseEditorWindowValue?
     var activeServerEditorValue: ServerEditorWindowValue?
+    var activeRoleEditorValue: RoleEditorWindowValue?
     var dataInspectorContent: DataInspectorContent?
     @ObservationIgnored private var lastPushedInspectorTitle: String?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []

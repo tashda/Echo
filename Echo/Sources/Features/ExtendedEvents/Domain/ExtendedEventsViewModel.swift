@@ -12,7 +12,7 @@ final class ExtendedEventsViewModel {
         case error(String)
     }
 
-    @ObservationIgnored private let xeClient: SQLServerExtendedEventsClient
+    @ObservationIgnored let xeClient: SQLServerExtendedEventsClient
     @ObservationIgnored let connectionSessionID: UUID
 
     var loadingState: LoadingState = .idle
@@ -23,6 +23,21 @@ final class ExtendedEventsViewModel {
     var eventData: [SQLServerXEEventData] = []
     var eventDataLoadingState: LoadingState = .idle
     var togglingSessionName: String?
+
+    // Edit session state
+    var showEditSheet = false
+    var editingSessionName: String?
+    var editEvents: [EventEntry] = []
+    var editOriginalEvents: [EventEntry] = []
+    var editTargets: [SQLServerXESessionTarget] = []
+    var editOriginalTargets: [SQLServerXESessionTarget] = []
+    var editTargetType: TargetChoice = .ringBuffer
+    var editRingBufferKB = 4096
+    var editEventFileName = ""
+    var editEventFileMaxMB = 100
+    var editErrorMessage: String?
+    var isSavingEdits = false
+    var editWasRunning = false
 
     // Create session state
     var showCreateSheet = false
