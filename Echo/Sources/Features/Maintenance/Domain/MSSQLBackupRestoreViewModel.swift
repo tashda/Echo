@@ -38,6 +38,16 @@ final class MSSQLBackupRestoreViewModel {
     var encryptionCertificate: String = ""
     var backupPhase: BackupPhase = .idle
 
+    // Multi-destination & URL support
+    var destinationType: BackupDestinationType = .disk
+    var destinations: [BackupDestinationEntry] = [BackupDestinationEntry()]
+    var credentialName: String = ""
+
+    // Backup scope (database / files / filegroups)
+    var backupScope: BackupScopeType = .database
+    var databaseFiles: [SelectableDatabaseFile] = []
+    var isLoadingFiles = false
+
     // MARK: - Restore State
 
     var restoreDatabaseName: String = ""
@@ -71,9 +81,26 @@ final class MSSQLBackupRestoreViewModel {
     var isVerifying: Bool { verifyPhase == .running }
 
     var canBackup: Bool {
-        !diskPath.trimmingCharacters(in: .whitespaces).isEmpty
-        && !databaseName.isEmpty
-        && !isBackupRunning
+        guard !databaseName.isEmpty, !isBackupRunning else { return false }
+
+        // At least one destination with a non-empty path
+        let hasDestination = destinations.contains { !$0.path.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard hasDestination else { return false }
+
+        // URL destinations require a credential name
+        if destinationType == .url && credentialName.trimmingCharacters(in: .whitespaces).isEmpty {
+            return false
+        }
+
+        // File/filegroup scope requires at least one selected item
+        switch backupScope {
+        case .database:
+            break
+        case .files, .filegroups:
+            guard databaseFiles.contains(where: \.isSelected) else { return false }
+        }
+
+        return true
     }
 
     var canRestore: Bool {
@@ -114,6 +141,36 @@ final class MSSQLBackupRestoreViewModel {
         encryptionAlgorithm = .aes256
         encryptionCertificate = ""
         backupPhase = .idle
+        destinationType = .disk
+        destinations = [BackupDestinationEntry()]
+        credentialName = ""
+        backupScope = .database
+        databaseFiles = []
+        isLoadingFiles = false
+    }
+
+    func loadDatabaseFiles() async {
+        guard !isLoadingFiles else { return }
+        isLoadingFiles = true
+        defer { isLoadingFiles = false }
+
+        do {
+            guard let adapter = session as? SQLServerSessionAdapter else { return }
+            let files = try await adapter.client.backupRestore.listDatabaseFiles(database: databaseName)
+            databaseFiles = files.map { SelectableDatabaseFile(fileInfo: $0) }
+        } catch {
+            // Silently fail — files list is optional enhancement
+            databaseFiles = []
+        }
+    }
+
+    func addDestination() {
+        destinations.append(BackupDestinationEntry())
+    }
+
+    func removeDestination(id: UUID) {
+        guard destinations.count > 1 else { return }
+        destinations.removeAll { $0.id == id }
     }
 
     func resetRestoreState() {

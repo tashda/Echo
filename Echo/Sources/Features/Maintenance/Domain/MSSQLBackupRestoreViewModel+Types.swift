@@ -15,6 +15,32 @@ enum RestorePhase: Equatable {
     case failed(message: String)
 }
 
+/// The destination type for a backup operation in the UI.
+enum BackupDestinationType: String, CaseIterable, Hashable {
+    case disk = "Disk"
+    case url = "URL"
+}
+
+/// The scope of a backup operation in the UI.
+enum BackupScopeType: String, CaseIterable, Hashable {
+    case database = "Database"
+    case files = "Files"
+    case filegroups = "Filegroups"
+}
+
+/// A single backup destination entry in the UI list.
+struct BackupDestinationEntry: Identifiable {
+    let id = UUID()
+    var path: String = ""
+}
+
+/// A selectable database file entry for file/filegroup backup scope.
+struct SelectableDatabaseFile: Identifiable {
+    var id: Int32 { fileInfo.fileID }
+    let fileInfo: SQLServerDatabaseFileInfo
+    var isSelected: Bool = false
+}
+
 enum MSSQLBackupPage: String, CaseIterable, Hashable {
     case general
     case media

@@ -16,10 +16,38 @@ extension MSSQLBackupRestoreViewModel {
             )
         }
 
+        // Build destinations
+        let backupDestinations: [SQLServerBackupDestination] = destinations
+            .filter { !$0.path.trimmingCharacters(in: .whitespaces).isEmpty }
+            .map { entry in
+                let trimmed = entry.path.trimmingCharacters(in: .whitespaces)
+                switch destinationType {
+                case .disk:
+                    return .disk(path: trimmed)
+                case .url:
+                    return .url(url: trimmed, credential: credentialName.trimmingCharacters(in: .whitespaces))
+                }
+            }
+
+        // Build scope
+        let scope: SQLServerBackupScope
+        switch backupScope {
+        case .database:
+            scope = .database
+        case .files:
+            let selected = databaseFiles.filter(\.isSelected).map(\.fileInfo.logicalName)
+            scope = .files(selected)
+        case .filegroups:
+            let selected = databaseFiles.filter(\.isSelected).compactMap(\.fileInfo.filegroupName)
+            let unique = Array(Set(selected))
+            scope = .filegroups(unique)
+        }
+
         let options = SQLServerBackupOptions(
             database: databaseName,
-            diskPath: diskPath.trimmingCharacters(in: .whitespaces),
+            destinations: backupDestinations,
             backupType: backupType,
+            scope: scope,
             backupName: backupName.isEmpty ? nil : backupName,
             description: backupDescription.isEmpty ? nil : backupDescription,
             compression: compression,
@@ -45,7 +73,7 @@ extension MSSQLBackupRestoreViewModel {
             if verifyAfterBackup {
                 handle?.updateMessage("Verifying backup\u{2026}")
                 let verifyMessages = try await adapter.client.backupRestore.verifyBackup(
-                    diskPath: diskPath.trimmingCharacters(in: .whitespaces),
+                    diskPath: options.diskPath,
                     fileNumber: 1
                 )
                 let verifyInfo = verifyMessages.filter { $0.kind == .info }.map(\.message)
@@ -55,7 +83,7 @@ extension MSSQLBackupRestoreViewModel {
             }
 
             panelState?.appendMessage("Backup completed for \(databaseName).", severity: .success, category: "Backup")
-            notificationEngine?.post(.backupCompleted(database: databaseName, destination: diskPath))
+            notificationEngine?.post(.backupCompleted(database: databaseName, destination: options.diskPath))
             handle?.succeed()
         } catch {
             backupPhase = .failed(message: error.localizedDescription)

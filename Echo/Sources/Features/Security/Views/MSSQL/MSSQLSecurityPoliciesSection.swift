@@ -3,6 +3,7 @@ import SQLServerKit
 
 struct MSSQLSecurityPoliciesSection: View {
     @Bindable var viewModel: DatabaseSecurityViewModel
+    var onNewPolicy: () -> Void = {}
     @Environment(EnvironmentState.self) private var environmentState
 
     @State private var sortOrder = [KeyPathComparator(\SecurityPolicyInfo.name)]
@@ -88,6 +89,10 @@ struct MSSQLSecurityPoliciesSection: View {
                     Task { await viewModel.loadCurrentSection() }
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
+                }
+
+                Button { onNewPolicy() } label: {
+                    Label("New Security Policy", systemImage: "lock.shield")
                 }
             }
         } primaryAction: { _ in }

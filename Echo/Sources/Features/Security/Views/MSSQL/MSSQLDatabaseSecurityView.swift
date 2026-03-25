@@ -9,6 +9,7 @@ struct MSSQLDatabaseSecurityView: View {
     @State private var showNewRoleSheet = false
     @State private var showNewSchemaSheet = false
     @State private var showNewAppRoleSheet = false
+    @State private var showNewRLSPolicySheet = false
     @State private var showNewMaskSheet = false
     @State private var showNewAuditSpecSheet = false
     @State private var showNewCMKSheet = false
@@ -58,6 +59,12 @@ struct MSSQLDatabaseSecurityView: View {
         .sheet(isPresented: $showNewAppRoleSheet) {
             NewAppRoleSheet(viewModel: viewModel) {
                 showNewAppRoleSheet = false
+                Task { await viewModel.loadCurrentSection() }
+            }
+        }
+        .sheet(isPresented: $showNewRLSPolicySheet) {
+            NewRLSPolicySheet(viewModel: viewModel) {
+                showNewRLSPolicySheet = false
                 Task { await viewModel.loadCurrentSection() }
             }
         }
@@ -160,7 +167,10 @@ struct MSSQLDatabaseSecurityView: View {
                     onNewMask: { showNewMaskSheet = true }
                 )
             case .securityPolicies:
-                MSSQLSecurityPoliciesSection(viewModel: viewModel)
+                MSSQLSecurityPoliciesSection(
+                    viewModel: viewModel,
+                    onNewPolicy: { showNewRLSPolicySheet = true }
+                )
             case .auditSpecifications:
                 MSSQLSecurityDBAuditSpecSection(
                     viewModel: viewModel,
