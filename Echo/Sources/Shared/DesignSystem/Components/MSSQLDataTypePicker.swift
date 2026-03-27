@@ -6,6 +6,7 @@ import SwiftUI
 struct MSSQLDataTypePicker: View {
     @Binding var selection: String
     var prompt: String = "Select a data type"
+    var compact: Bool = false
 
     static let defaultType = "nvarchar(255)"
 
@@ -22,7 +23,8 @@ struct MSSQLDataTypePicker: View {
         ("Date/Time", ["datetime2", "datetime", "date", "time", "datetimeoffset", "smalldatetime"]),
         ("Binary", ["varbinary", "binary", "image", "rowversion"]),
         ("Spatial", ["geometry", "geography"]),
-        ("Other", ["uniqueidentifier", "xml", "sql_variant", "hierarchyid", "sysname", "cursor", "table"]),
+        ("Document", ["json", "xml"]),
+        ("Other", ["uniqueidentifier", "sql_variant", "hierarchyid", "sysname", "vector"]),
     ]
 
     /// Types that accept parameters, with their placeholder hint.
@@ -95,16 +97,7 @@ struct MSSQLDataTypePicker: View {
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
-                .onChange(of: baseType) { _, newValue in
-                    if newValue == Self.customSentinel {
-                        isCustom = true
-                        baseType = ""
-                        selection = ""
-                    } else {
-                        sizeParam = Self.parameterInfo[newValue.lowercased()]?.defaultValue ?? ""
-                        syncToSelection()
-                    }
-                }
+                .controlSize(compact ? .mini : .regular)
 
                 if let info = currentParamInfo {
                     Text("(")
@@ -118,8 +111,39 @@ struct MSSQLDataTypePicker: View {
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
+            .onChange(of: baseType) { _, newValue in
+                if newValue == Self.customSentinel {
+                    isCustom = true
+                    baseType = ""
+                    selection = ""
+                } else {
+                    sizeParam = Self.parameterInfo[newValue.lowercased()]?.defaultValue ?? ""
+                    syncToSelection()
+                }
+            }
             .onAppear { syncFromSelection() }
         }
+    }
+
+    private var typeMenu: some View {
+        Menu {
+            ForEach(Self.commonTypes, id: \.category) { group in
+                Section(group.category) {
+                    ForEach(group.types, id: \.self) { type in
+                        Button(type) { baseType = type }
+                    }
+                }
+            }
+            Divider()
+            Button("Custom\u{2026}") {
+                baseType = Self.customSentinel
+            }
+        } label: {
+            Text(baseType.isEmpty ? prompt : baseType)
+                .font(TypographyTokens.Table.category)
+                .foregroundStyle(baseType.isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
+        }
+        .menuStyle(.borderlessButton)
     }
 
     private func syncFromSelection() {

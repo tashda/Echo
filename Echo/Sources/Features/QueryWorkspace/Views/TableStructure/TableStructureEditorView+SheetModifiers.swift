@@ -125,7 +125,11 @@ extension TableStructureEditorView {
             }
 
         case .scriptPreview:
-            ScriptPreviewSheet(statements: scriptPreviewStatements)
+            ScriptPreviewSheet(statements: scriptPreviewStatements) { sql in
+                if let session = environmentState.sessionGroup.sessionForConnection(tab.connection.id) {
+                    environmentState.openQueryTab(for: session, presetQuery: sql)
+                }
+            }
 
         case .bulkColumn(let presentation):
             BulkColumnEditorSheet(

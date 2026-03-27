@@ -1,14 +1,14 @@
 import SwiftUI
 
-/// A combo-style picker for PostgreSQL data types. Shows common base types
-/// in a native popup button. Parameterized types (character varying, numeric, etc.)
-/// show an inline size/precision field. Includes a "Custom..." option for free-text entry.
-struct PostgresDataTypePicker: View {
+/// A combo-style picker for MySQL data types. Shows common base types
+/// in a native popup button. Parameterized types (varchar, decimal, etc.) show an
+/// inline size/precision field. Includes a "Custom..." option for free-text entry.
+struct MySQLDataTypePicker: View {
     @Binding var selection: String
     var prompt: String = "Select a data type"
     var compact: Bool = false
 
-    static let defaultType = "character varying(255)"
+    static let defaultType = "varchar(255)"
 
     @State private var baseType = ""
     @State private var sizeParam = ""
@@ -16,62 +16,34 @@ struct PostgresDataTypePicker: View {
     @FocusState private var textFieldFocused: Bool
 
     static let commonTypes: [(category: String, types: [String])] = [
-        ("Numeric", ["smallint", "integer", "bigint", "decimal", "numeric", "real", "double precision", "smallserial", "serial", "bigserial"]),
-        ("Character", ["character varying", "character", "text", "name"]),
-        ("Date/Time", ["timestamp without time zone", "timestamp with time zone", "date", "time without time zone", "time with time zone", "interval"]),
-        ("Boolean", ["boolean"]),
-        ("Binary", ["bytea"]),
-        ("UUID", ["uuid"]),
-        ("JSON", ["json", "jsonb"]),
-        ("Array", ["integer[]", "text[]", "boolean[]", "uuid[]", "jsonb[]"]),
-        ("Network", ["inet", "cidr", "macaddr", "macaddr8"]),
-        ("Geometric", ["point", "line", "lseg", "circle", "box", "path", "polygon"]),
-        ("Range", ["int4range", "int8range", "numrange", "tsrange", "tstzrange", "daterange"]),
-        ("Multirange", ["int4multirange", "int8multirange", "nummultirange", "tsmultirange", "tstzmultirange", "datemultirange"]),
-        ("Full Text Search", ["tsvector", "tsquery"]),
-        ("Object Identifier", ["oid", "regclass", "regtype", "regproc", "regprocedure", "regnamespace", "regconfig", "regdictionary", "regrole"]),
-        ("Other", ["xml", "money", "jsonpath", "bit", "bit varying", "pg_lsn", "pg_snapshot", "txid_snapshot"]),
+        ("Integer", ["tinyint", "smallint", "mediumint", "int", "bigint", "boolean"]),
+        ("Fixed-Point", ["decimal", "numeric"]),
+        ("Floating-Point", ["float", "double"]),
+        ("Bit", ["bit"]),
+        ("Character", ["varchar", "char", "tinytext", "text", "mediumtext", "longtext"]),
+        ("Binary", ["varbinary", "binary", "tinyblob", "blob", "mediumblob", "longblob"]),
+        ("Date/Time", ["date", "time", "datetime", "timestamp", "year"]),
+        ("JSON", ["json"]),
+        ("Spatial", ["geometry", "point", "linestring", "polygon", "multipoint", "multilinestring", "multipolygon", "geometrycollection"]),
+        ("Other", ["enum", "set"]),
     ]
 
     /// Types that accept parameters, with their placeholder hint and default.
-    /// PostgreSQL docs: https://www.postgresql.org/docs/current/datatype.html
     private static let parameterInfo: [String: (hint: String, defaultValue: String)] = [
         // Length types
-        "character varying": ("1-10485760", "255"),
-        "character": ("1-10485760", "1"),
-        "char": ("1-10485760", "1"),
-        "bit": ("length", "1"),
-        "bit varying": ("length", ""),
+        "varchar": ("1-65535", "255"),
+        "char": ("0-255", "10"),
+        "varbinary": ("1-65535", "255"),
+        "binary": ("0-255", "50"),
         // Precision/scale types
-        "decimal": ("precision,scale", "18,2"),
-        "numeric": ("precision,scale", "18,2"),
+        "decimal": ("precision,scale", "10,2"),
+        "numeric": ("precision,scale", "10,2"),
+        // Bit length
+        "bit": ("1-64", "1"),
         // Fractional seconds precision (0-6)
-        "timestamp without time zone": ("0-6", "6"),
-        "timestamp with time zone": ("0-6", "6"),
-        "time without time zone": ("0-6", "6"),
-        "time with time zone": ("0-6", "6"),
-        "interval": ("0-6", "6"),
-    ]
-
-    /// Maps common PostgreSQL aliases / internal type names to the canonical
-    /// form used in `commonTypes`. When metadata returns e.g. "int4", we resolve
-    /// it to "integer" so the picker shows a recognized type instead of custom.
-    private static let aliases: [String: String] = [
-        "varchar": "character varying",
-        "char": "character",
-        "bpchar": "character",
-        "int2": "smallint",
-        "int4": "integer",
-        "int8": "bigint",
-        "float4": "real",
-        "float8": "double precision",
-        "bool": "boolean",
-        "timestamptz": "timestamp with time zone",
-        "timestamp": "timestamp without time zone",
-        "timetz": "time with time zone",
-        "serial4": "serial",
-        "serial8": "bigserial",
-        "serial2": "smallserial",
+        "time": ("0-6", "0"),
+        "datetime": ("0-6", "0"),
+        "timestamp": ("0-6", "0"),
     ]
 
     private static let customSentinel = "__custom__"
@@ -150,36 +122,13 @@ struct PostgresDataTypePicker: View {
         }
     }
 
-    private var typeMenu: some View {
-        Menu {
-            ForEach(Self.commonTypes, id: \.category) { group in
-                Section(group.category) {
-                    ForEach(group.types, id: \.self) { type in
-                        Button(type) { baseType = type }
-                    }
-                }
-            }
-            Divider()
-            Button("Custom\u{2026}") {
-                baseType = Self.customSentinel
-            }
-        } label: {
-            Text(baseType.isEmpty ? prompt : baseType)
-                .font(TypographyTokens.Table.category)
-                .foregroundStyle(baseType.isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
-        }
-        .menuStyle(.borderlessButton)
-    }
-
     private func syncFromSelection() {
         let parsed = parseType(selection)
-        // Resolve aliases (e.g. "varchar" → "character varying") before matching
-        let resolvedBase = Self.aliases[parsed.base.lowercased()] ?? parsed.base
-        if allFlat.contains(where: { $0.lowercased() == resolvedBase.lowercased() }) {
-            baseType = allFlat.first { $0.lowercased() == resolvedBase.lowercased() } ?? resolvedBase
+        if allFlat.contains(where: { $0.lowercased() == parsed.base.lowercased() }) {
+            baseType = allFlat.first { $0.lowercased() == parsed.base.lowercased() } ?? parsed.base
             sizeParam = parsed.param.isEmpty ? (Self.parameterInfo[baseType.lowercased()]?.defaultValue ?? "") : parsed.param
         } else if selection.isEmpty {
-            baseType = "character varying"
+            baseType = "varchar"
             sizeParam = "255"
             syncToSelection()
         } else {

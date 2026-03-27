@@ -3,6 +3,7 @@ import AppKit
 
 struct ScriptPreviewSheet: View {
     let statements: [String]
+    var onOpenInQueryEditor: ((String) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var didCopy = false
@@ -44,6 +45,16 @@ struct ScriptPreviewSheet: View {
                 )
             }
             .buttonStyle(.bordered)
+
+            if let onOpenInQueryEditor {
+                Button {
+                    onOpenInQueryEditor(scriptText)
+                    dismiss()
+                } label: {
+                    Label("Open in Query Editor", systemImage: "rectangle.and.pencil.and.ellipsis")
+                }
+                .buttonStyle(.bordered)
+            }
 
             Spacer()
 

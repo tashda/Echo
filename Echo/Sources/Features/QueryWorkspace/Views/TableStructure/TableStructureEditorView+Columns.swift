@@ -48,7 +48,7 @@ extension TableStructureEditorView {
                         .foregroundStyle(ColorTokens.Text.tertiary)
                         .strikethrough()
                 } else if let index = columnIndexLookup[column.id], index < viewModel.columns.count {
-                    DataTypePicker(selection: $viewModel.columns[index].dataType, databaseType: viewModel.databaseType, compact: true)
+                    DataTypePicker(selection: $viewModel.columns[index].dataType, databaseType: viewModel.databaseType)
                 } else {
                     Text(column.dataType)
                         .font(TypographyTokens.Table.category)

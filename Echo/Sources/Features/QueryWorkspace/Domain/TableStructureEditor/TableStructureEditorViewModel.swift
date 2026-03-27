@@ -81,6 +81,8 @@ final class TableStructureEditorViewModel {
         switch databaseType {
         case .microsoftSQL:
             return SQLServerDialectGenerator(schema: schemaName, database: "")
+        case .mysql:
+            return MySQLDialectGenerator(schema: schemaName)
         default:
             return PostgreSQLDialectGenerator(schema: schemaName)
         }
@@ -118,17 +120,13 @@ final class TableStructureEditorViewModel {
         lastError = nil
         lastSuccessMessage = nil
         let statements = generateStatements()
-        guard !statements.isEmpty else {
-            lastSuccessMessage = "No changes to apply"
-            return
-        }
+        guard !statements.isEmpty else { return }
         isApplying = true
         defer { isApplying = false }
         let handle = activityEngine?.begin("Alter \(tableName)", connectionSessionID: connectionSessionID)
         let dialect = dialectGenerator
         do {
-            let executionPlan = [dialect.beginTransaction()] + statements + [dialect.commitTransaction()]
-            for statement in executionPlan {
+            for statement in [dialect.beginTransaction()] + statements + [dialect.commitTransaction()] {
                 _ = try await session.executeUpdate(statement)
             }
             let refreshed = try await session.getTableStructureDetails(schema: schemaName, table: tableName)
@@ -155,7 +153,12 @@ final class TableStructureEditorViewModel {
 
     @discardableResult
     func addColumn() -> ColumnModel {
-        let model = ColumnModel(original: nil, name: "new_column", dataType: "text", isNullable: true, defaultValue: nil, generatedExpression: nil, isIdentity: false, identitySeed: nil, identityIncrement: nil, identityGeneration: nil, collation: nil)
+        let defaultType: String = switch databaseType {
+        case .mysql: "varchar(255)"
+        case .microsoftSQL: "nvarchar(255)"
+        default: "text"
+        }
+        let model = ColumnModel(original: nil, name: "new_column", dataType: defaultType, isNullable: true, defaultValue: nil, generatedExpression: nil, isIdentity: false, identitySeed: nil, identityIncrement: nil, identityGeneration: nil, collation: nil)
         columns.append(model)
         return model
     }

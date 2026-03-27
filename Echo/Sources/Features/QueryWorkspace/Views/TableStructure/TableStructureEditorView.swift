@@ -111,7 +111,18 @@ struct TableStructureEditorView: View {
     internal func applyChanges() {
         Task {
             await viewModel.applyChanges()
-            if viewModel.lastError == nil {
+            if let error = viewModel.lastError {
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
+                    message: error
+                )
+            } else if viewModel.lastSuccessMessage != nil {
+                environmentState.notificationEngine?.post(
+                    category: .generalSuccess,
+                    icon: "checkmark.circle",
+                    message: "Structure of \(viewModel.tableName) updated",
+                    style: .success
+                )
                 await environmentState.refreshDatabaseStructure(
                     for: tab.connectionSessionID,
                     scope: .selectedDatabase,

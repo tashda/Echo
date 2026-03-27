@@ -295,3 +295,137 @@ struct SQLServerDialectGenerator: SQLDialectGenerator {
         return statements
     }
 }
+
+struct MySQLDialectGenerator: SQLDialectGenerator {
+    let schema: String
+
+    func quoteIdentifier(_ name: String) -> String {
+        "`\(name.replacingOccurrences(of: "`", with: "``"))`"
+    }
+
+    func qualifiedTable(schema: String, table: String) -> String {
+        "\(quoteIdentifier(schema)).\(quoteIdentifier(table))"
+    }
+
+    func beginTransaction() -> String { "START TRANSACTION;" }
+    func commitTransaction() -> String { "COMMIT;" }
+    func rollbackTransaction() -> String { "ROLLBACK;" }
+
+    func dropColumn(table: String, column: String) -> String {
+        "ALTER TABLE \(table) DROP COLUMN \(quoteIdentifier(column));"
+    }
+
+    func renameColumn(table: String, from: String, to: String) -> String {
+        "ALTER TABLE \(table) RENAME COLUMN \(quoteIdentifier(from)) TO \(quoteIdentifier(to));"
+    }
+
+    func addColumn(table: String, name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?, identity: (seed: Int, increment: Int, generation: String?)?, collation: String?) -> String {
+        var clause = "ALTER TABLE \(table) ADD COLUMN \(quoteIdentifier(name)) \(dataType)"
+        if let collation, !collation.isEmpty {
+            clause += " COLLATE \(quoteIdentifier(collation))"
+        }
+        if !isNullable {
+            clause += " NOT NULL"
+        }
+        if let expression = generatedExpression, !expression.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            clause += " GENERATED ALWAYS AS (\(expression)) STORED"
+        } else {
+            if let defaultValue, !defaultValue.isEmpty {
+                clause += " DEFAULT \(defaultValue)"
+            }
+            if identity != nil {
+                clause += " AUTO_INCREMENT"
+            }
+        }
+        return clause + ";"
+    }
+
+    func alterColumnType(table: String, column: String, newType: String, isNullable: Bool) -> String {
+        let nullClause = isNullable ? "NULL" : "NOT NULL"
+        return "ALTER TABLE \(table) MODIFY COLUMN \(quoteIdentifier(column)) \(newType) \(nullClause);"
+    }
+
+    func alterColumnNullability(table: String, column: String, isNullable: Bool, currentType: String) -> String {
+        let nullClause = isNullable ? "NULL" : "NOT NULL"
+        return "ALTER TABLE \(table) MODIFY COLUMN \(quoteIdentifier(column)) \(currentType) \(nullClause);"
+    }
+
+    func alterColumnSetDefault(table: String, column: String, defaultValue: String) -> String {
+        "ALTER TABLE \(table) ALTER COLUMN \(quoteIdentifier(column)) SET DEFAULT \(defaultValue);"
+    }
+
+    func alterColumnDropDefault(table: String, column: String) -> String {
+        "ALTER TABLE \(table) ALTER COLUMN \(quoteIdentifier(column)) DROP DEFAULT;"
+    }
+
+    func addPrimaryKey(table: String, name: String, columns: [String], isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
+        let cols = columns.map(quoteIdentifier).joined(separator: ", ")
+        return "ALTER TABLE \(table) ADD PRIMARY KEY (\(cols));"
+    }
+
+    func dropConstraint(table: String, name: String) -> String {
+        if name.uppercased() == "PRIMARY" {
+            return "ALTER TABLE \(table) DROP PRIMARY KEY;"
+        }
+        return "ALTER TABLE \(table) DROP FOREIGN KEY \(quoteIdentifier(name));"
+    }
+
+    func createIndex(table: String, name: String, columns: [(name: String, sort: String)], includeColumns: [String], isUnique: Bool, filter: String?, indexType: String?) -> String {
+        let columnsClause = columns.map { "\(quoteIdentifier($0.name)) \($0.sort)" }.joined(separator: ", ")
+        var sql = "CREATE \(isUnique ? "UNIQUE " : "")INDEX \(quoteIdentifier(name)) ON \(table)"
+        if let indexType, !indexType.isEmpty, indexType.lowercased() != "btree" {
+            sql += " USING \(indexType.uppercased())"
+        }
+        sql += " (\(columnsClause))"
+        return sql + ";"
+    }
+
+    func dropIndex(schema: String, name: String, table: String) -> String {
+        "DROP INDEX \(quoteIdentifier(name)) ON \(table);"
+    }
+
+    func addUniqueConstraint(table: String, name: String, columns: [String], isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
+        let cols = columns.map(quoteIdentifier).joined(separator: ", ")
+        return "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) UNIQUE (\(cols));"
+    }
+
+    func addCheckConstraint(table: String, name: String, expression: String) -> String {
+        "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) CHECK (\(expression));"
+    }
+
+    func addForeignKey(table: String, name: String, columns: [String], referencedSchema: String, referencedTable: String, referencedColumns: [String], onUpdate: String?, onDelete: String?, isDeferrable: Bool, isInitiallyDeferred: Bool) -> String {
+        let columnsList = columns.map(quoteIdentifier).joined(separator: ", ")
+        let refTable = qualifiedTable(schema: referencedSchema, table: referencedTable)
+        let refCols = referencedColumns.map(quoteIdentifier).joined(separator: ", ")
+        var sql = "ALTER TABLE \(table) ADD CONSTRAINT \(quoteIdentifier(name)) FOREIGN KEY (\(columnsList)) REFERENCES \(refTable) (\(refCols))"
+        if let onUpdate, !onUpdate.isEmpty { sql += " ON UPDATE \(onUpdate)" }
+        if let onDelete, !onDelete.isEmpty { sql += " ON DELETE \(onDelete)" }
+        return sql + ";"
+    }
+
+    func alterTableProperties(table: String, properties: [(key: String, value: String)]) -> [String] {
+        guard !properties.isEmpty else { return [] }
+
+        var tableOptions: [String] = []
+        var statements: [String] = []
+
+        for (key, value) in properties {
+            switch key.uppercased() {
+            case "ENGINE", "AUTO_INCREMENT", "ROW_FORMAT", "COMMENT":
+                tableOptions.append("\(key.uppercased()) = \(value)")
+            case "CHARACTER SET":
+                statements.append("ALTER TABLE \(table) CONVERT TO CHARACTER SET \(value);")
+            case "COLLATE":
+                statements.append("ALTER TABLE \(table) COLLATE = \(value);")
+            default:
+                continue
+            }
+        }
+
+        if !tableOptions.isEmpty {
+            statements.insert("ALTER TABLE \(table) \(tableOptions.joined(separator: ", "));", at: 0)
+        }
+
+        return statements
+    }
+}

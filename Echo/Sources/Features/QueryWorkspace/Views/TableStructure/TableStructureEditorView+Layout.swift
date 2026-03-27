@@ -14,16 +14,12 @@ extension TableStructureEditorView {
     }
 
     internal var header: some View {
-        VStack(spacing: 0) {
-            TabSectionToolbar {
-                structureSectionPicker
-            } controls: {
-                sectionAddButton
-                    .frame(minWidth: 70, alignment: .trailing)
-                actionButtons
-            }
-
-            Divider()
+        TabSectionToolbar {
+            structureSectionPicker
+        } controls: {
+            sectionAddButton
+                .frame(minWidth: 70, alignment: .trailing)
+            actionButtons
         }
     }
 
@@ -86,14 +82,6 @@ extension TableStructureEditorView {
 
     internal var content: some View {
         VStack(spacing: 0) {
-            if let message = viewModel.lastError {
-                StatusToastView(icon: "exclamationmark.triangle.fill", message: message, style: .error)
-                    .padding(.top, SpacingTokens.sm)
-            } else if let success = viewModel.lastSuccessMessage {
-                StatusToastView(icon: "checkmark.circle.fill", message: success, style: .success)
-                    .padding(.top, SpacingTokens.sm)
-            }
-
             if viewModel.isLoading && viewModel.columns.isEmpty {
                 TabInitializingPlaceholder(
                     icon: "square.stack.3d.up",
