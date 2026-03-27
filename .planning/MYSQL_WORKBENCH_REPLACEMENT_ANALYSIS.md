@@ -252,7 +252,8 @@ Tabs matching Workbench's user editor:
 
 **Status:** Partially implemented in Echo
 - dashboard metrics now appear in MySQL Activity Monitor
-- dedicated Performance Schema reports and Visual EXPLAIN remain outstanding
+- MySQL query tabs now participate in the shared execution-plan UI via `EXPLAIN FORMAT=JSON`
+- dedicated Performance Schema reports and deeper `EXPLAIN ANALYZE` parsing remain outstanding
 
 #### What to Build
 
