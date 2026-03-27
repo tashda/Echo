@@ -16,17 +16,79 @@ struct MySQLActivityMonitorView: View {
             Text("Process List")
                 .font(TypographyTokens.standard.weight(.medium))
         } sparklines: {
-            EmptyView()
+            ActivityMonitorSparklineStrip(metrics: sparklineMetrics)
         } sectionContent: {
-            processListContent
+            ScrollView {
+                VStack(alignment: .leading, spacing: SpacingTokens.md) {
+                    if let overview = mysqlSnapshot?.overview {
+                        MySQLActivityOverviewSection(overview: overview)
+                    }
+
+                    SectionContainer(
+                        title: "Performance Dashboard",
+                        icon: "chart.line.uptrend.xyaxis",
+                        info: "Query throughput, network traffic, and InnoDB buffer pool usage over time."
+                    ) {
+                        MySQLDashboardView(viewModel: viewModel)
+                    }
+
+                    SectionContainer(
+                        title: "Process List",
+                        icon: "person.3",
+                        info: "Current connections from SHOW FULL PROCESSLIST."
+                    ) {
+                        processListContent
+                            .padding(SpacingTokens.md)
+                    }
+                }
+                .padding(SpacingTokens.md)
+            }
         }
     }
 
-    // MARK: - Process List
+    private var mysqlSnapshot: MySQLActivitySnapshot? {
+        guard let snapshot = viewModel.latestSnapshot, case .mysql(let snap) = snapshot else {
+            return nil
+        }
+        return snap
+    }
+
+    private var sparklineMetrics: [SparklineMetric] {
+        [
+            SparklineMetric(
+                label: "Connections",
+                unit: "",
+                color: .blue,
+                maxValue: nil,
+                data: viewModel.connectionCountHistory
+            ),
+            SparklineMetric(
+                label: "Queries/s",
+                unit: "/s",
+                color: .orange,
+                maxValue: nil,
+                data: viewModel.throughputHistory
+            ),
+            SparklineMetric(
+                label: "Incoming",
+                unit: "KB/s",
+                color: .teal,
+                maxValue: nil,
+                data: viewModel.ioHistory
+            ),
+            SparklineMetric(
+                label: "Buffer Pool",
+                unit: "%",
+                color: .green,
+                maxValue: 100,
+                data: viewModel.cacheHitHistory
+            )
+        ]
+    }
 
     @ViewBuilder
     private var processListContent: some View {
-        if let snapshot = viewModel.latestSnapshot, case .mysql(let snap) = snapshot {
+        if let snap = mysqlSnapshot {
             if snap.processes.isEmpty {
                 ContentUnavailableView {
                     Label("No Active Processes", systemImage: "person.3")

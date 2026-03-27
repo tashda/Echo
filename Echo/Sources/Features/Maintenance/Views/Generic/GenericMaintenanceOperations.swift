@@ -1,4 +1,5 @@
 import Foundation
+import MySQLKit
 
 /// A single maintenance operation that can be executed against a database session.
 struct MaintenanceOperation: Identifiable {
@@ -39,18 +40,13 @@ extension GenericMaintenanceView {
                 name: "Optimize All Tables",
                 description: "Reclaims unused space and defragments the data file for all tables in the selected database.",
                 action: { session, database in
-                    guard let database else {
-                        return DatabaseMaintenanceResult(operation: "Optimize", messages: ["No database selected."], succeeded: false)
+                    try await runMySQLAdminOperation(
+                        named: "Optimize",
+                        session: session,
+                        database: database
+                    ) { admin, schema, table in
+                        try await admin.optimizeTable(schema: schema, table: table)
                     }
-                    let tables = try await session.listTablesAndViews(schema: database)
-                    let tableNames = tables.filter { $0.type == .table }.map(\.name)
-                    guard !tableNames.isEmpty else {
-                        return DatabaseMaintenanceResult(operation: "Optimize", messages: ["No tables found."], succeeded: true)
-                    }
-                    let qualified = tableNames.map { "`\(database)`.`\($0)`" }.joined(separator: ", ")
-                    let result = try await session.simpleQuery("OPTIMIZE TABLE \(qualified)")
-                    let messages = result.rows.compactMap { $0.last ?? nil }
-                    return DatabaseMaintenanceResult(operation: "Optimize", messages: messages.isEmpty ? ["Optimized \(tableNames.count) tables."] : messages, succeeded: true)
                 }
             ),
             MaintenanceOperation(
@@ -58,18 +54,13 @@ extension GenericMaintenanceView {
                 name: "Analyze All Tables",
                 description: "Updates index statistics so the optimizer can choose better query plans.",
                 action: { session, database in
-                    guard let database else {
-                        return DatabaseMaintenanceResult(operation: "Analyze", messages: ["No database selected."], succeeded: false)
+                    try await runMySQLAdminOperation(
+                        named: "Analyze",
+                        session: session,
+                        database: database
+                    ) { admin, schema, table in
+                        try await admin.analyzeTable(schema: schema, table: table)
                     }
-                    let tables = try await session.listTablesAndViews(schema: database)
-                    let tableNames = tables.filter { $0.type == .table }.map(\.name)
-                    guard !tableNames.isEmpty else {
-                        return DatabaseMaintenanceResult(operation: "Analyze", messages: ["No tables found."], succeeded: true)
-                    }
-                    let qualified = tableNames.map { "`\(database)`.`\($0)`" }.joined(separator: ", ")
-                    let result = try await session.simpleQuery("ANALYZE TABLE \(qualified)")
-                    let messages = result.rows.compactMap { $0.last ?? nil }
-                    return DatabaseMaintenanceResult(operation: "Analyze", messages: messages.isEmpty ? ["Analyzed \(tableNames.count) tables."] : messages, succeeded: true)
                 }
             ),
             MaintenanceOperation(
@@ -77,23 +68,13 @@ extension GenericMaintenanceView {
                 name: "Check All Tables",
                 description: "Checks tables for errors. Reports any corruption or inconsistencies found.",
                 action: { session, database in
-                    guard let database else {
-                        return DatabaseMaintenanceResult(operation: "Check", messages: ["No database selected."], succeeded: false)
+                    try await runMySQLAdminOperation(
+                        named: "Check",
+                        session: session,
+                        database: database
+                    ) { admin, schema, table in
+                        try await admin.checkTable(schema: schema, table: table)
                     }
-                    let tables = try await session.listTablesAndViews(schema: database)
-                    let tableNames = tables.filter { $0.type == .table }.map(\.name)
-                    guard !tableNames.isEmpty else {
-                        return DatabaseMaintenanceResult(operation: "Check", messages: ["No tables found."], succeeded: true)
-                    }
-                    let qualified = tableNames.map { "`\(database)`.`\($0)`" }.joined(separator: ", ")
-                    let result = try await session.simpleQuery("CHECK TABLE \(qualified)")
-                    let messages = result.rows.compactMap { $0.last ?? nil }
-                    let hasError = messages.contains(where: { $0.lowercased().contains("error") || $0.lowercased().contains("corrupt") })
-                    return DatabaseMaintenanceResult(
-                        operation: "Check",
-                        messages: messages.isEmpty ? ["Checked \(tableNames.count) tables — no errors found."] : messages,
-                        succeeded: !hasError
-                    )
                 }
             ),
             MaintenanceOperation(
@@ -101,26 +82,74 @@ extension GenericMaintenanceView {
                 name: "Repair All Tables",
                 description: "Attempts to repair corrupted MyISAM and ARCHIVE tables. InnoDB tables use automatic crash recovery.",
                 action: { session, database in
-                    guard let database else {
-                        return DatabaseMaintenanceResult(operation: "Repair", messages: ["No database selected."], succeeded: false)
+                    try await runMySQLAdminOperation(
+                        named: "Repair",
+                        session: session,
+                        database: database
+                    ) { admin, schema, table in
+                        try await admin.repairTable(schema: schema, table: table)
                     }
-                    let tables = try await session.listTablesAndViews(schema: database)
-                    let tableNames = tables.filter { $0.type == .table }.map(\.name)
-                    guard !tableNames.isEmpty else {
-                        return DatabaseMaintenanceResult(operation: "Repair", messages: ["No tables found."], succeeded: true)
+                }
+            ),
+            MaintenanceOperation(
+                id: "mysql-flush-tables",
+                name: "Flush Tables",
+                description: "Closes open table handles and flushes metadata so subsequent operations pick up the latest state.",
+                action: { session, _ in
+                    guard let mysqlSession = session as? MySQLSession else {
+                        return DatabaseMaintenanceResult(operation: "Flush Tables", messages: ["MySQL admin APIs are unavailable for this session."], succeeded: false)
                     }
-                    let qualified = tableNames.map { "`\(database)`.`\($0)`" }.joined(separator: ", ")
-                    let result = try await session.simpleQuery("REPAIR TABLE \(qualified)")
-                    let messages = result.rows.compactMap { $0.last ?? nil }
-                    let hasError = messages.contains(where: { $0.lowercased().contains("error") })
+
+                    try await mysqlSession.client.admin.flushTables()
                     return DatabaseMaintenanceResult(
-                        operation: "Repair",
-                        messages: messages.isEmpty ? ["Repair completed for \(tableNames.count) tables."] : messages,
-                        succeeded: !hasError
+                        operation: "Flush Tables",
+                        messages: ["Flushed open table handles successfully."],
+                        succeeded: true
                     )
                 }
             ),
         ]
+    }
+
+    private static func runMySQLAdminOperation(
+        named operation: String,
+        session: DatabaseSession,
+        database: String?,
+        executor: (MySQLAdminClient, String, String) async throws -> MySQLMaintenanceResult
+    ) async throws -> DatabaseMaintenanceResult {
+        guard let database, !database.isEmpty else {
+            return DatabaseMaintenanceResult(operation: operation, messages: ["No database selected."], succeeded: false)
+        }
+        guard let mysqlSession = session as? MySQLSession else {
+            return DatabaseMaintenanceResult(operation: operation, messages: ["MySQL admin APIs are unavailable for this session."], succeeded: false)
+        }
+
+        let tables = try await session.listTablesAndViews(schema: database)
+        let tableNames = tables.filter { $0.type == .table }.map(\.name)
+        guard !tableNames.isEmpty else {
+            return DatabaseMaintenanceResult(operation: operation, messages: ["No tables found."], succeeded: true)
+        }
+
+        var messages: [String] = []
+        for table in tableNames {
+            let result = try await executor(mysqlSession.client.admin, database, table)
+            if result.messages.isEmpty {
+                messages.append("\(operation) completed for \(table).")
+            } else {
+                messages.append(contentsOf: result.messages.map { "\(table): \($0)" })
+            }
+        }
+
+        let hasError = messages.contains { message in
+            let normalized = message.lowercased()
+            return normalized.contains("error") || normalized.contains("corrupt")
+        }
+
+        return DatabaseMaintenanceResult(
+            operation: operation,
+            messages: messages,
+            succeeded: !hasError
+        )
     }
 
     // MARK: - SQLite Operations
@@ -192,4 +221,3 @@ extension GenericMaintenanceView {
         ]
     }
 }
-

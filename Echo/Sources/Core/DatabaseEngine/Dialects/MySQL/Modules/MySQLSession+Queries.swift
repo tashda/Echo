@@ -1,4 +1,5 @@
 import Foundation
+import MySQLKit
 import MySQLWire
 
 extension MySQLSession {
@@ -139,7 +140,7 @@ extension MySQLSession {
     }
 
     @discardableResult
-    internal func performQuery(_ sql: String, binds: [MySQLData] = []) async throws -> ([MySQLRow], MySQLQueryMetadata?) {
+    internal func performQuery(_ sql: String, binds: [MySQLData] = []) async throws -> ([MySQLRow], MySQLWireQueryMetadata?) {
         let result = try await client.query.query(sql, binds: binds)
         return (result.rows, result.metadata)
     }

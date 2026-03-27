@@ -2,6 +2,7 @@ import Foundation
 import SQLServerKit
 import PostgresKit
 import PostgresWire
+import MySQLKit
 
 // MARK: - MySQL Process Info
 
@@ -19,6 +20,7 @@ public struct MySQLProcessInfo: Sendable, Identifiable, Hashable {
 public struct MySQLActivitySnapshot: Sendable {
     public let capturedAt: Date
     public let processes: [MySQLProcessInfo]
+    public let overview: MySQLActivityOverview?
 }
 
 // MARK: - Snapshot Enum
@@ -127,54 +129,55 @@ public final class PostgresActivityMonitorWrapper: DatabaseActivityMonitoring {
 
 // MARK: - MySQL Monitor
 
-public final class MySQLActivityMonitorWrapper: DatabaseActivityMonitoring {
-    private let session: DatabaseSession
+final class MySQLActivityMonitorWrapper: DatabaseActivityMonitoring {
+    private let session: MySQLSession
+    private actor SnapshotState {
+        private var previousSample: MySQLActivityStatusSample?
 
-    public init(session: DatabaseSession) {
+        func buildSnapshot(
+            capturedAt: Date,
+            processes: [MySQLProcess],
+            statusVariables: [MySQLStatusVariable],
+            globalVariables: [MySQLGlobalVariable]
+        ) -> MySQLActivitySnapshot {
+            let result = MySQLActivitySnapshotBuilder.makeSnapshot(
+                capturedAt: capturedAt,
+                processes: processes,
+                statusVariables: statusVariables,
+                globalVariables: globalVariables,
+                previousSample: previousSample
+            )
+            previousSample = result.sample
+            return result.snapshot
+        }
+    }
+    private let state = SnapshotState()
+
+    init(session: MySQLSession) {
         self.session = session
     }
 
-    public func snapshot() async throws -> DatabaseActivitySnapshot {
-        let result = try await session.simpleQuery("SHOW PROCESSLIST")
-        let processes = result.rows.compactMap { row -> MySQLProcessInfo? in
-            guard row.count >= 8,
-                  let idStr = row[0], let id = Int(idStr) else { return nil }
-            return MySQLProcessInfo(
-                id: id,
-                user: row[1] ?? "",
-                host: row[2] ?? "",
-                database: row[3],
-                command: row[4] ?? "",
-                time: Int(row[5] ?? "0") ?? 0,
-                state: row[6],
-                info: row[7]
-            )
-        }
-        return .mysql(MySQLActivitySnapshot(capturedAt: Date(), processes: processes))
+    func snapshot() async throws -> DatabaseActivitySnapshot {
+        async let activitySnapshot = session.client.activity.snapshot()
+        async let statusVariables = session.client.performance.dashboardStatus()
+        async let globalVariables = session.client.admin.globalVariables(named: nil)
+
+        let capturedAt = Date()
+        let typedSnapshot = try await state.buildSnapshot(
+            capturedAt: capturedAt,
+            processes: activitySnapshot.processes,
+            statusVariables: statusVariables,
+            globalVariables: globalVariables
+        )
+        return .mysql(typedSnapshot)
     }
 
-    public func streamSnapshots(every seconds: TimeInterval) -> AsyncThrowingStream<DatabaseActivitySnapshot, Error> {
-        let session = self.session
+    func streamSnapshots(every seconds: TimeInterval) -> AsyncThrowingStream<DatabaseActivitySnapshot, Error> {
         return AsyncThrowingStream { continuation in
             let task = Task {
                 while !Task.isCancelled {
                     do {
-                        let result = try await session.simpleQuery("SHOW PROCESSLIST")
-                        let processes = result.rows.compactMap { row -> MySQLProcessInfo? in
-                            guard row.count >= 8,
-                                  let idStr = row[0], let id = Int(idStr) else { return nil }
-                            return MySQLProcessInfo(
-                                id: id,
-                                user: row[1] ?? "",
-                                host: row[2] ?? "",
-                                database: row[3],
-                                command: row[4] ?? "",
-                                time: Int(row[5] ?? "0") ?? 0,
-                                state: row[6],
-                                info: row[7]
-                            )
-                        }
-                        continuation.yield(.mysql(MySQLActivitySnapshot(capturedAt: Date(), processes: processes)))
+                        continuation.yield(try await snapshot())
                     } catch {
                         continuation.finish(throwing: error)
                         return
@@ -187,7 +190,7 @@ public final class MySQLActivityMonitorWrapper: DatabaseActivityMonitoring {
         }
     }
 
-    public func killSession(id: Int) async throws {
-        _ = try await session.simpleQuery("KILL \(id)")
+    func killSession(id: Int) async throws {
+        _ = try await session.client.query.query("KILL \(id)")
     }
 }

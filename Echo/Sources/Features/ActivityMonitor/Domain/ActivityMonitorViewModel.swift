@@ -51,6 +51,7 @@ final class ActivityMonitorViewModel {
     var connectionCountHistory: [GraphPoint] = []
     var cacheHitHistory: [GraphPoint] = []
     var deadTuplesHistory: [GraphPoint] = []
+    var outgoingTrafficHistory: [GraphPoint] = []
 
     private let maxHistoryItems = 60
 
@@ -143,7 +144,19 @@ final class ActivityMonitorViewModel {
                 appendHistory(&ioHistory, value: ov.databaseIOMBPerSec, timestamp: now)
             }
         case .mysql(let snap):
-            appendHistory(&connectionCountHistory, value: Double(snap.processes.count), timestamp: now)
+            appendHistory(&connectionCountHistory, value: Double(snap.overview?.currentConnections ?? snap.processes.count), timestamp: now)
+            if let queriesPerSecond = snap.overview?.queriesPerSecond {
+                appendHistory(&throughputHistory, value: queriesPerSecond, timestamp: now)
+            }
+            if let bytesReceivedPerSecond = snap.overview?.bytesReceivedPerSecond {
+                appendHistory(&ioHistory, value: bytesReceivedPerSecond / 1024, timestamp: now)
+            }
+            if let bytesSentPerSecond = snap.overview?.bytesSentPerSecond {
+                appendHistory(&outgoingTrafficHistory, value: bytesSentPerSecond / 1024, timestamp: now)
+            }
+            if let bufferPoolUsagePercent = snap.overview?.bufferPoolUsagePercent {
+                appendHistory(&cacheHitHistory, value: bufferPoolUsagePercent, timestamp: now)
+            }
         }
     }
 
@@ -157,7 +170,8 @@ final class ActivityMonitorViewModel {
     func estimatedMemoryUsageBytes() -> Int {
         let historySize = (cpuHistory.count + waitingTasksHistory.count + ioHistory.count +
                            throughputHistory.count + connectionCountHistory.count +
-                           cacheHitHistory.count + deadTuplesHistory.count) * 32
+                           cacheHitHistory.count + deadTuplesHistory.count +
+                           outgoingTrafficHistory.count) * 32
         return 1024 * 512 + historySize
     }
 }

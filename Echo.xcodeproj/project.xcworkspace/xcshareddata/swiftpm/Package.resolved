@@ -20,6 +20,15 @@
       }
     },
     {
+      "identity" : "mysql-wire",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tashda/mysql-wire",
+      "state" : {
+        "branch" : "dev",
+        "revision" : "45c16c4f79912a572d66a9bb19f7450a810ed432"
+      }
+    },
+    {
       "identity" : "postgres-nio",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/vapor/postgres-nio.git",

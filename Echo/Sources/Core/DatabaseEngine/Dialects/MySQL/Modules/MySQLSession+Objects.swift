@@ -1,4 +1,5 @@
 import Foundation
+import MySQLKit
 import MySQLWire
 
 extension MySQLSession {
@@ -139,13 +140,12 @@ extension MySQLSession {
     }
 
     func executeUpdate(_ sql: String) async throws -> Int {
-        var affectedRows: Int = 0
-        let future = connection.query(sql, onMetadata: { metadata in
-            affectedRows = Int(metadata.affectedRows)
-        })
         do {
-            _ = try await future.get()
-            return affectedRows
+            let result = try await client.query.query(sql)
+            if let metadata = result.metadata {
+                return Int(metadata.affectedRows)
+            }
+            return result.rows.count
         } catch {
             throw DatabaseError.queryError(error.localizedDescription)
         }
