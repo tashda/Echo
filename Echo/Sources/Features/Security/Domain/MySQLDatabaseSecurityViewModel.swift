@@ -78,12 +78,17 @@ final class MySQLDatabaseSecurityViewModel {
         defer { isLoadingUserDetails = false }
 
         do {
+            let existingRoles = roles
             async let grants = mysql.client.security.showGrants(for: account.username, host: account.host)
             async let limits = mysql.client.security.accountLimits(for: account.username, host: account.host)
             async let roles = mysql.client.security.administrativeRoles(for: account.username, host: account.host)
+            async let availableRoles = existingRoles.isEmpty ? mysql.client.security.listRoles() : existingRoles
+            async let roleAssignmentsResult = mysql.client.security.listRoleAssignments()
             selectedUserGrants = try await grants
             selectedUserLimits = try await limits
             selectedUserAdministrativeRoles = try await roles
+            self.roles = try await availableRoles
+            roleAssignments = try await roleAssignmentsResult
         } catch {
             panelState?.appendMessage("Failed to load user details: \(error.localizedDescription)", severity: .error)
         }
@@ -166,6 +171,11 @@ final class MySQLDatabaseSecurityViewModel {
     var selectedRoleAssignments: [MySQLRoleAssignment] {
         guard let role = selectedRole else { return roleAssignments }
         return roleAssignments.filter { $0.roleName == role.name && $0.roleHost == role.host }
+    }
+
+    var selectedUserRoleAssignments: [MySQLRoleAssignment] {
+        guard let user = selectedUser else { return [] }
+        return roleAssignments.filter { $0.grantee == user.accountName }
     }
 
     var privilegeGrantees: [MySQLPrivilegeGrantee] {
@@ -340,6 +350,33 @@ final class MySQLDatabaseSecurityViewModel {
         } catch {
             handle?.fail(error.localizedDescription)
             panelState?.appendMessage("Failed to update password for \(account.accountName): \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func updateSelectedUserRoleMembership(_ roleIDs: Set<String>) async {
+        guard let mysql = session as? MySQLSession, let account = selectedUser else { return }
+
+        let selectedRoles = roles.filter { roleIDs.contains($0.id) }
+        let currentRoleIDs = Set(selectedUserRoleAssignments.map { "\($0.roleName)@\($0.roleHost)" })
+        let nextRoleIDs = Set(selectedRoles.map(\.id))
+        let rolesToGrant = selectedRoles.filter { !currentRoleIDs.contains($0.id) }
+        let rolesToRevoke = selectedUserRoleAssignments.filter { !nextRoleIDs.contains("\($0.roleName)@\($0.roleHost)") }
+        guard !rolesToGrant.isEmpty || !rolesToRevoke.isEmpty else { return }
+
+        let handle = activityEngine?.begin("Updating role membership", connectionSessionID: connectionSessionID)
+        do {
+            for role in rolesToGrant.sorted(by: { $0.accountName < $1.accountName }) {
+                try await mysql.client.security.grantRole(role.name, roleHost: role.host, to: account.username, host: account.host)
+            }
+            for assignment in rolesToRevoke.sorted(by: { $0.roleName < $1.roleName }) {
+                try await mysql.client.security.revokeRole(assignment.roleName, roleHost: assignment.roleHost, from: account.username, host: account.host)
+            }
+            handle?.succeed()
+            panelState?.appendMessage("Updated role membership for \(account.accountName)")
+            await loadSelectedUserDetails()
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to update role membership for \(account.accountName): \(error.localizedDescription)", severity: .error)
         }
     }
 

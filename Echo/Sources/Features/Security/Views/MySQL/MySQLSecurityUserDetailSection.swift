@@ -6,6 +6,7 @@ struct MySQLSecurityUserDetailSection: View {
     @State private var showLimitsSheet = false
     @State private var showAdministrativeRolesSheet = false
     @State private var showPasswordSheet = false
+    @State private var showRoleMembershipSheet = false
 
     var body: some View {
         if let user = viewModel.selectedUser {
@@ -33,6 +34,11 @@ struct MySQLSecurityUserDetailSection: View {
 
                         Button("Edit Admin Roles…") {
                             showAdministrativeRolesSheet = true
+                        }
+                        .buttonStyle(.borderless)
+
+                        Button("Edit Role Membership…") {
+                            showRoleMembershipSheet = true
                         }
                         .buttonStyle(.borderless)
                     }
@@ -100,6 +106,17 @@ struct MySQLSecurityUserDetailSection: View {
                     Task { await viewModel.updateSelectedUserPassword(password) }
                 } onDismiss: {
                     showPasswordSheet = false
+                }
+            }
+            .sheet(isPresented: $showRoleMembershipSheet) {
+                MySQLUserRoleMembershipSheet(
+                    accountName: user.accountName,
+                    availableRoles: viewModel.roles,
+                    initialRoleIDs: Set(viewModel.selectedUserRoleAssignments.map { "\($0.roleName)@\($0.roleHost)" })
+                ) { roleIDs in
+                    Task { await viewModel.updateSelectedUserRoleMembership(roleIDs) }
+                } onDismiss: {
+                    showRoleMembershipSheet = false
                 }
             }
         } else {
