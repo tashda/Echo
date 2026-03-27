@@ -38,6 +38,7 @@ final class WorkspaceTab: Identifiable {
         case availabilityGroups
         case databaseSecurity
         case postgresSecurity
+        case mysqlSecurity
         case serverSecurity
         case errorLog
         case profiler
@@ -66,6 +67,7 @@ final class WorkspaceTab: Identifiable {
         case availabilityGroups(AvailabilityGroupsViewModel)
         case databaseSecurity(DatabaseSecurityViewModel)
         case postgresSecurity(PostgresDatabaseSecurityViewModel)
+        case mysqlSecurity(MySQLDatabaseSecurityViewModel)
         case serverSecurity(ServerSecurityViewModel)
         case errorLog(ErrorLogViewModel)
         case profiler(ProfilerViewModel)
@@ -213,6 +215,7 @@ final class WorkspaceTab: Identifiable {
         case .availabilityGroups: return .availabilityGroups
         case .databaseSecurity: return .databaseSecurity
         case .postgresSecurity: return .postgresSecurity
+        case .mysqlSecurity: return .mysqlSecurity
         case .serverSecurity: return .serverSecurity
         case .errorLog: return .errorLog
         case .profiler: return .profiler
@@ -301,6 +304,11 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var mysqlSecurity: MySQLDatabaseSecurityViewModel? {
+        if case .mysqlSecurity(let vm) = content { return vm }
+        return nil
+    }
+
     var serverSecurity: ServerSecurityViewModel? {
         if case .serverSecurity(let vm) = content { return vm }
         return nil
@@ -385,7 +393,7 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .availabilityGroups(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
-        case .databaseSecurity, .postgresSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
             return baseOverhead + 256 * 1024
         case .errorLog:
             return baseOverhead + 256 * 1024
@@ -408,7 +416,7 @@ final class WorkspaceTab: Identifiable {
         switch content {
         case .query:
             return .forQueryTab()
-        case .maintenance, .mssqlMaintenance, .databaseSecurity, .postgresSecurity, .serverSecurity, .errorLog, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement, .tableData, .postgresAdvancedObjects, .schemaDiff:
+        case .maintenance, .mssqlMaintenance, .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .errorLog, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement, .tableData, .postgresAdvancedObjects, .schemaDiff:
             return .forMaintenanceTab()
         case .extendedEvents, .profiler:
             return .forExtendedEventsTab()

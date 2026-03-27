@@ -78,7 +78,7 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
         return ("waveform.path.ecg", "Ready", ColorTokens.Text.secondary)
     case .availabilityGroups:
         return ("server.rack", "Ready", ColorTokens.Text.secondary)
-    case .databaseSecurity, .postgresSecurity, .postgresAdvancedObjects:
+    case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .postgresAdvancedObjects:
         return ("lock.shield", "Ready", ColorTokens.Text.secondary)
     case .schemaDiff:
         return ("doc.on.doc", "Ready", ColorTokens.Text.secondary)
@@ -143,7 +143,7 @@ extension TabPreviewCard {
             return []
         case .availabilityGroups:
             return []
-        case .databaseSecurity, .postgresSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
             return []
         case .errorLog:
             return []
@@ -264,7 +264,7 @@ extension TabPreviewCard {
             return "Extended Events"
         case .availabilityGroups:
             return "Availability Groups"
-        case .databaseSecurity, .postgresSecurity:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity:
             return "Database Security"
         case .serverSecurity:
             return "Server Security"

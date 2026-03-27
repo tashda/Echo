@@ -354,6 +354,9 @@ extension ConnectionSession {
         if connection.databaseType == .postgresql {
             return addPostgresDatabaseSecurityTab()
         }
+        if connection.databaseType == .mysql {
+            return addMySQLDatabaseSecurityTab(databaseName: databaseName)
+        }
         return addMSSQLDatabaseSecurityTab(databaseName: databaseName)
     }
 
@@ -413,6 +416,38 @@ extension ConnectionSession {
             connectionSessionID: id,
             title: "Database Security",
             content: .postgresSecurity(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    private func addMySQLDatabaseSecurityTab(databaseName: String? = nil) -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.mysqlSecurity != nil }) {
+            activeQueryTabID = existing.id
+            if let databaseName, !databaseName.isEmpty {
+                existing.activeDatabaseName = databaseName
+            }
+            return existing
+        }
+
+        let viewModel = MySQLDatabaseSecurityViewModel(
+            session: session,
+            connectionID: connection.id,
+            connectionSessionID: id
+        )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
+
+        let effectiveDatabase = databaseName ?? sidebarFocusedDatabase ?? connection.database
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Database Security",
+            content: .mysqlSecurity(viewModel),
+            activeDatabaseName: effectiveDatabase.isEmpty ? nil : effectiveDatabase
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id

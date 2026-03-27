@@ -38,7 +38,7 @@ extension CompactTabPreviewCard {
             return []
         case .availabilityGroups:
             return []
-        case .databaseSecurity, .postgresSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
             return []
         case .errorLog:
             return []
@@ -84,7 +84,7 @@ extension CompactTabPreviewCard {
             return "Extended Events"
         case .availabilityGroups:
             return "Availability Groups"
-        case .databaseSecurity, .postgresSecurity:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity:
             return "Database Security"
         case .postgresAdvancedObjects:
             return "Advanced Objects"
@@ -141,7 +141,7 @@ extension CompactTabPreviewCard {
             return "Extended Events session monitoring"
         case .availabilityGroups:
             return "Always On Availability Groups dashboard"
-        case .databaseSecurity, .postgresSecurity:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity:
             return "Database security management"
         case .postgresAdvancedObjects:
             return "Advanced PostgreSQL object management"

@@ -60,6 +60,13 @@ extension ObjectBrowserSidebarView {
             dbSchemasSection(session: session, dbKey: dbKey)
         case .postgresql:
             dbSchemasSection(session: session, dbKey: dbKey)
+        case .mysql:
+            SidebarRow(
+                depth: SecuritySidebarDepth.databaseLeaf,
+                icon: .system("lock.shield"),
+                label: "Users, roles, and grants",
+                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Security", colored: projectStore.globalSettings.sidebarIconColorMode == .colorful)
+            )
         default:
             EmptyView()
         }

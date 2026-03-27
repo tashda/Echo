@@ -91,6 +91,10 @@ struct WorkspaceContentView: View {
             if let vm = tab.postgresSecurity {
                 PostgresDatabaseSecurityView(viewModel: vm, panelState: tab.panelState).background(ColorTokens.Background.primary)
             }
+        case .mysqlSecurity:
+            if let vm = tab.mysqlSecurity {
+                MySQLDatabaseSecurityView(viewModel: vm, panelState: tab.panelState).background(ColorTokens.Background.primary)
+            }
         case .postgresAdvancedObjects:
             if let vm = tab.postgresAdvancedObjectsVM {
                 PostgresAdvancedObjectsView(viewModel: vm).background(ColorTokens.Background.primary)
