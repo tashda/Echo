@@ -32,18 +32,31 @@ agents.md
 gemini.md
 claude.md
 
-# AI agent analysis outputs (Gemini code review, scripts)
+# AI agent outputs — analysis, planning, task specs, reports
+# These files are useful locally but must never be pushed
+*_ANALYSIS.md
+*_PLAN.md
+*_PLAN.txt
+*_GAP.md
+*_REPORT.md
+*_STATUS.md
+*_INVESTIGATION.md
+*_INVENTORY.md
+*_SPEC.md
+*_TODO.md
+*_VIOLATIONS.md
+*_FIXTURES.md
+VISUAL_GUIDELINES.md
+ROADMAP.md
 analysis_report*.txt
-CODE_ARCHITECTURE_VIOLATIONS.md
-CODE_STYLE_VIOLATIONS.md
-DESIGN_TOKENS_VIOLATIONS.md
 analyze_echo.py
 check_syntax.py
 format_reports.py
+menu_items.txt
 
-# Feature tracking and working docs (local only)
-SSMS_FEATURE_GAP.md
-GO_LIVE_PLAN.md
+# Agent planning and task directories
+.planning/
+TASKS/
 
 # OS-specific
 .DS_Store
