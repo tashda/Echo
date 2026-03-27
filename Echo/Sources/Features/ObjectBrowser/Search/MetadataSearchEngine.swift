@@ -1,18 +1,25 @@
 import Foundation
 
 /// Searches cached DatabaseStructure metadata across all active sessions.
-/// This is Tier 1 search — pure in-memory, no SQL queries, instant results.
-@MainActor
+/// This is Tier 1 search — pure in-memory, no SQL queries.
+/// Runs off MainActor via @concurrent async to avoid blocking the UI.
 enum MetadataSearchEngine {
 
-    /// Maximum results per category per database to avoid flooding.
+    /// Sendable snapshot of session data needed for search.
+    struct SessionSnapshot: Sendable {
+        let sessionID: UUID
+        let serverName: String
+        let databaseType: DatabaseType
+        let structure: DatabaseStructure
+    }
+
     private static let maxResultsPerCategoryPerDatabase = 50
     private static let maxColumnResults = 120
 
-    static func search(
+    @concurrent static func search(
         query: String,
         scope: SearchScope,
-        sessions: [ConnectionSession],
+        snapshots: [SessionSnapshot],
         categories: Set<SearchSidebarCategory>
     ) -> [GlobalSearchResult] {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -20,25 +27,19 @@ enum MetadataSearchEngine {
 
         var results: [GlobalSearchResult] = []
 
-        for session in sessions {
-            guard scope.includes(sessionID: session.id) else { continue }
-            guard let structure = session.databaseStructure else { continue }
+        for snapshot in snapshots {
+            guard scope.includes(sessionID: snapshot.sessionID) else { continue }
 
-            let serverName = session.connection.connectionName.isEmpty
-                ? session.connection.host
-                : session.connection.connectionName
-            let databaseType = session.connection.databaseType
-
-            for database in structure.databases {
-                guard scope.includes(sessionID: session.id, databaseName: database.name) else { continue }
+            for database in snapshot.structure.databases {
+                guard scope.includes(sessionID: snapshot.sessionID, databaseName: database.name) else { continue }
 
                 let dbResults = searchDatabase(
                     database: database,
                     query: normalizedQuery,
                     categories: categories,
-                    connectionSessionID: session.id,
-                    serverName: serverName,
-                    databaseType: databaseType
+                    connectionSessionID: snapshot.sessionID,
+                    serverName: snapshot.serverName,
+                    databaseType: snapshot.databaseType
                 )
                 results.append(contentsOf: dbResults)
             }

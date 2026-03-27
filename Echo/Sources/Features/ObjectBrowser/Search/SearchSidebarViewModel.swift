@@ -15,6 +15,7 @@ final class SearchSidebarViewModel {
     }
 
     var results: [GlobalSearchResult] = []
+    var groupedResultsCache: [ResultGroup] = []
     var isSearching: Bool = false
     var errorMessage: String?
 
@@ -137,6 +138,7 @@ final class SearchSidebarViewModel {
         results = cache.results
         isSearching = cache.isSearching
         errorMessage = cache.errorMessage
+        rebuildGroupedResults()
         isRestoring = false
     }
 
@@ -167,5 +169,56 @@ final class SearchSidebarViewModel {
     /// Resolves a session by ID from the current sessions list.
     func session(for connectionSessionID: UUID) -> ConnectionSession? {
         sessions.first { $0.id == connectionSessionID }
+    }
+
+    // MARK: - Result Grouping
+
+    struct ResultGroup: Identifiable {
+        let key: String
+        let displayTitle: String
+        let results: [GlobalSearchResult]
+        var id: String { key }
+    }
+
+    func rebuildGroupedResults() {
+        groupedResultsCache = Self.groupResults(results, sessionCount: sessions.count)
+    }
+
+    static func groupResults(_ results: [GlobalSearchResult], sessionCount: Int) -> [ResultGroup] {
+        guard !results.isEmpty else { return [] }
+
+        let multiServer = sessionCount > 1
+        let uniqueDatabases = Set(results.map(\.databaseName))
+        let multiDatabase = uniqueDatabases.count > 1
+
+        if multiServer {
+            let grouped = Dictionary(grouping: results) { result in
+                "\(result.serverName)|\(result.databaseName)|\(result.category.rawValue)"
+            }
+            var groups: [ResultGroup] = []
+            for (key, results) in grouped.sorted(by: { $0.key < $1.key }) {
+                guard let first = results.first else { continue }
+                let title = "\(first.serverName) > \(first.databaseName) — \(first.category.displayName)"
+                groups.append(ResultGroup(key: key, displayTitle: title, results: results))
+            }
+            return groups
+        } else if multiDatabase {
+            let grouped = Dictionary(grouping: results) { result in
+                "\(result.databaseName)|\(result.category.rawValue)"
+            }
+            var groups: [ResultGroup] = []
+            for (key, results) in grouped.sorted(by: { $0.key < $1.key }) {
+                guard let first = results.first else { continue }
+                let title = "\(first.databaseName) — \(first.category.displayName)"
+                groups.append(ResultGroup(key: key, displayTitle: title, results: results))
+            }
+            return groups
+        } else {
+            let grouped = Dictionary(grouping: results, by: \.category)
+            return SearchSidebarCategory.allCases.compactMap { category in
+                guard let results = grouped[category] else { return nil }
+                return ResultGroup(key: category.rawValue, displayTitle: category.displayName, results: results)
+            }
+        }
     }
 }

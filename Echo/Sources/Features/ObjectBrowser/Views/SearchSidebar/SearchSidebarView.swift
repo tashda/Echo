@@ -36,8 +36,6 @@ struct SearchSidebarView: View {
             viewModel.notifyQueryTabsChanged()
         }
         .onChange(of: environmentState.sessionGroup.sessions.map(\.id)) { _, _ in syncContext() }
-        .onChange(of: viewModel.selectedCategories) { _, _ in cacheState() }
-        .onChange(of: viewModel.scope) { _, _ in cacheState() }
         .onChange(of: tabStore.tabs.map(\.id)) { _, _ in
             viewModel.notifyQueryTabsChanged()
         }

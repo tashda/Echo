@@ -2,8 +2,24 @@ import SwiftUI
 
 extension SearchSidebarView {
 
-    @ViewBuilder
+    /// Content uses a stable ZStack so the view tree structure never changes
+    /// when switching between placeholder and results. This prevents structural
+    /// identity changes that would propagate up and destroy @FocusState in the
+    /// search bar (which lives in the parent's safeAreaInset).
     var content: some View {
+        ZStack {
+            if !viewModel.groupedResultsCache.isEmpty {
+                resultsList
+            }
+
+            if let placeholder = placeholderContent {
+                placeholder
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var placeholderContent: (some View)? {
         if !viewModel.hasSessions {
             ContentUnavailableView(
                 "No Connections",
@@ -22,11 +38,11 @@ extension SearchSidebarView {
                 systemImage: "magnifyingglass",
                 description: Text("Enter at least \(viewModel.minimumSearchLength) characters to see results.")
             )
-        } else if viewModel.isSearching && viewModel.results.isEmpty {
+        } else if viewModel.isSearching && viewModel.groupedResultsCache.isEmpty {
             ProgressView()
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, SpacingTokens.xl)
-        } else if let error = viewModel.errorMessage, viewModel.results.isEmpty {
+        } else if let error = viewModel.errorMessage, viewModel.groupedResultsCache.isEmpty {
             ContentUnavailableView {
                 Label("Search Failed", systemImage: "exclamationmark.triangle")
             } description: {
@@ -34,17 +50,15 @@ extension SearchSidebarView {
             } actions: {
                 Button("Try Again") { viewModel.retryLastSearch() }
             }
-        } else if viewModel.results.isEmpty {
+        } else if viewModel.groupedResultsCache.isEmpty && viewModel.trimmedQuery.count >= viewModel.minimumSearchLength && !viewModel.isSearching {
             ContentUnavailableView.search(text: viewModel.trimmedQuery)
-        } else {
-            resultsList
         }
     }
 
     var resultsList: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: SpacingTokens.xs, pinnedViews: .sectionHeaders) {
-                ForEach(groupedResults, id: \.key) { group in
+                ForEach(viewModel.groupedResultsCache, id: \.key) { group in
                     Section {
                         VStack(spacing: 0) {
                             ForEach(group.results) { result in
@@ -79,51 +93,6 @@ extension SearchSidebarView {
         .coordinateSpace(name: SearchSidebarConstants.scrollSpace)
     }
 
-    struct ResultGroup: Identifiable {
-        let key: String
-        let displayTitle: String
-        let results: [GlobalSearchResult]
-        var id: String { key }
-    }
-
-    var groupedResults: [ResultGroup] {
-        let multiServer = viewModel.sessions.count > 1
-        let uniqueDatabases = Set(viewModel.results.map(\.databaseName))
-        let multiDatabase = uniqueDatabases.count > 1
-
-        if multiServer {
-            // Multi-server: "ServerName > DatabaseName — Category"
-            let grouped = Dictionary(grouping: viewModel.results) { result in
-                "\(result.serverName)|\(result.databaseName)|\(result.category.rawValue)"
-            }
-            var groups: [ResultGroup] = []
-            for (key, results) in grouped.sorted(by: { $0.key < $1.key }) {
-                guard let first = results.first else { continue }
-                let title = "\(first.serverName) > \(first.databaseName) — \(first.category.displayName)"
-                groups.append(ResultGroup(key: key, displayTitle: title, results: results))
-            }
-            return groups
-        } else if multiDatabase {
-            // Single server, multi-database: "DatabaseName — Category"
-            let grouped = Dictionary(grouping: viewModel.results) { result in
-                "\(result.databaseName)|\(result.category.rawValue)"
-            }
-            var groups: [ResultGroup] = []
-            for (key, results) in grouped.sorted(by: { $0.key < $1.key }) {
-                guard let first = results.first else { continue }
-                let title = "\(first.databaseName) — \(first.category.displayName)"
-                groups.append(ResultGroup(key: key, displayTitle: title, results: results))
-            }
-            return groups
-        } else {
-            // Single server, single database: "Category"
-            let grouped = Dictionary(grouping: viewModel.results, by: \.category)
-            return SearchSidebarCategory.allCases.compactMap { category in
-                guard let results = grouped[category] else { return nil }
-                return ResultGroup(key: category.rawValue, displayTitle: category.displayName, results: results)
-            }
-        }
-    }
 
     /// Bridge a GlobalSearchResult to SearchSidebarResult for the existing SearchResultRow view.
     func resultToLegacy(_ result: GlobalSearchResult) -> SearchSidebarResult {

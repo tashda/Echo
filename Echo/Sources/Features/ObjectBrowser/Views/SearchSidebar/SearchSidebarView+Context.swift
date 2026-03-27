@@ -16,18 +16,14 @@ extension SearchSidebarView {
         viewModel.restore(from: cache)
     }
 
+    /// Persists the full search state to EnvironmentState on disappear only.
+    /// Never called during active interaction — writing to the parent @Observable
+    /// mid-interaction causes cascading re-renders that destroy @FocusState.
     func persistCache() {
         guard didRestoreCache, !viewModel.isRestoringState else { return }
         let snapshot = viewModel.snapshot()
         if environmentState.searchSidebarCache != snapshot {
             environmentState.searchSidebarCache = snapshot
         }
-    }
-
-    /// Cache only durable settings (filters, scope) — not transient state like query text
-    /// or results, which change on every keystroke and would cause parent view re-renders
-    /// that destroy @FocusState.
-    func cacheState() {
-        persistCache()
     }
 }

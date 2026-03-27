@@ -71,10 +71,11 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
         try Task.checkCancellation()
 
         // Local accumulator — databases are collected here without triggering
-        // @Observable mutations. A single applyStructureUpdate happens at the end.
+        // per-database @Observable mutations. Batched updates every 50 databases.
         var accumulatedDatabases = connectionSession.databaseStructure?.databases
             ?? connectionSession.connection.cachedStructure?.databases
             ?? []
+        var pendingCount = 0
 
         do {
             let structure = try await fetcher.fetchStructure(
@@ -91,7 +92,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                     }
                 },
                 databaseHandler: { database, _, _ in
-                    // Accumulate locally — no @Observable mutation, no sidebar re-render.
+                    // Accumulate locally to avoid per-database re-renders.
                     if let index = accumulatedDatabases.firstIndex(where: { $0.name == database.name }) {
                         let merged = Self.mergeDatabaseInfo(partial: database, existing: accumulatedDatabases[index])
                         accumulatedDatabases[index] = merged
@@ -101,6 +102,18 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                         accumulatedDatabases.append(merged)
                     }
                     self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: accumulatedDatabases)
+
+                    // Apply a batched update every 50 databases for progressive UI feedback.
+                    // This gives the sidebar visible database headers without 245 individual re-renders.
+                    pendingCount += 1
+                    if pendingCount >= 50 {
+                        let batchStructure = DatabaseStructure(
+                            serverVersion: interimServerVersion ?? connectionSession.databaseStructure?.serverVersion,
+                            databases: accumulatedDatabases
+                        )
+                        self.applyStructureUpdate(batchStructure, to: connectionSession, cacheResult: false)
+                        pendingCount = 0
+                    }
                 }
             )
 

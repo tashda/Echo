@@ -10,6 +10,7 @@ extension SearchSidebarViewModel {
 
         guard !searchText.isEmpty else {
             results = []
+            groupedResultsCache = []
             isSearching = false
             searchTask = nil
             return
@@ -17,6 +18,7 @@ extension SearchSidebarViewModel {
 
         guard searchText.count >= minimumSearchLength else {
             results = []
+            groupedResultsCache = []
             isSearching = false
             searchTask = nil
             return
@@ -24,6 +26,7 @@ extension SearchSidebarViewModel {
 
         guard hasSelectedCategories else {
             results = []
+            groupedResultsCache = []
             isSearching = false
             searchTask = nil
             return
@@ -33,43 +36,62 @@ extension SearchSidebarViewModel {
         let metadataCategories = Set(categories.filter { $0 != .queryTabs })
         let shouldSearchQueryTabs = categories.contains(.queryTabs)
         let currentScope = scope
-        let currentSessions = sessions
+        let sessionCount = sessions.count
         let tabSnapshots = queryTabProvider()
 
-        // Tier 1: In-memory metadata search (instant, no debounce)
-        if !metadataCategories.isEmpty && !currentSessions.isEmpty {
-            let metadataResults = MetadataSearchEngine.search(
-                query: searchText,
-                scope: currentScope,
-                sessions: currentSessions,
-                categories: metadataCategories
+        // Snapshot session data for Sendable boundary crossing
+        let snapshots: [MetadataSearchEngine.SessionSnapshot] = sessions.compactMap { session in
+            guard let structure = session.databaseStructure else { return nil }
+            let serverName = session.connection.connectionName.isEmpty
+                ? session.connection.host
+                : session.connection.connectionName
+            return MetadataSearchEngine.SessionSnapshot(
+                sessionID: session.id,
+                serverName: serverName,
+                databaseType: session.connection.databaseType,
+                structure: structure
             )
-            results = metadataResults
-        } else {
-            results = []
         }
 
-        // Tier 1.5: Query tab search (needs debounce since it reads SQL content)
-        if shouldSearchQueryTabs {
-            isSearching = true
-            searchTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: 150_000_000) // 150ms debounce
-                guard !Task.isCancelled, let self else { return }
+        isSearching = true
 
-                let tabResults = self.searchQueryTabs(with: searchText, snapshots: tabSnapshots)
+        searchTask = Task {
+            // 50ms debounce — prevents per-keystroke work
+            try? await Task.sleep(for: .milliseconds(50))
+            guard !Task.isCancelled else { return }
 
-                await MainActor.run {
-                    // Append tab results to existing metadata results
-                    var combined = self.results.filter { $0.category != .queryTabs }
+            // Tier 1: metadata search (off MainActor via @concurrent async)
+            var combined: [GlobalSearchResult] = []
+            if !metadataCategories.isEmpty && !snapshots.isEmpty {
+                let metadataResults = await MetadataSearchEngine.search(
+                    query: searchText,
+                    scope: currentScope,
+                    snapshots: snapshots,
+                    categories: metadataCategories
+                )
+                guard !Task.isCancelled else { return }
+                combined = metadataResults
+            }
+
+            // Update results immediately with metadata hits
+            self.results = combined
+            self.groupedResultsCache = Self.groupResults(combined, sessionCount: sessionCount)
+
+            // Tier 1.5: query tab search (additional 100ms debounce)
+            if shouldSearchQueryTabs {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled else { return }
+
+                let tabResults = searchQueryTabs(with: searchText, snapshots: tabSnapshots)
+                if !tabResults.isEmpty {
                     combined.append(contentsOf: tabResults)
                     self.results = combined
-                    self.isSearching = false
-                    self.searchTask = nil
+                    self.groupedResultsCache = Self.groupResults(combined, sessionCount: sessionCount)
                 }
             }
-        } else {
-            isSearching = false
-            searchTask = nil
+
+            self.isSearching = false
+            self.searchTask = nil
         }
     }
 
@@ -85,7 +107,6 @@ extension SearchSidebarViewModel {
             let sqlMatchRange = snapshot.sql.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive])
             guard titleMatch || sqlMatchRange != nil else { return nil }
 
-            // Resolve server name from sessions
             let session = sessions.first { $0.id == snapshot.connectionSessionID }
             let serverName: String = {
                 guard let session else { return "Unknown" }
@@ -95,17 +116,14 @@ extension SearchSidebarViewModel {
             let databaseType = session?.connection.databaseType ?? .postgresql
 
             let snippet: String? = {
-                if let match = sqlMatchRange {
-                    return ObjectSearchProvider.makeSnippet(from: snapshot.sql, matching: trimmed, radius: 100)
-                        ?? fallbackSnippet(for: snapshot.sql, matching: trimmed, around: match)
+                if sqlMatchRange != nil {
+                    return SearchSnippetGenerator.makeSnippet(from: snapshot.sql, matching: trimmed, radius: 100)
                 }
                 if !snapshot.sql.isEmpty {
                     let candidate = snapshot.sql.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !candidate.isEmpty else { return nil }
                     let limit = 160
-                    if candidate.count <= limit {
-                        return candidate
-                    }
+                    if candidate.count <= limit { return candidate }
                     let index = candidate.index(candidate.startIndex, offsetBy: limit, limitedBy: candidate.endIndex) ?? candidate.endIndex
                     return String(candidate[..<index]) + "…"
                 }
@@ -125,31 +143,6 @@ extension SearchSidebarViewModel {
                 payload: .queryTab(tabID: snapshot.tabID, connectionSessionID: snapshot.connectionSessionID)
             )
         }
-    }
-
-    internal func fallbackSnippet(
-        for sql: String,
-        matching query: String,
-        around range: Range<String.Index>
-    ) -> String? {
-        guard !sql.isEmpty else { return nil }
-        let radius = 120
-        let lowerBound = sql.index(range.lowerBound, offsetBy: -radius, limitedBy: sql.startIndex) ?? sql.startIndex
-        let upperBound = sql.index(range.upperBound, offsetBy: radius, limitedBy: sql.endIndex) ?? sql.endIndex
-        var snippet = String(sql[lowerBound..<upperBound])
-        snippet = snippet.replacingOccurrences(of: "\n", with: " ")
-        snippet = snippet.replacingOccurrences(of: "\r", with: " ")
-        while snippet.contains("  ") {
-            snippet = snippet.replacingOccurrences(of: "  ", with: " ")
-        }
-        snippet = snippet.trimmingCharacters(in: .whitespacesAndNewlines)
-        if lowerBound > sql.startIndex {
-            snippet = "…" + snippet
-        }
-        if upperBound < sql.endIndex {
-            snippet += "…"
-        }
-        return snippet
     }
 
     internal func cancelSearch() {
