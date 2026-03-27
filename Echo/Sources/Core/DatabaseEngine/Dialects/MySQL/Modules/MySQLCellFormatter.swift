@@ -1,5 +1,5 @@
 import Foundation
-import MySQLNIO
+import MySQLWire
 import NIOCore
 
 internal struct MySQLCellFormatter {

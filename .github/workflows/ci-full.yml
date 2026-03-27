@@ -129,7 +129,7 @@ jobs:
       run: |
         find . -maxdepth 1 -name "TestResults-integration*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
-          -scheme Echo -testPlan DatabaseIntegrationTests \
+          -scheme Echo -testPlan IntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
           -disable-concurrent-destination-testing \
@@ -147,86 +147,10 @@ jobs:
         name: test-results-integration
         path: TestResults-integration.xcresult
 
-  extended-integration:
-    name: "Step 4: Extended Integration Tests"
-    needs: integration-tests
-    runs-on: [self-hosted, echo-test-server]
-    env:
-      DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
-      USE_DOCKER: "1"
-      ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/checkout@v4
-      with:
-        repository: tashda/sqlserver-nio
-        ref: dev
-        path: vendor/sqlserver-nio
-    - uses: actions/checkout@v4
-      with:
-        repository: tashda/postgres-wire
-        ref: dev
-        path: vendor/postgres-wire
-    - name: Kill stale processes
-      run: |
-        pkill -9 -f xcodebuild 2>/dev/null || true
-        pkill -9 -f Echo.app 2>/dev/null || true
-        pkill -9 -f swift-frontend 2>/dev/null || true
-        sleep 3
-        rm -rf DerivedData-Echo 2>/dev/null || true
-
-    - name: Prepare environment
-      run: |
-        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security set-keychain-settings ~/Library/Keychains/login.keychain-db
-        security set-key-partition-list -S apple-tool:,apple:,codesign:,teamid:,apple-events: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-        defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
-        defaults write com.apple.linkd autoShortcut -bool false 2>/dev/null || true
-        defaults write NSGlobalDomain NSAppSleepDisabled -bool YES 2>/dev/null || true
-    - name: Verify Docker
-      run: |
-        export PATH="/usr/local/bin:$PATH"
-        if ! /usr/local/bin/colima status > /dev/null 2>&1; then
-          /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
-        fi
-        docker info > /dev/null 2>&1
-    - name: Ensure PostgreSQL client tools
-      run: |
-        brew list libpq >/dev/null 2>&1 || brew install libpq
-        LIBPQ_BIN="$(brew --prefix libpq)/bin"
-        echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
-        echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
-    - name: Bootstrap database fixtures
-      run: |
-        chmod +x .github/scripts/bootstrap-db-fixtures.sh
-        .github/scripts/bootstrap-db-fixtures.sh all
-    - name: Run Extended Integration Tests
-      run: |
-        find . -maxdepth 1 -name "TestResults-extended*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
-          -scheme Echo -testPlan ExtendedIntegrationTests \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-extended \
-          -disable-concurrent-destination-testing \
-          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
-    - name: Verify Results
-      if: always()
-      run: |
-        python3 .github/scripts/verify_xcresult.py \
-          --path TestResults-extended.xcresult \
-          --label "Extended integration tests" --min-executed 1
-    - name: Upload Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-extended
-        path: TestResults-extended.xcresult
-
-  # ── Step 5: Compatibility Matrix ─────────────────────────────────────────
+  # ── Step 4: Compatibility Matrix ─────────────────────────────────────────
 
   mssql-compatibility:
-    name: "Step 5: ${{ matrix.db }}"
+    name: "Step 4: ${{ matrix.db }}"
     needs: integration-tests
     runs-on: [self-hosted, echo-test-server]
     strategy:
@@ -312,7 +236,7 @@ jobs:
         path: "TestResults-*.xcresult"
 
   postgres-compatibility:
-    name: "Step 5: Postgres ${{ matrix.version }}"
+    name: "Step 4: Postgres ${{ matrix.version }}"
     needs: integration-tests
     runs-on: [self-hosted, echo-test-server]
     strategy:
@@ -381,9 +305,9 @@ jobs:
   # ── Step 6: Production Build & Release ───────────────────────────────────
 
   release:
-    name: "Step 6: Production Build & Release"
+    name: "Step 5: Production Build & Release"
     runs-on: macos-26
-    needs: [unit-tests, integration-tests, extended-integration, mssql-compatibility, postgres-compatibility]
+    needs: [unit-tests, integration-tests, mssql-compatibility, postgres-compatibility]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write

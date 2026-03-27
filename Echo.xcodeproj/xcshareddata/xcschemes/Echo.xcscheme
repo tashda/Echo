@@ -11,7 +11,7 @@
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
             <ActionContent
                title = "Update SPM Packages"
-               scriptText = "export SRCROOT=&quot;${SRCROOT}&quot;&#10;&quot;${SRCROOT}/scripts/update-packages.sh&quot; 2&gt;&amp;1 || true"
+               scriptText = "export SRCROOT=&quot;${SRCROOT}&quot;&#10;&quot;${SRCROOT}/.github/scripts/update-packages.sh&quot; 2&gt;&amp;1 || true"
                shellToInvoke = "/bin/bash">
                <EnvironmentBuildable>
                   <BuildableReference
@@ -57,12 +57,6 @@
          </TestPlanReference>
          <TestPlanReference
             reference = "container:IntegrationTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:DatabaseIntegrationTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:ExtendedIntegrationTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
             reference = "container:MSSQLCompatibilityTests.xctestplan">

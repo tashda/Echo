@@ -141,7 +141,7 @@ jobs:
         find . -maxdepth 1 -name "TestResults-integration*" -exec rm -rf {} + 2>/dev/null || true
         xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
           -scheme Echo \
-          -testPlan DatabaseIntegrationTests \
+          -testPlan IntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-integration \
           -disable-concurrent-destination-testing \

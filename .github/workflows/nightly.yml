@@ -64,7 +64,7 @@ jobs:
         rm -rf TestResults-extended-integration TestResults-extended-integration.xcresult
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
-          -testPlan ExtendedIntegrationTests \
+          -testPlan IntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-extended-integration \
           -disable-concurrent-destination-testing \

@@ -70,13 +70,6 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
         try Task.checkCancellation()
 
-        // Local accumulator — databases are collected here without triggering
-        // per-database @Observable mutations. Batched updates every 50 databases.
-        var accumulatedDatabases = connectionSession.databaseStructure?.databases
-            ?? connectionSession.connection.cachedStructure?.databases
-            ?? []
-        var pendingCount = 0
-
         do {
             let structure = try await fetcher.fetchStructure(
                 for: connectionSession.connection,
@@ -92,28 +85,29 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                     }
                 },
                 databaseHandler: { database, _, _ in
-                    // Accumulate locally to avoid per-database re-renders.
-                    if let index = accumulatedDatabases.firstIndex(where: { $0.name == database.name }) {
-                        let merged = Self.mergeDatabaseInfo(partial: database, existing: accumulatedDatabases[index])
-                        accumulatedDatabases[index] = merged
+                    // Apply each database update immediately so the sidebar shows
+                    // content as soon as it's available. The version counter on
+                    // DatabaseStructure makes each equality check O(1).
+                    var databases = connectionSession.databaseStructure?.databases
+                        ?? connectionSession.connection.cachedStructure?.databases
+                        ?? []
+                    if let index = databases.firstIndex(where: { $0.name == database.name }) {
+                        let merged = Self.mergeDatabaseInfo(partial: database, existing: databases[index])
+                        databases[index] = merged
                     } else {
                         let fallbackExisting = connectionSession.connection.cachedStructure?.databases.first(where: { $0.name == database.name })
                         let merged = Self.mergeDatabaseInfo(partial: database, existing: fallbackExisting)
-                        accumulatedDatabases.append(merged)
+                        databases.append(merged)
+                        databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                     }
-                    self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: accumulatedDatabases)
 
-                    // Apply a batched update every 50 databases for progressive UI feedback.
-                    // This gives the sidebar visible database headers without 245 individual re-renders.
-                    pendingCount += 1
-                    if pendingCount >= 50 {
-                        let batchStructure = DatabaseStructure(
-                            serverVersion: interimServerVersion ?? connectionSession.databaseStructure?.serverVersion,
-                            databases: accumulatedDatabases
-                        )
-                        self.applyStructureUpdate(batchStructure, to: connectionSession, cacheResult: false)
-                        pendingCount = 0
-                    }
+                    let resolvedServerVersion = interimServerVersion
+                        ?? connectionSession.databaseStructure?.serverVersion
+                        ?? connectionSession.connection.cachedStructure?.serverVersion
+
+                    let updatedStructure = DatabaseStructure(serverVersion: resolvedServerVersion, databases: databases)
+                    self.applyStructureUpdate(updatedStructure, to: connectionSession, cacheResult: false)
+                    self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
                 }
             )
 
@@ -121,15 +115,15 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                 interimServerVersion = serverVersion
             }
 
-            // Merge fetcher results into accumulated databases
+            // Merge fetcher results into existing structure
+            var mergedDatabases = connectionSession.databaseStructure?.databases ?? []
             for db in structure.databases {
-                if let index = accumulatedDatabases.firstIndex(where: { $0.name == db.name }) {
-                    accumulatedDatabases[index] = Self.mergeDatabaseInfo(partial: db, existing: accumulatedDatabases[index])
+                if let index = mergedDatabases.firstIndex(where: { $0.name == db.name }) {
+                    mergedDatabases[index] = Self.mergeDatabaseInfo(partial: db, existing: mergedDatabases[index])
                 } else {
-                    accumulatedDatabases.append(db)
+                    mergedDatabases.append(db)
                 }
             }
-            var mergedDatabases = accumulatedDatabases
 
             // For non-MSSQL, list all databases and add empty entries for unlisted ones.
             // MSSQL already fetches the full database list with state in its fetcher.

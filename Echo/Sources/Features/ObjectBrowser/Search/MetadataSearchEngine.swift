@@ -21,7 +21,7 @@ enum MetadataSearchEngine {
         scope: SearchScope,
         snapshots: [SessionSnapshot],
         categories: Set<SearchSidebarCategory>
-    ) -> [GlobalSearchResult] {
+    ) async -> [GlobalSearchResult] {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard normalizedQuery.count >= 2 else { return [] }
 

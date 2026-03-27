@@ -1,6 +1,5 @@
 import Foundation
-import MySQLNIO
-import NIOCore
+import MySQLWire
 
 extension MySQLSession {
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
@@ -114,7 +113,7 @@ extension MySQLSession {
             throw DatabaseError.queryError("MySQL does not support synonyms")
         }
 
-        let rows = try await connection.simpleQuery(sql).get()
+        let rows = try await client.query.simpleQuery(sql)
         guard let row = rows.first else {
             throw DatabaseError.queryError("Definition not found")
         }

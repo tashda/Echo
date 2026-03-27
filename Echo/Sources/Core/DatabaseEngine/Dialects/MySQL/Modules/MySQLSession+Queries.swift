@@ -1,7 +1,5 @@
 import Foundation
-import Logging
-import MySQLNIO
-import NIOCore
+import MySQLWire
 
 extension MySQLSession {
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -9,6 +7,10 @@ extension MySQLSession {
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        guard let progressHandler else {
+            return try await executeSimpleQuery(sql)
+        }
+
         var previewRows: [[String?]] = []
         previewRows.reserveCapacity(512)
         var totalRowCount = 0
@@ -19,135 +21,98 @@ extension MySQLSession {
 
         var columnMetadata: [MySQLProtocol.ColumnDefinition41] = []
         var columnInfo: [ColumnInfo] = []
-        var encounteredError: Error?
-        var wasCancelled = false
         var worker: ResultStreamBatchWorker?
-
-        let future = connection.simpleQuery(sql) { row in
-            if Task.isCancelled {
-                wasCancelled = true
-                return
-            }
-
-            if columnMetadata.isEmpty {
-                columnMetadata = row.columnDefinitions
-            }
-
-            if columnInfo.isEmpty, !columnMetadata.isEmpty {
-                columnInfo = columnMetadata.map { column in
-                    let typeName = String(describing: column.columnType).lowercased()
-                    let dataType: String
-                    if typeName.hasPrefix("mysql_type_") {
-                        dataType = String(typeName.dropFirst("mysql_type_".count))
-                    } else {
-                        dataType = typeName
-                    }
-                    
-                    return ColumnInfo(
-                        name: column.name,
-                        dataType: dataType,
-                        isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
-                        isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
-                        maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
-                    )
-                }
-            }
-
-            if worker == nil, let handler = progressHandler, !columnInfo.isEmpty {
-                let bridgedHandler: QueryProgressHandler = { update in
-                    Task { @MainActor in
-                        handler(update)
-                    }
-                }
-                worker = ResultStreamBatchWorker(
-                    label: "dk.tippr.echo.mysql.streamWorker",
-                    columns: columnInfo,
-                    streamingPreviewLimit: streamingPreviewLimit,
-                    maxFlushLatency: maxFlushLatency,
-                    operationStart: operationStart,
-                    progressHandler: bridgedHandler
-                )
-            }
-
-            let capturePreview = totalRowCount < streamingPreviewLimit
-            var previewValues: [String?]? = capturePreview ? [] : nil
-            previewValues?.reserveCapacity(columnMetadata.count)
-            var rawCells: [Data?] = []
-            rawCells.reserveCapacity(columnMetadata.count)
-
-            let decodeStart = CFAbsoluteTimeGetCurrent()
-            for (definition, buffer) in zip(columnMetadata, row.values) {
-                rawCells.append(self.rawCellData(from: buffer))
-                if capturePreview {
-                    let data = MySQLData(
-                        type: definition.columnType,
-                        format: row.format,
-                        buffer: buffer,
-                        isUnsigned: definition.flags.contains(.COLUMN_UNSIGNED)
-                    )
-                    previewValues?.append(self.formatter.stringValue(for: data))
-                }
-            }
-            let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
-
-            totalRowCount += 1
-            if let previewRow = previewValues {
-                if previewRows.count < streamingPreviewLimit {
-                    previewRows.append(previewRow)
-                }
-            }
-
-            let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
-
-            if let worker {
-                let payload = ResultStreamBatchWorker.Payload(
-                    previewValues: previewValues,
-                    storage: .encoded(encodedRow),
-                    totalRowCount: totalRowCount,
-                    decodeDuration: decodeDuration
-                )
-                worker.enqueue(payload)
+        let bridgedHandler: QueryProgressHandler = { update in
+            Task { @MainActor in
+                progressHandler(update)
             }
         }
 
         do {
-            try await future.get()
-        } catch {
-            encounteredError = error
-        }
+            let stream = try await client.query.stream(sql)
+            for try await row in stream {
+                try Task.checkCancellation()
 
-        worker?.finish(totalRowCount: totalRowCount)
+                if columnMetadata.isEmpty {
+                    columnMetadata = row.columnDefinitions
+                }
+                if columnInfo.isEmpty, !columnMetadata.isEmpty {
+                    columnInfo = makeColumnInfo(from: columnMetadata)
+                    worker = ResultStreamBatchWorker(
+                        label: "dk.tippr.echo.mysql.streamWorker",
+                        columns: columnInfo,
+                        streamingPreviewLimit: streamingPreviewLimit,
+                        maxFlushLatency: maxFlushLatency,
+                        operationStart: operationStart,
+                        progressHandler: bridgedHandler
+                    )
+                }
 
-        if wasCancelled {
+                let capturePreview = totalRowCount < streamingPreviewLimit
+                var previewValues: [String?]? = capturePreview ? [] : nil
+                previewValues?.reserveCapacity(columnMetadata.count)
+                var rawCells: [Data?] = []
+                rawCells.reserveCapacity(columnMetadata.count)
+
+                let decodeStart = CFAbsoluteTimeGetCurrent()
+                for (index, definition) in columnMetadata.enumerated() {
+                    let buffer = row.values[index]
+                    rawCells.append(rawCellData(from: buffer))
+                    if capturePreview {
+                        let data = MySQLData(
+                            type: definition.columnType,
+                            format: row.format,
+                            buffer: buffer,
+                            isUnsigned: definition.flags.contains(.COLUMN_UNSIGNED)
+                        )
+                        previewValues?.append(formatter.stringValue(for: data))
+                    }
+                }
+                let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
+
+                totalRowCount += 1
+                if let previewRow = previewValues, previewRows.count < streamingPreviewLimit {
+                    previewRows.append(previewRow)
+                }
+
+                let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
+                worker?.enqueue(
+                    ResultStreamBatchWorker.Payload(
+                        previewValues: previewValues,
+                        storage: .encoded(encodedRow),
+                        totalRowCount: totalRowCount,
+                        decodeDuration: decodeDuration
+                    )
+                )
+            }
+        } catch is CancellationError {
+            worker?.finish(totalRowCount: totalRowCount)
             throw CancellationError()
-        }
-
-        if let error = encounteredError {
+        } catch {
+            worker?.finish(totalRowCount: totalRowCount)
             throw DatabaseError.queryError(error.localizedDescription)
         }
 
-        if columnInfo.isEmpty, !columnMetadata.isEmpty {
-            columnInfo = columnMetadata.map { column in
-                let typeName = String(describing: column.columnType).lowercased()
-                let dataType: String
-                if typeName.hasPrefix("mysql_type_") {
-                    dataType = String(typeName.dropFirst("mysql_type_".count))
-                } else {
-                    dataType = typeName
-                }
-                
-                return ColumnInfo(
-                    name: column.name,
-                    dataType: dataType,
-                    isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
-                    isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
-                    maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
-                )
-            }
-        }
-
+        worker?.finish(totalRowCount: totalRowCount)
         let resolvedColumns = columnInfo.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columnInfo
         return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount)
+    }
+
+    func simpleQuery(
+        _ sql: String,
+        executionMode: ResultStreamingExecutionMode?,
+        progressHandler: QueryProgressHandler?
+    ) async throws -> QueryResultSet {
+        try await simpleQuery(sql, progressHandler: progressHandler)
+    }
+
+    private func executeSimpleQuery(_ sql: String) async throws -> QueryResultSet {
+        do {
+            let result = try await client.query.query(sql)
+            return makeResultSet(from: result.rows)
+        } catch {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
@@ -156,10 +121,7 @@ extension MySQLSession {
     }
 
     func listDatabases() async throws -> [String] {
-        let rows = try await connection.simpleQuery("SHOW DATABASES").get()
-        let excludedSchemas: Set<String> = ["information_schema", "mysql", "performance_schema", "sys"]
-        return rows.compactMap { makeString($0, index: 0)?.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty && !excludedSchemas.contains($0.lowercased()) }
+        try await client.metadata.listDatabases()
     }
 
     func listSchemas() async throws -> [String] {
@@ -173,147 +135,47 @@ extension MySQLSession {
     }
 
     public func currentDatabaseName() async throws -> String? {
-        let rows = try await connection.simpleQuery("SELECT DATABASE()").get()
-        guard let row = rows.first, let value = makeString(row, index: 0) else { return nil }
-        return value.isEmpty ? nil : value
+        try await client.session.currentDatabase()
     }
 
     @discardableResult
     internal func performQuery(_ sql: String, binds: [MySQLData] = []) async throws -> ([MySQLRow], MySQLQueryMetadata?) {
-        let renderedSQL: String
-        if binds.isEmpty {
-            renderedSQL = sql
-        } else {
-            renderedSQL = try renderSQL(sql, with: binds)
-        }
-
-        let rows = try await connection.simpleQuery(renderedSQL).get()
-        return (rows, nil)
+        let result = try await client.query.query(sql, binds: binds)
+        return (result.rows, result.metadata)
     }
 
-    private func renderSQL(_ sql: String, with binds: [MySQLData]) throws -> String {
-        var result = String()
-        result.reserveCapacity(sql.count + binds.count * 8)
-
-        enum QuoteContext {
-            case none
-            case single
-            case double
-            case backtick
-        }
-
-        var context: QuoteContext = .none
-        var bindIndex = 0
-        var index = sql.startIndex
-
-        while index < sql.endIndex {
-            let character = sql[index]
-
-            switch context {
-            case .none:
-                switch character {
-                case "'":
-                    context = .single
-                    result.append(character)
-                case "\"":
-                    context = .double
-                    result.append(character)
-                case "`":
-                    context = .backtick
-                    result.append(character)
-                case "?":
-                    guard bindIndex < binds.count else {
-                        throw DatabaseError.queryError("Missing bind value for placeholder in SQL: \(sql)")
-                    }
-                    result.append(try renderLiteral(from: binds[bindIndex]))
-                    bindIndex += 1
-                default:
-                    result.append(character)
-                }
-            case .single:
-                result.append(character)
-                if character == "'" {
-                    let next = sql.index(after: index)
-                    if next < sql.endIndex, sql[next] == "'" {
-                        index = next
-                        result.append(sql[index])
-                    } else {
-                        context = .none
-                    }
-                }
-            case .double:
-                result.append(character)
-                if character == "\"" {
-                    let next = sql.index(after: index)
-                    if next < sql.endIndex, sql[next] == "\"" {
-                        index = next
-                        result.append(sql[index])
-                    } else {
-                        context = .none
-                    }
-                }
-            case .backtick:
-                result.append(character)
-                if character == "`" {
-                    let next = sql.index(after: index)
-                    if next < sql.endIndex, sql[next] == "`" {
-                        index = next
-                        result.append(sql[index])
-                    } else {
-                        context = .none
-                    }
-                }
+    private func makeColumnInfo(from metadata: [MySQLProtocol.ColumnDefinition41]) -> [ColumnInfo] {
+        metadata.map { column in
+            let typeName = String(describing: column.columnType).lowercased()
+            let dataType: String
+            if typeName.hasPrefix("mysql_type_") {
+                dataType = String(typeName.dropFirst("mysql_type_".count))
+            } else {
+                dataType = typeName
             }
 
-            index = sql.index(after: index)
+            return ColumnInfo(
+                name: column.name,
+                dataType: dataType,
+                isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
+                isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
+                maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
+            )
         }
-
-        guard bindIndex == binds.count else {
-            throw DatabaseError.queryError("Too many bind values provided for SQL: \(sql)")
-        }
-
-        return result
     }
 
-    private func renderLiteral(from data: MySQLData) throws -> String {
-        if data.type == .null || data.buffer == nil {
-            return "NULL"
-        }
-
-        if let string = data.string {
-            return "'\(escapeStringLiteral(string))'"
-        }
-
-        if let int = data.int {
-            return String(int)
-        }
-
-        if let double = data.double {
-            return String(double)
-        }
-
-        if let bool = data.bool {
-            return bool ? "1" : "0"
-        }
-
-        throw DatabaseError.queryError("Unsupported bind parameter type for MySQL query: \(data)")
-    }
-
-    private func escapeStringLiteral(_ value: String) -> String {
-        var escaped = String()
-        escaped.reserveCapacity(value.count)
-
-        for character in value {
-            switch character {
-            case "'":
-                escaped.append("''")
-            case "\\":
-                escaped.append("\\\\")
-            default:
-                escaped.append(character)
+    private func makeResultSet(from rows: [MySQLRow]) -> QueryResultSet {
+        let columns = rows.first.map { makeColumnInfo(from: $0.columnDefinitions) } ?? []
+        let previewRows = rows.map { row in
+            row.values.indices.map { index in
+                makeString(row, index: index)
             }
         }
 
-        return escaped
+        return QueryResultSet(
+            columns: columns.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columns,
+            rows: previewRows,
+            totalRowCount: rows.count
+        )
     }
 }

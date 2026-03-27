@@ -1,6 +1,6 @@
 import Foundation
 
-enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable {
+enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable, Sendable {
     case tables
     case views
     case materializedViews
@@ -47,8 +47,8 @@ enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable {
     var defaultSelected: Bool { true }
 }
 
-struct SearchSidebarResult: Identifiable, Hashable {
-    enum Payload: Hashable {
+struct SearchSidebarResult: Identifiable, Hashable, Sendable {
+    enum Payload: Hashable, Sendable {
         case schemaObject(schema: String, name: String, type: SchemaObjectInfo.ObjectType)
         case column(schema: String, table: String, column: String)
         case index(schema: String, table: String, name: String)

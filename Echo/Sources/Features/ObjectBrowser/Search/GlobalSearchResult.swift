@@ -2,7 +2,7 @@ import Foundation
 
 /// A search result with full provenance — which server and database the result came from.
 /// Used by the global multi-connection search to display grouped results.
-struct GlobalSearchResult: Identifiable, Hashable {
+struct GlobalSearchResult: Identifiable, Hashable, Sendable {
     let id = UUID()
     let connectionSessionID: UUID
     let serverName: String

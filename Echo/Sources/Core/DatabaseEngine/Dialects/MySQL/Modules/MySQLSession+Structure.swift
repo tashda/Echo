@@ -1,5 +1,5 @@
 import Foundation
-import MySQLNIO
+import MySQLWire
 
 extension MySQLSession {
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {

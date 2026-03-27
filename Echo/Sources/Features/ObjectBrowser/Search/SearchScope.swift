@@ -1,7 +1,7 @@
 import Foundation
 
 /// Defines the scope of a search in the Search Sidebar.
-enum SearchScope: Hashable {
+enum SearchScope: Hashable, Sendable {
     /// Search across all connected servers.
     case allServers
     /// Search within a specific server connection.
