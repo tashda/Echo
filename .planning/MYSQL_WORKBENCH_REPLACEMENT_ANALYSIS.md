@@ -144,7 +144,8 @@ MySQL Workbench's table editor is its most-used feature. Users create and modify
 - Activity Monitor now has a typed MySQL dashboard, server variables browser, and process list backed by `mysql-wire`
 - maintenance commands now execute through `mysql-wire` admin APIs
 - a dedicated MySQL server properties tab now covers overview metrics, variable browsing/editing, and table-backed general/slow log viewing
-- deeper server-admin parity like file-backed error logs and broader configuration workflows remain outstanding
+- the server properties tab now also reads file-backed MySQL error/general/slow logs when those paths are configured, and exposes direct open/reveal actions for log files
+- broader configuration workflows remain outstanding
 
 #### What to Build
 

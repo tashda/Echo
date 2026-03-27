@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct MySQLServerLogsView: View {
@@ -21,11 +22,38 @@ struct MySQLServerLogsView: View {
                             .textSelection(.enabled)
                     }
                     .width(min: 260, ideal: 520)
+
+                    TableColumn("") { item in
+                        if let path = filePath(for: item) {
+                            HStack(spacing: SpacingTokens.xs) {
+                                Button("Open") {
+                                    NSWorkspace.shared.openFile(path)
+                                }
+                                .buttonStyle(.borderless)
+
+                                Button("Reveal") {
+                                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                    }
+                    .width(min: 90, ideal: 120)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
                 .tableColumnAutoResize()
                 .frame(minHeight: 180)
             }
+
+            Divider()
+
+            TabSectionToolbar {
+                Text("Error Log")
+                    .font(TypographyTokens.prominent.weight(.semibold))
+            }
+
+            logTable(viewModel.errorLogRows, emptyTitle: "No Error Log Rows", emptyMessage: "No readable error log entries were found from the configured MySQL error log path.")
+                .frame(minHeight: 180)
 
             Divider()
 
@@ -102,5 +130,18 @@ struct MySQLServerLogsView: View {
             title: row.summary,
             appState: appState
         )
+    }
+
+    private func filePath(for item: ServerPropertiesViewModel.PropertyItem) -> String? {
+        let lowered = item.name.lowercased()
+        guard lowered == "log_error" || lowered == "general_log_file" || lowered == "slow_query_log_file" else {
+            return nil
+        }
+
+        let path = NSString(string: item.value).expandingTildeInPath
+        guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else {
+            return nil
+        }
+        return path
     }
 }

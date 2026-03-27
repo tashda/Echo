@@ -37,6 +37,7 @@ final class ServerPropertiesViewModel {
     var overviewItems: [PropertyItem] = []
     var variables: [PropertyItem] = []
     var logDestinations: [PropertyItem] = []
+    var errorLogRows: [LogRow] = []
     var generalLogRows: [LogRow] = []
     var slowLogRows: [LogRow] = []
 
@@ -124,6 +125,7 @@ final class ServerPropertiesViewModel {
                 PropertyItem(id: $0.kind, name: $0.kind, value: $0.value)
             }
 
+            errorLogRows = []
             generalLogRows = []
             slowLogRows = []
 
@@ -131,6 +133,18 @@ final class ServerPropertiesViewModel {
             if logOutput.contains("TABLE") {
                 generalLogRows = try await loadLogRows(mysql: mysql, tableName: "general_log")
                 slowLogRows = try await loadLogRows(mysql: mysql, tableName: "slow_log")
+            }
+
+            if let errorLogPath = logPath(named: "log_error", in: destinations) {
+                errorLogRows = try loadFileLogRows(path: errorLogPath, kind: "error")
+            }
+
+            if generalLogRows.isEmpty, let generalLogPath = logPath(named: "general_log_file", in: destinations) {
+                generalLogRows = try loadFileLogRows(path: generalLogPath, kind: "general")
+            }
+
+            if slowLogRows.isEmpty, let slowLogPath = logPath(named: "slow_query_log_file", in: destinations) {
+                slowLogRows = try loadFileLogRows(path: slowLogPath, kind: "slow")
             }
             handle?.succeed()
         } catch {
@@ -161,6 +175,42 @@ final class ServerPropertiesViewModel {
                 details: details
             )
         }
+    }
+
+    private func logPath(named name: String, in destinations: [MySQLLogDestination]) -> String? {
+        destinations.first(where: { $0.kind.lowercased() == name.lowercased() })?
+            .value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+    }
+
+    private func loadFileLogRows(path: String, kind: String, limit: Int = 100) throws -> [LogRow] {
+        let normalizedPath = NSString(string: path).expandingTildeInPath
+        let contents = try String(contentsOfFile: normalizedPath, encoding: .utf8)
+        let lines = contents
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let tail = Array(lines.suffix(limit))
+
+        return tail.enumerated().map { offset, line in
+            LogRow(
+                id: "\(kind)-file-\(offset)-\(line.hashValue)",
+                timestamp: extractTimestamp(from: line) ?? "\u{2014}",
+                summary: line,
+                details: "Path: \(normalizedPath)\n\n\(line)"
+            )
+        }
+    }
+
+    private func extractTimestamp(from line: String) -> String? {
+        let parts = line.split(separator: " ", omittingEmptySubsequences: true)
+        guard let first = parts.first else { return nil }
+        let token = String(first)
+        if token.contains("-") || token.contains(":") || token.contains("T") {
+            return token
+        }
+        return nil
     }
 
     private func buildOverviewItems(
@@ -226,5 +276,11 @@ final class ServerPropertiesViewModel {
             handle?.fail(error.localizedDescription)
             panelState?.appendMessage("Failed to reset global variable \(variable.name): \(error.localizedDescription)", severity: .error)
         }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }
