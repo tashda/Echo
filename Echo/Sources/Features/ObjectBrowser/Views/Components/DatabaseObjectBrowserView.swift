@@ -15,8 +15,11 @@ struct DatabaseObjectBrowserView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(EnvironmentState.self) var environmentState
+    @Environment(ObjectBrowserSidebarViewModel.self) var viewModel
 
-    @State private var snapshotCache = ExplorerSnapshotCache()
+    @State private var snapshotData: SnapshotData = .empty
+    @State internal var showNewSequenceSheet = false
+    @State internal var showNewTriggerSheet = false
 
     private var supportedObjectTypes: [SchemaObjectInfo.ObjectType] {
         SchemaObjectInfo.ObjectType.supported(for: connection.databaseType)
@@ -76,13 +79,20 @@ struct DatabaseObjectBrowserView: View {
         }
     }
 
-    var body: some View {
-        let input = SnapshotInput(
-            database: database,
+    private var snapshotIdentity: SnapshotIdentity {
+        let totalObjects = database.schemas.reduce(0) { $0 + $1.objects.count }
+        return SnapshotIdentity(
+            databaseName: database.name,
+            schemaCount: database.schemas.count,
+            objectCount: totalObjects,
+            extensionCount: database.extensions.count,
             pinnedIDs: pinnedObjectIDs,
             supportedTypes: supportedObjectTypes
         )
-        let snapshot = snapshotCache.data
+    }
+
+    var body: some View {
+        let snapshot = snapshotData
 
         Group {
             if !snapshot.pinned.isEmpty {
@@ -93,9 +103,40 @@ struct DatabaseObjectBrowserView: View {
                 typeSection(type, snapshot.grouped[type] ?? [])
             }
         }
-        .onAppear { snapshotCache.update(with: input) }
-        .onChange(of: input) { _, newValue in
-            snapshotCache.update(with: newValue)
+        .task(id: snapshotIdentity) {
+            let db = database
+            let pins = pinnedObjectIDs
+            let types = supportedObjectTypes
+            let newData = await SnapshotBuilder.buildData(from: db, pinnedIDs: pins, supportedTypes: types)
+            if newData != snapshotData {
+                snapshotData = newData
+            }
+        }
+        .sheet(isPresented: $showNewSequenceSheet) {
+            if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+                let schema = database.schemas.first?.name ?? "public"
+                NewSequenceSheet(session: session, schemaName: schema) {
+                    showNewSequenceSheet = false
+                    reloadSchema()
+                }
+            }
+        }
+        .sheet(isPresented: $showNewTriggerSheet) {
+            if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+                let schema = database.schemas.first?.name ?? "public"
+                NewTriggerSheet(session: session, schemaName: schema) {
+                    showNewTriggerSheet = false
+                    reloadSchema()
+                }
+            }
+        }
+    }
+
+    private func reloadSchema() {
+        if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+            Task {
+                await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
+            }
         }
     }
 }

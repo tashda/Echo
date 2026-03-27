@@ -3,7 +3,7 @@ import Foundation
 protocol DatabaseScriptProvider {
     func quoteIdentifier(_ identifier: String) -> String
     func qualifiedName(schema: String, name: String) -> String
-    func scriptActions(for objectType: SchemaObjectInfo.ObjectType) -> [DatabaseObjectRow.ScriptAction]
+    func scriptActions(for objectType: SchemaObjectInfo.ObjectType) -> [ScriptAction]
     func executeStatement(for objectType: SchemaObjectInfo.ObjectType, qualifiedName: String) -> String
     func truncateStatement(qualifiedName: String) -> String
     func renameStatement(for object: SchemaObjectInfo, qualifiedName: String, newName: String?) -> String?

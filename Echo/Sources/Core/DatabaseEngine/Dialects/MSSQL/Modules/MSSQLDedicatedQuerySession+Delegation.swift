@@ -33,12 +33,14 @@ extension MSSQLDedicatedQuerySession {
     func getObjectDefinition(
         objectName: String,
         schemaName: String,
-        objectType: SchemaObjectInfo.ObjectType
+        objectType: SchemaObjectInfo.ObjectType,
+        database: String? = nil
     ) async throws -> String {
         try await metadataSession.getObjectDefinition(
             objectName: objectName,
             schemaName: schemaName,
-            objectType: objectType
+            objectType: objectType,
+            database: database
         )
     }
 

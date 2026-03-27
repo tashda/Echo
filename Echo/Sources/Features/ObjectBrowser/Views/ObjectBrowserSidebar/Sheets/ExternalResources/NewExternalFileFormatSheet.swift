@@ -21,7 +21,17 @@ struct NewExternalFileFormatSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New External File Format",
+            icon: "doc.badge.gearshape",
+            subtitle: "Define a file format for external data sources.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await create() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("File Format") {
                     TextField("Name", text: $name, prompt: Text("e.g. MyParquetFormat"))
@@ -45,32 +55,6 @@ struct NewExternalFileFormatSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") {
-                    Task { await create() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canCreate)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 460, minHeight: 300)
         .frame(idealWidth: 500, idealHeight: 360)

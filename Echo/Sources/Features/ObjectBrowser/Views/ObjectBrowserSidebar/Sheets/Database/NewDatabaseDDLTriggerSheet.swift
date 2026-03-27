@@ -13,89 +13,139 @@ struct NewDatabaseDDLTriggerSheet: View {
     @State private var isCreating = false
     @State private var errorMessage: String?
 
+    private static let eventCategories: [(title: String, events: [(value: String, label: String)])] = [
+        ("Table", [
+            ("CREATE_TABLE", "Create Table"),
+            ("ALTER_TABLE", "Alter Table"),
+            ("DROP_TABLE", "Drop Table"),
+        ]),
+        ("View", [
+            ("CREATE_VIEW", "Create View"),
+            ("ALTER_VIEW", "Alter View"),
+            ("DROP_VIEW", "Drop View"),
+        ]),
+        ("Procedure", [
+            ("CREATE_PROCEDURE", "Create Procedure"),
+            ("ALTER_PROCEDURE", "Alter Procedure"),
+            ("DROP_PROCEDURE", "Drop Procedure"),
+        ]),
+        ("Function", [
+            ("CREATE_FUNCTION", "Create Function"),
+            ("ALTER_FUNCTION", "Alter Function"),
+            ("DROP_FUNCTION", "Drop Function"),
+        ]),
+        ("Trigger", [
+            ("CREATE_TRIGGER", "Create Trigger"),
+            ("ALTER_TRIGGER", "Alter Trigger"),
+            ("DROP_TRIGGER", "Drop Trigger"),
+        ]),
+        ("Index", [
+            ("CREATE_INDEX", "Create Index"),
+            ("ALTER_INDEX", "Alter Index"),
+            ("DROP_INDEX", "Drop Index"),
+        ]),
+        ("Schema", [
+            ("CREATE_SCHEMA", "Create Schema"),
+            ("ALTER_SCHEMA", "Alter Schema"),
+            ("DROP_SCHEMA", "Drop Schema"),
+        ]),
+        ("User", [
+            ("CREATE_USER", "Create User"),
+            ("ALTER_USER", "Alter User"),
+            ("DROP_USER", "Drop User"),
+        ]),
+        ("Role", [
+            ("CREATE_ROLE", "Create Role"),
+            ("ALTER_ROLE", "Alter Role"),
+            ("DROP_ROLE", "Drop Role"),
+        ]),
+        ("Event Groups", [
+            ("DDL_DATABASE_LEVEL_EVENTS", "DDL Database Level Events"),
+            ("DDL_TABLE_EVENTS", "DDL Table Events"),
+            ("DDL_VIEW_EVENTS", "DDL View Events"),
+            ("DDL_PROCEDURE_EVENTS", "DDL Procedure Events"),
+            ("DDL_FUNCTION_EVENTS", "DDL Function Events"),
+            ("DDL_DATABASE_SECURITY_EVENTS", "DDL Database Security Events"),
+        ]),
+    ]
+
     private var canCreate: Bool {
         Self.isCreateValid(name: name, selectedEvents: selectedEvents, body: triggerBody, isCreating: isCreating)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Database Trigger",
+            icon: "bolt",
+            subtitle: "Create a database-scoped DDL trigger that fires on schema changes.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await createTrigger() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
-                Section("Trigger Name") {
-                    TextField("", text: $name, prompt: Text("e.g. trg_audit_ddl"))
-                }
+                Section {
+                    PropertyRow(title: "Trigger Name") {
+                        TextField("", text: $name, prompt: Text("e.g. trg_audit_ddl"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
 
-                Section("Database") {
-                    Text(databaseName)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-
-                Section("DDL Events") {
-                    eventSelectionView
-                }
-
-                Section("Trigger Body") {
-                    TextEditor(text: $triggerBody)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 120)
-                        .overlay(alignment: .topLeading) {
-                            if triggerBody.isEmpty {
-                                Text("BEGIN\n    -- trigger body\nEND")
-                                    .font(.system(.body, design: .monospaced))
-                                    .foregroundStyle(ColorTokens.Text.quaternary)
-                                    .padding(.top, SpacingTokens.xxs)
-                                    .padding(.leading, SpacingTokens.xxs2)
-                                    .allowsHitTesting(false)
-                            }
-                        }
+                    PropertyRow(title: "Database") {
+                        Text(databaseName)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                 }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+            .fixedSize(horizontal: false, vertical: true)
 
-            Divider()
+            eventGrid
+                .padding(.horizontal, SpacingTokens.lg)
 
-            footerView
+            triggerBodyEditor
+                .padding(.horizontal, SpacingTokens.lg)
+                .padding(.top, SpacingTokens.md)
+                .padding(.bottom, SpacingTokens.sm)
         }
-        .frame(minWidth: 560, minHeight: 480)
-        .frame(idealWidth: 600, idealHeight: 540)
+        .frame(minWidth: 640, idealWidth: 700, minHeight: 560, idealHeight: 620)
     }
 
-    // MARK: - Subviews
+    // MARK: - Event Grid
 
-    private var eventSelectionView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                eventCategory("Table", events: ["CREATE_TABLE", "ALTER_TABLE", "DROP_TABLE"])
-                eventCategory("View", events: ["CREATE_VIEW", "ALTER_VIEW", "DROP_VIEW"])
-                eventCategory("Procedure", events: ["CREATE_PROCEDURE", "ALTER_PROCEDURE", "DROP_PROCEDURE"])
-                eventCategory("Function", events: ["CREATE_FUNCTION", "ALTER_FUNCTION", "DROP_FUNCTION"])
-                eventCategory("Trigger", events: ["CREATE_TRIGGER", "ALTER_TRIGGER", "DROP_TRIGGER"])
-                eventCategory("Index", events: ["CREATE_INDEX", "ALTER_INDEX", "DROP_INDEX"])
-                eventCategory("Schema", events: ["CREATE_SCHEMA", "ALTER_SCHEMA", "DROP_SCHEMA"])
-                eventCategory("User", events: ["CREATE_USER", "ALTER_USER", "DROP_USER"])
-                eventCategory("Role", events: ["CREATE_ROLE", "ALTER_ROLE", "DROP_ROLE"])
-                eventCategory("Event Groups", events: [
-                    "DDL_DATABASE_LEVEL_EVENTS",
-                    "DDL_TABLE_EVENTS",
-                    "DDL_VIEW_EVENTS",
-                    "DDL_PROCEDURE_EVENTS",
-                    "DDL_FUNCTION_EVENTS",
-                    "DDL_DATABASE_SECURITY_EVENTS"
-                ])
+    private var eventGrid: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            Text("DDL Events")
+                .font(TypographyTokens.formLabel.weight(.semibold))
+                .padding(.leading, SpacingTokens.xxs)
+
+            ScrollView {
+                LazyVGrid(
+                    columns: [GridItem(.flexible()), GridItem(.flexible())],
+                    alignment: .leading,
+                    spacing: SpacingTokens.lg
+                ) {
+                    ForEach(Self.eventCategories, id: \.title) { category in
+                        eventCategoryView(category.title, events: category.events)
+                    }
+                }
+                .padding(SpacingTokens.sm)
             }
-            .padding(.vertical, SpacingTokens.xxs)
+            .background(.quinary, in: .rect(cornerRadius: ShapeTokens.CornerRadius.medium))
         }
-        .frame(maxHeight: 200)
     }
 
-    private func eventCategory(_ title: String, events: [String]) -> some View {
+    private func eventCategoryView(_ title: String, events: [(value: String, label: String)]) -> some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Text(title)
                 .font(TypographyTokens.detail.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.secondary)
 
-            ForEach(events, id: \.self) { event in
-                Toggle(event, isOn: eventBinding(for: event))
+            ForEach(events, id: \.value) { event in
+                Toggle(event.label, isOn: eventBinding(for: event.value))
                     .toggleStyle(.checkbox)
                     .font(TypographyTokens.detail)
             }
@@ -111,30 +161,31 @@ struct NewDatabaseDDLTriggerSheet: View {
         )
     }
 
-    private var footerView: some View {
-        HStack {
-            if let error = errorMessage {
-                Text(error)
-                    .font(TypographyTokens.formDescription)
-                    .foregroundStyle(ColorTokens.Status.error)
-                    .lineLimit(2)
-            }
-            Spacer()
-            if isCreating {
-                ProgressView()
-                    .controlSize(.small)
-            }
-            Button("Cancel") { onDismiss() }
-                .buttonStyle(.bordered)
-                .keyboardShortcut(.cancelAction)
-            Button("Create") {
-                Task { await createTrigger() }
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!canCreate)
+    // MARK: - Trigger Body
+
+    private var triggerBodyEditor: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            Text("Trigger Body")
+                .font(TypographyTokens.formLabel.weight(.semibold))
+                .padding(.leading, SpacingTokens.xxs)
+
+            TextEditor(text: $triggerBody)
+                .font(TypographyTokens.code)
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 120)
+                .padding(SpacingTokens.xs)
+                .background(.quinary, in: .rect(cornerRadius: ShapeTokens.CornerRadius.medium))
+                .overlay(alignment: .topLeading) {
+                    if triggerBody.isEmpty {
+                        Text("BEGIN\n    -- trigger body\nEND")
+                            .font(TypographyTokens.code)
+                            .foregroundStyle(ColorTokens.Text.quaternary)
+                            .padding(.top, SpacingTokens.sm)
+                            .padding(.leading, SpacingTokens.sm)
+                            .allowsHitTesting(false)
+                    }
+                }
         }
-        .padding(SpacingTokens.md)
     }
 
     // MARK: - Validation (Internal for testability)

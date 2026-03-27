@@ -19,6 +19,8 @@ public enum TypographyTokens {
     public static let caption = SwiftUI.Font.system(.caption, design: .default)
     public static let footnote = SwiftUI.Font.system(.footnote, design: .default)
     public static let monospaced = SwiftUI.Font.system(.body, design: .monospaced)
+    /// Monospaced font for code editors (function bodies, SQL preview, etc.)
+    public static let code = SwiftUI.Font.system(size: 13, design: .monospaced)
 
     // Fixed-size styles for macOS UI where precise sizing matters
     /// 9pt — toolbar badges, compact indicators

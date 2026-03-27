@@ -10,27 +10,28 @@ extension ObjectBrowserSidebarView {
         let isExpanded = viewModel.expandedServerIDs.contains(connID)
         let isNewlyConnected = viewModel.recentlyConnectedIDs.contains(connID)
 
-        VStack(alignment: .leading, spacing: 0) {
-            serverSectionHeader(session: session, isExpanded: isExpanded)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if isExpanded {
-                serverContent(session: session, proxy: proxy)
-            }
-        }
-        .overlay(
-            StatusWaveOverlay(
-                color: ColorTokens.Status.success,
-                cornerRadius: SidebarRowConstants.hoverCornerRadius,
-                trigger: isNewlyConnected
+        // Emit header and content as separate LazyVStack children so expanding
+        // a database doesn't change the height of a single monolithic VStack child.
+        // This gives LazyVStack per-item height tracking for stable scrollbar behavior.
+        serverSectionHeader(session: session, isExpanded: isExpanded)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(
+                StatusWaveOverlay(
+                    color: ColorTokens.Status.success,
+                    cornerRadius: SidebarRowConstants.hoverCornerRadius,
+                    trigger: isNewlyConnected
+                )
             )
-        )
-        .task {
-            viewModel.initializeSessionState(for: session, autoExpandSections: projectStore.globalSettings.sidebarExpandSections(for: session.connection.databaseType))
-            if isNewlyConnected {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                viewModel.recentlyConnectedIDs.remove(connID)
+            .task {
+                viewModel.initializeSessionState(for: session, autoExpandSections: projectStore.globalSettings.sidebarExpandSections(for: session.connection.databaseType))
+                if isNewlyConnected {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                    viewModel.recentlyConnectedIDs.remove(connID)
+                }
             }
+
+        if isExpanded {
+            serverContent(session: session, proxy: proxy)
         }
     }
 
@@ -77,6 +78,40 @@ extension ObjectBrowserSidebarView {
         }
     }
 
+    // MARK: - Generic Tools (MySQL / SQLite)
+
+    @ViewBuilder
+    func genericToolsSection(session: ConnectionSession) -> some View {
+        let connID = session.connection.id
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+
+        Button {
+            environmentState.openMaintenanceTab(connectionID: connID)
+        } label: {
+            SidebarRow(
+                depth: 0,
+                icon: .system("wrench.and.screwdriver"),
+                label: "Maintenance",
+                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Maintenance", colored: colored)
+            )
+        }
+        .buttonStyle(.plain)
+
+        if session.connection.databaseType == .mysql {
+            Button {
+                environmentState.openActivityMonitorTab(connectionID: connID)
+            } label: {
+                SidebarRow(
+                    depth: 0,
+                    icon: .system("gauge.high"),
+                    label: "Activity Monitor",
+                    iconColor: ExplorerSidebarPalette.folderIconColor(title: "Activity Monitor", colored: colored)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     // MARK: - Server Content (Folder Groups)
 
     @ViewBuilder
@@ -97,6 +132,10 @@ extension ObjectBrowserSidebarView {
                     ssisSection(session: session)
                     linkedServersSection(session: session)
                     serverTriggersSection(session: session)
+                }
+
+                if session.connection.databaseType == .mysql || session.connection.databaseType == .sqlite {
+                    genericToolsSection(session: session)
                 }
             } else if session.databaseStructure != nil {
                 loadingHint()

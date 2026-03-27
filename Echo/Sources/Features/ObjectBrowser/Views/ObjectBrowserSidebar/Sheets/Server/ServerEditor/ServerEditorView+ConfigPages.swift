@@ -204,7 +204,7 @@ extension ServerEditorView {
         let subtitle = option.map { rangeDescription($0) }
         return PropertyRow(title: title, subtitle: subtitle, info: info) {
             HStack(spacing: SpacingTokens.xs) {
-                TextField("", value: viewModel.configBinding(for: configName), format: .number, prompt: Text("0"))
+                TextField("", value: configValueBinding(for: configName), format: .number, prompt: Text("0"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
@@ -245,6 +245,20 @@ extension ServerEditorView {
 
     private func rangeDescription(_ option: SQLServerConfigurationOption) -> String {
         "Range: \(option.minimum)–\(option.maximum)"
+    }
+
+    func configValueBinding(for configName: String) -> Binding<Int64> {
+        Binding(
+            get: { viewModel.configValue(for: configName) },
+            set: { newValue in
+                let original = viewModel.configurations.first(where: { $0.name == configName })?.configuredValue ?? 0
+                if newValue != original {
+                    viewModel.pendingChanges[configName] = newValue
+                } else {
+                    viewModel.pendingChanges.removeValue(forKey: configName)
+                }
+            }
+        )
     }
 
     private var loginAuditDescription: String {

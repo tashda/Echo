@@ -144,7 +144,7 @@ struct DatabasePropertiesSheet: View {
                     }
                     onDismiss()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.defaultAction)
             }
             .padding(SpacingTokens.md)

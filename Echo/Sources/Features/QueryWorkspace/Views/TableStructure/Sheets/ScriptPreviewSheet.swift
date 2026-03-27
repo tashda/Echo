@@ -52,6 +52,5 @@ struct ScriptPreviewSheet: View {
         }
         .padding(.horizontal, SpacingTokens.md2)
         .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
     }
 }

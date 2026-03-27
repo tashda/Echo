@@ -34,7 +34,7 @@ extension TableStructureEditorView {
     }
 
     private var foreignKeysTable: some View {
-        Table(of: TableStructureEditorViewModel.ForeignKeyModel.self, selection: $selectedForeignKeyIDs) {
+        Table(activeForeignKeys, selection: $selectedForeignKeyIDs) {
             TableColumn("Kind") { _ in
                 Text("FK")
                     .font(TypographyTokens.Table.kindBadge)
@@ -95,10 +95,6 @@ extension TableStructureEditorView {
                 }
             }
             .width(min: 80, ideal: 140)
-        } rows: {
-            ForEach(activeForeignKeys) { fk in
-                TableRow(fk)
-            }
         }
         .contextMenu(forSelectionType: TableStructureEditorViewModel.ForeignKeyModel.ID.self) { selection in
             foreignKeyContextMenu(for: selection)
@@ -110,7 +106,6 @@ extension TableStructureEditorView {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
-        .environment(\.defaultMinListRowHeight, 28)
     }
 
     @ViewBuilder
@@ -210,15 +205,14 @@ extension TableStructureEditorView {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
-        .environment(\.defaultMinListRowHeight, 28)
     }
 
     internal func presentNewForeignKey() {
         let model = viewModel.addForeignKey()
-        activeForeignKeyEditor = ForeignKeyEditorPresentation(foreignKeyID: model.id, isNew: true)
+        activeSheet = .foreignKey(ForeignKeyEditorPresentation(foreignKeyID: model.id, isNew: true))
     }
 
     private func presentForeignKeyEditor(for foreignKey: TableStructureEditorViewModel.ForeignKeyModel) {
-        activeForeignKeyEditor = ForeignKeyEditorPresentation(foreignKeyID: foreignKey.id, isNew: foreignKey.isNew)
+        activeSheet = .foreignKey(ForeignKeyEditorPresentation(foreignKeyID: foreignKey.id, isNew: foreignKey.isNew))
     }
 }

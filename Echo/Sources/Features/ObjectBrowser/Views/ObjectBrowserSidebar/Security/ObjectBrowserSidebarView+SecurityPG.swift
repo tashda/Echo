@@ -34,9 +34,9 @@ extension ObjectBrowserSidebarView {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
             Button {
-                viewModel.securityPGRoleSheetSessionID = connID
-                viewModel.securityPGRoleSheetEditName = nil
-                viewModel.showSecurityPGRoleSheet = true
+                sheetState.securityPGRoleSheetSessionID = connID
+                sheetState.securityPGRoleSheetEditName = nil
+                sheetState.showSecurityPGRoleSheet = true
             } label: {
                 Label("New Login Role", systemImage: "person.badge.plus")
             }
@@ -90,9 +90,9 @@ extension ObjectBrowserSidebarView {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
             Button {
-                viewModel.securityPGRoleSheetSessionID = connID
-                viewModel.securityPGRoleSheetEditName = nil
-                viewModel.showSecurityPGRoleSheet = true
+                sheetState.securityPGRoleSheetSessionID = connID
+                sheetState.securityPGRoleSheetEditName = nil
+                sheetState.showSecurityPGRoleSheet = true
             } label: {
                 Label("New Group Role", systemImage: "person.2.badge.plus")
             }
@@ -164,14 +164,14 @@ extension ObjectBrowserSidebarView {
 
             // Group 9: Destructive
             Button(role: .destructive) {
-                viewModel.dropSecurityPrincipalTarget = .init(
+                sheetState.dropSecurityPrincipalTarget = .init(
                     sessionID: session.id,
                     connectionID: session.connection.id,
                     name: role.name,
                     kind: .pgRole,
                     databaseName: nil
                 )
-                viewModel.showDropSecurityPrincipalAlert = true
+                sheetState.showDropSecurityPrincipalAlert = true
             } label: {
                 Label("Drop Role", systemImage: "trash")
             }
@@ -181,9 +181,9 @@ extension ObjectBrowserSidebarView {
 
             // Group 10: Properties — ALWAYS last
             Button {
-                viewModel.securityPGRoleSheetSessionID = session.connection.id
-                viewModel.securityPGRoleSheetEditName = role.name
-                viewModel.showSecurityPGRoleSheet = true
+                sheetState.securityPGRoleSheetSessionID = session.connection.id
+                sheetState.securityPGRoleSheetEditName = role.name
+                sheetState.showSecurityPGRoleSheet = true
             } label: {
                 Label("Properties", systemImage: "info.circle")
             }

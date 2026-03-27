@@ -72,7 +72,17 @@ struct NewDBAuditSpecSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Database Audit Specification",
+            icon: "checklist",
+            subtitle: "Create a database audit specification.",
+            primaryAction: "Create",
+            canSubmit: isFormValid,
+            isSubmitting: isSubmitting,
+            errorMessage: errorMessage,
+            onSubmit: { await submit() },
+            onCancel: { onComplete() }
+        ) {
             Form {
                 Section("General") {
                     PropertyRow(title: "Specification Name") {
@@ -181,38 +191,8 @@ struct NewDBAuditSpecSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack(spacing: SpacingTokens.sm) {
-                if isLoadingAudits {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                Button("Cancel") { onComplete() }
-                    .keyboardShortcut(.cancelAction)
-
-                Button("Create") { Task { await submit() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isFormValid)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-            .padding(.vertical, SpacingTokens.sm2)
-            .background(.bar)
         }
         .frame(minWidth: 500, idealWidth: 540, minHeight: 460)
-        .navigationTitle("New Database Audit Specification")
         .task { await loadAudits() }
     }
 

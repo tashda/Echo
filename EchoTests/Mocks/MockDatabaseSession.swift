@@ -98,7 +98,7 @@ final class MockDatabaseSession: DatabaseSession, DatabaseMetadataSession, @unch
         return try await getTableSchemaHandler(tableName, schemaName)
     }
 
-    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String? = nil) async throws -> String {
         getObjectDefinitionCallCount += 1
         return try await getObjectDefinitionHandler(objectName, schemaName, objectType)
     }

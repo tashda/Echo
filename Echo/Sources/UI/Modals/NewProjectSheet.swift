@@ -15,28 +15,32 @@ struct NewProjectSheet: View {
         "terminal.fill", "cpu.fill", "shippingbox.fill", "archivebox.fill"
     ]
 
+    private var canCreate: Bool {
+        !projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
-        VStack(spacing: SpacingTokens.xxxs) {
-            formContent
-            Divider()
-            footerButtons
+        SheetLayout(
+            title: "New Project",
+            icon: "folder.fill",
+            subtitle: "Create a project to organize your connections.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            onSubmit: { createProject() },
+            onCancel: { dismiss() }
+        ) {
+            Form {
+                Section {
+                    TextField("Name", text: $projectName, prompt: Text("Project name"))
+                    LabeledContent("Icon") { iconPaletteView }
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .scrollDisabled(true)
         }
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private var formContent: some View {
-        Form {
-            Section {
-                TextField("Name", text: $projectName, prompt: Text("Project name"))
-                LabeledContent("Icon") { iconPaletteView }
-            } header: {
-                Text("New Project")
-            }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .scrollDisabled(true)
     }
 
     private var iconPaletteView: some View {
@@ -60,19 +64,6 @@ struct NewProjectSheet: View {
             .foregroundStyle(isSelected ? Color.white : ColorTokens.Text.secondary)
             .background(isSelected ? ColorTokens.accent : Color.clear, in: RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
-    }
-
-    private var footerButtons: some View {
-        HStack {
-            Spacer()
-            Button("Cancel", role: .cancel) { dismiss() }
-                .keyboardShortcut(.cancelAction)
-            Button("Create") { createProject() }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
-        .padding(SpacingTokens.md2)
     }
 
     private func createProject() {

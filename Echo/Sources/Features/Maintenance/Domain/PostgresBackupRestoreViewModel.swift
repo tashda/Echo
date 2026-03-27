@@ -197,6 +197,7 @@ final class PostgresBackupRestoreViewModel {
 
     // MARK: - File Pickers
 
+    @MainActor
     func selectOutputFile() {
         if outputFormat == .directory {
             let panel = NSOpenPanel()
@@ -222,6 +223,7 @@ final class PostgresBackupRestoreViewModel {
         }
     }
 
+    @MainActor
     func selectInputFile() {
         let panel = NSOpenPanel()
         panel.title = "Select Backup File"

@@ -28,7 +28,25 @@ struct IndexEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: draft.isEditingExisting ? "Edit Index" : "New Index",
+            icon: "list.bullet.indent",
+            subtitle: draft.isEditingExisting ? "Modify index columns and options." : "Define a new index on selected columns.",
+            primaryAction: "Save",
+            canSubmit: draft.canSave,
+            onSubmit: {
+                applyDraft()
+                dismiss()
+            },
+            onCancel: {
+                cancelEditing()
+            },
+            destructiveAction: draft.isEditingExisting ? "Delete Index" : nil,
+            onDestructive: draft.isEditingExisting ? {
+                dismiss()
+                onDelete()
+            } : nil
+        ) {
             Form {
                 Section {
                     PropertyRow(title: "Name") {
@@ -97,13 +115,8 @@ struct IndexEditorSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            toolbar
         }
         .frame(minWidth: 420, idealWidth: 460, minHeight: 360)
-        .navigationTitle(draft.isEditingExisting ? "Edit Index" : "New Index")
     }
 
     private func indexColumnRow(for column: Binding<Draft.Column>, index: Int) -> some View {
@@ -150,34 +163,4 @@ struct IndexEditorSheet: View {
         }
     }
 
-    private var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            if draft.isEditingExisting {
-                Button("Delete Index", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-                .tint(ColorTokens.Status.error)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                cancelEditing()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraft()
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
-    }
 }

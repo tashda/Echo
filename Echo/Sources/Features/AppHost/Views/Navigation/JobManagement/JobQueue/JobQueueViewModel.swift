@@ -79,6 +79,10 @@ final class JobQueueViewModel {
         self.pendingJobIdentifier = initialSelectedJobID
     }
 
+    deinit {
+        activityPollTask?.cancel()
+    }
+
     func loadInitial() async {
         await loadJobs()
         await loadDatabaseNames()

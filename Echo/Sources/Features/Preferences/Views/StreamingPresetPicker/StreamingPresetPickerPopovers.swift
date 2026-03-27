@@ -36,7 +36,7 @@ extension StreamingPresetPickerControl {
                     Spacer()
                     Button("Cancel", role: .cancel, action: onCancel)
                     Button("Done", action: onSubmit)
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.bordered)
                         .keyboardShortcut(.defaultAction)
                 }
             }

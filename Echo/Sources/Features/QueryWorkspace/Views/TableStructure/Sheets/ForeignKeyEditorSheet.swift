@@ -36,7 +36,28 @@ struct ForeignKeyEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: draft.isEditingExisting ? "Edit Foreign Key" : "New Foreign Key",
+            icon: "link",
+            subtitle: draft.isEditingExisting ? "Modify the foreign key relationship." : "Define a reference to another table.",
+            primaryAction: "Save",
+            canSubmit: draft.canSave,
+            onSubmit: {
+                applyDraftToModel()
+                dismiss()
+            },
+            onCancel: {
+                dismiss()
+                if !draft.isEditingExisting {
+                    onCancelNew()
+                }
+            },
+            destructiveAction: draft.isEditingExisting ? "Delete Foreign Key" : nil,
+            onDestructive: draft.isEditingExisting ? {
+                dismiss()
+                onDelete()
+            } : nil
+        ) {
             ScrollView {
                 Form {
                     nameSection
@@ -50,13 +71,8 @@ struct ForeignKeyEditorSheet: View {
                 .formStyle(.grouped)
                 .scrollContentBackground(.hidden)
             }
-
-            Divider()
-
-            toolbar
         }
         .frame(minWidth: 560, idealWidth: 600, minHeight: 480)
-        .navigationTitle(draft.isEditingExisting ? "Edit Foreign Key" : "New Foreign Key")
         .task { await loadSchemas() }
         .onChange(of: draft.referencedSchema) { _, newSchema in
             // Reset table and columns when schema changes
@@ -75,16 +91,7 @@ struct ForeignKeyEditorSheet: View {
 
     private func loadSchemas() async {
         do {
-            let allSchemas = try await session.listSchemas()
-            // Filter to schemas that contain at least one table
-            var schemasWithTables: [String] = []
-            for schema in allSchemas {
-                let objects = try await session.listTablesAndViews(schema: schema)
-                if objects.contains(where: { $0.type == .table }) {
-                    schemasWithTables.append(schema)
-                }
-            }
-            availableSchemas = schemasWithTables.sorted()
+            availableSchemas = try await session.listSchemas().sorted()
             if !draft.referencedSchema.isEmpty {
                 await loadTables()
             }

@@ -6,32 +6,38 @@ struct BulkImportSheet: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            headerBar
-            Divider()
+        SheetLayoutCustomFooter(title: "Import Data") {
             contentArea
-            Divider()
-            footerBar
+        } footer: {
+            if let status = statusText {
+                Text(status)
+                    .font(TypographyTokens.formDescription)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            if viewModel.isImporting {
+                Button("Cancel") { viewModel.cancelImport() }
+                    .buttonStyle(.bordered)
+            }
+            Button("Close") { onDismiss() }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
+                .disabled(viewModel.isImporting)
+            if viewModel.canImport {
+                Button("Import") { viewModel.startImport() }
+                    .buttonStyle(.bordered)
+                    .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Import") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
         .frame(minWidth: 680, minHeight: 520)
         .frame(idealWidth: 720, idealHeight: 580)
         .task { await viewModel.loadTargetColumns() }
-    }
-
-    // MARK: - Header
-
-    private var headerBar: some View {
-        HStack {
-            Label("Import Data", systemImage: "square.and.arrow.down")
-                .font(TypographyTokens.prominent.weight(.semibold))
-            Spacer()
-            Text(viewModel.fileName)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .lineLimit(1)
-        }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.sm)
     }
 
     // MARK: - Content
@@ -133,32 +139,6 @@ struct BulkImportSheet: View {
         }
     }
 
-    // MARK: - Footer
-
-    private var footerBar: some View {
-        HStack {
-            if let status = statusText {
-                Text(status)
-                    .font(TypographyTokens.formDescription)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .lineLimit(1)
-            }
-            Spacer()
-            if viewModel.isImporting {
-                Button("Cancel") { viewModel.cancelImport() }
-                    .buttonStyle(.bordered)
-            }
-            Button("Close") { onDismiss() }
-                .buttonStyle(.bordered)
-                .keyboardShortcut(.cancelAction)
-                .disabled(viewModel.isImporting)
-            Button("Import") { viewModel.startImport() }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!viewModel.canImport)
-        }
-        .padding(SpacingTokens.md)
-    }
 
     private var statusText: String? {
         switch viewModel.phase {

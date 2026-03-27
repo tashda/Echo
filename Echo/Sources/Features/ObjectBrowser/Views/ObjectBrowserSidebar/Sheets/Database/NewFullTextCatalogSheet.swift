@@ -13,7 +13,21 @@ struct NewFullTextCatalogSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Full-Text Catalog",
+            icon: "text.magnifyingglass",
+            subtitle: "Create a full-text catalog for text search indexing.",
+            primaryAction: "Create",
+            canSubmit: isFormValid,
+            onSubmit: {
+                await onSave(
+                    name.trimmingCharacters(in: .whitespacesAndNewlines),
+                    isDefault,
+                    accentSensitive
+                )
+            },
+            onCancel: { onCancel() }
+        ) {
             Form {
                 Section("New Full-Text Catalog") {
                     PropertyRow(title: "Catalog Name") {
@@ -35,33 +49,7 @@ struct NewFullTextCatalogSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack(spacing: SpacingTokens.sm) {
-                Spacer()
-
-                Button("Cancel") { onCancel() }
-                    .keyboardShortcut(.cancelAction)
-
-                Button("Create") {
-                    Task {
-                        await onSave(
-                            name.trimmingCharacters(in: .whitespacesAndNewlines),
-                            isDefault,
-                            accentSensitive
-                        )
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!isFormValid)
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-            .padding(.vertical, SpacingTokens.sm2)
-            .background(.bar)
         }
         .frame(minWidth: 380, idealWidth: 420, minHeight: 220)
-        .navigationTitle("New Full-Text Catalog")
     }
 }

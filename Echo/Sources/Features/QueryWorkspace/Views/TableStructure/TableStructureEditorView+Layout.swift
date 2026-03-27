@@ -2,22 +2,41 @@ import SwiftUI
 
 extension TableStructureEditorView {
 
+    internal func isSectionEnabled(_ section: TableStructureSection) -> Bool {
+        switch section {
+        case .partitions:
+            return viewModel.partitionsAvailable == true
+        case .inheritance:
+            return viewModel.inheritanceAvailable == true
+        default:
+            return true
+        }
+    }
+
     internal var header: some View {
         VStack(spacing: 0) {
             TabSectionToolbar {
-                Picker("", selection: $selectedSection) {
-                    ForEach(TableStructureSection.allCases) { section in
-                        Text(section.displayName).tag(section)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 400)
+                structureSectionPicker
             } controls: {
                 sectionAddButton
+                    .frame(minWidth: 70, alignment: .trailing)
+                actionButtons
             }
 
             Divider()
         }
+    }
+
+    private var structureSectionPicker: some View {
+        Picker(selection: $selectedSection) {
+            ForEach(TableStructureSection.sections(for: viewModel.databaseType)) { section in
+                Text(section.displayName).tag(section)
+            }
+        } label: {
+            EmptyView()
+        }
+        .pickerStyle(.segmented)
+        .fixedSize()
     }
 
     @ViewBuilder
@@ -33,7 +52,7 @@ extension TableStructureEditorView {
         case .indexes:
             Button {
                 let newIndex = viewModel.addIndex()
-                activeIndexEditor = IndexEditorPresentation(indexID: newIndex.id)
+                activeSheet = .index(IndexEditorPresentation(indexID: newIndex.id))
             } label: {
                 Label("Add", systemImage: "plus")
             }
@@ -59,6 +78,9 @@ extension TableStructureEditorView {
             }
             .controlSize(.small)
             .buttonStyle(.bordered)
+
+        case .partitions, .inheritance:
+            EmptyView()
         }
     }
 
@@ -73,61 +95,79 @@ extension TableStructureEditorView {
             }
 
             if viewModel.isLoading && viewModel.columns.isEmpty {
-                Spacer()
-                ProgressView("Loading structure\u{2026}")
-                    .controlSize(.small)
-                Spacer()
+                TabInitializingPlaceholder(
+                    icon: "square.stack.3d.up",
+                    title: "Loading Structure",
+                    subtitle: "Fetching table details\u{2026}"
+                )
             } else {
-                switch selectedSection {
-                case .columns:
-                    columnsContent
+                Group {
+                    switch selectedSection {
+                    case .columns:
+                        columnsContent
 
-                case .indexes:
-                    indexesContent
+                    case .indexes:
+                        indexesContent
 
-                case .constraints:
-                    constraintsContent
+                    case .constraints:
+                        constraintsContent
 
-                case .relations:
-                    relationsContent
+                    case .relations:
+                        relationsContent
+
+                    case .partitions:
+                        if isSectionEnabled(.partitions) {
+                            TableStructurePartitionsView(viewModel: viewModel)
+                        } else {
+                            ContentUnavailableView {
+                                Label("No Partitions", systemImage: "square.split.2x2")
+                            } description: {
+                                Text("This table is not partitioned.")
+                            }
+                        }
+
+                    case .inheritance:
+                        if isSectionEnabled(.inheritance) {
+                            TableStructureInheritanceView(viewModel: viewModel)
+                        } else {
+                            ContentUnavailableView {
+                                Label("No Inheritance", systemImage: "arrow.triangle.branch")
+                            } description: {
+                                Text("This table does not use inheritance.")
+                            }
+                        }
+                    }
                 }
+                .frame(maxHeight: .infinity)
             }
-
-            bottomBar
         }
     }
 
-    private var bottomBar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Spacer()
+    @ViewBuilder
+    private var actionButtons: some View {
+        Button {
+            scriptPreviewStatements = viewModel.generateStatements()
+            activeSheet = .scriptPreview
+        } label: {
+            Label("Script", systemImage: "doc.text")
+        }
+        .controlSize(.small)
+        .buttonStyle(.bordered)
+        .disabled(!viewModel.hasPendingChanges || viewModel.isApplying)
 
-            Button {
-                showScriptPreview = true
-            } label: {
-                Label("Script Changes", systemImage: "doc.text")
-            }
-            .buttonStyle(.bordered)
-            .disabled(!viewModel.hasPendingChanges || viewModel.isApplying)
-
+        if viewModel.isApplying {
+            ProgressView()
+                .controlSize(.small)
+        } else {
             Button {
                 applyChanges()
             } label: {
-                if viewModel.isApplying {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Label("Apply Changes", systemImage: "checkmark.circle")
-                }
+                Label("Apply", systemImage: "checkmark.circle")
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(!viewModel.hasPendingChanges || viewModel.isApplying)
+            .controlSize(.small)
+            .buttonStyle(.bordered)
+            .disabled(!viewModel.hasPendingChanges)
             .keyboardShortcut(.return, modifiers: [.command, .shift])
-        }
-        .padding(.horizontal, SpacingTokens.lg)
-        .padding(.vertical, SpacingTokens.sm)
-        .background(.bar)
-        .overlay(alignment: .top) {
-            Divider()
         }
     }
 }

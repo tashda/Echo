@@ -301,7 +301,19 @@ final class PostgresSession: DatabaseSession {
         return TableStructureDetails(columns: columns, primaryKey: primaryKey, indexes: indexes, uniqueConstraints: uniqueConstraints, foreignKeys: foreignKeys, dependencies: dependencies, checkConstraints: checkConstraints, tableProperties: tableProperties)
     }
 
-    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String? = nil) async throws -> String {
+        // If a specific database is requested, delegate to a session connected to that database
+        if let database {
+            let targetSession = try await sessionForDatabase(database)
+            if let pgSession = targetSession as? PostgresSession {
+                return try await pgSession.getObjectDefinition(
+                    objectName: objectName,
+                    schemaName: schemaName,
+                    objectType: objectType
+                )
+            }
+        }
+
         switch objectType {
         case .table, .materializedView:
             let columns = try await getTableSchema(objectName, schemaName: schemaName)
@@ -332,8 +344,8 @@ final class PostgresSession: DatabaseSession {
 
         case .view:
             let meta = PostgresMetadata()
-            if let definition = try await meta.viewDefinition(using: client, schema: schemaName, view: objectName) {
-                return definition
+            if let queryBody = try await meta.viewDefinition(using: client, schema: schemaName, view: objectName) {
+                return "CREATE VIEW \"\(schemaName)\".\"\(objectName)\" AS\n\(queryBody)"
             }
             return "-- View definition unavailable"
 

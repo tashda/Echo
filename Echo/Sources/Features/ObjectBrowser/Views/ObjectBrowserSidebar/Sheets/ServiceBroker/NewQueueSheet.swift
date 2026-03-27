@@ -24,80 +24,75 @@ struct NewQueueSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Queue",
+            icon: "tray.2",
+            subtitle: "Create a Service Broker message queue.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await create() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("Queue") {
-                    TextField("Schema", text: $schema, prompt: Text("e.g. dbo"))
-                    TextField("Name", text: $name, prompt: Text("e.g. OrderQueue"))
-                }
-
-                Section("Status") {
-                    Toggle("Queue Enabled", isOn: $statusEnabled)
-                    Toggle("Retention", isOn: $retentionEnabled)
-                    Toggle("Poison Message Handling", isOn: $poisonMessageHandling)
-                }
-
-                Section("Activation") {
-                    Toggle("Activation Enabled", isOn: $activationEnabled)
-
-                    if activationEnabled {
-                        TextField(
-                            "Stored Procedure",
-                            text: $activationProcedure,
-                            prompt: Text("e.g. dbo.ProcessOrders")
-                        )
-                        Stepper(
-                            "Max Queue Readers: \(maxQueueReaders)",
-                            value: $maxQueueReaders,
-                            in: 1...32
-                        )
-                        TextField(
-                            "Execute As",
-                            text: $executeAs,
-                            prompt: Text("e.g. dbo (leave empty for SELF)")
-                        )
+                    PropertyRow(title: "Schema") {
+                        TextField("", text: $schema, prompt: Text("e.g. dbo"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    PropertyRow(title: "Name") {
+                        TextField("", text: $name, prompt: Text("e.g. OrderQueue"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
                     }
                 }
 
-                Section {
-                    Label {
-                        Text("A queue stores messages for Service Broker conversations. Activation automatically starts stored procedures when messages arrive.")
-                            .font(TypographyTokens.formDescription)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    } icon: {
-                        Image(systemName: "info.circle")
-                            .foregroundStyle(ColorTokens.Text.tertiary)
+                Section("Status") {
+                    PropertyRow(title: "Queue Enabled", info: "When disabled, messages can be sent to the queue but cannot be received.") {
+                        Toggle("", isOn: $statusEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                    PropertyRow(title: "Retention", info: "When enabled, all messages remain in the queue until the conversation ends.") {
+                        Toggle("", isOn: $retentionEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                    PropertyRow(title: "Poison Message Handling", info: "When enabled, messages that cause transaction rollbacks 5 times are automatically moved to a poison message queue.") {
+                        Toggle("", isOn: $poisonMessageHandling)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                }
+
+                Section("Activation") {
+                    PropertyRow(title: "Activation Enabled", info: "When enabled, SQL Server automatically starts stored procedures to process messages.") {
+                        Toggle("", isOn: $activationEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+
+                    if activationEnabled {
+                        PropertyRow(title: "Stored Procedure", info: "The stored procedure to execute when messages arrive in the queue.") {
+                            TextField("", text: $activationProcedure, prompt: Text("e.g. dbo.ProcessOrders"))
+                                .textFieldStyle(.plain)
+                                .multilineTextAlignment(.trailing)
+                        }
+                        PropertyRow(title: "Max Queue Readers", info: "Maximum number of concurrent instances of the activation procedure (1\u{2013}32).") {
+                            Stepper("\(maxQueueReaders)", value: $maxQueueReaders, in: 1...32)
+                        }
+                        PropertyRow(title: "Execute As", info: "The security context under which the activation procedure runs. Leave empty to use SELF.") {
+                            TextField("", text: $executeAs, prompt: Text("e.g. dbo"))
+                                .textFieldStyle(.plain)
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                 }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") {
-                    Task { await create() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canCreate)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 480, minHeight: 380)
         .frame(idealWidth: 520, idealHeight: 440)

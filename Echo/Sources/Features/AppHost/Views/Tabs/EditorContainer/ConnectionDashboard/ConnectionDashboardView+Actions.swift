@@ -14,10 +14,15 @@ struct ConnectionDashboardTools: View {
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
-            if session.connection.databaseType == .postgresql {
+            switch session.connection.databaseType {
+            case .postgresql:
                 postgresTools
-            } else if session.connection.databaseType == .microsoftSQL {
+            case .microsoftSQL:
                 mssqlTools
+            case .mysql:
+                mysqlTools
+            case .sqlite:
+                sqliteTools
             }
         }
     }
@@ -40,6 +45,30 @@ struct ConnectionDashboardTools: View {
             environmentState.openPSQLTab(for: session, database: db)
         } directAction: {
             environmentState.openPSQLTab(for: session)
+        }
+    }
+
+    // MARK: - MySQL
+
+    @ViewBuilder
+    private var mysqlTools: some View {
+        DashboardToolCard(icon: "gauge.with.dots.needle.33percent", label: "Activity Monitor") {
+            environmentState.openActivityMonitorTab(connectionID: session.connection.id)
+        }
+
+        DashboardToolCard(icon: "wrench.and.screwdriver", label: "Maintenance", menuItems: databases.map(\.name)) { db in
+            environmentState.openMaintenanceTab(connectionID: session.connection.id, databaseName: db)
+        } directAction: {
+            environmentState.openMaintenanceTab(connectionID: session.connection.id, databaseName: defaultDatabase)
+        }
+    }
+
+    // MARK: - SQLite
+
+    @ViewBuilder
+    private var sqliteTools: some View {
+        DashboardToolCard(icon: "wrench.and.screwdriver", label: "Maintenance") {
+            environmentState.openMaintenanceTab(connectionID: session.connection.id)
         }
     }
 

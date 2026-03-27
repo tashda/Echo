@@ -21,7 +21,17 @@ struct NewColumnEncryptionKeySheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Column Encryption Key",
+            icon: "lock.fill",
+            subtitle: "Create a column encryption key for Always Encrypted.",
+            primaryAction: "Create",
+            canSubmit: isFormValid,
+            isSubmitting: isSubmitting,
+            errorMessage: errorMessage,
+            onSubmit: { await submit() },
+            onCancel: { onComplete() }
+        ) {
             Form {
                 Section("Column Encryption Key") {
                     PropertyRow(title: "Key Name") {
@@ -66,38 +76,8 @@ struct NewColumnEncryptionKeySheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack(spacing: SpacingTokens.sm) {
-                if isLoadingCMKs {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                Button("Cancel") { onComplete() }
-                    .keyboardShortcut(.cancelAction)
-
-                Button("Create") { Task { await submit() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isFormValid)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-            .padding(.vertical, SpacingTokens.sm2)
-            .background(.bar)
         }
         .frame(minWidth: 440, idealWidth: 480, minHeight: 340)
-        .navigationTitle("New Column Encryption Key")
         .task { await loadCMKs() }
     }
 

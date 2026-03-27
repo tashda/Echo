@@ -28,7 +28,7 @@ extension ObjectBrowserSidebarView {
         if isExpanded {
             Group {
                 Button {
-                    environmentState.openMaintenanceTab(connectionID: connID)
+                    environmentState.openActivityMonitorTab(connectionID: connID, section: "XEvents")
                 } label: {
                     SidebarRow(depth: 1, icon: .system("list.bullet.rectangle"), label: "Extended Events",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Extended Events", colored: colored))
@@ -36,8 +36,8 @@ extension ObjectBrowserSidebarView {
                 .buttonStyle(.plain)
 
                 Button {
-                    viewModel.databaseMailConnectionID = connID
-                    viewModel.showDatabaseMailSheet = true
+                    sheetState.databaseMailConnectionID = connID
+                    sheetState.showDatabaseMailSheet = true
                 } label: {
                     SidebarRow(depth: 1, icon: .system("envelope"), label: "Database Mail",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Database Mail", colored: colored))
@@ -45,7 +45,7 @@ extension ObjectBrowserSidebarView {
                 .buttonStyle(.plain)
 
                 Button {
-                    environmentState.openProfilerTab(connectionID: connID)
+                    environmentState.openActivityMonitorTab(connectionID: connID, section: "Profiler")
                 } label: {
                     SidebarRow(depth: 1, icon: .system("chart.line.uptrend.xyaxis"), label: "SQL Profiler",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "SQL Profiler", colored: colored))

@@ -8,11 +8,7 @@ struct QuickImportSheet: View {
     @State private var showFilePicker = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            
-            Divider()
-            
+        SheetLayoutCustomFooter(title: "Import Flat File") {
             if viewModel.isImporting {
                 importingView
             } else if viewModel.fileURL == nil {
@@ -20,10 +16,31 @@ struct QuickImportSheet: View {
             } else {
                 importSettingsContent
             }
-            
-            Divider()
-            
-            footer
+        } footer: {
+            Button("Cancel") { dismiss() }
+                .keyboardShortcut(.cancelAction)
+
+            Spacer()
+
+            if viewModel.fileURL != nil && !viewModel.isImporting {
+                Button("Change File...") { showFilePicker = true }
+
+                if !viewModel.tableName.isEmpty {
+                    Button("Import") { viewModel.startImport() }
+                        .buttonStyle(.bordered)
+                        .keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Import") {}
+                        .buttonStyle(.bordered)
+                        .disabled(true)
+                        .keyboardShortcut(.defaultAction)
+                }
+            }
+
+            if viewModel.statusMessage == "Import complete." {
+                Button("Finish") { dismiss() }
+                    .buttonStyle(.bordered)
+            }
         }
         .frame(width: 700, height: 600)
         .fileImporter(
@@ -43,23 +60,6 @@ struct QuickImportSheet: View {
         }
     }
     
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Import Flat File")
-                    .font(TypographyTokens.title)
-                Text("Quickly create a table and import data from CSV/TSV")
-                    .font(TypographyTokens.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Image(systemName: "square.and.arrow.down.on.square")
-                .font(TypographyTokens.iconDisplay)
-                .foregroundStyle(Color.accentColor)
-        }
-        .padding(SpacingTokens.lg)
-    }
-    
     private var fileSelectionPrompt: some View {
         ContentUnavailableView {
             Label("No File Selected", systemImage: "doc.badge.plus")
@@ -67,7 +67,7 @@ struct QuickImportSheet: View {
             Text("Select a CSV or TSV file to begin the import process.")
         } actions: {
             Button("Select File...") { showFilePicker = true }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
         }
     }
     
@@ -126,26 +126,4 @@ struct QuickImportSheet: View {
         .padding(SpacingTokens.xl)
     }
     
-    private var footer: some View {
-        HStack {
-            Button("Cancel") { dismiss() }
-                .buttonStyle(.plain)
-            
-            Spacer()
-            
-            if viewModel.fileURL != nil && !viewModel.isImporting {
-                Button("Change File...") { showFilePicker = true }
-                
-                Button("Import") { viewModel.startImport() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.tableName.isEmpty)
-            }
-            
-            if viewModel.statusMessage == "Import complete." {
-                Button("Finish") { dismiss() }
-                    .buttonStyle(.borderedProminent)
-            }
-        }
-        .padding(SpacingTokens.lg)
-    }
 }

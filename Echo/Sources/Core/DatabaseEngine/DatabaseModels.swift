@@ -258,10 +258,22 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         public var autovacuumEnabled: Bool?
         public var parallelWorkers: Int?
         public var tablespace: String?
-        // MSSQL
+        // MSSQL — General
         public var dataCompression: String?
         public var filegroup: String?
         public var lockEscalation: String?
+        public var createdDate: String?
+        public var modifiedDate: String?
+        public var isSystemObject: Bool?
+        public var usesAnsiNulls: Bool?
+        public var isReplicated: Bool?
+        // MSSQL — Storage
+        public var textFilegroup: String?
+        public var filestreamFilegroup: String?
+        public var isPartitioned: Bool?
+        public var partitionScheme: String?
+        public var partitionColumn: String?
+        public var partitionCount: Int?
         // MSSQL — Temporal
         public var isSystemVersioned: Bool?
         public var historyTableSchema: String?
@@ -271,20 +283,33 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         // MSSQL — In-Memory OLTP
         public var isMemoryOptimized: Bool?
         public var memoryOptimizedDurability: String?
+        // MSSQL — Change Tracking
+        public var changeTrackingEnabled: Bool?
+        public var trackColumnsUpdated: Bool?
 
         public init(
             fillfactor: Int? = nil, toastTupleTarget: Int? = nil, autovacuumEnabled: Bool? = nil,
             parallelWorkers: Int? = nil, tablespace: String? = nil, dataCompression: String? = nil,
             filegroup: String? = nil, lockEscalation: String? = nil,
+            createdDate: String? = nil, modifiedDate: String? = nil,
+            isSystemObject: Bool? = nil, usesAnsiNulls: Bool? = nil, isReplicated: Bool? = nil,
+            textFilegroup: String? = nil, filestreamFilegroup: String? = nil,
+            isPartitioned: Bool? = nil, partitionScheme: String? = nil, partitionColumn: String? = nil, partitionCount: Int? = nil,
             isSystemVersioned: Bool? = nil, historyTableSchema: String? = nil, historyTableName: String? = nil,
             periodStartColumn: String? = nil, periodEndColumn: String? = nil,
-            isMemoryOptimized: Bool? = nil, memoryOptimizedDurability: String? = nil
+            isMemoryOptimized: Bool? = nil, memoryOptimizedDurability: String? = nil,
+            changeTrackingEnabled: Bool? = nil, trackColumnsUpdated: Bool? = nil
         ) {
             self.fillfactor = fillfactor; self.toastTupleTarget = toastTupleTarget; self.autovacuumEnabled = autovacuumEnabled; self.parallelWorkers = parallelWorkers; self.tablespace = tablespace
             self.dataCompression = dataCompression; self.filegroup = filegroup; self.lockEscalation = lockEscalation
+            self.createdDate = createdDate; self.modifiedDate = modifiedDate
+            self.isSystemObject = isSystemObject; self.usesAnsiNulls = usesAnsiNulls; self.isReplicated = isReplicated
+            self.textFilegroup = textFilegroup; self.filestreamFilegroup = filestreamFilegroup
+            self.isPartitioned = isPartitioned; self.partitionScheme = partitionScheme; self.partitionColumn = partitionColumn; self.partitionCount = partitionCount
             self.isSystemVersioned = isSystemVersioned; self.historyTableSchema = historyTableSchema; self.historyTableName = historyTableName
             self.periodStartColumn = periodStartColumn; self.periodEndColumn = periodEndColumn
             self.isMemoryOptimized = isMemoryOptimized; self.memoryOptimizedDurability = memoryOptimizedDurability
+            self.changeTrackingEnabled = changeTrackingEnabled; self.trackColumnsUpdated = trackColumnsUpdated
         }
     }
 

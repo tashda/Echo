@@ -141,8 +141,9 @@ extension ConnectionSession {
             connection: connection,
             session: session,
             connectionSessionID: id,
-            title: "\(object.name) (Structure)",
-            content: .structure(viewModel)
+            title: object.name,
+            content: .structure(viewModel),
+            activeDatabaseName: databaseName ?? (connection.database.isEmpty ? nil : connection.database)
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -184,6 +185,44 @@ extension ConnectionSession {
             connectionSessionID: id,
             title: "Extensions (\(databaseName))",
             content: .extensionsManager(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addTableDataTab(schema: String, table: String, databaseName: String? = nil) -> WorkspaceTab {
+        let viewModel = TableDataViewModel(
+            schemaName: schema,
+            tableName: table,
+            databaseType: connection.databaseType,
+            session: session
+        )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
+        viewModel.connectionSessionID = id
+
+        // Resolve a database-specific session if a database name is provided
+        if let databaseName {
+            Task { @MainActor [weak viewModel, session = self.session] in
+                guard let viewModel else { return }
+                do {
+                    let dbSession = try await session.sessionForDatabase(databaseName)
+                    viewModel.updateSession(dbSession)
+                } catch {
+                    // Fall back to the primary session
+                }
+            }
+        }
+
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "\(table) (Data)",
+            content: .tableData(viewModel),
+            activeDatabaseName: databaseName ?? sidebarFocusedDatabase
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -283,350 +322,6 @@ extension ConnectionSession {
             title: "Maintenance",
             content: .maintenance(viewModel),
             activeDatabaseName: (dbName?.isEmpty == false) ? dbName : nil
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addActivityMonitorTab() throws -> WorkspaceTab {
-        // Reuse existing activity monitor tab if present
-        if let existing = queryTabs.first(where: { $0.activityMonitor != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let monitor = try session.makeActivityMonitor()
-        let interval = AppDirector.shared.projectStore.globalSettings.activityMonitorRefreshInterval
-        let viewModel = ActivityMonitorViewModel(
-            monitor: monitor,
-            connectionSessionID: self.id,
-            connectionID: connection.id,
-            databaseType: connection.databaseType,
-            refreshInterval: interval
-        )
-
-        if let mssql = session as? MSSQLSession {
-            viewModel.extendedEventsVM = ExtendedEventsViewModel(
-                xeClient: mssql.extendedEvents,
-                connectionSessionID: id
-            )
-        }
-
-        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Activity Monitor",
-            content: .activityMonitor(viewModel),
-            activeDatabaseName: connName.isEmpty ? connection.host : connName
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addQueryStoreTab(databaseName: String) -> WorkspaceTab? {
-        guard let mssql = session as? MSSQLSession else { return nil }
-
-        // Reuse existing query store tab for THIS specific database if present
-        if let existing = queryTabs.first(where: { tab in
-            guard let vm = tab.queryStoreVM else { return false }
-            return vm.databaseName == databaseName
-        }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = QueryStoreViewModel(
-            queryStoreClient: mssql.queryStore,
-            databaseName: databaseName,
-            connectionSessionID: id
-        )
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Query Store (\(databaseName))",
-            content: .queryStore(viewModel)
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addExtendedEventsTab() -> WorkspaceTab? {
-        guard let mssql = session as? MSSQLSession else { return nil }
-
-        // Reuse existing extended events tab if present
-        if let existing = queryTabs.first(where: { $0.extendedEventsVM != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = ExtendedEventsViewModel(
-            xeClient: mssql.extendedEvents,
-            connectionSessionID: id
-        )
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Extended Events",
-            content: .extendedEvents(viewModel)
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addProfilerTab() -> WorkspaceTab {
-        if let existing = queryTabs.first(where: { $0.profilerVM != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = ProfilerViewModel(
-            profilerClient: session.profiler,
-            session: session,
-            connectionSessionID: id
-        )
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "SQL Profiler",
-            content: .profiler(viewModel)
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addResourceGovernorTab() -> WorkspaceTab {
-        if let existing = queryTabs.first(where: { $0.resourceGovernorVM != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = ResourceGovernorViewModel(
-            rgClient: session.resourceGovernor,
-            connectionSessionID: id
-        )
-        viewModel.activityEngine = AppDirector.shared.activityEngine
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Resource Governor",
-            content: .resourceGovernor(viewModel)
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addServerPropertiesTab() -> WorkspaceTab {
-        if let existing = queryTabs.first(where: { $0.serverPropertiesVM != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = ServerPropertiesViewModel(
-            connectionSessionID: id
-        )
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Server Properties",
-            content: .serverProperties(viewModel)
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addTuningAdvisorTab() -> WorkspaceTab {
-        if let existing = queryTabs.first(where: { $0.tuningAdvisorVM != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = TuningAdvisorViewModel(
-            tuningClient: session.tuning,
-            session: session,
-            connectionSessionID: id
-        )
-        viewModel.activityEngine = AppDirector.shared.activityEngine
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Tuning Advisor",
-            content: .tuningAdvisor(viewModel)
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addPolicyManagementTab() -> WorkspaceTab {
-        if let existing = queryTabs.first(where: { $0.policyManagementVM != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = PolicyManagementViewModel(
-            policyClient: session.policy,
-            connectionSessionID: id
-        )
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Policy Management",
-            content: .policyManagement(viewModel)
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addAvailabilityGroupsTab() -> WorkspaceTab? {
-        guard let mssql = session as? MSSQLSession else { return nil }
-
-        // Reuse existing availability groups tab if present
-        if let existing = queryTabs.first(where: { $0.availabilityGroupsVM != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = AvailabilityGroupsViewModel(
-            agClient: mssql.availabilityGroups,
-            connectionSessionID: id
-        )
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Availability Groups",
-            content: .availabilityGroups(viewModel)
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    // MARK: - Error Log Tab
-
-    @discardableResult
-    func addErrorLogTab() -> WorkspaceTab {
-        if let existing = queryTabs.first(where: { $0.errorLogVM != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = ErrorLogViewModel(session: session, connectionSessionID: id)
-        viewModel.activityEngine = AppDirector.shared.activityEngine
-        viewModel.notificationEngine = AppDirector.shared.notificationEngine
-
-        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Error Log",
-            content: .errorLog(viewModel),
-            activeDatabaseName: connName.isEmpty ? connection.host : connName
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    // MARK: - Security Tabs
-
-    @discardableResult
-    func addDatabaseSecurityTab(databaseName: String? = nil) -> WorkspaceTab {
-        let effectiveDatabase = databaseName ?? sidebarFocusedDatabase ?? connection.database
-
-        if let existing = queryTabs.first(where: { $0.databaseSecurity != nil }) {
-            activeQueryTabID = existing.id
-            if let vm = existing.databaseSecurity, vm.selectedDatabase != effectiveDatabase {
-                existing.activeDatabaseName = effectiveDatabase.isEmpty ? nil : effectiveDatabase
-                Task { await vm.selectDatabase(effectiveDatabase) }
-            }
-            return existing
-        }
-
-        let viewModel = DatabaseSecurityViewModel(
-            session: session,
-            connectionID: connection.id,
-            connectionSessionID: id,
-            initialDatabase: effectiveDatabase.isEmpty ? nil : effectiveDatabase
-        )
-        viewModel.activityEngine = AppDirector.shared.activityEngine
-
-        let dbName = databaseName ?? sidebarFocusedDatabase
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Database Security",
-            content: .databaseSecurity(viewModel),
-            activeDatabaseName: (dbName?.isEmpty == false) ? dbName : nil
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addServerSecurityTab() -> WorkspaceTab {
-        if let existing = queryTabs.first(where: { $0.serverSecurity != nil }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = ServerSecurityViewModel(
-            session: session,
-            connectionID: connection.id,
-            connectionSessionID: id
-        )
-        viewModel.activityEngine = AppDirector.shared.activityEngine
-
-        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let serverLabel = connName.isEmpty ? connection.host : connName
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Server Security",
-            content: .serverSecurity(viewModel),
-            activeDatabaseName: serverLabel
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id

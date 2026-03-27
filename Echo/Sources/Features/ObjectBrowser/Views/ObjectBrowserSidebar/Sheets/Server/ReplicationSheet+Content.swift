@@ -94,7 +94,7 @@ extension ReplicationSheet {
                         Label("Configure Distribution", systemImage: "gearshape")
                     }
                     .controlSize(.small)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
                 }
             }
             .padding(SpacingTokens.xs)

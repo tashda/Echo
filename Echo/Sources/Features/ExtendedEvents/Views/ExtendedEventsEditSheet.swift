@@ -6,7 +6,17 @@ struct ExtendedEventsEditSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "Edit Session",
+            icon: "pencil",
+            subtitle: "Modify an Extended Events session.",
+            primaryAction: "Save Changes",
+            canSubmit: !viewModel.editEvents.isEmpty && !viewModel.isSavingEdits && hasChanges,
+            isSubmitting: viewModel.isSavingEdits,
+            errorMessage: viewModel.editErrorMessage,
+            onSubmit: { await viewModel.saveEditSession() },
+            onCancel: { dismiss() }
+        ) {
             Form {
                 sessionInfoSection
                 if viewModel.editWasRunning {
@@ -14,22 +24,11 @@ struct ExtendedEventsEditSheet: View {
                 }
                 eventsSection
                 targetsSection
-
-                if let error = viewModel.editErrorMessage {
-                    Section {
-                        Label(error, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(ColorTokens.Status.error)
-                    }
-                }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-            footerButtons
         }
         .frame(width: 560, height: 580)
-        .navigationTitle("Edit Session")
         .task { await viewModel.loadAvailableEvents() }
     }
 
@@ -129,27 +128,6 @@ struct ExtendedEventsEditSheet: View {
         } header: {
             Text("Targets")
         }
-    }
-
-    // MARK: - Footer
-
-    private var footerButtons: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Spacer()
-
-            Button("Cancel") { dismiss() }
-                .keyboardShortcut(.cancelAction)
-
-            Button("Save Changes") {
-                Task { await viewModel.saveEditSession() }
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(viewModel.editEvents.isEmpty || viewModel.isSavingEdits || !hasChanges)
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
     }
 
     private var hasChanges: Bool {

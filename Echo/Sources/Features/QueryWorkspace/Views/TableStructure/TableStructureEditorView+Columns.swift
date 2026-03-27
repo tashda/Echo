@@ -4,7 +4,7 @@ extension TableStructureEditorView {
 
     internal var columnsContent: some View {
         Group {
-            if viewModel.columns.filter({ !$0.isDeleted }).isEmpty {
+            if visibleColumns.isEmpty {
                 ContentUnavailableView {
                     Label("No Columns", systemImage: "tablecells")
                 } description: {
@@ -22,32 +22,22 @@ extension TableStructureEditorView {
         Set(viewModel.primaryKey?.columns ?? [])
     }
 
-    /// All columns including deleted ones — deleted rows render dimmed with strikethrough.
-    private var displayColumns: [TableStructureEditorViewModel.ColumnModel] {
-        viewModel.columns
-    }
-
     private var columnsTable: some View {
-        Table(of: TableStructureEditorViewModel.ColumnModel.self, selection: $selectedColumnIDs) {
-            TableColumn("PK") { column in
+        Table(viewModel.columns, selection: $selectedColumnIDs) {
+            TableColumn("Kind") { column in
                 if !column.isDeleted, primaryKeyColumnNames.contains(column.name) {
-                    Image(systemName: "key.fill")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(accentColor.opacity(0.8))
+                    Text("PK")
+                        .font(TypographyTokens.Table.kindBadge)
+                        .foregroundStyle(.orange)
                 }
             }
-            .width(30)
+            .width(35)
 
             TableColumn("Name") { column in
-                if column.isDeleted {
-                    Text(column.name)
-                        .strikethrough()
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                } else if let binding = columnBinding(for: column.id) {
-                    InlineEditableCell(value: binding.name, placeholder: "column_name", alignment: .leading)
-                } else {
-                    Text(column.name)
-                }
+                Text(column.name)
+                    .font(TypographyTokens.Table.name)
+                    .foregroundStyle(column.isDeleted ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
+                    .strikethrough(column.isDeleted)
             }
             .width(min: 100, ideal: 180)
 
@@ -55,40 +45,23 @@ extension TableStructureEditorView {
                 if column.isDeleted {
                     Text(column.dataType)
                         .font(TypographyTokens.Table.category)
-                        .foregroundStyle(ColorTokens.Text.quaternary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                         .strikethrough()
-                } else if let binding = columnBinding(for: column.id) {
-                    Picker("", selection: binding.dataType) {
-                        ForEach(dataTypeOptions(for: viewModel.databaseType), id: \.self) { option in
-                            Text(option).tag(option)
-                        }
-                        if !dataTypeOptions(for: viewModel.databaseType).contains(column.dataType) {
-                            Divider()
-                            Text(column.dataType).tag(column.dataType)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
+                } else if let index = columnIndexLookup[column.id], index < viewModel.columns.count {
+                    DataTypePicker(selection: $viewModel.columns[index].dataType, databaseType: viewModel.databaseType, compact: true)
                 } else {
                     Text(column.dataType)
                         .font(TypographyTokens.Table.category)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
-            .width(min: 60, ideal: 100)
+            .width(min: 80, ideal: 120)
 
             TableColumn("Null") { column in
-                if column.isDeleted {
-                    EmptyView()
-                } else if let binding = columnBinding(for: column.id) {
-                    Toggle("", isOn: binding.isNullable)
-                        .toggleStyle(.checkbox)
-                        .labelsHidden()
-                } else {
+                if !column.isDeleted {
                     Image(systemName: column.isNullable ? "checkmark" : "minus")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(column.isNullable ? accentColor : ColorTokens.Text.tertiary)
+                        .foregroundStyle(column.isNullable ? .blue : ColorTokens.Text.tertiary)
                 }
             }
             .width(40)
@@ -97,18 +70,16 @@ extension TableStructureEditorView {
                 if let defaultValue = column.defaultValue, !defaultValue.isEmpty {
                     Text(defaultValue)
                         .font(TypographyTokens.Table.sql)
-                        .foregroundStyle(column.isDeleted ? ColorTokens.Text.quaternary : ColorTokens.Text.secondary)
+                        .foregroundStyle(column.isDeleted ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .help(defaultValue)
+                } else {
+                    Text("\u{2014}")
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
             .width(min: 60, ideal: 120)
-        } rows: {
-            ForEach(displayColumns) { column in
-                TableRow(column)
-                    .itemProvider { nil }
-            }
         }
         .contextMenu(forSelectionType: TableStructureEditorViewModel.ColumnModel.ID.self) { selection in
             columnContextMenu(for: selection)
@@ -120,10 +91,6 @@ extension TableStructureEditorView {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
-        .environment(\.defaultMinListRowHeight, 28)
-        .onChange(of: selectedColumnIDs) { _, newIDs in
-            pushColumnInspector(ids: newIDs)
-        }
     }
 
     @ViewBuilder
@@ -133,7 +100,6 @@ extension TableStructureEditorView {
         }
 
         if targets.isEmpty {
-            // Right-clicked empty area
             Button("Add Column") { presentNewColumn() }
         } else if targets.count > 1 {
             dataTypeSubmenu(for: targets)
@@ -165,12 +131,19 @@ extension TableStructureEditorView {
 
     @ViewBuilder
     private func dataTypeSubmenu(for columns: [TableStructureEditorViewModel.ColumnModel]) -> some View {
+        let typeList = viewModel.databaseType == .microsoftSQL
+            ? MSSQLDataTypePicker.commonTypes
+            : PostgresDataTypePicker.commonTypes
         Menu("Change Data Type") {
-            ForEach(dataTypeOptions(for: viewModel.databaseType), id: \.self) { option in
-                Button(option) {
-                    for column in columns {
-                        if let binding = columnBinding(for: column.id) {
-                            binding.wrappedValue.dataType = option
+            ForEach(typeList, id: \.category) { group in
+                Section(group.category) {
+                    ForEach(group.types, id: \.self) { type in
+                        Button(type) {
+                            for column in columns {
+                                if let index = columnIndexLookup[column.id], index < viewModel.columns.count {
+                                    viewModel.columns[index].dataType = type
+                                }
+                            }
                         }
                     }
                 }

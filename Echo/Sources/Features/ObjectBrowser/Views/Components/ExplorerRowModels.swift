@@ -98,6 +98,8 @@ enum ExplorerSidebarPalette {
     static let functions = ColorTokens.Explorer.functions
     static let procedures = ColorTokens.Explorer.procedures
     static let triggers = ColorTokens.Explorer.triggers
+    static let sequences = ColorTokens.Explorer.sequences
+    static let types = ColorTokens.Explorer.types
     static let jobs = ColorTokens.Explorer.jobs
     static let security = ColorTokens.Explorer.security
     static let queryStore = ColorTokens.Explorer.queryStore
@@ -156,6 +158,23 @@ enum ExplorerSidebarPalette {
         case "Resource Governor": return resourceGovernor
         case "Tuning Advisor": return tuningAdvisor
         case "Policy Management": return policyManagement
+        // PostgreSQL replication & advanced
+        case "Publications": return Color.green
+        case "Subscriptions": return Color.blue
+        case "Advanced": return Color.brown
+        case "Foreign Data Wrappers": return Color.teal
+        case "Event Triggers": return triggers
+        case "Domains": return Color.red
+        case "Composite Types": return Color.cyan
+        case "Range Types": return Color.orange
+        case "Collations": return Color.mint
+        case "Text Search": return Color.indigo
+        case "Rules": return Color.pink
+        case "Tablespaces": return Color.brown
+        case "Aggregates": return Color.orange
+        case "Operators": return Color.red
+        case "Languages": return Color.green
+        case "Casts": return Color.purple
         default: return monochrome
         }
     }
@@ -170,8 +189,8 @@ enum ExplorerSidebarPalette {
         case .procedure: return procedures
         case .trigger: return triggers
         case .extension: return extensions
-        case .sequence: return monochrome
-        case .type: return monochrome
+        case .sequence: return sequences
+        case .type: return types
         case .synonym: return monochrome
         }
     }

@@ -32,6 +32,14 @@ struct QueryEditorContainer: View {
         let panelOpen = panelState.isOpen
 
         VStack(spacing: 0) {
+            if tab.isDedicatedSessionFailed {
+                ConnectionFailedBanner(
+                    message: tab.dedicatedSessionError ?? "Connection failed"
+                ) {
+                    environmentState.retryDedicatedSession(for: tab)
+                }
+            }
+
             if shouldShowResultsOnly {
                 resultsSection(isResizingResults: false)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

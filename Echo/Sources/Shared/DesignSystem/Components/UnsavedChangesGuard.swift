@@ -1,5 +1,5 @@
 import SwiftUI
-import AppKit
+@preconcurrency import AppKit
 
 /// Intercepts the window close button when there are unsaved changes.
 /// Shows a native macOS alert: Discard Changes / Cancel.
@@ -84,13 +84,19 @@ struct UnsavedChangesGuard: NSViewRepresentable {
             originalDelegate?.windowDidResignKey?(notification)
         }
 
-        override func responds(to aSelector: Selector!) -> Bool {
-            super.responds(to: aSelector) || (originalDelegate?.responds(to: aSelector) ?? false)
+        override nonisolated func responds(to aSelector: Selector!) -> Bool {
+            let delegateResponds = MainActor.assumeIsolated {
+                self.originalDelegate?.responds(to: aSelector) ?? false
+            }
+            return super.responds(to: aSelector) || delegateResponds
         }
 
-        override func forwardingTarget(for aSelector: Selector!) -> Any? {
-            if originalDelegate?.responds(to: aSelector) == true {
-                return originalDelegate
+        override nonisolated func forwardingTarget(for aSelector: Selector!) -> Any? {
+            let delegateResponds = MainActor.assumeIsolated {
+                self.originalDelegate?.responds(to: aSelector) == true
+            }
+            if delegateResponds {
+                return MainActor.assumeIsolated { self.originalDelegate }
             }
             return super.forwardingTarget(for: aSelector)
         }

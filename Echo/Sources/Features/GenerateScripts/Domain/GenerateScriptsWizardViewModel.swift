@@ -182,12 +182,11 @@ final class GenerateScriptsWizardViewModel {
                     statusMessage = "Scripting \(obj.qualifiedName)..."
 
                     if scriptDropAndCreate {
-                        let keyword = Self.sqlKeyword(for: obj.type)
                         if checkExistence {
                             script += "IF OBJECT_ID(N'\(obj.qualifiedName)', N'\(obj.type)') IS NOT NULL\n"
-                            script += "    DROP \(keyword) \(obj.qualifiedName);\nGO\n\n"
+                            script += "    DROP \(Self.sqlKeyword(for: obj.type)) \(obj.qualifiedName);\nGO\n\n"
                         } else {
-                            script += "DROP \(keyword) \(obj.qualifiedName);\nGO\n\n"
+                            script += "DROP \(Self.sqlKeyword(for: obj.type)) \(obj.qualifiedName);\nGO\n\n"
                         }
                     }
 
@@ -198,7 +197,6 @@ final class GenerateScriptsWizardViewModel {
                         objectType: obj.type
                     ) {
                         if checkExistence && !scriptDropAndCreate {
-                            let keyword = Self.sqlKeyword(for: obj.type)
                             script += "IF OBJECT_ID(N'\(obj.qualifiedName)', N'\(obj.type)') IS NULL\nBEGIN\n"
                             script += definition
                             script += "\nEND\nGO\n\n"

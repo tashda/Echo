@@ -5,45 +5,37 @@ extension SearchSidebarView {
     @ViewBuilder
     var content: some View {
         if !viewModel.hasSessions {
-            SearchPlaceholderView(
+            ContentUnavailableView(
+                "No Connections",
                 systemImage: "externaldrive",
-                title: "No connections",
-                subtitle: "Connect to a database server to start searching."
+                description: Text("Connect to a database server to start searching.")
             )
         } else if viewModel.selectedCategories.isEmpty {
-            SearchPlaceholderView(
+            ContentUnavailableView(
+                "No Filters Selected",
                 systemImage: "slider.horizontal.3",
-                title: "Enable at least one filter",
-                subtitle: "Pick one or more object types to include in the search."
+                description: Text("Pick one or more object types to include in the search.")
             )
         } else if viewModel.trimmedQuery.count < viewModel.minimumSearchLength {
-            SearchPlaceholderView(
-                systemImage: "text.magnifyingglass",
-                title: "Search across all connections",
-                subtitle: "Enter at least \(viewModel.minimumSearchLength) characters to see results."
+            ContentUnavailableView(
+                "Search",
+                systemImage: "magnifyingglass",
+                description: Text("Enter at least \(viewModel.minimumSearchLength) characters to see results.")
             )
         } else if viewModel.isSearching && viewModel.results.isEmpty {
-            VStack(spacing: SpacingTokens.sm) {
-                ProgressView()
-                Text("Searching...")
-                    .font(TypographyTokens.caption2.weight(.medium))
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            ProgressView()
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, SpacingTokens.xl)
         } else if let error = viewModel.errorMessage, viewModel.results.isEmpty {
-            SearchPlaceholderView(
-                systemImage: "exclamationmark.triangle",
-                title: "Search failed",
-                subtitle: error,
-                actionTitle: "Try Again",
-                action: { viewModel.retryLastSearch() }
-            )
+            ContentUnavailableView {
+                Label("Search Failed", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(error)
+            } actions: {
+                Button("Try Again") { viewModel.retryLastSearch() }
+            }
         } else if viewModel.results.isEmpty {
-            SearchPlaceholderView(
-                systemImage: "questionmark",
-                title: "No matches",
-                subtitle: "No objects match your query. Try different keywords or filters."
-            )
+            ContentUnavailableView.search(text: viewModel.trimmedQuery)
         } else {
             resultsList
         }
@@ -51,21 +43,24 @@ extension SearchSidebarView {
 
     var resultsList: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: SpacingTokens.sm, pinnedViews: .sectionHeaders) {
+            LazyVStack(alignment: .leading, spacing: SpacingTokens.xs, pinnedViews: .sectionHeaders) {
                 ForEach(groupedResults, id: \.key) { group in
                     Section {
-                        VStack(spacing: SpacingTokens.xs) {
+                        VStack(spacing: 0) {
                             ForEach(group.results) { result in
                                 SearchResultRow(
                                     result: resultToLegacy(result),
                                     query: viewModel.trimmedQuery,
+                                    serverName: result.serverName,
+                                    databaseName: result.databaseName,
                                     onSelect: { handleResultTap(result) },
-                                    fetchDefinition: definitionFetcher(for: result)
+                                    fetchDefinition: definitionFetcher(for: result),
+                                    onOpenDefinitionInEditor: openInEditorAction(for: result)
                                 )
+                                .contextMenu { searchResultContextMenu(for: result) }
                             }
                         }
-                        .padding(.horizontal, SpacingTokens.xxxs)
-                        .padding(.bottom, SpacingTokens.xxs)
+                        .padding(.bottom, SpacingTokens.xxs2)
                     } header: {
                         SidebarStickySectionHeader(
                             title: group.displayTitle,
@@ -93,21 +88,35 @@ extension SearchSidebarView {
 
     var groupedResults: [ResultGroup] {
         let multiServer = viewModel.sessions.count > 1
+        let uniqueDatabases = Set(viewModel.results.map(\.databaseName))
+        let multiDatabase = uniqueDatabases.count > 1
 
         if multiServer {
-            // Group by Server > Category
+            // Multi-server: "ServerName > DatabaseName — Category"
             let grouped = Dictionary(grouping: viewModel.results) { result in
-                "\(result.serverName)|\(result.category.rawValue)"
+                "\(result.serverName)|\(result.databaseName)|\(result.category.rawValue)"
             }
             var groups: [ResultGroup] = []
             for (key, results) in grouped.sorted(by: { $0.key < $1.key }) {
                 guard let first = results.first else { continue }
-                let title = "\(first.serverName) — \(first.category.displayName)"
+                let title = "\(first.serverName) > \(first.databaseName) — \(first.category.displayName)"
+                groups.append(ResultGroup(key: key, displayTitle: title, results: results))
+            }
+            return groups
+        } else if multiDatabase {
+            // Single server, multi-database: "DatabaseName — Category"
+            let grouped = Dictionary(grouping: viewModel.results) { result in
+                "\(result.databaseName)|\(result.category.rawValue)"
+            }
+            var groups: [ResultGroup] = []
+            for (key, results) in grouped.sorted(by: { $0.key < $1.key }) {
+                guard let first = results.first else { continue }
+                let title = "\(first.databaseName) — \(first.category.displayName)"
                 groups.append(ResultGroup(key: key, displayTitle: title, results: results))
             }
             return groups
         } else {
-            // Single server: group by category only
+            // Single server, single database: "Category"
             let grouped = Dictionary(grouping: viewModel.results, by: \.category)
             return SearchSidebarCategory.allCases.compactMap { category in
                 guard let results = grouped[category] else { return nil }
@@ -128,9 +137,18 @@ extension SearchSidebarView {
         )
     }
 
+    func openInEditorAction(for result: GlobalSearchResult) -> ((String) -> Void)? {
+        guard let session = viewModel.session(for: result.connectionSessionID) else { return nil }
+        guard definitionFetcher(for: result) != nil else { return nil }
+        return { definition in
+            environmentState.openQueryTab(for: session, presetQuery: definition, database: result.databaseName)
+        }
+    }
+
     func definitionFetcher(for result: GlobalSearchResult) -> (() async throws -> String)? {
         guard let payload = result.payload else { return nil }
         guard let session = viewModel.session(for: result.connectionSessionID) else { return nil }
+        let database = result.databaseName
 
         switch payload {
         case .schemaObject(let schema, let name, let type):
@@ -140,7 +158,8 @@ extension SearchSidebarView {
                     try await session.session.getObjectDefinition(
                         objectName: name,
                         schemaName: schema,
-                        objectType: type
+                        objectType: type,
+                        database: database
                     )
                 }
             default:
@@ -151,7 +170,8 @@ extension SearchSidebarView {
                 try await session.session.getObjectDefinition(
                     objectName: name,
                     schemaName: schema,
-                    objectType: .function
+                    objectType: .function,
+                    database: database
                 )
             }
         case .procedure(let schema, let name):
@@ -159,7 +179,8 @@ extension SearchSidebarView {
                 try await session.session.getObjectDefinition(
                     objectName: name,
                     schemaName: schema,
-                    objectType: .procedure
+                    objectType: .procedure,
+                    database: database
                 )
             }
         case .trigger(let schema, _, let name):
@@ -167,7 +188,8 @@ extension SearchSidebarView {
                 try await session.session.getObjectDefinition(
                     objectName: name,
                     schemaName: schema,
-                    objectType: .trigger
+                    objectType: .trigger,
+                    database: database
                 )
             }
         default:

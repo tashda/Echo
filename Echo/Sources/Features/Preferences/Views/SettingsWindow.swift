@@ -14,6 +14,7 @@ struct SettingsView: View {
         case appearance
         case databases
         case sidebar
+        case search
         case queryResults
         case echoSense
         case diagrams
@@ -29,6 +30,7 @@ struct SettingsView: View {
             case .appearance: return "Appearance"
             case .databases: return "Databases"
             case .sidebar: return "Sidebar"
+            case .search: return "Search"
             case .queryResults: return "Results"
             case .echoSense: return "EchoSense"
             case .diagrams: return "Diagrams"
@@ -44,6 +46,7 @@ struct SettingsView: View {
             case .appearance: return "paintbrush"
             case .databases: return "externaldrive.connected.to.line.below"
             case .sidebar: return "sidebar.left"
+            case .search: return "magnifyingglass"
             case .queryResults: return "tablecells"
             case .diagrams: return "rectangle.connected.to.line.below"
             case .applicationCache: return "internaldrive"
@@ -183,6 +186,9 @@ struct SettingsView: View {
 
         case .sidebar:
             SidebarSettingsView()
+
+        case .search:
+            SearchSettingsView()
 
         case .queryResults:
             QueryResultsSettingsView()

@@ -36,19 +36,19 @@ extension ObjectBrowserSidebarView {
                 let subExpanded = viewModel.externalResourcesSubExpandedByDB[dbKey] ?? []
 
                 externalSubFolder(title: "External Data Sources", items: viewModel.externalDataSourcesByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey) {
-                    viewModel.newExternalDataSourceConnectionID = connID
-                    viewModel.newExternalDataSourceDatabaseName = database.name
-                    viewModel.showNewExternalDataSourceSheet = true
+                    sheetState.newExternalDataSourceConnectionID = connID
+                    sheetState.newExternalDataSourceDatabaseName = database.name
+                    sheetState.showNewExternalDataSourceSheet = true
                 }
                 externalSubFolder(title: "External Tables", items: viewModel.externalTablesByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey) {
-                    viewModel.newExternalTableConnectionID = connID
-                    viewModel.newExternalTableDatabaseName = database.name
-                    viewModel.showNewExternalTableSheet = true
+                    sheetState.newExternalTableConnectionID = connID
+                    sheetState.newExternalTableDatabaseName = database.name
+                    sheetState.showNewExternalTableSheet = true
                 }
                 externalSubFolder(title: "External File Formats", items: viewModel.externalFileFormatsByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey) {
-                    viewModel.newExternalFileFormatConnectionID = connID
-                    viewModel.newExternalFileFormatDatabaseName = database.name
-                    viewModel.showNewExternalFileFormatSheet = true
+                    sheetState.newExternalFileFormatConnectionID = connID
+                    sheetState.newExternalFileFormatDatabaseName = database.name
+                    sheetState.showNewExternalFileFormatSheet = true
                 }
             }
         }

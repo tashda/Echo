@@ -20,68 +20,49 @@ struct NewMessageTypeSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Message Type",
+            icon: "envelope",
+            subtitle: "Define a Service Broker message type.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await create() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("Message Type") {
-                    TextField("Name", text: $name, prompt: Text("e.g. OrderMessage"))
+                    PropertyRow(title: "Name") {
+                        TextField("", text: $name, prompt: Text("e.g. OrderMessage"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 Section("Validation") {
-                    Picker("Validation", selection: $validationType) {
-                        Text("None").tag("NONE")
-                        Text("Empty").tag("EMPTY")
-                        Text("Well-Formed XML").tag("WELL_FORMED_XML")
-                        Text("Valid XML").tag("VALID_XML")
+                    PropertyRow(title: "Validation", info: "Determines how message content is validated. NONE accepts any content, XML options enforce structure.") {
+                        Picker("", selection: $validationType) {
+                            Text("None").tag("NONE")
+                            Text("Empty").tag("EMPTY")
+                            Text("Well-Formed XML").tag("WELL_FORMED_XML")
+                            Text("Valid XML").tag("VALID_XML")
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
                     }
 
                     if validationType == "VALID_XML" {
-                        TextField(
-                            "Schema Collection",
-                            text: $schemaCollection,
-                            prompt: Text("e.g. dbo.MySchemaCollection")
-                        )
-                    }
-                }
-
-                Section {
-                    Label {
-                        Text("A message type defines the format of messages used in Service Broker conversations. Validation ensures messages conform to the expected structure.")
-                            .font(TypographyTokens.formDescription)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    } icon: {
-                        Image(systemName: "info.circle")
-                            .foregroundStyle(ColorTokens.Text.tertiary)
+                        PropertyRow(title: "Schema Collection", info: "The XML schema collection used to validate message content.") {
+                            TextField("", text: $schemaCollection, prompt: Text("e.g. dbo.MySchemaCollection"))
+                                .textFieldStyle(.plain)
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                 }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") {
-                    Task { await create() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canCreate)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 440, minHeight: 260)
         .frame(idealWidth: 480, idealHeight: 300)

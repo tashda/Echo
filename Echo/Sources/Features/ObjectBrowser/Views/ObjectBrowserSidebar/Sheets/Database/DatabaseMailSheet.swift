@@ -190,12 +190,15 @@ struct DatabaseMailSheet: View {
                 .foregroundStyle(ColorTokens.Text.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 300)
-            if canConfigure {
+            if canConfigure && !isSaving {
                 Button("Enable Database Mail") {
                     Task { await enableFeature() }
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isSaving)
+                .buttonStyle(.bordered)
+            } else if canConfigure {
+                Button("Enable Database Mail") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
             } else {
                 Text("Contact your server administrator to enable Database Mail.")
                     .font(TypographyTokens.detail)
@@ -262,7 +265,7 @@ struct DatabaseMailSheet: View {
             Spacer()
 
             Button("Done") { onDismiss() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.cancelAction)
         }
         .padding(SpacingTokens.md)

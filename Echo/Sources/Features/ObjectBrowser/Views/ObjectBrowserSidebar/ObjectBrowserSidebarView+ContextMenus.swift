@@ -136,8 +136,8 @@ extension ObjectBrowserSidebarView {
 
         // Group 2: New
         Button {
-            viewModel.newDatabaseConnectionID = session.connection.id
-            viewModel.showNewDatabaseSheet = true
+            sheetState.newDatabaseConnectionID = session.connection.id
+            sheetState.showNewDatabaseSheet = true
         } label: {
             Label("New Database", systemImage: "cylinder")
         }
@@ -147,8 +147,8 @@ extension ObjectBrowserSidebarView {
             Divider()
 
             Button {
-                viewModel.attachConnectionID = session.connection.id
-                viewModel.showAttachSheet = true
+                sheetState.attachConnectionID = session.connection.id
+                sheetState.showAttachSheet = true
             } label: {
                 Label("Attach Database...", systemImage: "externaldrive.badge.plus")
             }
@@ -197,15 +197,15 @@ extension ObjectBrowserSidebarView {
 
         if session.connection.databaseType == .microsoftSQL {
             Button {
-                viewModel.databaseMailConnectionID = session.connection.id
-                viewModel.showDatabaseMailSheet = true
+                sheetState.databaseMailConnectionID = session.connection.id
+                sheetState.showDatabaseMailSheet = true
             } label: {
                 Label("Database Mail", systemImage: "envelope")
             }
 
             Button {
-                viewModel.cmsConnectionID = session.connection.id
-                viewModel.showCMSSheet = true
+                sheetState.cmsConnectionID = session.connection.id
+                sheetState.showCMSSheet = true
             } label: {
                 Label("Central Management Servers", systemImage: "server.rack")
             }
@@ -234,6 +234,20 @@ extension ObjectBrowserSidebarView {
                 openWindow(id: ServerEditorWindow.sceneID, value: value)
             } label: {
                 Label("Properties", systemImage: "info.circle")
+            }
+        }
+
+        // Group: Visibility filters
+        if session.connection.databaseType == .microsoftSQL {
+            Divider()
+
+            let connID = session.connection.id
+            let hideOffline = viewModel.hideOfflineDatabasesBySession[connID] ?? false
+            Toggle(isOn: Binding(
+                get: { hideOffline },
+                set: { viewModel.hideOfflineDatabasesBySession[connID] = $0 }
+            )) {
+                Text("Hide Offline Databases")
             }
         }
 

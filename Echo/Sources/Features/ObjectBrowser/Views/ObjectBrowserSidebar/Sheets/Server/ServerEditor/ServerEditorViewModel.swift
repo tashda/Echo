@@ -63,20 +63,6 @@ final class ServerEditorViewModel {
             ?? 0
     }
 
-    func configBinding(for name: String) -> Binding<Int64> {
-        Binding(
-            get: { self.configValue(for: name) },
-            set: { newValue in
-                let original = self.configurations.first(where: { $0.name == name })?.configuredValue ?? 0
-                if newValue != original {
-                    self.pendingChanges[name] = newValue
-                } else {
-                    self.pendingChanges.removeValue(forKey: name)
-                }
-            }
-        )
-    }
-
     func configOption(for name: String) -> SQLServerConfigurationOption? {
         configurations.first(where: { $0.name == name })
     }

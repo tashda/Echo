@@ -36,7 +36,7 @@ struct ExecutionPlanComparisonView: View {
             Button("Open Plan XML") {
                 loadPlanFile()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
 
             if let error = errorMessage {
                 Text(error)

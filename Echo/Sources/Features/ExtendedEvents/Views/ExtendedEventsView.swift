@@ -2,15 +2,33 @@ import SwiftUI
 import SQLServerKit
 
 struct ExtendedEventsView: View {
-    @Bindable var viewModel: ExtendedEventsViewModel
-    @Bindable var panelState: BottomPanelState
+    var viewModel: ExtendedEventsViewModel
+    var panelState: BottomPanelState
+    let onPopout: ((String) -> Void)?
+    var onDoubleClick: (() -> Void)?
+    
     @Environment(TabStore.self) private var tabStore
+
+    init(
+        viewModel: ExtendedEventsViewModel,
+        panelState: BottomPanelState,
+        onPopout: ((String) -> Void)? = nil,
+        onDoubleClick: (() -> Void)? = nil
+    ) {
+        self.viewModel = viewModel
+        self.panelState = panelState
+        self.onPopout = onPopout
+        self.onDoubleClick = onDoubleClick
+    }
 
     private var isWatchingLiveData: Bool {
         panelState.isOpen && panelState.selectedSegment == .liveData
     }
 
     var body: some View {
+        @Bindable var viewModel = viewModel
+        @Bindable var panelState = panelState
+        
         TabContentWithPanel(
             panelState: panelState,
             statusBarConfiguration: statusBarConfig
@@ -73,6 +91,7 @@ struct ExtendedEventsView: View {
 
     @ViewBuilder
     private var watchLiveDataToggle: some View {
+        @Bindable var panelState = panelState
         let selectedSession = viewModel.sessions.first(where: { $0.name == viewModel.selectedSessionName })
         let canWatch = selectedSession?.isRunning == true
 
@@ -102,7 +121,11 @@ struct ExtendedEventsView: View {
     private var panelContentView: some View {
         switch panelState.selectedSegment {
         case .liveData:
-            ExtendedEventsDataView(viewModel: viewModel)
+            ExtendedEventsDataView(
+                viewModel: viewModel,
+                onPopout: onPopout,
+                onDoubleClick: onDoubleClick
+            )
         case .messages:
             ExecutionConsoleView(executionMessages: panelState.messages) {
                 panelState.clearMessages()

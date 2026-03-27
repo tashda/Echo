@@ -1,6 +1,7 @@
 import SwiftUI
 import EchoSense
 import SQLServerKit
+import PostgresKit
 
 @MainActor @Observable
 final class ObjectBrowserSidebarViewModel {
@@ -28,27 +29,16 @@ final class ObjectBrowserSidebarViewModel {
     // Server folder groups (Databases, Management, etc.)
     var databasesFolderExpandedBySession: [UUID: Bool] = [:]
     var managementFolderExpandedBySession: [UUID: Bool] = [:]
+    var hideOfflineDatabasesBySession: [UUID: Bool] = [:]
 
     // Agent Jobs state (per-connection, MSSQL only)
     var agentJobsExpandedBySession: [UUID: Bool] = [:]
     var agentJobsBySession: [UUID: [AgentJobItem]] = [:]
     var agentJobsLoadingBySession: [UUID: Bool] = [:]
-    var showNewJobSheet = false
-    var newJobSessionID: UUID?
-
     // Linked Servers state (per-connection, MSSQL only)
     var linkedServersExpandedBySession: [UUID: Bool] = [:]
     var linkedServersBySession: [UUID: [LinkedServerItem]] = [:]
     var linkedServersLoadingBySession: [UUID: Bool] = [:]
-    var showNewLinkedServerSheet = false
-    var newLinkedServerSessionID: UUID?
-    var showDropLinkedServerAlert = false
-    var dropLinkedServerTarget: DropLinkedServerTarget?
-
-    struct DropLinkedServerTarget {
-        let connectionID: UUID
-        let serverName: String
-    }
 
     // Security state — server-level (per-connection)
     var securityFolderExpandedBySession: [UUID: Bool] = [:]
@@ -63,9 +53,6 @@ final class ObjectBrowserSidebarViewModel {
     // PG separate folders
     var securityPGLoginRolesExpandedBySession: [UUID: Bool] = [:]
     var securityPGGroupRolesExpandedBySession: [UUID: Bool] = [:]
-    // MSSQL server role sheet
-    var showSecurityServerRoleSheet = false
-    var securityServerRoleSheetSessionID: UUID?
 
     // Security state — database-level (keyed by "connID#dbName")
     var dbSecurityExpandedByDB: [String: Bool] = [:]
@@ -79,55 +66,14 @@ final class ObjectBrowserSidebarViewModel {
     var dbSecuritySchemasByDB: [String: [SecuritySchemaItem]] = [:]
     var dbSecurityLoadingByDB: [String: Bool] = [:]
 
-    // Security sheets
-    var showSecurityPGRoleSheet = false
-    var securityPGRoleSheetEditName: String?
-    var securityPGRoleSheetSessionID: UUID?
-    var showNewServerRoleSheet = false
-    var showNewCredentialSheet = false
-    var newSecuritySheetSessionID: UUID?
+    // PostgreSQL Advanced Objects sidebar state (keyed by "connID-dbName")
+    var advancedObjectsExpandedByDB: [String: Bool] = [:]
 
-    // New database sheet
-    var showNewDatabaseSheet = false
-    var newDatabaseConnectionID: UUID?
-
-    // PostgreSQL Backup/Restore sheets
-    var showPgBackupSheet = false
-    var showPgRestoreSheet = false
-    var pgBackupDatabaseName: String?
-    var pgBackupConnectionID: UUID?
-
-    // Database Mail sheet
-    var showDatabaseMailSheet = false
-    var databaseMailConnectionID: UUID?
-
-    // Change Tracking / CDC sheet
-    var showChangeTrackingSheet = false
-    var changeTrackingDatabaseName: String?
-    var changeTrackingConnectionID: UUID?
-
-    // Full-Text Search sheet
-    var showFullTextSheet = false
-    var fullTextDatabaseName: String?
-    var fullTextConnectionID: UUID?
-
-    // Replication sheet
-    var showReplicationSheet = false
-    var replicationDatabaseName: String?
-    var replicationConnectionID: UUID?
-
-    // CMS sheet
-    var showCMSSheet = false
-    var cmsConnectionID: UUID?
-
-    // Detach Database sheet
-    var showDetachSheet = false
-    var detachDatabaseName: String?
-    var detachConnectionID: UUID?
-
-    // Attach Database sheet
-    var showAttachSheet = false
-    var attachConnectionID: UUID?
+    // PostgreSQL Replication sidebar state (keyed by "connID-dbName")
+    var replicationPubExpanded: [String: Bool] = [:]
+    var replicationSubExpanded: [String: Bool] = [:]
+    var replicationPubData: [String: [PostgresPublicationInfo]] = [:]
+    var replicationSubData: [String: [PostgresSubscriptionInfo]] = [:]
 
     // SSIS (per-connection, MSSQL only)
     var ssisExpandedBySession: [UUID: Bool] = [:]
@@ -138,46 +84,6 @@ final class ObjectBrowserSidebarViewModel {
     var databaseSnapshotsExpandedBySession: [UUID: Bool] = [:]
     var databaseSnapshotsBySession: [UUID: [SQLServerDatabaseSnapshot]] = [:]
     var databaseSnapshotsLoadingBySession: [UUID: Bool] = [:]
-    var showCreateSnapshotSheet = false
-    var createSnapshotConnectionID: UUID?
-
-    // Drop database confirmation
-    var showDropDatabaseAlert = false
-    var dropDatabaseTarget: DropDatabaseTarget?
-
-    struct DropDatabaseTarget {
-        let sessionID: UUID
-        let connectionID: UUID
-        let databaseName: String
-        let databaseType: DatabaseType
-        let variant: DropVariant
-    }
-
-    enum DropVariant {
-        case standard
-        case cascade
-        case force
-    }
-
-    // Drop security principal confirmation
-    var showDropSecurityPrincipalAlert = false
-    var dropSecurityPrincipalTarget: DropSecurityPrincipalTarget?
-
-    struct DropSecurityPrincipalTarget {
-        let sessionID: UUID
-        let connectionID: UUID
-        let name: String
-        let kind: SecurityPrincipalKind
-        /// Database name, only for database-scoped principals (e.g. MSSQL users).
-        let databaseName: String?
-    }
-
-    enum SecurityPrincipalKind: String {
-        case pgRole = "Role"
-        case mssqlLogin = "Login"
-        case mssqlUser = "User"
-        case mssqlServerRole = "Server Role"
-    }
 
     struct LinkedServerItem: Identifiable, Hashable {
         let id: String
@@ -324,68 +230,4 @@ final class ObjectBrowserSidebarViewModel {
     var externalDataSourcesByDB: [String: [String]] = [:]
     var externalTablesByDB: [String: [String]] = [:]
     var externalFileFormatsByDB: [String: [String]] = [:]
-
-    // Sheet triggers — Server Triggers
-    var showNewServerTriggerSheet = false
-    var newServerTriggerConnectionID: UUID?
-
-    // Sheet triggers — Database DDL Triggers
-    var showNewDBDDLTriggerSheet = false
-    var newDBDDLTriggerConnectionID: UUID?
-    var newDBDDLTriggerDatabaseName: String?
-
-    // Sheet triggers — Service Broker
-    var showNewMessageTypeSheet = false
-    var newMessageTypeConnectionID: UUID?
-    var newMessageTypeDatabaseName: String?
-
-    var showNewContractSheet = false
-    var newContractConnectionID: UUID?
-    var newContractDatabaseName: String?
-
-    var showNewQueueSheet = false
-    var newQueueConnectionID: UUID?
-    var newQueueDatabaseName: String?
-
-    var showNewServiceSheet = false
-    var newServiceConnectionID: UUID?
-    var newServiceDatabaseName: String?
-
-    var showNewRouteSheet = false
-    var newRouteConnectionID: UUID?
-    var newRouteDatabaseName: String?
-
-    // Sheet triggers — External Resources (PolyBase)
-    var showNewExternalDataSourceSheet = false
-    var newExternalDataSourceConnectionID: UUID?
-    var newExternalDataSourceDatabaseName: String?
-
-    var showNewExternalFileFormatSheet = false
-    var newExternalFileFormatConnectionID: UUID?
-    var newExternalFileFormatDatabaseName: String?
-
-    var showNewExternalTableSheet = false
-    var newExternalTableConnectionID: UUID?
-    var newExternalTableDatabaseName: String?
-
-    // Sheet triggers — Phase 6
-    var showGenerateScriptsWizard = false
-    var generateScriptsConnectionID: UUID?
-    var generateScriptsDatabaseName: String?
-
-    var showQuickImportSheet = false
-    var quickImportConnectionID: UUID?
-    var quickImportDatabaseName: String?
-
-    var showDACWizard = false
-    var dacWizardConnectionID: UUID?
-    var dacWizardDatabaseName: String?
-
-    // Sheet triggers — Temporal
-    var showEnableVersioningSheet = false
-    var enableVersioningConnectionID: UUID?
-    var enableVersioningDatabaseName: String?
-    var enableVersioningSchemaName: String?
-    var enableVersioningTableName: String?
-
 }

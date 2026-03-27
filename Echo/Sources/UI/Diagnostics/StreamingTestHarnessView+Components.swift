@@ -80,16 +80,26 @@ extension StreamingTestHarnessView {
 
     var controlButtons: some View {
         HStack(spacing: SpacingTokens.sm) {
-            Button {
-                runStreamingTest()
-            } label: {
-                Label("Run Test", systemImage: "play.fill")
-                    .labelStyle(.titleAndIcon)
-                    .padding(.horizontal, SpacingTokens.sm)
-                    .padding(.vertical, SpacingTokens.xxs2)
+            if !isRunning && selectedSession != nil && !sqlInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button {
+                    runStreamingTest()
+                } label: {
+                    Label("Run Test", systemImage: "play.fill")
+                        .labelStyle(.titleAndIcon)
+                        .padding(.horizontal, SpacingTokens.sm)
+                        .padding(.vertical, SpacingTokens.xxs2)
+                }
+                .buttonStyle(.bordered)
+            } else {
+                Button {} label: {
+                    Label("Run Test", systemImage: "play.fill")
+                        .labelStyle(.titleAndIcon)
+                        .padding(.horizontal, SpacingTokens.sm)
+                        .padding(.vertical, SpacingTokens.xxs2)
+                }
+                .buttonStyle(.bordered)
+                .disabled(true)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(isRunning || selectedSession == nil || sqlInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
             Button {
                 cancelRunningTest()

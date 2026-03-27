@@ -38,14 +38,12 @@ extension ObjectBrowserSidebarView {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
 
-            Divider()
-
             Button {
-                viewModel.newDBDDLTriggerConnectionID = connID
-                viewModel.newDBDDLTriggerDatabaseName = database.name
-                viewModel.showNewDBDDLTriggerSheet = true
+                sheetState.newDBDDLTriggerConnectionID = connID
+                sheetState.newDBDDLTriggerDatabaseName = database.name
+                sheetState.showNewDBDDLTriggerSheet = true
             } label: {
-                Label("New Database Trigger...", systemImage: "bolt.shield.fill")
+                Label("New Database Trigger", systemImage: "bolt")
             }
         }
 

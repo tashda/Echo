@@ -206,7 +206,7 @@ struct PostgresMaintenanceIndexes: View {
                 Button("Done") {
                     selectedDefinition = nil
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.defaultAction)
             }
             .padding()

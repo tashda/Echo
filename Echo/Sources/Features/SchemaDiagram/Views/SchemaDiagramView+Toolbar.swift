@@ -50,24 +50,35 @@ extension SchemaDiagramView {
                 ProgressView()
                     .controlSize(.small)
             }
-            Button {
-                guard !isRefreshing else { return }
-                isRefreshing = true
-                Task {
-                    await diagramBuilder.refreshDiagram(for: viewModel)
-                    await MainActor.run {
-                        isRefreshing = false
+            if !viewModel.isLoading {
+                Button {
+                    guard !isRefreshing else { return }
+                    isRefreshing = true
+                    Task {
+                        await diagramBuilder.refreshDiagram(for: viewModel)
+                        await MainActor.run {
+                            isRefreshing = false
+                        }
                     }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                        .labelStyle(.iconOnly)
                 }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-                    .labelStyle(.iconOnly)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Refresh Diagram")
+                .accessibilityLabel("Refresh Diagram")
+            } else {
+                Button {} label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.bordered)
+                .disabled(true)
+                .controlSize(.small)
+                .help("Refresh Diagram")
+                .accessibilityLabel("Refresh Diagram")
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .disabled(viewModel.isLoading)
-            .help("Refresh Diagram")
-            .accessibilityLabel("Refresh Diagram")
         }
         .padding(.horizontal, SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xs)

@@ -6,7 +6,26 @@ struct PostgresActivityMonitorView: View {
     @Environment(EnvironmentState.self) var environmentState
     @Environment(AppState.self) private var appState
 
-    @State private var selectedSection: PostgresActivitySection = .sessions
+    @State private var internalSelectedSection: PostgresActivitySection = .sessions
+    private var selectedSection: PostgresActivitySection {
+        get {
+            if let str = viewModel.selectedSection, let sec = PostgresActivitySection(rawValue: str) {
+                return sec
+            }
+            return internalSelectedSection
+        }
+        nonmutating set {
+            viewModel.selectedSection = newValue.rawValue
+            internalSelectedSection = newValue
+        }
+    }
+
+    private var selectedSectionBinding: Binding<PostgresActivitySection> {
+        Binding(
+            get: { self.selectedSection },
+            set: { self.selectedSection = $0 }
+        )
+    }
 
     @State private var sessionsSortOrder = [KeyPathComparator(\PostgresProcessInfo.pid)]
     @State private var locksSortOrder = [KeyPathComparator(\PostgresLockInfo.pid)]
@@ -29,6 +48,11 @@ struct PostgresActivityMonitorView: View {
         case operations = "Operations"
         case queries = "Queries"
         case replication = "Replication"
+        case ioStats = "I/O Stats"
+        case wal = "WAL"
+        case bgWriter = "BGWriter"
+        case preparedTxns = "Prepared Txns"
+        case configuration = "Configuration"
     }
 
     private var sectionAvailability: [PostgresActivitySection: Bool] {
@@ -41,7 +65,12 @@ struct PostgresActivityMonitorView: View {
             .database: true,
             .operations: true,
             .queries: true,
-            .replication: !snap.replicationInfo.isEmpty
+            .replication: !snap.replicationInfo.isEmpty,
+            .ioStats: true,
+            .wal: true,
+            .bgWriter: true,
+            .preparedTxns: true,
+            .configuration: true
         ]
     }
 
@@ -54,7 +83,7 @@ struct PostgresActivityMonitorView: View {
             onOpenInQueryWindow: openInQueryWindow
         ) {
             PostgresActivitySectionPicker(
-                selection: $selectedSection,
+                selection: selectedSectionBinding,
                 sectionAvailability: sectionAvailability
             )
             .frame(maxWidth: 480)
@@ -63,7 +92,7 @@ struct PostgresActivityMonitorView: View {
         } sectionContent: {
             sectionTable
         }
-        .onChange(of: selectedSection) { _, _ in
+        .onChange(of: viewModel.selectedSection) { _, _ in
             environmentState.dataInspectorContent = nil
         }
         .onChange(of: selectedSessionIDs) { _, ids in pushSessionInspector(ids: ids) }
@@ -138,6 +167,16 @@ struct PostgresActivityMonitorView: View {
                 )
             case .replication:
                 PostgresActivityReplication(info: snap.replicationInfo, sortOrder: $replicationSortOrder)
+            case .ioStats:
+                PostgresActivityIOStats(connectionID: viewModel.connectionID)
+            case .wal:
+                PostgresActivityWAL(connectionID: viewModel.connectionID)
+            case .bgWriter:
+                PostgresActivityBGWriter(connectionID: viewModel.connectionID)
+            case .preparedTxns:
+                PostgresActivityPreparedTxns(connectionID: viewModel.connectionID)
+            case .configuration:
+                PostgresActivityConfiguration(connectionID: viewModel.connectionID)
             }
         } else {
             EmptyTablePlaceholder()

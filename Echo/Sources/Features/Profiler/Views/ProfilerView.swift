@@ -5,20 +5,21 @@ import UniformTypeIdentifiers
 
 struct ProfilerView: View {
     @Bindable var viewModel: ProfilerViewModel
+    let onPopout: (String) -> Void
+    var onDoubleClick: (() -> Void)?
 
     @State private var showTemplateSheet = false
+    @State private var sortOrder = [KeyPathComparator(\SQLServerProfilerEvent.timestamp, order: .reverse)]
+
+    private var sortedEvents: [SQLServerProfilerEvent] {
+        viewModel.events.sorted(using: sortOrder)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             toolbar
             
-            VSplitView {
-                eventTable
-                    .frame(minHeight: 200)
-                
-                eventDetailView
-                    .frame(minHeight: 100)
-            }
+            eventTable
         }
         .background(ColorTokens.Background.primary)
         .task { await viewModel.loadDatabases() }
@@ -135,70 +136,61 @@ struct ProfilerView: View {
     }
     
     private var eventTable: some View {
-        Table(viewModel.events, selection: $viewModel.selectedEventID) {
-            TableColumn("Event") { event in
+        Table(sortedEvents, selection: $viewModel.selectedEventID, sortOrder: $sortOrder) {
+            TableColumn("Time", value: \.sortableTimestamp) { event in
+                if let date = event.timestamp {
+                    Text(date, style: .time)
+                        .font(TypographyTokens.Table.date)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                } else {
+                    Text("\u{2014}")
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
+            }
+            .width(min: 80, ideal: 100)
+
+            TableColumn("Event", value: \.eventName) { event in
                 Text(event.eventName)
+                    .font(TypographyTokens.Table.name)
             }
             .width(min: 150, ideal: 200)
             
-            TableColumn("Duration (ms)") { event in
+            TableColumn("Duration (ms)", value: \.sortableDuration) { event in
                 Text(event.duration.map { "\($0)" } ?? "")
+                    .font(TypographyTokens.Table.numeric)
+                    .foregroundStyle(ColorTokens.accent)
             }
             .width(80)
             
-            TableColumn("CPU") { event in
+            TableColumn("CPU", value: \.sortableCPU) { event in
                 Text(event.cpu.map { "\($0)" } ?? "")
+                    .font(TypographyTokens.Table.numeric)
             }
             .width(60)
             
-            TableColumn("Reads") { event in
+            TableColumn("Reads", value: \.sortableReads) { event in
                 Text(event.reads.map { "\($0)" } ?? "")
+                    .font(TypographyTokens.Table.numeric)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
             .width(60)
             
-            TableColumn("Text") { event in
-                Text(event.textData ?? "")
-                    .lineLimit(1)
+            TableColumn("SQL Text", value: \.sortableText) { event in
+                SQLQueryCell(sql: event.textData ?? "", onPopout: onPopout)
             }
         }
-    }
-    
-    private var eventDetailView: some View {
-        ScrollView {
-            if let event = viewModel.selectedEvent {
-                VStack(alignment: .leading, spacing: SpacingTokens.md) {
-                    if let sql = event.textData {
-                        GroupBox("SQL Text") {
-                            Text(sql)
-                                .font(.system(.body, design: .monospaced))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .textSelection(.enabled)
-                                .padding(SpacingTokens.xs)
-                        }
-                    }
-                    
-                    LazyVGrid(columns: [GridItem(.fixed(100)), GridItem(.flexible())], alignment: .leading) {
-                        detailRow("Login", event.loginName)
-                        detailRow("Database", event.databaseName)
-                        detailRow("SPID", event.spid.map { "\($0)" })
-                        detailRow("Reads", event.reads.map { "\($0)" })
-                        detailRow("Writes", event.writes.map { "\($0)" })
-                    }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .contextMenu(forSelectionType: SQLServerProfilerEvent.ID.self) { selection in
+            if let id = selection.first, let event = viewModel.events.first(where: { $0.id == id }) {
+                Button {
+                    if let sql = event.textData { onPopout(sql) }
+                } label: {
+                    Label("Details", systemImage: "arrow.up.left.and.arrow.down.right")
                 }
-                .padding(SpacingTokens.md)
-            } else {
-                ContentUnavailableView("No Event Selected", systemImage: "info.circle")
+                .disabled(event.textData == nil)
             }
-        }
-        .frame(maxWidth: .infinity)
-        .background(ColorTokens.Background.secondary)
-    }
-    
-    private func detailRow(_ label: String, _ value: String?) -> some View {
-        Group {
-            Text(label + ":")
-                .foregroundStyle(.secondary)
-            Text(value ?? "-")
+        } primaryAction: { _ in
+            onDoubleClick?()
         }
     }
 }

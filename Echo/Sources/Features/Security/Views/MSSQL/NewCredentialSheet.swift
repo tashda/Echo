@@ -18,9 +18,19 @@ struct NewCredentialSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Credential",
+            icon: "key",
+            subtitle: "Create a server credential for external authentication.",
+            primaryAction: "Create",
+            canSubmit: isFormValid,
+            isSubmitting: isSubmitting,
+            errorMessage: errorMessage,
+            onSubmit: { await submit() },
+            onCancel: { onComplete() }
+        ) {
             Form {
-                Section("New Credential") {
+                Section {
                     PropertyRow(title: "Credential Name") {
                         TextField("", text: $credentialName, prompt: Text("e.g. my_credential"))
                             .textFieldStyle(.plain)
@@ -42,33 +52,8 @@ struct NewCredentialSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack(spacing: SpacingTokens.sm) {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                Button("Cancel") { onComplete() }
-                    .keyboardShortcut(.cancelAction)
-
-                Button("Create") { Task { await submit() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isFormValid)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-            .padding(.vertical, SpacingTokens.sm2)
-            .background(.bar)
         }
-        .frame(minWidth: 420, idealWidth: 460, minHeight: 240)
-        .navigationTitle("New Credential")
+        .frame(minWidth: 420, idealWidth: 460, minHeight: 280)
     }
 
     private func submit() async {

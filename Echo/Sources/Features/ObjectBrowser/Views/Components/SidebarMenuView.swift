@@ -89,6 +89,11 @@ struct SidebarMenu: View {
                 selectedNavSection = .folder
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .activateSidebarSearch)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedNavSection = .search
+            }
+        }
     }
 
     private var navigationBar: some View {

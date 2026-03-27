@@ -59,7 +59,7 @@ extension ObjectBrowserSidebarView {
     // MARK: - Drop Linked Server
 
     func executeDropLinkedServer(
-        _ target: ObjectBrowserSidebarViewModel.DropLinkedServerTarget,
+        _ target: SidebarSheetState.DropLinkedServerTarget,
         session: ConnectionSession
     ) async {
         guard let mssql = session.session as? MSSQLSession else { return }

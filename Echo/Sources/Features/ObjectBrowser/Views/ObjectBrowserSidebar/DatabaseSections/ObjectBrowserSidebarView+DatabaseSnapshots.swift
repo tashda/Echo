@@ -53,8 +53,8 @@ extension ObjectBrowserSidebarView {
             Divider()
 
             Button {
-                viewModel.createSnapshotConnectionID = connID
-                viewModel.showCreateSnapshotSheet = true
+                sheetState.createSnapshotConnectionID = connID
+                sheetState.showCreateSnapshotSheet = true
             } label: {
                 Label("New Snapshot...", systemImage: "camera.badge.ellipsis")
             }

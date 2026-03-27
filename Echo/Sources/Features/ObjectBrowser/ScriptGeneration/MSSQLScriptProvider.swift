@@ -7,8 +7,8 @@ struct MSSQLScriptProvider: DatabaseScriptProvider {
         return "[\(escaped)]"
     }
 
-    func scriptActions(for objectType: SchemaObjectInfo.ObjectType) -> [DatabaseObjectRow.ScriptAction] {
-        var actions: [DatabaseObjectRow.ScriptAction] = [.create, .alter, .dropIfExists]
+    func scriptActions(for objectType: SchemaObjectInfo.ObjectType) -> [ScriptAction] {
+        var actions: [ScriptAction] = [.create, .alter, .dropIfExists]
         switch objectType {
         case .function, .procedure:
             actions.append(.execute)

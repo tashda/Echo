@@ -35,7 +35,7 @@ extension ServerEditorView {
             subtitle: "Range: \(option.minimum)–\(option.maximum)"
         ) {
             HStack(spacing: SpacingTokens.xs) {
-                TextField("", value: viewModel.configBinding(for: option.name), format: .number, prompt: Text("0"))
+                TextField("", value: configValueBinding(for: option.name), format: .number, prompt: Text("0"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)

@@ -189,6 +189,8 @@ public enum ColorTokens {
         public static let functions = Color.orange
         public static let procedures = Color.red
         public static let triggers = Color(red: 0.95, green: 0.75, blue: 0.0) // Gold
+        public static let sequences = Color.brown
+        public static let types = Color.pink
         public static let extensions = Color.indigo
         public static let queryStore = Color.indigo
 

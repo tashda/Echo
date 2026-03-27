@@ -19,9 +19,6 @@ struct SidebarConnectionHeader: View {
 
     @Environment(\.sidebarDensity) private var density
 
-    @State private var isHovered = false
-    @State private var isContextMenuVisible = false
-
     enum TrailingAccessory {
         case chevron
         case spinner
@@ -59,17 +56,8 @@ struct SidebarConnectionHeader: View {
 
     // MARK: - Highlight
 
-    @ViewBuilder
     private var highlightFill: some View {
-        if isContextMenuVisible {
-            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Sidebar.contextFill)
-        } else if isHovered {
-            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Sidebar.hoverFill)
-        } else {
-            Color.clear
-        }
+        Color.clear
     }
 
     // MARK: - Body
@@ -133,16 +121,6 @@ struct SidebarConnectionHeader: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .help(subtitle)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
-            guard isHovered else { return }
-            withAnimation(.easeInOut(duration: 0.1)) { isContextMenuVisible = true }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
-            withAnimation(.easeInOut(duration: 0.15)) { isContextMenuVisible = false }
-        }
         .focusable(false)
     }
 

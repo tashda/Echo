@@ -31,7 +31,7 @@ struct SQLInspectorPopover: View {
                         onOpenInWindow(context.sql)
                         dismiss()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
 
                     Button("Close") {
                         dismiss()
@@ -193,7 +193,7 @@ struct PGStatStatementsGuide: View {
             Button("Open Extension Manager") {
                 onOpenManager()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .controlSize(.small)
             .padding(.top, SpacingTokens.xxs)
         }

@@ -5,294 +5,294 @@ extension ObjectBrowserSidebarView {
 
     func applySheets<V: View>(to content: V) -> some View {
         content
-            .sheet(isPresented: $viewModel.showNewJobSheet) {
-                if let connID = viewModel.newJobSessionID,
+            .sheet(isPresented: $sheetState.showNewJobSheet) {
+                if let connID = sheetState.newJobSessionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     NewAgentJobSheet(session: session, environmentState: environmentState) {
-                        viewModel.showNewJobSheet = false
+                        sheetState.showNewJobSheet = false
                         loadAgentJobs(session: session)
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showNewDatabaseSheet) {
-                if let connID = viewModel.newDatabaseConnectionID,
+            .sheet(isPresented: $sheetState.showNewDatabaseSheet) {
+                if let connID = sheetState.newDatabaseConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     NewDatabaseSheet(
                         session: session,
                         environmentState: environmentState,
-                        onDismiss: { viewModel.showNewDatabaseSheet = false }
+                        onDismiss: { sheetState.showNewDatabaseSheet = false }
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showNewServerRoleSheet) {
-                if let connID = viewModel.newSecuritySheetSessionID,
+            .sheet(isPresented: $sheetState.showNewServerRoleSheet) {
+                if let connID = sheetState.newSecuritySheetSessionID,
                    let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == connID }) {
                     NewServerRoleSheet(session: session) {
-                        viewModel.showNewServerRoleSheet = false
+                        sheetState.showNewServerRoleSheet = false
                         loadServerSecurity(session: session)
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showNewCredentialSheet) {
-                if let connID = viewModel.newSecuritySheetSessionID,
+            .sheet(isPresented: $sheetState.showNewCredentialSheet) {
+                if let connID = sheetState.newSecuritySheetSessionID,
                    let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == connID }) {
                     NewCredentialSheet(session: session) {
-                        viewModel.showNewCredentialSheet = false
+                        sheetState.showNewCredentialSheet = false
                         loadServerSecurity(session: session)
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showSecurityPGRoleSheet) {
-                if let connID = viewModel.securityPGRoleSheetSessionID,
+            .sheet(isPresented: $sheetState.showSecurityPGRoleSheet) {
+                if let connID = sheetState.securityPGRoleSheetSessionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     SecurityPGRoleSheet(
                         session: session,
                         environmentState: environmentState,
-                        existingRoleName: viewModel.securityPGRoleSheetEditName
+                        existingRoleName: sheetState.securityPGRoleSheetEditName
                     ) {
-                        viewModel.showSecurityPGRoleSheet = false
+                        sheetState.showSecurityPGRoleSheet = false
                         loadServerSecurity(session: session)
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showPgBackupSheet) {
-                if let dbName = viewModel.pgBackupDatabaseName,
-                   let connID = viewModel.pgBackupConnectionID,
+            .sheet(isPresented: $sheetState.showPgBackupSheet) {
+                if let dbName = sheetState.pgBackupDatabaseName,
+                   let connID = sheetState.pgBackupConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     PgBackupSheetContainer(
                         connection: session.connection,
                         session: session.session,
                         databaseName: dbName,
-                        isPresented: $viewModel.showPgBackupSheet
+                        isPresented: $sheetState.showPgBackupSheet
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showPgRestoreSheet) {
-                if let dbName = viewModel.pgBackupDatabaseName,
-                   let connID = viewModel.pgBackupConnectionID,
+            .sheet(isPresented: $sheetState.showPgRestoreSheet) {
+                if let dbName = sheetState.pgBackupDatabaseName,
+                   let connID = sheetState.pgBackupConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     PgRestoreSheetContainer(
                         connection: session.connection,
                         session: session.session,
                         databaseName: dbName,
                         connectionSession: session,
-                        isPresented: $viewModel.showPgRestoreSheet
+                        isPresented: $sheetState.showPgRestoreSheet
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showNewLinkedServerSheet) {
-                if let connID = viewModel.newLinkedServerSessionID,
+            .sheet(isPresented: $sheetState.showNewLinkedServerSheet) {
+                if let connID = sheetState.newLinkedServerSessionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     NewLinkedServerSheet(
                         session: session,
                         environmentState: environmentState
                     ) {
-                        viewModel.showNewLinkedServerSheet = false
+                        sheetState.showNewLinkedServerSheet = false
                         loadLinkedServers(session: session)
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showDatabaseMailSheet) {
-                if let connID = viewModel.databaseMailConnectionID,
+            .sheet(isPresented: $sheetState.showDatabaseMailSheet) {
+                if let connID = sheetState.databaseMailConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     DatabaseMailSheet(
                         session: session,
-                        onDismiss: { viewModel.showDatabaseMailSheet = false }
+                        onDismiss: { sheetState.showDatabaseMailSheet = false }
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showChangeTrackingSheet) {
-                if let dbName = viewModel.changeTrackingDatabaseName,
-                   let connID = viewModel.changeTrackingConnectionID,
+            .sheet(isPresented: $sheetState.showChangeTrackingSheet) {
+                if let dbName = sheetState.changeTrackingDatabaseName,
+                   let connID = sheetState.changeTrackingConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     ChangeTrackingSheet(
                         databaseName: dbName,
                         session: session,
-                        onDismiss: { viewModel.showChangeTrackingSheet = false }
+                        onDismiss: { sheetState.showChangeTrackingSheet = false }
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showFullTextSheet) {
-                if let dbName = viewModel.fullTextDatabaseName,
-                   let connID = viewModel.fullTextConnectionID,
+            .sheet(isPresented: $sheetState.showFullTextSheet) {
+                if let dbName = sheetState.fullTextDatabaseName,
+                   let connID = sheetState.fullTextConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     FullTextSearchSheet(
                         databaseName: dbName,
                         session: session,
-                        onDismiss: { viewModel.showFullTextSheet = false }
+                        onDismiss: { sheetState.showFullTextSheet = false }
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showReplicationSheet) {
-                if let dbName = viewModel.replicationDatabaseName,
-                   let connID = viewModel.replicationConnectionID,
+            .sheet(isPresented: $sheetState.showReplicationSheet) {
+                if let dbName = sheetState.replicationDatabaseName,
+                   let connID = sheetState.replicationConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     ReplicationSheet(
                         databaseName: dbName,
                         session: session,
-                        onDismiss: { viewModel.showReplicationSheet = false }
+                        onDismiss: { sheetState.showReplicationSheet = false }
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showCMSSheet) {
-                if let connID = viewModel.cmsConnectionID,
+            .sheet(isPresented: $sheetState.showCMSSheet) {
+                if let connID = sheetState.cmsConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     CMSSheet(
                         session: session,
-                        onDismiss: { viewModel.showCMSSheet = false }
+                        onDismiss: { sheetState.showCMSSheet = false }
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showDetachSheet) {
-                if let dbName = viewModel.detachDatabaseName,
-                   let connID = viewModel.detachConnectionID,
+            .sheet(isPresented: $sheetState.showDetachSheet) {
+                if let dbName = sheetState.detachDatabaseName,
+                   let connID = sheetState.detachConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     DetachDatabaseSheet(
                         databaseName: dbName,
                         session: session,
                         environmentState: environmentState,
-                        onDismiss: { viewModel.showDetachSheet = false }
+                        onDismiss: { sheetState.showDetachSheet = false }
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showAttachSheet) {
-                if let connID = viewModel.attachConnectionID,
+            .sheet(isPresented: $sheetState.showAttachSheet) {
+                if let connID = sheetState.attachConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     AttachDatabaseSheet(
                         session: session,
                         environmentState: environmentState,
-                        onDismiss: { viewModel.showAttachSheet = false }
+                        onDismiss: { sheetState.showAttachSheet = false }
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.showCreateSnapshotSheet) {
-                if let connID = viewModel.createSnapshotConnectionID,
+            .sheet(isPresented: $sheetState.showCreateSnapshotSheet) {
+                if let connID = sheetState.createSnapshotConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     CreateSnapshotSheet(
                         session: session,
                         environmentState: environmentState,
                         onDismiss: {
-                            viewModel.showCreateSnapshotSheet = false
+                            sheetState.showCreateSnapshotSheet = false
                             loadDatabaseSnapshots(session: session)
                         }
                     )
                 }
             }
             // Phase 3 — Server Trigger
-            .sheet(isPresented: $viewModel.showNewServerTriggerSheet) {
-                if let connID = viewModel.newServerTriggerConnectionID,
+            .sheet(isPresented: $sheetState.showNewServerTriggerSheet) {
+                if let connID = sheetState.newServerTriggerConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     NewServerTriggerSheet(session: session, environmentState: environmentState) {
-                        viewModel.showNewServerTriggerSheet = false
+                        sheetState.showNewServerTriggerSheet = false
                         loadServerTriggers(session: session)
                     }
                 }
             }
             // Phase 3 — Database DDL Trigger
-            .sheet(isPresented: $viewModel.showNewDBDDLTriggerSheet) {
-                if let connID = viewModel.newDBDDLTriggerConnectionID,
+            .sheet(isPresented: $sheetState.showNewDBDDLTriggerSheet) {
+                if let connID = sheetState.newDBDDLTriggerConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.newDBDDLTriggerDatabaseName {
+                   let dbName = sheetState.newDBDDLTriggerDatabaseName {
                     NewDatabaseDDLTriggerSheet(databaseName: dbName, session: session, environmentState: environmentState) {
-                        viewModel.showNewDBDDLTriggerSheet = false
+                        sheetState.showNewDBDDLTriggerSheet = false
                     }
                 }
             }
             // Phase 3 — Service Broker
-            .sheet(isPresented: $viewModel.showNewMessageTypeSheet) {
-                if let connID = viewModel.newMessageTypeConnectionID,
+            .sheet(isPresented: $sheetState.showNewMessageTypeSheet) {
+                if let connID = sheetState.newMessageTypeConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.newMessageTypeDatabaseName {
+                   let dbName = sheetState.newMessageTypeDatabaseName {
                     NewMessageTypeSheet(databaseName: dbName, session: session, environmentState: environmentState) {
-                        viewModel.showNewMessageTypeSheet = false
+                        sheetState.showNewMessageTypeSheet = false
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showNewContractSheet) {
-                if let connID = viewModel.newContractConnectionID,
+            .sheet(isPresented: $sheetState.showNewContractSheet) {
+                if let connID = sheetState.newContractConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.newContractDatabaseName {
+                   let dbName = sheetState.newContractDatabaseName {
                     NewContractSheet(databaseName: dbName, session: session, environmentState: environmentState) {
-                        viewModel.showNewContractSheet = false
+                        sheetState.showNewContractSheet = false
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showNewQueueSheet) {
-                if let connID = viewModel.newQueueConnectionID,
+            .sheet(isPresented: $sheetState.showNewQueueSheet) {
+                if let connID = sheetState.newQueueConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.newQueueDatabaseName {
+                   let dbName = sheetState.newQueueDatabaseName {
                     NewQueueSheet(databaseName: dbName, session: session, environmentState: environmentState) {
-                        viewModel.showNewQueueSheet = false
+                        sheetState.showNewQueueSheet = false
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showNewServiceSheet) {
-                if let connID = viewModel.newServiceConnectionID,
+            .sheet(isPresented: $sheetState.showNewServiceSheet) {
+                if let connID = sheetState.newServiceConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.newServiceDatabaseName {
+                   let dbName = sheetState.newServiceDatabaseName {
                     NewServiceSheet(databaseName: dbName, session: session, environmentState: environmentState) {
-                        viewModel.showNewServiceSheet = false
+                        sheetState.showNewServiceSheet = false
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showNewRouteSheet) {
-                if let connID = viewModel.newRouteConnectionID,
+            .sheet(isPresented: $sheetState.showNewRouteSheet) {
+                if let connID = sheetState.newRouteConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.newRouteDatabaseName {
+                   let dbName = sheetState.newRouteDatabaseName {
                     NewRouteSheet(databaseName: dbName, session: session, environmentState: environmentState) {
-                        viewModel.showNewRouteSheet = false
+                        sheetState.showNewRouteSheet = false
                     }
                 }
             }
             // Phase 3 — External Resources (PolyBase)
-            .sheet(isPresented: $viewModel.showNewExternalDataSourceSheet) {
-                if let connID = viewModel.newExternalDataSourceConnectionID,
+            .sheet(isPresented: $sheetState.showNewExternalDataSourceSheet) {
+                if let connID = sheetState.newExternalDataSourceConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.newExternalDataSourceDatabaseName {
+                   let dbName = sheetState.newExternalDataSourceDatabaseName {
                     NewExternalDataSourceSheet(databaseName: dbName, session: session, environmentState: environmentState) {
-                        viewModel.showNewExternalDataSourceSheet = false
+                        sheetState.showNewExternalDataSourceSheet = false
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showNewExternalFileFormatSheet) {
-                if let connID = viewModel.newExternalFileFormatConnectionID,
+            .sheet(isPresented: $sheetState.showNewExternalFileFormatSheet) {
+                if let connID = sheetState.newExternalFileFormatConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.newExternalFileFormatDatabaseName {
+                   let dbName = sheetState.newExternalFileFormatDatabaseName {
                     NewExternalFileFormatSheet(databaseName: dbName, session: session, environmentState: environmentState) {
-                        viewModel.showNewExternalFileFormatSheet = false
+                        sheetState.showNewExternalFileFormatSheet = false
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showNewExternalTableSheet) {
-                if let connID = viewModel.newExternalTableConnectionID,
+            .sheet(isPresented: $sheetState.showNewExternalTableSheet) {
+                if let connID = sheetState.newExternalTableConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.newExternalTableDatabaseName {
+                   let dbName = sheetState.newExternalTableDatabaseName {
                     NewExternalTableSheet(databaseName: dbName, session: session, environmentState: environmentState) {
-                        viewModel.showNewExternalTableSheet = false
+                        sheetState.showNewExternalTableSheet = false
                     }
                 }
             }
             // Phase 3 — Temporal
-            .sheet(isPresented: $viewModel.showEnableVersioningSheet) {
-                if let connID = viewModel.enableVersioningConnectionID,
+            .sheet(isPresented: $sheetState.showEnableVersioningSheet) {
+                if let connID = sheetState.enableVersioningConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let schema = viewModel.enableVersioningSchemaName,
-                   let table = viewModel.enableVersioningTableName {
+                   let schema = sheetState.enableVersioningSchemaName,
+                   let table = sheetState.enableVersioningTableName {
                     EnableSystemVersioningSheet(
                         tableName: table,
                         schemaName: schema,
                         session: session,
                         environmentState: environmentState
                     ) {
-                        viewModel.showEnableVersioningSheet = false
+                        sheetState.showEnableVersioningSheet = false
                     }
                 }
             }
             // Phase 6 — Generate Scripts
-            .sheet(isPresented: $viewModel.showGenerateScriptsWizard) {
-                if let connID = viewModel.generateScriptsConnectionID,
+            .sheet(isPresented: $sheetState.showGenerateScriptsWizard) {
+                if let connID = sheetState.generateScriptsConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID),
-                   let dbName = viewModel.generateScriptsDatabaseName {
+                   let dbName = sheetState.generateScriptsDatabaseName {
                     let vm = GenerateScriptsWizardViewModel(
                         session: session.session,
                         databaseName: dbName
@@ -306,8 +306,8 @@ extension ObjectBrowserSidebarView {
                 }
             }
             // Phase 6 — Import Flat File
-            .sheet(isPresented: $viewModel.showQuickImportSheet) {
-                if let connID = viewModel.quickImportConnectionID,
+            .sheet(isPresented: $sheetState.showQuickImportSheet) {
+                if let connID = sheetState.quickImportConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     QuickImportSheet(
                         viewModel: QuickImportViewModel(session: session.session)
@@ -315,13 +315,13 @@ extension ObjectBrowserSidebarView {
                 }
             }
             // Phase 6 — DAC Wizard
-            .sheet(isPresented: $viewModel.showDACWizard) {
-                if let connID = viewModel.dacWizardConnectionID,
+            .sheet(isPresented: $sheetState.showDACWizard) {
+                if let connID = sheetState.dacWizardConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
                     DACWizardView(
                         viewModel: DACWizardViewModel(
                             session: session.session,
-                            databaseName: viewModel.dacWizardDatabaseName ?? ""
+                            databaseName: sheetState.dacWizardDatabaseName ?? ""
                         )
                     )
                 }
@@ -331,15 +331,15 @@ extension ObjectBrowserSidebarView {
     func applyAlerts<V: View>(to content: V) -> some View {
         content
             .alert(
-                "Drop \"\(viewModel.dropDatabaseTarget?.databaseName ?? "")\"?",
-                isPresented: $viewModel.showDropDatabaseAlert
+                "Drop \"\(sheetState.dropDatabaseTarget?.databaseName ?? "")\"?",
+                isPresented: $sheetState.showDropDatabaseAlert
             ) {
                 Button("Cancel", role: .cancel) {
-                    viewModel.dropDatabaseTarget = nil
+                    sheetState.dropDatabaseTarget = nil
                 }
                 Button("Drop", role: .destructive) {
-                    guard let target = viewModel.dropDatabaseTarget else { return }
-                    viewModel.dropDatabaseTarget = nil
+                    guard let target = sheetState.dropDatabaseTarget else { return }
+                    sheetState.dropDatabaseTarget = nil
                     guard let session = environmentState.sessionGroup.sessionForConnection(target.connectionID) else { return }
                     Task {
                         switch target.databaseType {
@@ -356,7 +356,7 @@ extension ObjectBrowserSidebarView {
                     }
                 }
             } message: {
-                if let target = viewModel.dropDatabaseTarget {
+                if let target = sheetState.dropDatabaseTarget {
                     switch target.variant {
                     case .cascade:
                         Text("This will drop the database and all dependent objects. This action cannot be undone.")
@@ -368,15 +368,15 @@ extension ObjectBrowserSidebarView {
                 }
             }
             .alert(
-                "Delete linked server \"\(viewModel.dropLinkedServerTarget?.serverName ?? "")\"?",
-                isPresented: $viewModel.showDropLinkedServerAlert
+                "Delete linked server \"\(sheetState.dropLinkedServerTarget?.serverName ?? "")\"?",
+                isPresented: $sheetState.showDropLinkedServerAlert
             ) {
                 Button("Cancel", role: .cancel) {
-                    viewModel.dropLinkedServerTarget = nil
+                    sheetState.dropLinkedServerTarget = nil
                 }
                 Button("Delete", role: .destructive) {
-                    guard let target = viewModel.dropLinkedServerTarget else { return }
-                    viewModel.dropLinkedServerTarget = nil
+                    guard let target = sheetState.dropLinkedServerTarget else { return }
+                    sheetState.dropLinkedServerTarget = nil
                     guard let session = environmentState.sessionGroup.sessionForConnection(target.connectionID) else { return }
                     Task {
                         await executeDropLinkedServer(target, session: session)
@@ -386,22 +386,22 @@ extension ObjectBrowserSidebarView {
                 Text("This will permanently remove the linked server and all its login mappings. This action cannot be undone.")
             }
             .alert(
-                "Drop \(viewModel.dropSecurityPrincipalTarget?.kind.rawValue ?? "") \"\(viewModel.dropSecurityPrincipalTarget?.name ?? "")\"?",
-                isPresented: $viewModel.showDropSecurityPrincipalAlert
+                "Drop \(sheetState.dropSecurityPrincipalTarget?.kind.rawValue ?? "") \"\(sheetState.dropSecurityPrincipalTarget?.name ?? "")\"?",
+                isPresented: $sheetState.showDropSecurityPrincipalAlert
             ) {
                 Button("Cancel", role: .cancel) {
-                    viewModel.dropSecurityPrincipalTarget = nil
+                    sheetState.dropSecurityPrincipalTarget = nil
                 }
                 Button("Drop", role: .destructive) {
-                    guard let target = viewModel.dropSecurityPrincipalTarget else { return }
-                    viewModel.dropSecurityPrincipalTarget = nil
+                    guard let target = sheetState.dropSecurityPrincipalTarget else { return }
+                    sheetState.dropSecurityPrincipalTarget = nil
                     guard let session = environmentState.sessionGroup.sessionForConnection(target.connectionID) else { return }
                     Task {
                         await executeDropSecurityPrincipal(target, session: session)
                     }
                 }
             } message: {
-                if let target = viewModel.dropSecurityPrincipalTarget {
+                if let target = sheetState.dropSecurityPrincipalTarget {
                     Text("This will permanently drop the \(target.kind.rawValue.lowercased()) \"\(target.name)\". This action cannot be undone.")
                 }
             }

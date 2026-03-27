@@ -56,9 +56,6 @@ struct SidebarRow<Trailing: View>: View {
 
     @Environment(\.sidebarDensity) private var density
 
-    @State private var isHovered = false
-    @State private var isContextMenuVisible = false
-
     private var densityVerticalPadding: CGFloat { density == .large ? 5 : SidebarRowConstants.rowVerticalPadding }
     private var densityIconFrameWidth: CGFloat { density == .large ? 20 : SidebarRowConstants.iconFrameWidth }
     private var densityIconFrameHeight: CGFloat { density == .large ? 18 : SidebarRowConstants.iconFrameHeight }
@@ -78,12 +75,6 @@ struct SidebarRow<Trailing: View>: View {
         if isSelected {
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
                 .fill(ColorTokens.Sidebar.selectedFill)
-        } else if isContextMenuVisible {
-            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Sidebar.contextFill)
-        } else if isHovered {
-            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Sidebar.hoverFill)
         } else {
             Color.clear
         }
@@ -140,16 +131,6 @@ struct SidebarRow<Trailing: View>: View {
             .contentShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
         }
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
-            guard isHovered else { return }
-            withAnimation(.easeInOut(duration: 0.1)) { isContextMenuVisible = true }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
-            withAnimation(.easeInOut(duration: 0.15)) { isContextMenuVisible = false }
-        }
         .buttonStyle(.plain)
         .focusable(false)
     }

@@ -25,6 +25,10 @@ extension EnvironmentState {
     }
 
     func disconnectAllSessions() {
+        for (_, vm) in detachedJobQueueViewModels {
+            vm.stopActivityPolling()
+        }
+        detachedJobQueueViewModels.removeAll()
         let sessionIDs = sessionGroup.activeSessions.map(\.id)
         for id in sessionIDs {
             sessionGroup.removeSession(withID: id)
@@ -40,6 +44,7 @@ extension EnvironmentState {
         } else {
             displayName = "server"
         }
+        detachedJobQueueViewModels[id]?.stopActivityPolling()
         detachedJobQueueViewModels.removeValue(forKey: id)
         // Clean up editor windows for this connection
         let userEditorKeys = userEditorViewModels.keys.filter { $0.connectionSessionID == id }
@@ -140,257 +145,65 @@ extension EnvironmentState {
         await schemaDiscoveryEngine.preloadStructure(for: connection, overridePassword: overridePassword)
     }
 
-    // MARK: - Tab Management
+    // MARK: - Bookmarks
 
-    func registerTab(_ tab: WorkspaceTab) {
-        tabStore.addTab(tab)
+    func bookmarks(for connectionID: UUID) -> [Bookmark] {
+        guard let project = projectStore.projects.first(where: { p in
+            p.id == (connectionStore.connections.first(where: { $0.id == connectionID })?.projectID ?? projectStore.selectedProject?.id)
+        }) else { return [] }
+        return bookmarkRepository.bookmarks(for: connectionID, in: project)
     }
 
-    func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String? = nil, autoExecute: Bool = false, database: String? = nil) {
-        let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
-        guard let targetSession else { return }
+    func addBookmark(for connection: SavedConnection, databaseName: String?, title: String?, query: String, source: Bookmark.Source) async {
+        guard var project = projectStore.projects.first(where: { $0.id == (connection.projectID ?? projectStore.selectedProject?.id) }) else { return }
+        let bookmark = Bookmark(connectionID: connection.id, databaseName: databaseName, title: title, query: query, source: source)
+        bookmarkRepository.addBookmark(bookmark, to: &project)
+        await projectStore.saveProject(project)
+    }
 
-        // Inherit the active tab's database when no explicit database is provided,
-        // matching SSMS/pgAdmin4 behavior where Cmd+T opens a tab connected to the same database.
-        let resolvedDatabase = database ?? tabStore.activeTab?.activeDatabaseName
+    func removeBookmark(_ bookmark: Bookmark) async {
+        guard var project = projectStore.projects.first(where: { $0.id == (bookmark.connectionID) }) else { return }
+        bookmarkRepository.removeBookmark(bookmark.id, from: &project)
+        await projectStore.saveProject(project)
+    }
 
-        let connection = targetSession.connection
-        let targetDatabase = resolvedDatabase
-            ?? targetSession.sidebarFocusedDatabase
-            ?? connection.database
+    func renameBookmark(_ bookmark: Bookmark, to title: String?) async {
+        guard var project = projectStore.projects.first(where: { $0.id == (bookmark.connectionID) }) else { return }
+        bookmarkRepository.updateBookmark(bookmark.id, in: &project) { b in b.title = title }
+        await projectStore.saveProject(project)
+    }
 
-        // MSSQL: show the tab immediately with the shared session, then upgrade
-        // to a dedicated connection in the background. The shared session works for
-        // queries (USE [db] prefix), and the upgrade provides transaction isolation.
-        if connection.databaseType == .microsoftSQL,
-           let metadataSession = targetSession.session as? SQLServerSessionAdapter {
-            let queryText = presetQuery ?? ""
-            let tab = targetSession.addQueryTab(
-                withQuery: queryText,
-                database: resolvedDatabase
-            )
-            tab.markAwaitingDedicatedSession()
-            tab.query?.isEstablishingConnection = true
-            registerTab(tab)
+    func copyBookmark(_ bookmark: Bookmark) {
+        PlatformClipboard.copy(bookmark.query)
+    }
 
-            Task {
-                let t0 = CFAbsoluteTimeGetCurrent()
-                do {
-                    let dedicatedSession = try await makeDedicatedQuerySession(
-                        for: connection,
-                        metadataSession: metadataSession,
-                        database: targetDatabase
-                    )
-                    let elapsed = String(format: "%.3f", CFAbsoluteTimeGetCurrent() - t0)
-                    Logger.connection.info("[DedicatedSession] ready in \(elapsed)s for \(targetDatabase ?? "nil")")
-                    tab.upgradeToDedicatedSession(dedicatedSession)
-                    tab.query?.isEstablishingConnection = false
-                } catch {
-                    tab.upgradeToDedicatedSession(tab.session)
-                    tab.query?.isEstablishingConnection = false
-                    notificationEngine?.post(
-                        category: .connectionFailed,
-                        message: "Dedicated connection failed: \(error.localizedDescription)",
-                        duration: 5.0
-                    )
-                }
+    // MARK: - Helpers
+
+    func updateNavigation(for session: ConnectionSession?) {
+        if let session {
+            navigationStore.navigationState.selectConnection(session.connection)
+            if let db = session.sidebarFocusedDatabase {
+                navigationStore.navigationState.selectDatabase(db)
             }
-            return
         }
+    }
 
-        // Other engines: create the tab immediately with the shared session.
-        // A dedicated connection is established in the background for query isolation.
-        let tab = targetSession.addQueryTab(
-            withQuery: presetQuery ?? "",
-            database: resolvedDatabase
+    func persistConnections() async {
+        try? await connectionStore.saveConnections()
+    }
+
+    func enqueuePrefetchForSessionIfNeeded(_ session: ConnectionSession) async {
+        await diagramBuilder.scheduleRelatedPrefetch(
+            session: session,
+            baseKey: DiagramTableKey(schema: session.connection.database, name: ""),
+            relatedKeys: [],
+            projectID: session.connection.projectID ?? projectStore.selectedProject?.id ?? UUID()
         )
-        registerTab(tab)
-
-        let gate = dedicatedConnectionGate
-
-        Task {
-            await gate.wait()
-            do {
-                let dedicatedSession = try await makeDedicatedQuerySession(
-                    for: connection,
-                    metadataSession: targetSession.session,
-                    database: targetDatabase
-                )
-                await gate.signal()
-                tab.upgradeToDedicatedSession(dedicatedSession)
-            } catch {
-                await gate.signal()
-                notificationEngine?.post(
-                    category: .connectionFailed,
-                    message: "Dedicated query connection failed: \(error.localizedDescription)",
-                    duration: 5.0
-                )
-            }
-        }
     }
 
-    func openMaintenanceTab(connectionID: UUID, databaseName: String? = nil) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab: WorkspaceTab
-        if session.connection.databaseType == .microsoftSQL {
-            tab = session.addMSSQLMaintenanceTab(databaseName: databaseName)
-        } else {
-            tab = session.addMaintenanceTab(databaseName: databaseName)
-        }
-        if tabStore.getTab(id: tab.id) == nil {
-            registerTab(tab)
-        }
-        tabStore.selectTab(tab)
-    }
+    // MARK: - Dedicated Sessions
 
-    enum MaintenanceBackupAction {
-        case backup
-        case restore
-    }
-
-    func openMaintenanceBackups(connectionID: UUID, databaseName: String, action: MaintenanceBackupAction) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab: WorkspaceTab
-        if session.connection.databaseType == .microsoftSQL {
-            tab = session.addMSSQLMaintenanceTab(databaseName: databaseName)
-            if let vm = tab.mssqlMaintenance {
-                vm.selectedSection = .backups
-                vm.backupsActiveForm = action == .backup ? .backup : .restore
-            }
-        } else {
-            // PostgreSQL backup/restore is handled via sheets from the sidebar context menu
-            return
-        }
-        if tabStore.getTab(id: tab.id) == nil {
-            registerTab(tab)
-        }
-        tabStore.selectTab(tab)
-    }
-
-    func openActivityMonitorTab(connectionID: UUID) {
-        // Reuse any existing activity monitor tab for this connection across all sessions
-        if let existing = tabStore.tabs.first(where: { $0.kind == .activityMonitor && $0.connection.id == connectionID }) {
-            tabStore.selectTab(existing)
-            return
-        }
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        do {
-            let tab = try session.addActivityMonitorTab()
-            registerTab(tab)
-        } catch let error as DatabaseError {
-            self.lastError = error
-        } catch {
-            self.lastError = .queryError(error.localizedDescription)
-        }
-    }
-
-    func openExtensionsManagerTab(connectionID: UUID, databaseName: String) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addExtensionsManagerTab(databaseName: databaseName)
-        registerTab(tab)
-    }
-
-    func openQueryStoreTab(connectionID: UUID, databaseName: String) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        // Check for existing tab first — activate it without creating a new one
-        if let existing = session.queryTabs.first(where: { $0.queryStoreVM?.databaseName == databaseName }) {
-            session.activeQueryTabID = existing.id
-            tabStore.selectTab(existing)
-            return
-        }
-        if let tab = session.addQueryStoreTab(databaseName: databaseName) {
-            registerTab(tab)
-        }
-    }
-
-    func openExtendedEventsTab(connectionID: UUID) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        if let tab = session.addExtendedEventsTab() {
-            registerTab(tab)
-        }
-    }
-
-    func openProfilerTab(connectionID: UUID) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        // Profiler requires a new tab kind
-        let tab = session.addProfilerTab()
-        registerTab(tab)
-    }
-
-    func openResourceGovernorTab(connectionID: UUID) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addResourceGovernorTab()
-        registerTab(tab)
-    }
-
-    func openTuningAdvisorTab(connectionID: UUID) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addTuningAdvisorTab()
-        registerTab(tab)
-    }
-
-    func openPolicyManagementTab(connectionID: UUID) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addPolicyManagementTab()
-        registerTab(tab)
-    }
-
-    func openServerPropertiesTab(connectionID: UUID) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addServerPropertiesTab()
-        registerTab(tab)
-    }
-
-    func openAvailabilityGroupsTab(connectionID: UUID) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        if let tab = session.addAvailabilityGroupsTab() {
-            registerTab(tab)
-        }
-    }
-
-    func openPSQLTab(for session: ConnectionSession? = nil, database: String? = nil) {
-        guard projectStore.globalSettings.managedPostgresConsoleEnabled else { return }
-        let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
-        guard let targetSession else { return }
-        let requestedDatabase = (database ?? targetSession.sidebarFocusedDatabase ?? targetSession.connection.database)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let effectiveDatabase = requestedDatabase.isEmpty ? "postgres" : requestedDatabase
-        let connection = targetSession.connection
-
-        Task {
-            do {
-                let dedicatedSession = try await makeDedicatedPostgresConsoleSession(
-                    for: connection,
-                    database: effectiveDatabase
-                )
-
-                let sessionFactory: @Sendable (String) async throws -> DatabaseSession = { [weak self] databaseName in
-                    guard let self else {
-                        throw DatabaseError.connectionFailed("The environment is no longer available.")
-                    }
-                    return try await self.makeDedicatedPostgresConsoleSession(
-                        for: connection,
-                        database: databaseName
-                    )
-                }
-
-                await MainActor.run {
-                    let tab = targetSession.addPSQLTab(
-                        session: dedicatedSession,
-                        database: effectiveDatabase,
-                        sessionFactory: sessionFactory
-                    )
-                    registerTab(tab)
-                }
-            } catch {
-                await MainActor.run {
-                    notificationEngine?.post(category: .connectionFailed, message: "Postgres Console failed: \(error.localizedDescription)", duration: 5.0)
-                }
-            }
-        }
-    }
-
-    private func makeDedicatedPostgresConsoleSession(
+    func makeDedicatedPostgresConsoleSession(
         for connection: SavedConnection,
         database: String
     ) async throws -> DatabaseSession {
@@ -426,7 +239,7 @@ extension EnvironmentState {
     /// `DatabaseFactory`. Each query tab gets its own connection for transaction
     /// isolation, session state safety, and concurrent execution — matching SSMS
     /// and pgAdmin4 behavior.
-    private func makeDedicatedQuerySession(
+    func makeDedicatedQuerySession(
         for connection: SavedConnection,
         metadataSession: DatabaseSession,
         database: String?
@@ -498,243 +311,5 @@ extension EnvironmentState {
             authentication: credentials,
             connectTimeoutSeconds: Int(connection.connectionTimeout)
         )
-    }
-
-    func openJobQueueTab(for session: ConnectionSession, selectJobID: String? = nil) {
-        // Reuse existing Jobs tab for this session if one exists
-        if let existingTab = tabStore.tabs.first(where: { $0.kind == .jobQueue && $0.connectionSessionID == session.id }) {
-            tabStore.selectTab(existingTab)
-            if let jobID = selectJobID, let vm = existingTab.jobQueue {
-                vm.resolveAndSelect(jobIdentifier: jobID)
-            }
-            return
-        }
-        let tab = session.addJobQueueTab(selectJobID: selectJobID)
-        registerTab(tab)
-    }
-
-    /// Prepares a `JobQueueViewModel` for display in a detached window.
-    /// Returns the connection session ID used as the window value.
-    @discardableResult
-    func prepareJobQueueWindow(for session: ConnectionSession, selectJobID: String? = nil) -> UUID {
-        if let existing = detachedJobQueueViewModels[session.id] {
-            if let jobID = selectJobID {
-                existing.resolveAndSelect(jobIdentifier: jobID)
-            }
-            return session.id
-        }
-        let viewModel = JobQueueViewModel(session: session.session, connection: session.connection, initialSelectedJobID: selectJobID)
-        detachedJobQueueViewModels[session.id] = viewModel
-        return session.id
-    }
-
-    /// Moves a Job Queue tab's view model into a detached window.
-    /// Closes the tab and returns the connection session ID for `openWindow`.
-    func popOutJobQueueTab(_ tab: WorkspaceTab) -> UUID? {
-        guard let viewModel = tab.jobQueue else { return nil }
-        let sessionID = tab.connectionSessionID
-        detachedJobQueueViewModels[sessionID] = viewModel
-        tabStore.closeTab(id: tab.id)
-        return sessionID
-    }
-
-    func openStructureTab(for session: ConnectionSession, object: SchemaObjectInfo, focus: TableStructureSection? = nil, databaseName: String? = nil) {
-        let tab = session.addStructureTab(for: object, focus: focus, databaseName: databaseName)
-        registerTab(tab)
-    }
-
-    func openDiagramTab(for session: ConnectionSession, object: SchemaObjectInfo) {
-        // Implementation
-    }
-
-    func duplicateTab(_ tab: WorkspaceTab) {
-        // Implementation
-    }
-
-    // MARK: - Bookmarks
-
-    func bookmarks(for connectionID: UUID) -> [Bookmark] {
-        guard let project = projectStore.projects.first(where: { p in
-            p.id == (connectionStore.connections.first(where: { $0.id == connectionID })?.projectID ?? projectStore.selectedProject?.id)
-        }) else { return [] }
-        return bookmarkRepository.bookmarks(for: connectionID, in: project)
-    }
-
-    func addBookmark(for connection: SavedConnection, databaseName: String?, title: String?, query: String, source: Bookmark.Source) async {
-        guard var project = projectStore.projects.first(where: { $0.id == (connection.projectID ?? projectStore.selectedProject?.id) }) else { return }
-        let bookmark = Bookmark(connectionID: connection.id, databaseName: databaseName, title: title, query: query, source: source)
-        bookmarkRepository.addBookmark(bookmark, to: &project)
-        await projectStore.saveProject(project)
-    }
-
-    func removeBookmark(_ bookmark: Bookmark) async {
-        guard var project = projectStore.projects.first(where: { $0.id == (bookmark.connectionID) }) else { return }
-        bookmarkRepository.removeBookmark(bookmark.id, from: &project)
-        await projectStore.saveProject(project)
-    }
-
-    func renameBookmark(_ bookmark: Bookmark, to title: String?) async {
-        guard var project = projectStore.projects.first(where: { $0.id == (bookmark.connectionID) }) else { return }
-        bookmarkRepository.updateBookmark(bookmark.id, in: &project) { b in b.title = title }
-        await projectStore.saveProject(project)
-    }
-
-    func copyBookmark(_ bookmark: Bookmark) {
-        PlatformClipboard.copy(bookmark.query)
-    }
-
-    // MARK: - Helpers
-
-    func updateNavigation(for session: ConnectionSession?) {
-        if let session {
-            navigationStore.navigationState.selectConnection(session.connection)
-            if let db = session.sidebarFocusedDatabase {
-                navigationStore.navigationState.selectDatabase(db)
-            }
-        }
-    }
-
-    func persistConnections() async {
-        try? await connectionStore.saveConnections()
-    }
-
-    func enqueuePrefetchForSessionIfNeeded(_ session: ConnectionSession) async {
-        await diagramBuilder.scheduleRelatedPrefetch(
-            session: session,
-            baseKey: DiagramTableKey(schema: session.connection.database, name: ""),
-            relatedKeys: [],
-            projectID: session.connection.projectID ?? projectStore.selectedProject?.id ?? UUID()
-        )
-    }
-
-    // MARK: - User Editor Windows
-
-    // MARK: - Security Tabs
-
-    func openDatabaseSecurityTab(connectionID: UUID, databaseName: String? = nil) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addDatabaseSecurityTab(databaseName: databaseName)
-        if tabStore.getTab(id: tab.id) == nil {
-            registerTab(tab)
-        }
-        tabStore.selectTab(tab)
-    }
-
-    func openErrorLogTab(connectionID: UUID) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addErrorLogTab()
-        if tabStore.getTab(id: tab.id) == nil {
-            registerTab(tab)
-        }
-        tabStore.selectTab(tab)
-    }
-
-    func openServerSecurityTab(connectionID: UUID) {
-        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addServerSecurityTab()
-        if tabStore.getTab(id: tab.id) == nil {
-            registerTab(tab)
-        }
-        tabStore.selectTab(tab)
-    }
-
-    @discardableResult
-    func prepareLoginEditorWindow(
-        connectionSessionID: UUID,
-        existingLogin: String?
-    ) -> LoginEditorWindowValue {
-        let value = LoginEditorWindowValue(
-            connectionSessionID: connectionSessionID,
-            existingLoginName: existingLogin
-        )
-        if loginEditorViewModels[value] == nil {
-            loginEditorViewModels[value] = LoginEditorViewModel(
-                connectionSessionID: connectionSessionID,
-                existingLoginName: existingLogin
-            )
-        }
-        activeLoginEditorValue = value
-        return value
-    }
-
-    @discardableResult
-    func prepareUserEditorWindow(
-        connectionSessionID: UUID,
-        database: String,
-        existingUser: String?
-    ) -> UserEditorWindowValue {
-        let value = UserEditorWindowValue(
-            connectionSessionID: connectionSessionID,
-            databaseName: database,
-            existingUserName: existingUser
-        )
-        if userEditorViewModels[value] == nil {
-            let vm = UserEditorViewModel(
-                connectionSessionID: connectionSessionID,
-                databaseName: database,
-                existingUserName: existingUser
-            )
-            userEditorViewModels[value] = vm
-        }
-        activeUserEditorValue = value
-        return value
-    }
-
-    @discardableResult
-    func prepareRoleEditorWindow(
-        connectionSessionID: UUID,
-        database: String,
-        existingRole: String?
-    ) -> RoleEditorWindowValue {
-        let value = RoleEditorWindowValue(
-            connectionSessionID: connectionSessionID,
-            databaseName: database,
-            existingRoleName: existingRole
-        )
-        if roleEditorViewModels[value] == nil {
-            let vm = RoleEditorViewModel(
-                connectionSessionID: connectionSessionID,
-                databaseName: database,
-                existingRoleName: existingRole
-            )
-            roleEditorViewModels[value] = vm
-        }
-        activeRoleEditorValue = value
-        return value
-    }
-
-    @discardableResult
-    func prepareDatabaseEditorWindow(
-        connectionSessionID: UUID,
-        databaseName: String,
-        databaseType: DatabaseType
-    ) -> DatabaseEditorWindowValue {
-        let value = DatabaseEditorWindowValue(
-            connectionSessionID: connectionSessionID,
-            databaseName: databaseName
-        )
-        // Reuse existing ViewModel if the window is already open — avoids
-        // replacing a loaded ViewModel with a fresh one stuck at isLoading.
-        if databaseEditorViewModels[value] == nil {
-            databaseEditorViewModels[value] = DatabaseEditorViewModel(
-                connectionSessionID: connectionSessionID,
-                databaseName: databaseName,
-                databaseType: databaseType
-            )
-        }
-        activeDatabaseEditorValue = value
-        return value
-    }
-
-    @discardableResult
-    func prepareServerEditorWindow(
-        connectionSessionID: UUID
-    ) -> ServerEditorWindowValue {
-        let value = ServerEditorWindowValue(connectionSessionID: connectionSessionID)
-        if serverEditorViewModels[value] == nil {
-            serverEditorViewModels[value] = ServerEditorViewModel(connectionSessionID: connectionSessionID)
-        }
-        activeServerEditorValue = value
-        return value
     }
 }

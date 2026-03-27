@@ -9,20 +9,20 @@ extension DatabaseObjectRow {
                 let definition = try await session.session.getObjectDefinition(
                     objectName: object.name,
                     schemaName: object.schema,
-                    objectType: object.type
+                    objectType: object.type,
+                    database: databaseName
                 )
                 let adjusted = insertOrReplace ? applyCreateOrReplace(to: definition) : definition
-                await MainActor.run {
-                    environmentState.openQueryTab(for: session, presetQuery: adjusted)
-                }
+                environmentState.openQueryTab(for: session, presetQuery: adjusted, database: databaseName)
             } catch {
-                await MainActor.run {
-                    environmentState.lastError = DatabaseError.from(error)
-                }
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
+                    message: "Failed to script \(object.name): \(error.localizedDescription)"
+                )
             }
         }
     }
-    
+
     internal func openCreateTableScript() {
         guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         Task {
@@ -32,33 +32,33 @@ extension DatabaseObjectRow {
                     table: object.name
                 )
                 let script = makeCreateTableScript(details: details)
-                await MainActor.run {
-                    environmentState.openQueryTab(for: session, presetQuery: script)
-                }
+                environmentState.openQueryTab(for: session, presetQuery: script, database: databaseName)
             } catch {
-                await MainActor.run {
-                    environmentState.lastError = DatabaseError.from(error)
-                }
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
+                    message: "Failed to script \(object.name): \(error.localizedDescription)"
+                )
             }
         }
     }
-    
+
     private func applyCreateOrReplace(to definition: String) -> String {
-        guard let range = definition.range(of: "CREATE", options: [.caseInsensitive]) else {
+        if definition.range(of: "CREATE OR REPLACE", options: [.caseInsensitive]) != nil {
             return definition
         }
-        let snippet = definition[range]
-        if snippet.lowercased().contains("create or replace") {
+        guard let range = definition.range(of: "CREATE", options: [.caseInsensitive]) else {
             return definition
         }
         return definition.replacingCharacters(in: range, with: "CREATE OR REPLACE")
     }
-    
+
     internal func openAlterStatement() {
-        let qualified = qualifiedName(schema: object.schema, name: object.name)
-        let statement: String
         switch connection.databaseType {
+        case .microsoftSQL:
+            openAlterDefinition()
         case .mysql:
+            let qualified = qualifiedName(schema: object.schema, name: object.name)
+            let statement: String
             switch object.type {
             case .function, .procedure:
                 statement = "ALTER FUNCTION \(qualified)\n    -- Update characteristics here;\n"
@@ -67,20 +67,41 @@ extension DatabaseObjectRow {
             default:
                 statement = "ALTER \(objectTypeKeyword()) \(qualified)\n    -- Provide ALTER clauses here;\n"
             }
-        case .microsoftSQL:
-            statement = """
-        ALTER \(objectTypeKeyword()) \(qualified)
-        -- Update definition here.
-        GO
-        """
+            openScriptTab(with: statement)
         case .postgresql, .sqlite:
-            statement = """
-        -- ALTER is not directly supported for this object. Consider using CREATE OR REPLACE.
-        """
+            let statement = "-- ALTER is not directly supported for this object. Consider using CREATE OR REPLACE."
+            openScriptTab(with: statement)
         }
-        openScriptTab(with: statement)
     }
-    
+
+    private func openAlterDefinition() {
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
+        Task {
+            do {
+                let definition = try await session.session.getObjectDefinition(
+                    objectName: object.name,
+                    schemaName: object.schema,
+                    objectType: object.type,
+                    database: databaseName
+                )
+                let altered = applyAlter(to: definition)
+                environmentState.openQueryTab(for: session, presetQuery: altered, database: databaseName)
+            } catch {
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
+                    message: "Failed to script \(object.name): \(error.localizedDescription)"
+                )
+            }
+        }
+    }
+
+    private func applyAlter(to definition: String) -> String {
+        guard let range = definition.range(of: "CREATE", options: [.caseInsensitive]) else {
+            return definition
+        }
+        return definition.replacingCharacters(in: range, with: "ALTER")
+    }
+
     internal func openAlterTableStatement() {
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let statement: String
@@ -103,12 +124,12 @@ extension DatabaseObjectRow {
         }
         openScriptTab(with: statement)
     }
-    
+
     internal func openDropStatement(includeIfExists: Bool) {
         let statement = dropStatement(includeIfExists: includeIfExists)
         openScriptTab(with: statement)
     }
-    
+
     internal func openSelectScript(limit: Int? = nil) {
         let sql: String
         if object.type == .function || object.type == .procedure {
@@ -126,7 +147,7 @@ extension DatabaseObjectRow {
         }
         openScriptTab(with: sql)
     }
-    
+
     internal func openExecuteScript() {
         let sql = executeStatement()
         openScriptTab(with: sql)

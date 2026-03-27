@@ -80,6 +80,9 @@ struct JobQueueView: View {
                 viewModel.selectedHistoryRowID = nil
             }
         }
+        .onDisappear {
+            viewModel.stopActivityPolling()
+        }
         .sheet(isPresented: $showNewJobSheet) {
             if let session = connectionSession {
                 NewAgentJobSheet(session: session, environmentState: environmentState) {

@@ -21,7 +21,17 @@ struct NewContractSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Contract",
+            icon: "doc.text.magnifyingglass",
+            subtitle: "Specify which message types a conversation uses.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await create() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("Contract") {
                     TextField("Name", text: $name, prompt: Text("e.g. OrderContract"))
@@ -72,32 +82,6 @@ struct NewContractSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") {
-                    Task { await create() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canCreate)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 500, minHeight: 340)
         .frame(idealWidth: 540, idealHeight: 400)

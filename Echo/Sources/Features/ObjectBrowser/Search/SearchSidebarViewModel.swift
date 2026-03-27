@@ -22,8 +22,9 @@ final class SearchSidebarViewModel {
     internal var sessions: [ConnectionSession] = []
 
     @ObservationIgnored internal var searchTask: Task<Void, Never>?
-    @ObservationIgnored private let minimumQueryLength = 2
+    @ObservationIgnored private var minimumQueryLength = 2
     @ObservationIgnored private var isRestoring = false
+    @ObservationIgnored var includeOfflineDatabases = false
     @ObservationIgnored internal var queryTabProvider: () -> [SearchSidebarQueryTabSnapshot] = { [] }
 
     var minimumSearchLength: Int { minimumQueryLength }
@@ -48,6 +49,39 @@ final class SearchSidebarViewModel {
                 : session.connection.connectionName
             return (id: session.id, name: name)
         }
+    }
+
+    /// The session ID targeted by the current scope, if narrowed to a server or database.
+    var scopedSessionID: UUID? {
+        switch scope {
+        case .allServers: return nil
+        case .server(let id): return id
+        case .database(let id, _): return id
+        }
+    }
+
+    /// Available databases for the scoped server (populated from cached structure).
+    /// Excludes offline and inaccessible databases unless `includeOfflineDatabases` is set.
+    var availableDatabases: [String] {
+        guard let sessionID = scopedSessionID,
+              let session = sessions.first(where: { $0.id == sessionID }),
+              let structure = session.databaseStructure else { return [] }
+        return structure.databases
+            .filter { includeOfflineDatabases || ($0.isOnline && ($0.hasAccess ?? true)) }
+            .map(\.name)
+            .sorted(by: { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending })
+    }
+
+    /// Apply settings from GlobalSettings.
+    func applySettings(_ settings: GlobalSettings) {
+        minimumQueryLength = settings.searchMinimumQueryLength
+        includeOfflineDatabases = settings.searchIncludeOfflineDatabases
+    }
+
+    /// The database name targeted by the current scope, if narrowed to a specific database.
+    var scopedDatabaseName: String? {
+        if case .database(_, let name) = scope { return name }
+        return nil
     }
 
     func updateSessions(_ newSessions: [ConnectionSession]) {

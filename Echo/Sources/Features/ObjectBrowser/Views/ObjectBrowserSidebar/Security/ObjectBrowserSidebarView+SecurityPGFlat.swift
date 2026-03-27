@@ -36,9 +36,9 @@ extension ObjectBrowserSidebarView {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 Button {
-                    viewModel.securityPGRoleSheetSessionID = connID
-                    viewModel.securityPGRoleSheetEditName = nil
-                    viewModel.showSecurityPGRoleSheet = true
+                    sheetState.securityPGRoleSheetSessionID = connID
+                    sheetState.securityPGRoleSheetEditName = nil
+                    sheetState.showSecurityPGRoleSheet = true
                 } label: {
                     Label("New Login Role", systemImage: "person.badge.plus")
                 }
@@ -97,9 +97,9 @@ extension ObjectBrowserSidebarView {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 Button {
-                    viewModel.securityPGRoleSheetSessionID = connID
-                    viewModel.securityPGRoleSheetEditName = nil
-                    viewModel.showSecurityPGRoleSheet = true
+                    sheetState.securityPGRoleSheetSessionID = connID
+                    sheetState.securityPGRoleSheetEditName = nil
+                    sheetState.showSecurityPGRoleSheet = true
                 } label: {
                     Label("New Group Role", systemImage: "person.2.badge.plus")
                 }

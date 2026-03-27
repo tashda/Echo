@@ -48,7 +48,7 @@ extension ClipboardHistoryRow {
             } label: {
                 Label("Copy Data", systemImage: "doc.on.doc")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

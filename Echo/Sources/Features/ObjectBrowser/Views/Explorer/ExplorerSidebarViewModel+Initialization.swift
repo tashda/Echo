@@ -13,10 +13,10 @@ extension ObjectBrowserSidebarViewModel {
         let prefix = connID.uuidString + "#"
         if isNewSession {
             lastInitializedSessionID[connID] = sessionID
-            // Clear stale expansion state so settings are re-applied
-            for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) { expandedObjectGroupsBySession.removeValue(forKey: key) }
+            // Bulk-clear stale expansion state (single assignment per dictionary instead of per-key removal)
+            expandedObjectGroupsBySession = expandedObjectGroupsBySession.filter { !$0.key.hasPrefix(prefix) }
             expandedDatabasesBySession.removeValue(forKey: connID)
-            for key in expandedObjectIDsBySession.keys where key.hasPrefix(prefix) { expandedObjectIDsBySession.removeValue(forKey: key) }
+            expandedObjectIDsBySession = expandedObjectIDsBySession.filter { !$0.key.hasPrefix(prefix) }
             databasesFolderExpandedBySession.removeValue(forKey: connID)
             managementFolderExpandedBySession.removeValue(forKey: connID)
             agentJobsExpandedBySession.removeValue(forKey: connID)
@@ -30,15 +30,14 @@ extension ObjectBrowserSidebarViewModel {
             securityCredentialsBySession.removeValue(forKey: connID)
             securityServerLoadingBySession.removeValue(forKey: connID)
             // Clear loaded-once tracking for this connection
-            let prefix = connID.uuidString + "#"
             databaseSchemaLoadedOnce = databaseSchemaLoadedOnce.filter { !$0.hasPrefix(prefix) }
-            // Clear database-level security state
-            for key in dbSecurityExpandedByDB.keys where key.hasPrefix(prefix) { dbSecurityExpandedByDB.removeValue(forKey: key) }
-            for key in dbSecurityUsersByDB.keys where key.hasPrefix(prefix) { dbSecurityUsersByDB.removeValue(forKey: key) }
-            for key in dbSecurityRolesByDB.keys where key.hasPrefix(prefix) { dbSecurityRolesByDB.removeValue(forKey: key) }
-            for key in dbSecurityAppRolesByDB.keys where key.hasPrefix(prefix) { dbSecurityAppRolesByDB.removeValue(forKey: key) }
-            for key in dbSecuritySchemasByDB.keys where key.hasPrefix(prefix) { dbSecuritySchemasByDB.removeValue(forKey: key) }
-            for key in dbSecurityLoadingByDB.keys where key.hasPrefix(prefix) { dbSecurityLoadingByDB.removeValue(forKey: key) }
+            // Clear database-level security state (bulk filter)
+            dbSecurityExpandedByDB = dbSecurityExpandedByDB.filter { !$0.key.hasPrefix(prefix) }
+            dbSecurityUsersByDB = dbSecurityUsersByDB.filter { !$0.key.hasPrefix(prefix) }
+            dbSecurityRolesByDB = dbSecurityRolesByDB.filter { !$0.key.hasPrefix(prefix) }
+            dbSecurityAppRolesByDB = dbSecurityAppRolesByDB.filter { !$0.key.hasPrefix(prefix) }
+            dbSecuritySchemasByDB = dbSecuritySchemasByDB.filter { !$0.key.hasPrefix(prefix) }
+            dbSecurityLoadingByDB = dbSecurityLoadingByDB.filter { !$0.key.hasPrefix(prefix) }
         }
 
         // Compute and cache the default expanded object types from sidebar settings.
@@ -52,9 +51,7 @@ extension ObjectBrowserSidebarViewModel {
         defaultExpandedObjectTypes[connID] = defaultGroups
 
         if previousDefaultGroups != nil, previousDefaultGroups != defaultGroups {
-            for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) {
-                expandedObjectGroupsBySession.removeValue(forKey: key)
-            }
+            expandedObjectGroupsBySession = expandedObjectGroupsBySession.filter { !$0.key.hasPrefix(prefix) }
         }
 
         databasesFolderExpandedBySession[connID] = autoExpandSections.contains(.databases)

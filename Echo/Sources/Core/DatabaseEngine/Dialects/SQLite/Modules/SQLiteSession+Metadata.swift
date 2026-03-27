@@ -72,7 +72,8 @@ extension SQLiteSession {
     func getObjectDefinition(
         objectName: String,
         schemaName: String,
-        objectType: SchemaObjectInfo.ObjectType
+        objectType: SchemaObjectInfo.ObjectType,
+        database: String? = nil
     ) async throws -> String {
         let connection = try requireConnection()
         let databaseName = normalizedDatabaseName(schemaName)

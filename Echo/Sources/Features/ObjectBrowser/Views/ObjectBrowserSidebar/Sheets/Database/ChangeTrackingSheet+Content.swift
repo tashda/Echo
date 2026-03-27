@@ -30,13 +30,17 @@ extension ChangeTrackingSheet {
                     }
                     .controlSize(.small)
                     .disabled(!canManageState)
-                } else {
+                } else if canManageState {
                     Button("Enable CT") {
                         Task { await enableCT() }
                     }
                     .controlSize(.small)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canManageState)
+                    .buttonStyle(.bordered)
+                } else {
+                    Button("Enable CT") {}
+                        .controlSize(.small)
+                        .buttonStyle(.bordered)
+                        .disabled(true)
                 }
             }
 

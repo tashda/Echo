@@ -32,16 +32,16 @@ extension ObjectBrowserSidebarView {
         )
         .contextMenu {
             Button {
-                viewModel.newServerTriggerConnectionID = connID
-                viewModel.showNewServerTriggerSheet = true
-            } label: {
-                Label("New Server Trigger...", systemImage: "plus")
-            }
-            Divider()
-            Button {
                 loadServerTriggers(session: session)
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
+            }
+
+            Button {
+                sheetState.newServerTriggerConnectionID = connID
+                sheetState.showNewServerTriggerSheet = true
+            } label: {
+                Label("New Server Trigger", systemImage: "bolt")
             }
         }
 

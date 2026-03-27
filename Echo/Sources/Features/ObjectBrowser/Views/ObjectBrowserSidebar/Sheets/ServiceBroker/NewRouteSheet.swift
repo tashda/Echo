@@ -21,7 +21,17 @@ struct NewRouteSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Route",
+            icon: "arrow.triangle.branch",
+            subtitle: "Define a network route for Service Broker messages.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await create() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("Route") {
                     TextField("Name", text: $name, prompt: Text("e.g. OrderRoute"))
@@ -48,32 +58,6 @@ struct NewRouteSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") {
-                    Task { await create() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canCreate)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 460, minHeight: 340)
         .frame(idealWidth: 500, idealHeight: 400)

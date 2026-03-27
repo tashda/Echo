@@ -8,7 +8,7 @@ struct MSSQLRestoreSidebarSheet: View {
     @State private var selectedPage: MSSQLRestorePage = .general
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: "Restore Database") {
             HStack(spacing: 0) {
                 sidebar
                     .frame(width: 170)
@@ -16,8 +16,8 @@ struct MSSQLRestoreSidebarSheet: View {
                 detailPane
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            Divider()
-            footerBar
+        } footer: {
+            footerContent
         }
         .frame(minWidth: 680, minHeight: 500)
         .frame(idealWidth: 740, idealHeight: 580)

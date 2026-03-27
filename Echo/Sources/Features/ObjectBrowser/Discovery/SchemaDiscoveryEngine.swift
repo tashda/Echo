@@ -70,6 +70,12 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
         try Task.checkCancellation()
 
+        // Local accumulator — databases are collected here without triggering
+        // @Observable mutations. A single applyStructureUpdate happens at the end.
+        var accumulatedDatabases = connectionSession.databaseStructure?.databases
+            ?? connectionSession.connection.cachedStructure?.databases
+            ?? []
+
         do {
             let structure = try await fetcher.fetchStructure(
                 for: connectionSession.connection,
@@ -85,31 +91,16 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                     }
                 },
                 databaseHandler: { database, _, _ in
-                    var databases = connectionSession.databaseStructure?.databases
-                        ?? connectionSession.connection.cachedStructure?.databases
-                        ?? []
-                    if let index = databases.firstIndex(where: { $0.name == database.name }) {
-                        let previous = databases[index]
-                        let merged = Self.mergeDatabaseInfo(partial: database, existing: previous)
-                        if previous == merged {
-                            self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
-                            return
-                        }
-                        databases[index] = merged
+                    // Accumulate locally — no @Observable mutation, no sidebar re-render.
+                    if let index = accumulatedDatabases.firstIndex(where: { $0.name == database.name }) {
+                        let merged = Self.mergeDatabaseInfo(partial: database, existing: accumulatedDatabases[index])
+                        accumulatedDatabases[index] = merged
                     } else {
-                        let fallbackExisting = connectionSession.databaseStructure?.databases.first(where: { $0.name == database.name })
+                        let fallbackExisting = connectionSession.connection.cachedStructure?.databases.first(where: { $0.name == database.name })
                         let merged = Self.mergeDatabaseInfo(partial: database, existing: fallbackExisting)
-                        databases.append(merged)
-                        databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                        accumulatedDatabases.append(merged)
                     }
-
-                    let resolvedServerVersion = interimServerVersion
-                        ?? connectionSession.databaseStructure?.serverVersion
-                        ?? connectionSession.connection.cachedStructure?.serverVersion
-
-                    let updatedStructure = DatabaseStructure(serverVersion: resolvedServerVersion, databases: databases)
-                    self.applyStructureUpdateIfNeeded(updatedStructure, to: connectionSession, cacheResult: true)
-                    self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
+                    self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: accumulatedDatabases)
                 }
             )
 
@@ -117,16 +108,15 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                 interimServerVersion = serverVersion
             }
 
-            // Merge fetcher results into existing structure instead of replacing,
-            // so previously loaded databases are preserved
-            var mergedDatabases = connectionSession.databaseStructure?.databases ?? []
+            // Merge fetcher results into accumulated databases
             for db in structure.databases {
-                if let index = mergedDatabases.firstIndex(where: { $0.name == db.name }) {
-                    mergedDatabases[index] = Self.mergeDatabaseInfo(partial: db, existing: mergedDatabases[index])
+                if let index = accumulatedDatabases.firstIndex(where: { $0.name == db.name }) {
+                    accumulatedDatabases[index] = Self.mergeDatabaseInfo(partial: db, existing: accumulatedDatabases[index])
                 } else {
-                    mergedDatabases.append(db)
+                    accumulatedDatabases.append(db)
                 }
             }
+            var mergedDatabases = accumulatedDatabases
 
             // For non-MSSQL, list all databases and add empty entries for unlisted ones.
             // MSSQL already fetches the full database list with state in its fetcher.
@@ -144,7 +134,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
             mergedDatabases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             let finalStructure = DatabaseStructure(serverVersion: interimServerVersion, databases: mergedDatabases)
-            self.applyStructureUpdateIfNeeded(finalStructure, to: connectionSession, cacheResult: true)
+            self.applyStructureUpdate(finalStructure, to: connectionSession, cacheResult: true)
 
             connectionSession.structureLoadingState = .ready
             connectionSession.structureLoadingMessage = nil
@@ -220,7 +210,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             serverVersion: session.databaseStructure?.serverVersion,
             databases: databases
         )
-        applyStructureUpdateIfNeeded(updated, to: session, cacheResult: true)
+        applyStructureUpdate(updated, to: session, cacheResult: true)
     }
 
     func preloadStructure(for connection: SavedConnection, overridePassword: String?) async {
@@ -247,19 +237,30 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
     }
 
     @discardableResult
-    private func applyStructureUpdateIfNeeded(_ structure: DatabaseStructure, to session: ConnectionSession, cacheResult: Bool) -> Bool {
-        if session.databaseStructure != structure {
-            session.databaseStructure = structure
-            if cacheResult {
-                var updated = session.connection
-                updated.cachedStructure = structure
-                updated.cachedStructureUpdatedAt = Date()
-                if let version = structure.serverVersion { updated.serverVersion = version }
-                Task { await updateConnectionInStore(updated) }
-            }
-            return true
+    private func applyStructureUpdate(_ structure: DatabaseStructure, to session: ConnectionSession, cacheResult: Bool) -> Bool {
+        var updated = structure
+        updated.id = session.databaseStructure?.id ?? structure.id
+        updated.incrementVersion()
+        session.databaseStructure = updated
+        if cacheResult {
+            schedulePersist(updated, for: session)
         }
-        return false
+        return true
+    }
+
+    private var persistTask: Task<Void, Never>?
+
+    private func schedulePersist(_ structure: DatabaseStructure, for session: ConnectionSession) {
+        persistTask?.cancel()
+        persistTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            var conn = session.connection
+            conn.cachedStructure = structure
+            conn.cachedStructureUpdatedAt = Date()
+            if let version = structure.serverVersion { conn.serverVersion = version }
+            await updateConnectionInStore(conn)
+        }
     }
 
     private func updateConnectionInStore(_ connection: SavedConnection) async {

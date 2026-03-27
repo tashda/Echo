@@ -5,7 +5,23 @@ struct ExtendedPropertyEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: isNew ? "Add Extended Property" : "Edit Extended Property",
+            icon: "tag",
+            subtitle: "Add or edit an extended property.",
+            primaryAction: isNew ? "Add" : "Save",
+            canSubmit: !nameBinding.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            onSubmit: {
+                await viewModel.save()
+                if viewModel.editingProperty == nil {
+                    dismiss()
+                }
+            },
+            onCancel: {
+                viewModel.cancelEdit()
+                dismiss()
+            }
+        ) {
             Form {
                 Section {
                     PropertyRow(title: "Name") {
@@ -42,40 +58,8 @@ struct ExtendedPropertyEditorSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            toolbar
         }
         .frame(minWidth: 420, idealWidth: 460, minHeight: 300)
-        .navigationTitle(isNew ? "Add Extended Property" : "Edit Extended Property")
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Spacer()
-
-            Button("Cancel") {
-                viewModel.cancelEdit()
-                dismiss()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button(isNew ? "Add" : "Save") {
-                Task {
-                    await viewModel.save()
-                    if viewModel.editingProperty == nil {
-                        dismiss()
-                    }
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(nameBinding.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
     }
 
     private var isNew: Bool {

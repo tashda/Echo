@@ -17,7 +17,17 @@ struct NewResourcePoolSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Resource Pool",
+            icon: "gauge.with.dots.needle.33percent",
+            subtitle: "Create a Resource Governor resource pool.",
+            primaryAction: "Create",
+            canSubmit: isFormValid,
+            isSubmitting: isSubmitting,
+            errorMessage: errorMessage,
+            onSubmit: { await submit() },
+            onCancel: { onComplete() }
+        ) {
             Form {
                 Section("New Resource Pool") {
                     PropertyRow(title: "Pool Name") {
@@ -45,30 +55,8 @@ struct NewResourcePoolSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack(spacing: SpacingTokens.sm) {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(1)
-                }
-                Spacer()
-                Button("Cancel") { onComplete() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") { Task { await submit() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isFormValid)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-            .padding(.vertical, SpacingTokens.sm2)
-            .background(.bar)
         }
         .frame(minWidth: 400, idealWidth: 440, minHeight: 340)
-        .navigationTitle("New Resource Pool")
     }
 
     private func submit() async {

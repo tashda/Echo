@@ -32,43 +32,47 @@ extension MSSQLBackupSidebarSheet {
         }
     }
 
-    var footerBar: some View {
-        HStack {
-            if viewModel.isBackupRunning {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Backing up\u{2026}")
-                    .font(TypographyTokens.formDescription)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            } else if case .completed = viewModel.backupPhase {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(ColorTokens.Status.success)
-                Text("Completed")
-                    .font(TypographyTokens.formDescription)
-                    .foregroundStyle(ColorTokens.Status.success)
-            } else if case .failed = viewModel.backupPhase {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(ColorTokens.Status.error)
-                Text("Failed")
-                    .font(TypographyTokens.formDescription)
-                    .foregroundStyle(ColorTokens.Status.error)
-            }
-            Spacer()
-            if viewModel.isBackupRunning {
-                Button("Cancel") { viewModel.cancelBackup() }
-                    .buttonStyle(.bordered)
-            }
-            Button("Close") { onDismiss() }
+    @ViewBuilder
+    var footerContent: some View {
+        if viewModel.isBackupRunning {
+            ProgressView()
+                .controlSize(.small)
+            Text("Backing up\u{2026}")
+                .font(TypographyTokens.formDescription)
+                .foregroundStyle(ColorTokens.Text.secondary)
+        } else if case .completed = viewModel.backupPhase {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(ColorTokens.Status.success)
+            Text("Completed")
+                .font(TypographyTokens.formDescription)
+                .foregroundStyle(ColorTokens.Status.success)
+        } else if case .failed = viewModel.backupPhase {
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(ColorTokens.Status.error)
+            Text("Failed")
+                .font(TypographyTokens.formDescription)
+                .foregroundStyle(ColorTokens.Status.error)
+        }
+        Spacer()
+        if viewModel.isBackupRunning {
+            Button("Cancel") { viewModel.cancelBackup() }
                 .buttonStyle(.bordered)
-                .keyboardShortcut(.cancelAction)
-                .disabled(viewModel.isBackupRunning)
+        }
+        Button("Close") { onDismiss() }
+            .buttonStyle(.bordered)
+            .keyboardShortcut(.cancelAction)
+            .disabled(viewModel.isBackupRunning)
+        if viewModel.canBackup {
             Button("Back Up") {
                 Task { await viewModel.executeBackup() }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
-            .disabled(!viewModel.canBackup)
+        } else {
+            Button("Back Up") {}
+                .buttonStyle(.bordered)
+                .disabled(true)
+                .keyboardShortcut(.defaultAction)
         }
-        .padding(SpacingTokens.md)
     }
 }

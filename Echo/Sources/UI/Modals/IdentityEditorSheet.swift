@@ -89,10 +89,23 @@ struct IdentityEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: isEditing ? "Edit Identity" : "New Identity",
+            icon: "person.badge.key",
+            subtitle: isEditing ? "Modify saved credentials." : "Save credentials for reuse across connections.",
+            primaryAction: isEditing ? "Save" : "Create",
+            canSubmit: isValid,
+            isSubmitting: isSaving,
+            onSubmit: { await saveIdentity() },
+            onCancel: { dismiss() },
+            destructiveAction: isEditing ? "Delete" : nil,
+            onDestructive: isEditing ? {
+                if let identity = editingIdentity {
+                    Task { try? await connectionStore.deleteIdentity(identity); dismiss() }
+                }
+            } : nil
+        ) {
             formContent
-            Divider()
-            footerButtons
         }
         .frame(width: 420)
         .fixedSize(horizontal: false, vertical: true)
@@ -196,35 +209,6 @@ struct IdentityEditorSheet: View {
     }
 
     // MARK: - Footer
-
-    private var footerButtons: some View {
-        HStack {
-            if let identity = editingIdentity {
-                Button("Delete", role: .destructive) {
-                    Task {
-                        try? await connectionStore.deleteIdentity(identity)
-                        dismiss()
-                    }
-                }
-                .buttonStyle(.bordered)
-                .tint(ColorTokens.Status.error)
-            }
-
-            Spacer()
-
-            Button("Cancel", role: .cancel) { dismiss() }
-                .buttonStyle(.bordered)
-                .keyboardShortcut(.cancelAction)
-
-            Button(isEditing ? "Save" : "Create") {
-                Task { await saveIdentity() }
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!isValid)
-        }
-        .padding(SpacingTokens.md)
-    }
 
     // MARK: - Logic
 

@@ -76,7 +76,7 @@ struct AgentJobStepEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: title) {
             Form {
                 Section(title) {
                     VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
@@ -141,36 +141,38 @@ struct AgentJobStepEditorSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+        } footer: {
+            if let errorMessage, !nameHasError {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(ColorTokens.Status.warning)
+                Text(errorMessage)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(2)
+            }
 
-            Divider()
+            Spacer()
 
-            HStack {
-                if let errorMessage, !nameHasError {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(ColorTokens.Status.warning)
-                    Text(errorMessage)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                        .lineLimit(2)
-                }
+            if isSaving {
+                ProgressView()
+                    .controlSize(.small)
+            }
 
-                Spacer()
+            Button("Cancel", role: .cancel, action: onCancel)
+                .keyboardShortcut(.cancelAction)
 
-                if isSaving {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-
-                Button("Cancel", role: .cancel, action: onCancel)
-                    .keyboardShortcut(.cancelAction)
+            if isValid {
                 Button(actionLabel) {
                     performSave()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.defaultAction)
-                .disabled(!isValid)
+            } else {
+                Button(actionLabel) {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
             }
-            .padding(SpacingTokens.md2)
         }
         .frame(minWidth: 480, minHeight: 340)
         .sheet(isPresented: $showCommandEditor) {

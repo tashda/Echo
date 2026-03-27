@@ -1,66 +1,107 @@
 import SwiftUI
 
-extension SearchSidebarView {
+/// Isolated view struct that owns the `@FocusState` for the search field.
+/// Extracting this into its own view prevents content-area structural identity
+/// changes (e.g. switching from placeholder to results) from destroying focus.
+struct SearchSidebarSearchBar: View {
+    @Bindable var viewModel: SearchSidebarViewModel
+    @Binding var isFilterPopoverPresented: Bool
+    @FocusState private var isFieldFocused: Bool
 
-    var isFilterActive: Bool {
+    private var isFilterActive: Bool {
         viewModel.selectedCategories.count != SearchSidebarCategory.allCases.count
     }
 
-    var searchBar: some View {
-        VStack(spacing: SpacingTokens.xxs2) {
-            SidebarSearchBar(
-                placeholder: "Search all connections...",
-                text: $viewModel.query,
-                isDisabled: false,
-                showsClearButton: !viewModel.query.isEmpty,
-                onClear: { viewModel.clearQuery() },
-                focusBinding: $isSearchFieldFocused,
-                clearShortcut: .cancelAction
-            ) {
-                filterButton
-            }
-
-            if viewModel.availableServers.count > 1 {
-                scopePicker
-            }
-        }
+    private var isScopeActive: Bool {
+        viewModel.scope != .allServers
     }
 
-    var scopePicker: some View {
-        HStack(spacing: SpacingTokens.xxs2) {
-            Picker("Scope", selection: $viewModel.scope) {
-                Text("All Servers")
-                    .tag(SearchScope.allServers)
+    var body: some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Image(systemName: "magnifyingglass")
+                .font(TypographyTokens.standard)
+                .foregroundStyle(ColorTokens.Text.secondary)
 
-                ForEach(viewModel.availableServers, id: \.id) { server in
-                    Text(server.name)
-                        .tag(SearchScope.server(connectionSessionID: server.id))
+            TextField("Search all connections…", text: $viewModel.query)
+                .textFieldStyle(.plain)
+                .font(TypographyTokens.standard)
+                .focused($isFieldFocused)
+
+            if !viewModel.query.isEmpty {
+                Button { viewModel.clearQuery() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .controlSize(.small)
-            .fixedSize()
+
+            if viewModel.hasSessions {
+                scopeButton
+            }
+
+            Rectangle()
+                .fill(.primary.opacity(0.08))
+                .frame(width: 1, height: 16)
+
+            filterButton
         }
-        .padding(.horizontal, SpacingTokens.sm)
+        .padding(.horizontal, SpacingTokens.xs2)
+        .frame(height: WorkspaceChromeMetrics.chromeBackgroundHeight)
+        .background(
+            RoundedRectangle(cornerRadius: WorkspaceChromeMetrics.chromeBackgroundHeight / 2, style: .continuous)
+                .fill(.primary.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: WorkspaceChromeMetrics.chromeBackgroundHeight / 2, style: .continuous)
+                .stroke(.primary.opacity(0.08), lineWidth: 0.5)
+        )
+        .padding(.horizontal, SpacingTokens.xxs2)
+        .padding(.top, SpacingTokens.xs)
         .padding(.bottom, SpacingTokens.xxs2)
+        .onReceive(NotificationCenter.default.publisher(for: .activateSidebarSearch)) { _ in
+            isFieldFocused = true
+        }
     }
 
-    var filterButton: some View {
+    // MARK: - Scope Button
+
+    private var scopeButton: some View {
+        ScopeMenuButton(
+            isScopeActive: isScopeActive,
+            scope: viewModel.scope,
+            servers: viewModel.availableServers,
+            databases: viewModel.availableDatabases,
+            scopedSessionID: viewModel.scopedSessionID,
+            scopedDatabaseName: viewModel.scopedDatabaseName,
+            onScopeChange: { viewModel.scope = $0 }
+        )
+        .help(scopeLabel)
+    }
+
+    private var scopeLabel: String {
+        if let id = viewModel.scopedSessionID,
+           let server = viewModel.availableServers.first(where: { $0.id == id }) {
+            if let db = viewModel.scopedDatabaseName {
+                return "\(server.name) › \(db)"
+            }
+            return server.name
+        }
+        return "All Servers"
+    }
+
+    // MARK: - Filter Button
+
+    private var filterButton: some View {
         Button {
             isFilterPopoverPresented.toggle()
         } label: {
-            Image(systemName: "line.3.horizontal.decrease.circle")
-                .font(TypographyTokens.display.weight(.semibold))
+            Image(systemName: isFilterActive
+                  ? "line.3.horizontal.decrease.circle.fill"
+                  : "line.3.horizontal.decrease.circle")
+                .font(TypographyTokens.standard.weight(.medium))
                 .foregroundStyle(
-                    isFilterActive
-                        ? ColorTokens.accent
-                        : ColorTokens.Text.secondary.opacity(0.6)
-                )
-                .padding(SpacingTokens.xxxs)
-                .background(
-                    Circle()
-                        .fill(ColorTokens.accent.opacity(isFilterActive ? 0.18 : 0))
+                    isFilterActive ? ColorTokens.accent : ColorTokens.Text.secondary
                 )
         }
         .buttonStyle(.plain)
@@ -70,12 +111,8 @@ extension SearchSidebarView {
         .popover(isPresented: $isFilterPopoverPresented, arrowEdge: .top) {
             SearchFilterPopoverView(
                 selectedCategories: $viewModel.selectedCategories,
-                onSelectAll: {
-                    viewModel.resetFilters()
-                },
-                onClearAll: {
-                    viewModel.selectedCategories.removeAll()
-                }
+                onSelectAll: { viewModel.resetFilters() },
+                onClearAll: { viewModel.selectedCategories.removeAll() }
             )
             .padding(SpacingTokens.sm2)
             .frame(minWidth: 220)
@@ -86,12 +123,8 @@ extension SearchSidebarView {
         let total = SearchSidebarCategory.allCases.count
         let selected = viewModel.selectedCategories.count
 
-        if selected == 0 {
-            return "No Filters"
-        }
-        if selected == total {
-            return "All Objects"
-        }
+        if selected == 0 { return "No Filters" }
+        if selected == total { return "All Objects" }
         if selected == 1, let first = viewModel.selectedCategories.first {
             return first.displayName
         }

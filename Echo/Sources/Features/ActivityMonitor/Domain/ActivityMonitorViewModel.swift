@@ -21,6 +21,7 @@ final class ActivityMonitorViewModel {
     var isRunning: Bool = true
     var refreshInterval: TimeInterval = 5.0
     var permissionDenied: Bool = false
+    var selectedSection: String? = nil
 
     /// True once we have a snapshot with delta data populated (requires at least 2 collection cycles).
     /// Views should gate content display on this rather than `latestSnapshot != nil`.
@@ -31,11 +32,14 @@ final class ActivityMonitorViewModel {
             return snap.waitsDelta != nil && snap.fileIODelta != nil
         case .postgres(let snap):
             return snap.databaseStatsDelta != nil
+        case .mysql:
+            return true
         }
     }
 
     // MSSQL Extended Events (nil for non-MSSQL connections)
     var extendedEventsVM: ExtendedEventsViewModel?
+    var profilerVM: ProfilerViewModel?
 
     // MSSQL sparkline history
     var cpuHistory: [GraphPoint] = []
@@ -94,6 +98,8 @@ final class ActivityMonitorViewModel {
             return snap.overview == nil && snap.processes.isEmpty && snap.waits.isEmpty && snap.expensiveQueries.isEmpty
         case .postgres:
             return false
+        case .mysql(let snap):
+            return snap.processes.isEmpty
         }
     }
 
@@ -136,6 +142,8 @@ final class ActivityMonitorViewModel {
                 appendHistory(&deadTuplesHistory, value: Double(ov.totalDeadTuples), timestamp: now)
                 appendHistory(&ioHistory, value: ov.databaseIOMBPerSec, timestamp: now)
             }
+        case .mysql(let snap):
+            appendHistory(&connectionCountHistory, value: Double(snap.processes.count), timestamp: now)
         }
     }
 

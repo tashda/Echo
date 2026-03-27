@@ -5,9 +5,45 @@ public struct DatabaseStructure: Sendable, Identifiable, Codable, Hashable {
     public let serverVersion: String?
     public var databases: [DatabaseInfo]
 
+    /// Monotonically increasing counter — incremented on every structural mutation.
+    /// Used for O(1) equality checks instead of deep tree comparison.
+    /// Not persisted (excluded from Codable) — starts at 0 after deserialization.
+    public private(set) var version: UInt64 = 0
+
     public nonisolated init(serverVersion: String? = nil, databases: [DatabaseInfo] = []) {
         self.serverVersion = serverVersion
         self.databases = databases
+    }
+
+    /// Returns a copy with incremented version, signaling content changed.
+    public func withIncrementedVersion() -> DatabaseStructure {
+        var copy = self
+        copy.version = version &+ 1
+        return copy
+    }
+
+    /// Increments version in place.
+    public mutating func incrementVersion() {
+        version &+= 1
+    }
+
+    // MARK: - Codable (exclude version)
+
+    private enum CodingKeys: String, CodingKey {
+        case id, serverVersion, databases
+    }
+
+    // MARK: - Equatable (O(1) via id + version)
+
+    public static func == (lhs: DatabaseStructure, rhs: DatabaseStructure) -> Bool {
+        lhs.id == rhs.id && lhs.version == rhs.version
+    }
+
+    // MARK: - Hashable (O(1) via id + version)
+
+    public nonisolated func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(version)
     }
 }
 

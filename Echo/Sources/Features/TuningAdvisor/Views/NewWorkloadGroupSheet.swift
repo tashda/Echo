@@ -1,4 +1,5 @@
 import SwiftUI
+import SQLServerKit
 
 struct NewWorkloadGroupSheet: View {
     let viewModel: ResourceGovernorViewModel
@@ -23,7 +24,17 @@ struct NewWorkloadGroupSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Workload Group",
+            icon: "cpu",
+            subtitle: "Create a Resource Governor workload group.",
+            primaryAction: "Create",
+            canSubmit: isFormValid,
+            isSubmitting: isSubmitting,
+            errorMessage: errorMessage,
+            onSubmit: { await submit() },
+            onCancel: { onComplete() }
+        ) {
             Form {
                 Section("New Workload Group") {
                     PropertyRow(title: "Group Name") {
@@ -67,30 +78,8 @@ struct NewWorkloadGroupSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack(spacing: SpacingTokens.sm) {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(1)
-                }
-                Spacer()
-                Button("Cancel") { onComplete() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") { Task { await submit() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isFormValid)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-            .padding(.vertical, SpacingTokens.sm2)
-            .background(.bar)
         }
         .frame(minWidth: 420, idealWidth: 460, minHeight: 400)
-        .navigationTitle("New Workload Group")
     }
 
     private func submit() async {

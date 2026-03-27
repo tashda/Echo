@@ -55,7 +55,7 @@ final class MockDatabaseSession: DatabaseSession, DatabaseMetadataSession, @unch
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] { [] }
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet { QueryResultSet(columns: [], rows: []) }
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] { [] }
-    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String { "" }
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String? = nil) async throws -> String { "" }
     func executeUpdate(_ sql: String) async throws -> Int { 0 }
     func renameTable(schema: String?, oldName: String, newName: String) async throws {}
     func dropTable(schema: String?, name: String, ifExists: Bool) async throws {}

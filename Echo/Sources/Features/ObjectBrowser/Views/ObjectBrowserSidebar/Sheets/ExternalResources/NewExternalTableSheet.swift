@@ -27,7 +27,17 @@ struct NewExternalTableSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New External Table",
+            icon: "externaldrive",
+            subtitle: "Create a PolyBase external table referencing an external data source.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await create() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("Table") {
                     TextField("Schema", text: $schema, prompt: Text("e.g. dbo"))
@@ -44,7 +54,7 @@ struct NewExternalTableSheet: View {
                     ForEach(Array(columns.enumerated()), id: \.element.id) { index, _ in
                         HStack(spacing: SpacingTokens.sm) {
                             TextField("", text: columnNameBinding(at: index), prompt: Text("Column name"))
-                            TextField("", text: columnTypeBinding(at: index), prompt: Text("Data type"))
+                            MSSQLDataTypePicker(selection: columnTypeBinding(at: index), prompt: "Data type")
                             Button {
                                 removeColumn(at: index)
                             } label: {
@@ -65,32 +75,6 @@ struct NewExternalTableSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") {
-                    Task { await create() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canCreate)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 560, minHeight: 420)
         .frame(idealWidth: 600, idealHeight: 500)

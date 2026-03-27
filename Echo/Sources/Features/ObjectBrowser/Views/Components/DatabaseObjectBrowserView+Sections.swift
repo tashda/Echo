@@ -26,6 +26,9 @@ extension DatabaseObjectBrowserView {
         .frame(maxWidth: .infinity, alignment: .leading)
 
         if isPinnedSectionExpanded {
+            let resolvedAccentColor = projectStore.globalSettings.accentColorSource == .connection ? connection.color : ColorTokens.accent
+            let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+
             ForEach(pinnedList, id: \.id) { object in
                 DatabaseObjectRow(
                     object: object,
@@ -35,6 +38,9 @@ extension DatabaseObjectBrowserView {
                     showColumns: shouldShowColumns(for: object),
                     isExpanded: expansionBinding(for: object.id),
                     isPinned: true,
+                    isSelected: viewModel.selectedObjectID == object.id,
+                    accentColor: resolvedAccentColor,
+                    iconColor: ExplorerSidebarPalette.objectGroupIconColor(for: object.type, colored: colored),
                     onTogglePin: { togglePin(for: object) },
                     onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
                 )
@@ -79,20 +85,36 @@ extension DatabaseObjectBrowserView {
         .frame(maxWidth: .infinity, alignment: .leading)
 
         if isExpanded {
-            ForEach(objects, id: \.id) { object in
-                DatabaseObjectRow(
-                    object: object,
-                    displayName: displayName(for: object),
-                    connection: connection,
-                    databaseName: database.name,
-                    showColumns: shouldShowColumns(for: object),
-                    isExpanded: expansionBinding(for: object.id),
-                    isPinned: pinnedObjectIDs.contains(object.id),
-                    onTogglePin: { togglePin(for: object) },
-                    onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
+            if objects.isEmpty {
+                SidebarRow(
+                    depth: 3,
+                    icon: .none,
+                    label: "No \(type.pluralDisplayName.lowercased())",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
                 )
-                .equatable()
-                .id(object.id)
+            } else {
+                let resolvedAccentColor = projectStore.globalSettings.accentColorSource == .connection ? connection.color : ColorTokens.accent
+                let typeIconColor = ExplorerSidebarPalette.objectGroupIconColor(for: type, colored: colored)
+
+                ForEach(objects, id: \.id) { object in
+                    DatabaseObjectRow(
+                        object: object,
+                        displayName: displayName(for: object),
+                        connection: connection,
+                        databaseName: database.name,
+                        showColumns: shouldShowColumns(for: object),
+                        isExpanded: expansionBinding(for: object.id),
+                        isPinned: pinnedObjectIDs.contains(object.id),
+                        isSelected: viewModel.selectedObjectID == object.id,
+                        accentColor: resolvedAccentColor,
+                        iconColor: typeIconColor,
+                        onTogglePin: { togglePin(for: object) },
+                        onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
+                    )
+                    .equatable()
+                    .id(object.id)
+                }
             }
         }
     }
@@ -120,6 +142,15 @@ extension DatabaseObjectBrowserView {
         let creationTitle = creationTitle(for: type)
         if let creationTitle {
             Button {
+                // For Postgres sequences and triggers, use visual sheets
+                if connection.databaseType == .postgresql && type == .sequence {
+                    showNewSequenceSheet = true
+                    return
+                }
+                if connection.databaseType == .postgresql && type == .trigger {
+                    showNewTriggerSheet = true
+                    return
+                }
                 let session = environmentState.sessionGroup.activeSessions.first {
                     $0.connection.id == connection.id
                 }

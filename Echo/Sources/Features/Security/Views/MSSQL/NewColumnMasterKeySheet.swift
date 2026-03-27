@@ -45,7 +45,17 @@ struct NewColumnMasterKeySheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Column Master Key",
+            icon: "key.fill",
+            subtitle: "Create a column master key for Always Encrypted.",
+            primaryAction: "Create",
+            canSubmit: isFormValid,
+            isSubmitting: isSubmitting,
+            errorMessage: errorMessage,
+            onSubmit: { await submit() },
+            onCancel: { onComplete() }
+        ) {
             Form {
                 Section("Column Master Key") {
                     PropertyRow(title: "Key Name") {
@@ -79,33 +89,8 @@ struct NewColumnMasterKeySheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack(spacing: SpacingTokens.sm) {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                Button("Cancel") { onComplete() }
-                    .keyboardShortcut(.cancelAction)
-
-                Button("Create") { Task { await submit() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isFormValid)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-            .padding(.vertical, SpacingTokens.sm2)
-            .background(.bar)
         }
         .frame(minWidth: 440, idealWidth: 480, minHeight: 280)
-        .navigationTitle("New Column Master Key")
     }
 
     private func submit() async {

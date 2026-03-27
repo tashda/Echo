@@ -1,4 +1,5 @@
 import SwiftUI
+import PostgresKit
 
 extension DatabaseObjectRow {
     var contextMenuContent: some View {
@@ -199,15 +200,17 @@ extension DatabaseObjectRow {
             )
         }
 
-        items.append(
-            ContextMenuActionItem(
-                id: "viewStructure",
-                title: "View Structure",
-                systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up",
-                role: nil,
-                action: { openStructureTab() }
+        if object.type == .table || object.type == .extension {
+            items.append(
+                ContextMenuActionItem(
+                    id: "viewStructure",
+                    title: "View Structure",
+                    systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up",
+                    role: nil,
+                    action: { openStructureTab() }
+                )
             )
-        )
+        }
 
         if connection.databaseType == .microsoftSQL {
             items.append(
@@ -307,6 +310,31 @@ extension DatabaseObjectRow {
             )
         }
 
+        if object.type == .table || object.type == .view {
+            items.append(
+                ContextMenuActionItem(
+                    id: "exportData",
+                    title: "Export Data",
+                    systemImage: "square.and.arrow.up",
+                    role: nil,
+                    action: { showExportSheet = true }
+                )
+            )
+        }
+
+        // Cluster (PostgreSQL tables only)
+        if object.type == .table && connection.databaseType == .postgresql {
+            items.append(
+                ContextMenuActionItem(
+                    id: "cluster",
+                    title: "Cluster",
+                    systemImage: "arrow.triangle.2.circlepath",
+                    role: nil,
+                    action: { clusterTable() }
+                )
+            )
+        }
+
         // Temporal table actions
         if object.type == .table && connection.databaseType == .microsoftSQL {
             if object.isSystemVersioned == true {
@@ -328,11 +356,11 @@ extension DatabaseObjectRow {
                         systemImage: "clock.badge.checkmark",
                         role: nil,
                         action: {
-                            viewModel.enableVersioningConnectionID = connection.id
-                            viewModel.enableVersioningDatabaseName = databaseName
-                            viewModel.enableVersioningSchemaName = object.schema
-                            viewModel.enableVersioningTableName = object.name
-                            viewModel.showEnableVersioningSheet = true
+                            sheetState.enableVersioningConnectionID = connection.id
+                            sheetState.enableVersioningDatabaseName = databaseName
+                            sheetState.enableVersioningSchemaName = object.schema
+                            sheetState.enableVersioningTableName = object.name
+                            sheetState.showEnableVersioningSheet = true
                         }
                     )
                 )
@@ -340,6 +368,20 @@ extension DatabaseObjectRow {
         }
 
         return items
+    }
+
+    private func clusterTable() {
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
+        Task {
+            let handle = AppDirector.shared.activityEngine.begin("Clustering \(object.name)", connectionSessionID: session.id)
+            do {
+                guard let pg = session.session as? PostgresSession else { return }
+                try await pg.client.admin.clusterTable(table: object.name, index: nil, schema: object.schema)
+                handle.succeed()
+            } catch {
+                handle.fail(error.localizedDescription)
+            }
+        }
     }
 
     private func openTemporalHistoryQuery() {
@@ -352,14 +394,14 @@ extension DatabaseObjectRow {
     private func computePropertiesItems() -> [ContextMenuActionItem] {
         var items: [ContextMenuActionItem] = []
 
-        if object.type == .table && connection.databaseType == .microsoftSQL {
+        if object.type == .table {
             items.append(
                 ContextMenuActionItem(
                     id: "tableProperties",
                     title: "Properties",
                     systemImage: "info.circle",
                     role: nil,
-                    action: { openTablePropertiesQuery() }
+                    action: { openTableProperties() }
                 )
             )
         }
@@ -398,124 +440,4 @@ extension DatabaseObjectRow {
         return items
     }
 
-    internal struct ContextMenuActionItem: Identifiable {
-        let id: String
-        let title: String
-        let systemImage: String
-        let role: ButtonRole?
-        let isDisabled: Bool
-        let action: () -> Void
-
-        init(
-            id: String? = nil,
-            title: String,
-            systemImage: String,
-            role: ButtonRole?,
-            isDisabled: Bool = false,
-            action: @escaping () -> Void
-        ) {
-            self.id = id ?? title
-            self.title = title
-            self.systemImage = systemImage
-            self.role = role
-            self.isDisabled = isDisabled
-            self.action = action
-        }
-    }
-
-    internal enum ScriptAction {
-        case create
-        case createOrReplace
-        case alter
-        case alterTable
-        case drop
-        case dropIfExists
-        case select
-        case selectLimited(Int)
-        case execute
-        case insert
-        case update
-        case delete
-
-        var identifier: String {
-            switch self {
-            case .create: return "create"
-            case .createOrReplace: return "createOrReplace"
-            case .alter: return "alter"
-            case .alterTable: return "alterTable"
-            case .drop: return "drop"
-            case .dropIfExists: return "dropIfExists"
-            case .select: return "select"
-            case .selectLimited(let limit): return "selectLimited_\(limit)"
-            case .execute: return "execute"
-            case .insert: return "insert"
-            case .update: return "update"
-            case .delete: return "delete"
-            }
-        }
-
-        var isReadGroup: Bool {
-            switch self {
-            case .select, .selectLimited: return true
-            default: return false
-            }
-        }
-
-        var isCreateModifyGroup: Bool {
-            switch self {
-            case .create, .createOrReplace, .alter, .alterTable: return true
-            default: return false
-            }
-        }
-
-        var isWriteGroup: Bool {
-            switch self {
-            case .insert, .update, .delete: return true
-            default: return false
-            }
-        }
-
-        var isExecuteGroup: Bool {
-            switch self {
-            case .execute: return true
-            default: return false
-            }
-        }
-
-        var isDestroyGroup: Bool {
-            switch self {
-            case .drop, .dropIfExists: return true
-            default: return false
-            }
-        }
-    }
-
-    /// Whether schema-modifying operations (drop, truncate, rename) are allowed based on permissions.
-    private var canModifySchema: Bool {
-        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return true }
-        return session.permissions?.canCreateSchemas ?? true
-    }
-
-    internal var supportsStructure: Bool {
-        switch object.type {
-        case .table, .view, .materializedView, .extension: return true
-        case .function, .trigger, .procedure, .sequence, .type, .synonym: return false
-        }
-    }
-
-    internal var supportsDiagram: Bool {
-        object.type == .table
-    }
-
-    internal var supportsBulkImport: Bool {
-        object.type == .table
-    }
-
-    private var supportsTruncateTable: Bool {
-        guard object.type == .table else { return false }
-        switch connection.databaseType {
-        case .postgresql, .mysql, .microsoftSQL: return true
-        case .sqlite: return false
-        }
-    }
 }

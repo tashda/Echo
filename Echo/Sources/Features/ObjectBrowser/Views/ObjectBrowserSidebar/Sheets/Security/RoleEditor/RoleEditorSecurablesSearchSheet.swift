@@ -13,35 +13,42 @@ struct RoleEditorSecurablesSearchSheet: View {
     @State private var isSearching = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            headerBar
+        SheetLayoutCustomFooter(title: "Add Securables") {
+            VStack(spacing: 0) {
+                filterBar
 
-            Divider()
+                Divider()
 
-            filterBar
+                resultsList
+            }
+        } footer: {
+            Text("\(selectedResults.count) selected")
+                .font(TypographyTokens.formDescription)
+                .foregroundStyle(ColorTokens.Text.secondary)
 
-            Divider()
+            Spacer()
 
-            resultsList
+            Button("Cancel") { onDismiss() }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
 
-            Divider()
-
-            bottomBar
+            if !selectedResults.isEmpty {
+                Button("Add Selected") {
+                    addSelectedSecurables()
+                    onDismiss()
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Add Selected") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
         .frame(minWidth: 480, minHeight: 360)
         .frame(idealWidth: 520, idealHeight: 400)
         .task { await performSearch() }
-    }
-
-    // MARK: - Header
-
-    private var headerBar: some View {
-        HStack {
-            Text("Add Securables")
-                .font(TypographyTokens.headline)
-            Spacer()
-        }
-        .padding(SpacingTokens.md)
     }
 
     // MARK: - Filters
@@ -120,30 +127,6 @@ struct RoleEditorSecurablesSearchSheet: View {
         }
     }
 
-    // MARK: - Bottom Bar
-
-    private var bottomBar: some View {
-        HStack {
-            Text("\(selectedResults.count) selected")
-                .font(TypographyTokens.formDescription)
-                .foregroundStyle(ColorTokens.Text.secondary)
-
-            Spacer()
-
-            Button("Cancel") { onDismiss() }
-                .buttonStyle(.bordered)
-                .keyboardShortcut(.cancelAction)
-
-            Button("Add Selected") {
-                addSelectedSecurables()
-                onDismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(selectedResults.isEmpty)
-        }
-        .padding(SpacingTokens.md)
-    }
 
     // MARK: - Search
 

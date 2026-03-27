@@ -112,7 +112,7 @@ struct ResourceGovernorView: View {
                         Task { await viewModel.reconfigure() }
                     }
                     .controlSize(.small)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
                     .tint(.orange)
                 }
             }

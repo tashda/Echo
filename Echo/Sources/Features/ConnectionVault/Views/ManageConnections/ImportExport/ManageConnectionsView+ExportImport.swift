@@ -11,10 +11,34 @@ extension ManageConnectionsView {
 
     @ViewBuilder
     var exportSheet: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: "Export Project") {
             exportFormContent
-            Divider()
-            exportFooterButtons
+        } footer: {
+            Spacer()
+            Button("Cancel", role: .cancel) {
+                showExportSheet = false
+                exportPassword = ""
+                exportError = nil
+            }
+            .keyboardShortcut(.cancelAction)
+
+            if !exportPassword.isEmpty && !isExporting && exportProjectID != nil {
+                Button(action: exportProject) {
+                    if isExporting {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Text("Export")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Export") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
@@ -57,37 +81,23 @@ extension ManageConnectionsView {
         .scrollDisabled(true)
     }
 
-    private var exportFooterButtons: some View {
-        HStack {
+    @ViewBuilder
+    var importSheet: some View {
+        SheetLayoutCustomFooter(title: "Import Project") {
+            importFormContent
+        } footer: {
             Spacer()
             Button("Cancel", role: .cancel) {
-                showExportSheet = false
-                exportPassword = ""
-                exportError = nil
+                showImportSheet = false
+                importPassword = ""
+                importError = nil
             }
             .keyboardShortcut(.cancelAction)
 
-            Button(action: exportProject) {
-                if isExporting {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Text("Export")
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(exportPassword.isEmpty || isExporting || exportProjectID == nil)
-        }
-        .padding(SpacingTokens.md2)
-    }
-
-    @ViewBuilder
-    var importSheet: some View {
-        VStack(spacing: 0) {
-            importFormContent
-            Divider()
-            importFileFooterButtons
+            Button("Import") {}
+                .buttonStyle(.bordered)
+                .disabled(true)
+                .keyboardShortcut(.defaultAction)
         }
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
@@ -119,24 +129,6 @@ extension ManageConnectionsView {
         .scrollDisabled(true)
     }
 
-    private var importFileFooterButtons: some View {
-        HStack {
-            Spacer()
-            Button("Cancel", role: .cancel) {
-                showImportSheet = false
-                importPassword = ""
-                importError = nil
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Import") {
-                // Import logic triggered by file selection
-            }
-            .keyboardShortcut(.defaultAction)
-            .disabled(true)
-        }
-        .padding(SpacingTokens.md2)
-    }
 
     func exportProject() {
         guard let project = exportProject_, !exportPassword.isEmpty else { return }

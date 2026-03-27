@@ -36,29 +36,29 @@ extension ObjectBrowserSidebarView {
                 let subExpanded = viewModel.serviceBrokerSubExpandedByDB[dbKey] ?? []
 
                 brokerSubFolder(title: "Message Types", items: viewModel.serviceBrokerMessageTypesByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey) {
-                    viewModel.newMessageTypeConnectionID = connID
-                    viewModel.newMessageTypeDatabaseName = database.name
-                    viewModel.showNewMessageTypeSheet = true
+                    sheetState.newMessageTypeConnectionID = connID
+                    sheetState.newMessageTypeDatabaseName = database.name
+                    sheetState.showNewMessageTypeSheet = true
                 }
                 brokerSubFolder(title: "Contracts", items: viewModel.serviceBrokerContractsByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey) {
-                    viewModel.newContractConnectionID = connID
-                    viewModel.newContractDatabaseName = database.name
-                    viewModel.showNewContractSheet = true
+                    sheetState.newContractConnectionID = connID
+                    sheetState.newContractDatabaseName = database.name
+                    sheetState.showNewContractSheet = true
                 }
                 brokerSubFolder(title: "Queues", items: viewModel.serviceBrokerQueuesByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey) {
-                    viewModel.newQueueConnectionID = connID
-                    viewModel.newQueueDatabaseName = database.name
-                    viewModel.showNewQueueSheet = true
+                    sheetState.newQueueConnectionID = connID
+                    sheetState.newQueueDatabaseName = database.name
+                    sheetState.showNewQueueSheet = true
                 }
                 brokerSubFolder(title: "Services", items: viewModel.serviceBrokerServicesByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey) {
-                    viewModel.newServiceConnectionID = connID
-                    viewModel.newServiceDatabaseName = database.name
-                    viewModel.showNewServiceSheet = true
+                    sheetState.newServiceConnectionID = connID
+                    sheetState.newServiceDatabaseName = database.name
+                    sheetState.showNewServiceSheet = true
                 }
                 brokerSubFolder(title: "Routes", items: viewModel.serviceBrokerRoutesByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey) {
-                    viewModel.newRouteConnectionID = connID
-                    viewModel.newRouteDatabaseName = database.name
-                    viewModel.showNewRouteSheet = true
+                    sheetState.newRouteConnectionID = connID
+                    sheetState.newRouteDatabaseName = database.name
+                    sheetState.showNewRouteSheet = true
                 }
                 brokerSubFolder(title: "Remote Service Bindings", items: viewModel.serviceBrokerBindingsByDB[dbKey] ?? [], subExpanded: subExpanded, dbKey: dbKey, onCreate: nil)
             }

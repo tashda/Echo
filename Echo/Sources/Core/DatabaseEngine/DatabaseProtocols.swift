@@ -15,7 +15,7 @@ public protocol DatabaseSession: Sendable {
     func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo]
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo]
-    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String?) async throws -> String
     func executeUpdate(_ sql: String) async throws -> Int
     func renameTable(schema: String?, oldName: String, newName: String) async throws
     func dropTable(schema: String?, name: String, ifExists: Bool) async throws
@@ -70,6 +70,13 @@ public protocol DatabaseSession: Sendable {
 
     // Multi-batch execution (GO batch separator support)
     func executeBatches(_ batches: [String], progressHandler: BatchProgressHandler?) async throws -> [BatchResult]
+}
+
+// Default for callers that don't need to specify a database
+public extension DatabaseSession {
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
+        try await getObjectDefinition(objectName: objectName, schemaName: schemaName, objectType: objectType, database: nil)
+    }
 }
 
 protocol DatabaseFactory: Sendable {
@@ -272,16 +279,16 @@ public extension DatabaseSession {
         throw DatabaseError.queryError("Activity monitor is not supported for this database type")
     }
 
-    public var tuning: SQLServerTuningClient? { nil }
-    public var profiler: SQLServerProfilerClient? { nil }
-    public var resourceGovernor: SQLServerResourceGovernorClient? { nil }
-    public var policy: SQLServerPolicyClient? { nil }
-    public var dependencies: SQLServerDependencyClient? { nil }
-    public var dac: SQLServerDACClient? { nil }
-    public var bulkCopy: SQLServerBulkCopyClient? { nil }
-    public var ssis: SQLServerSSISClient? { nil }
-    public var ssas: SQLServerSSASClient? { nil }
-    public var ssrs: SQLServerSSRSClient? { nil }
+    var tuning: SQLServerTuningClient? { nil }
+    var profiler: SQLServerProfilerClient? { nil }
+    var resourceGovernor: SQLServerResourceGovernorClient? { nil }
+    var policy: SQLServerPolicyClient? { nil }
+    var dependencies: SQLServerDependencyClient? { nil }
+    var dac: SQLServerDACClient? { nil }
+    var bulkCopy: SQLServerBulkCopyClient? { nil }
+    var ssis: SQLServerSSISClient? { nil }
+    var ssas: SQLServerSSASClient? { nil }
+    var ssrs: SQLServerSSRSClient? { nil }
 
     func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
         throw DatabaseError.queryError("VACUUM is not supported for this database type")

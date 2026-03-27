@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 enum TableStructureSection: String, CaseIterable, Identifiable {
-    case columns, indexes, constraints, relations
+    case columns, indexes, constraints, relations, partitions, inheritance
     var id: String { rawValue }
     var displayName: String {
         switch self {
@@ -10,6 +10,8 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
         case .indexes: return "Indexes"
         case .constraints: return "Constraints"
         case .relations: return "Relations"
+        case .partitions: return "Partitions"
+        case .inheritance: return "Inheritance"
         }
     }
     var displayTitle: String { displayName }
@@ -19,6 +21,20 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
         case .indexes: return "bolt.horizontal"
         case .constraints: return "shield.lefthalf.filled"
         case .relations: return "arrow.triangle.merge"
+        case .partitions: return "square.split.2x2"
+        case .inheritance: return "arrow.triangle.branch"
+        }
+    }
+
+    /// Sections available for a given database dialect.
+    static func sections(for databaseType: DatabaseType) -> [TableStructureSection] {
+        switch databaseType {
+        case .postgresql:
+            return [.columns, .indexes, .constraints, .relations, .partitions, .inheritance]
+        case .microsoftSQL:
+            return [.columns, .indexes, .constraints, .relations]
+        default:
+            return [.columns, .indexes, .constraints, .relations]
         }
     }
 }
@@ -39,6 +55,10 @@ final class TableStructureEditorViewModel {
     var isApplying: Bool = false
     var lastError: String?
     var lastSuccessMessage: String?
+
+    /// nil = not yet checked, true = has data, false = no data
+    var partitionsAvailable: Bool?
+    var inheritanceAvailable: Bool?
 
     let schemaName: String
     let tableName: String

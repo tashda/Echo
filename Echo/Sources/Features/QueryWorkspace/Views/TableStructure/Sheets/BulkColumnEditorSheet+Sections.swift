@@ -2,16 +2,8 @@ import SwiftUI
 
 extension BulkColumnEditorSheet {
     var dataTypeFields: some View {
-        Group {
-            TableStructureSheetComponents.labeledRow(title: "Data Type") {
-                dataTypePicker
-            }
-
-            if needsCustomTypeField {
-                TableStructureSheetComponents.labeledRow(title: "Custom Data Type") {
-                    inlineField(text: $dataType, alignment: .trailing, prompt: Text("e.g. int, varchar(255)"))
-                }
-            }
+        TableStructureSheetComponents.labeledRow(title: "Data Type") {
+            dataTypePicker
         }
     }
 
@@ -82,25 +74,6 @@ extension BulkColumnEditorSheet {
         }
     }
 
-    var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Spacer()
-
-            Button("Cancel") { onCancel() }
-                .keyboardShortcut(.cancelAction)
-
-            Button("Apply") {
-                applyChanges()
-            }
-            .keyboardShortcut(.defaultAction)
-            .buttonStyle(.borderedProminent)
-            .disabled(!canApply)
-            .tint(appearanceStore.accentColor)
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
-    }
 
     func applyChanges() {
         switch mode {

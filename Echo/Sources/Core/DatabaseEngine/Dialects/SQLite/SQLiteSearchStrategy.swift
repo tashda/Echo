@@ -53,7 +53,48 @@ struct SQLiteDatabaseSearchStrategy: DatabaseSearchStrategy {
         return aggregated
     }
 
-    func searchColumns(query: String) async throws -> [SearchSidebarResult] { [] }
+    func searchColumns(query: String) async throws -> [SearchSidebarResult] {
+        let pattern = query.lowercased()
+        var aggregated: [SearchSidebarResult] = []
+        let databases = await databaseNames()
+
+        for database in databases {
+            if aggregated.count >= ObjectSearchProvider.QueryConstants.maxNameResults { break }
+            // Get all tables in this database
+            let tablesSQL = """
+            SELECT name FROM \(quoteDatabase(database)).sqlite_master
+            WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+            ORDER BY name;
+            """
+            let tablesResult = try await session.simpleQuery(tablesSQL)
+            let tableNames = tablesResult.rows.compactMap { $0.first ?? nil }
+
+            for tableName in tableNames {
+                if aggregated.count >= ObjectSearchProvider.QueryConstants.maxNameResults { break }
+                let columnsSQL = "PRAGMA \(quoteDatabase(database)).table_info(\(quoteDatabase(tableName)))"
+                let columnsResult = try await session.simpleQuery(columnsSQL)
+                // PRAGMA table_info columns: cid, name, type, notnull, dflt_value, pk
+                for row in columnsResult.rows {
+                    guard row.count >= 3,
+                          let colName = row[1],
+                          colName.lowercased().contains(pattern) else { continue }
+                    let dataType = row[2] ?? "TEXT"
+                    let subtitle = "\(database).\(tableName)"
+                    let payload = SearchSidebarResult.Payload.column(schema: database, table: tableName, column: colName)
+                    aggregated.append(SearchSidebarResult(
+                        category: .columns,
+                        title: colName,
+                        subtitle: subtitle,
+                        metadata: dataType,
+                        snippet: nil,
+                        payload: payload
+                    ))
+                    if aggregated.count >= ObjectSearchProvider.QueryConstants.maxNameResults { break }
+                }
+            }
+        }
+        return aggregated
+    }
 
     func searchIndexes(query: String) async throws -> [SearchSidebarResult] {
         let pattern = ObjectSearchProvider.makeLikePattern(query)
@@ -92,7 +133,49 @@ struct SQLiteDatabaseSearchStrategy: DatabaseSearchStrategy {
         return aggregated
     }
 
-    func searchForeignKeys(query: String) async throws -> [SearchSidebarResult] { [] }
+    func searchForeignKeys(query: String) async throws -> [SearchSidebarResult] {
+        let pattern = query.lowercased()
+        var aggregated: [SearchSidebarResult] = []
+        let databases = await databaseNames()
+
+        for database in databases {
+            if aggregated.count >= ObjectSearchProvider.QueryConstants.maxNameResults { break }
+            let tablesSQL = """
+            SELECT name FROM \(quoteDatabase(database)).sqlite_master
+            WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+            ORDER BY name;
+            """
+            let tablesResult = try await session.simpleQuery(tablesSQL)
+            let tableNames = tablesResult.rows.compactMap { $0.first ?? nil }
+
+            for tableName in tableNames {
+                if aggregated.count >= ObjectSearchProvider.QueryConstants.maxNameResults { break }
+                let fkSQL = "PRAGMA \(quoteDatabase(database)).foreign_key_list(\(quoteDatabase(tableName)))"
+                let fkResult = try await session.simpleQuery(fkSQL)
+                // PRAGMA foreign_key_list columns: id, seq, table, from, to, on_update, on_delete, match
+                for row in fkResult.rows {
+                    guard row.count >= 5,
+                          let refTable = row[2],
+                          let fromCol = row[3],
+                          let toCol = row[4] else { continue }
+                    let fkDesc = "\(fromCol) -> \(refTable).\(toCol)"
+                    guard fkDesc.lowercased().contains(pattern) || refTable.lowercased().contains(pattern) || fromCol.lowercased().contains(pattern) else { continue }
+                    let subtitle = "\(database).\(tableName)"
+                    let payload = SearchSidebarResult.Payload.foreignKey(schema: database, table: tableName, name: fkDesc)
+                    aggregated.append(SearchSidebarResult(
+                        category: .foreignKeys,
+                        title: fkDesc,
+                        subtitle: subtitle,
+                        metadata: tableName,
+                        snippet: nil,
+                        payload: payload
+                    ))
+                    if aggregated.count >= ObjectSearchProvider.QueryConstants.maxNameResults { break }
+                }
+            }
+        }
+        return aggregated
+    }
 
     private func searchMasterEntries(
         query: String,

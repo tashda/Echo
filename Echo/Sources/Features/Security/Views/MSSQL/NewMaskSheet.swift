@@ -50,7 +50,17 @@ struct NewMaskSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "Add Data Mask",
+            icon: "theatermask.and.paintbrush",
+            subtitle: "Apply a dynamic data mask to a column.",
+            primaryAction: "Create",
+            canSubmit: isFormValid,
+            isSubmitting: isSubmitting,
+            errorMessage: errorMessage,
+            onSubmit: { await submit() },
+            onCancel: { onComplete() }
+        ) {
             Form {
                 Section("Target Column") {
                     PropertyRow(title: "Table") {
@@ -139,38 +149,8 @@ struct NewMaskSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack(spacing: SpacingTokens.sm) {
-                if isLoadingTables {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                Button("Cancel") { onComplete() }
-                    .keyboardShortcut(.cancelAction)
-
-                Button("Create") { Task { await submit() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!isFormValid)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-            .padding(.vertical, SpacingTokens.sm2)
-            .background(.bar)
         }
         .frame(minWidth: 440, idealWidth: 480, minHeight: 380)
-        .navigationTitle("Add Data Mask")
         .task { await loadTables() }
         .onChange(of: selectedTable) { _, _ in
             selectedColumn = nil

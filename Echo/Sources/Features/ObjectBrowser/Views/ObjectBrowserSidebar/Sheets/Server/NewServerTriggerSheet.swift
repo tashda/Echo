@@ -12,79 +12,117 @@ struct NewServerTriggerSheet: View {
     @State private var isCreating = false
     @State private var errorMessage: String?
 
+    private static let eventCategories: [(title: String, events: [(value: String, label: String)])] = [
+        ("Database", [
+            ("CREATE_DATABASE", "Create Database"),
+            ("ALTER_DATABASE", "Alter Database"),
+            ("DROP_DATABASE", "Drop Database"),
+        ]),
+        ("Login", [
+            ("CREATE_LOGIN", "Create Login"),
+            ("ALTER_LOGIN", "Alter Login"),
+            ("DROP_LOGIN", "Drop Login"),
+        ]),
+        ("Server Role", [
+            ("CREATE_SERVER_ROLE", "Create Server Role"),
+            ("ALTER_SERVER_ROLE", "Alter Server Role"),
+            ("DROP_SERVER_ROLE", "Drop Server Role"),
+        ]),
+        ("Endpoint", [
+            ("CREATE_ENDPOINT", "Create Endpoint"),
+            ("ALTER_ENDPOINT", "Alter Endpoint"),
+            ("DROP_ENDPOINT", "Drop Endpoint"),
+        ]),
+        ("Credential", [
+            ("CREATE_CREDENTIAL", "Create Credential"),
+            ("ALTER_CREDENTIAL", "Alter Credential"),
+            ("DROP_CREDENTIAL", "Drop Credential"),
+        ]),
+        ("Server Audit", [
+            ("CREATE_SERVER_AUDIT", "Create Server Audit"),
+            ("ALTER_SERVER_AUDIT", "Alter Server Audit"),
+            ("DROP_SERVER_AUDIT", "Drop Server Audit"),
+        ]),
+        ("Event Groups", [
+            ("DDL_SERVER_LEVEL_EVENTS", "DDL Server Level Events"),
+            ("DDL_DATABASE_EVENTS", "DDL Database Events"),
+            ("DDL_LOGIN_EVENTS", "DDL Login Events"),
+            ("DDL_SERVER_SECURITY_EVENTS", "DDL Server Security Events"),
+        ]),
+    ]
+
     private var canCreate: Bool {
         Self.isCreateValid(name: name, selectedEvents: selectedEvents, body: triggerBody, isCreating: isCreating)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Server Trigger",
+            icon: "bolt",
+            subtitle: "Create a server-scoped DDL trigger that fires on server-level events.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await createTrigger() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
-                Section("Trigger Name") {
-                    TextField("", text: $name, prompt: Text("e.g. trg_audit_ddl"))
-                }
-
-                Section("DDL Events") {
-                    eventSelectionView
-                }
-
-                Section("Trigger Body") {
-                    TextEditor(text: $triggerBody)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 120)
-                        .overlay(alignment: .topLeading) {
-                            if triggerBody.isEmpty {
-                                Text("BEGIN\n    -- trigger body\nEND")
-                                    .font(.system(.body, design: .monospaced))
-                                    .foregroundStyle(ColorTokens.Text.quaternary)
-                                    .padding(.top, SpacingTokens.xxs)
-                                    .padding(.leading, SpacingTokens.xxs2)
-                                    .allowsHitTesting(false)
-                            }
-                        }
+                Section {
+                    PropertyRow(title: "Trigger Name") {
+                        TextField("", text: $name, prompt: Text("e.g. trg_audit_ddl"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+            .fixedSize(horizontal: false, vertical: true)
 
-            Divider()
+            eventGrid
+                .padding(.horizontal, SpacingTokens.lg)
 
-            footerView
+            triggerBodyEditor
+                .padding(.horizontal, SpacingTokens.lg)
+                .padding(.top, SpacingTokens.md)
+                .padding(.bottom, SpacingTokens.sm)
         }
-        .frame(minWidth: 560, minHeight: 480)
-        .frame(idealWidth: 600, idealHeight: 540)
+        .frame(minWidth: 640, idealWidth: 700, minHeight: 560, idealHeight: 620)
     }
 
-    // MARK: - Subviews
+    // MARK: - Event Grid
 
-    private var eventSelectionView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                eventCategory("Database", events: ["CREATE_DATABASE", "ALTER_DATABASE", "DROP_DATABASE"])
-                eventCategory("Login", events: ["CREATE_LOGIN", "ALTER_LOGIN", "DROP_LOGIN"])
-                eventCategory("Server Role", events: ["CREATE_SERVER_ROLE", "ALTER_SERVER_ROLE", "DROP_SERVER_ROLE"])
-                eventCategory("Endpoint", events: ["CREATE_ENDPOINT", "ALTER_ENDPOINT", "DROP_ENDPOINT"])
-                eventCategory("Credential", events: ["CREATE_CREDENTIAL", "ALTER_CREDENTIAL", "DROP_CREDENTIAL"])
-                eventCategory("Server Audit", events: ["CREATE_SERVER_AUDIT", "ALTER_SERVER_AUDIT", "DROP_SERVER_AUDIT"])
-                eventCategory("Event Groups", events: [
-                    "DDL_SERVER_LEVEL_EVENTS",
-                    "DDL_DATABASE_EVENTS",
-                    "DDL_LOGIN_EVENTS",
-                    "DDL_SERVER_SECURITY_EVENTS"
-                ])
+    private var eventGrid: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            Text("DDL Events")
+                .font(TypographyTokens.formLabel.weight(.semibold))
+                .padding(.leading, SpacingTokens.xxs)
+
+            ScrollView {
+                LazyVGrid(
+                    columns: [GridItem(.flexible()), GridItem(.flexible())],
+                    alignment: .leading,
+                    spacing: SpacingTokens.lg
+                ) {
+                    ForEach(Self.eventCategories, id: \.title) { category in
+                        eventCategoryView(category.title, events: category.events)
+                    }
+                }
+                .padding(SpacingTokens.sm)
             }
-            .padding(.vertical, SpacingTokens.xxs)
+            .background(.quinary, in: .rect(cornerRadius: ShapeTokens.CornerRadius.medium))
         }
-        .frame(maxHeight: 200)
     }
 
-    private func eventCategory(_ title: String, events: [String]) -> some View {
+    private func eventCategoryView(_ title: String, events: [(value: String, label: String)]) -> some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Text(title)
                 .font(TypographyTokens.detail.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.secondary)
 
-            ForEach(events, id: \.self) { event in
-                Toggle(event, isOn: eventBinding(for: event))
+            ForEach(events, id: \.value) { event in
+                Toggle(event.label, isOn: eventBinding(for: event.value))
                     .toggleStyle(.checkbox)
                     .font(TypographyTokens.detail)
             }
@@ -100,30 +138,31 @@ struct NewServerTriggerSheet: View {
         )
     }
 
-    private var footerView: some View {
-        HStack {
-            if let error = errorMessage {
-                Text(error)
-                    .font(TypographyTokens.formDescription)
-                    .foregroundStyle(ColorTokens.Status.error)
-                    .lineLimit(2)
-            }
-            Spacer()
-            if isCreating {
-                ProgressView()
-                    .controlSize(.small)
-            }
-            Button("Cancel") { onDismiss() }
-                .buttonStyle(.bordered)
-                .keyboardShortcut(.cancelAction)
-            Button("Create") {
-                Task { await createTrigger() }
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!canCreate)
+    // MARK: - Trigger Body
+
+    private var triggerBodyEditor: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            Text("Trigger Body")
+                .font(TypographyTokens.formLabel.weight(.semibold))
+                .padding(.leading, SpacingTokens.xxs)
+
+            TextEditor(text: $triggerBody)
+                .font(TypographyTokens.code)
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 120)
+                .padding(SpacingTokens.xs)
+                .background(.quinary, in: .rect(cornerRadius: ShapeTokens.CornerRadius.medium))
+                .overlay(alignment: .topLeading) {
+                    if triggerBody.isEmpty {
+                        Text("BEGIN\n    -- trigger body\nEND")
+                            .font(TypographyTokens.code)
+                            .foregroundStyle(ColorTokens.Text.quaternary)
+                            .padding(.top, SpacingTokens.sm)
+                            .padding(.leading, SpacingTokens.sm)
+                            .allowsHitTesting(false)
+                    }
+                }
         }
-        .padding(SpacingTokens.md)
     }
 
     // MARK: - Validation (Internal for testability)

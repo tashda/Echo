@@ -113,9 +113,18 @@ import SwiftUI
         }
     }
 
+    private var historySaveTask: Task<Void, Never>?
+
     private func saveQueryHistory() {
-        if let data = try? JSONEncoder().encode(queryHistory) {
-            UserDefaults.standard.set(data, forKey: "queryHistory")
+        historySaveTask?.cancel()
+        historySaveTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            let history = queryHistory
+            let data = try? JSONEncoder().encode(history)
+            if let data {
+                UserDefaults.standard.set(data, forKey: "queryHistory")
+            }
         }
     }
 }

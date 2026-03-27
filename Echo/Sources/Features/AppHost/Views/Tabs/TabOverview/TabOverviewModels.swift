@@ -34,7 +34,8 @@ extension WorkspaceTab.Kind {
         case .queryStore: return "Query Store"
         case .extendedEvents: return "Extended Events"
         case .availabilityGroups: return "Availability Groups"
-        case .databaseSecurity: return "Database Security"
+        case .databaseSecurity, .postgresSecurity: return "Database Security"
+        case .postgresAdvancedObjects: return "Advanced Objects"
         case .serverSecurity: return "Server Security"
         case .errorLog: return "Error Log"
         case .profiler: return "SQL Profiler"
@@ -42,6 +43,8 @@ extension WorkspaceTab.Kind {
         case .serverProperties: return "Server Properties"
         case .tuningAdvisor: return "Tuning Advisor"
         case .policyManagement: return "Policy Management"
+        case .tableData: return "Table Data"
+        case .schemaDiff: return "Schema Diff"
         }
     }
 
@@ -59,13 +62,15 @@ extension WorkspaceTab.Kind {
         case .queryStore: return "chart.bar.xaxis"
         case .extendedEvents: return "bolt.horizontal"
         case .availabilityGroups: return "server.rack"
-        case .databaseSecurity, .serverSecurity: return "lock.shield"
+        case .databaseSecurity, .postgresSecurity, .serverSecurity, .postgresAdvancedObjects: return "lock.shield"
         case .errorLog: return "doc.text"
         case .profiler: return "trace"
         case .resourceGovernor: return "r.square.on.square"
         case .serverProperties: return "gearshape.2"
         case .tuningAdvisor: return "wand.and.stars"
         case .policyManagement: return "checkmark.seal"
+        case .tableData: return "tablecells.badge.ellipsis"
+        case .schemaDiff: return "doc.on.doc"
         }
     }
 }

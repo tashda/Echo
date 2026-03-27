@@ -1,44 +1,36 @@
 import SwiftUI
 
-struct SnapshotInput: Equatable {
-    let database: DatabaseInfo
+/// Lightweight identity for change detection — O(1) equality check.
+/// Used as `.task(id:)` to avoid deep-comparing the entire DatabaseInfo tree.
+struct SnapshotIdentity: Equatable {
+    let databaseName: String
+    let schemaCount: Int
+    let objectCount: Int
+    let extensionCount: Int
     let pinnedIDs: Set<String>
     let supportedTypes: [SchemaObjectInfo.ObjectType]
 }
 
-struct SnapshotData: Equatable {
+struct SnapshotData: Equatable, Sendable {
     static let empty = SnapshotData(grouped: [:], pinned: [], filteredCount: 0)
     let grouped: [SchemaObjectInfo.ObjectType: [SchemaObjectInfo]]
     let pinned: [SchemaObjectInfo]
     let filteredCount: Int
 }
 
-struct ExplorerSnapshotCache {
-    private(set) var data: SnapshotData = .empty
-    private var lastInput: SnapshotInput?
-
-    mutating func update(with input: SnapshotInput) {
-        if let last = lastInput, last == input {
-            return
-        }
-        lastInput = input
-        let newData = ExplorerSnapshotCache.buildData(from: input)
-        if newData != data {
-            data = newData
-        }
-    }
-
-    private static func buildData(from input: SnapshotInput) -> SnapshotData {
-        let supportedSet = Set(input.supportedTypes)
-        let pinnedIDs = input.pinnedIDs
-
-        let schemas = input.database.schemas
+enum SnapshotBuilder {
+    @concurrent static func buildData(
+        from database: DatabaseInfo,
+        pinnedIDs: Set<String>,
+        supportedTypes: [SchemaObjectInfo.ObjectType]
+    ) async -> SnapshotData {
+        let supportedSet = Set(supportedTypes)
 
         var grouped: [SchemaObjectInfo.ObjectType: [SchemaObjectInfo]] = [:]
         var pinnedList: [SchemaObjectInfo] = []
         var filteredCount = 0
 
-        for schema in schemas {
+        for schema in database.schemas {
             for object in schema.objects {
                 guard supportedSet.contains(object.type) else { continue }
                 grouped[object.type, default: []].append(object)
@@ -50,7 +42,7 @@ struct ExplorerSnapshotCache {
         }
 
         // Process extensions (database-level)
-        for ext in input.database.extensions {
+        for ext in database.extensions {
             guard supportedSet.contains(.extension) else { continue }
 
             grouped[.extension, default: []].append(ext)

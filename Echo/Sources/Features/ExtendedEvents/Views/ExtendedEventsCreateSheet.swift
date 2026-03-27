@@ -6,25 +6,33 @@ struct ExtendedEventsCreateSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(EnvironmentState.self) private var environmentState
 
+    private var canCreate: Bool {
+        !viewModel.createSessionName.isEmpty
+            && !viewModel.createEvents.isEmpty
+            && !viewModel.isCreating
+            && (environmentState.sessionGroup.activeSessions.first { $0.id == viewModel.connectionSessionID }?.permissions?.canManageServerState ?? true)
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Extended Events Session",
+            icon: "bolt.horizontal",
+            subtitle: "Create a session to capture and analyze server events.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: viewModel.isCreating,
+            errorMessage: viewModel.createErrorMessage,
+            onSubmit: { await viewModel.createSession() },
+            onCancel: { dismiss() }
+        ) {
             Form {
                 generalSection
                 eventsSection
                 targetSection
                 optionsSection
-
-                if let error = viewModel.createErrorMessage {
-                    Section {
-                        Label(error, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(ColorTokens.Status.error)
-                    }
-                }
             }
             .formStyle(.grouped)
-
-            Divider()
-            actionButtons
+            .scrollContentBackground(.hidden)
         }
         .frame(width: 560, height: 580)
         .task { await viewModel.loadAvailableEvents() }
@@ -36,7 +44,7 @@ struct ExtendedEventsCreateSheet: View {
         Section {
             TextField("Session Name", text: $viewModel.createSessionName, prompt: Text("e.g. SlowQueries"))
         } header: {
-            Text("New Extended Events Session")
+            Text("General")
         }
     }
 
@@ -125,23 +133,4 @@ struct ExtendedEventsCreateSheet: View {
             Text("Options")
         }
     }
-
-    // MARK: - Buttons
-
-    private var actionButtons: some View {
-        HStack {
-            Spacer()
-            Button("Cancel") { dismiss() }
-                .keyboardShortcut(.cancelAction)
-            Button("Create") {
-                Task { await viewModel.createSession() }
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(viewModel.createSessionName.isEmpty || viewModel.createEvents.isEmpty || viewModel.isCreating
-                || !(environmentState.sessionGroup.activeSessions.first { $0.id == viewModel.connectionSessionID }?.permissions?.canManageServerState ?? true))
-        }
-        .padding(SpacingTokens.md)
-    }
-
 }

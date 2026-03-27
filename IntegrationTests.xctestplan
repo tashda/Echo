@@ -49,6 +49,7 @@
         "PGFunctionTests",
         "PGIndexTests",
         "PGMetadataTests",
+        "PGAdvancedObjectAlterTests",
         "PGNewObjectTypesTests",
         "PGQueryTests",
         "PGSchemaDiscoveryTests",

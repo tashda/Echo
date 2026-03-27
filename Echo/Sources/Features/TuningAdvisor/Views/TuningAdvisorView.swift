@@ -143,15 +143,22 @@ struct TuningAdvisorView: View {
                                     Label("Copy Script", systemImage: "doc.on.doc")
                                 }
 
-                                Button {
-                                    let sql = generateCreateIndexSQL(rec)
-                                    let name = extractIndexName(sql)
-                                    Task { await viewModel.createIndex(sql: sql, indexName: name) }
-                                } label: {
-                                    Label("Create Index", systemImage: "bolt.fill")
+                                if !viewModel.isCreatingIndex {
+                                    Button {
+                                        let sql = generateCreateIndexSQL(rec)
+                                        let name = extractIndexName(sql)
+                                        Task { await viewModel.createIndex(sql: sql, indexName: name) }
+                                    } label: {
+                                        Label("Create Index", systemImage: "bolt.fill")
+                                    }
+                                    .buttonStyle(.bordered)
+                                } else {
+                                    Button {} label: {
+                                        Label("Create Index", systemImage: "bolt.fill")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(true)
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(viewModel.isCreatingIndex)
                             }
                         }
                         .padding(SpacingTokens.sm)

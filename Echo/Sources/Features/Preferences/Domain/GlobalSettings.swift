@@ -185,6 +185,9 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarDensity: SidebarDensity = .default
     var activityMonitorRefreshInterval: Double = 5.0
     var hideInaccessibleDatabases: Bool = false
+    var searchIncludeOfflineDatabases: Bool = false
+    var searchMinimumQueryLength: Int = 2
+    var searchDefaultCategories: Set<String>?
     var notificationPreferences: NotificationPreferences = NotificationPreferences()
 
     /// Returns the effective auto-expand sections for a given database type.
@@ -266,6 +269,9 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
         case hideInaccessibleDatabases
+        case searchIncludeOfflineDatabases
+        case searchMinimumQueryLength
+        case searchDefaultCategories
         case notificationPreferences
     }
 
@@ -368,6 +374,9 @@ struct GlobalSettings: Codable, Hashable {
         
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
         hideInaccessibleDatabases = try container.decodeIfPresent(Bool.self, forKey: .hideInaccessibleDatabases) ?? false
+        searchIncludeOfflineDatabases = try container.decodeIfPresent(Bool.self, forKey: .searchIncludeOfflineDatabases) ?? false
+        searchMinimumQueryLength = try container.decodeIfPresent(Int.self, forKey: .searchMinimumQueryLength) ?? 2
+        searchDefaultCategories = try container.decodeIfPresent(Set<String>.self, forKey: .searchDefaultCategories)
         notificationPreferences = try container.decodeIfPresent(NotificationPreferences.self, forKey: .notificationPreferences) ?? NotificationPreferences()
     }
 
@@ -454,6 +463,9 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)
+        try container.encode(searchIncludeOfflineDatabases, forKey: .searchIncludeOfflineDatabases)
+        try container.encode(searchMinimumQueryLength, forKey: .searchMinimumQueryLength)
+        try container.encodeIfPresent(searchDefaultCategories, forKey: .searchDefaultCategories)
         try container.encode(notificationPreferences, forKey: .notificationPreferences)
     }
 

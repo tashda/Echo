@@ -41,7 +41,17 @@ struct EnableSystemVersioningSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "Enable System Versioning",
+            icon: "clock.arrow.circlepath",
+            subtitle: "Enable temporal table versioning for change tracking.",
+            primaryAction: "Enable",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await enableVersioning() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("Table") {
                     LabeledContent("Schema") {
@@ -79,32 +89,6 @@ struct EnableSystemVersioningSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Enable") {
-                    Task { await enableVersioning() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canCreate)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 480, minHeight: 340)
         .frame(idealWidth: 520, idealHeight: 400)

@@ -15,7 +15,15 @@ struct ProfilerEventPickerSheet: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "Trace Events",
+            icon: "list.bullet.rectangle",
+            subtitle: "Select events to capture in the profiler trace.",
+            primaryAction: "Done",
+            canSubmit: true,
+            onSubmit: { onDismiss() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("Templates") {
                     ForEach(templates, id: \.name) { template in
@@ -59,25 +67,7 @@ struct ProfilerEventPickerSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack(spacing: SpacingTokens.sm) {
-                Text("\(selectedEvents.count) events selected")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-
-                Spacer()
-
-                Button("Done") { onDismiss() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.cancelAction)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-            .padding(.vertical, SpacingTokens.sm2)
-            .background(.bar)
         }
         .frame(minWidth: 380, idealWidth: 420, minHeight: 420, idealHeight: 500)
-        .navigationTitle("Trace Events")
     }
 }

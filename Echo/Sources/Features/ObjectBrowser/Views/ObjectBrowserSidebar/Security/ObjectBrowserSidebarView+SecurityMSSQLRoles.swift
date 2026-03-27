@@ -11,8 +11,6 @@ extension ObjectBrowserSidebarView {
     func serverRolesSection(session: ConnectionSession) -> some View {
         let connID = session.connection.id
         let roles = viewModel.securityServerRolesBySession[connID] ?? []
-        let isExpanded = viewModel.securityServerRolesExpandedBySession[connID] ?? false
-
         securitySectionHeader(
             depth: SecuritySidebarDepth.serverSection,
             title: "Server Roles",
@@ -117,14 +115,14 @@ extension ObjectBrowserSidebarView {
 
             // Group 10: Destructive
             Button(role: .destructive) {
-                viewModel.dropSecurityPrincipalTarget = .init(
+                sheetState.dropSecurityPrincipalTarget = .init(
                     sessionID: session.id,
                     connectionID: session.connection.id,
                     name: role.name,
                     kind: .mssqlServerRole,
                     databaseName: nil
                 )
-                viewModel.showDropSecurityPrincipalAlert = true
+                sheetState.showDropSecurityPrincipalAlert = true
             } label: {
                 Label("Drop Server Role", systemImage: "trash")
             }
@@ -138,8 +136,6 @@ extension ObjectBrowserSidebarView {
     func credentialsSection(session: ConnectionSession) -> some View {
         let connID = session.connection.id
         let credentials = viewModel.securityCredentialsBySession[connID] ?? []
-        let isExpanded = viewModel.securityCredentialsExpandedBySession[connID] ?? false
-
         securitySectionHeader(
             depth: SecuritySidebarDepth.serverSection,
             title: "Credentials",

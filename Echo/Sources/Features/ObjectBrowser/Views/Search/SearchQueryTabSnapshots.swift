@@ -4,13 +4,10 @@ import EchoSense
 @MainActor
 func queryTabSnapshots(from environmentState: EnvironmentState?) -> [SearchSidebarQueryTabSnapshot] {
     guard let environmentState else { return [] }
-    let sessionsByID = Dictionary(uniqueKeysWithValues: environmentState.sessionGroup.sessions.map { ($0.id, $0) })
-
     var snapshots: [SearchSidebarQueryTabSnapshot] = []
 
     for tab in environmentState.tabStore.tabs {
         guard let queryState = tab.query else { continue }
-        let session = sessionsByID[tab.connectionSessionID]
         let connection = tab.connection
         let tabDatabase = tab.activeDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let databaseName = (tabDatabase?.isEmpty == false ? tabDatabase : nil)

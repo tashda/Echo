@@ -170,14 +170,14 @@ extension ObjectBrowserSidebarView {
 
         // Group 9: Destructive
         Button(role: .destructive) {
-            viewModel.dropSecurityPrincipalTarget = .init(
+            sheetState.dropSecurityPrincipalTarget = .init(
                 sessionID: session.id,
                 connectionID: session.connection.id,
                 name: login.name,
                 kind: .mssqlLogin,
                 databaseName: nil
             )
-            viewModel.showDropSecurityPrincipalAlert = true
+            sheetState.showDropSecurityPrincipalAlert = true
         } label: {
             Label("Drop Login", systemImage: "trash")
         }

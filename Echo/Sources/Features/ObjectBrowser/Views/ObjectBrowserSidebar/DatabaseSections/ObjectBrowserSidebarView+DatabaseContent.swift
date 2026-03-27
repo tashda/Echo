@@ -15,36 +15,59 @@ extension ObjectBrowserSidebarView {
                     .id("\(connID)-\(database.name)-objects-top")
 
                 DatabaseObjectBrowserView(
-                    database: database,
-                    connection: session.connection,
-                    expandedObjectGroups: viewModel.expandedObjectGroupsBinding(for: connID, database: database.name),
-                    expandedObjectIDs: viewModel.expandedObjectIDsBinding(for: connID, database: database.name),
-                    pinnedObjectIDs: viewModel.pinnedObjectsBinding(for: database, connectionID: connID),
-                    isPinnedSectionExpanded: viewModel.pinnedSectionExpandedBinding(for: database, connectionID: connID),
-                    scrollTo: { id, anchor in
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            proxy.scrollTo(id, anchor: anchor)
+                        database: database,
+                        connection: session.connection,
+                        expandedObjectGroups: viewModel.expandedObjectGroupsBinding(for: connID, database: database.name),
+                        expandedObjectIDs: viewModel.expandedObjectIDsBinding(for: connID, database: database.name),
+                        pinnedObjectIDs: viewModel.pinnedObjectsBinding(for: database, connectionID: connID),
+                        isPinnedSectionExpanded: viewModel.pinnedSectionExpandedBinding(for: database, connectionID: connID),
+                        scrollTo: { id, anchor in
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                proxy.scrollTo(id, anchor: anchor)
+                            }
+                        },
+                        onNewExtension: {
+                            environmentState.openExtensionsManagerTab(connectionID: connID, databaseName: database.name)
                         }
-                    },
-                    onNewExtension: {
-                        environmentState.openExtensionsManagerTab(connectionID: connID, databaseName: database.name)
+                    )
+                    .environment(environmentState)
+                    .environment(viewModel)
+
+                    // Replication (Postgres only)
+                    if session.connection.databaseType == .postgresql {
+                        postgresReplicationSection(database: database, session: session)
+                            .environment(viewModel)
                     }
-                )
-                .environment(environmentState)
-                .environment(viewModel)
 
-                // Database-level Security
-                if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
-                    databaseSecuritySection(database: database, session: session)
-                        .environment(viewModel)
-                }
+                    // Database-level Security
+                    if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
+                        databaseSecuritySection(database: database, session: session)
+                            .environment(viewModel)
+                    }
 
-                // Query Store (MSSQL only)
-                if session.connection.databaseType == .microsoftSQL && database.isOnline {
-                    queryStoreRow(database: database, session: session)
-                    databaseDDLTriggersSection(database: database, session: session)
-                    serviceBrokerSection(database: database, session: session)
-                    externalResourcesSection(database: database, session: session)
+                    // Advanced Objects (Postgres only)
+                    if session.connection.databaseType == .postgresql {
+                        postgresAdvancedObjectsSection(database: database, session: session)
+                            .environment(viewModel)
+                    }
+
+                    // Query Store (MSSQL only)
+                    if session.connection.databaseType == .microsoftSQL && database.isOnline {
+                        queryStoreRow(database: database, session: session)
+                        databaseDDLTriggersSection(database: database, session: session)
+                        serviceBrokerSection(database: database, session: session)
+                        externalResourcesSection(database: database, session: session)
+                    }
+            } else if isLoading {
+                SidebarRow(
+                    depth: 2,
+                    icon: .none,
+                    label: "Loading…",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                ) {
+                    ProgressView()
+                        .controlSize(.mini)
                 }
             } else if alreadyLoaded {
                 // Schema was fetched but the database has no user objects — don't re-fetch
@@ -68,6 +91,12 @@ extension ObjectBrowserSidebarView {
                 viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
                 await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
                 viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
+
+                // Eagerly load counts for Postgres replication sections
+                if session.connection.databaseType == .postgresql {
+                    await loadPublicationsIfNeeded(session: session, database: database.name)
+                    await loadSubscriptionsIfNeeded(session: session, database: database.name)
+                }
             }
         }
     }

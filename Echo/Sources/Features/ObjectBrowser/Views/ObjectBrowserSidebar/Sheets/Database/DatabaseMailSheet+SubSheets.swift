@@ -298,12 +298,18 @@ struct MailSheetFooter: View {
             Spacer()
             Button("Cancel", role: .cancel, action: cancelAction)
                 .keyboardShortcut(.cancelAction)
-            Button(saveLabel) {
-                Task { await saveAction() }
+            if isValid {
+                Button(saveLabel) {
+                    Task { await saveAction() }
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.defaultAction)
+            } else {
+                Button(saveLabel) {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
             }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!isValid)
         }
         .padding(SpacingTokens.md)
     }

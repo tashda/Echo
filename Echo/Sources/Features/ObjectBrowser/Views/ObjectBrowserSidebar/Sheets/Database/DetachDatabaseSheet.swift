@@ -12,7 +12,17 @@ struct DetachDatabaseSheet: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "Detach Database",
+            icon: "eject",
+            subtitle: "Detach a database from the server.",
+            primaryAction: "Detach",
+            canSubmit: !isDetaching,
+            isSubmitting: isDetaching,
+            errorMessage: errorMessage,
+            onSubmit: { await detach() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section {
                     LabeledContent("Database") {
@@ -40,32 +50,6 @@ struct DetachDatabaseSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isDetaching {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Detach", role: .destructive) {
-                    Task { await detach() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(isDetaching)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 440, minHeight: 280)
         .frame(idealWidth: 480, idealHeight: 320)

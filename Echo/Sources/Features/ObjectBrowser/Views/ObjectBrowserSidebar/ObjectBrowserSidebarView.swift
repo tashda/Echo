@@ -16,6 +16,7 @@ struct ObjectBrowserSidebarView: View {
     @Environment(\.openWindow) internal var openWindow
 
     @State internal var viewModel = ObjectBrowserSidebarViewModel()
+    @State internal var sheetState = SidebarSheetState()
 
     internal var sessions: [ConnectionSession] { environmentState.sessionGroup.sessions }
 
@@ -39,7 +40,6 @@ struct ObjectBrowserSidebarView: View {
                             .padding(.horizontal, SpacingTokens.md)
                             .padding(.top, SpacingTokens.xl)
                     } else {
-                        // Top inset so the first row doesn't sit flush with the icon menu
                         Color.clear
                             .frame(height: SpacingTokens.xs)
 
@@ -71,9 +71,8 @@ struct ObjectBrowserSidebarView: View {
             .task {
                 syncSelectionWithSessions(proxy: proxy)
             }
-            .onChange(of: sessions.map { $0.connection.id }) { oldIDs, newIDs in
+            .onChange(of: sessions.map(\.connection.id)) { oldIDs, newIDs in
                 syncSelectionWithSessions(proxy: proxy)
-                // Detect newly connected sessions for green flash animation
                 let added = Set(newIDs).subtracting(oldIDs)
                 if !added.isEmpty {
                     viewModel.recentlyConnectedIDs.formUnion(added)
@@ -89,6 +88,7 @@ struct ObjectBrowserSidebarView: View {
             .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in if let focus { handleExplorerFocus(focus, proxy: proxy) } }
         }
         .environment(viewModel)
+        .environment(sheetState)
         .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
         .accessibilityIdentifier("object-browser-sidebar")
 

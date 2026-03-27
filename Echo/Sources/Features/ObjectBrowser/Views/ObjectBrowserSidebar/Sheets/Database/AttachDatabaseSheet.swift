@@ -19,7 +19,17 @@ struct AttachDatabaseSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "Attach Database",
+            icon: "plus.circle",
+            subtitle: "Attach an existing database file to the server.",
+            primaryAction: "Attach",
+            canSubmit: canAttach,
+            isSubmitting: isAttaching,
+            errorMessage: errorMessage,
+            onSubmit: { await attach() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("Database File") {
                     HStack {
@@ -50,32 +60,6 @@ struct AttachDatabaseSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isAttaching {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Attach") {
-                    Task { await attach() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canAttach)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 480, minHeight: 280)
         .frame(idealWidth: 520, idealHeight: 320)

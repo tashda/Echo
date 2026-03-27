@@ -6,6 +6,12 @@ extension WorkspaceTabContainerView {
         guard let tab = tabStore.tabs.first(where: { $0.id == tabId }),
               let queryState = tab.query else { return }
 
+        // Block execution when the dedicated session failed to establish
+        guard !tab.isDedicatedSessionFailed else {
+            queryState.errorMessage = "No dedicated connection. Click \"Retry Connection\" to reconnect."
+            return
+        }
+
         let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
         let baseSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
 
@@ -68,7 +74,12 @@ extension WorkspaceTabContainerView {
 
                 let resolvedSession: DatabaseSession
                 if needsDedicatedSessionWait {
-                    resolvedSession = await tab.awaitDedicatedSession()
+                    do {
+                        resolvedSession = try await tab.awaitDedicatedSession()
+                    } catch {
+                        queryState.errorMessage = "No dedicated connection. Click \"Retry Connection\" to reconnect."
+                        return
+                    }
                 } else {
                     resolvedSession = executionSession
                 }
@@ -138,10 +149,10 @@ extension WorkspaceTabContainerView {
                         state.updateForeignKeyResolutionContext(schema: nil, table: nil)
                     }
                 }
-                // Wait for dedicated MSSQL session if still connecting
+                // Wait for dedicated session if still connecting
                 let resolvedSession: DatabaseSession
                 if needsDedicatedSessionWait {
-                    resolvedSession = await tab.awaitDedicatedSession()
+                    resolvedSession = try await tab.awaitDedicatedSession()
                 } else {
                     resolvedSession = executionSession
                 }

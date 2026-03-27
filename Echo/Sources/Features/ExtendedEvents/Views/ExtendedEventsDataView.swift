@@ -3,12 +3,21 @@ import SQLServerKit
 
 struct ExtendedEventsDataView: View {
     @Bindable var viewModel: ExtendedEventsViewModel
+    let onPopout: ((String) -> Void)?
+    var onDoubleClick: (() -> Void)?
+    
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppState.self) private var appState
     
     @State private var selection: Set<SQLServerXEEventData.ID> = []
-    @State private var eventSortOrder: [KeyPathComparator<SQLServerXEEventData>] = []
+    @State private var eventSortOrder: [KeyPathComparator<SQLServerXEEventData>] = [KeyPathComparator(\.sortableTimestamp, order: .reverse)]
     @State private var searchText = ""
+
+    init(viewModel: ExtendedEventsViewModel, onPopout: ((String) -> Void)? = nil, onDoubleClick: (() -> Void)? = nil) {
+        self.viewModel = viewModel
+        self.onPopout = onPopout
+        self.onDoubleClick = onDoubleClick
+    }
 
     private var filteredEvents: [SQLServerXEEventData] {
         let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -87,10 +96,15 @@ struct ExtendedEventsDataView: View {
             .width(200)
             
             TableColumn("Details") { event in
-                Text(summaryFields(event.fields))
-                    .font(TypographyTokens.Table.secondaryName)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .lineLimit(1)
+                let sqlText = event.fields["sql_text"] ?? event.fields["statement"] ?? event.fields["batch_text"]
+                if let sql = sqlText, let onPopout = onPopout {
+                    SQLQueryCell(sql: sql, onPopout: onPopout)
+                } else {
+                    Text(summaryFields(event.fields))
+                        .font(TypographyTokens.Table.secondaryName)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .lineLimit(1)
+                }
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
@@ -112,6 +126,14 @@ struct ExtendedEventsDataView: View {
                 } label: {
                     Label("View Details", systemImage: "info.circle")
                 }
+                
+                if let sql = event.fields["sql_text"] ?? event.fields["statement"] ?? event.fields["batch_text"], let onPopout = onPopout {
+                    Button {
+                        onPopout(sql)
+                    } label: {
+                        Label("Query Details", systemImage: "arrow.up.left.and.arrow.down.right")
+                    }
+                }
             }
             
             Divider()
@@ -122,7 +144,9 @@ struct ExtendedEventsDataView: View {
                 Label("Clear List", systemImage: "xmark.circle")
             }
         } primaryAction: { _ in
-            if let id = selection.first, let event = viewModel.eventData.first(where: { $0.id == id }) {
+            if let onDoubleClick = onDoubleClick {
+                onDoubleClick()
+            } else if let id = selection.first, let event = viewModel.eventData.first(where: { $0.id == id }) {
                 pushEventInspector(event, toggle: true)
             }
         }

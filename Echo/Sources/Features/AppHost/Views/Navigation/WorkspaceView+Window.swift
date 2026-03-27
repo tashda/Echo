@@ -81,17 +81,6 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
             if window.toolbar?.allowsUserCustomization != false {
                 window.toolbar?.allowsUserCustomization = false
             }
-            // Constrain the search field width so it doesn't greedily fill all available space.
-            if let toolbar = window.toolbar {
-                for item in toolbar.items {
-                    if let searchItem = item as? NSSearchToolbarItem {
-                        if searchItem.preferredWidthForSearchField != 220 {
-                            searchItem.preferredWidthForSearchField = 220
-                        }
-                        break
-                    }
-                }
-            }
             let contentMinWidth: CGFloat = 980
             if window.contentMinSize.width < contentMinWidth {
                 window.contentMinSize.width = contentMinWidth

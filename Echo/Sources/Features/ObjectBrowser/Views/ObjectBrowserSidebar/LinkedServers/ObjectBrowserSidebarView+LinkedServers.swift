@@ -105,11 +105,11 @@ extension ObjectBrowserSidebarView {
         Divider()
 
         Button(role: .destructive) {
-            viewModel.dropLinkedServerTarget = .init(
+            sheetState.dropLinkedServerTarget = .init(
                 connectionID: session.connection.id,
                 serverName: server.name
             )
-            viewModel.showDropLinkedServerAlert = true
+            sheetState.showDropLinkedServerAlert = true
         } label: {
             Label("Drop", systemImage: "trash")
         }

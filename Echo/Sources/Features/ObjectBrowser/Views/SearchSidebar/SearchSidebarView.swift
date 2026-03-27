@@ -9,17 +9,19 @@ struct SearchSidebarView: View {
 
     @Environment(EnvironmentState.self) var environmentState
     @State var viewModel = SearchSidebarViewModel()
-    @FocusState var isSearchFieldFocused: Bool
     @State var didRestoreCache = false
     @State var isFilterPopoverPresented = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            searchBar
-            Divider()
-            content
-                .padding(SpacingTokens.sm)
-        }
+        content
+            .padding(.horizontal, SpacingTokens.sm)
+            .padding(.bottom, SpacingTokens.sm)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                SearchSidebarSearchBar(
+                    viewModel: viewModel,
+                    isFilterPopoverPresented: $isFilterPopoverPresented
+                )
+            }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
             if !didRestoreCache {
@@ -34,11 +36,7 @@ struct SearchSidebarView: View {
             viewModel.notifyQueryTabsChanged()
         }
         .onChange(of: environmentState.sessionGroup.sessions.map(\.id)) { _, _ in syncContext() }
-        .onChange(of: viewModel.query) { _, _ in cacheState() }
         .onChange(of: viewModel.selectedCategories) { _, _ in cacheState() }
-        .onChange(of: viewModel.results) { _, _ in cacheState() }
-        .onChange(of: viewModel.errorMessage) { _, _ in cacheState() }
-        .onChange(of: viewModel.isSearching) { _, _ in cacheState() }
         .onChange(of: viewModel.scope) { _, _ in cacheState() }
         .onChange(of: tabStore.tabs.map(\.id)) { _, _ in
             viewModel.notifyQueryTabsChanged()

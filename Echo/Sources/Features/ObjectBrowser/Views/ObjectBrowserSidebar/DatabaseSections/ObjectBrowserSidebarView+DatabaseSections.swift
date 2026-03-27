@@ -20,9 +20,11 @@ extension ObjectBrowserSidebarView {
         )
 
         let hideInaccessible = projectStore.globalSettings.hideInaccessibleDatabases
-        let displayCount = hideInaccessible
-            ? structure.databases.filter { $0.isAccessible }.count
-            : structure.databases.count
+        let hideOffline = viewModel.hideOfflineDatabasesBySession[connID] ?? false
+        let displayCount = structure.databases
+            .filter { !hideInaccessible || $0.isAccessible }
+            .filter { !hideOffline || $0.isOnline }
+            .count
 
         Button {
             expandedBinding.wrappedValue.toggle()
@@ -45,9 +47,9 @@ extension ObjectBrowserSidebarView {
         .frame(maxWidth: .infinity, alignment: .leading)
 
         if isExpanded {
-            let visibleDatabases = projectStore.globalSettings.hideInaccessibleDatabases
-                ? structure.databases.filter { $0.isAccessible }
-                : structure.databases
+            let visibleDatabases = structure.databases
+                .filter { !hideInaccessible || $0.isAccessible }
+                .filter { !hideOffline || $0.isOnline }
             ForEach(visibleDatabases, id: \.name) { database in
                 databaseSection(database: database, session: session, proxy: proxy)
             }
@@ -173,8 +175,22 @@ extension ObjectBrowserSidebarView {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
-        .contextMenu {
-            databaseContextMenu(database: database, session: session)
+        .lazyContextMenu { [viewModel, sheetState, environmentState, projectStore, openWindow] in
+            buildDatabaseNSMenu(
+                database: database, session: session,
+                viewModel: viewModel, sheetState: sheetState,
+                environmentState: environmentState, projectStore: projectStore,
+                openWindow: openWindow,
+                runMSSQLTask: { session, db, taskName in
+                    let task: MSSQLDatabaseTask = switch taskName {
+                    case "shrink": .shrink
+                    case "takeOffline": .takeOffline
+                    case "bringOnline": .bringOnline
+                    default: .shrink
+                    }
+                    Task { await self.runMSSQLTask(session: session, database: db, task: task) }
+                }
+            )
         }
     }
 }

@@ -158,7 +158,7 @@ final class PreviewDatabaseSession: DatabaseSession, @unchecked Sendable {
         []
     }
 
-    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String? = nil) async throws -> String {
         "-- preview definition"
     }
 

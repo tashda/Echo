@@ -38,11 +38,17 @@ extension CompactTabPreviewCard {
             return []
         case .availabilityGroups:
             return []
-        case .databaseSecurity, .serverSecurity:
+        case .databaseSecurity, .postgresSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
             return []
         case .errorLog:
             return []
         case .profiler, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
+            return []
+        case .tableData:
+            guard let vm = tab.tableDataVM else { return [] }
+            if vm.totalLoadedRows > 0 {
+                return [("tablecells", "\(EchoFormatters.compactNumber(vm.totalLoadedRows))", ColorTokens.Text.secondary)]
+            }
             return []
         }
         }
@@ -78,8 +84,12 @@ extension CompactTabPreviewCard {
             return "Extended Events"
         case .availabilityGroups:
             return "Availability Groups"
-        case .databaseSecurity:
+        case .databaseSecurity, .postgresSecurity:
             return "Database Security"
+        case .postgresAdvancedObjects:
+            return "Advanced Objects"
+        case .schemaDiff:
+            return "Schema Diff"
         case .serverSecurity:
             return "Server Security"
         case .errorLog:
@@ -94,6 +104,8 @@ extension CompactTabPreviewCard {
             return "Tuning Advisor"
         case .policyManagement:
             return "Policy Management"
+        case .tableData:
+            return "Table Data"
         }
         }
 
@@ -129,8 +141,12 @@ extension CompactTabPreviewCard {
             return "Extended Events session monitoring"
         case .availabilityGroups:
             return "Always On Availability Groups dashboard"
-        case .databaseSecurity:
+        case .databaseSecurity, .postgresSecurity:
             return "Database security management"
+        case .postgresAdvancedObjects:
+            return "Advanced PostgreSQL object management"
+        case .schemaDiff:
+            return "Compare schema objects between schemas"
         case .serverSecurity:
             return "Server security management"
         case .errorLog:
@@ -145,6 +161,11 @@ extension CompactTabPreviewCard {
             return "Database Engine Tuning Advisor recommendations"
         case .policyManagement:
             return "Manage database policies and compliance"
+        case .tableData:
+            if let vm = tab.tableDataVM {
+                return "\(vm.schemaName).\(vm.tableName)"
+            }
+            return "Table data viewer"
         }
         }
 

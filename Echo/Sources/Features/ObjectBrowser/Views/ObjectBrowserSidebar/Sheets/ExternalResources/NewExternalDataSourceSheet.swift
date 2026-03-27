@@ -20,55 +20,59 @@ struct NewExternalDataSourceSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New External Data Source",
+            icon: "externaldrive.connected.to.line.below",
+            subtitle: "Create a connection to an external data source.",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { await create() },
+            onCancel: { onDismiss() }
+        ) {
             Form {
                 Section("Data Source") {
-                    TextField("Name", text: $name, prompt: Text("e.g. MyHadoopCluster"))
-                    TextField("Location", text: $location, prompt: Text("e.g. hdfs://namenode:8020"))
-                    Picker("Type", selection: $sourceType) {
-                        Text("Hadoop").tag(ExternalDataSourceType.hadoop)
-                        Text("Blob Storage").tag(ExternalDataSourceType.blobStorage)
-                        Text("RDBMS").tag(ExternalDataSourceType.rdbms)
-                        Text("Shard Map Manager").tag(ExternalDataSourceType.shardMapManager)
+                    PropertyRow(title: "Name") {
+                        TextField("", text: $name, prompt: Text("e.g. MyHadoopCluster"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    PropertyRow(title: "Location", info: "The connection string or URI for the external data source.") {
+                        TextField("", text: $location, prompt: Text("e.g. hdfs://namenode:8020"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    PropertyRow(title: "Type", info: "The type of external data source determines the available connection options.") {
+                        Picker("", selection: $sourceType) {
+                            Text("Hadoop").tag(ExternalDataSourceType.hadoop)
+                            Text("Blob Storage").tag(ExternalDataSourceType.blobStorage)
+                            Text("RDBMS").tag(ExternalDataSourceType.rdbms)
+                            Text("Shard Map Manager").tag(ExternalDataSourceType.shardMapManager)
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
                     }
                 }
 
                 Section("Authentication") {
-                    TextField("Credential", text: $credential, prompt: Text("e.g. MyCredential"))
+                    PropertyRow(title: "Credential", info: "A database-scoped credential used to authenticate to the external data source.") {
+                        TextField("", text: $credential, prompt: Text("e.g. MyCredential"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 Section("Advanced") {
-                    TextField("Resource Manager Location", text: $resourceManagerLocation, prompt: Text("e.g. namenode:8032"))
+                    PropertyRow(title: "Resource Manager", info: "The Hadoop YARN Resource Manager location for pushdown computation.") {
+                        TextField("", text: $resourceManagerLocation, prompt: Text("e.g. namenode:8032"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") {
-                    Task { await create() }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canCreate)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 480, minHeight: 320)
         .frame(idealWidth: 520, idealHeight: 380)

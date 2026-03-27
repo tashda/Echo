@@ -6,36 +6,41 @@ struct DACWizardView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            
-            Divider()
-            
+        SheetLayoutCustomFooter(title: title) {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            
-            Divider()
-            
-            footer
+        } footer: {
+            Button("Cancel") { dismiss() }
+                .keyboardShortcut(.cancelAction)
+
+            Spacer()
+
+            if viewModel.currentStep == .setTarget {
+                Button("Previous") { viewModel.prevStep() }
+            }
+
+            if viewModel.currentStep == .selectOperation {
+                Button("Next") { viewModel.nextStep() }
+                    .buttonStyle(.bordered)
+                    .keyboardShortcut(.defaultAction)
+            } else if viewModel.currentStep == .setTarget {
+                if !viewModel.databaseName.isEmpty {
+                    Button("Run") { viewModel.runOperation() }
+                        .buttonStyle(.bordered)
+                        .keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Run") {}
+                        .buttonStyle(.bordered)
+                        .disabled(true)
+                        .keyboardShortcut(.defaultAction)
+                }
+            } else if viewModel.currentStep == .summary {
+                Button("Finish") { dismiss() }
+                    .buttonStyle(.bordered)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
         .frame(width: 550, height: 450)
-    }
-    
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(TypographyTokens.title)
-                Text(stepDescription)
-                    .font(TypographyTokens.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Image(systemName: "archivebox")
-                .font(TypographyTokens.iconDisplay)
-                .foregroundStyle(Color.accentColor)
-        }
-        .padding(SpacingTokens.lg)
     }
     
     @ViewBuilder
@@ -136,32 +141,6 @@ struct DACWizardView: View {
             }
         }
         .padding(SpacingTokens.xl)
-    }
-    
-    private var footer: some View {
-        HStack {
-            Button("Cancel") { dismiss() }
-                .buttonStyle(.plain)
-            
-            Spacer()
-            
-            if viewModel.currentStep == .setTarget {
-                Button("Previous") { viewModel.prevStep() }
-            }
-            
-            if viewModel.currentStep == .selectOperation {
-                Button("Next") { viewModel.nextStep() }
-                    .buttonStyle(.borderedProminent)
-            } else if viewModel.currentStep == .setTarget {
-                Button("Run") { viewModel.runOperation() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.databaseName.isEmpty)
-            } else if viewModel.currentStep == .summary {
-                Button("Finish") { dismiss() }
-                    .buttonStyle(.borderedProminent)
-            }
-        }
-        .padding(SpacingTokens.lg)
     }
     
     private var title: String {

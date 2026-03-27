@@ -107,7 +107,7 @@ private final class StreamingTestHarnessDatabaseSession: DatabaseSession, @unche
     func listExtensions() async throws -> [SchemaObjectInfo] { [] }
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet { try await simpleQuery(sql) }
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] { [] }
-    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String { "-- preview" }
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String? = nil) async throws -> String { "-- preview" }
     func executeUpdate(_ sql: String) async throws -> Int { 0 }
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails { TableStructureDetails() }
     func renameTable(schema: String?, oldName: String, newName: String) async throws {}
