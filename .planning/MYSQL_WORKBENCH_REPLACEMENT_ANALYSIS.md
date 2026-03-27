@@ -366,7 +366,7 @@ Execute as a Process, stream stdout to file, show progress.
 **Effort: Medium (1-2 weeks)**
 **Depends on: Phase 1 (MySQL DDL generator) + mysql-wire**
 
-**Status:** Not started in Echo
+**Status:** Partially implemented in Echo
 
 #### What to Build
 
@@ -382,7 +382,7 @@ For each object type (tables, views, routines, triggers, events):
 
 **6.3 Migration SQL Generation** — Generate ALTER statements to transform source → target
 
-This builds on the existing `SchemaDiffViewModel` pattern from PostgreSQL. Generalize it to work with MySQL DDL.
+This builds on the existing `SchemaDiffViewModel` pattern from PostgreSQL. The MySQL dialect dispatch, object inventory, DDL comparison, and migration SQL generation are now wired in Echo. The remaining work is editor polish and broader verification.
 
 **Where it goes:**
 - Extend existing `Echo/Sources/Features/SchemaDiff/` to support MySQL
