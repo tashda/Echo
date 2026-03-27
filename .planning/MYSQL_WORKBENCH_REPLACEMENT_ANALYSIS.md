@@ -18,6 +18,7 @@ The project is no longer at the planning-only stage:
 - Echo's MySQL dialect is wired to `mysql-wire` instead of direct `mysql-nio`
 - the MySQL Activity Monitor now consumes typed `mysql-wire` activity and performance metrics for a real dashboard plus process list
 - MySQL maintenance actions in Echo now route through typed `mysql-wire` admin APIs instead of ad hoc raw SQL
+- MySQL backup and restore sheets now exist in Echo with tool discovery and process execution wiring
 
 What remains is substantial Echo feature work, not package bootstrapping:
 - Phase 1 table editor is still outstanding
@@ -303,7 +304,9 @@ Each report is a simple table view with column sorting and export.
 **Effort: Medium (1-2 weeks)**
 **Depends on: MySQLToolLocator for mysqldump/mysqlpump paths**
 
-**Status:** Package helpers exist, Echo UI/workflow still pending
+**Status:** Partially implemented in Echo
+- MySQL tool discovery and basic backup/restore sheets now exist
+- richer options, preferences integration, and progress/reporting parity are still pending
 
 #### What to Build
 

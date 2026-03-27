@@ -45,6 +45,13 @@ final class SidebarSheetState {
     var pgBackupDatabaseName: String?
     var pgBackupConnectionID: UUID?
 
+    // MARK: - MySQL Backup/Restore
+
+    var showMySQLBackupSheet = false
+    var showMySQLRestoreSheet = false
+    var mysqlBackupDatabaseName: String?
+    var mysqlBackupConnectionID: UUID?
+
     // MARK: - Database Mail
 
     var showDatabaseMailSheet = false

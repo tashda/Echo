@@ -38,6 +38,7 @@
 ### In progress now
 - Echo feature parity work on top of the shipped `mysql-wire` package
 - Echo migration from raw MySQL admin SQL toward typed `mysql-wire` admin/activity/security APIs
+- Echo backup/restore tooling on top of `mysql-wire` command-generation helpers
 
 ### Still remaining after current work
 - Complete Echo-side feature wiring for activity monitoring, administration, security management, backup/restore, and schema tooling

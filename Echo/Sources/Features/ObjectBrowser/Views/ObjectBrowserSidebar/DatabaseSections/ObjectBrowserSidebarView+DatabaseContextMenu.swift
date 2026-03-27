@@ -75,6 +75,21 @@ func buildDatabaseNSMenu(
         }
     }
 
+    if dbType == .mysql {
+        menu.addSubmenu("Tasks", systemImage: "gearshape") { sub in
+            sub.addActionItem("Back Up", systemImage: "arrow.down.doc") {
+                sheetState.mysqlBackupDatabaseName = database.name
+                sheetState.mysqlBackupConnectionID = connID
+                sheetState.showMySQLBackupSheet = true
+            }
+            sub.addActionItem("Restore", systemImage: "arrow.up.doc") {
+                sheetState.mysqlBackupDatabaseName = database.name
+                sheetState.mysqlBackupConnectionID = connID
+                sheetState.showMySQLRestoreSheet = true
+            }
+        }
+    }
+
     if dbType == .microsoftSQL {
         let ctItem = menu.addActionItem("Change Tracking / CDC", systemImage: "arrow.triangle.2.circlepath") {
             sheetState.changeTrackingDatabaseName = database.name
@@ -267,6 +282,25 @@ extension ObjectBrowserSidebarView {
                     sheetState.pgBackupDatabaseName = database.name
                     sheetState.pgBackupConnectionID = connID
                     sheetState.showPgRestoreSheet = true
+                } label: {
+                    Label("Restore", systemImage: "arrow.up.doc")
+                }
+            }
+        }
+
+        if session.connection.databaseType == .mysql {
+            Menu("Tasks", systemImage: "gearshape") {
+                Button {
+                    sheetState.mysqlBackupDatabaseName = database.name
+                    sheetState.mysqlBackupConnectionID = connID
+                    sheetState.showMySQLBackupSheet = true
+                } label: {
+                    Label("Back Up", systemImage: "arrow.down.doc")
+                }
+                Button {
+                    sheetState.mysqlBackupDatabaseName = database.name
+                    sheetState.mysqlBackupConnectionID = connID
+                    sheetState.showMySQLRestoreSheet = true
                 } label: {
                     Label("Restore", systemImage: "arrow.up.doc")
                 }

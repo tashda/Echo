@@ -80,6 +80,31 @@ extension ObjectBrowserSidebarView {
                     )
                 }
             }
+            .sheet(isPresented: $sheetState.showMySQLBackupSheet) {
+                if let dbName = sheetState.mysqlBackupDatabaseName,
+                   let connID = sheetState.mysqlBackupConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    MySQLBackupSheetContainer(
+                        connection: session.connection,
+                        session: session.session,
+                        databaseName: dbName,
+                        isPresented: $sheetState.showMySQLBackupSheet
+                    )
+                }
+            }
+            .sheet(isPresented: $sheetState.showMySQLRestoreSheet) {
+                if let dbName = sheetState.mysqlBackupDatabaseName,
+                   let connID = sheetState.mysqlBackupConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    MySQLRestoreSheetContainer(
+                        connection: session.connection,
+                        session: session.session,
+                        databaseName: dbName,
+                        connectionSession: session,
+                        isPresented: $sheetState.showMySQLRestoreSheet
+                    )
+                }
+            }
             .sheet(isPresented: $sheetState.showNewLinkedServerSheet) {
                 if let connID = sheetState.newLinkedServerSessionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
