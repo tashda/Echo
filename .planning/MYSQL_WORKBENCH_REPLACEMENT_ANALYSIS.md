@@ -139,7 +139,7 @@ MySQL Workbench's table editor is its most-used feature. Users create and modify
 **Depends on: Nothing (can start now)**
 
 **Status:** Partially implemented in Echo
-- Activity Monitor now has a typed MySQL dashboard and process list backed by `mysql-wire`
+- Activity Monitor now has a typed MySQL dashboard, server variables browser, and process list backed by `mysql-wire`
 - maintenance commands now execute through `mysql-wire` admin APIs
 - server variables browser, log viewer, and dedicated server-admin tabs are still missing
 

@@ -17,9 +17,24 @@ public struct MySQLProcessInfo: Sendable, Identifiable, Hashable {
     public let info: String?
 }
 
+public struct MySQLGlobalVariableInfo: Sendable, Identifiable, Hashable {
+    public let id: String
+    public let name: String
+    public let value: String
+    public let category: String
+
+    public init(name: String, value: String, category: String) {
+        self.id = name.lowercased()
+        self.name = name
+        self.value = value
+        self.category = category
+    }
+}
+
 public struct MySQLActivitySnapshot: Sendable {
     public let capturedAt: Date
     public let processes: [MySQLProcessInfo]
+    public let globalVariables: [MySQLGlobalVariableInfo]
     public let overview: MySQLActivityOverview?
 }
 

@@ -1,9 +1,16 @@
 import SwiftUI
 
 struct MySQLActivityMonitorView: View {
+    enum Section: String, CaseIterable {
+        case overview = "Overview"
+        case variables = "Variables"
+        case processes = "Processes"
+    }
+
     @Bindable var viewModel: ActivityMonitorViewModel
     @State private var selectedSQLContext: SQLPopoutContext?
     @State private var selectedProcessIDs: Set<Int> = []
+    @State var selectedSection: Section = .overview
 
     var body: some View {
         ActivityMonitorTabFrame(
@@ -13,40 +20,26 @@ struct MySQLActivityMonitorView: View {
             selectedSQLContext: $selectedSQLContext,
             onOpenInQueryWindow: { _ in }
         ) {
-            Text("Process List")
-                .font(TypographyTokens.standard.weight(.medium))
+            Picker("", selection: $selectedSection) {
+                ForEach(Section.allCases, id: \.self) { section in
+                    Text(section.rawValue).tag(section)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 360)
         } sparklines: {
             ActivityMonitorSparklineStrip(metrics: sparklineMetrics)
         } sectionContent: {
             ScrollView {
                 VStack(alignment: .leading, spacing: SpacingTokens.md) {
-                    if let overview = mysqlSnapshot?.overview {
-                        MySQLActivityOverviewSection(overview: overview)
-                    }
-
-                    SectionContainer(
-                        title: "Performance Dashboard",
-                        icon: "chart.line.uptrend.xyaxis",
-                        info: "Query throughput, network traffic, and InnoDB buffer pool usage over time."
-                    ) {
-                        MySQLDashboardView(viewModel: viewModel)
-                    }
-
-                    SectionContainer(
-                        title: "Process List",
-                        icon: "person.3",
-                        info: "Current connections from SHOW FULL PROCESSLIST."
-                    ) {
-                        processListContent
-                            .padding(SpacingTokens.md)
-                    }
+                    sectionContentView
                 }
                 .padding(SpacingTokens.md)
             }
         }
     }
 
-    private var mysqlSnapshot: MySQLActivitySnapshot? {
+    var mysqlSnapshot: MySQLActivitySnapshot? {
         guard let snapshot = viewModel.latestSnapshot, case .mysql(let snap) = snapshot else {
             return nil
         }
@@ -87,7 +80,7 @@ struct MySQLActivityMonitorView: View {
     }
 
     @ViewBuilder
-    private var processListContent: some View {
+    var processListContent: some View {
         if let snap = mysqlSnapshot {
             if snap.processes.isEmpty {
                 ContentUnavailableView {

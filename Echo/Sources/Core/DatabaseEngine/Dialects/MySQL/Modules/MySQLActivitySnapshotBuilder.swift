@@ -80,6 +80,7 @@ enum MySQLActivitySnapshotBuilder {
         let snapshot = MySQLActivitySnapshot(
             capturedAt: capturedAt,
             processes: processes.map(makeProcessInfo),
+            globalVariables: globalVariables.map(makeGlobalVariableInfo).sorted { $0.name < $1.name },
             overview: overview
         )
         return (snapshot, sample)
@@ -96,6 +97,22 @@ enum MySQLActivitySnapshotBuilder {
             state: process.state,
             info: process.info
         )
+    }
+
+    private static func makeGlobalVariableInfo(from variable: MySQLGlobalVariable) -> MySQLGlobalVariableInfo {
+        MySQLGlobalVariableInfo(
+            name: variable.name,
+            value: variable.value,
+            category: variableCategory(for: variable.name)
+        )
+    }
+
+    private static func variableCategory(for variableName: String) -> String {
+        let normalized = variableName.lowercased()
+        if let prefix = normalized.split(separator: "_").first, !prefix.isEmpty {
+            return prefix.uppercased()
+        }
+        return "GENERAL"
     }
 
     private static func bufferPoolUsagePercent(in variables: [String: String]) -> Double? {

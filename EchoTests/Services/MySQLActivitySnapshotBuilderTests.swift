@@ -63,6 +63,7 @@ struct MySQLActivitySnapshotBuilderTests {
         #expect(overview.innodbReadsPerSecond == 2)
         #expect(overview.innodbWritesPerSecond == 3)
         #expect(result.snapshot.processes.first?.id == 17)
+        #expect(result.snapshot.globalVariables.first(where: { $0.name == "max_connections" })?.category == "MAX")
     }
 
     @Test func fallsBackToProcessCountWithoutThreadMetric() {
