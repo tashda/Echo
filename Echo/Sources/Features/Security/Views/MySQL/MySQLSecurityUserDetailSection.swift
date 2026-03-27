@@ -3,6 +3,8 @@ import SwiftUI
 
 struct MySQLSecurityUserDetailSection: View {
     @Bindable var viewModel: MySQLDatabaseSecurityViewModel
+    @State private var showLimitsSheet = false
+    @State private var showAdministrativeRolesSheet = false
 
     var body: some View {
         if let user = viewModel.selectedUser {
@@ -16,6 +18,18 @@ struct MySQLSecurityUserDetailSection: View {
                             .foregroundStyle(ColorTokens.Text.secondary)
                     }
                     Spacer()
+                    VStack(alignment: .trailing, spacing: SpacingTokens.xs) {
+                        Button("Edit Limits…") {
+                            showLimitsSheet = true
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(viewModel.selectedUserLimits == nil)
+
+                        Button("Edit Admin Roles…") {
+                            showAdministrativeRolesSheet = true
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
 
                 if !viewModel.selectedUserAdministrativeRoles.isEmpty {
@@ -54,6 +68,25 @@ struct MySQLSecurityUserDetailSection: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
+                }
+            }
+            .sheet(isPresented: $showLimitsSheet) {
+                if let limits = viewModel.selectedUserLimits {
+                    MySQLUserLimitsSheet(accountName: user.accountName, initialLimits: limits) { updatedLimits in
+                        Task { await viewModel.updateSelectedUserLimits(updatedLimits) }
+                    } onDismiss: {
+                        showLimitsSheet = false
+                    }
+                }
+            }
+            .sheet(isPresented: $showAdministrativeRolesSheet) {
+                MySQLAdministrativeRolesSheet(
+                    accountName: user.accountName,
+                    initialRoles: Set(viewModel.selectedUserAdministrativeRoles)
+                ) { roles in
+                    Task { await viewModel.updateSelectedUserAdministrativeRoles(roles) }
+                } onDismiss: {
+                    showAdministrativeRolesSheet = false
                 }
             }
         } else {

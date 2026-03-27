@@ -280,6 +280,48 @@ final class MySQLDatabaseSecurityViewModel {
         }
     }
 
+    func updateSelectedUserLimits(_ limits: MySQLAccountLimits) async {
+        guard let mysql = session as? MySQLSession, let account = selectedUser else { return }
+        let handle = activityEngine?.begin("Updating account limits", connectionSessionID: connectionSessionID)
+        do {
+            _ = try await mysql.client.security.setAccountLimits(
+                for: account.username,
+                host: account.host,
+                limits: limits
+            )
+            handle?.succeed()
+            panelState?.appendMessage("Updated limits for \(account.accountName)")
+            await loadSelectedUserDetails()
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to update limits for \(account.accountName): \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func updateSelectedUserAdministrativeRoles(_ roles: Set<MySQLAdministrativeRole>) async {
+        guard let mysql = session as? MySQLSession, let account = selectedUser else { return }
+        let existingRoles = Set(selectedUserAdministrativeRoles)
+        let rolesToGrant = roles.subtracting(existingRoles)
+        let rolesToRevoke = existingRoles.subtracting(roles)
+        guard !rolesToGrant.isEmpty || !rolesToRevoke.isEmpty else { return }
+
+        let handle = activityEngine?.begin("Updating administrative roles", connectionSessionID: connectionSessionID)
+        do {
+            for role in rolesToGrant.sorted(by: { $0.rawValue < $1.rawValue }) {
+                try await mysql.client.security.grantAdministrativeRole(role, to: account.username, host: account.host)
+            }
+            for role in rolesToRevoke.sorted(by: { $0.rawValue < $1.rawValue }) {
+                try await mysql.client.security.revokeAdministrativeRole(role, from: account.username, host: account.host)
+            }
+            handle?.succeed()
+            panelState?.appendMessage("Updated administrative roles for \(account.accountName)")
+            await loadSelectedUserDetails()
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to update administrative roles for \(account.accountName): \(error.localizedDescription)", severity: .error)
+        }
+    }
+
     private func updateSelectedUser(locking: Bool) async {
         guard let mysql = session as? MySQLSession, let account = selectedUser else { return }
         let verb = locking ? "Locking" : "Unlocking"
