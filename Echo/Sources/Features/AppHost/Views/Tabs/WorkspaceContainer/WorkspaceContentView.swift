@@ -131,7 +131,7 @@ struct WorkspaceContentView: View {
             }
         case .serverProperties:
             if let vm = tab.serverPropertiesVM {
-                ServerPropertiesView(viewModel: vm).background(ColorTokens.Background.primary)
+                ServerPropertiesView(viewModel: vm, panelState: tab.panelState).background(ColorTokens.Background.primary)
             }
         case .query:
             if let query = tab.query {

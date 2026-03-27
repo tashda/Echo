@@ -99,6 +99,18 @@ extension ObjectBrowserSidebarView {
 
         if session.connection.databaseType == .mysql {
             Button {
+                environmentState.openServerPropertiesTab(connectionID: connID)
+            } label: {
+                SidebarRow(
+                    depth: 0,
+                    icon: .system("gearshape.2"),
+                    label: "Server Properties",
+                    iconColor: ExplorerSidebarPalette.folderIconColor(title: "Server Properties", colored: colored)
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
                 environmentState.openActivityMonitorTab(connectionID: connID)
             } label: {
                 SidebarRow(
