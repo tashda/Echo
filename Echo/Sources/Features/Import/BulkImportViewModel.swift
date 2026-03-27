@@ -29,6 +29,7 @@ final class BulkImportViewModel {
     var previewRows: [[String]] = []
     var totalRowCount = 0
     var isXLSX: Bool { fileURL?.pathExtension.lowercased() == "xlsx" }
+    var isJSON: Bool { fileURL?.pathExtension.lowercased() == "json" }
 
     // Configuration
     let databaseType: DatabaseType
@@ -85,11 +86,12 @@ final class BulkImportViewModel {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [
             .commaSeparatedText, .tabSeparatedText, .plainText,
+            .json,
             UTType(filenameExtension: "xlsx") ?? .data
         ]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.message = "Select a CSV, TSV, Excel (.xlsx), or delimited text file to import"
+        panel.message = "Select a CSV, TSV, JSON, Excel (.xlsx), or delimited text file to import"
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         fileURL = url
@@ -105,6 +107,8 @@ final class BulkImportViewModel {
             let result: CSVParseResult
             if isXLSX {
                 result = try await XLSXFileParser.parse(url: url, previewLimit: 10)
+            } else if isJSON {
+                result = try await JSONFileParser.parse(url: url, previewLimit: 10)
             } else {
                 result = try await CSVFileParser.parse(url: url, delimiter: delimiter, previewLimit: 10)
             }
@@ -191,6 +195,8 @@ final class BulkImportViewModel {
             let fullResult: CSVParseResult
             if isXLSX {
                 fullResult = try await XLSXFileParser.parse(url: url, previewLimit: nil)
+            } else if isJSON {
+                fullResult = try await JSONFileParser.parse(url: url, previewLimit: nil)
             } else {
                 fullResult = try await CSVFileParser.parseAll(url: url, delimiter: delimiter)
             }

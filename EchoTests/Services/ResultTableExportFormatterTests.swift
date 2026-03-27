@@ -200,4 +200,15 @@ struct ResultTableExportFormatterTests {
         )
         #expect(result.contains("\"my_table\""))
     }
+
+    @Test func sqlInsertUsesMySQLIdentifierQuoting() {
+        let result = ResultTableExportFormatter.formatSQLInsert(
+            tableName: "users",
+            headers: ["id", "display_name"],
+            rows: [["1", "Alice"]],
+            databaseType: .mysql
+        )
+        #expect(result.contains("INSERT INTO `users`"))
+        #expect(result.contains("(`id`, `display_name`)"))
+    }
 }

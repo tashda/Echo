@@ -37,10 +37,14 @@ extension QueryResultsSection {
         Group {
             if hasRows || !query.additionalResults.isEmpty {
 #if os(macOS)
-                if query.additionalResults.isEmpty {
-                    primaryResultsTable
-                } else {
-                    multiResultSetView
+                VStack(spacing: 0) {
+                    resultsToolbar
+                    Divider()
+                    if query.additionalResults.isEmpty {
+                        primaryResultsTable
+                    } else {
+                        multiResultSetView
+                    }
                 }
 #else
                 QueryResultsGridView(
@@ -57,6 +61,13 @@ extension QueryResultsSection {
                 noRowsReturnedView
             }
         }
+#if os(macOS)
+        .sheet(item: $resultExportViewModel) { viewModel in
+            DataExportSheet(viewModel: viewModel) {
+                resultExportViewModel = nil
+            }
+        }
+#endif
     }
 
 #if os(macOS)
@@ -103,8 +114,6 @@ extension QueryResultsSection {
     private var multiResultSetView: some View {
         let allSets = query.allResultSetsForDisplay
         return VStack(spacing: 0) {
-            resultSetTabBar(count: allSets.count)
-
             if query.selectedResultSetIndex == 0 && hasRows {
                 primaryResultsTable
             } else if query.selectedResultSetIndex > 0,
@@ -121,7 +130,7 @@ extension QueryResultsSection {
         }
     }
 
-    private func resultSetTabBar(count: Int) -> some View {
+    func resultSetTabBar(count: Int) -> some View {
         HStack(spacing: SpacingTokens.xxs) {
             ForEach(0..<count, id: \.self) { index in
                 let rowCount = resultSetRowCount(at: index)

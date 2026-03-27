@@ -38,20 +38,7 @@ struct DataExportSheet: View {
 
     private var formContent: some View {
         Form {
-            Section("Source") {
-                if viewModel.showsSchemaField {
-                    PropertyRow(title: "Schema") {
-                        TextField("", text: $viewModel.schema, prompt: Text(viewModel.schemaPlaceholder))
-                            .textFieldStyle(.plain)
-                            .multilineTextAlignment(.trailing)
-                    }
-                }
-                PropertyRow(title: "Table") {
-                    TextField("", text: $viewModel.tableName, prompt: Text("e.g. users"))
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.trailing)
-                }
-            }
+            sourceSection
 
             Section("Format") {
                 PropertyRow(title: "Output Format") {
@@ -64,17 +51,19 @@ struct DataExportSheet: View {
                     .pickerStyle(.menu)
                 }
 
-                PropertyRow(title: "Custom Delimiter") {
-                    TextField("", text: $viewModel.customDelimiter, prompt: Text("Leave blank for default"))
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.trailing)
-                        .frame(maxWidth: 80)
-                }
+                if viewModel.supportsDelimitedOptions {
+                    PropertyRow(title: "Custom Delimiter") {
+                        TextField("", text: $viewModel.customDelimiter, prompt: Text("Leave blank for default"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 80)
+                    }
 
-                PropertyRow(title: "Include Header") {
-                    Toggle("", isOn: $viewModel.includeHeader)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
+                    PropertyRow(title: "Include Header") {
+                        Toggle("", isOn: $viewModel.includeHeader)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
                 }
 
                 PropertyRow(title: "Encoding") {
@@ -105,6 +94,32 @@ struct DataExportSheet: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+    }
+
+    @ViewBuilder
+    private var sourceSection: some View {
+        Section("Source") {
+            if viewModel.isResultSetExport {
+                PropertyRow(title: "Results") {
+                    Text("Current Query Results")
+                        .font(TypographyTokens.formValue)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
+            } else {
+                if viewModel.showsSchemaField {
+                    PropertyRow(title: "Schema") {
+                        TextField("", text: $viewModel.schema, prompt: Text(viewModel.schemaPlaceholder))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+                PropertyRow(title: "Table") {
+                    TextField("", text: $viewModel.tableName, prompt: Text("e.g. users"))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+        }
     }
 
 }

@@ -19,6 +19,7 @@ struct QueryResultsSection: View {
     @State internal var lastObservedColumnIDs: [String] = []
 #if os(macOS)
     @State internal var jsonInspectorContext: JsonInspectorContext?
+    @State internal var resultExportViewModel: DataExportViewModel?
 #endif
 
     @Environment(AppearanceStore.self) internal var appearanceStore

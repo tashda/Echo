@@ -3,12 +3,12 @@ import Foundation
 
 enum ResultTableExportFormatter {
 
-    static func format(_ format: ResultExportFormat, headers: [String], rows: [[String?]], tableName: String? = nil) -> String {
+    static func format(_ format: ResultExportFormat, headers: [String], rows: [[String?]], tableName: String? = nil, databaseType: DatabaseType? = nil) -> String {
         switch format {
         case .tsv: return formatTSV(headers: headers, rows: rows, includeHeaders: true)
         case .csv: return formatCSV(headers: headers, rows: rows)
         case .json: return formatJSON(headers: headers, rows: rows)
-        case .sqlInsert: return formatSQLInsert(tableName: tableName ?? "table_name", headers: headers, rows: rows)
+        case .sqlInsert: return formatSQLInsert(tableName: tableName ?? "table_name", headers: headers, rows: rows, databaseType: databaseType)
         case .markdown: return formatMarkdown(headers: headers, rows: rows)
         case .xlsx: return formatCSV(headers: headers, rows: rows) // Fallback — binary export uses XLSXExportWriter directly
         }
@@ -50,13 +50,14 @@ enum ResultTableExportFormatter {
         return String(data: data, encoding: .utf8) ?? "[]"
     }
 
-    static func formatSQLInsert(tableName: String, headers: [String], rows: [[String?]]) -> String {
+    static func formatSQLInsert(tableName: String, headers: [String], rows: [[String?]], databaseType: DatabaseType? = nil) -> String {
         guard !rows.isEmpty else { return "" }
-        let quotedColumns = headers.map { "\"\($0)\"" }.joined(separator: ", ")
+        let quotedColumns = headers.map { quoteIdentifier($0, databaseType: databaseType) }.joined(separator: ", ")
+        let quotedTable = quoteIdentifier(tableName, databaseType: databaseType)
         var statements: [String] = []
         for row in rows {
             let values = row.map { sqlLiteral($0) }.joined(separator: ", ")
-            statements.append("INSERT INTO \"\(tableName)\" (\(quotedColumns)) VALUES (\(values));")
+            statements.append("INSERT INTO \(quotedTable) (\(quotedColumns)) VALUES (\(values));")
         }
         return statements.joined(separator: "\n")
     }
@@ -79,6 +80,17 @@ enum ResultTableExportFormatter {
             return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
         }
         return value
+    }
+
+    private static func quoteIdentifier(_ identifier: String, databaseType: DatabaseType?) -> String {
+        switch databaseType {
+        case .mysql:
+            return "`\(identifier.replacingOccurrences(of: "`", with: "``"))`"
+        case .microsoftSQL:
+            return "[\(identifier.replacingOccurrences(of: "]", with: "]]"))]"
+        case .postgresql, .sqlite, nil:
+            return "\"\(identifier.replacingOccurrences(of: "\"", with: "\"\""))\""
+        }
     }
 
     private static func sqlLiteral(_ value: String?) -> String {

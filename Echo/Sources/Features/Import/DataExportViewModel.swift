@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 enum DataExportFormat: String, CaseIterable, Identifiable {
     case csv = "CSV"
     case text = "Text (Tab-Delimited)"
+    case json = "JSON"
+    case sqlInsert = "SQL INSERT"
 
     var id: String { rawValue }
 
@@ -12,6 +14,7 @@ enum DataExportFormat: String, CaseIterable, Identifiable {
         switch self {
         case .csv: return ","
         case .text: return "\t"
+        case .json, .sqlInsert: return ","
         }
     }
 
@@ -19,16 +22,25 @@ enum DataExportFormat: String, CaseIterable, Identifiable {
         switch self {
         case .csv: return "csv"
         case .text: return "tsv"
+        case .json: return "json"
+        case .sqlInsert: return "sql"
         }
     }
 }
 
 @Observable
-final class DataExportViewModel {
-    @ObservationIgnored let session: DatabaseSession
+final class DataExportViewModel: Identifiable {
+    enum Source {
+        case table
+        case resultSet(QueryResultSet, suggestedFileName: String, tableName: String?)
+    }
+
+    @ObservationIgnored let session: DatabaseSession?
     @ObservationIgnored let databaseType: DatabaseType
     @ObservationIgnored var activityEngine: ActivityEngine?
     @ObservationIgnored var connectionSessionID: UUID?
+    @ObservationIgnored let source: Source
+    let id = UUID()
 
     var schema: String
     var tableName: String
@@ -42,8 +54,19 @@ final class DataExportViewModel {
     var statusMessage: String?
     var isError = false
 
+    var isResultSetExport: Bool {
+        if case .resultSet = source {
+            return true
+        }
+        return false
+    }
+
+    var supportsDelimitedOptions: Bool {
+        format == .csv || format == .text
+    }
+
     var showsSchemaField: Bool {
-        databaseType != .sqlite
+        !isResultSetExport && databaseType != .sqlite
     }
 
     var schemaPlaceholder: String {
@@ -56,12 +79,18 @@ final class DataExportViewModel {
     }
 
     var canExport: Bool {
-        !tableName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !outputPath.isEmpty
-            && !isExporting
+        !outputPath.isEmpty && !isExporting && {
+            switch source {
+            case .table:
+                return !tableName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            case .resultSet:
+                return true
+            }
+        }()
     }
 
     var generatedSQL: String {
+        guard !isResultSetExport else { return "" }
         let table = tableName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !table.isEmpty else { return "" }
 
@@ -78,13 +107,22 @@ final class DataExportViewModel {
         self.databaseType = databaseType
         self.schema = schema ?? Self.defaultSchema(for: databaseType)
         self.tableName = tableName
+        self.source = .table
+    }
+
+    init(databaseType: DatabaseType, resultSet: QueryResultSet, suggestedFileName: String = "results", tableName: String? = nil) {
+        self.session = nil
+        self.databaseType = databaseType
+        self.schema = ""
+        self.tableName = ""
+        self.source = .resultSet(resultSet, suggestedFileName: suggestedFileName, tableName: tableName)
     }
 
     @MainActor
     func selectOutputFile() {
         let panel = NSSavePanel()
         panel.title = "Export Data"
-        panel.nameFieldStringValue = "\(tableName).\(format.fileExtension)"
+        panel.nameFieldStringValue = "\(suggestedFileName).\(format.fileExtension)"
         panel.allowedContentTypes = [.plainText]
         panel.canCreateDirectories = true
 
@@ -104,25 +142,22 @@ final class DataExportViewModel {
         let handle = activityEngine?.begin("Export \(label)", connectionSessionID: connectionSessionID)
 
         do {
-            let result = try await session.simpleQuery(generatedSQL)
-            let delim = customDelimiter.isEmpty ? format.delimiter : customDelimiter
+            let result: QueryResultSet
+            let insertTableName: String?
 
-            var lines: [String] = []
-
-            if includeHeader {
-                let headerLine = result.columns.map { escapeCSVField($0.name, delimiter: delim) }
-                lines.append(headerLine.joined(separator: delim))
-            }
-
-            for row in result.rows {
-                let fields = row.map { value -> String in
-                    guard let value else { return "" }
-                    return escapeCSVField(value, delimiter: delim)
+            switch source {
+            case .table:
+                guard let session else {
+                    throw NSError(domain: "DataExport", code: 2, userInfo: [NSLocalizedDescriptionKey: "No session is available for table export"])
                 }
-                lines.append(fields.joined(separator: delim))
+                result = try await session.simpleQuery(generatedSQL)
+                insertTableName = tableName.trimmingCharacters(in: .whitespacesAndNewlines)
+            case let .resultSet(exportResult, _, tableName):
+                result = exportResult
+                insertTableName = tableName
             }
 
-            let content = lines.joined(separator: "\n")
+            let content = formattedContent(for: result, tableName: insertTableName)
             let enc: String.Encoding = encoding.lowercased() == "latin1" ? .isoLatin1 : .utf8
             guard let data = content.data(using: enc) else {
                 throw NSError(domain: "DataExport", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode output"])
@@ -143,12 +178,44 @@ final class DataExportViewModel {
 
     // MARK: - Private
 
+    private var suggestedFileName: String {
+        switch source {
+        case .table:
+            return tableName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "export" : tableName
+        case let .resultSet(_, suggestedFileName, _):
+            return suggestedFileName
+        }
+    }
+
     private static func defaultSchema(for databaseType: DatabaseType) -> String {
         switch databaseType {
         case .postgresql: return "public"
         case .microsoftSQL: return "dbo"
         case .mysql: return ""
         case .sqlite: return ""
+        }
+    }
+
+    private func formattedContent(for result: QueryResultSet, tableName: String?) -> String {
+        let headers = result.columns.map(\.name)
+        let rows = result.rows
+
+        switch format {
+        case .csv:
+            let delimiter = customDelimiter.isEmpty ? format.delimiter : customDelimiter
+            return formatDelimited(headers: headers, rows: rows, delimiter: delimiter, includeHeader: includeHeader)
+        case .text:
+            let delimiter = customDelimiter.isEmpty ? format.delimiter : customDelimiter
+            return formatDelimited(headers: headers, rows: rows, delimiter: delimiter, includeHeader: includeHeader)
+        case .json:
+            return ResultTableExportFormatter.format(.json, headers: headers, rows: rows)
+        case .sqlInsert:
+            return ResultTableExportFormatter.formatSQLInsert(
+                tableName: tableName ?? "table_name",
+                headers: headers,
+                rows: rows,
+                databaseType: databaseType
+            )
         }
     }
 
@@ -161,6 +228,24 @@ final class DataExportViewModel {
         case .postgresql, .sqlite:
             return "\"\(identifier.replacingOccurrences(of: "\"", with: "\"\""))\""
         }
+    }
+
+    private func formatDelimited(headers: [String], rows: [[String?]], delimiter: String, includeHeader: Bool) -> String {
+        var lines: [String] = []
+
+        if includeHeader {
+            lines.append(headers.map { escapeCSVField($0, delimiter: delimiter) }.joined(separator: delimiter))
+        }
+
+        for row in rows {
+            let fields = row.map { value -> String in
+                guard let value else { return "" }
+                return escapeCSVField(value, delimiter: delimiter)
+            }
+            lines.append(fields.joined(separator: delimiter))
+        }
+
+        return lines.joined(separator: "\n")
     }
 
     private func escapeCSVField(_ value: String, delimiter: String) -> String {

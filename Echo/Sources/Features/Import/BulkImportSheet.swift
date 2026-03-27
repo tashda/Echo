@@ -74,7 +74,7 @@ struct BulkImportSheet: View {
                 }
             }
 
-            if !viewModel.isXLSX {
+            if !viewModel.isXLSX && !viewModel.isJSON {
                 PropertyRow(title: "Delimiter") {
                     Picker("", selection: Binding(
                         get: { viewModel.delimiter },

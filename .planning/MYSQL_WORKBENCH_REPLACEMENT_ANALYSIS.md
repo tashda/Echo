@@ -433,7 +433,7 @@ This builds on the existing `SchemaDiffViewModel` pattern from PostgreSQL. The M
 **Effort: Small-Medium (1 week)**
 **Depends on: Phase 5 (Tool Locator)**
 
-**Status:** Not started in Echo
+**Status:** Implemented in Echo
 
 #### What to Build
 
@@ -462,6 +462,8 @@ Add "Export Results" button to query result grid toolbar. Currently only table c
 - Extend `DataExportViewModel` with new formats
 - Extend `BulkImportViewModel` with JSON source
 - Add toolbar button to result grid
+
+The shared Echo import/export flow now includes JSON export, JSON import, SQL INSERT export, and a result-grid export button that works for MySQL through the same UI used by the other dialects.
 
 ---
 
