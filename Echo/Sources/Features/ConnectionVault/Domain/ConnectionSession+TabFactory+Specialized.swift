@@ -18,6 +18,7 @@ extension ConnectionSession {
         let interval = AppDirector.shared.projectStore.globalSettings.activityMonitorRefreshInterval
         let viewModel = ActivityMonitorViewModel(
             monitor: monitor,
+            mysqlSession: session as? MySQLSession,
             connectionSessionID: self.id,
             connectionID: connection.id,
             databaseType: connection.databaseType,

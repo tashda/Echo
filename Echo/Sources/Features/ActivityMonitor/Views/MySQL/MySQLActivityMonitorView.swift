@@ -3,6 +3,7 @@ import SwiftUI
 struct MySQLActivityMonitorView: View {
     enum Section: String, CaseIterable {
         case overview = "Overview"
+        case reports = "Reports"
         case variables = "Variables"
         case processes = "Processes"
     }

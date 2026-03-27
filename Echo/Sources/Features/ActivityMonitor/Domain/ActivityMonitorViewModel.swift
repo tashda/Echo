@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import MySQLKit
 import SQLServerKit
 import PostgresWire
 
@@ -12,6 +13,7 @@ final class ActivityMonitorViewModel {
     }
 
     @ObservationIgnored private let monitor: any DatabaseActivityMonitoring
+    @ObservationIgnored private let mysqlSession: MySQLSession?
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     let connectionSessionID: UUID
     let connectionID: UUID
@@ -40,6 +42,10 @@ final class ActivityMonitorViewModel {
     // MSSQL Extended Events (nil for non-MSSQL connections)
     var extendedEventsVM: ExtendedEventsViewModel?
     var profilerVM: ProfilerViewModel?
+    var selectedMySQLPerformanceReport: MySQLPerformanceReportKind = .statementAnalysis
+    var mysqlPerformanceReport: MySQLPerformanceReport?
+    var mysqlPerformanceReportError: String?
+    var isLoadingMySQLPerformanceReport = false
 
     // MSSQL sparkline history
     var cpuHistory: [GraphPoint] = []
@@ -57,12 +63,14 @@ final class ActivityMonitorViewModel {
 
     init(
         monitor: any DatabaseActivityMonitoring,
+        mysqlSession: MySQLSession? = nil,
         connectionSessionID: UUID,
         connectionID: UUID,
         databaseType: DatabaseType,
         refreshInterval: TimeInterval = 5.0
     ) {
         self.monitor = monitor
+        self.mysqlSession = mysqlSession
         self.connectionSessionID = connectionSessionID
         self.connectionID = connectionID
         self.databaseType = databaseType
@@ -115,6 +123,25 @@ final class ActivityMonitorViewModel {
             if let snap = try? await monitor.snapshot() {
                 self.latestSnapshot = snap
                 updateHistory(with: snap)
+            }
+        }
+    }
+
+    func loadMySQLPerformanceReport() {
+        guard let mysqlSession else { return }
+
+        isLoadingMySQLPerformanceReport = true
+        mysqlPerformanceReportError = nil
+
+        Task {
+            do {
+                let report = try await selectedMySQLPerformanceReport.load(using: mysqlSession.client.performance)
+                self.mysqlPerformanceReport = report
+                self.isLoadingMySQLPerformanceReport = false
+            } catch {
+                self.mysqlPerformanceReport = nil
+                self.mysqlPerformanceReportError = error.localizedDescription
+                self.isLoadingMySQLPerformanceReport = false
             }
         }
     }

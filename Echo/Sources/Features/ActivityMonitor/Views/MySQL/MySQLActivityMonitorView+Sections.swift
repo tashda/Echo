@@ -16,6 +16,8 @@ extension MySQLActivityMonitorView {
             ) {
                 MySQLDashboardView(viewModel: viewModel)
             }
+        case .reports:
+            MySQLPerformanceReportsSection(viewModel: viewModel)
         case .variables:
             SectionContainer(
                 title: "Server Variables",
