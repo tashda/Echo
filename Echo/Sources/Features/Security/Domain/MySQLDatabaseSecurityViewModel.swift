@@ -168,6 +168,16 @@ final class MySQLDatabaseSecurityViewModel {
         return roleAssignments.filter { $0.roleName == role.name && $0.roleHost == role.host }
     }
 
+    var privilegeGrantees: [MySQLPrivilegeGrantee] {
+        let userTargets = users.map {
+            MySQLPrivilegeGrantee(kind: .user, username: $0.username, host: $0.host)
+        }
+        let roleTargets = roles.map {
+            MySQLPrivilegeGrantee(kind: .role, username: $0.name, host: $0.host)
+        }
+        return (userTargets + roleTargets).sorted { $0.accountName < $1.accountName }
+    }
+
     private func loadUsers(mysql: MySQLSession) async {
         isLoadingUsers = true
         defer { isLoadingUsers = false }
@@ -202,9 +212,71 @@ final class MySQLDatabaseSecurityViewModel {
         isLoadingPrivileges = true
         defer { isLoadingPrivileges = false }
         do {
-            privileges = try await mysql.client.security.tablePrivileges()
+            let existingUsers = users
+            let existingRoles = roles
+            async let schemaPrivileges = mysql.client.security.schemaPrivileges()
+            async let usersResult = existingUsers.isEmpty ? mysql.client.security.listUsers() : existingUsers
+            async let rolesResult = existingRoles.isEmpty ? mysql.client.security.listRoles() : existingRoles
+            privileges = try await schemaPrivileges
+            users = try await usersResult
+            roles = try await rolesResult
         } catch {
             panelState?.appendMessage("Failed to load privileges: \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func grantSchemaPrivileges(
+        on databaseName: String,
+        to grantee: MySQLPrivilegeGrantee,
+        privileges: [MySQLSchemaPrivilege],
+        withGrantOption: Bool
+    ) async {
+        guard let mysql = session as? MySQLSession else { return }
+        let handle = activityEngine?.begin("Granting privileges to \(grantee.accountName)", connectionSessionID: connectionSessionID)
+        do {
+            let privilegeList = privileges.map(\.rawValue).joined(separator: ", ")
+            try await mysql.client.security.grant(
+                privilegeList,
+                on: "`\(databaseName.replacingOccurrences(of: "`", with: "``"))`.*",
+                to: grantee.username,
+                host: grantee.host,
+                withGrantOption: withGrantOption
+            )
+            handle?.succeed()
+            panelState?.appendMessage("Granted privileges to \(grantee.accountName) on \(databaseName)")
+            await loadPrivileges(mysql: mysql)
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to grant privileges to \(grantee.accountName): \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func revokePrivilege(_ privilege: MySQLPrivilegeGrant) async {
+        guard
+            let mysql = session as? MySQLSession,
+            let grantee = privilege.parsedGrantee,
+            let schema = privilege.tableSchema
+        else { return }
+
+        let handle = activityEngine?.begin("Revoking \(privilege.privilegeType)", connectionSessionID: connectionSessionID)
+        do {
+            let object = if let tableName = privilege.tableName, !tableName.isEmpty {
+                "`\(schema.replacingOccurrences(of: "`", with: "``"))`.`\(tableName.replacingOccurrences(of: "`", with: "``"))`"
+            } else {
+                "`\(schema.replacingOccurrences(of: "`", with: "``"))`.*"
+            }
+            try await mysql.client.security.revoke(
+                privilege.privilegeType,
+                on: object,
+                from: grantee.username,
+                host: grantee.host
+            )
+            handle?.succeed()
+            panelState?.appendMessage("Revoked \(privilege.privilegeType) from \(grantee.accountName)")
+            await loadPrivileges(mysql: mysql)
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to revoke privilege: \(error.localizedDescription)", severity: .error)
         }
     }
 

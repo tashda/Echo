@@ -7,6 +7,7 @@ struct MySQLDatabaseSecurityView: View {
 
     @State private var showNewUserSheet = false
     @State private var showNewRoleSheet = false
+    @State private var showGrantPrivilegesSheet = false
 
     var body: some View {
         MaintenanceTabFrame(
@@ -40,7 +41,12 @@ struct MySQLDatabaseSecurityView: View {
                     }
                     .buttonStyle(.borderless)
                 case .privileges:
-                    EmptyView()
+                    Button {
+                        showGrantPrivilegesSheet = true
+                    } label: {
+                        Label("Grant…", systemImage: "key.badge.plus")
+                    }
+                    .buttonStyle(.borderless)
                 }
             }
         } content: {
@@ -71,6 +77,24 @@ struct MySQLDatabaseSecurityView: View {
         .sheet(isPresented: $showNewRoleSheet) {
             MySQLNewRoleSheet(viewModel: viewModel) {
                 showNewRoleSheet = false
+            }
+        }
+        .sheet(isPresented: $showGrantPrivilegesSheet) {
+            MySQLGrantPrivilegesSheet(
+                databaseName: tabStore.activeTab?.activeDatabaseName ?? tabStore.activeTab?.connection.database ?? "",
+                grantees: viewModel.privilegeGrantees
+            ) { grantee, privileges, withGrantOption in
+                let databaseName = tabStore.activeTab?.activeDatabaseName ?? tabStore.activeTab?.connection.database ?? ""
+                Task {
+                    await viewModel.grantSchemaPrivileges(
+                        on: databaseName,
+                        to: grantee,
+                        privileges: privileges,
+                        withGrantOption: withGrantOption
+                    )
+                }
+            } onDismiss: {
+                showGrantPrivilegesSheet = false
             }
         }
     }
