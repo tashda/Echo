@@ -5,6 +5,7 @@ struct MySQLSecurityUserDetailSection: View {
     @Bindable var viewModel: MySQLDatabaseSecurityViewModel
     @State private var showLimitsSheet = false
     @State private var showAdministrativeRolesSheet = false
+    @State private var showPasswordSheet = false
 
     var body: some View {
         if let user = viewModel.selectedUser {
@@ -19,6 +20,11 @@ struct MySQLSecurityUserDetailSection: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: SpacingTokens.xs) {
+                        Button("Change Password…") {
+                            showPasswordSheet = true
+                        }
+                        .buttonStyle(.borderless)
+
                         Button("Edit Limits…") {
                             showLimitsSheet = true
                         }
@@ -87,6 +93,13 @@ struct MySQLSecurityUserDetailSection: View {
                     Task { await viewModel.updateSelectedUserAdministrativeRoles(roles) }
                 } onDismiss: {
                     showAdministrativeRolesSheet = false
+                }
+            }
+            .sheet(isPresented: $showPasswordSheet) {
+                MySQLUserPasswordSheet(accountName: user.accountName) { password in
+                    Task { await viewModel.updateSelectedUserPassword(password) }
+                } onDismiss: {
+                    showPasswordSheet = false
                 }
             }
         } else {

@@ -322,6 +322,27 @@ final class MySQLDatabaseSecurityViewModel {
         }
     }
 
+    func updateSelectedUserPassword(_ password: String) async {
+        guard let mysql = session as? MySQLSession, let account = selectedUser else { return }
+        let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPassword.isEmpty else { return }
+
+        let handle = activityEngine?.begin("Updating password", connectionSessionID: connectionSessionID)
+        do {
+            _ = try await mysql.client.security.alterUserPassword(
+                username: account.username,
+                host: account.host,
+                password: trimmedPassword
+            )
+            handle?.succeed()
+            panelState?.appendMessage("Updated password for \(account.accountName)")
+            await loadSelectedUserDetails()
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to update password for \(account.accountName): \(error.localizedDescription)", severity: .error)
+        }
+    }
+
     private func updateSelectedUser(locking: Bool) async {
         guard let mysql = session as? MySQLSession, let account = selectedUser else { return }
         let verb = locking ? "Locking" : "Unlocking"
