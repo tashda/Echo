@@ -71,7 +71,6 @@ Docs/
 traces/
 *.trace/
 tmp_trace_export/
-Scripts/
 !.github/scripts/
 !.github/scripts/**
 .github/scripts/__pycache__/
@@ -79,6 +78,8 @@ bin/
 build-release/
 build_output*.txt
 screenshot*.png
+parse_menus.py
+Tools/
 
 # Network captures and archives
 *.cap
