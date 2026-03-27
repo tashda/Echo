@@ -5,7 +5,8 @@ struct ServerPropertiesView: View {
     @Bindable var viewModel: ServerPropertiesViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
-    @Environment(EnvironmentState.self) private var environmentState
+
+    @State private var showVariableEditor = false
 
     var body: some View {
         Group {
@@ -26,6 +27,15 @@ struct ServerPropertiesView: View {
         }
         .onChange(of: viewModel.searchText) { _, _ in
             guard viewModel.selectedSection == .variables else { return }
+        }
+        .sheet(isPresented: $showVariableEditor) {
+            if let variable = viewModel.selectedVariable {
+                MySQLServerVariableEditorSheet(variable: variable) { value in
+                    Task { await viewModel.setSelectedVariable(to: value) }
+                } onDismiss: {
+                    showVariableEditor = false
+                }
+            }
         }
     }
 
@@ -57,9 +67,26 @@ struct ServerPropertiesView: View {
                         TextField("", text: $viewModel.searchText, prompt: Text("Filter variables"))
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 260)
+                    } controls: {
+                        Button("Refresh") {
+                            Task { await viewModel.loadCurrentSection() }
+                        }
+                        .buttonStyle(.borderless)
+
+                        Button("Reset") {
+                            Task { await viewModel.resetSelectedVariable() }
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(viewModel.selectedVariable == nil)
+
+                        Button("Edit…") {
+                            showVariableEditor = true
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(viewModel.selectedVariable == nil)
                     }
                     Divider()
-                    propertiesTable(viewModel.filteredVariables)
+                    propertiesTable(viewModel.filteredVariables, selection: $viewModel.selectedVariableID)
                 }
             case .logs:
                 MySQLServerLogsView(viewModel: viewModel)
@@ -67,21 +94,44 @@ struct ServerPropertiesView: View {
         }
     }
 
-    private func propertiesTable(_ items: [ServerPropertiesViewModel.PropertyItem]) -> some View {
-        Table(items) {
-            TableColumn("Property") { item in
-                Text(item.name)
-                    .font(TypographyTokens.Table.name)
-            }
-            .width(min: 180, ideal: 240)
+    private func propertiesTable(
+        _ items: [ServerPropertiesViewModel.PropertyItem],
+        selection: Binding<Set<String>>? = nil
+    ) -> some View {
+        Group {
+            if let selection {
+                Table(items, selection: selection) {
+                    TableColumn("Property") { item in
+                        Text(item.name)
+                            .font(TypographyTokens.Table.name)
+                    }
+                    .width(min: 180, ideal: 240)
 
-            TableColumn("Value") { item in
-                Text(item.value)
-                    .font(TypographyTokens.Table.secondaryName)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .textSelection(.enabled)
+                    TableColumn("Value") { item in
+                        Text(item.value)
+                            .font(TypographyTokens.Table.secondaryName)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                            .textSelection(.enabled)
+                    }
+                    .width(min: 240, ideal: 520)
+                }
+            } else {
+                Table(items) {
+                    TableColumn("Property") { item in
+                        Text(item.name)
+                            .font(TypographyTokens.Table.name)
+                    }
+                    .width(min: 180, ideal: 240)
+
+                    TableColumn("Value") { item in
+                        Text(item.value)
+                            .font(TypographyTokens.Table.secondaryName)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                            .textSelection(.enabled)
+                    }
+                    .width(min: 240, ideal: 520)
+                }
             }
-            .width(min: 240, ideal: 520)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()

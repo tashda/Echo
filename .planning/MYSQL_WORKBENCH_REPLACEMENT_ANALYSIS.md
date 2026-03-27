@@ -19,9 +19,11 @@ The project is no longer at the planning-only stage:
 - the MySQL Activity Monitor now consumes typed `mysql-wire` activity and performance metrics for a real dashboard plus process list
 - MySQL maintenance actions in Echo now route through typed `mysql-wire` admin APIs instead of ad hoc raw SQL
 - MySQL backup and restore sheets now exist in Echo with tool discovery and process execution wiring
+- MySQL table structure editing is now partially landed with typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
+- MySQL server administration now includes a real server properties tab with overview metrics, variable browsing/editing, and table-backed log viewing
 
 What remains is substantial Echo feature work, not package bootstrapping:
-- Phase 1 table editor is still outstanding
+- Phase 1 table editor is partially implemented but not feature-complete
 - Phase 2 server administration is only partially landed
 - Phases 3 through 8 remain incomplete in Echo
 
@@ -80,7 +82,7 @@ This package milestone is complete. `mysql-wire` should now be treated as the pr
 **Effort: Large (2-3 weeks)**
 **Depends on: Nothing (can start now)**
 
-MySQL Workbench's table editor is its most-used feature. Users create and modify tables visually. Echo currently shows table structure read-only for MySQL.
+MySQL Workbench's table editor is its most-used feature. Users create and modify tables visually. Echo now has a real MySQL edit path, but it still lacks the full Workbench attribute surface.
 
 #### What to Build
 
@@ -141,7 +143,8 @@ MySQL Workbench's table editor is its most-used feature. Users create and modify
 **Status:** Partially implemented in Echo
 - Activity Monitor now has a typed MySQL dashboard, server variables browser, and process list backed by `mysql-wire`
 - maintenance commands now execute through `mysql-wire` admin APIs
-- server variables browser, log viewer, and dedicated server-admin tabs are still missing
+- a dedicated MySQL server properties tab now covers overview metrics, variable browsing/editing, and table-backed general/slow log viewing
+- deeper server-admin parity like file-backed error logs and broader configuration workflows remain outstanding
 
 #### What to Build
 

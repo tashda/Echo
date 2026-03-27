@@ -32,6 +32,7 @@ final class ServerPropertiesViewModel {
     var isInitialized = false
     var isLoading = false
     var searchText = ""
+    var selectedVariableID: Set<String> = []
 
     var overviewItems: [PropertyItem] = []
     var variables: [PropertyItem] = []
@@ -74,6 +75,10 @@ final class ServerPropertiesViewModel {
         }
     }
 
+    var selectedVariable: PropertyItem? {
+        variables.first { selectedVariableID.contains($0.id) }
+    }
+
     private func loadOverview(mysql: MySQLSession) async {
         isLoading = true
         defer { isLoading = false }
@@ -99,6 +104,9 @@ final class ServerPropertiesViewModel {
             variables = try await mysql.client.admin.globalVariables()
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 .map { PropertyItem(id: $0.name, name: $0.name, value: $0.value) }
+            if selectedVariable == nil {
+                selectedVariableID = variables.first.map { [$0.id] } ?? []
+            }
             handle?.succeed()
         } catch {
             handle?.fail(error.localizedDescription)
@@ -184,6 +192,39 @@ final class ServerPropertiesViewModel {
                 name: $0.0,
                 value: $0.1
             )
+        }
+    }
+
+    func setSelectedVariable(to value: String) async {
+        guard let mysql = session as? MySQLSession, let variable = selectedVariable else { return }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let handle = activityEngine?.begin("Updating \(variable.name)", connectionSessionID: connectionSessionID)
+        do {
+            _ = try await mysql.client.admin.setGlobalVariable(variable.name, to: trimmed)
+            handle?.succeed()
+            panelState?.appendMessage("Updated global variable \(variable.name)")
+            await loadVariables(mysql: mysql)
+            await loadOverview(mysql: mysql)
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to update global variable \(variable.name): \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func resetSelectedVariable() async {
+        guard let mysql = session as? MySQLSession, let variable = selectedVariable else { return }
+        let handle = activityEngine?.begin("Resetting \(variable.name)", connectionSessionID: connectionSessionID)
+        do {
+            _ = try await mysql.client.admin.resetGlobalVariable(variable.name)
+            handle?.succeed()
+            panelState?.appendMessage("Reset global variable \(variable.name)")
+            await loadVariables(mysql: mysql)
+            await loadOverview(mysql: mysql)
+        } catch {
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to reset global variable \(variable.name): \(error.localizedDescription)", severity: .error)
         }
     }
 }
