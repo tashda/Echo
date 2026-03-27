@@ -84,11 +84,13 @@ final class MySQLDatabaseSecurityViewModel {
             async let roles = mysql.client.security.administrativeRoles(for: account.username, host: account.host)
             async let availableRoles = existingRoles.isEmpty ? mysql.client.security.listRoles() : existingRoles
             async let roleAssignmentsResult = mysql.client.security.listRoleAssignments()
+            async let schemaPrivileges = mysql.client.security.schemaPrivileges()
             selectedUserGrants = try await grants
             selectedUserLimits = try await limits
             selectedUserAdministrativeRoles = try await roles
             self.roles = try await availableRoles
             roleAssignments = try await roleAssignmentsResult
+            privileges = try await schemaPrivileges
         } catch {
             panelState?.appendMessage("Failed to load user details: \(error.localizedDescription)", severity: .error)
         }
@@ -186,6 +188,14 @@ final class MySQLDatabaseSecurityViewModel {
             MySQLPrivilegeGrantee(kind: .role, username: $0.name, host: $0.host)
         }
         return (userTargets + roleTargets).sorted { $0.accountName < $1.accountName }
+    }
+
+    var selectedUserPrivileges: [MySQLPrivilegeGrant] {
+        guard let user = selectedUser else { return [] }
+        return privileges.filter {
+            guard let grantee = $0.parsedGrantee else { return false }
+            return grantee.username == user.username && grantee.host == user.host
+        }
     }
 
     private func loadUsers(mysql: MySQLSession) async {

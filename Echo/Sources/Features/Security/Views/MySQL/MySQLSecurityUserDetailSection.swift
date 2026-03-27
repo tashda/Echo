@@ -2,85 +2,39 @@ import MySQLKit
 import SwiftUI
 
 struct MySQLSecurityUserDetailSection: View {
+    enum DetailTab: String, CaseIterable {
+        case login = "Login"
+        case accountLimits = "Account Limits"
+        case administrativeRoles = "Administrative Roles"
+        case schemaPrivileges = "Schema Privileges"
+        case grants = "Grants"
+    }
+
     @Bindable var viewModel: MySQLDatabaseSecurityViewModel
-    @State private var showLimitsSheet = false
-    @State private var showAdministrativeRolesSheet = false
-    @State private var showPasswordSheet = false
-    @State private var showRoleMembershipSheet = false
+    @State var showLimitsSheet = false
+    @State var showAdministrativeRolesSheet = false
+    @State var showPasswordSheet = false
+    @State var showRoleMembershipSheet = false
+    @State var selectedDetailTab: DetailTab = .login
 
     var body: some View {
         if let user = viewModel.selectedUser {
-            VStack(alignment: .leading, spacing: SpacingTokens.md) {
-                HStack {
-                    VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                        Text(user.accountName)
-                            .font(TypographyTokens.headline)
-                        Text(user.authenticationPlugin ?? "No authentication plugin reported")
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.secondary)
+            VStack(spacing: 0) {
+                userHeader(user)
+                Divider()
+                TabSectionToolbar {
+                    Picker("Detail Section", selection: $selectedDetailTab) {
+                        ForEach(DetailTab.allCases, id: \.self) { tab in
+                            Text(tab.rawValue).tag(tab)
+                        }
                     }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: SpacingTokens.xs) {
-                        Button("Change Password…") {
-                            showPasswordSheet = true
-                        }
-                        .buttonStyle(.borderless)
-
-                        Button("Edit Limits…") {
-                            showLimitsSheet = true
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(viewModel.selectedUserLimits == nil)
-
-                        Button("Edit Admin Roles…") {
-                            showAdministrativeRolesSheet = true
-                        }
-                        .buttonStyle(.borderless)
-
-                        Button("Edit Role Membership…") {
-                            showRoleMembershipSheet = true
-                        }
-                        .buttonStyle(.borderless)
-                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 520)
                 }
-
-                if !viewModel.selectedUserAdministrativeRoles.isEmpty {
-                    VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                        Text("Administrative Roles")
-                            .font(TypographyTokens.detail.weight(.semibold))
-                        Text(viewModel.selectedUserAdministrativeRoles.map(\.rawValue).joined(separator: ", "))
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                }
-
-                if let limits = viewModel.selectedUserLimits {
-                    VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                        Text("Account Limits")
-                            .font(TypographyTokens.detail.weight(.semibold))
-                        Text("Queries/hour: \(limits.maxQueriesPerHour)   Updates/hour: \(limits.maxUpdatesPerHour)   Connections/hour: \(limits.maxConnectionsPerHour)   User connections: \(limits.maxUserConnections)")
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                    Text("Grants")
-                        .font(TypographyTokens.detail.weight(.semibold))
-                    if viewModel.selectedUserGrants.isEmpty {
-                        Text(viewModel.isLoadingUserDetails ? "Loading grants\u{2026}" : "No grants returned.")
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                    } else {
-                        ForEach(viewModel.selectedUserGrants, id: \.self) { grant in
-                            Text(grant)
-                                .font(TypographyTokens.detail)
-                                .foregroundStyle(ColorTokens.Text.secondary)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
+                Divider()
+                detailTabContent(for: user)
+                    .padding(SpacingTokens.md)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .sheet(isPresented: $showLimitsSheet) {
                 if let limits = viewModel.selectedUserLimits {
