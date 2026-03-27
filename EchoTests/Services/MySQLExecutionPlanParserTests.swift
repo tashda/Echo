@@ -69,4 +69,32 @@ struct MySQLExecutionPlanParserTests {
         #expect(joinProbe.warnings.contains(where: { $0.contains("Filter:") }))
         #expect(joinProbe.warnings.contains(where: { $0.contains("Join buffer: hash join") }))
     }
+
+    @Test func parsesExplainAnalyzeTreeIntoActualPlanMetrics() throws {
+        let lines = [
+            "-> Nested loop inner join  (cost=6.00 rows=50) (actual time=0.100..0.350 rows=50 loops=1)",
+            "    -> Table scan on actor  (cost=1.00 rows=200) (actual time=0.010..0.020 rows=200 loops=1)",
+            "    -> Index lookup on film_actor using idx_actor_id (actor_id=actor.actor_id)  (cost=0.25 rows=10) (actual time=0.030..0.090 rows=50 loops=200)"
+        ]
+
+        let plan = try MySQLExplainAnalyzeParser.parse(lines: lines)
+        let root = try #require(plan.rootOperator)
+
+        #expect(root.physicalOp == "Nested Loop")
+        #expect(root.actualRows == 50)
+        #expect(root.actualExecutions == 1)
+        #expect(root.actualElapsedMs == 0)
+        #expect(root.children.count == 2)
+
+        let scan = root.children[0]
+        #expect(scan.physicalOp == "Table Scan")
+        #expect(scan.logicalOp == "actor")
+        #expect(scan.actualRows == 200)
+
+        let lookup = root.children[1]
+        #expect(lookup.physicalOp == "Index Lookup")
+        #expect(lookup.logicalOp.contains("film_actor"))
+        #expect(lookup.actualExecutions == 200)
+        #expect(lookup.estimateRows == 10)
+    }
 }

@@ -8,12 +8,8 @@ extension MySQLSession: ExecutionPlanProviding {
     }
 
     func getActualExecutionPlan(_ sql: String) async throws -> (result: QueryResultSet, plan: ExecutionPlanData) {
-        let estimatedPlan = try await getEstimatedExecutionPlan(sql)
-        let analyzeOutput = try? await client.performance.explainAnalyze(sql)
-        let plan = ExecutionPlanData(
-            statements: estimatedPlan.statements,
-            xml: analyzeOutput?.lines.joined(separator: "\n") ?? estimatedPlan.xml
-        )
+        let analyzeOutput = try await client.performance.explainAnalyze(sql)
+        let plan = try MySQLExplainAnalyzeParser.parse(lines: analyzeOutput.lines)
         return (result: QueryResultSet(columns: [], rows: []), plan: plan)
     }
 }
