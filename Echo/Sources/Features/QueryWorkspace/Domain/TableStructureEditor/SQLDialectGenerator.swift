@@ -372,9 +372,18 @@ struct MySQLDialectGenerator: SQLDialectGenerator {
 
     func createIndex(table: String, name: String, columns: [(name: String, sort: String)], includeColumns: [String], isUnique: Bool, filter: String?, indexType: String?) -> String {
         let columnsClause = columns.map { "\(quoteIdentifier($0.name)) \($0.sort)" }.joined(separator: ", ")
-        var sql = "CREATE \(isUnique ? "UNIQUE " : "")INDEX \(quoteIdentifier(name)) ON \(table)"
-        if let indexType, !indexType.isEmpty, indexType.lowercased() != "btree" {
-            sql += " USING \(indexType.uppercased())"
+        let normalizedType = indexType?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "btree"
+        var sql: String
+        switch normalizedType {
+        case "fulltext":
+            sql = "CREATE FULLTEXT INDEX \(quoteIdentifier(name)) ON \(table)"
+        case "spatial":
+            sql = "CREATE SPATIAL INDEX \(quoteIdentifier(name)) ON \(table)"
+        default:
+            sql = "CREATE \(isUnique ? "UNIQUE " : "")INDEX \(quoteIdentifier(name)) ON \(table)"
+            if normalizedType != "btree" && !normalizedType.isEmpty {
+                sql += " USING \(normalizedType.uppercased())"
+            }
         }
         sql += " (\(columnsClause))"
         return sql + ";"

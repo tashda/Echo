@@ -19,7 +19,12 @@ extension TableStructureEditorViewModel {
                     identitySeed: column.identitySeed,
                     identityIncrement: column.identityIncrement,
                     identityGeneration: column.identityGeneration,
-                    collation: column.collation
+                    collation: column.collation,
+                    characterSet: column.characterSet,
+                    comment: column.comment,
+                    isUnsigned: column.isUnsigned,
+                    isZerofill: column.isZerofill,
+                    ordinalPosition: column.ordinalPosition
                 ),
                 name: column.name,
                 dataType: column.dataType,
@@ -30,7 +35,12 @@ extension TableStructureEditorViewModel {
                 identitySeed: column.identitySeed,
                 identityIncrement: column.identityIncrement,
                 identityGeneration: column.identityGeneration,
-                collation: column.collation
+                collation: column.collation,
+                characterSet: column.characterSet,
+                comment: column.comment,
+                isUnsigned: column.isUnsigned,
+                isZerofill: column.isZerofill,
+                ordinalPosition: column.ordinalPosition
             )
         }
 
@@ -146,6 +156,15 @@ extension TableStructureEditorViewModel {
 
         // New columns and column modifications
         for column in columns where !column.isDeleted {
+            if databaseType == .mysql {
+                if column.isNew {
+                    statements.append(mysqlAddColumnStatement(table: qualifiedTable, column: column))
+                } else if column.isDirty && !column.hasRename {
+                    statements.append(mysqlModifyColumnStatement(table: qualifiedTable, column: column))
+                }
+                continue
+            }
+
             if column.isNew {
                 let identity: (seed: Int, increment: Int, generation: String?)? = column.isIdentity
                     ? (seed: column.identitySeed ?? 1, increment: column.identityIncrement ?? 1, generation: column.identityGeneration)
@@ -272,6 +291,52 @@ extension TableStructureEditorViewModel {
         }
 
         return statements
+    }
+
+    private func mysqlAddColumnStatement(table: String, column: ColumnModel) -> String {
+        "ALTER TABLE \(table) ADD COLUMN \(mysqlColumnDefinition(column));"
+    }
+
+    private func mysqlModifyColumnStatement(table: String, column: ColumnModel) -> String {
+        "ALTER TABLE \(table) MODIFY COLUMN \(mysqlColumnDefinition(column));"
+    }
+
+    private func mysqlColumnDefinition(_ column: ColumnModel) -> String {
+        var parts = [dialectGenerator.quoteIdentifier(column.name)]
+        var dataType = column.dataType.trimmingCharacters(in: .whitespacesAndNewlines)
+        if column.isUnsigned && !dataType.localizedCaseInsensitiveContains("unsigned") {
+            dataType += " UNSIGNED"
+        }
+        if column.isZerofill && !dataType.localizedCaseInsensitiveContains("zerofill") {
+            dataType += " ZEROFILL"
+        }
+        parts.append(dataType)
+
+        if let characterSet = column.characterSet?.trimmingCharacters(in: .whitespacesAndNewlines), !characterSet.isEmpty {
+            parts.append("CHARACTER SET \(characterSet)")
+        }
+        if let collation = column.collation?.trimmingCharacters(in: .whitespacesAndNewlines), !collation.isEmpty {
+            parts.append("COLLATE \(dialectGenerator.quoteIdentifier(collation))")
+        }
+        parts.append(column.isNullable ? "NULL" : "NOT NULL")
+
+        if let expression = column.generatedExpression?.trimmingCharacters(in: .whitespacesAndNewlines), !expression.isEmpty {
+            parts.append("GENERATED ALWAYS AS (\(expression)) STORED")
+        } else {
+            if let defaultValue = column.defaultValue?.trimmingCharacters(in: .whitespacesAndNewlines), !defaultValue.isEmpty {
+                parts.append("DEFAULT \(defaultValue)")
+            }
+            if column.isIdentity {
+                parts.append("AUTO_INCREMENT")
+            }
+        }
+
+        if let comment = column.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
+            let escaped = comment.replacingOccurrences(of: "'", with: "''")
+            parts.append("COMMENT '\(escaped)'")
+        }
+
+        return parts.joined(separator: " ")
     }
 
     func estimatedMemoryUsageBytes() -> Int {

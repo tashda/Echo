@@ -37,6 +37,19 @@ extension TableStructureEditorView {
         if let collation = column.collation, !collation.isEmpty {
             fields.append(.init(label: "Collation", value: collation))
         }
+        if let characterSet = column.characterSet, !characterSet.isEmpty {
+            fields.append(.init(label: "Character Set", value: characterSet))
+        }
+        if let comment = column.comment, !comment.isEmpty {
+            fields.append(.init(label: "Comment", value: comment))
+        }
+        if viewModel.databaseType == .mysql {
+            fields.append(.init(label: "Unsigned", value: column.isUnsigned ? "Yes" : "No"))
+            fields.append(.init(label: "Zerofill", value: column.isZerofill ? "Yes" : "No"))
+            if let ordinal = column.ordinalPosition {
+                fields.append(.init(label: "Position", value: "\(ordinal)"))
+            }
+        }
 
         let pkColumns = Set(viewModel.primaryKey?.columns ?? [])
         if pkColumns.contains(column.name) {

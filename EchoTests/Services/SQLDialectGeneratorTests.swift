@@ -863,6 +863,19 @@ struct MySQLDialectGeneratorTests {
         #expect(result == "CREATE UNIQUE INDEX `idx_actor_name` ON `sakila`.`actor` USING HASH (`last_name` ASC);")
     }
 
+    @Test func createFulltextIndexUsesMySQLPrefixSyntax() {
+        let result = gen.createIndex(
+            table: table,
+            name: "idx_actor_notes",
+            columns: [(name: "notes", sort: "ASC")],
+            includeColumns: [],
+            isUnique: false,
+            filter: nil,
+            indexType: "fulltext"
+        )
+        #expect(result == "CREATE FULLTEXT INDEX `idx_actor_notes` ON `sakila`.`actor` (`notes` ASC);")
+    }
+
     @Test func alterTablePropertiesBuildsExpectedStatements() {
         let result = gen.alterTableProperties(
             table: table,

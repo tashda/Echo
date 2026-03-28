@@ -133,7 +133,9 @@ extension TableStructureEditorView {
     private func dataTypeSubmenu(for columns: [TableStructureEditorViewModel.ColumnModel]) -> some View {
         let typeList = viewModel.databaseType == .microsoftSQL
             ? MSSQLDataTypePicker.commonTypes
-            : PostgresDataTypePicker.commonTypes
+            : viewModel.databaseType == .mysql
+                ? MySQLDataTypePicker.commonTypes
+                : PostgresDataTypePicker.commonTypes
         Menu("Change Data Type") {
             ForEach(typeList, id: \.category) { group in
                 Section(group.category) {

@@ -13,6 +13,10 @@ extension ColumnEditorSheet {
         var identityIncrement: String
         var identityGeneration: String
         var collation: String
+        var characterSet: String
+        var comment: String
+        var isUnsigned: Bool
+        var isZerofill: Bool
         let isEditingExisting: Bool
         var selectedDataType: String?
 
@@ -27,6 +31,10 @@ extension ColumnEditorSheet {
             self.identityIncrement = model.identityIncrement.map(String.init) ?? "1"
             self.identityGeneration = model.identityGeneration ?? "ALWAYS"
             self.collation = model.collation ?? ""
+            self.characterSet = model.characterSet ?? ""
+            self.comment = model.comment ?? ""
+            self.isUnsigned = model.isUnsigned
+            self.isZerofill = model.isZerofill
             self.isEditingExisting = !model.isNew
             let options = dataTypeOptions(for: databaseType)
             if !options.isEmpty,
@@ -93,6 +101,12 @@ extension ColumnEditorSheet {
 
         let collationTrimmed = draft.collation.trimmingCharacters(in: .whitespacesAndNewlines)
         column.collation = collationTrimmed.isEmpty ? nil : collationTrimmed
+        let characterSetTrimmed = draft.characterSet.trimmingCharacters(in: .whitespacesAndNewlines)
+        column.characterSet = characterSetTrimmed.isEmpty ? nil : characterSetTrimmed
+        let commentTrimmed = draft.comment.trimmingCharacters(in: .whitespacesAndNewlines)
+        column.comment = commentTrimmed.isEmpty ? nil : commentTrimmed
+        column.isUnsigned = draft.isUnsigned
+        column.isZerofill = draft.isZerofill
 
         dismiss()
     }

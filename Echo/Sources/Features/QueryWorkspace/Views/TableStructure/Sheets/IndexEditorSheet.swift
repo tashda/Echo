@@ -79,16 +79,32 @@ struct IndexEditorSheet: View {
                             .labelsHidden()
                             .pickerStyle(.menu)
                         }
+                    } else if databaseType == .mysql {
+                        PropertyRow(
+                            title: "Index Type",
+                            info: "B-tree and Hash are standard MySQL secondary index types. Fulltext supports natural-language search. Spatial is used for geometry data."
+                        ) {
+                            Picker("", selection: $draft.indexType) {
+                                Text("B-tree").tag("btree")
+                                Text("Hash").tag("hash")
+                                Text("Fulltext").tag("fulltext")
+                                Text("Spatial").tag("spatial")
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                        }
                     }
 
-                    PropertyRow(
-                        title: "Filter",
-                        info: "Optional SQL WHERE condition for a partial index. Only rows matching this expression are included in the index.\n\nExample: status = 'active'"
-                    ) {
-                        TextField("", text: $draft.filterCondition, prompt: Text("e.g. status = 'active'"), axis: .vertical)
-                            .textFieldStyle(.plain)
-                            .lineLimit(2...4)
-                            .multilineTextAlignment(.trailing)
+                    if databaseType != .mysql {
+                        PropertyRow(
+                            title: "Filter",
+                            info: "Optional SQL WHERE condition for a partial index. Only rows matching this expression are included in the index.\n\nExample: status = 'active'"
+                        ) {
+                            TextField("", text: $draft.filterCondition, prompt: Text("e.g. status = 'active'"), axis: .vertical)
+                                .textFieldStyle(.plain)
+                                .lineLimit(2...4)
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                 }
 

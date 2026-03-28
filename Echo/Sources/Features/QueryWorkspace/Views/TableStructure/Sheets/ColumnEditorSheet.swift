@@ -50,6 +50,9 @@ struct ColumnEditorSheet: View {
                 behaviorSection
                 identitySection
                 collationSection
+                if databaseType == .mysql {
+                    mysqlSection
+                }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)

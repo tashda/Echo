@@ -158,7 +158,7 @@ final class TableStructureEditorViewModel {
         case .microsoftSQL: "nvarchar(255)"
         default: "text"
         }
-        let model = ColumnModel(original: nil, name: "new_column", dataType: defaultType, isNullable: true, defaultValue: nil, generatedExpression: nil, isIdentity: false, identitySeed: nil, identityIncrement: nil, identityGeneration: nil, collation: nil)
+        let model = ColumnModel(original: nil, name: "new_column", dataType: defaultType, isNullable: true, defaultValue: nil, generatedExpression: nil, isIdentity: false, identitySeed: nil, identityIncrement: nil, identityGeneration: nil, collation: nil, characterSet: nil, comment: nil, isUnsigned: false, isZerofill: false, ordinalPosition: nil)
         columns.append(model)
         return model
     }

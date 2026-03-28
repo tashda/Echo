@@ -19,7 +19,12 @@ extension MySQLSession {
                 identitySeed: column.isAutoIncrement ? 1 : nil,
                 identityIncrement: column.isAutoIncrement ? 1 : nil,
                 identityGeneration: column.isAutoIncrement ? "AUTO_INCREMENT" : nil,
-                collation: column.collation
+                collation: column.collation,
+                characterSet: column.characterSet,
+                comment: column.comment,
+                isUnsigned: column.fullDataType.localizedCaseInsensitiveContains("unsigned"),
+                isZerofill: column.fullDataType.localizedCaseInsensitiveContains("zerofill"),
+                ordinalPosition: column.ordinalPosition
             )
         }
 

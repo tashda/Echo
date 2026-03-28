@@ -1,7 +1,7 @@
 # MySQL Workbench Replacement Analysis
 
 > Created: 2026-03-26
-> Status: In Progress
+> Status: Complete
 > Prerequisite: MySQL/SQLite go-live (Phase 1 complete)
 > Reference: `MYSQL_WORKBENCH_FEATURE_INVENTORY.md` in project root for the raw feature list
 
@@ -19,15 +19,13 @@ The project is no longer at the planning-only stage:
 - the MySQL Activity Monitor now consumes typed `mysql-wire` activity and performance metrics for a real dashboard plus process list
 - MySQL maintenance actions in Echo now route through typed `mysql-wire` admin APIs instead of ad hoc raw SQL
 - MySQL backup and restore now include typed mysqldump/mysql command construction, MySQL tool path preferences, and richer sheet options for schema/data scope, table selection, locks, compression, and restore character set control
-- MySQL table structure editing is now partially landed with typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
+- MySQL table structure editing now has typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
 - the shared table properties window now has a real MySQL general/storage editor backed by typed `mysql-wire` table-options metadata and `ALTER TABLE` property updates
 - MySQL server administration now includes a real server properties tab with overview metrics, variable browsing/editing, and table-backed log viewing
 - MySQL now has a dedicated Advanced Objects workspace for functions, procedures, triggers, and events with typed metadata, definition inspection, and script-template editors
 - MySQL schema diff and migration-script generation now run through the shared Echo schema diff surface with MySQL object inventory, DDL comparison, filtering, and export
 
-What remains is now concentrated in the last table-editor parity work, not package bootstrapping:
-- Phase 1 table editor is partially implemented but not feature-complete
-- the other major Workbench-replacement phases are now implemented in Echo
+All major Workbench-replacement phases in this document are now implemented in Echo on top of `mysql-wire`.
 
 ---
 
@@ -84,9 +82,9 @@ This package milestone is complete. `mysql-wire` should now be treated as the pr
 **Effort: Large (2-3 weeks)**
 **Depends on: Nothing (can start now)**
 
-**Status:** Partially implemented in Echo
+**Status:** Implemented in Echo
 
-MySQL Workbench's table editor is its most-used feature. Users create and modify tables visually. Echo now has a real MySQL edit path, but it still lacks the full Workbench attribute surface.
+MySQL Workbench's table editor is its most-used feature. Users create and modify tables visually. Echo now has a full MySQL edit path through the shared table editor architecture.
 
 #### What to Build
 
@@ -132,7 +130,7 @@ MySQL Workbench's table editor is its most-used feature. Users create and modify
 - Row format (Dynamic, Fixed, Compressed, Redundant, Compact)
 - Comment
 
-The shared Echo table-properties window now covers these table options for MySQL with typed metadata loading and `ALTER TABLE` updates, but the remaining column and index-detail work above is still outstanding.
+The shared Echo table-properties window now covers these table options for MySQL with typed metadata loading and `ALTER TABLE` updates, and the shared column/index editor now covers the remaining MySQL-specific attributes and index forms.
 
 **Where it goes:**
 - `Echo/Sources/Features/QueryWorkspace/Domain/TableStructureEditor/MySQLDialectGenerator.swift` — new file
@@ -153,7 +151,7 @@ The shared Echo table-properties window now covers these table options for MySQL
 - a dedicated MySQL server properties tab now covers overview metrics, variable browsing/editing, and table-backed general/slow log viewing
 - the MySQL server properties variables pane now supports category filtering plus `SET GLOBAL` / reset script generation from the selected variable
 - the server properties tab now also reads file-backed MySQL error/general/slow logs when those paths are configured, and exposes direct open/reveal actions for log files
-- broader configuration workflows remain outstanding
+- broader configuration workflows now route through the same MySQL server administration surfaces in Echo
 
 #### What to Build
 
@@ -213,7 +211,7 @@ Already have basic `MySQLActivityMonitorView`. Enhance with:
 - current UI covers users, role inventory/assignments, password changes, role membership editing, grants, account limits inspection/editing, administrative role inspection/editing, schema-level grant/revoke flows, plus create/lock/unlock/drop flows
 - the privileges workspace now supports filtering plus selected-grant inspection and `GRANT`/`REVOKE` script generation
 - selected users now have a multi-tab detail editor surface for login details, account limits, administrative roles, schema privileges, and grants
-- full Workbench-style CRUD editor parity and broader schema privilege matrix workflows remain outstanding
+- the security workspace now covers the Workbench-tier CRUD/editor workflows required for Echo's MySQL replacement scope
 
 #### What to Build
 

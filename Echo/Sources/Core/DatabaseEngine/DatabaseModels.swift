@@ -162,10 +162,16 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         public var identityIncrement: Int?
         public var identityGeneration: String?
         public var collation: String?
+        public var characterSet: String?
+        public var comment: String?
+        public var isUnsigned: Bool
+        public var isZerofill: Bool
+        public var ordinalPosition: Int?
 
-        public init(name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?, isIdentity: Bool = false, identitySeed: Int? = nil, identityIncrement: Int? = nil, identityGeneration: String? = nil, collation: String? = nil) {
+        public init(name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?, isIdentity: Bool = false, identitySeed: Int? = nil, identityIncrement: Int? = nil, identityGeneration: String? = nil, collation: String? = nil, characterSet: String? = nil, comment: String? = nil, isUnsigned: Bool = false, isZerofill: Bool = false, ordinalPosition: Int? = nil) {
             self.name = name; self.dataType = dataType; self.isNullable = isNullable; self.defaultValue = defaultValue; self.generatedExpression = generatedExpression
             self.isIdentity = isIdentity; self.identitySeed = identitySeed; self.identityIncrement = identityIncrement; self.identityGeneration = identityGeneration; self.collation = collation
+            self.characterSet = characterSet; self.comment = comment; self.isUnsigned = isUnsigned; self.isZerofill = isZerofill; self.ordinalPosition = ordinalPosition
         }
     }
 
