@@ -6,6 +6,8 @@ extension TablePropertiesView {
     var storagePage: some View {
         if viewModel.isPostgres {
             postgresStoragePage
+        } else if viewModel.isMySQL {
+            mysqlStoragePage
         } else if viewModel.isMSSQL {
             mssqlStoragePage
         }
@@ -118,6 +120,47 @@ extension TablePropertiesView {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - MySQL
+
+    @ViewBuilder
+    private var mysqlStoragePage: some View {
+        Section("Storage Options") {
+            PropertyRow(title: "Engine") {
+                TextField("", text: $viewModel.mysqlEngine, prompt: Text("e.g. InnoDB"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+            PropertyRow(title: "Row Format") {
+                TextField("", text: $viewModel.mysqlRowFormat, prompt: Text("e.g. Dynamic"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+            PropertyRow(title: "Auto Increment") {
+                TextField("", text: $viewModel.mysqlAutoIncrement, prompt: Text("e.g. 1000"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+
+        Section("Encoding") {
+            PropertyRow(title: "Character Set") {
+                TextField("", text: $viewModel.mysqlCharacterSet, prompt: Text("e.g. utf8mb4"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+            PropertyRow(title: "Collation") {
+                TextField("", text: $viewModel.mysqlCollation, prompt: Text("e.g. utf8mb4_0900_ai_ci"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+
+        Section("Comment") {
+            TextField("", text: $viewModel.mysqlComment, prompt: Text("Add a table comment"))
+                .textFieldStyle(.roundedBorder)
         }
     }
 }

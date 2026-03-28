@@ -286,6 +286,16 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         // MSSQL — Change Tracking
         public var changeTrackingEnabled: Bool?
         public var trackColumnsUpdated: Bool?
+        // MySQL — Table Options
+        public var storageEngine: String?
+        public var characterSet: String?
+        public var collation: String?
+        public var autoIncrementValue: Int?
+        public var rowFormat: String?
+        public var tableComment: String?
+        public var estimatedRowCount: Int64?
+        public var dataLengthBytes: Int64?
+        public var indexLengthBytes: Int64?
 
         public init(
             fillfactor: Int? = nil, toastTupleTarget: Int? = nil, autovacuumEnabled: Bool? = nil,
@@ -298,7 +308,10 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
             isSystemVersioned: Bool? = nil, historyTableSchema: String? = nil, historyTableName: String? = nil,
             periodStartColumn: String? = nil, periodEndColumn: String? = nil,
             isMemoryOptimized: Bool? = nil, memoryOptimizedDurability: String? = nil,
-            changeTrackingEnabled: Bool? = nil, trackColumnsUpdated: Bool? = nil
+            changeTrackingEnabled: Bool? = nil, trackColumnsUpdated: Bool? = nil,
+            storageEngine: String? = nil, characterSet: String? = nil, collation: String? = nil, autoIncrementValue: Int? = nil,
+            rowFormat: String? = nil, tableComment: String? = nil, estimatedRowCount: Int64? = nil,
+            dataLengthBytes: Int64? = nil, indexLengthBytes: Int64? = nil
         ) {
             self.fillfactor = fillfactor; self.toastTupleTarget = toastTupleTarget; self.autovacuumEnabled = autovacuumEnabled; self.parallelWorkers = parallelWorkers; self.tablespace = tablespace
             self.dataCompression = dataCompression; self.filegroup = filegroup; self.lockEscalation = lockEscalation
@@ -310,6 +323,9 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
             self.periodStartColumn = periodStartColumn; self.periodEndColumn = periodEndColumn
             self.isMemoryOptimized = isMemoryOptimized; self.memoryOptimizedDurability = memoryOptimizedDurability
             self.changeTrackingEnabled = changeTrackingEnabled; self.trackColumnsUpdated = trackColumnsUpdated
+            self.storageEngine = storageEngine; self.characterSet = characterSet; self.collation = collation; self.autoIncrementValue = autoIncrementValue
+            self.rowFormat = rowFormat; self.tableComment = tableComment; self.estimatedRowCount = estimatedRowCount
+            self.dataLengthBytes = dataLengthBytes; self.indexLengthBytes = indexLengthBytes
         }
     }
 

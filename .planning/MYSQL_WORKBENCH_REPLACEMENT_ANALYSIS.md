@@ -20,6 +20,7 @@ The project is no longer at the planning-only stage:
 - MySQL maintenance actions in Echo now route through typed `mysql-wire` admin APIs instead of ad hoc raw SQL
 - MySQL backup and restore sheets now exist in Echo with tool discovery and process execution wiring
 - MySQL table structure editing is now partially landed with typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
+- the shared table properties window now has a real MySQL general/storage editor backed by typed `mysql-wire` table-options metadata and `ALTER TABLE` property updates
 - MySQL server administration now includes a real server properties tab with overview metrics, variable browsing/editing, and table-backed log viewing
 - MySQL now has a dedicated Advanced Objects workspace for functions, procedures, triggers, and events with typed metadata, definition inspection, and script-template editors
 
@@ -83,6 +84,8 @@ This package milestone is complete. `mysql-wire` should now be treated as the pr
 **Effort: Large (2-3 weeks)**
 **Depends on: Nothing (can start now)**
 
+**Status:** Partially implemented in Echo
+
 MySQL Workbench's table editor is its most-used feature. Users create and modify tables visually. Echo now has a real MySQL edit path, but it still lacks the full Workbench attribute surface.
 
 #### What to Build
@@ -128,6 +131,8 @@ MySQL Workbench's table editor is its most-used feature. Users create and modify
 - AUTO_INCREMENT start value
 - Row format (Dynamic, Fixed, Compressed, Redundant, Compact)
 - Comment
+
+The shared Echo table-properties window now covers these table options for MySQL with typed metadata loading and `ALTER TABLE` updates, but the remaining column and index-detail work above is still outstanding.
 
 **Where it goes:**
 - `Echo/Sources/Features/QueryWorkspace/Domain/TableStructureEditor/MySQLDialectGenerator.swift` — new file
@@ -256,7 +261,7 @@ Tabs matching Workbench's user editor:
 **Effort: Large (2-3 weeks)**
 **Depends on: mysql-wire package (for typed Performance Schema APIs)**
 
-**Status:** Partially implemented in Echo
+**Status:** Implemented in Echo
 - dashboard metrics now appear in MySQL Activity Monitor
 - Performance Schema/sys reports now appear in the MySQL Activity Monitor via typed `mysql-wire` report APIs
 - the MySQL performance report surface now supports row filtering and quick CSV/Markdown export from the current report view

@@ -6,6 +6,8 @@ extension TablePropertiesView {
     var generalPage: some View {
         if viewModel.isPostgres {
             postgresGeneralPage
+        } else if viewModel.isMySQL {
+            mysqlGeneralPage
         } else if viewModel.isMSSQL {
             mssqlGeneralPage
         }
@@ -159,6 +161,71 @@ extension TablePropertiesView {
                 PropertyRow(title: "System-Versioned") {
                     flagIcon(true)
                 }
+            }
+        }
+    }
+
+    // MARK: - MySQL
+
+    @ViewBuilder
+    private var mysqlGeneralPage: some View {
+        Section("Identity") {
+            PropertyRow(title: "Schema") {
+                Text(viewModel.schemaName)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            PropertyRow(title: "Name") {
+                Text(viewModel.tableName)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            PropertyRow(title: "Engine") {
+                Text(viewModel.mysqlEngine.isEmpty ? "InnoDB" : viewModel.mysqlEngine)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+        }
+
+        Section("Size") {
+            PropertyRow(title: "Estimated Rows") {
+                Text(EchoFormatters.compactNumber(viewModel.rowCount))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            PropertyRow(title: "Data Size") {
+                Text(EchoFormatters.bytes(Int(viewModel.tableSizeBytes)))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            PropertyRow(title: "Index Size") {
+                Text(EchoFormatters.bytes(Int(viewModel.indexesSizeBytes)))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            PropertyRow(title: "Total Size") {
+                Text(EchoFormatters.bytes(Int(viewModel.totalSizeBytes)))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+        }
+
+        Section("Options") {
+            PropertyRow(title: "Character Set") {
+                Text(viewModel.mysqlCharacterSet.isEmpty ? "Default" : viewModel.mysqlCharacterSet)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            PropertyRow(title: "Collation") {
+                Text(viewModel.mysqlCollation.isEmpty ? "Default" : viewModel.mysqlCollation)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            PropertyRow(title: "Row Format") {
+                Text(viewModel.mysqlRowFormat.isEmpty ? "Default" : viewModel.mysqlRowFormat)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            PropertyRow(title: "Auto Increment") {
+                Text(viewModel.mysqlAutoIncrement.isEmpty ? "Not Set" : viewModel.mysqlAutoIncrement)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+        }
+
+        if !viewModel.mysqlComment.isEmpty {
+            Section("Comment") {
+                Text(viewModel.mysqlComment)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
         }
     }

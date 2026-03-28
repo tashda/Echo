@@ -3,7 +3,10 @@ import MySQLKit
 
 extension MySQLSession {
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
-        let structure = try await client.metadata.tableStructure(for: table, schema: schema)
+        async let structureResult = client.metadata.tableStructure(for: table, schema: schema)
+        async let tableOptionsResult = client.metadata.tableOptions(for: table, schema: schema)
+        let structure = try await structureResult
+        let tableOptions = try await tableOptionsResult
 
         let columns = structure.columns.map { column -> TableStructureDetails.Column in
             TableStructureDetails.Column(
@@ -59,6 +62,19 @@ extension MySQLSession {
                 onDelete: $0.onDelete
             )
         }
+        let tableProperties = tableOptions.map {
+            TableStructureDetails.TableProperties(
+                storageEngine: $0.engine,
+                characterSet: $0.characterSet,
+                collation: $0.collation,
+                autoIncrementValue: $0.autoIncrement,
+                rowFormat: $0.rowFormat,
+                tableComment: $0.comment,
+                estimatedRowCount: $0.estimatedRowCount,
+                dataLengthBytes: $0.dataLength,
+                indexLengthBytes: $0.indexLength
+            )
+        }
 
         return TableStructureDetails(
             columns: columns,
@@ -66,7 +82,8 @@ extension MySQLSession {
             indexes: indexes,
             uniqueConstraints: [],
             foreignKeys: foreignKeys,
-            dependencies: dependencies
+            dependencies: dependencies,
+            tableProperties: tableProperties
         )
     }
 }

@@ -44,6 +44,8 @@ enum TablePropertiesPage: String, Hashable, Identifiable {
         switch databaseType {
         case .postgresql:
             return [.general, .storage]
+        case .mysql:
+            return [.general, .storage]
         case .microsoftSQL:
             var pages: [TablePropertiesPage] = [.general, .storage]
             if changeTrackingEnabled { pages.append(.changeTracking) }

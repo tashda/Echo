@@ -74,6 +74,15 @@ final class TablePropertiesViewModel {
     var mssqlChangeTrackingEnabled = false
     var mssqlTrackColumnsUpdated = false
 
+    // MARK: - MySQL
+
+    var mysqlEngine: String = ""
+    var mysqlCharacterSet: String = ""
+    var mysqlCollation: String = ""
+    var mysqlAutoIncrement: String = ""
+    var mysqlRowFormat: String = ""
+    var mysqlComment: String = ""
+
     // MARK: - Snapshot
 
     private var storageSnapshot: StorageSnapshot?
@@ -83,6 +92,7 @@ final class TablePropertiesViewModel {
     @ObservationIgnored var notificationEngine: NotificationEngine?
 
     var isPostgres: Bool { databaseType == .postgresql }
+    var isMySQL: Bool { databaseType == .mysql }
     var isMSSQL: Bool { databaseType == .microsoftSQL }
 
     var pages: [TablePropertiesPage] {
@@ -94,15 +104,30 @@ final class TablePropertiesViewModel {
     }
 
     var hasChanges: Bool {
-        guard isPostgres, let snap = storageSnapshot else { return false }
-        return pgFillfactor != snap.fillfactor
-            || pgToastTupleTarget != snap.toastTupleTarget
-            || pgParallelWorkers != snap.parallelWorkers
-            || pgAutovacuumEnabled != snap.autovacuumEnabled
-            || pgEditableTablespace != snap.tablespace
+        guard let snap = storageSnapshot else { return false }
+        if isPostgres {
+            return pgFillfactor != snap.fillfactor
+                || pgToastTupleTarget != snap.toastTupleTarget
+                || pgParallelWorkers != snap.parallelWorkers
+                || pgAutovacuumEnabled != snap.autovacuumEnabled
+                || pgEditableTablespace != snap.tablespace
+        }
+        if isMySQL {
+            return mysqlEngine != snap.mysqlEngine
+                || mysqlCharacterSet != snap.mysqlCharacterSet
+                || mysqlCollation != snap.mysqlCollation
+                || mysqlAutoIncrement != snap.mysqlAutoIncrement
+                || mysqlRowFormat != snap.mysqlRowFormat
+                || mysqlComment != snap.mysqlComment
+        }
+        return false
     }
 
-    var isFormValid: Bool { true }
+    var isFormValid: Bool {
+        let autoIncrement = mysqlAutoIncrement.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isMySQL || !autoIncrement.isEmpty else { return true }
+        return Int(autoIncrement) != nil
+    }
 
     init(connectionSessionID: UUID, schemaName: String, tableName: String, databaseType: DatabaseType) {
         self.connectionSessionID = connectionSessionID
@@ -118,6 +143,8 @@ final class TablePropertiesViewModel {
         do {
             if let pg = session.session as? PostgresSession {
                 try await loadPostgresProperties(pg)
+            } else if session.connection.databaseType == .mysql {
+                try await loadMySQLProperties(session: session)
             } else {
                 try await loadMSSQLProperties(session: session)
             }
@@ -127,26 +154,17 @@ final class TablePropertiesViewModel {
     }
 
     func submitChanges(session: ConnectionSession) async throws {
-        guard isPostgres, let pg = session.session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Updating table properties", connectionSessionID: connectionSessionID)
 
         do {
-            if let ff = Int(pgFillfactor), ff > 0 {
-                try await pg.client.admin.alterTableSetParameter(table: tableName, parameter: "fillfactor", value: String(ff), schema: schemaName)
-            }
-            if let tt = Int(pgToastTupleTarget), tt > 0 {
-                try await pg.client.admin.alterTableSetParameter(table: tableName, parameter: "toast_tuple_target", value: String(tt), schema: schemaName)
-            }
-            if let pw = Int(pgParallelWorkers), pw >= 0 {
-                try await pg.client.admin.alterTableSetParameter(table: tableName, parameter: "parallel_workers", value: String(pw), schema: schemaName)
-            }
-            try await pg.client.admin.alterTableSetParameter(table: tableName, parameter: "autovacuum_enabled", value: pgAutovacuumEnabled ? "true" : "false", schema: schemaName)
-            let ts = pgEditableTablespace.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !ts.isEmpty {
-                try await pg.client.admin.alterTableSetTablespace(table: tableName, tablespace: ts, schema: schemaName)
+            if isPostgres, let pg = session.session as? PostgresSession {
+                try await submitPostgresChanges(pg)
+                try await loadPostgresProperties(pg)
+            } else if isMySQL {
+                try await submitMySQLChanges(session: session)
+                try await loadMySQLProperties(session: session)
             }
             handle?.succeed()
-            try await loadPostgresProperties(pg)
         } catch {
             handle?.fail(error.localizedDescription)
             throw error
@@ -159,7 +177,13 @@ final class TablePropertiesViewModel {
             toastTupleTarget: pgToastTupleTarget,
             parallelWorkers: pgParallelWorkers,
             autovacuumEnabled: pgAutovacuumEnabled,
-            tablespace: pgEditableTablespace
+            tablespace: pgEditableTablespace,
+            mysqlEngine: mysqlEngine,
+            mysqlCharacterSet: mysqlCharacterSet,
+            mysqlCollation: mysqlCollation,
+            mysqlAutoIncrement: mysqlAutoIncrement,
+            mysqlRowFormat: mysqlRowFormat,
+            mysqlComment: mysqlComment
         )
     }
 
@@ -187,6 +211,36 @@ final class TablePropertiesViewModel {
         pgParallelWorkers = props.parallelWorkers.map(String.init) ?? ""
         pgAutovacuumEnabled = props.autovacuumEnabled ?? true
         pgEditableTablespace = props.tablespace ?? ""
+
+        takeSnapshot()
+    }
+
+    // MARK: - MySQL
+
+    private func loadMySQLProperties(session: ConnectionSession) async throws {
+        let details = try await session.session.getTableStructureDetails(schema: schemaName, table: tableName)
+        mysqlEngine = ""
+        mysqlCharacterSet = ""
+        mysqlCollation = ""
+        mysqlAutoIncrement = ""
+        mysqlRowFormat = ""
+        mysqlComment = ""
+        rowCount = 0
+        tableSizeBytes = 0
+        indexesSizeBytes = 0
+        totalSizeBytes = 0
+        if let props = details.tableProperties {
+            mysqlEngine = props.storageEngine ?? ""
+            mysqlCharacterSet = props.characterSet ?? ""
+            mysqlCollation = props.collation ?? ""
+            mysqlAutoIncrement = props.autoIncrementValue.map(String.init) ?? ""
+            mysqlRowFormat = props.rowFormat ?? ""
+            mysqlComment = props.tableComment ?? ""
+            rowCount = Int(props.estimatedRowCount ?? 0)
+            tableSizeBytes = props.dataLengthBytes ?? 0
+            indexesSizeBytes = props.indexLengthBytes ?? 0
+            totalSizeBytes = tableSizeBytes + indexesSizeBytes
+        }
 
         takeSnapshot()
     }
@@ -249,6 +303,68 @@ final class TablePropertiesViewModel {
         let cleaned = value.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " KB", with: "")
         return (Int64(cleaned) ?? 0) * 1024
     }
+
+    // MARK: - Shared Submit
+
+    private func submitPostgresChanges(_ pg: PostgresSession) async throws {
+        if let ff = Int(pgFillfactor), ff > 0 {
+            try await pg.client.admin.alterTableSetParameter(table: tableName, parameter: "fillfactor", value: String(ff), schema: schemaName)
+        }
+        if let tt = Int(pgToastTupleTarget), tt > 0 {
+            try await pg.client.admin.alterTableSetParameter(table: tableName, parameter: "toast_tuple_target", value: String(tt), schema: schemaName)
+        }
+        if let pw = Int(pgParallelWorkers), pw >= 0 {
+            try await pg.client.admin.alterTableSetParameter(table: tableName, parameter: "parallel_workers", value: String(pw), schema: schemaName)
+        }
+        try await pg.client.admin.alterTableSetParameter(table: tableName, parameter: "autovacuum_enabled", value: pgAutovacuumEnabled ? "true" : "false", schema: schemaName)
+        let ts = pgEditableTablespace.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !ts.isEmpty {
+            try await pg.client.admin.alterTableSetTablespace(table: tableName, tablespace: ts, schema: schemaName)
+        }
+    }
+
+    private func submitMySQLChanges(session: ConnectionSession) async throws {
+        let qualifiedTable = MySQLDialectGenerator(schema: schemaName).qualifiedTable(schema: schemaName, table: tableName)
+        let statements = MySQLDialectGenerator(schema: schemaName).alterTableProperties(
+            table: qualifiedTable,
+            properties: mysqlPropertyAssignments()
+        )
+        for statement in statements {
+            _ = try await session.session.executeUpdate(statement)
+        }
+    }
+
+    private func mysqlPropertyAssignments() -> [(key: String, value: String)] {
+        var properties: [(key: String, value: String)] = []
+
+        let engine = mysqlEngine.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !engine.isEmpty {
+            properties.append(("ENGINE", engine))
+        }
+
+        let characterSet = mysqlCharacterSet.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !characterSet.isEmpty {
+            properties.append(("CHARACTER SET", characterSet))
+        }
+
+        let collation = mysqlCollation.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !collation.isEmpty {
+            properties.append(("COLLATE", collation))
+        }
+
+        let autoIncrement = mysqlAutoIncrement.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !autoIncrement.isEmpty {
+            properties.append(("AUTO_INCREMENT", autoIncrement))
+        }
+
+        let rowFormat = mysqlRowFormat.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !rowFormat.isEmpty {
+            properties.append(("ROW_FORMAT", rowFormat))
+        }
+
+        properties.append(("COMMENT", mysqlComment.mysqlSQLLiteral))
+        return properties
+    }
 }
 
 // MARK: - Storage Snapshot
@@ -259,4 +375,18 @@ private struct StorageSnapshot {
     let parallelWorkers: String
     let autovacuumEnabled: Bool
     let tablespace: String
+    let mysqlEngine: String
+    let mysqlCharacterSet: String
+    let mysqlCollation: String
+    let mysqlAutoIncrement: String
+    let mysqlRowFormat: String
+    let mysqlComment: String
+}
+
+private extension String {
+    var mysqlSQLLiteral: String {
+        let escaped = replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+        return "'\(escaped)'"
+    }
 }
