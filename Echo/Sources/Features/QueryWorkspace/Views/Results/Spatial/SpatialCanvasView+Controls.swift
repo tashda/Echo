@@ -54,6 +54,36 @@ struct SpatialCanvasZoomControls: View {
     }
 }
 
+struct SpatialCanvasBrowserMenu: View {
+    let geometries: [SpatialGeometry]
+
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        if !items.isEmpty {
+            Menu {
+                ForEach(items) { item in
+                    Button(item.label) {
+                        openURL(item.url)
+                    }
+                }
+            } label: {
+                Label("Show Point in Browser", systemImage: "safari")
+                    .labelStyle(.titleAndIcon)
+            }
+            .menuStyle(.borderlessButton)
+            .padding(SpacingTokens.xs2)
+            .background(.regularMaterial, in: Capsule())
+            .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
+            .help("Open a point geometry in the default browser")
+        }
+    }
+
+    private var items: [SpatialBrowserMenuItem] {
+        SpatialBrowserLinkBuilder.menuItems(for: geometries)
+    }
+}
+
 /// Legend showing the color assigned to each row in the spatial results.
 struct SpatialCanvasLegend: View {
     let geometries: [SpatialGeometry]

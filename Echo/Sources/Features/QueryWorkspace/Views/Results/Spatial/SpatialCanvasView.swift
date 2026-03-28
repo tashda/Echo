@@ -43,6 +43,10 @@ struct SpatialCanvasView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(SpacingTokens.sm)
 
+                SpatialCanvasBrowserMenu(geometries: geometries)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(SpacingTokens.sm)
+
                 SpatialCanvasZoomControls(
                     zoom: $zoom,
                     minZoom: minZoom,

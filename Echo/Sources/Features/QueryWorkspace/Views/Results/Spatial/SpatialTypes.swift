@@ -21,7 +21,7 @@ enum SpatialShape: Sendable {
 }
 
 /// A single coordinate pair (x/y or lon/lat).
-struct SpatialCoordinate: Sendable {
+struct SpatialCoordinate: Sendable, Equatable {
     let x: Double
     let y: Double
 }

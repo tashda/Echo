@@ -485,7 +485,7 @@ Add "Export Results" button to query result grid toolbar. Currently only table c
 - Extend `BulkImportViewModel` with JSON source
 - Add toolbar button to result grid
 
-The shared Echo import/export flow now includes JSON export, JSON import, SQL INSERT export, a result-grid export button, and direct Table Data import access that work for MySQL through the same UI used by the other dialects. Query results also now expose shared Workbench-style form and field-types detail modes, rather than treating those as MySQL-only one-offs.
+The shared Echo import/export flow now includes JSON export, JSON import, SQL INSERT export, a result-grid export button, and direct Table Data import access that work for MySQL through the same UI used by the other dialects. Query results also now expose shared Workbench-style form and field-types detail modes, rather than treating those as MySQL-only one-offs. Spatial results additionally support opening point geometries in the browser from the shared map canvas, covering the MySQL Workbench-style handoff for geographic points without introducing a MySQL-only viewer.
 
 ---
 
@@ -493,7 +493,6 @@ The shared Echo import/export flow now includes JSON export, JSON import, SQL IN
 
 The remaining goal is no longer to declare whole Workbench surfaces out of scope. The work that remains is the set of parity areas not yet implemented in Echo:
 
-- deeper result-grid editing parity such as load-from-file, function/literal editing modes, text transformations, and CSV-driven import into editable table data
 - full server-management parity including broader local/remote control workflows and richer administration around client connections
 - modeling and engineering parity, including EER-style design flows, forward/reverse engineering, and synchronization workflows that go beyond the current schema diff implementation
 - migration and interoperability tooling that Workbench exposes as dedicated wizards
