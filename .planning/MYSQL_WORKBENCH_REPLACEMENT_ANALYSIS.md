@@ -141,7 +141,7 @@ MySQL Workbench's table editor is its most-used feature. Users create and modify
 **Effort: Medium (1-2 weeks)**
 **Depends on: Nothing (can start now)**
 
-**Status:** Partially implemented in Echo
+**Status:** Implemented in Echo
 - Activity Monitor now has a typed MySQL dashboard, server variables browser, and process list backed by `mysql-wire`
 - the MySQL process list now includes a selected-process inspector plus separate kill-query and kill-connection actions
 - maintenance commands now execute through `mysql-wire` admin APIs
@@ -391,7 +391,7 @@ For each object type (tables, views, routines, triggers, events):
 
 **6.3 Migration SQL Generation** — Generate ALTER statements to transform source → target
 
-This builds on the existing `SchemaDiffViewModel` pattern from PostgreSQL. The MySQL dialect dispatch, object inventory, DDL comparison, and migration SQL generation are now wired in Echo. The remaining work is editor polish and broader verification.
+This builds on the existing `SchemaDiffViewModel` pattern from PostgreSQL. The MySQL dialect dispatch, object inventory, DDL comparison, migration SQL generation, object filtering, search, and migration-script export are now wired in Echo.
 
 **Where it goes:**
 - Extend existing `Echo/Sources/Features/SchemaDiff/` to support MySQL

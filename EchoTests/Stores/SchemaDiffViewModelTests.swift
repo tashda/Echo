@@ -1,0 +1,49 @@
+import Testing
+@testable import Echo
+
+struct SchemaDiffViewModelTests {
+    @Test func filteredDiffsApplyStatusTypeAndSearch() {
+        let viewModel = SchemaDiffViewModel(
+            session: MockDatabaseSession(),
+            connectionID: UUID(),
+            connectionSessionID: UUID()
+        )
+
+        viewModel.diffs = [
+            SchemaDiffItem(objectType: "table", objectName: "customers", status: .modified, sourceDDL: "A", targetDDL: "B"),
+            SchemaDiffItem(objectType: "view", objectName: "customer_summary", status: .added, sourceDDL: nil, targetDDL: "C"),
+            SchemaDiffItem(objectType: "procedure", objectName: "refresh_summary", status: .removed, sourceDDL: "D", targetDDL: nil)
+        ]
+
+        viewModel.filterStatus = .modified
+        #expect(viewModel.filteredDiffs.map(\.objectName) == ["customers"])
+
+        viewModel.filterStatus = nil
+        viewModel.filterObjectType = "view"
+        #expect(viewModel.filteredDiffs.map(\.objectName) == ["customer_summary"])
+
+        viewModel.filterObjectType = nil
+        viewModel.searchText = "refresh"
+        #expect(viewModel.filteredDiffs.map(\.objectName) == ["refresh_summary"])
+    }
+
+    @Test func migrationSQLForFilteredDiffsSkipsIdenticalObjects() {
+        let viewModel = SchemaDiffViewModel(
+            session: MockDatabaseSession(),
+            connectionID: UUID(),
+            connectionSessionID: UUID()
+        )
+
+        viewModel.sourceSchema = "source_db"
+        viewModel.targetSchema = "target_db"
+        viewModel.diffs = [
+            SchemaDiffItem(objectType: "table", objectName: "customers", status: .added, sourceDDL: nil, targetDDL: "CREATE TABLE customers (id INT);"),
+            SchemaDiffItem(objectType: "view", objectName: "customer_summary", status: .identical, sourceDDL: "same", targetDDL: "same")
+        ]
+
+        let sql = viewModel.generateMigrationSQLForFilteredDiffs()
+
+        #expect(sql.contains("CREATE TABLE customers"))
+        #expect(!sql.contains("No changes needed"))
+    }
+}

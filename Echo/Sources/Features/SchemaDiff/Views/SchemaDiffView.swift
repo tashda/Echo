@@ -66,11 +66,24 @@ struct SchemaDiffView: View {
             Spacer()
 
             if !viewModel.diffs.isEmpty {
+                TextField("", text: $viewModel.searchText, prompt: Text("Filter objects"))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 180)
+
                 Text(viewModel.statusSummary)
                     .font(TypographyTokens.detail)
                     .foregroundStyle(ColorTokens.Text.secondary)
 
+                objectTypePicker
                 filterPicker
+
+                Button("Copy Migration SQL") {
+                    let sql = viewModel.generateMigrationSQLForFilteredDiffs()
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(sql, forType: .string)
+                }
+                .buttonStyle(.borderless)
+                .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
             }
         }
     }
@@ -85,6 +98,18 @@ struct SchemaDiffView: View {
         }
         .pickerStyle(.menu)
         .frame(maxWidth: 120)
+    }
+
+    private var objectTypePicker: some View {
+        Picker("Object Type", selection: $viewModel.filterObjectType) {
+            Text("All Types").tag(nil as String?)
+            Divider()
+            ForEach(viewModel.availableObjectTypes, id: \.self) { objectType in
+                Text(objectType).tag(objectType as String?)
+            }
+        }
+        .pickerStyle(.menu)
+        .frame(maxWidth: 140)
     }
 
     // MARK: - Content

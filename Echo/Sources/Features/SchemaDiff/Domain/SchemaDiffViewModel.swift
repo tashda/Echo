@@ -24,10 +24,24 @@ final class SchemaDiffViewModel {
     var diffs: [SchemaDiffItem] = []
     var selectedDiffID: SchemaDiffItem.ID?
     var filterStatus: SchemaDiffStatus?
+    var filterObjectType: String?
+    var searchText = ""
 
     var filteredDiffs: [SchemaDiffItem] {
-        guard let filter = filterStatus else { return diffs }
-        return diffs.filter { $0.status == filter }
+        diffs.filter { item in
+            let matchesStatus = filterStatus.map { item.status == $0 } ?? true
+            let matchesType = filterObjectType.map { item.objectType.caseInsensitiveCompare($0) == .orderedSame } ?? true
+            let matchesSearch: Bool
+            if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                matchesSearch = true
+            } else {
+                let needle = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+                matchesSearch =
+                    item.objectName.localizedCaseInsensitiveContains(needle) ||
+                    item.objectType.localizedCaseInsensitiveContains(needle)
+            }
+            return matchesStatus && matchesType && matchesSearch
+        }
     }
 
     var selectedDiff: SchemaDiffItem? {
@@ -45,6 +59,12 @@ final class SchemaDiffViewModel {
     var canCompare: Bool {
         !sourceSchema.isEmpty && !targetSchema.isEmpty
             && sourceSchema != targetSchema && !isComparing
+    }
+
+    var availableObjectTypes: [String] {
+        Array(Set(diffs.map(\.objectType))).sorted {
+            $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+        }
     }
 
     init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID) {
@@ -116,6 +136,13 @@ final class SchemaDiffViewModel {
             return generateMySQLMigrationSQL(for: item)
         }
         return generatePostgresMigrationSQL(for: item)
+    }
+
+    func generateMigrationSQLForFilteredDiffs() -> String {
+        filteredDiffs
+            .filter { $0.status != .identical }
+            .map { generateMigrationSQL(for: $0) }
+            .joined(separator: "\n\n")
     }
 
     private func comparePostgres(_ pg: PostgresSession) async throws -> [SchemaDiffItem] {
