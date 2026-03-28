@@ -258,6 +258,7 @@ Tabs matching Workbench's user editor:
 **Status:** Partially implemented in Echo
 - dashboard metrics now appear in MySQL Activity Monitor
 - Performance Schema/sys reports now appear in the MySQL Activity Monitor via typed `mysql-wire` report APIs
+- the MySQL performance report surface now supports row filtering and quick CSV/Markdown export from the current report view
 - MySQL query tabs now participate in the shared execution-plan UI via `EXPLAIN FORMAT=JSON`
 - MySQL query tabs now parse `EXPLAIN ANALYZE` tree output into actual row / loop / elapsed plan metrics
 - dedicated Performance Schema reports remain outstanding
