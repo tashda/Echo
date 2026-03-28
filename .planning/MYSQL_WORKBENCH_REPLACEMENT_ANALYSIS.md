@@ -18,16 +18,16 @@ The project is no longer at the planning-only stage:
 - Echo's MySQL dialect is wired to `mysql-wire` instead of direct `mysql-nio`
 - the MySQL Activity Monitor now consumes typed `mysql-wire` activity and performance metrics for a real dashboard plus process list
 - MySQL maintenance actions in Echo now route through typed `mysql-wire` admin APIs instead of ad hoc raw SQL
-- MySQL backup and restore sheets now exist in Echo with tool discovery and process execution wiring
+- MySQL backup and restore now include typed mysqldump/mysql command construction, MySQL tool path preferences, and richer sheet options for schema/data scope, table selection, locks, compression, and restore character set control
 - MySQL table structure editing is now partially landed with typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
 - the shared table properties window now has a real MySQL general/storage editor backed by typed `mysql-wire` table-options metadata and `ALTER TABLE` property updates
 - MySQL server administration now includes a real server properties tab with overview metrics, variable browsing/editing, and table-backed log viewing
 - MySQL now has a dedicated Advanced Objects workspace for functions, procedures, triggers, and events with typed metadata, definition inspection, and script-template editors
+- MySQL schema diff and migration-script generation now run through the shared Echo schema diff surface with MySQL object inventory, DDL comparison, filtering, and export
 
-What remains is substantial Echo feature work, not package bootstrapping:
+What remains is now concentrated in the last table-editor parity work, not package bootstrapping:
 - Phase 1 table editor is partially implemented but not feature-complete
-- Phase 2 server administration is only partially landed
-- Phases 3 through 8 remain incomplete in Echo
+- the other major Workbench-replacement phases are now implemented in Echo
 
 ---
 
@@ -325,10 +325,10 @@ Each report is a simple table view with column sorting and export.
 **Effort: Medium (1-2 weeks)**
 **Depends on: MySQLToolLocator for mysqldump/mysqlpump paths**
 
-**Status:** Partially implemented in Echo
-- MySQL tool discovery and basic backup/restore sheets now exist
-- the backup and restore sheets now follow the same sidebar/detail maintenance pattern as PostgreSQL, with tool path visibility plus open/reveal actions for source and destination files
-- richer option breadth, preferences integration, and deeper progress/cancellation parity are still pending
+**Status:** Implemented in Echo
+- MySQL tool discovery now covers `mysqldump`, `mysql`, and `mysqlpump`
+- Echo now has a dedicated MySQL tool-path preference, matching the same settings-driven tool override pattern used for PostgreSQL
+- the backup and restore sheets follow the same sidebar/detail maintenance pattern as PostgreSQL, with source/destination open/reveal actions and richer mysqldump/mysql options for schema/data scope, table selection, locks, compression, extended inserts, force-continue, and restore character set control
 
 #### What to Build
 
@@ -380,7 +380,7 @@ Execute as a Process, stream stdout to file, show progress.
 **Effort: Medium (1-2 weeks)**
 **Depends on: Phase 1 (MySQL DDL generator) + mysql-wire**
 
-**Status:** Partially implemented in Echo
+**Status:** Implemented in Echo
 
 #### What to Build
 

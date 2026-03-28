@@ -44,6 +44,40 @@ extension MySQLBackupSidebarSheet {
                             .foregroundStyle(ColorTokens.Status.error)
                     }
                 }
+                PropertyRow(title: "mysqlpump", info: "mysqlpump is discovered alongside mysqldump so the configured tools directory already supports future logical backup workflows.") {
+                    if let url = MySQLToolLocator.mysqlpumpURL(customPath: customToolPath) {
+                        Text(url.path)
+                            .font(TypographyTokens.monospaced)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                            .multilineTextAlignment(.trailing)
+                    } else {
+                        Text("Optional")
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    var scopePage: some View {
+        Group {
+            Section("Dump Contents") {
+                PropertyRow(title: "Include Schema", info: "Emit CREATE statements and other object definitions into the backup.") {
+                    Toggle("", isOn: $viewModel.includeSchema)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                PropertyRow(title: "Include Data", info: "Emit INSERT statements for table rows in the backup.") {
+                    Toggle("", isOn: $viewModel.includeData)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                PropertyRow(title: "Tables", info: "Optionally limit the dump to a comma-separated list of tables in the selected database.") {
+                    TextField("", text: $viewModel.selectedTables, prompt: Text("e.g. users, orders, audit_log"))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
             }
         }
     }
@@ -51,11 +85,6 @@ extension MySQLBackupSidebarSheet {
     var optionsPage: some View {
         Group {
             Section("Contents") {
-                PropertyRow(title: "Include Data", info: "Include INSERT statements for table rows in the dump.") {
-                    Toggle("", isOn: $viewModel.includeData)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
                 PropertyRow(title: "Include Routines", info: "Include stored procedures and functions.") {
                     Toggle("", isOn: $viewModel.includeRoutines)
                         .labelsHidden()
@@ -79,83 +108,35 @@ extension MySQLBackupSidebarSheet {
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
-            }
-        }
-    }
-
-    @ViewBuilder
-    var outputSection: some View {
-        if !viewModel.backupOutput.isEmpty || viewModel.backupPhase != .idle {
-            Section("Output") {
-                if !viewModel.backupOutput.isEmpty {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 2) {
-                            ForEach(Array(viewModel.backupOutput.enumerated()), id: \.offset) { _, line in
-                                Text(line)
-                                    .font(TypographyTokens.monospaced)
-                                    .foregroundStyle(ColorTokens.Text.secondary)
-                                    .textSelection(.enabled)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxHeight: 150)
+                PropertyRow(title: "Lock Tables", info: "Use table locks during the dump for non-transactional engines such as MyISAM.") {
+                    Toggle("", isOn: $viewModel.lockTables)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
                 }
+            }
 
-                switch viewModel.backupPhase {
-                case .completed(let message):
-                    Label(message, systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(ColorTokens.Status.success)
-                        .font(TypographyTokens.formDescription)
-                case .failed(let message):
-                    Label(message, systemImage: "xmark.circle.fill")
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .font(TypographyTokens.formDescription)
-                case .running:
-                    ProgressView("Running mysqldump…")
-                case .idle:
-                    Text("Ready to run mysqldump.")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.secondary)
+            Section("Transfer") {
+                PropertyRow(title: "Compress Connection", info: "Ask the MySQL protocol to compress traffic during the backup.") {
+                    Toggle("", isOn: $viewModel.compressConnection)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                PropertyRow(title: "Extended INSERT", info: "Use multi-row INSERT statements for more compact dumps and faster restores.") {
+                    Toggle("", isOn: $viewModel.useExtendedInsert)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
                 }
             }
         }
     }
 
-    @ViewBuilder
-    var footerContent: some View {
-        if viewModel.isBackupRunning {
-            ProgressView()
-                .controlSize(.small)
-            Text("Backing up…")
-                .font(TypographyTokens.formDescription)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        } else if case .completed = viewModel.backupPhase {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(ColorTokens.Status.success)
-            Text("Completed")
-                .font(TypographyTokens.formDescription)
-                .foregroundStyle(ColorTokens.Status.success)
-        } else if case .failed = viewModel.backupPhase {
-            Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(ColorTokens.Status.error)
-            Text("Failed")
-                .font(TypographyTokens.formDescription)
-                .foregroundStyle(ColorTokens.Status.error)
+    var advancedPage: some View {
+        Group {
+            Section("Behavior") {
+                Text("Transactional servers usually prefer single-transaction backups. Lock tables is more appropriate for MyISAM or mixed-engine environments that need explicit read locks.")
+                    .font(TypographyTokens.formDescription)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
         }
-
-        Spacer()
-
-        Button("Close") { onDismiss() }
-            .buttonStyle(.bordered)
-            .keyboardShortcut(.cancelAction)
-            .disabled(viewModel.isBackupRunning)
-
-        Button("Back Up") {
-            Task { await viewModel.executeBackup(customToolPath: customToolPath) }
-        }
-        .buttonStyle(.borderedProminent)
-        .keyboardShortcut(.defaultAction)
-        .disabled(!viewModel.canBackup)
     }
 }

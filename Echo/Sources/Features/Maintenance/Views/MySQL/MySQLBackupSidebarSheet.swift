@@ -40,8 +40,12 @@ struct MySQLBackupSidebarSheet: View {
             switch selectedPage {
             case .general:
                 generalPage
+            case .scope:
+                scopePage
             case .options:
                 optionsPage
+            case .advanced:
+                advancedPage
             }
 
             outputSection
@@ -53,19 +57,25 @@ struct MySQLBackupSidebarSheet: View {
 
 enum MySQLBackupPage: CaseIterable {
     case general
+    case scope
     case options
+    case advanced
 
     var title: String {
         switch self {
         case .general: "General"
+        case .scope: "Scope"
         case .options: "Options"
+        case .advanced: "Advanced"
         }
     }
 
     var icon: String {
         switch self {
         case .general: "externaldrive"
+        case .scope: "square.stack.3d.up"
         case .options: "slider.horizontal.3"
+        case .advanced: "gearshape.2"
         }
     }
 }

@@ -9,6 +9,10 @@ nonisolated struct MySQLToolLocator {
         locateTool(name: "mysql", customPath: customPath)
     }
 
+    static func mysqlpumpURL(customPath: String? = nil) -> URL? {
+        locateTool(name: "mysqlpump", customPath: customPath)
+    }
+
     private static func locateTool(name: String, customPath: String?) -> URL? {
         for directory in searchDirectories(customPath: customPath) {
             let tool = URL(fileURLWithPath: directory).appendingPathComponent(name)

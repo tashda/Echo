@@ -26,7 +26,13 @@ final class MySQLBackupRestoreViewModel {
     var includeEvents = true
     var includeTriggers = true
     var includeData = true
+    var includeSchema = true
     var singleTransaction = true
+    var lockTables = false
+    var compressConnection = false
+    var useExtendedInsert = true
+    var selectedTables = ""
+    var defaultCharacterSet = ""
     var forceRestore = false
     var backupPhase: Phase = .idle
     var restorePhase: Phase = .idle
@@ -43,8 +49,19 @@ final class MySQLBackupRestoreViewModel {
 
     var isBackupRunning: Bool { backupPhase == .running }
     var isRestoreRunning: Bool { restorePhase == .running }
-    var canBackup: Bool { !databaseName.isEmpty && !outputPath.trimmingCharacters(in: .whitespaces).isEmpty && !isBackupRunning }
+    var canBackup: Bool {
+        !databaseName.isEmpty
+            && !outputPath.trimmingCharacters(in: .whitespaces).isEmpty
+            && (includeData || includeSchema)
+            && !isBackupRunning
+    }
     var canRestore: Bool { !databaseName.isEmpty && !inputPath.trimmingCharacters(in: .whitespaces).isEmpty && !isRestoreRunning }
+    var backupTableList: [String] {
+        selectedTables
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
 
     init(connection: SavedConnection, session: DatabaseSession, databaseName: String, password: String? = nil, resolvedUsername: String? = nil) {
         self.connection = connection

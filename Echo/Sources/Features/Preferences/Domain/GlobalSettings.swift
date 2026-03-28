@@ -180,6 +180,7 @@ struct GlobalSettings: Codable, Hashable {
     var nativePsqlAllowShellEscape: Bool = true
     var nativePsqlAllowFileCommands: Bool = true
     var pgToolCustomPath: String?
+    var mysqlToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarIconSize: SidebarIconSize = .medium
     var sidebarDensity: SidebarDensity = .default
@@ -263,6 +264,7 @@ struct GlobalSettings: Codable, Hashable {
         case nativePsqlAllowShellEscape
         case nativePsqlAllowFileCommands
         case pgToolCustomPath
+        case mysqlToolCustomPath
         case sidebarIconColorMode
         case sidebarIconSize
         case sidebarDensity
@@ -361,6 +363,7 @@ struct GlobalSettings: Codable, Hashable {
         nativePsqlAllowShellEscape = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowShellEscape) ?? true
         nativePsqlAllowFileCommands = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowFileCommands) ?? true
         pgToolCustomPath = try container.decodeIfPresent(String.self, forKey: .pgToolCustomPath)
+        mysqlToolCustomPath = try container.decodeIfPresent(String.self, forKey: .mysqlToolCustomPath)
 
         if let mode = try container.decodeIfPresent(SidebarIconColorMode.self, forKey: .sidebarIconColorMode) {
             sidebarIconColorMode = mode
@@ -458,6 +461,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(nativePsqlAllowShellEscape, forKey: .nativePsqlAllowShellEscape)
         try container.encode(nativePsqlAllowFileCommands, forKey: .nativePsqlAllowFileCommands)
         try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
+        try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
         try container.encode(sidebarIconSize, forKey: .sidebarIconSize)
         try container.encode(sidebarDensity, forKey: .sidebarDensity)

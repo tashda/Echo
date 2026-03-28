@@ -1,4 +1,5 @@
 import Foundation
+import MySQLKit
 
 extension MySQLBackupRestoreViewModel {
     func executeRestore(customToolPath: String? = nil) async {
@@ -19,16 +20,28 @@ extension MySQLBackupRestoreViewModel {
         restorePhase = .running
         restoreOutput = []
 
-        let arguments = [
+        let trimmedCharacterSet = defaultCharacterSet.trimmingCharacters(in: .whitespacesAndNewlines)
+        let command = (session as? MySQLSession)?.client.admin.restoreCommand(
+            host: connection.host,
+            port: connection.port,
+            username: resolvedUsername ?? connection.username,
+            database: databaseName,
+            inputPath: inputPath,
+            defaultCharacterSet: trimmedCharacterSet.isEmpty ? nil : trimmedCharacterSet,
+            force: forceRestore
+        ) ?? [
+            "mysql",
             "--host=\(connection.host)",
             "--port=\(connection.port)",
             "--user=\(resolvedUsername ?? connection.username)",
-        ] + (forceRestore ? ["--force"] : []) + [databaseName]
+        ] + (trimmedCharacterSet.isEmpty ? [] : ["--default-character-set=\(trimmedCharacterSet)"])
+            + (forceRestore ? ["--force"] : [])
+            + [databaseName]
 
         do {
             let result = try await processRunner.run(
                 executable: mysql,
-                arguments: arguments,
+                arguments: Array(command.dropFirst()).filter { $0 != "<" && $0 != inputPath },
                 environment: processEnvironment(),
                 standardInput: inputHandle
             )

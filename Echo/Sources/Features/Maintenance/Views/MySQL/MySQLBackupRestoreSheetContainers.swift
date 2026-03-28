@@ -3,6 +3,7 @@ import SwiftUI
 struct MySQLBackupSheetContainer: View {
     @Binding var isPresented: Bool
     @State private var viewModel: MySQLBackupRestoreViewModel
+    @Environment(ProjectStore.self) private var projectStore
 
     init(connection: SavedConnection, session: DatabaseSession, databaseName: String, isPresented: Binding<Bool>) {
         self._isPresented = isPresented
@@ -22,7 +23,7 @@ struct MySQLBackupSheetContainer: View {
     var body: some View {
         MySQLBackupSidebarSheet(
             viewModel: viewModel,
-            customToolPath: nil,
+            customToolPath: projectStore.globalSettings.mysqlToolCustomPath,
             onDismiss: { isPresented = false }
         )
     }
@@ -33,6 +34,7 @@ struct MySQLRestoreSheetContainer: View {
     @Binding var isPresented: Bool
     @State private var viewModel: MySQLBackupRestoreViewModel
     @Environment(EnvironmentState.self) private var environmentState
+    @Environment(ProjectStore.self) private var projectStore
     private let databaseName: String
 
     init(connection: SavedConnection, session: DatabaseSession, databaseName: String, connectionSession: ConnectionSession?, isPresented: Binding<Bool>) {
@@ -55,7 +57,7 @@ struct MySQLRestoreSheetContainer: View {
     var body: some View {
         MySQLRestoreSidebarSheet(
             viewModel: viewModel,
-            customToolPath: nil,
+            customToolPath: projectStore.globalSettings.mysqlToolCustomPath,
             onDismiss: { isPresented = false }
         )
         .onChange(of: viewModel.restorePhase) { _, phase in

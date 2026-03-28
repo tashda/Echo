@@ -56,6 +56,11 @@ extension MySQLRestoreSidebarSheet {
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
+                PropertyRow(title: "Default Character Set", info: "Optionally set the mysql client's default character set before the restore runs.") {
+                    TextField("", text: $viewModel.defaultCharacterSet, prompt: Text("e.g. utf8mb4"))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
             }
         }
     }
