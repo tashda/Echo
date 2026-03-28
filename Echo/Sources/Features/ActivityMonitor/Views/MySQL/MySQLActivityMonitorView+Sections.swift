@@ -31,7 +31,7 @@ extension MySQLActivityMonitorView {
             SectionContainer(
                 title: "Process List",
                 icon: "person.3",
-                info: "Current connections from SHOW FULL PROCESSLIST."
+                info: "Current connections from SHOW FULL PROCESSLIST, with query details and separate kill-query and kill-connection actions."
             ) {
                 processListContent
                     .padding(SpacingTokens.md)

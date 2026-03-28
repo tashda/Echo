@@ -151,6 +151,12 @@ final class ActivityMonitorViewModel {
         refresh()
     }
 
+    func killMySQLQuery(id: Int) async throws {
+        guard let mysqlSession, let threadID = UInt32(exactly: id) else { return }
+        try await mysqlSession.client.admin.killQuery(threadID: threadID)
+        refresh()
+    }
+
     private func updateHistory(with snapshot: DatabaseActivitySnapshot) {
         let now = snapshot.capturedAt
 

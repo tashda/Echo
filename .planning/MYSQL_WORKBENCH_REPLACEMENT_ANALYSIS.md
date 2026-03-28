@@ -142,6 +142,7 @@ MySQL Workbench's table editor is its most-used feature. Users create and modify
 
 **Status:** Partially implemented in Echo
 - Activity Monitor now has a typed MySQL dashboard, server variables browser, and process list backed by `mysql-wire`
+- the MySQL process list now includes a selected-process inspector plus separate kill-query and kill-connection actions
 - maintenance commands now execute through `mysql-wire` admin APIs
 - a dedicated MySQL server properties tab now covers overview metrics, variable browsing/editing, and table-backed general/slow log viewing
 - the server properties tab now also reads file-backed MySQL error/general/slow logs when those paths are configured, and exposes direct open/reveal actions for log files
