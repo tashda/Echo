@@ -7,6 +7,7 @@ final class ServerPropertiesViewModel {
     enum Section: String, CaseIterable {
         case overview = "Overview"
         case variables = "Variables"
+        case status = "Status"
         case logs = "Logs"
         case configuration = "Configuration"
     }
@@ -55,6 +56,7 @@ final class ServerPropertiesViewModel {
 
     var overviewItems: [PropertyItem] = []
     var variables: [PropertyItem] = []
+    var statusVariables: [PropertyItem] = []
     var logDestinations: [PropertyItem] = []
     var errorLogRows: [LogRow] = []
     var generalLogRows: [LogRow] = []
@@ -87,6 +89,8 @@ final class ServerPropertiesViewModel {
             await loadOverview(mysql: mysql)
         case .variables:
             await loadVariables(mysql: mysql)
+        case .status:
+            await loadStatusVariables(mysql: mysql)
         case .logs:
             await loadLogs(mysql: mysql)
         case .configuration:
@@ -98,6 +102,15 @@ final class ServerPropertiesViewModel {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return variables }
         return variables.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.value.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var filteredStatusVariables: [PropertyItem] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return statusVariables }
+        return statusVariables.filter {
             $0.name.localizedCaseInsensitiveContains(query) ||
             $0.value.localizedCaseInsensitiveContains(query)
         }
@@ -203,7 +216,7 @@ final class ServerPropertiesViewModel {
     private func loadLogRows(mysql: MySQLSession, tableName: String) async throws -> [LogRow] {
         let rows = try await mysql.client.admin.readTableLog(named: tableName, limit: 25)
         return rows.enumerated().map { offset, row in
-            let timestamp = row["event_time"] ?? row["start_time"] ?? "\u{2014}"
+            let timestamp = row["event_time"] ?? row["start_time"] ?? nil
             let userHost = row["user_host"] ?? row["user"] ?? ""
             let command = row["command_type"] ?? row["command"] ?? ""
             let argument = row["argument"] ?? row["sql_text"] ?? row["host"] ?? ""
@@ -216,7 +229,7 @@ final class ServerPropertiesViewModel {
                 .map { "\($0.key): \($0.value ?? "\u{2014}")" }
                 .joined(separator: "\n")
             return LogRow(
-                id: "\(tableName)-\(offset)-\(timestamp)",
+                id: "\(tableName)-\(offset)-\(timestamp ?? "\u{2014}")",
                 timestamp: timestamp ?? "\u{2014}",
                 summary: summary.isEmpty ? "Log row" : summary,
                 details: details
@@ -293,7 +306,7 @@ final class ServerPropertiesViewModel {
         }
     }
 
-    private func variableCategory(for variableName: String) -> String {
+    func variableCategory(for variableName: String) -> String {
         let normalized = variableName.lowercased()
         if let prefix = normalized.split(separator: "_").first, !prefix.isEmpty {
             return prefix.uppercased()

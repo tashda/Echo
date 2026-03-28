@@ -26,7 +26,7 @@ struct ServerPropertiesView: View {
             Task { await viewModel.loadCurrentSection() }
         }
         .onChange(of: viewModel.searchText) { _, _ in
-            guard viewModel.selectedSection == .variables else { return }
+            guard viewModel.selectedSection == .variables || viewModel.selectedSection == .status else { return }
         }
         .sheet(isPresented: $showVariableEditor) {
             if let variable = viewModel.selectedVariable {
@@ -66,6 +66,8 @@ struct ServerPropertiesView: View {
                     viewModel: viewModel,
                     showVariableEditor: $showVariableEditor
                 )
+            case .status:
+                MySQLServerStatusVariablesSection(viewModel: viewModel)
             case .logs:
                 MySQLServerLogsView(viewModel: viewModel)
             case .configuration:

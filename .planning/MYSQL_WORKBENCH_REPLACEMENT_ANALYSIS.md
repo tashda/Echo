@@ -23,7 +23,7 @@ The project is no longer at the planning-only stage:
 - query tabs now expose a dedicated statistics panel for execution timing, row/batch flow, and resource usage alongside messages, plans, and result views
 - MySQL table structure editing now has typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
 - the shared table properties window now has a real MySQL general/storage editor backed by typed `mysql-wire` table-options metadata and `ALTER TABLE` property updates
-- MySQL server administration now includes a real server properties tab with overview metrics, variable browsing/editing, table-backed/file-backed log viewing, and a MySQL options-file configuration editor for local config inspection/editing
+- MySQL server administration now includes a real server properties tab with overview metrics, full variable/status browsing, variable editing, table-backed/file-backed log viewing, and a MySQL options-file configuration editor for local config inspection/editing
 - MySQL now has a dedicated Advanced Objects workspace for functions, procedures, triggers, and events with typed metadata, definition inspection, and script-template editors
 - MySQL schema diff and migration-script generation now run through the shared Echo schema diff surface with MySQL object inventory, DDL comparison, filtering, and export
 
