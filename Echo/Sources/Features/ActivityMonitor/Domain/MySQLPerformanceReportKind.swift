@@ -7,6 +7,8 @@ enum MySQLPerformanceReportKind: String, CaseIterable, Identifiable {
     case unusedIndexes
     case schemaIndexStatistics
     case schemaTableStatistics
+    case memoryGlobalByCurrentBytes
+    case ioGlobalByFileByBytes
     case waitsGlobalByLatency
     case waitsByUserByLatency
     case hostSummary
@@ -27,6 +29,10 @@ enum MySQLPerformanceReportKind: String, CaseIterable, Identifiable {
             return "Schema Index Statistics"
         case .schemaTableStatistics:
             return "Schema Table Statistics"
+        case .memoryGlobalByCurrentBytes:
+            return "Top Memory"
+        case .ioGlobalByFileByBytes:
+            return "File I/O"
         case .waitsGlobalByLatency:
             return "Global Waits"
         case .waitsByUserByLatency:
@@ -50,6 +56,10 @@ enum MySQLPerformanceReportKind: String, CaseIterable, Identifiable {
             return try await performance.schemaIndexStatistics()
         case .schemaTableStatistics:
             return try await performance.schemaTableStatistics()
+        case .memoryGlobalByCurrentBytes:
+            return try await performance.memoryGlobalByCurrentBytes()
+        case .ioGlobalByFileByBytes:
+            return try await performance.ioGlobalByFileByBytes()
         case .waitsGlobalByLatency:
             return try await performance.waitsGlobalByLatency()
         case .waitsByUserByLatency:

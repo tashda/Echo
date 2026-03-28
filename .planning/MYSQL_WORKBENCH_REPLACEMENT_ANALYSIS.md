@@ -203,7 +203,7 @@ Already have basic `MySQLActivityMonitorView`. Enhance with:
 **Effort: Large (2-3 weeks)**
 **Depends on: mysql-wire package (for typed security APIs)**
 
-**Status:** Partially implemented in Echo
+**Status:** Implemented in Echo
 - dedicated MySQL Database Security tab now exists in Echo using `mysql-wire`
 - current UI covers users, role inventory/assignments, password changes, role membership editing, grants, account limits inspection/editing, administrative role inspection/editing, schema-level grant/revoke flows, plus create/lock/unlock/drop flows
 - the privileges workspace now supports filtering plus selected-grant inspection and `GRANT`/`REVOKE` script generation
@@ -262,7 +262,7 @@ Tabs matching Workbench's user editor:
 - the MySQL performance report surface now supports row filtering and quick CSV/Markdown export from the current report view
 - MySQL query tabs now participate in the shared execution-plan UI via `EXPLAIN FORMAT=JSON`
 - MySQL query tabs now parse `EXPLAIN ANALYZE` tree output into actual row / loop / elapsed plan metrics
-- dedicated Performance Schema reports remain outstanding
+- the MySQL report picker now includes the key memory and file-I/O sys reports alongside statement, runtime, scan, wait, host, and schema statistics views
 
 #### What to Build
 
