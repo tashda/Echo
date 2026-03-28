@@ -23,7 +23,7 @@ extension QueryResultsSection {
         }
     }
 
-    private var currentResultSet: QueryResultSet? {
+    var currentResultSet: QueryResultSet? {
         if query.selectedResultSetIndex == 0 {
             let rows = exportedPrimaryRows
             guard !query.displayedColumns.isEmpty || !rows.isEmpty else { return nil }
@@ -41,19 +41,19 @@ extension QueryResultsSection {
         return query.additionalResults[additionalIndex]
     }
 
-    private var exportedPrimaryRows: [[String?]] {
+    var exportedPrimaryRows: [[String?]] {
         let sourceIndices = rowOrder.isEmpty ? Array(0..<query.displayedRowCount) : rowOrder
         return sourceIndices.compactMap { query.displayedRow(at: $0) }
     }
 
-    private var currentResultSetFileName: String {
+    var currentResultSetFileName: String {
         if query.allResultSetsForDisplay.count <= 1 {
             return "query-results"
         }
         return "query-results-\(query.selectedResultSetIndex + 1)"
     }
 
-    private var resultsSummaryText: String {
+    var resultsSummaryText: String {
         let count = query.selectedResultSetIndex == 0 ? exportedPrimaryRows.count : (currentResultSet?.rows.count ?? 0)
         let rowLabel = count == 1 ? "row" : "rows"
         return "\(count) \(rowLabel)"

@@ -37,6 +37,8 @@ struct QueryResultsSection: View {
     internal var selectedTab: ResultTab {
         switch panelState.selectedSegment {
         case .results: return .results
+        case .textResults: return .textResults
+        case .verticalResults: return .verticalResults
         case .messages: return .messages
         case .executionPlan: return .executionPlan
         case .jsonInspector: return .jsonInspector
@@ -49,6 +51,8 @@ struct QueryResultsSection: View {
 
     enum ResultTab: Hashable {
         case results
+        case textResults
+        case verticalResults
         case messages
 #if os(macOS)
         case jsonInspector

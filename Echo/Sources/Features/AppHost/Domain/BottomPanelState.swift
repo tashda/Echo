@@ -4,6 +4,8 @@ import SwiftUI
 /// Defines the content segments available in the bottom panel.
 enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
     case results
+    case textResults
+    case verticalResults
     case messages
     case executionPlan
     case jsonInspector
@@ -16,6 +18,8 @@ enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
     var label: String {
         switch self {
         case .results: return "Results"
+        case .textResults: return "Text"
+        case .verticalResults: return "Vertical"
         case .messages: return "Messages"
         case .executionPlan: return "Execution Plan"
         case .jsonInspector: return "JSON Inspector"
@@ -29,6 +33,8 @@ enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
     var icon: String {
         switch self {
         case .results: return "tablecells"
+        case .textResults: return "doc.plaintext"
+        case .verticalResults: return "list.bullet.rectangle.portrait"
         case .messages: return "text.bubble"
         case .executionPlan: return "chart.bar.doc.horizontal"
         case .jsonInspector: return "curlybraces"
@@ -100,7 +106,7 @@ final class BottomPanelState {
             isOpen: false,
             splitRatio: 0.5,
             selectedSegment: .results,
-            availableSegments: [.results, .messages, .spatial, .executionPlan, .tuning]
+            availableSegments: [.results, .textResults, .verticalResults, .messages, .spatial, .executionPlan, .tuning]
         )
     }
 

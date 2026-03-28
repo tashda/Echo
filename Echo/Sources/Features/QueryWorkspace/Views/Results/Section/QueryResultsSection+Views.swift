@@ -12,6 +12,10 @@ extension QueryResultsSection {
                 switch selectedTab {
                 case .results:
                     resultsView
+                case .textResults:
+                    textResultsView
+                case .verticalResults:
+                    verticalResultsView
                 case .messages:
                     messagesView
 #if os(macOS)
@@ -112,7 +116,6 @@ extension QueryResultsSection {
     }
 
     private var multiResultSetView: some View {
-        let allSets = query.allResultSetsForDisplay
         return VStack(spacing: 0) {
             if query.selectedResultSetIndex == 0 && hasRows {
                 primaryResultsTable

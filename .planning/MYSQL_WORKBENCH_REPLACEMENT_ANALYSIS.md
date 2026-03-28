@@ -19,6 +19,7 @@ The project is no longer at the planning-only stage:
 - the MySQL Activity Monitor now consumes typed `mysql-wire` activity and performance metrics for a real dashboard plus process list
 - MySQL maintenance actions in Echo now route through typed `mysql-wire` admin APIs instead of ad hoc raw SQL
 - MySQL backup and restore now include typed mysqldump/mysql command construction, MySQL tool path preferences, and richer sheet options for schema/data scope, table selection, locks, compression, and restore character set control
+- query results now support Workbench-style table, text, and vertical result presentation, alongside JSON, HTML, XML, Markdown, SQL INSERT, and Excel export paths
 - MySQL table structure editing now has typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
 - the shared table properties window now has a real MySQL general/storage editor backed by typed `mysql-wire` table-options metadata and `ALTER TABLE` property updates
 - MySQL server administration now includes a real server properties tab with overview metrics, variable browsing/editing, and table-backed log viewing
