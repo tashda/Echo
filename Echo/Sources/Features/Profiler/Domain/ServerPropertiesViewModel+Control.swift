@@ -34,7 +34,13 @@ extension ServerPropertiesViewModel {
             serverControlState = .unavailable("Server control is only available for local MySQL instances.")
             return
         }
-        guard let mysqladmin = MySQLToolLocator.mysqladminURL(customPath: customToolPath) else {
+        guard let plan = MySQLServerControlPlan.stop(
+            host: mysql.configuration.host,
+            port: mysql.configuration.port,
+            username: mysql.configuration.username,
+            password: mysql.configuration.password,
+            customToolPath: customToolPath
+        ) else {
             serverControlState = .unavailable("mysqladmin was not found in the configured MySQL tools path.")
             return
         }
@@ -42,21 +48,7 @@ extension ServerPropertiesViewModel {
         let handle = activityEngine?.begin("Stopping MySQL server", connectionSessionID: connectionSessionID)
         do {
             serverControlOutput = []
-            let result = try await processRunner.run(
-                executable: mysqladmin,
-                arguments: [
-                    "--host=\(mysql.configuration.host)",
-                    "--port=\(mysql.configuration.port)",
-                    "--user=\(mysql.configuration.username)",
-                    "shutdown"
-                ],
-                environment: mysql.configuration.password.map { ["MYSQL_PWD": $0] } ?? [:],
-                onStderr: { [weak self] line in
-                    Task { @MainActor in
-                        self?.serverControlOutput.append(line)
-                    }
-                }
-            )
+            let result = try await runServerControlPlan(plan)
 
             if result.exitCode == 0 {
                 serverControlState = .stopped
@@ -85,36 +77,11 @@ extension ServerPropertiesViewModel {
         serverControlOutput = []
 
         do {
-            if let script = MySQLToolLocator.mysqlServerScriptURL(customPath: customToolPath) {
-                let result = try await processRunner.run(
-                    executable: script,
-                    arguments: ["start"],
-                    onStderr: { [weak self] line in
-                        Task { @MainActor in
-                            self?.serverControlOutput.append(line)
-                        }
-                    }
-                )
-                try await finalizeStart(result: result)
-                handle?.succeed()
-                return
-            }
-
-            if let mysqld = MySQLToolLocator.mysqldURL(customPath: customToolPath) {
-                var arguments: [String] = []
-                if let config = selectedConfigFile?.path, !config.isEmpty {
-                    arguments.append("--defaults-file=\(config)")
-                }
-                arguments.append("--daemonize")
-                let result = try await processRunner.run(
-                    executable: mysqld,
-                    arguments: arguments,
-                    onStderr: { [weak self] line in
-                        Task { @MainActor in
-                            self?.serverControlOutput.append(line)
-                        }
-                    }
-                )
+            if let plan = MySQLServerControlPlan.start(
+                customToolPath: customToolPath,
+                defaultsFilePath: selectedConfigFile?.path
+            ) {
+                let result = try await runServerControlPlan(plan)
                 try await finalizeStart(result: result)
                 handle?.succeed()
                 return
@@ -126,6 +93,52 @@ extension ServerPropertiesViewModel {
             serverControlState = .unavailable(error.localizedDescription)
             handle?.fail(error.localizedDescription)
             panelState?.appendMessage("Failed to start MySQL server: \(error.localizedDescription)", severity: .error)
+        }
+    }
+
+    func restartLocalMySQLServer(customToolPath: String?) async {
+        guard let mysql = session as? MySQLSession else { return }
+        guard isLocalMySQLHost else {
+            serverControlState = .unavailable("Server control is only available for local MySQL instances.")
+            return
+        }
+        guard let plan = MySQLServerControlPlan.restart(
+            host: mysql.configuration.host,
+            port: mysql.configuration.port,
+            username: mysql.configuration.username,
+            password: mysql.configuration.password,
+            customToolPath: customToolPath,
+            defaultsFilePath: selectedConfigFile?.path
+        ) else {
+            serverControlState = .unavailable("No supported local MySQL restart workflow was found. Echo currently supports mysql.server restart or mysqladmin shutdown plus mysqld --daemonize.")
+            return
+        }
+
+        let handle = activityEngine?.begin("Restarting MySQL server", connectionSessionID: connectionSessionID)
+        serverControlOutput = []
+
+        do {
+            switch plan {
+            case .single(let processPlan):
+                let result = try await runServerControlPlan(processPlan)
+                try await finalizeStart(result: result)
+            case .stopThenStart(let stopPlan, let startPlan):
+                let stopResult = try await runServerControlPlan(stopPlan)
+                guard stopResult.exitCode == 0 else {
+                    let message = stopResult.stderrLines.last ?? "MySQL stop command failed with exit code \(stopResult.exitCode)"
+                    serverControlState = .unavailable(message)
+                    throw ServerControlError.commandFailed(message)
+                }
+                let startResult = try await runServerControlPlan(startPlan)
+                try await finalizeStart(result: startResult)
+            }
+
+            handle?.succeed()
+            panelState?.appendMessage("Restarted local MySQL server")
+        } catch {
+            serverControlState = .unavailable(error.localizedDescription)
+            handle?.fail(error.localizedDescription)
+            panelState?.appendMessage("Failed to restart MySQL server: \(error.localizedDescription)", severity: .error)
         }
     }
 
@@ -167,6 +180,19 @@ extension ServerPropertiesViewModel {
             }
         }
         try await operation(client)
+    }
+
+    private func runServerControlPlan(_ plan: MySQLServerControlProcessPlan) async throws -> ProcessResult {
+        try await processRunner.run(
+            executable: plan.executable,
+            arguments: plan.arguments,
+            environment: plan.environment,
+            onStderr: { [weak self] line in
+                Task { @MainActor in
+                    self?.serverControlOutput.append(line)
+                }
+            }
+        )
     }
 
     enum ServerControlError: LocalizedError {

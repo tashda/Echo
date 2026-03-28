@@ -31,6 +31,12 @@ struct MySQLServerControlSection: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(!canStop)
+
+                Button("Restart") {
+                    Task { await viewModel.restartLocalMySQLServer(customToolPath: customToolPath) }
+                }
+                .buttonStyle(.bordered)
+                .disabled(!canRestart)
             }
 
             Divider()
@@ -118,6 +124,20 @@ struct MySQLServerControlSection: View {
             return viewModel.isLocalMySQLHost && MySQLToolLocator.mysqladminURL(customPath: customToolPath) != nil
         }
         return false
+    }
+
+    private var canRestart: Bool {
+        viewModel.isLocalMySQLHost &&
+            (
+                MySQLToolLocator.mysqlServerScriptURL(customPath: customToolPath) != nil ||
+                (
+                    MySQLToolLocator.mysqladminURL(customPath: customToolPath) != nil &&
+                    MySQLServerControlPlan.start(
+                        customToolPath: customToolPath,
+                        defaultsFilePath: viewModel.selectedConfigFile?.path
+                    ) != nil
+                )
+            )
     }
 
     private var statusText: String {
