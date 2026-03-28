@@ -11,18 +11,22 @@ extension PostgresSession: ExecutionPlanProviding {
         let jsonString = lines.joined(separator: "\n")
         let planData = try parsePostgresExplainJSON(jsonString, isAnalyze: false)
 
-        // Also get the text plan for the raw view
-        let textLines = try await client.connection.explain(
+        // Get the text plan for the Raw Plan tab
+        let textLines = try? await client.connection.explain(
             sql,
             verbose: true
         )
+        let textPlan = textLines?.joined(separator: "\n")
         return ExecutionPlanData(
             statements: planData.statements,
-            xml: textLines.joined(separator: "\n")
+            xml: textPlan?.isEmpty == false ? textPlan : jsonString
         )
     }
 
     func getActualExecutionPlan(_ sql: String) async throws -> (result: QueryResultSet, plan: ExecutionPlanData) {
+        // First execute the query to capture the result set
+        let queryResult = try? await simpleQuery(sql)
+
         let lines = try await client.connection.explain(
             sql,
             analyze: true,
@@ -33,20 +37,20 @@ extension PostgresSession: ExecutionPlanProviding {
         let jsonString = lines.joined(separator: "\n")
         let planData = try parsePostgresExplainJSON(jsonString, isAnalyze: true)
 
-        // Also get the readable text plan
-        let textLines = try await client.connection.explain(
+        // Get the readable text plan for the Raw Plan tab
+        let textLines = try? await client.connection.explain(
             sql,
             analyze: true,
             verbose: true,
             buffers: true
         )
+        let textPlan = textLines?.joined(separator: "\n")
         let plan = ExecutionPlanData(
             statements: planData.statements,
-            xml: textLines.joined(separator: "\n")
+            xml: textPlan?.isEmpty == false ? textPlan : jsonString
         )
 
-        // Actual plan doesn't return a separate result set — return empty
-        let result = QueryResultSet(columns: [], rows: [])
+        let result = queryResult ?? QueryResultSet(columns: [], rows: [])
         return (result: result, plan: plan)
     }
 

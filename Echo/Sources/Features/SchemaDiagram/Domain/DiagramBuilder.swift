@@ -15,9 +15,10 @@ final class DiagramBuilder: DiagramBuilderProtocol, @unchecked Sendable {
     init(cacheManager: DiagramCacheStore, keyStore: DiagramEncryptionKeyStore) {
         self.cacheManager = cacheManager
         self.keyStore = keyStore
-        
+
+        let service = prefetchService
         Task {
-            await prefetchService.setHandler { [weak self] request in
+            await service.setHandler { [weak self] request in
                 await self?.handlePrefetchRequest(request) ?? false
             }
         }
@@ -74,6 +75,39 @@ final class DiagramBuilder: DiagramBuilderProtocol, @unchecked Sendable {
 
     @MainActor
     func refreshDiagram(for viewModel: SchemaDiagramViewModel) async {
-        // EnvironmentState bridge for now until DiagramBuilder has everything
+        guard let context = viewModel.context else { return }
+        guard let session = sessionProvider?(context.connectionSessionID) else { return }
+
+        // Invalidate cache for this diagram
+        if let cacheKey = context.cacheKey {
+            await cacheManager.removePayload(for: cacheKey)
+        }
+
+        viewModel.isLoading = true
+        viewModel.errorMessage = nil
+
+        do {
+            let refreshed = try await buildSchemaDiagram(
+                for: context.object,
+                session: session,
+                projectID: context.projectID ?? UUID(),
+                cacheKey: context.cacheKey,
+                progress: { [weak viewModel] message in
+                    viewModel?.statusMessage = message
+                },
+                isPrefetch: false
+            )
+
+            viewModel.nodes = refreshed.nodes
+            viewModel.edges = refreshed.edges
+            viewModel.cachedStructure = refreshed.cachedStructure
+            viewModel.cachedChecksum = refreshed.cachedChecksum
+            viewModel.loadSource = .live(Date())
+            viewModel.statusMessage = nil
+            viewModel.isLoading = false
+        } catch {
+            viewModel.errorMessage = error.localizedDescription
+            viewModel.isLoading = false
+        }
     }
 }

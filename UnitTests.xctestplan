@@ -18,6 +18,7 @@
         "EchoSenseIntegrationTests",
         "FactoryConnectionTests",
         "MSSQLActivityMonitorTests",
+        "MSSQLAgentManagementTests",
         "MSSQLAgentTests",
         "MSSQLColumnTests",
         "MSSQLConnectionTests",
@@ -83,6 +84,7 @@
         "SQLiteQueryTests",
         "SQLiteSchemaTests",
         "SQLiteTableOperationsTests",
+        "SQLiteTriggerDiscoveryTests",
         "SessionProtocolComplianceTests"
       ],
       "target" : {

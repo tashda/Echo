@@ -19,6 +19,13 @@ enum SubsystemChoice: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var isReplicationSubsystem: Bool {
+        switch self {
+        case .snapshot, .logReader, .distribution, .merge, .queueReader: true
+        default: false
+        }
+    }
+
     var builderSubsystem: SQLServerAgentJobStep.Subsystem {
         switch self {
         case .tsql: return .tsql

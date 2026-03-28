@@ -21,6 +21,22 @@ final class JobQueueViewModel {
     }
     struct PropertySheet: Equatable { var name: String = ""; var description: String?; var owner: String?; var category: String?; var enabled: Bool; var startStepId: Int?; var notifyLevelEmail: Int = 0; var notifyEmailOperator: String?; var notifyLevelEventlog: Int = 0 }
     struct OperatorInfo: Identifiable, Hashable { let id: String; let name: String; let emailAddress: String?; let enabled: Bool }
+    struct AlertRow: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let severity: Int?
+        let messageId: Int?
+        let databaseName: String?
+        let enabled: Bool
+        var enabledSortKey: String { enabled ? "1" : "0" }
+    }
+    struct ProxyRow: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let credentialName: String?
+        let enabled: Bool
+        var enabledSortKey: String { enabled ? "1" : "0" }
+    }
     struct HistoryRow: Identifiable, Hashable {
         let id: Int; let jobName: String; let stepId: Int; let stepName: String; let status: Int; let message: String; let runDate: Int; let runTime: Int; let runDuration: Int
         var statusLabel: String {
@@ -45,6 +61,9 @@ final class JobQueueViewModel {
     var operators: [OperatorInfo] = []
     var categories: [String] = []
     var logins: [String] = []
+    var proxyNames: [String] = []
+    var alerts: [AlertRow] = []
+    var proxies: [ProxyRow] = []
     var selectedHistoryRowID: Int?
     var isLoadingJobs = false
     var isLoadingDetails = false
@@ -89,6 +108,8 @@ final class JobQueueViewModel {
         await loadOperators()
         await loadCategories()
         await loadLogins()
+        await loadProxies()
+        await loadAlerts()
 
         let hadPending = pendingJobIdentifier != nil
         if let identifier = pendingJobIdentifier {
@@ -131,7 +152,7 @@ final class JobQueueViewModel {
         catch { databaseNames = [] }
     }
 
-    private func loadCategories() async {
+    func loadCategories() async {
         guard let mssql = session as? MSSQLSession else { return }
         do {
             let cats = try await mssql.agent.listCategories()
@@ -153,6 +174,30 @@ final class JobQueueViewModel {
             let result = try await mssql.serverSecurity.listLogins()
             logins = result.map(\.name).sorted()
         } catch { logins = [] }
+    }
+
+    func loadProxies() async {
+        guard let mssql = session as? MSSQLSession else { return }
+        do {
+            let result = try await mssql.agent.listProxies()
+            proxyNames = result.map(\.name).sorted()
+            proxies = result.map { p in
+                ProxyRow(id: p.name, name: p.name, credentialName: p.credentialName, enabled: p.enabled)
+            }
+        } catch {
+            proxyNames = []
+            proxies = []
+        }
+    }
+
+    func loadAlerts() async {
+        guard let mssql = session as? MSSQLSession else { return }
+        do {
+            let result = try await mssql.agent.listAlerts()
+            alerts = result.map { a in
+                AlertRow(id: a.name, name: a.name, severity: a.severity, messageId: a.messageId, databaseName: a.databaseName, enabled: a.enabled)
+            }
+        } catch { alerts = [] }
     }
 
     func reloadJobs() async {

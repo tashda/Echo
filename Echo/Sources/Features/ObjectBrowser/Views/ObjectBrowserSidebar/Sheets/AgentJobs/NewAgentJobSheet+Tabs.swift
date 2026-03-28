@@ -20,11 +20,11 @@ extension NewAgentJobSheet {
                 Section("Step \(index + 1)") {
                     TextField("Name", text: $steps[index].name, prompt: Text("e.g. Run cleanup query"))
                     Picker("Type", selection: $steps[index].subsystem) {
-                        Text("T-SQL").tag(SubsystemChoice.tsql)
-                        Text("CmdExec").tag(SubsystemChoice.cmdExec)
-                        Text("PowerShell").tag(SubsystemChoice.powershell)
+                        ForEach(SubsystemChoice.allCases) { choice in
+                            Text(choice.rawValue).tag(choice)
+                        }
                     }
-                    if steps[index].subsystem == .tsql {
+                    if steps[index].subsystem == .tsql || steps[index].subsystem.isReplicationSubsystem {
                         Picker("Database", selection: $steps[index].database) {
                             Text("Default").tag("")
                             ForEach(databaseNames, id: \.self) { db in

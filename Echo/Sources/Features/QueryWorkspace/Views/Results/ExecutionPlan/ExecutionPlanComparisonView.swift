@@ -1,17 +1,18 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import SQLServerKit
 
 /// Side-by-side comparison of two execution plans.
 /// Loads a second plan from a saved .sqlplan or .xml file.
 struct ExecutionPlanComparisonView: View {
     let currentPlan: ExecutionPlanData
-    @State private var comparedPlanXML: String?
+    @State private var comparedPlan: ExecutionPlanData?
     @State private var comparedPlanFileName: String?
     @State private var errorMessage: String?
 
     var body: some View {
-        if comparedPlanXML != nil {
+        if comparedPlan != nil {
             comparisonContent
         } else {
             loadPrompt
@@ -63,6 +64,16 @@ struct ExecutionPlanComparisonView: View {
             if let cost = currentPlan.statements.first?.subtreeCost {
                 HStack(spacing: SpacingTokens.xxs) {
                     Text("Current:")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                    Text(String(format: "%.4f", cost))
+                        .font(TypographyTokens.detail.weight(.medium).monospacedDigit())
+                }
+            }
+
+            if let compared = comparedPlan, let cost = compared.statements.first?.subtreeCost {
+                HStack(spacing: SpacingTokens.xxs) {
+                    Text("Compared:")
                         .font(TypographyTokens.detail)
                         .foregroundStyle(ColorTokens.Text.tertiary)
                     Text(String(format: "%.4f", cost))
@@ -122,13 +133,20 @@ struct ExecutionPlanComparisonView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(ColorTokens.Background.secondary)
 
-            ScrollView {
-                if let xml = comparedPlanXML {
-                    Text(xml)
-                        .font(.system(.body, design: .monospaced))
-                        .textSelection(.enabled)
-                        .padding(SpacingTokens.sm)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            if let compared = comparedPlan {
+                ScrollView([.horizontal, .vertical]) {
+                    VStack(alignment: .leading) {
+                        ForEach(compared.statements.indices, id: \.self) { idx in
+                            let stmt = compared.statements[idx]
+                            if let root = stmt.queryPlan?.rootOperator {
+                                ExecutionPlanFlowView(
+                                    root: root,
+                                    totalCost: stmt.subtreeCost ?? root.totalSubtreeCost ?? 1,
+                                    selectedNodeID: .constant(nil)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -146,10 +164,70 @@ struct ExecutionPlanComparisonView: View {
         errorMessage = nil
         do {
             let xmlString = try String(contentsOf: url, encoding: .utf8)
-            comparedPlanXML = xmlString
+            let parsed = try parseXMLPlan(xmlString)
+            comparedPlan = parsed
             comparedPlanFileName = url.lastPathComponent
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func parseXMLPlan(_ xml: String) throws -> ExecutionPlanData {
+        let showPlan = try ShowPlanXMLParser.parse(xml: xml)
+        return ExecutionPlanData(
+            statements: showPlan.statements.map { stmt in
+                ExecutionPlanStatement(
+                    statementText: stmt.statementText,
+                    statementType: stmt.statementType,
+                    subtreeCost: stmt.statementSubTreeCost,
+                    estimatedRows: stmt.statementEstRows,
+                    optimizationLevel: stmt.optimizationLevel,
+                    queryPlan: stmt.queryPlan.map { qp in
+                        ExecutionPlanQueryPlan(
+                            cachedPlanSize: qp.cachedPlanSize,
+                            compileTime: qp.compileTime,
+                            compileCPU: qp.compileCPU,
+                            rootOperator: qp.rootOperator.map { convertOperator($0) },
+                            missingIndexes: qp.missingIndexes.map { idx in
+                                ExecutionPlanMissingIndex(
+                                    impact: idx.impact,
+                                    database: idx.database,
+                                    schema: idx.schema,
+                                    table: idx.table,
+                                    equalityColumns: idx.equalityColumns,
+                                    inequalityColumns: idx.inequalityColumns,
+                                    includeColumns: idx.includeColumns
+                                )
+                            }
+                        )
+                    }
+                )
+            },
+            xml: xml
+        )
+    }
+
+    private func convertOperator(_ op: ShowPlanOperator) -> ExecutionPlanNode {
+        ExecutionPlanNode(
+            id: op.nodeId,
+            physicalOp: op.physicalOp,
+            logicalOp: op.logicalOp,
+            estimateRows: op.estimateRows,
+            estimateIO: op.estimateIO,
+            estimateCPU: op.estimateCPU,
+            avgRowSize: op.avgRowSize,
+            totalSubtreeCost: op.totalSubtreeCost,
+            isParallel: op.isParallel,
+            estimatedExecutions: op.estimatedExecutions,
+            actualRows: op.actualRows,
+            actualExecutions: op.actualExecutions,
+            actualElapsedMs: op.actualElapsedMs,
+            actualCPUMs: op.actualCPUMs,
+            children: op.children.map { convertOperator($0) },
+            outputColumns: op.outputColumns.map { col in
+                [col.table, col.column].compactMap { $0 }.joined(separator: ".")
+            },
+            warnings: op.warnings
+        )
     }
 }

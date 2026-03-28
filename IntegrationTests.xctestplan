@@ -16,6 +16,7 @@
       "selectedTests": [
         "FactoryConnectionTests",
         "MSSQLActivityMonitorTests",
+        "MSSQLAgentManagementTests",
         "MSSQLAgentTests",
         "MSSQLBackupRestoreTests",
         "MSSQLBulkImportTests",
@@ -77,6 +78,7 @@
         "SQLiteQueryTests",
         "SQLiteSchemaTests",
         "SQLiteTableOperationsTests",
+        "SQLiteTriggerDiscoveryTests",
         "SessionProtocolComplianceTests"
       ],
       "target": {

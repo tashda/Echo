@@ -35,14 +35,16 @@ extension DiagramBuilder {
     func persistDiagramLayout(for viewModel: SchemaDiagramViewModel) async {
         guard let snapshot = viewModel.cachedStructure,
               let checksum = viewModel.cachedChecksum else { return }
-        
-        let cacheKey = DiagramCacheKey(
-            projectID: UUID(), // Fallback
-            connectionID: UUID(), // Fallback
+
+        guard let context = viewModel.context else { return }
+
+        let cacheKey = context.cacheKey ?? DiagramCacheKey(
+            projectID: context.projectID ?? UUID(),
+            connectionID: context.connectionID,
             schema: viewModel.nodes.first?.schema ?? "",
             table: viewModel.nodes.first?.name ?? ""
         )
-        
+
         let payload = DiagramCachePayload(
             key: cacheKey,
             checksum: checksum,
@@ -50,7 +52,7 @@ extension DiagramBuilder {
             layout: viewModel.layoutSnapshot(),
             loadingSummary: nil
         )
-        
+
         try? await cacheManager.stashPayload(payload)
     }
 

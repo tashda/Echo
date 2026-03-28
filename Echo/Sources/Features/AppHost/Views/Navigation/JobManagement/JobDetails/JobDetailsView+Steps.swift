@@ -62,11 +62,12 @@ extension JobDetailsView {
         .sheet(isPresented: $showAddStepSheet) {
             AgentJobStepEditorSheet(
                 databaseNames: viewModel.databaseNames,
+                proxyNames: viewModel.proxyNames,
                 title: "New Step",
                 actionLabel: "Add Step",
-                onSaveAsync: { name, subsystem, database, command in
+                onSaveAsync: { name, subsystem, database, command, proxy, output in
                     let beforeError = viewModel.errorMessage
-                    await viewModel.addStep(name: name, subsystem: subsystem, database: database, command: command)
+                    await viewModel.addStep(name: name, subsystem: subsystem, database: database, command: command, proxyName: proxy, outputFile: output)
                     if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {
                         showAddStepSheet = false
                         return nil
@@ -97,9 +98,10 @@ extension JobDetailsView {
                 database: step.database ?? "",
                 command: step.command ?? "",
                 databaseNames: viewModel.databaseNames,
+                proxyNames: viewModel.proxyNames,
                 title: "Edit Step",
                 actionLabel: "Save",
-                onSaveAsync: { _, _, database, command in
+                onSaveAsync: { _, _, database, command, _, _ in
                     let beforeError = viewModel.errorMessage
                     await viewModel.updateStep(stepName: step.name, newCommand: command, database: database)
                     if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {

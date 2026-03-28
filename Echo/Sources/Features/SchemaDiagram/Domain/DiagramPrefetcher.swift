@@ -59,13 +59,12 @@ actor DiagramPrefetcher {
         guard !isProcessing, let handler, !queue.isEmpty else { return }
         isProcessing = true
         let request = queue.removeFirst()
-        let priority: TaskPriority = request.isBackgroundSweep ? .utility : .userInitiated
-        Task.detached(priority: priority) { [weak self] in
+        Task {
             let success = await handler(request)
             if request.isBackgroundSweep {
-                try? await Task.sleep(nanoseconds: 150_000_000)
+                try? await Task.sleep(for: .milliseconds(150))
             }
-            await self?.finishProcessing(request: request, succeeded: success)
+            self.finishProcessing(request: request, succeeded: success)
         }
     }
 
