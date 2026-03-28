@@ -8,6 +8,7 @@ final class MySQLDatabaseSecurityViewModel {
         case users = "Users"
         case roles = "Roles"
         case privileges = "Privileges"
+        case advancedObjects = "Advanced Objects"
     }
 
     let connectionID: UUID
@@ -36,6 +37,18 @@ final class MySQLDatabaseSecurityViewModel {
     var selectedPrivilegeID: Set<String> = []
     var isLoadingPrivileges = false
 
+    var availableObjectSchemas: [String] = []
+    var advancedObjectSchemaFilter: String = ""
+    var selectedAdvancedObjectSection: AdvancedObjectSection = .functions
+    var routines: [MySQLRoutineInfo] = []
+    var triggers: [MySQLTriggerInfo] = []
+    var events: [MySQLEventInfo] = []
+    var selectedRoutineID: Set<String> = []
+    var selectedTriggerID: Set<String> = []
+    var selectedEventID: Set<String> = []
+    var selectedAdvancedObjectDefinition: AdvancedObjectDefinition?
+    var isLoadingAdvancedObjects = false
+
     init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID) {
         self.session = session
         self.connectionID = connectionID
@@ -60,6 +73,8 @@ final class MySQLDatabaseSecurityViewModel {
             await loadRoles(mysql: mysql)
         case .privileges:
             await loadPrivileges(mysql: mysql)
+        case .advancedObjects:
+            await loadProgrammableObjects(mysql: mysql)
         }
     }
 

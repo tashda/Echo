@@ -47,6 +47,8 @@ struct MySQLDatabaseSecurityView: View {
                         Label("Grant…", systemImage: "key.badge.plus")
                     }
                     .buttonStyle(.borderless)
+                case .advancedObjects:
+                    EmptyView()
                 }
             }
         } content: {
@@ -58,6 +60,8 @@ struct MySQLDatabaseSecurityView: View {
                     MySQLSecurityRolesSection(viewModel: viewModel)
                 case .privileges:
                     MySQLSecurityPrivilegesSection(viewModel: viewModel)
+                case .advancedObjects:
+                    MySQLAdvancedObjectsView(viewModel: viewModel)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -53,3 +53,15 @@ extension MySQLPrivilegeGrant {
         return MySQLPrivilegeGrantee(kind: .user, username: username, host: host)
     }
 }
+
+extension MySQLRoutineInfo: @retroactive Identifiable {
+    public var id: String { "\(schema).\(type).\(name)" }
+}
+
+extension MySQLTriggerInfo: @retroactive Identifiable {
+    public var id: String { "\(schema).\(table).\(name)" }
+}
+
+extension MySQLEventInfo: @retroactive Identifiable {
+    public var id: String { "\(schema).\(name)" }
+}

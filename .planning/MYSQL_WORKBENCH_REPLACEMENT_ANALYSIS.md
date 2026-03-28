@@ -21,6 +21,7 @@ The project is no longer at the planning-only stage:
 - MySQL backup and restore sheets now exist in Echo with tool discovery and process execution wiring
 - MySQL table structure editing is now partially landed with typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
 - MySQL server administration now includes a real server properties tab with overview metrics, variable browsing/editing, and table-backed log viewing
+- MySQL now has a dedicated Advanced Objects workspace for functions, procedures, triggers, and events with typed metadata, definition inspection, and script-template editors
 
 What remains is substantial Echo feature work, not package bootstrapping:
 - Phase 1 table editor is partially implemented but not feature-complete
@@ -403,7 +404,11 @@ This builds on the existing `SchemaDiffViewModel` pattern from PostgreSQL. The M
 **Effort: Medium (1-2 weeks)**
 **Depends on: mysql-wire**
 
-**Status:** Package support exists, Echo editor UI still pending
+**Status:** Implemented in Echo
+
+- Echo now exposes a dedicated MySQL Advanced Objects workspace that matches the existing multi-section object-management pattern used elsewhere in the app
+- functions, procedures, triggers, and events all have typed inventory views backed by `mysql-wire`
+- selected objects can open their current definition directly into a query tab, and new objects can be scaffolded through native sheet-based script template editors
 
 #### What to Build
 
