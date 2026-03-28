@@ -92,6 +92,35 @@ struct ResultTableExportFormatterTests {
         #expect(result == "[\n\n]")
     }
 
+    // MARK: - HTML
+
+    @Test func htmlProducesTableMarkup() {
+        let result = ResultTableExportFormatter.formatHTML(headers: ["id", "name"], rows: [["1", "Alice"]])
+        #expect(result.contains("<table>"))
+        #expect(result.contains("<th>id</th>"))
+        #expect(result.contains("<td>Alice</td>"))
+    }
+
+    @Test func htmlEscapesMarkupCharacters() {
+        let result = ResultTableExportFormatter.formatHTML(headers: ["a&b"], rows: [["<tag>"]])
+        #expect(result.contains("<th>a&amp;b</th>"))
+        #expect(result.contains("<td>&lt;tag&gt;</td>"))
+    }
+
+    // MARK: - XML
+
+    @Test func xmlProducesRowElements() {
+        let result = ResultTableExportFormatter.formatXML(headers: ["id", "display name"], rows: [["1", "Alice"]])
+        #expect(result.contains("<result-set>"))
+        #expect(result.contains("<row>"))
+        #expect(result.contains("<display_name>Alice</display_name>"))
+    }
+
+    @Test func xmlMarksNilValues() {
+        let result = ResultTableExportFormatter.formatXML(headers: ["value"], rows: [[nil]])
+        #expect(result.contains("<value nil=\"true\"/>"))
+    }
+
     // MARK: - SQL INSERT
 
     @Test func sqlInsertGeneratesStatements() {
@@ -186,6 +215,12 @@ struct ResultTableExportFormatterTests {
 
         let json = ResultTableExportFormatter.format(.json, headers: ["a"], rows: [["1"]])
         #expect(json.contains("["))
+
+        let html = ResultTableExportFormatter.format(.html, headers: ["a"], rows: [["1"]])
+        #expect(html.contains("<table>"))
+
+        let xml = ResultTableExportFormatter.format(.xml, headers: ["a"], rows: [["1"]])
+        #expect(xml.contains("<result-set>"))
 
         let md = ResultTableExportFormatter.format(.markdown, headers: ["a"], rows: [["1"]])
         #expect(md.contains("|"))

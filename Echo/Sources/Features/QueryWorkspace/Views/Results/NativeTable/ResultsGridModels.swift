@@ -48,6 +48,8 @@ enum ResultExportFormat: String, CaseIterable {
     case tsv
     case csv
     case json
+    case html
+    case xml
     case sqlInsert
     case markdown
     case xlsx
@@ -62,6 +64,8 @@ enum ResultExportFormat: String, CaseIterable {
         case .tsv: return "Tab-Separated (TSV)"
         case .csv: return "CSV"
         case .json: return "JSON"
+        case .html: return "HTML"
+        case .xml: return "XML"
         case .sqlInsert: return "SQL INSERT"
         case .markdown: return "Markdown"
         case .xlsx: return "Excel (.xlsx)"
@@ -73,6 +77,8 @@ enum ResultExportFormat: String, CaseIterable {
         case .tsv: return "tsv"
         case .csv: return "csv"
         case .json: return "json"
+        case .html: return "html"
+        case .xml: return "xml"
         case .sqlInsert: return "sql"
         case .markdown: return "md"
         case .xlsx: return "xlsx"
@@ -89,6 +95,8 @@ enum ResultExportFormat: String, CaseIterable {
         case .tsv: return [.tabSeparatedText]
         case .csv: return [.commaSeparatedText]
         case .json: return [.json]
+        case .html: return [.html]
+        case .xml: return [.xml]
         case .sqlInsert: return [UTType(filenameExtension: "sql") ?? .plainText]
         case .markdown: return [UTType(filenameExtension: "md") ?? .plainText]
         case .xlsx: return [UTType(filenameExtension: "xlsx") ?? .data]

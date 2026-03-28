@@ -6,6 +6,8 @@ enum DataExportFormat: String, CaseIterable, Identifiable {
     case csv = "CSV"
     case text = "Text (Tab-Delimited)"
     case json = "JSON"
+    case html = "HTML"
+    case xml = "XML"
     case sqlInsert = "SQL INSERT"
 
     var id: String { rawValue }
@@ -14,7 +16,7 @@ enum DataExportFormat: String, CaseIterable, Identifiable {
         switch self {
         case .csv: return ","
         case .text: return "\t"
-        case .json, .sqlInsert: return ","
+        case .json, .html, .xml, .sqlInsert: return ","
         }
     }
 
@@ -23,7 +25,20 @@ enum DataExportFormat: String, CaseIterable, Identifiable {
         case .csv: return "csv"
         case .text: return "tsv"
         case .json: return "json"
+        case .html: return "html"
+        case .xml: return "xml"
         case .sqlInsert: return "sql"
+        }
+    }
+
+    var contentTypes: [UTType] {
+        switch self {
+        case .csv: return [.commaSeparatedText]
+        case .text: return [.tabSeparatedText]
+        case .json: return [.json]
+        case .html: return [.html]
+        case .xml: return [.xml]
+        case .sqlInsert: return [UTType(filenameExtension: "sql") ?? .plainText]
         }
     }
 }
@@ -123,7 +138,7 @@ final class DataExportViewModel: Identifiable {
         let panel = NSSavePanel()
         panel.title = "Export Data"
         panel.nameFieldStringValue = "\(suggestedFileName).\(format.fileExtension)"
-        panel.allowedContentTypes = [.plainText]
+        panel.allowedContentTypes = format.contentTypes
         panel.canCreateDirectories = true
 
         if panel.runModal() == .OK, let url = panel.url {
@@ -209,6 +224,10 @@ final class DataExportViewModel: Identifiable {
             return formatDelimited(headers: headers, rows: rows, delimiter: delimiter, includeHeader: includeHeader)
         case .json:
             return ResultTableExportFormatter.format(.json, headers: headers, rows: rows)
+        case .html:
+            return ResultTableExportFormatter.format(.html, headers: headers, rows: rows)
+        case .xml:
+            return ResultTableExportFormatter.format(.xml, headers: headers, rows: rows)
         case .sqlInsert:
             return ResultTableExportFormatter.formatSQLInsert(
                 tableName: tableName ?? "table_name",

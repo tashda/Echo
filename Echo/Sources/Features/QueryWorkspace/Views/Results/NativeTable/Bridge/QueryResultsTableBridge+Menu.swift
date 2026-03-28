@@ -215,6 +215,8 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
             case .tsv: action = #selector(copyAsTSV)
             case .csv: action = #selector(copyAsCSV)
             case .json: action = #selector(copyAsJSON)
+            case .html: continue
+            case .xml: continue
             case .sqlInsert: action = #selector(copyAsSQLInsert)
             case .markdown: action = #selector(copyAsMarkdown)
             case .xlsx: continue
@@ -256,6 +258,8 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
             case .tsv: action = #selector(saveAsTSV)
             case .csv: action = #selector(saveAsCSV)
             case .json: action = #selector(saveAsJSON)
+            case .html: action = #selector(saveAsHTML)
+            case .xml: action = #selector(saveAsXML)
             case .sqlInsert: action = #selector(saveAsSQLInsert)
             case .markdown: action = #selector(saveAsMarkdown)
             case .xlsx: action = #selector(saveAsXLSX)
@@ -272,6 +276,8 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
     @objc func saveAsTSV() { saveSelectionAs(format: .tsv) }
     @objc func saveAsCSV() { saveSelectionAs(format: .csv) }
     @objc func saveAsJSON() { saveSelectionAs(format: .json) }
+    @objc func saveAsHTML() { saveSelectionAs(format: .html) }
+    @objc func saveAsXML() { saveSelectionAs(format: .xml) }
     @objc func saveAsSQLInsert() { saveSelectionAs(format: .sqlInsert) }
     @objc func saveAsMarkdown() { saveSelectionAs(format: .markdown) }
     @objc func saveAsXLSX() { saveSelectionAs(format: .xlsx) }
