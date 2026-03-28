@@ -42,6 +42,16 @@ extension TableDataView {
                 .controlSize(.small)
             }
 
+            if viewModel.connectionSession != nil {
+                Button {
+                    presentImportSheet()
+                } label: {
+                    Label("Import Data", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
             Button {
                 Task { await viewModel.loadInitialData() }
             } label: {

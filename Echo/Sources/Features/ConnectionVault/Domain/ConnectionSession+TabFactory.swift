@@ -119,6 +119,7 @@ extension ConnectionSession {
             databaseType: connection.databaseType
         )
         viewModel.activityEngine = AppDirector.shared.activityEngine
+        viewModel.connectionSession = self
         viewModel.connectionSessionID = id
         if let focus {
             viewModel.focusSection(focus)

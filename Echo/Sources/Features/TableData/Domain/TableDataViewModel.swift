@@ -8,6 +8,7 @@ final class TableDataViewModel {
     let databaseType: DatabaseType
 
     @ObservationIgnored private(set) var session: DatabaseSession
+    @ObservationIgnored var connectionSession: ConnectionSession?
     @ObservationIgnored var activityEngine: ActivityEngine?
     @ObservationIgnored var connectionSessionID: UUID?
 

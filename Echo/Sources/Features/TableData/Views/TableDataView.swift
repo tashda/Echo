@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TableDataView: View {
     @Bindable var viewModel: TableDataViewModel
+    @State private var showingImportSheet = false
 
     var body: some View {
         VStack(spacing: SpacingTokens.none) {
@@ -14,6 +15,21 @@ struct TableDataView: View {
         .background(ColorTokens.Background.primary)
         .task {
             await viewModel.loadInitialData()
+        }
+        .sheet(isPresented: $showingImportSheet) {
+            if let connectionSession = viewModel.connectionSession {
+                let importViewModel = BulkImportViewModel(
+                    session: viewModel.session,
+                    connectionSession: connectionSession,
+                    databaseType: viewModel.databaseType,
+                    schema: viewModel.schemaName,
+                    tableName: viewModel.tableName
+                )
+                importViewModel.activityEngine = viewModel.activityEngine
+                BulkImportSheet(viewModel: importViewModel) {
+                    showingImportSheet = false
+                }
+            }
         }
     }
 
@@ -124,5 +140,9 @@ struct TableDataView: View {
                 .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    func presentImportSheet() {
+        showingImportSheet = true
     }
 }

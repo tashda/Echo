@@ -20,6 +20,7 @@ The project is no longer at the planning-only stage:
 - query results now support Workbench-style table, text, and vertical result presentation, alongside JSON, HTML, XML, Markdown, SQL INSERT, and Excel export paths
 - query results now support Workbench-style table, form, field-types, text, and vertical result presentation through the shared Echo results architecture
 - query-result cell inspection now supports dedicated large-value editing windows plus direct save-to-file actions for text, JSON, and binary-style payloads
+- the shared Table Data editor now exposes Workbench-style cell actions including NULL assignment, text transforms, file-backed value loading, raw SQL expression mode, and direct table import access
 - query tabs now expose a dedicated statistics panel for execution timing, row/batch flow, and resource usage alongside messages, plans, and result views
 - query tabs now expose a real context-help inspector for selected SQL statements and clauses, using the shared Echo inspector/sidebar architecture instead of a MySQL-only panel
 - MySQL table structure editing now has typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
@@ -484,7 +485,7 @@ Add "Export Results" button to query result grid toolbar. Currently only table c
 - Extend `BulkImportViewModel` with JSON source
 - Add toolbar button to result grid
 
-The shared Echo import/export flow now includes JSON export, JSON import, SQL INSERT export, and a result-grid export button that works for MySQL through the same UI used by the other dialects. Query results also now expose shared Workbench-style form and field-types detail modes, rather than treating those as MySQL-only one-offs.
+The shared Echo import/export flow now includes JSON export, JSON import, SQL INSERT export, a result-grid export button, and direct Table Data import access that work for MySQL through the same UI used by the other dialects. Query results also now expose shared Workbench-style form and field-types detail modes, rather than treating those as MySQL-only one-offs.
 
 ---
 

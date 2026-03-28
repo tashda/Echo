@@ -303,14 +303,14 @@ final class BulkImportViewModel {
         phase = .completed(rowCount: total, duration: duration)
     }
 
-    private func buildInsertSQL(schema: String?, table: String, columns: [String], rows: [[String]]) -> String {
+    func buildInsertSQL(schema: String?, table: String, columns: [String], rows: [[String]]) -> String {
         let quotedTable: String
         if let schema {
-            quotedTable = "\"\(schema)\".\"\(table)\""
+            quotedTable = "\(quoteIdentifier(schema)).\(quoteIdentifier(table))"
         } else {
-            quotedTable = "\"\(table)\""
+            quotedTable = quoteIdentifier(table)
         }
-        let quotedColumns = columns.map { "\"\($0)\"" }.joined(separator: ", ")
+        let quotedColumns = columns.map(quoteIdentifier).joined(separator: ", ")
 
         let valueRows = rows.map { row in
             let literals = row.map { value -> String in
@@ -323,6 +323,20 @@ final class BulkImportViewModel {
         }
 
         return "INSERT INTO \(quotedTable) (\(quotedColumns)) VALUES \(valueRows.joined(separator: ", "))"
+    }
+
+    private func quoteIdentifier(_ identifier: String) -> String {
+        switch databaseType {
+        case .microsoftSQL:
+            let escaped = identifier.replacingOccurrences(of: "]", with: "]]")
+            return "[\(escaped)]"
+        case .mysql:
+            let escaped = identifier.replacingOccurrences(of: "`", with: "``")
+            return "`\(escaped)`"
+        case .postgresql, .sqlite:
+            let escaped = identifier.replacingOccurrences(of: "\"", with: "\"\"")
+            return "\"\(escaped)\""
+        }
     }
 
     // MARK: - Timer
