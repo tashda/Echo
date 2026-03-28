@@ -68,6 +68,13 @@ struct MSSQLSecurityUsersSection: View {
 
                 Divider()
 
+                // Group 7: Maintenance
+                Button { openPermissionManager(principalName: name) } label: {
+                    Label("Manage Permissions", systemImage: "lock.shield")
+                }
+
+                Divider()
+
                 // Group 9: Destructive
                 Button(role: .destructive) {
                     pendingDropName = name
@@ -109,6 +116,16 @@ struct MSSQLSecurityUsersSection: View {
         } message: {
             Text("Are you sure you want to drop the user \(pendingDropName ?? "")? This action cannot be undone.")
         }
+    }
+
+    private func openPermissionManager(principalName: String?) {
+        guard let db = viewModel.selectedDatabase else { return }
+        let value = environmentState.preparePermissionManagerWindow(
+            connectionSessionID: viewModel.connectionID,
+            databaseName: db,
+            principalName: principalName
+        )
+        openWindow(id: PermissionManagerWindow.sceneID, value: value)
     }
 
     private func openUserEditor(name: String?) {

@@ -56,6 +56,13 @@ struct MSSQLSecurityRolesSection: View {
                     Label("Show Members", systemImage: "person.2")
                 }
 
+                Divider()
+
+                // Group 7: Maintenance
+                Button { openPermissionManager(principalName: name) } label: {
+                    Label("Manage Permissions", systemImage: "lock.shield")
+                }
+
                 if !isFixed {
                     Divider()
 
@@ -116,6 +123,16 @@ struct MSSQLSecurityRolesSection: View {
     }
 
     // MARK: - Open Editor
+
+    private func openPermissionManager(principalName: String?) {
+        guard let db = viewModel.selectedDatabase else { return }
+        let value = environmentState.preparePermissionManagerWindow(
+            connectionSessionID: viewModel.connectionID,
+            databaseName: db,
+            principalName: principalName
+        )
+        openWindow(id: PermissionManagerWindow.sceneID, value: value)
+    }
 
     private func openRoleEditor(name: String?) {
         guard let db = viewModel.selectedDatabase else { return }
