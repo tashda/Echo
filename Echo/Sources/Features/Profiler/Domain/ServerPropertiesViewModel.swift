@@ -6,6 +6,7 @@ import Observation
 final class ServerPropertiesViewModel {
     enum Section: String, CaseIterable {
         case overview = "Overview"
+        case control = "Control"
         case variables = "Variables"
         case status = "Status"
         case logs = "Logs"
@@ -42,9 +43,17 @@ final class ServerPropertiesViewModel {
         let isWritable: Bool
     }
 
+    enum ServerControlState: Equatable {
+        case unknown
+        case running
+        case stopped
+        case unavailable(String)
+    }
+
     let connectionID: UUID
     let connectionSessionID: UUID
     @ObservationIgnored let session: DatabaseSession
+    @ObservationIgnored let processRunner = MySQLProcessRunner()
     @ObservationIgnored var activityEngine: ActivityEngine?
     @ObservationIgnored private(set) var panelState: BottomPanelState?
 
@@ -61,6 +70,8 @@ final class ServerPropertiesViewModel {
     var errorLogRows: [LogRow] = []
     var generalLogRows: [LogRow] = []
     var slowLogRows: [LogRow] = []
+    var serverControlState: ServerControlState = .unknown
+    var serverControlOutput: [String] = []
     var configFiles: [ConfigFileItem] = []
     var selectedConfigFileID: Set<String> = []
     var configFileContents = ""
@@ -87,6 +98,8 @@ final class ServerPropertiesViewModel {
         switch selectedSection {
         case .overview:
             await loadOverview(mysql: mysql)
+        case .control:
+            await refreshServerControlState(mysql: mysql)
         case .variables:
             await loadVariables(mysql: mysql)
         case .status:

@@ -5,6 +5,7 @@ struct ServerPropertiesView: View {
     @Bindable var viewModel: ServerPropertiesViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(ProjectStore.self) private var projectStore
 
     @State private var showVariableEditor = false
 
@@ -61,6 +62,11 @@ struct ServerPropertiesView: View {
             switch viewModel.selectedSection {
             case .overview:
                 propertiesTable(viewModel.overviewItems)
+            case .control:
+                MySQLServerControlSection(
+                    viewModel: viewModel,
+                    customToolPath: projectStore.globalSettings.mysqlToolCustomPath
+                )
             case .variables:
                 MySQLServerVariablesSection(
                     viewModel: viewModel,

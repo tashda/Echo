@@ -13,6 +13,22 @@ nonisolated struct MySQLToolLocator {
         locateTool(name: "mysqlpump", customPath: customPath)
     }
 
+    static func mysqladminURL(customPath: String? = nil) -> URL? {
+        locateTool(name: "mysqladmin", customPath: customPath)
+    }
+
+    static func mysqlServerScriptURL(customPath: String? = nil) -> URL? {
+        locateTool(name: "mysql.server", customPath: customPath)
+    }
+
+    static func mysqldSafeURL(customPath: String? = nil) -> URL? {
+        locateTool(name: "mysqld_safe", customPath: customPath)
+    }
+
+    static func mysqldURL(customPath: String? = nil) -> URL? {
+        locateTool(name: "mysqld", customPath: customPath)
+    }
+
     private static func locateTool(name: String, customPath: String?) -> URL? {
         for directory in searchDirectories(customPath: customPath) {
             let tool = URL(fileURLWithPath: directory).appendingPathComponent(name)
@@ -64,10 +80,17 @@ nonisolated struct MySQLToolLocator {
             "/opt/homebrew/opt/mysql@8.4/bin",
             "/opt/homebrew/opt/mysql@8.0/bin",
             "/opt/homebrew/opt/mysql/bin",
+            "/opt/homebrew/opt/mysql@8.4/support-files",
+            "/opt/homebrew/opt/mysql@8.0/support-files",
+            "/opt/homebrew/opt/mysql/support-files",
             "/usr/local/opt/mysql@8.4/bin",
             "/usr/local/opt/mysql@8.0/bin",
             "/usr/local/opt/mysql/bin",
+            "/usr/local/opt/mysql@8.4/support-files",
+            "/usr/local/opt/mysql@8.0/support-files",
+            "/usr/local/opt/mysql/support-files",
             "/usr/local/mysql/bin",
+            "/usr/local/mysql/support-files",
         ])
 
         var seen = Set<String>()

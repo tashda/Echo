@@ -11,7 +11,7 @@ struct MySQLToolLocatorTests {
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDirectory) }
 
-        for tool in ["mysqldump", "mysql", "mysqlpump"] {
+        for tool in ["mysqldump", "mysql", "mysqlpump", "mysqladmin", "mysql.server", "mysqld"] {
             let url = tempDirectory.appendingPathComponent(tool)
             try "#!/bin/sh\nexit 0\n".write(to: url, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
@@ -31,5 +31,8 @@ struct MySQLToolLocatorTests {
         #expect(MySQLToolLocator.mysqldumpURL()?.path == tempDirectory.appendingPathComponent("mysqldump").path)
         #expect(MySQLToolLocator.mysqlURL()?.path == tempDirectory.appendingPathComponent("mysql").path)
         #expect(MySQLToolLocator.mysqlpumpURL()?.path == tempDirectory.appendingPathComponent("mysqlpump").path)
+        #expect(MySQLToolLocator.mysqladminURL()?.path == tempDirectory.appendingPathComponent("mysqladmin").path)
+        #expect(MySQLToolLocator.mysqlServerScriptURL()?.path == tempDirectory.appendingPathComponent("mysql.server").path)
+        #expect(MySQLToolLocator.mysqldURL()?.path == tempDirectory.appendingPathComponent("mysqld").path)
     }
 }

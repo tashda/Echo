@@ -154,6 +154,7 @@ The shared Echo table-properties window now covers these table options for MySQL
 - the MySQL server properties variables pane now supports category filtering plus `SET GLOBAL` / reset script generation from the selected variable
 - the server properties tab now also reads file-backed MySQL error/general/slow logs when those paths are configured, and exposes direct open/reveal actions for log files
 - broader configuration workflows now route through the same MySQL server administration surfaces in Echo
+- local MySQL instances now expose a native server control section for running-state inspection plus start/stop actions using discovered MySQL administration tools
 
 #### What to Build
 
