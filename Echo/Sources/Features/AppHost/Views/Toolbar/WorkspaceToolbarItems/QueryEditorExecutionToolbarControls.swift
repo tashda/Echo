@@ -1,4 +1,5 @@
 import SwiftUI
+import EchoSense
 
 /// Standalone Run button — shown only when a query editor tab is active.
 /// Separate Liquid Glass group, positioned as the leftmost query action.
@@ -23,6 +24,7 @@ struct QueryEditorEnhanceToolbarControls: View {
         if let tab = tabStore.activeTab, tab.query != nil {
             HStack(spacing: SpacingTokens.none) {
                 QueryFormatToolbarButton(tabStore: tabStore)
+                QueryContextHelpToolbarButton(tabStore: tabStore)
                 if tab.session is ExecutionPlanProviding {
                     EstimatedPlanButton(tabStore: tabStore)
                 }
@@ -30,6 +32,59 @@ struct QueryEditorEnhanceToolbarControls: View {
             .glassEffect(.regular.interactive())
             .id(tab.id)
         }
+    }
+}
+
+private struct QueryContextHelpToolbarButton: View {
+    let tabStore: TabStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppState.self) private var appState
+
+    private var tab: WorkspaceTab? { tabStore.activeTab }
+    private var query: QueryEditorState? { tab?.query }
+
+    private var selectedText: String {
+        query?.selectedText.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    private var isDisabled: Bool {
+        guard let tab else { return true }
+        guard !selectedText.isEmpty else { return true }
+        return SQLHelpInspectorContentProvider().content(
+            for: selectedText,
+            databaseType: EchoSenseDatabaseType(tab.connection.databaseType)
+        ) == nil
+    }
+
+    private var isShowingHelp: Bool {
+        guard case .sqlHelp = environmentState.dataInspectorContent else { return false }
+        return appState.showInfoSidebar
+    }
+
+    var body: some View {
+        Button {
+            toggleHelp()
+        } label: {
+            Label("Context Help", systemImage: "text.book.closed")
+        }
+        .disabled(isDisabled)
+        .help(isShowingHelp ? "Hide Context Help" : "Show Context Help for Selection")
+        .labelStyle(.iconOnly)
+        .accessibilityLabel(isShowingHelp ? "Hide Context Help" : "Show Context Help")
+    }
+
+    private func toggleHelp() {
+        guard let tab,
+              let content = SQLHelpInspectorContentProvider().content(
+                for: selectedText,
+                databaseType: EchoSenseDatabaseType(tab.connection.databaseType)
+              ) else { return }
+
+        environmentState.toggleDataInspector(
+            content: .sqlHelp(content),
+            title: "sql-help-\(content.title)",
+            appState: appState
+        )
     }
 }
 

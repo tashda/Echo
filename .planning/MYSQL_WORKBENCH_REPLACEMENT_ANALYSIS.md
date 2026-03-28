@@ -7,9 +7,7 @@
 
 ## Scope
 
-This document analyzes what Echo needs to fully replace MySQL Workbench Community Edition. Enterprise-only features (Audit Inspector, Enterprise Firewall, Enterprise Backup GUI) are out of scope — they require MySQL Enterprise subscriptions and are niche.
-
-We also exclude the Migration Wizard, EER Diagram Modeling, and Plugin/Scripting system — these are large standalone tools that don't map to Echo's architecture and can be deferred indefinitely.
+This document analyzes what Echo needs to fully replace MySQL Workbench Community Edition and close the remaining parity gaps that were originally deferred. Earlier versions of this plan explicitly skipped several large Workbench surfaces. That is no longer the target. Migration tooling, modeling workflows, context help, scripting/code-generation surfaces, and other deferred areas should now be treated as active parity work until Echo can credibly replace Workbench for day-to-day MySQL administration and development.
 
 ## Current Implementation Status
 
@@ -22,6 +20,7 @@ The project is no longer at the planning-only stage:
 - query results now support Workbench-style table, text, and vertical result presentation, alongside JSON, HTML, XML, Markdown, SQL INSERT, and Excel export paths
 - query-result cell inspection now supports dedicated large-value editing windows plus direct save-to-file actions for text, JSON, and binary-style payloads
 - query tabs now expose a dedicated statistics panel for execution timing, row/batch flow, and resource usage alongside messages, plans, and result views
+- query tabs now expose a real context-help inspector for selected SQL statements and clauses, using the shared Echo inspector/sidebar architecture instead of a MySQL-only panel
 - MySQL table structure editing now has typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
 - the shared table properties window now has a real MySQL general/storage editor backed by typed `mysql-wire` table-options metadata and `ALTER TABLE` property updates
 - MySQL server administration now includes a real server properties tab with overview metrics, full variable/status browsing, variable editing, table-backed/file-backed log viewing, and a MySQL options-file configuration editor for local config inspection/editing
