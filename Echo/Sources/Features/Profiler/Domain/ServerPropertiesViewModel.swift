@@ -8,6 +8,7 @@ final class ServerPropertiesViewModel {
         case overview = "Overview"
         case variables = "Variables"
         case logs = "Logs"
+        case configuration = "Configuration"
     }
 
     struct PropertyItem: Identifiable {
@@ -31,6 +32,15 @@ final class ServerPropertiesViewModel {
         let details: String
     }
 
+    struct ConfigFileItem: Identifiable {
+        let id: String
+        let title: String
+        let path: String
+        let source: String
+        let exists: Bool
+        let isWritable: Bool
+    }
+
     let connectionID: UUID
     let connectionSessionID: UUID
     @ObservationIgnored let session: DatabaseSession
@@ -49,6 +59,11 @@ final class ServerPropertiesViewModel {
     var errorLogRows: [LogRow] = []
     var generalLogRows: [LogRow] = []
     var slowLogRows: [LogRow] = []
+    var configFiles: [ConfigFileItem] = []
+    var selectedConfigFileID: Set<String> = []
+    var configFileContents = ""
+    var loadedConfigFileContents = ""
+    var configStatusMessage: String?
 
     init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID) {
         self.session = session
@@ -74,6 +89,8 @@ final class ServerPropertiesViewModel {
             await loadVariables(mysql: mysql)
         case .logs:
             await loadLogs(mysql: mysql)
+        case .configuration:
+            await loadConfiguration(mysql: mysql)
         }
     }
 
@@ -93,6 +110,14 @@ final class ServerPropertiesViewModel {
     var variableCategories: [String] {
         Array(Set(variables.compactMap(\.category)))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    var selectedConfigFile: ConfigFileItem? {
+        configFiles.first { selectedConfigFileID.contains($0.id) }
+    }
+
+    var hasUnsavedConfigChanges: Bool {
+        configFileContents != loadedConfigFileContents
     }
 
     private func loadOverview(mysql: MySQLSession) async {

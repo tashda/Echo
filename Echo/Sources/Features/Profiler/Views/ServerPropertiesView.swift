@@ -55,7 +55,7 @@ struct ServerPropertiesView: View {
                     EmptyView()
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 420)
+                .frame(maxWidth: 560)
             }
         } content: {
             switch viewModel.selectedSection {
@@ -68,6 +68,8 @@ struct ServerPropertiesView: View {
                 )
             case .logs:
                 MySQLServerLogsView(viewModel: viewModel)
+            case .configuration:
+                MySQLServerConfigurationView(viewModel: viewModel)
             }
         }
     }

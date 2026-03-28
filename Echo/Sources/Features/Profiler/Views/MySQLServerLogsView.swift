@@ -27,7 +27,7 @@ struct MySQLServerLogsView: View {
                         if let path = filePath(for: item) {
                             HStack(spacing: SpacingTokens.xs) {
                                 Button("Open") {
-                                    NSWorkspace.shared.openFile(path)
+                                    NSWorkspace.shared.open(URL(fileURLWithPath: path))
                                 }
                                 .buttonStyle(.borderless)
 
