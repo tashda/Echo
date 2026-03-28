@@ -204,6 +204,7 @@ Already have basic `MySQLActivityMonitorView`. Enhance with:
 **Status:** Partially implemented in Echo
 - dedicated MySQL Database Security tab now exists in Echo using `mysql-wire`
 - current UI covers users, role inventory/assignments, password changes, role membership editing, grants, account limits inspection/editing, administrative role inspection/editing, schema-level grant/revoke flows, plus create/lock/unlock/drop flows
+- the privileges workspace now supports filtering plus selected-grant inspection and `GRANT`/`REVOKE` script generation
 - selected users now have a multi-tab detail editor surface for login details, account limits, administrative roles, schema privileges, and grants
 - full Workbench-style CRUD editor parity and broader schema privilege matrix workflows remain outstanding
 
