@@ -26,6 +26,7 @@ The project is no longer at the planning-only stage:
 - MySQL server administration now includes a real server properties tab with overview metrics, full variable/status browsing, variable editing, table-backed/file-backed log viewing, and a MySQL options-file configuration editor for local config inspection/editing
 - MySQL now has a dedicated Advanced Objects workspace for functions, procedures, triggers, and events with typed metadata, definition inspection, and script-template editors
 - MySQL schema diff and migration-script generation now run through the shared Echo schema diff surface with MySQL object inventory, DDL comparison, filtering, and export
+- schema diagrams now export DBDoc-style schema documentation as HTML, Markdown, and plain text through the shared diagram export workflow
 
 All major Workbench-replacement phases in this document are now implemented in Echo on top of `mysql-wire`.
 
