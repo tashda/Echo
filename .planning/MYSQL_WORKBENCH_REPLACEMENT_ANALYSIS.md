@@ -20,6 +20,7 @@ The project is no longer at the planning-only stage:
 - MySQL maintenance actions in Echo now route through typed `mysql-wire` admin APIs instead of ad hoc raw SQL
 - MySQL backup and restore now include typed mysqldump/mysql command construction, MySQL tool path preferences, and richer sheet options for schema/data scope, table selection, locks, compression, and restore character set control
 - query results now support Workbench-style table, text, and vertical result presentation, alongside JSON, HTML, XML, Markdown, SQL INSERT, and Excel export paths
+- query-result cell inspection now supports dedicated large-value editing windows plus direct save-to-file actions for text, JSON, and binary-style payloads
 - query tabs now expose a dedicated statistics panel for execution timing, row/batch flow, and resource usage alongside messages, plans, and result views
 - MySQL table structure editing now has typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
 - the shared table properties window now has a real MySQL general/storage editor backed by typed `mysql-wire` table-options metadata and `ALTER TABLE` property updates

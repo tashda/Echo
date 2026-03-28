@@ -1,7 +1,11 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct CellValueInspectorPanel: View {
     let content: CellValueInspectorContent
+    @State private var showingExpandedEditor = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.md) {
@@ -33,14 +37,37 @@ struct CellValueInspectorPanel: View {
                 }
                 .controlSize(.small)
                 .buttonStyle(.borderless)
+
+                Button {
+                    showingExpandedEditor = true
+                } label: {
+                    Label("Open in Editor", systemImage: "arrow.up.left.and.arrow.down.right")
+                }
+                .controlSize(.small)
+                .buttonStyle(.borderless)
+
+                Button {
+                    saveToFile()
+                } label: {
+                    Label("Save to File", systemImage: "square.and.arrow.down")
+                }
+                .controlSize(.small)
+                .buttonStyle(.borderless)
             }
 
-            Text(content.rawValue)
+            Text(displayValue)
                 .font(.system(.body, design: .monospaced))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(SpacingTokens.sm)
                 .background(ColorTokens.Background.secondary, in: RoundedRectangle(cornerRadius: 6))
+        }
+        .sheet(isPresented: $showingExpandedEditor) {
+            CellValueEditorSheet(
+                content: content,
+                displayedValue: displayValue,
+                onSaveToFile: saveToFile
+            )
         }
     }
 
@@ -55,5 +82,20 @@ struct CellValueInspectorPanel: View {
         case .json: return "JSON"
         case .null: return "NULL"
         }
+    }
+
+    private var displayValue: String {
+        CellValueEditorContentFormatter.displayValue(for: content)
+    }
+
+    private func saveToFile() {
+#if os(macOS)
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = CellValueEditorContentFormatter.contentTypes(for: content)
+        panel.nameFieldStringValue = CellValueEditorContentFormatter.suggestedFileName(for: content)
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? displayValue.write(to: url, atomically: true, encoding: .utf8)
+#endif
     }
 }
