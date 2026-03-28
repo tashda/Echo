@@ -14,6 +14,14 @@ final class ServerPropertiesViewModel {
         let id: String
         let name: String
         let value: String
+        let category: String?
+
+        init(id: String, name: String, value: String, category: String? = nil) {
+            self.id = id
+            self.name = name
+            self.value = value
+            self.category = category
+        }
     }
 
     struct LogRow: Identifiable {
@@ -23,6 +31,7 @@ final class ServerPropertiesViewModel {
         let details: String
     }
 
+    let connectionID: UUID
     let connectionSessionID: UUID
     @ObservationIgnored let session: DatabaseSession
     @ObservationIgnored var activityEngine: ActivityEngine?
@@ -41,8 +50,9 @@ final class ServerPropertiesViewModel {
     var generalLogRows: [LogRow] = []
     var slowLogRows: [LogRow] = []
 
-    init(session: DatabaseSession, connectionSessionID: UUID) {
+    init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID) {
         self.session = session
+        self.connectionID = connectionID
         self.connectionSessionID = connectionSessionID
     }
 
@@ -80,6 +90,11 @@ final class ServerPropertiesViewModel {
         variables.first { selectedVariableID.contains($0.id) }
     }
 
+    var variableCategories: [String] {
+        Array(Set(variables.compactMap(\.category)))
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
     private func loadOverview(mysql: MySQLSession) async {
         isLoading = true
         defer { isLoading = false }
@@ -104,7 +119,14 @@ final class ServerPropertiesViewModel {
         do {
             variables = try await mysql.client.admin.globalVariables()
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                .map { PropertyItem(id: $0.name, name: $0.name, value: $0.value) }
+                .map {
+                    PropertyItem(
+                        id: $0.name,
+                        name: $0.name,
+                        value: $0.value,
+                        category: variableCategory(for: $0.name)
+                    )
+                }
             if selectedVariable == nil {
                 selectedVariableID = variables.first.map { [$0.id] } ?? []
             }
@@ -240,9 +262,18 @@ final class ServerPropertiesViewModel {
             PropertyItem(
                 id: $0.0.lowercased().replacingOccurrences(of: " ", with: "-"),
                 name: $0.0,
-                value: $0.1
+                value: $0.1,
+                category: nil
             )
         }
+    }
+
+    private func variableCategory(for variableName: String) -> String {
+        let normalized = variableName.lowercased()
+        if let prefix = normalized.split(separator: "_").first, !prefix.isEmpty {
+            return prefix.uppercased()
+        }
+        return "GENERAL"
     }
 
     func setSelectedVariable(to value: String) async {

@@ -169,6 +169,7 @@ extension ConnectionSession {
 
         let viewModel = ServerPropertiesViewModel(
             session: session,
+            connectionID: connection.id,
             connectionSessionID: id
         )
         viewModel.activityEngine = AppDirector.shared.activityEngine

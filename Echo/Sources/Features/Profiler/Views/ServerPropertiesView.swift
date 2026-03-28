@@ -62,32 +62,10 @@ struct ServerPropertiesView: View {
             case .overview:
                 propertiesTable(viewModel.overviewItems)
             case .variables:
-                VStack(spacing: 0) {
-                    TabSectionToolbar {
-                        TextField("", text: $viewModel.searchText, prompt: Text("Filter variables"))
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 260)
-                    } controls: {
-                        Button("Refresh") {
-                            Task { await viewModel.loadCurrentSection() }
-                        }
-                        .buttonStyle(.borderless)
-
-                        Button("Reset") {
-                            Task { await viewModel.resetSelectedVariable() }
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(viewModel.selectedVariable == nil)
-
-                        Button("Edit…") {
-                            showVariableEditor = true
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(viewModel.selectedVariable == nil)
-                    }
-                    Divider()
-                    propertiesTable(viewModel.filteredVariables, selection: $viewModel.selectedVariableID)
-                }
+                MySQLServerVariablesSection(
+                    viewModel: viewModel,
+                    showVariableEditor: $showVariableEditor
+                )
             case .logs:
                 MySQLServerLogsView(viewModel: viewModel)
             }
