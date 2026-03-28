@@ -317,7 +317,8 @@ Each report is a simple table view with column sorting and export.
 
 **Status:** Partially implemented in Echo
 - MySQL tool discovery and basic backup/restore sheets now exist
-- richer options, preferences integration, and progress/reporting parity are still pending
+- the backup and restore sheets now follow the same sidebar/detail maintenance pattern as PostgreSQL, with tool path visibility plus open/reveal actions for source and destination files
+- richer option breadth, preferences integration, and deeper progress/cancellation parity are still pending
 
 #### What to Build
 

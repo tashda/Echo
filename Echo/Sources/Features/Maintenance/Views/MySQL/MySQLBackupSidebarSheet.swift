@@ -5,66 +5,67 @@ struct MySQLBackupSidebarSheet: View {
     let customToolPath: String?
     let onDismiss: () -> Void
 
+    @State private var selectedPage: MySQLBackupPage = .general
+
     var body: some View {
         SheetLayoutCustomFooter(title: "Back Up Database") {
-            Form {
-                Section("Destination") {
-                    TextField("", text: $viewModel.outputPath, prompt: Text("/path/to/backup.sql"))
-                    Button("Choose File…") { viewModel.selectBackupFile() }
-                }
-
-                Section("Options") {
-                    Toggle("Include Data", isOn: $viewModel.includeData)
-                    Toggle("Include Routines", isOn: $viewModel.includeRoutines)
-                    Toggle("Include Triggers", isOn: $viewModel.includeTriggers)
-                    Toggle("Include Events", isOn: $viewModel.includeEvents)
-                    Toggle("Single Transaction", isOn: $viewModel.singleTransaction)
-                }
-
-                Section("Output") {
-                    outputContent
-                }
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(width: 170)
+                Divider()
+                detailPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
         } footer: {
-            HStack {
-                Button("Cancel") { onDismiss() }
-                    .disabled(viewModel.isBackupRunning)
-                Spacer()
-                Button("Back Up") {
-                    Task { await viewModel.executeBackup(customToolPath: customToolPath) }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!viewModel.canBackup)
-            }
+            footerContent
         }
-        .frame(minWidth: 560, minHeight: 420)
+        .frame(minWidth: 640, minHeight: 480)
+        .frame(idealWidth: 700, idealHeight: 540)
         .interactiveDismissDisabled(viewModel.isBackupRunning)
     }
 
-    @ViewBuilder
-    private var outputContent: some View {
-        switch viewModel.backupPhase {
-        case .idle:
-            Text("Ready to run mysqldump.")
-                .foregroundStyle(ColorTokens.Text.secondary)
-        case .running:
-            ProgressView("Running mysqldump…")
-        case .completed(let message):
-            Label(message, systemImage: "checkmark.circle.fill")
-                .foregroundStyle(ColorTokens.Status.success)
-        case .failed(let message):
-            Label(message, systemImage: "xmark.circle.fill")
-                .foregroundStyle(ColorTokens.Status.error)
+    private var sidebar: some View {
+        List(MySQLBackupPage.allCases, id: \.self, selection: $selectedPage) { page in
+            Label(page.title, systemImage: page.icon)
+                .tag(page)
         }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .contentMargins(SpacingTokens.xs)
+    }
 
-        if !viewModel.backupOutput.isEmpty {
-            ForEach(Array(viewModel.backupOutput.enumerated()), id: \.offset) { _, line in
-                Text(line)
-                    .font(TypographyTokens.Table.sql)
-                    .textSelection(.enabled)
+    @ViewBuilder
+    private var detailPane: some View {
+        Form {
+            switch selectedPage {
+            case .general:
+                generalPage
+            case .options:
+                optionsPage
             }
+
+            outputSection
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+}
+
+enum MySQLBackupPage: CaseIterable {
+    case general
+    case options
+
+    var title: String {
+        switch self {
+        case .general: "General"
+        case .options: "Options"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .general: "externaldrive"
+        case .options: "slider.horizontal.3"
         }
     }
 }

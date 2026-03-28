@@ -5,62 +5,67 @@ struct MySQLRestoreSidebarSheet: View {
     let customToolPath: String?
     let onDismiss: () -> Void
 
+    @State private var selectedPage: MySQLRestorePage = .general
+
     var body: some View {
         SheetLayoutCustomFooter(title: "Restore Database") {
-            Form {
-                Section("Source") {
-                    TextField("", text: $viewModel.inputPath, prompt: Text("/path/to/backup.sql"))
-                    Button("Choose File…") { viewModel.selectRestoreFile() }
-                }
-
-                Section("Options") {
-                    Toggle("Continue On Error", isOn: $viewModel.forceRestore)
-                }
-
-                Section("Output") {
-                    outputContent
-                }
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(width: 170)
+                Divider()
+                detailPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
         } footer: {
-            HStack {
-                Button("Cancel") { onDismiss() }
-                    .disabled(viewModel.isRestoreRunning)
-                Spacer()
-                Button("Restore") {
-                    Task { await viewModel.executeRestore(customToolPath: customToolPath) }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!viewModel.canRestore)
-            }
+            footerContent
         }
-        .frame(minWidth: 560, minHeight: 380)
+        .frame(minWidth: 640, minHeight: 460)
+        .frame(idealWidth: 700, idealHeight: 520)
         .interactiveDismissDisabled(viewModel.isRestoreRunning)
     }
 
-    @ViewBuilder
-    private var outputContent: some View {
-        switch viewModel.restorePhase {
-        case .idle:
-            Text("Ready to restore SQL script into \(viewModel.databaseName).")
-                .foregroundStyle(ColorTokens.Text.secondary)
-        case .running:
-            ProgressView("Running mysql…")
-        case .completed(let message):
-            Label(message, systemImage: "checkmark.circle.fill")
-                .foregroundStyle(ColorTokens.Status.success)
-        case .failed(let message):
-            Label(message, systemImage: "xmark.circle.fill")
-                .foregroundStyle(ColorTokens.Status.error)
+    private var sidebar: some View {
+        List(MySQLRestorePage.allCases, id: \.self, selection: $selectedPage) { page in
+            Label(page.title, systemImage: page.icon)
+                .tag(page)
         }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .contentMargins(SpacingTokens.xs)
+    }
 
-        if !viewModel.restoreOutput.isEmpty {
-            ForEach(Array(viewModel.restoreOutput.enumerated()), id: \.offset) { _, line in
-                Text(line)
-                    .font(TypographyTokens.Table.sql)
-                    .textSelection(.enabled)
+    @ViewBuilder
+    private var detailPane: some View {
+        Form {
+            switch selectedPage {
+            case .general:
+                generalPage
+            case .options:
+                optionsPage
             }
+
+            outputSection
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+}
+
+enum MySQLRestorePage: CaseIterable {
+    case general
+    case options
+
+    var title: String {
+        switch self {
+        case .general: "General"
+        case .options: "Options"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .general: "square.and.arrow.down"
+        case .options: "slider.horizontal.3"
         }
     }
 }

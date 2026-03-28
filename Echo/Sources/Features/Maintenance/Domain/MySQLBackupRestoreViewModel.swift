@@ -33,6 +33,14 @@ final class MySQLBackupRestoreViewModel {
     var backupOutput: [String] = []
     var restoreOutput: [String] = []
 
+    var backupDestinationURL: URL? {
+        normalizedURL(from: outputPath)
+    }
+
+    var restoreSourceURL: URL? {
+        normalizedURL(from: inputPath)
+    }
+
     var isBackupRunning: Bool { backupPhase == .running }
     var isRestoreRunning: Bool { restorePhase == .running }
     var canBackup: Bool { !databaseName.isEmpty && !outputPath.trimmingCharacters(in: .whitespaces).isEmpty && !isBackupRunning }
@@ -67,5 +75,21 @@ final class MySQLBackupRestoreViewModel {
         if panel.runModal() == .OK, let url = panel.url {
             inputPath = url.path
         }
+    }
+
+    @MainActor
+    func revealInFinder(_ url: URL) {
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    @MainActor
+    func openFile(_ url: URL) {
+        NSWorkspace.shared.openFile(url.path)
+    }
+
+    private func normalizedURL(from path: String) -> URL? {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return URL(fileURLWithPath: trimmed)
     }
 }
