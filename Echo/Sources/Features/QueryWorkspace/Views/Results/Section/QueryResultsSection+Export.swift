@@ -12,6 +12,8 @@ extension QueryResultsSection {
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
         }) {
+            resultDetailModePicker
+
             Button {
                 presentExportSheet()
             } label: {

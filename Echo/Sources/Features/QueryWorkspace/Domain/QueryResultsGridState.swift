@@ -3,11 +3,25 @@ import Foundation
 import AppKit
 #endif
 
+enum QueryResultDetailMode: String, CaseIterable {
+    case table
+    case form
+    case fieldTypes
+
+    var label: String {
+        switch self {
+        case .table: return "Table"
+        case .form: return "Form"
+        case .fieldTypes: return "Field Types"
+        }
+    }
+}
+
 extension Notification.Name {
     static let queryResultsRowCountDidChange = Notification.Name("dk.tippr.echo.queryResultsRowCountDidChange")
 }
 
-@MainActor
+@Observable @MainActor
 final class QueryResultsGridState {
     var cachedColumnIDs: [String] = []
     var cachedRowOrder: [Int] = []
@@ -16,6 +30,9 @@ final class QueryResultsGridState {
     var lastResultToken: UInt64 = 0
     var hiddenColumnIndices: Set<Int> = []
     var columnOrder: [Int]?
+    var detailMode: QueryResultDetailMode = .table
+    var selectedRowIndex: Int?
+    var selectedColumnIndex: Int?
     /// Persisted column widths keyed by column identifier, used to skip expensive
     /// `idealWidth()` measurement when rebuilding the table after a tab switch.
     var cachedColumnWidths: [String: CGFloat] = [:]

@@ -45,6 +45,18 @@ struct TableDataView: View {
                             onEditCell: { colIndex, newValue in
                                 viewModel.editCell(row: rowIndex, column: colIndex, newValue: newValue)
                             },
+                            onSetCellNull: { colIndex in
+                                viewModel.setCellToNull(row: rowIndex, column: colIndex)
+                            },
+                            onTransformCell: { colIndex, transform in
+                                viewModel.transformCellText(row: rowIndex, column: colIndex, using: transform)
+                            },
+                            onLoadCellFromFile: { colIndex, url in
+                                viewModel.loadCellValue(row: rowIndex, column: colIndex, from: url)
+                            },
+                            onSetValueMode: { colIndex, mode in
+                                viewModel.setValueMode(row: rowIndex, column: colIndex, to: mode)
+                            },
                             onDeleteRow: {
                                 Task { await viewModel.deleteRow(at: rowIndex) }
                             },

@@ -3,7 +3,12 @@ import OSLog
 
 extension TableDataViewModel {
 
-    func editCell(row: Int, column: Int, newValue: String?) {
+    func editCell(
+        row: Int,
+        column: Int,
+        newValue: String?,
+        valueMode: TableDataCellValueMode? = nil
+    ) {
         guard row < rows.count, column < columns.count else { return }
         let oldValue = rows[row][column]
 
@@ -11,18 +16,62 @@ extension TableDataViewModel {
         if let existingIndex = pendingEdits.firstIndex(where: { $0.rowIndex == row && $0.columnIndex == column }) {
             var edit = pendingEdits[existingIndex]
             edit.newValue = newValue
+            if let valueMode {
+                edit.valueMode = valueMode
+            }
             pendingEdits[existingIndex] = edit
         } else {
             pendingEdits.append(CellEdit(
                 rowIndex: row,
                 columnIndex: column,
                 oldValue: oldValue,
-                newValue: newValue
+                newValue: newValue,
+                valueMode: valueMode ?? .literal
             ))
         }
 
         // Apply the edit to the visible rows
         rows[row][column] = newValue
+    }
+
+    func valueMode(row: Int, column: Int) -> TableDataCellValueMode {
+        pendingEdits.first(where: { $0.rowIndex == row && $0.columnIndex == column })?.valueMode ?? .literal
+    }
+
+    func setCellToNull(row: Int, column: Int) {
+        editCell(row: row, column: column, newValue: nil, valueMode: .literal)
+    }
+
+    func transformCellText(row: Int, column: Int, using transform: TableDataTextTransform) {
+        guard row < rows.count, column < columns.count else { return }
+        let currentValue = rows[row][column] ?? ""
+        editCell(
+            row: row,
+            column: column,
+            newValue: transform.apply(to: currentValue),
+            valueMode: valueMode(row: row, column: column)
+        )
+    }
+
+    func setValueMode(row: Int, column: Int, to valueMode: TableDataCellValueMode) {
+        guard row < rows.count, column < columns.count else { return }
+        editCell(
+            row: row,
+            column: column,
+            newValue: rows[row][column],
+            valueMode: valueMode
+        )
+    }
+
+    func loadCellValue(row: Int, column: Int, from url: URL) {
+        guard row < rows.count, column < columns.count else { return }
+
+        do {
+            let value = try String(contentsOf: url, encoding: .utf8)
+            editCell(row: row, column: column, newValue: value, valueMode: .literal)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func saveChanges() async {
@@ -92,7 +141,7 @@ extension TableDataViewModel {
         let setClauses = edits.map { edit -> String in
             let colName = quoteIdentifier(columns[edit.columnIndex].name)
             if let value = edit.newValue {
-                return "\(colName) = \(escapeSQLValue(value))"
+                return "\(colName) = \(renderSQLValue(value, mode: edit.valueMode))"
             } else {
                 return "\(colName) = NULL"
             }
@@ -125,7 +174,10 @@ extension TableDataViewModel {
         return conditions.isEmpty ? "1=0" : conditions.joined(separator: " AND ")
     }
 
-    private func escapeSQLValue(_ value: String) -> String {
+    private func renderSQLValue(_ value: String, mode: TableDataCellValueMode) -> String {
+        if mode == .expression {
+            return value
+        }
         let escaped = value.replacingOccurrences(of: "'", with: "''")
         return "'\(escaped)'"
     }

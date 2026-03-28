@@ -18,6 +18,7 @@ The project is no longer at the planning-only stage:
 - MySQL maintenance actions in Echo now route through typed `mysql-wire` admin APIs instead of ad hoc raw SQL
 - MySQL backup and restore now include typed mysqldump/mysql command construction, MySQL tool path preferences, and richer sheet options for schema/data scope, table selection, locks, compression, and restore character set control
 - query results now support Workbench-style table, text, and vertical result presentation, alongside JSON, HTML, XML, Markdown, SQL INSERT, and Excel export paths
+- query results now support Workbench-style table, form, field-types, text, and vertical result presentation through the shared Echo results architecture
 - query-result cell inspection now supports dedicated large-value editing windows plus direct save-to-file actions for text, JSON, and binary-style payloads
 - query tabs now expose a dedicated statistics panel for execution timing, row/batch flow, and resource usage alongside messages, plans, and result views
 - query tabs now expose a real context-help inspector for selected SQL statements and clauses, using the shared Echo inspector/sidebar architecture instead of a MySQL-only panel
@@ -483,26 +484,19 @@ Add "Export Results" button to query result grid toolbar. Currently only table c
 - Extend `BulkImportViewModel` with JSON source
 - Add toolbar button to result grid
 
-The shared Echo import/export flow now includes JSON export, JSON import, SQL INSERT export, and a result-grid export button that works for MySQL through the same UI used by the other dialects.
+The shared Echo import/export flow now includes JSON export, JSON import, SQL INSERT export, and a result-grid export button that works for MySQL through the same UI used by the other dialects. Query results also now expose shared Workbench-style form and field-types detail modes, rather than treating those as MySQL-only one-offs.
 
 ---
 
-## What We Explicitly Skip
+## Remaining Parity Work
 
-These MySQL Workbench features are **out of scope** for the Workbench replacement tier:
+The remaining goal is no longer to declare whole Workbench surfaces out of scope. The work that remains is the set of parity areas not yet implemented in Echo:
 
-| Feature | Reason |
-|---|---|
-| **EER Diagram Modeling** | Standalone visual design tool; Echo focuses on live database management, not offline modeling |
-| **Forward/Reverse Engineering** | Tied to EER modeling; Schema Diff covers the useful parts |
-| **Migration Wizard** | Niche feature; users who need migration use dedicated tools (AWS DMS, etc.) |
-| **Enterprise Audit Inspector** | Requires MySQL Enterprise; not available to Community users |
-| **Enterprise Firewall** | Same — Enterprise only |
-| **Enterprise Backup GUI** | Same — Enterprise only; mysqldump covers Community backup |
-| **Python/Lua Scripting** | Plugin architecture; Echo has its own extension model |
-| **Spatial Data Viewer** | Niche; geometry rendering with OpenStreetMap integration |
-| **DBDoc Generation** | Enterprise feature; schema documentation generation |
-| **wbcopytables Utility** | Niche bulk copy tool between servers |
+- deeper result-grid editing parity such as load-from-file, function/literal editing modes, text transformations, and CSV-driven import into editable table data
+- full server-management parity including broader local/remote control workflows and richer administration around client connections
+- modeling and engineering parity, including EER-style design flows, forward/reverse engineering, and synchronization workflows that go beyond the current schema diff implementation
+- migration and interoperability tooling that Workbench exposes as dedicated wizards
+- the remaining niche utilities and generation workflows that still require a user to keep Workbench installed
 
 ---
 

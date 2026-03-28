@@ -7,10 +7,13 @@ struct TableDataRowView: View {
     let isEditMode: Bool
     let pendingEdits: [CellEdit]
     let onEditCell: (Int, String?) -> Void
+    let onSetCellNull: (Int) -> Void
+    let onTransformCell: (Int, TableDataTextTransform) -> Void
+    let onLoadCellFromFile: (Int, URL) -> Void
+    let onSetValueMode: (Int, TableDataCellValueMode) -> Void
     let onDeleteRow: () -> Void
     let canEdit: Bool
 
-    private let columnMinWidth: CGFloat = 120
     private let rowNumberWidth: CGFloat = 50
 
     var body: some View {
@@ -54,15 +57,25 @@ struct TableDataRowView: View {
                 onEditCell(colIndex, newValue.isEmpty ? nil : newValue)
             }
         )
+        let valueMode = pendingEdits.first(where: { $0.rowIndex == rowIndex && $0.columnIndex == colIndex })?.valueMode ?? .literal
 
-        return TextField("", text: binding, prompt: Text("NULL"))
-            .font(TypographyTokens.detail.monospaced())
-            .textFieldStyle(.plain)
-            .padding(.horizontal, SpacingTokens.xs)
-            .padding(.vertical, SpacingTokens.xxs2)
-            .frame(minWidth: columnMinWidth, alignment: .leading)
-            .background(isEdited ? ColorTokens.Status.warning.opacity(0.1) : Color.clear)
-            .border(isEdited ? ColorTokens.Status.warning.opacity(0.3) : Color.clear, width: 1)
+        return TableDataEditableCell(
+            text: binding,
+            valueMode: valueMode,
+            isEdited: isEdited,
+            onSetNull: {
+                onSetCellNull(colIndex)
+            },
+            onTransform: { transform in
+                onTransformCell(colIndex, transform)
+            },
+            onLoadFromFile: { url in
+                onLoadCellFromFile(colIndex, url)
+            },
+            onSetValueMode: { mode in
+                onSetValueMode(colIndex, mode)
+            }
+        )
     }
 
     private func readOnlyCell(value: String?, isEdited: Bool) -> some View {
@@ -79,7 +92,7 @@ struct TableDataRowView: View {
             }
         }
         .padding(.horizontal, SpacingTokens.xs)
-        .frame(minWidth: columnMinWidth, alignment: .leading)
+        .frame(minWidth: 120, alignment: .leading)
         .background(isEdited ? ColorTokens.Status.warning.opacity(0.1) : Color.clear)
     }
 

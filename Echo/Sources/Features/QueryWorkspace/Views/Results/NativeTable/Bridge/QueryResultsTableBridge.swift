@@ -164,6 +164,8 @@ extension QueryResultsTableView {
                 state.lastRowCount = 0
                 state.lastResultToken = 0
                 state.hiddenColumnIndices.removeAll()
+                state.selectedRowIndex = nil
+                state.selectedColumnIndex = nil
             }
 
             // Rebuild columns and reload table from scratch
@@ -211,6 +213,12 @@ extension QueryResultsTableView {
                 lastRowCount = state.lastRowCount
                 lastResultTokenSnapshot = state.lastResultToken
             }
+        }
+
+        func syncPersistedSelection() {
+            guard let persistedState else { return }
+            persistedState.selectedRowIndex = selectionFocus?.row ?? selectionRegion?.normalizedRowRange.lowerBound
+            persistedState.selectedColumnIndex = selectionFocus?.column ?? selectionRegion?.normalizedColumnRange.lowerBound
         }
 
         // Helper methods

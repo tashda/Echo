@@ -46,10 +46,17 @@ extension QueryResultsSection {
                 VStack(spacing: 0) {
                     resultsToolbar
                     Divider()
-                    if query.additionalResults.isEmpty {
-                        primaryResultsTable
-                    } else {
-                        multiResultSetView
+                    switch gridState.detailMode {
+                    case .table:
+                        if query.additionalResults.isEmpty {
+                            primaryResultsTable
+                        } else {
+                            multiResultSetView
+                        }
+                    case .form:
+                        formResultsView
+                    case .fieldTypes:
+                        fieldTypesResultsView
                     }
                 }
 #else
