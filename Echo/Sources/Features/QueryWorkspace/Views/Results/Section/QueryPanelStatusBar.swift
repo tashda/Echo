@@ -19,6 +19,8 @@ struct QueryPanelStatusBar: View {
             switch segment {
             case .executionPlan:
                 return query.executionPlan != nil
+            case .statistics:
+                return query.isExecuting || query.livePerformanceReport != nil || query.lastPerformanceReport != nil
             default:
                 return true
             }

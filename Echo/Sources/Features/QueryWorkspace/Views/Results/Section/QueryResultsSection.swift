@@ -39,6 +39,7 @@ struct QueryResultsSection: View {
         case .results: return .results
         case .textResults: return .textResults
         case .verticalResults: return .verticalResults
+        case .statistics: return .statistics
         case .messages: return .messages
         case .executionPlan: return .executionPlan
         case .jsonInspector: return .jsonInspector
@@ -53,6 +54,7 @@ struct QueryResultsSection: View {
         case results
         case textResults
         case verticalResults
+        case statistics
         case messages
 #if os(macOS)
         case jsonInspector

@@ -16,6 +16,8 @@ extension QueryResultsSection {
                     textResultsView
                 case .verticalResults:
                     verticalResultsView
+                case .statistics:
+                    statisticsView
                 case .messages:
                     messagesView
 #if os(macOS)

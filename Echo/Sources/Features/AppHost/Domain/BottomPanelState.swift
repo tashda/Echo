@@ -6,6 +6,7 @@ enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
     case results
     case textResults
     case verticalResults
+    case statistics
     case messages
     case executionPlan
     case jsonInspector
@@ -20,6 +21,7 @@ enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
         case .results: return "Results"
         case .textResults: return "Text"
         case .verticalResults: return "Vertical"
+        case .statistics: return "Statistics"
         case .messages: return "Messages"
         case .executionPlan: return "Execution Plan"
         case .jsonInspector: return "JSON Inspector"
@@ -35,6 +37,7 @@ enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
         case .results: return "tablecells"
         case .textResults: return "doc.plaintext"
         case .verticalResults: return "list.bullet.rectangle.portrait"
+        case .statistics: return "chart.bar.xaxis"
         case .messages: return "text.bubble"
         case .executionPlan: return "chart.bar.doc.horizontal"
         case .jsonInspector: return "curlybraces"
@@ -106,7 +109,7 @@ final class BottomPanelState {
             isOpen: false,
             splitRatio: 0.5,
             selectedSegment: .results,
-            availableSegments: [.results, .textResults, .verticalResults, .messages, .spatial, .executionPlan, .tuning]
+            availableSegments: [.results, .textResults, .verticalResults, .statistics, .messages, .spatial, .executionPlan, .tuning]
         )
     }
 
