@@ -65,6 +65,17 @@ extension SchemaDiagramView {
             .disabled(viewModel.context == nil)
             .help("Open Schema Diff")
 
+            Button {
+                openForwardEngineeringSQL()
+            } label: {
+                Label("Open Forward Engineering SQL", systemImage: "doc.text")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(viewModel.context == nil || viewModel.nodes.isEmpty)
+            .help("Open Forward Engineering SQL")
+
             if isRefreshing || viewModel.isLoading {
                 ProgressView()
                     .controlSize(.small)

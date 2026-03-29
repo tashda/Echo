@@ -30,6 +30,7 @@ The project is no longer at the planning-only stage:
 - MySQL now has a dedicated Advanced Objects workspace for functions, procedures, triggers, and events with typed metadata, definition inspection, and script-template editors
 - MySQL schema diff and migration-script generation now run through the shared Echo schema diff surface with MySQL object inventory, DDL comparison, filtering, and export
 - schema diagrams now export DBDoc-style schema documentation as HTML, Markdown, and plain text through the shared diagram export workflow
+- schema diagrams now open forward-engineering SQL directly into Echo query tabs with the correct MySQL database context, instead of stopping at file export
 
 All major Workbench-replacement phases in this document are now implemented in Echo on top of `mysql-wire`.
 
@@ -496,7 +497,7 @@ The remaining goal is no longer to declare whole Workbench surfaces out of scope
 
 - full server-management parity including broader remote-control workflows and richer administration around client connections beyond the now-implemented local start, stop, and restart controls
 - modeling and engineering parity, including fuller EER-style design flows, reverse engineering, and synchronization workflows that go beyond the now-implemented schema documentation, forward-engineering SQL exports, and diagram-model JSON export
-- migration and interoperability tooling that Workbench exposes as dedicated wizards, beyond the now-connected schema-diff synchronization flow plus file and query-tab migration-script handoff from reverse-engineered diagrams
+- migration and interoperability tooling that Workbench exposes as dedicated wizards, beyond the now-connected schema-diff synchronization flow plus file and query-tab handoff for forward-engineering and migration scripts from reverse-engineered diagrams
 - the remaining niche utilities and generation workflows that still require a user to keep Workbench installed
 
 ---
