@@ -28,6 +28,8 @@ struct SchemaDiagramView: View {
     @State private var lastLoadingState: Bool = false
     @State internal var viewSize: CGSize = .zero
     @State internal var diagramSearchText: String = ""
+    @State internal var showCreateTableSheet = false
+    @State internal var showCreateRelationshipSheet = false
 
     internal let minZoom: CGFloat = 0.4
     internal let maxZoom: CGFloat = 2.5
@@ -106,6 +108,31 @@ struct SchemaDiagramView: View {
             }
         }
         .navigationTitle(viewModel.title)
+        .sheet(isPresented: $showCreateTableSheet) {
+            if let context = viewModel.context,
+               let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == context.connectionSessionID }) {
+                DiagramCreateTableSheet(
+                    schemaName: context.object.schema,
+                    databaseType: session.connection.databaseType,
+                    session: session.session
+                ) {
+                    refreshAfterDesignAction()
+                }
+            }
+        }
+        .sheet(isPresented: $showCreateRelationshipSheet) {
+            if let context = viewModel.context,
+               let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == context.connectionSessionID }) {
+                DiagramCreateRelationshipSheet(
+                    schemaName: context.object.schema,
+                    databaseType: session.connection.databaseType,
+                    session: session.session,
+                    availableTables: viewModel.nodes.map { (schema: $0.schema, name: $0.name, columns: $0.columns.map(\.name)) }
+                ) {
+                    refreshAfterDesignAction()
+                }
+            }
+        }
     }
 
     private func persistLayout() {
