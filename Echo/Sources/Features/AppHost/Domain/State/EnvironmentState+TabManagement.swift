@@ -32,6 +32,7 @@ extension EnvironmentState {
                 withQuery: queryText,
                 database: resolvedDatabase
             )
+            tab.configureQueryLaunch(autoExecute: autoExecute)
             tab.markAwaitingDedicatedSession()
             tab.query?.isEstablishingConnection = true
             registerTab(tab)
@@ -67,6 +68,7 @@ extension EnvironmentState {
             withQuery: presetQuery ?? "",
             database: resolvedDatabase
         )
+        tab.configureQueryLaunch(autoExecute: autoExecute)
         tab.markAwaitingDedicatedSession()
         tab.query?.isEstablishingConnection = true
         registerTab(tab)

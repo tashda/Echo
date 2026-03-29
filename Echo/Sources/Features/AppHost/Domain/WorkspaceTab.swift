@@ -133,6 +133,10 @@ final class WorkspaceTab: Identifiable {
         setupRowCountRefreshHandler()
     }
 
+    func configureQueryLaunch(autoExecute: Bool) {
+        query?.shouldAutoExecuteOnAppear = autoExecute
+    }
+
     /// Marks this tab as expecting a dedicated session upgrade.
     func markAwaitingDedicatedSession() {
         isAwaitingDedicatedSession = true

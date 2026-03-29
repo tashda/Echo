@@ -153,4 +153,28 @@ struct SchemaDiagramView: View {
         )
         environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
     }
+
+    func applyForwardEngineeringSQL() {
+        guard let context = viewModel.context,
+              let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == context.connectionSessionID }) else {
+            return
+        }
+
+        let sql = SchemaDiagramForwardEngineeringPlan.sql(
+            title: viewModel.title,
+            nodes: viewModel.nodes,
+            edges: viewModel.edges
+        )
+        let database = SchemaDiagramForwardEngineeringPlan.targetDatabase(
+            for: session.connection.databaseType,
+            context: context,
+            fallbackDatabase: session.connection.database
+        )
+        environmentState.openQueryTab(
+            for: session,
+            presetQuery: sql,
+            autoExecute: true,
+            database: database
+        )
+    }
 }

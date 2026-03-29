@@ -30,7 +30,7 @@ The project is no longer at the planning-only stage:
 - MySQL now has a dedicated Advanced Objects workspace for functions, procedures, triggers, and events with typed metadata, definition inspection, and script-template editors
 - MySQL schema diff and migration-script generation now run through the shared Echo schema diff surface with MySQL object inventory, DDL comparison, filtering, and export
 - schema diagrams now export DBDoc-style schema documentation as HTML, Markdown, and plain text through the shared diagram export workflow
-- schema diagrams now open forward-engineering SQL directly into Echo query tabs with the correct MySQL database context, instead of stopping at file export
+- schema diagrams now open or directly apply forward-engineering SQL through Echo query tabs with the correct MySQL database context, instead of stopping at file export
 
 All major Workbench-replacement phases in this document are now implemented in Echo on top of `mysql-wire`.
 
