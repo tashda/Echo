@@ -103,8 +103,7 @@ extension NewDatabaseSheet {
     private func createMSSQLDatabase(name: String) async throws {
         guard let adapter = session.session as? SQLServerSessionAdapter else { return }
 
-        try await adapter.client.admin.createDatabase(
-            name: name,
+        let options = SQLServerCreateDatabaseOptions(
             collation: mssqlCollation.isEmpty ? nil : mssqlCollation,
             containment: mssqlContainment == "NONE" ? nil : mssqlContainment,
             dataFileName: mssqlDataFileName.isEmpty ? nil : mssqlDataFileName,
@@ -115,6 +114,10 @@ extension NewDatabaseSheet {
             logFileSize: mssqlLogFileSize == 8 ? nil : mssqlLogFileSize,
             logFileMaxSize: mssqlLogFileMaxSize == 0 ? nil : mssqlLogFileMaxSize,
             logFileGrowth: mssqlLogFileGrowth == 64 ? nil : mssqlLogFileGrowth
+        )
+        try await adapter.client.admin.createDatabase(
+            name: name,
+            options: options
         )
 
         // Change owner if specified

@@ -38,7 +38,7 @@ extension DatabaseEditorViewModel {
     func loadMSSQLProperties(session: ConnectionSession) async throws {
         guard let mssqlSession = session.session as? MSSQLSession else { return }
         let admin = mssqlSession.admin
-        let props = try await admin.fetchDatabaseProperties(name: databaseName)
+        let props = try await admin.getDatabaseProperties(name: databaseName)
         mssqlProps = props
 
         recoveryModel = SQLServerDatabaseOption.RecoveryModel(rawValue: props.recoveryModel) ?? .full
@@ -70,26 +70,26 @@ extension DatabaseEditorViewModel {
         numericRoundAbort = props.isNumericRoundAbortOn
         dateCorrelation = props.isDateCorrelationOn
 
-        mssqlFiles = (try? await admin.fetchDatabaseFiles(name: databaseName)) ?? []
+        mssqlFiles = (try? await admin.getDatabaseFiles(name: databaseName)) ?? []
         mssqlFilegroups = (try? await admin.listFilegroups(database: databaseName)) ?? []
 
-        if let cursorDefs = try? await admin.fetchCursorDefaults(database: databaseName) {
+        if let cursorDefs = try? await admin.getCursorDefaults(database: databaseName) {
             cursorCloseOnCommit = cursorDefs.isCursorCloseOnCommitOn
             cursorDefaultLocal = cursorDefs.isLocalCursorDefault
         }
 
-        if let fsOpts = try? await admin.fetchFilestreamOptions(database: databaseName) {
+        if let fsOpts = try? await admin.getFilestreamOptions(database: databaseName) {
             filestreamDirectoryName = fsOpts.directoryName
             filestreamNonTransactedAccess = fsOpts.nonTransactedAccessDescription
         }
 
-        if let brokerProps = try? await admin.fetchServiceBrokerProperties(database: databaseName) {
+        if let brokerProps = try? await admin.getServiceBrokerProperties(database: databaseName) {
             serviceBrokerGUID = brokerProps.serviceBrokerGUID
             honorBrokerPriority = brokerProps.isHonorBrokerPriorityOn
         }
 
-        mirroringStatus = try? await admin.fetchMirroringStatus(database: databaseName)
-        logShippingConfig = try? await admin.fetchLogShippingConfig(database: databaseName)
+        mirroringStatus = try? await admin.getMirroringStatus(database: databaseName)
+        logShippingConfig = try? await admin.getLogShippingConfig(database: databaseName)
         scopedConfigurations = (try? await admin.listScopedConfigurations(database: databaseName)) ?? []
         originalScopedConfigurations = scopedConfigurations
 

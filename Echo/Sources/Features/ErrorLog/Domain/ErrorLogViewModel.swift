@@ -102,7 +102,7 @@ final class ErrorLogViewModel {
         errorMessage = nil
         let handle = activityEngine?.begin("Loading error log", connectionSessionID: connectionSessionID)
         do {
-            logEntries = try await mssql.errorLog.readErrorLog(
+            logEntries = try await mssql.errorLog.getErrorLogEntries(
                 archiveNumber: selectedArchive,
                 product: selectedProduct.nioProduct
             )

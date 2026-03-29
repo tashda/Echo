@@ -1,5 +1,5 @@
 {
-  "originHash" : "0112b99e74002e5d0b87d2dec1fb751378333313cb2ed0ff4a0b020d5594f85b",
+  "originHash" : "0b466c7dcd30d83605ebe2dc018cae2fae0423aa62569f5566c16fde13c32d8a",
   "pins" : [
     {
       "identity" : "echosense",
@@ -25,7 +25,7 @@
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "a380eba0daad92beb3c227301192fffa75e62433"
+        "revision" : "4ddc2155a0d458291fbcc22b6138976996812b67"
       }
     },
     {
@@ -43,7 +43,7 @@
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "820c615f92c16fd7032e045e66f5667ea2935da4"
+        "revision" : "ca127266ddd89023db1d6ea5562b92d35dfeabcc"
       }
     },
     {
@@ -70,7 +70,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "810a2ed876ce32339fb35c692f707c74c05fd9be"
+        "revision" : "8eaa7508c9cc62f80b01f295a00ccab56c5c09dd"
       }
     },
     {
@@ -150,8 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "bdf004b44f77c56fca752cd1cf243c802f8469c9",
-        "version" : "2.97.0"
+        "revision" : "558f24a4647193b5a0e2104031b71c55d31ff83a",
+        "version" : "2.97.1"
       }
     },
     {

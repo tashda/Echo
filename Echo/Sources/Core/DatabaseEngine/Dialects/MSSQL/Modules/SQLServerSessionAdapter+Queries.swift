@@ -58,15 +58,12 @@ extension SQLServerSessionAdapter {
     }
 
     func dropTable(schema: String?, name: String, ifExists: Bool) async throws {
-        if ifExists {
-            _ = try await simpleQuery("IF OBJECT_ID('[\(schema ?? "dbo")].[\(name)]', 'U') IS NOT NULL DROP TABLE [\(schema ?? "dbo")].[\(name)]")
-        } else {
-            try await client.admin.dropTable(
-                name: name,
-                schema: schema ?? "dbo",
-                database: database
-            )
-        }
+        try await client.admin.dropTable(
+            name: name,
+            schema: schema ?? "dbo",
+            database: database,
+            ifExists: ifExists
+        )
     }
 
     func truncateTable(schema: String?, name: String) async throws {

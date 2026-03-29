@@ -247,102 +247,50 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
             }
 
         // Check constraints
-        let checkConstraintSQL = """
-            SELECT cc.name, cc.definition
-            FROM sys.check_constraints cc
-            WHERE cc.parent_object_id = OBJECT_ID('\(schema).\(table)')
-            ORDER BY cc.name
-            """
         var checkConstraints: [TableStructureDetails.CheckConstraint] = []
-        if let results = try? await client.query(checkConstraintSQL) {
-            for row in results {
-                guard let name = row.column("name")?.string,
-                      let definition = row.column("definition")?.string else { continue }
-                var expression = definition
+        if let nioConstraints = try? await client.constraints.listCheckConstraints(database: database, schema: schema, table: table) {
+            checkConstraints = nioConstraints.map { constraint in
+                var expression = constraint.definition
                 if expression.hasPrefix("(") && expression.hasSuffix(")") {
                     expression = String(expression.dropFirst().dropLast())
                 }
-                checkConstraints.append(TableStructureDetails.CheckConstraint(name: name, expression: expression))
+                return TableStructureDetails.CheckConstraint(name: constraint.name, expression: expression)
             }
         }
 
         // Table properties (including temporal, in-memory OLTP, and SSMS parity fields)
-        let propsSQL = """
-            SELECT
-                p.data_compression_desc,
-                fg.name AS filegroup_name,
-                t.lock_escalation_desc,
-                t.temporal_type,
-                hs.name AS history_schema,
-                ht.name AS history_table,
-                pc_start.name AS period_start_column,
-                pc_end.name AS period_end_column,
-                t.is_memory_optimized,
-                t.durability_desc,
-                CONVERT(varchar(23), o.create_date, 121) AS created_date,
-                CONVERT(varchar(23), o.modify_date, 121) AS modified_date,
-                o.is_ms_shipped,
-                t.uses_ansi_nulls,
-                t.is_replicated,
-                fg_lob.name AS text_filegroup,
-                fg_fs.name AS filestream_filegroup,
-                CASE WHEN ps.data_space_id IS NOT NULL THEN 1 ELSE 0 END AS is_partitioned,
-                ps.name AS partition_scheme,
-                pc_part.name AS partition_column,
-                (SELECT COUNT(*) FROM sys.partitions sp WHERE sp.object_id = t.object_id AND sp.index_id IN (0, 1)) AS partition_count,
-                ct.is_track_columns_updated_on AS track_columns_updated
-            FROM sys.tables t
-            JOIN sys.objects o ON o.object_id = t.object_id
-            JOIN sys.partitions p ON p.object_id = t.object_id AND p.index_id IN (0, 1) AND p.partition_number = 1
-            JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id IN (0, 1)
-            JOIN sys.filegroups fg ON fg.data_space_id = i.data_space_id
-            LEFT JOIN sys.tables ht ON ht.object_id = t.history_table_id
-            LEFT JOIN sys.schemas hs ON hs.schema_id = ht.schema_id
-            LEFT JOIN sys.periods pr ON pr.object_id = t.object_id
-            LEFT JOIN sys.columns pc_start ON pc_start.object_id = t.object_id AND pc_start.column_id = pr.start_column_id
-            LEFT JOIN sys.columns pc_end ON pc_end.object_id = t.object_id AND pc_end.column_id = pr.end_column_id
-            LEFT JOIN sys.filegroups fg_lob ON fg_lob.data_space_id = t.lob_data_space_id
-            LEFT JOIN sys.filegroups fg_fs ON fg_fs.data_space_id = t.filestream_data_space_id
-            LEFT JOIN sys.partition_schemes ps ON ps.data_space_id = i.data_space_id
-            LEFT JOIN sys.index_columns ic_part ON ic_part.object_id = i.object_id AND ic_part.index_id = i.index_id AND ic_part.partition_ordinal = 1
-            LEFT JOIN sys.columns pc_part ON pc_part.object_id = t.object_id AND pc_part.column_id = ic_part.column_id
-            LEFT JOIN sys.change_tracking_tables ct ON ct.object_id = t.object_id
-            WHERE t.object_id = OBJECT_ID('\(schema).\(table)')
-            """
         var tableProperties: TableStructureDetails.TableProperties?
-        if let propsRows = try? await client.query(propsSQL) {
-            for row in propsRows {
-                let compression = row.column("data_compression_desc")?.string
-                let fg = row.column("filegroup_name")?.string
-                let lockEsc = row.column("lock_escalation_desc")?.string
-                let temporalType = row.column("temporal_type")?.int ?? 0
-                let isMemOpt = (row.column("is_memory_optimized")?.int ?? 0) != 0
-                let isPartitioned = (row.column("is_partitioned")?.int ?? 0) != 0
-                let ctTrackCols = row.column("track_columns_updated")?.int
-                tableProperties = TableStructureDetails.TableProperties(
-                    dataCompression: compression, filegroup: fg, lockEscalation: lockEsc,
-                    createdDate: row.column("created_date")?.string,
-                    modifiedDate: row.column("modified_date")?.string,
-                    isSystemObject: (row.column("is_ms_shipped")?.int ?? 0) != 0 ? true : nil,
-                    usesAnsiNulls: (row.column("uses_ansi_nulls")?.int ?? 0) != 0 ? true : false,
-                    isReplicated: (row.column("is_replicated")?.int ?? 0) != 0 ? true : nil,
-                    textFilegroup: row.column("text_filegroup")?.string,
-                    filestreamFilegroup: row.column("filestream_filegroup")?.string,
-                    isPartitioned: isPartitioned ? true : nil,
-                    partitionScheme: isPartitioned ? row.column("partition_scheme")?.string : nil,
-                    partitionColumn: isPartitioned ? row.column("partition_column")?.string : nil,
-                    partitionCount: isPartitioned ? row.column("partition_count")?.int : nil,
-                    isSystemVersioned: temporalType == 2 ? true : nil,
-                    historyTableSchema: row.column("history_schema")?.string,
-                    historyTableName: row.column("history_table")?.string,
-                    periodStartColumn: row.column("period_start_column")?.string,
-                    periodEndColumn: row.column("period_end_column")?.string,
-                    isMemoryOptimized: isMemOpt ? true : nil,
-                    memoryOptimizedDurability: isMemOpt ? row.column("durability_desc")?.string : nil,
-                    changeTrackingEnabled: ctTrackCols != nil ? true : nil,
-                    trackColumnsUpdated: ctTrackCols != nil ? (ctTrackCols != 0) : nil
-                )
-            }
+        if let props = try? await client.metadata.tableProperties(database: database, schema: schema, table: table) {
+            let dateFormatter = { () -> DateFormatter in
+                let df = DateFormatter()
+                df.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+                return df
+            }()
+            tableProperties = TableStructureDetails.TableProperties(
+                dataCompression: props.dataCompression,
+                filegroup: props.filegroup,
+                lockEscalation: props.lockEscalation,
+                createdDate: props.createDate.map { dateFormatter.string(from: $0) },
+                modifiedDate: props.modifyDate.map { dateFormatter.string(from: $0) },
+                isSystemObject: props.isSystemObject,
+                usesAnsiNulls: props.usesAnsiNulls ?? false,
+                isReplicated: props.isReplicated,
+                textFilegroup: props.textFilegroup,
+                filestreamFilegroup: props.filestreamFilegroup,
+                isPartitioned: props.isPartitioned,
+                partitionScheme: props.isPartitioned == true ? props.partitionScheme : nil,
+                partitionColumn: props.isPartitioned == true ? props.partitionColumn : nil,
+                partitionCount: props.isPartitioned == true ? props.partitionCount : nil,
+                isSystemVersioned: props.isSystemVersioned,
+                historyTableSchema: props.historyTableSchema,
+                historyTableName: props.historyTableName,
+                periodStartColumn: props.periodStartColumn,
+                periodEndColumn: props.periodEndColumn,
+                isMemoryOptimized: props.isMemoryOptimized,
+                memoryOptimizedDurability: props.isMemoryOptimized == true ? props.memoryOptimizedDurability : nil,
+                changeTrackingEnabled: props.changeTrackingEnabled,
+                trackColumnsUpdated: props.trackColumnsUpdated
+            )
         }
 
         return TableStructureDetails(

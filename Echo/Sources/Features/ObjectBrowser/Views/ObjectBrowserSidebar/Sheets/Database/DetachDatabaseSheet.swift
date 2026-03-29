@@ -1,4 +1,5 @@
 import SwiftUI
+import SQLServerKit
 
 struct DetachDatabaseSheet: View {
     let databaseName: String
@@ -75,9 +76,9 @@ struct DetachDatabaseSheet: View {
 
         do {
             let skipChecks = !updateStatistics
-            if dropConnections {
+            if dropConnections, let mssql = session.session as? MSSQLSession {
                 // Set single user mode to kick off other connections
-                _ = try await session.session.executeUpdate("ALTER DATABASE [\(databaseName)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
+                _ = try await mssql.admin.setDatabaseSingleUser(name: databaseName, rollbackImmediate: true)
             }
             try await session.session.detachDatabase(name: databaseName, skipChecks: skipChecks)
             handle.succeed()

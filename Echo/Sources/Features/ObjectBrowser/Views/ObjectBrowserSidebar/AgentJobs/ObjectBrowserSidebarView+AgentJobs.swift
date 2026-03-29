@@ -121,7 +121,7 @@ extension ObjectBrowserSidebarView {
         Task {
             do {
                 let agent = mssql.agent
-                let detailed = try await agent.listJobsDetailed()
+                let detailed = try await agent.listJobDetails()
                 let items = detailed.map { job in
                     ObjectBrowserSidebarViewModel.AgentJobItem(
                         id: job.jobId,
