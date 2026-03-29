@@ -31,6 +31,8 @@ extension QueryResultsSection {
                     tuningView
                 case .policyManagement:
                     EmptyView()
+                case .history:
+                    QueryHistoryPanelView(connectionID: connection.id)
 #endif
                 }
             }

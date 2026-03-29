@@ -72,9 +72,9 @@ import SwiftUI
         )
         queryHistory.insert(item, at: 0)
 
-        // Keep only the last 50 queries
-        if queryHistory.count > 50 {
-            queryHistory = Array(queryHistory.prefix(50))
+        // Keep only the last 500 queries
+        if queryHistory.count > 500 {
+            queryHistory = Array(queryHistory.prefix(500))
         }
 
         saveQueryHistory()

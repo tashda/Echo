@@ -47,6 +47,7 @@ struct QueryResultsSection: View {
         case .spatial: return .spatial
         case .tuning: return .tuning
         case .policyManagement: return .policyManagement
+        case .history: return .history
         }
     }
 
@@ -62,6 +63,7 @@ struct QueryResultsSection: View {
         case spatial
         case tuning
         case policyManagement
+        case history
 #endif
     }
 
