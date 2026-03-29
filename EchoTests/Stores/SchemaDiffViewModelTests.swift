@@ -3,6 +3,30 @@ import Testing
 @testable import Echo
 
 struct SchemaDiffViewModelTests {
+    @Test func resolvedSchemasPrefersRequestedSourceAndFindsTarget() {
+        let resolved = SchemaDiffViewModel.resolvedSchemas(
+            availableSchemas: ["analytics", "mysql", "test"],
+            preferredSource: "mysql",
+            currentSource: "",
+            currentTarget: ""
+        )
+
+        #expect(resolved.source == "mysql")
+        #expect(resolved.target == "analytics")
+    }
+
+    @Test func resolvedSchemasKeepsExistingTargetWhenValid() {
+        let resolved = SchemaDiffViewModel.resolvedSchemas(
+            availableSchemas: ["a", "b", "c"],
+            preferredSource: nil,
+            currentSource: "b",
+            currentTarget: "c"
+        )
+
+        #expect(resolved.source == "b")
+        #expect(resolved.target == "c")
+    }
+
     @Test func filteredDiffsApplyStatusTypeAndSearch() {
         let viewModel = SchemaDiffViewModel(
             session: MockDatabaseSession(),

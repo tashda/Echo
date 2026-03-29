@@ -73,6 +73,22 @@ final class SchemaDiffViewModel {
         self.connectionSessionID = connectionSessionID
     }
 
+    static func resolvedSchemas(
+        availableSchemas: [String],
+        preferredSource: String?,
+        currentSource: String,
+        currentTarget: String
+    ) -> (source: String, target: String) {
+        let source = preferredSource?.nilIfEmpty
+            ?? currentSource.nilIfEmpty
+            ?? availableSchemas.first
+            ?? ""
+        let target = currentTarget.nilIfEmpty
+            ?? availableSchemas.first(where: { $0 != source })
+            ?? ""
+        return (source, target)
+    }
+
     func setPanelState(_ state: BottomPanelState) {
         panelState = state
     }
@@ -84,21 +100,31 @@ final class SchemaDiffViewModel {
             switch session {
             case let pg as PostgresSession:
                 availableSchemas = try await pg.client.introspection.listSchemas().map(\.name)
-                if sourceSchema.isEmpty {
-                    sourceSchema = availableSchemas.first ?? "public"
-                }
             case let mysql as MySQLSession:
                 availableSchemas = try await mysql.listDatabases().sorted()
-                if sourceSchema == "public" || sourceSchema.isEmpty {
-                    let currentDatabase = try await mysql.currentDatabaseName()
-                    sourceSchema = availableSchemas.first ?? currentDatabase ?? ""
-                }
+                let currentDatabase = try await mysql.currentDatabaseName()
+                let preferredSource = (sourceSchema == "public" ? nil : sourceSchema.nilIfEmpty) ?? currentDatabase
+                let resolved = Self.resolvedSchemas(
+                    availableSchemas: availableSchemas,
+                    preferredSource: preferredSource,
+                    currentSource: sourceSchema,
+                    currentTarget: targetSchema
+                )
+                sourceSchema = resolved.source
+                targetSchema = resolved.target
             default:
                 availableSchemas = []
             }
 
-            if targetSchema.isEmpty, availableSchemas.count > 1 {
-                targetSchema = availableSchemas.first { $0 != sourceSchema } ?? ""
+            if session is PostgresSession {
+                let resolved = Self.resolvedSchemas(
+                    availableSchemas: availableSchemas,
+                    preferredSource: sourceSchema == "public" ? nil : sourceSchema,
+                    currentSource: sourceSchema,
+                    currentTarget: targetSchema
+                )
+                sourceSchema = resolved.source
+                targetSchema = resolved.target
             }
         } catch {
             panelState?.appendMessage("Failed to load schemas: \(error.localizedDescription)", severity: .error)

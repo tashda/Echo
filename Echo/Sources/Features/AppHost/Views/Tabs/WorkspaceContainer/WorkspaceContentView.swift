@@ -100,8 +100,9 @@ struct WorkspaceContentView: View {
                 PostgresAdvancedObjectsView(viewModel: vm).background(ColorTokens.Background.primary)
             }
         case .schemaDiff:
-            if let _ = tab.schemaDiffVM {
-                Text("Schema Diff — not yet registered in project").foregroundStyle(.secondary)
+            if let vm = tab.schemaDiffVM {
+                SchemaDiffView(viewModel: vm, panelState: tab.panelState)
+                    .background(ColorTokens.Background.primary)
             }
         case .serverSecurity:
             ServerSecurityView(tab: tab).background(ColorTokens.Background.primary)

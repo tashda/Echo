@@ -53,6 +53,18 @@ extension SchemaDiagramView {
                 .frame(height: 16)
 
             loadSourceBadge
+
+            Button {
+                openSchemaDiffFromDiagram()
+            } label: {
+                Label("Open Schema Diff", systemImage: "arrow.triangle.branch")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(viewModel.context == nil)
+            .help("Open Schema Diff")
+
             if isRefreshing || viewModel.isLoading {
                 ProgressView()
                     .controlSize(.small)

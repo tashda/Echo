@@ -13,6 +13,7 @@ struct SchemaDiagramView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(DiagramBuilder.self) var diagramBuilder
+    @Environment(EnvironmentState.self) private var environmentState
 
     @Environment(AppearanceStore.self) var appearanceStore
 
@@ -112,6 +113,25 @@ struct SchemaDiagramView: View {
         persistTask = Task { @MainActor [viewModel] in
             await diagramBuilder.persistDiagramLayout(for: viewModel)
             persistTask = nil
+        }
+    }
+
+    func openSchemaDiffFromDiagram() {
+        guard let context = viewModel.context,
+              let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == context.connectionSessionID }) else {
+            return
+        }
+
+        let tab = session.addSchemaDiffTab()
+        if let schemaDiff = tab.schemaDiffVM {
+            let resolved = SchemaDiffViewModel.resolvedSchemas(
+                availableSchemas: schemaDiff.availableSchemas,
+                preferredSource: context.object.schema,
+                currentSource: context.object.schema,
+                currentTarget: schemaDiff.targetSchema
+            )
+            schemaDiff.sourceSchema = resolved.source
+            schemaDiff.targetSchema = resolved.target
         }
     }
 }
