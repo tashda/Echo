@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: "Step 1: Build"
+  build-and-test:
+    name: "Step 1: Build & Test"
     runs-on: macos-26
     steps:
     - uses: actions/checkout@v4
@@ -40,7 +40,6 @@ jobs:
             if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
           done
         done
-        echo "PostgresTools contents:" && ls -la Tools/PostgresTools/
 
     - name: Clear SPM cache
       run: |
@@ -50,25 +49,6 @@ jobs:
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
-    - name: Build
-      run: |
-        xcodebuild build-for-testing -project Echo.xcodeproj \
-          -scheme Echo \
-          -testPlan UnitTests \
-          -destination 'platform=macOS' \
-          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep' \
-
-  unit-tests:
-    name: "Step 2: Unit Tests"
-    needs: build
-    runs-on: macos-26
-    steps:
-    - uses: actions/checkout@v4
-    - uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '26'
-    - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
     - name: Run Unit Tests
       run: |
         find . -maxdepth 1 -name "TestResults-unit*" -exec rm -rf {} + 2>/dev/null || true
@@ -77,26 +57,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-unit \
           CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
-    - name: Upload Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-unit
-        path: TestResults-unit.xcresult
 
-  # ── SQLite Integration Tests (no Docker needed) ────────────────────────────
-
-  sqlite-integration-tests:
-    name: "Step 3: SQLite Integration Tests"
-    needs: unit-tests
-    runs-on: macos-26
-    steps:
-    - uses: actions/checkout@v4
-    - uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '26'
-    - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
     - name: Run SQLite Integration Tests
       run: |
         find . -maxdepth 1 -name "TestResults-sqlite*" -exec rm -rf {} + 2>/dev/null || true
@@ -105,7 +66,15 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-sqlite \
           CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
-    - name: Upload Results
+
+    - name: Upload Unit Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-unit
+        path: TestResults-unit.xcresult
+
+    - name: Upload SQLite Test Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
@@ -115,9 +84,9 @@ jobs:
   # ── Production Build & Release ──────────────────────────────────────────────
 
   release:
-    name: "Step 4: Production Build & Release"
+    name: "Step 2: Production Build & Release"
     runs-on: macos-26
-    needs: [unit-tests, sqlite-integration-tests]
+    needs: [build-and-test]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
@@ -145,7 +114,6 @@ jobs:
             if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
           done
         done
-        echo "PostgresTools contents:" && ls -la Tools/PostgresTools/
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
     - name: Determine version
