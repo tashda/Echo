@@ -28,7 +28,25 @@ struct IndexEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: draft.isEditingExisting ? "Edit Index" : "New Index",
+            icon: "list.bullet.indent",
+            subtitle: draft.isEditingExisting ? "Modify index columns and options." : "Define a new index on selected columns.",
+            primaryAction: "Save",
+            canSubmit: draft.canSave,
+            onSubmit: {
+                applyDraft()
+                dismiss()
+            },
+            onCancel: {
+                cancelEditing()
+            },
+            destructiveAction: draft.isEditingExisting ? "Delete Index" : nil,
+            onDestructive: draft.isEditingExisting ? {
+                dismiss()
+                onDelete()
+            } : nil
+        ) {
             Form {
                 Section {
                     PropertyRow(title: "Name") {
@@ -61,16 +79,32 @@ struct IndexEditorSheet: View {
                             .labelsHidden()
                             .pickerStyle(.menu)
                         }
+                    } else if databaseType == .mysql {
+                        PropertyRow(
+                            title: "Index Type",
+                            info: "B-tree and Hash are standard MySQL secondary index types. Fulltext supports natural-language search. Spatial is used for geometry data."
+                        ) {
+                            Picker("", selection: $draft.indexType) {
+                                Text("B-tree").tag("btree")
+                                Text("Hash").tag("hash")
+                                Text("Fulltext").tag("fulltext")
+                                Text("Spatial").tag("spatial")
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                        }
                     }
 
-                    PropertyRow(
-                        title: "Filter",
-                        info: "Optional SQL WHERE condition for a partial index. Only rows matching this expression are included in the index.\n\nExample: status = 'active'"
-                    ) {
-                        TextField("", text: $draft.filterCondition, prompt: Text("e.g. status = 'active'"), axis: .vertical)
-                            .textFieldStyle(.plain)
-                            .lineLimit(2...4)
-                            .multilineTextAlignment(.trailing)
+                    if databaseType != .mysql {
+                        PropertyRow(
+                            title: "Filter",
+                            info: "Optional SQL WHERE condition for a partial index. Only rows matching this expression are included in the index.\n\nExample: status = 'active'"
+                        ) {
+                            TextField("", text: $draft.filterCondition, prompt: Text("e.g. status = 'active'"), axis: .vertical)
+                                .textFieldStyle(.plain)
+                                .lineLimit(2...4)
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                 }
 
@@ -97,13 +131,8 @@ struct IndexEditorSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            toolbar
         }
         .frame(minWidth: 420, idealWidth: 460, minHeight: 360)
-        .navigationTitle(draft.isEditingExisting ? "Edit Index" : "New Index")
     }
 
     private func indexColumnRow(for column: Binding<Draft.Column>, index: Int) -> some View {
@@ -150,34 +179,4 @@ struct IndexEditorSheet: View {
         }
     }
 
-    private var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            if draft.isEditingExisting {
-                Button("Delete Index", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-                .tint(ColorTokens.Status.error)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                cancelEditing()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraft()
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
-    }
 }

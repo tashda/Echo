@@ -122,11 +122,11 @@ struct AutoCompletionRowView: View {
         Button(action: action) {
             HStack(spacing: SpacingTokens.xxs2) {
                 Image(systemName: suggestion.kind.iconSystemName)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(TypographyTokens.standard.weight(.medium))
                     .foregroundStyle(isSelected ? activeIconColor : .secondary)
                     .frame(width: 14)
                 Text(suggestion.title)
-                    .font(.system(size: 13))
+                    .font(TypographyTokens.standard)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .foregroundStyle(isSelected ? activeTitleColor : .primary)

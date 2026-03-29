@@ -11,7 +11,7 @@
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
             <ActionContent
                title = "Update SPM Packages"
-               scriptText = "export SRCROOT=&quot;${SRCROOT}&quot;&#10;&quot;${SRCROOT}/scripts/update-packages.sh&quot; 2&gt;&amp;1 || true"
+               scriptText = "export SRCROOT=&quot;${SRCROOT}&quot;&#10;&quot;${SRCROOT}/.github/scripts/update-packages.sh&quot; 2&gt;&amp;1 || true"
                shellToInvoke = "/bin/bash">
                <EnvironmentBuildable>
                   <BuildableReference
@@ -59,16 +59,13 @@
             reference = "container:IntegrationTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
-            reference = "container:DatabaseIntegrationTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:ExtendedIntegrationTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
             reference = "container:MSSQLCompatibilityTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
             reference = "container:PostgresCompatibilityTests.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
+            reference = "container:SQLiteIntegrationTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
             reference = "container:EchoUITests.xctestplan">
@@ -124,7 +121,7 @@
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
-      buildConfiguration = "Debug"
+      buildConfiguration = "Release"
       shouldUseLaunchSchemeArgsEnv = "YES"
       savedToolIdentifier = "Time Profiler"
       useCustomWorkingDirectory = "NO"
@@ -144,7 +141,7 @@
       buildConfiguration = "Debug">
    </AnalyzeAction>
    <ArchiveAction
-      buildConfiguration = "Debug"
+      buildConfiguration = "Release"
       revealArchiveInOrganizer = "YES">
    </ArchiveAction>
 </Scheme>

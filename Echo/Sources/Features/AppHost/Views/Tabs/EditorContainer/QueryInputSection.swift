@@ -16,6 +16,7 @@ struct QueryInputSection: View {
     @Environment(AppState.self) var appState
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
+    private let sqlHelpProvider = SQLHelpInspectorContentProvider()
 
     private var editorTheme: SQLEditorTheme {
         appState.sqlEditorTheme
@@ -73,6 +74,7 @@ struct QueryInputSection: View {
             query.selectedText = selection.selectedText
             // Always sync to QueryEditorState so toolbar stays correct
             query.hasActiveSelection = hasSelection
+            syncSQLHelpInspector(using: trimmed)
             guard hasSelection != isSelectionActive else { return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                 isSelectionActive = hasSelection
@@ -80,4 +82,17 @@ struct QueryInputSection: View {
         }
     }
 
+    private func syncSQLHelpInspector(using trimmedSelection: String) {
+        let provider = sqlHelpProvider
+        let databaseType = completionContext?.databaseType ?? .postgresql
+
+        if let content = provider.content(for: trimmedSelection, databaseType: databaseType) {
+            if case .sqlHelp = environmentState.dataInspectorContent {
+                environmentState.dataInspectorContent = .sqlHelp(content)
+            }
+        } else if case .sqlHelp = environmentState.dataInspectorContent,
+                  appState.showInfoSidebar {
+            environmentState.dataInspectorContent = nil
+        }
+    }
 }

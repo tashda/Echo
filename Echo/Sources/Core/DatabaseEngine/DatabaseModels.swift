@@ -58,6 +58,12 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
     public let triggerAction: String?
     public let triggerTable: String?
     public let comment: String?
+    /// True when this table has system-versioning enabled (MSSQL temporal table).
+    public var isSystemVersioned: Bool?
+    /// True when this table is a history table for a system-versioned table.
+    public var isHistoryTable: Bool?
+    /// True when this table is memory-optimized (MSSQL In-Memory OLTP).
+    public var isMemoryOptimized: Bool?
 
     public nonisolated init(
         name: String,
@@ -67,7 +73,10 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         parameters: [ProcedureParameterInfo] = [],
         triggerAction: String? = nil,
         triggerTable: String? = nil,
-        comment: String? = nil
+        comment: String? = nil,
+        isSystemVersioned: Bool? = nil,
+        isHistoryTable: Bool? = nil,
+        isMemoryOptimized: Bool? = nil
     ) {
         self.name = name
         self.schema = schema
@@ -77,6 +86,9 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         self.triggerAction = triggerAction
         self.triggerTable = triggerTable
         self.comment = comment
+        self.isSystemVersioned = isSystemVersioned
+        self.isHistoryTable = isHistoryTable
+        self.isMemoryOptimized = isMemoryOptimized
     }
 
     public nonisolated var fullName: String {
@@ -85,6 +97,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case name, schema, type, columns, parameters, triggerAction, triggerTable, comment
+        case isSystemVersioned, isHistoryTable, isMemoryOptimized
     }
 
     public nonisolated init(from decoder: Decoder) throws {
@@ -97,6 +110,9 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         self.triggerAction = try container.decodeIfPresent(String.self, forKey: .triggerAction)
         self.triggerTable = try container.decodeIfPresent(String.self, forKey: .triggerTable)
         self.comment = try container.decodeIfPresent(String.self, forKey: .comment)
+        self.isSystemVersioned = try container.decodeIfPresent(Bool.self, forKey: .isSystemVersioned)
+        self.isHistoryTable = try container.decodeIfPresent(Bool.self, forKey: .isHistoryTable)
+        self.isMemoryOptimized = try container.decodeIfPresent(Bool.self, forKey: .isMemoryOptimized)
     }
 
     public nonisolated func encode(to encoder: Encoder) throws {
@@ -109,6 +125,9 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         try container.encodeIfPresent(triggerAction, forKey: .triggerAction)
         try container.encodeIfPresent(triggerTable, forKey: .triggerTable)
         try container.encodeIfPresent(comment, forKey: .comment)
+        try container.encodeIfPresent(isSystemVersioned, forKey: .isSystemVersioned)
+        try container.encodeIfPresent(isHistoryTable, forKey: .isHistoryTable)
+        try container.encodeIfPresent(isMemoryOptimized, forKey: .isMemoryOptimized)
     }
 }
 
@@ -143,10 +162,16 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         public var identityIncrement: Int?
         public var identityGeneration: String?
         public var collation: String?
+        public var characterSet: String?
+        public var comment: String?
+        public var isUnsigned: Bool
+        public var isZerofill: Bool
+        public var ordinalPosition: Int?
 
-        public init(name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?, isIdentity: Bool = false, identitySeed: Int? = nil, identityIncrement: Int? = nil, identityGeneration: String? = nil, collation: String? = nil) {
+        public init(name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?, isIdentity: Bool = false, identitySeed: Int? = nil, identityIncrement: Int? = nil, identityGeneration: String? = nil, collation: String? = nil, characterSet: String? = nil, comment: String? = nil, isUnsigned: Bool = false, isZerofill: Bool = false, ordinalPosition: Int? = nil) {
             self.name = name; self.dataType = dataType; self.isNullable = isNullable; self.defaultValue = defaultValue; self.generatedExpression = generatedExpression
             self.isIdentity = isIdentity; self.identitySeed = identitySeed; self.identityIncrement = identityIncrement; self.identityGeneration = identityGeneration; self.collation = collation
+            self.characterSet = characterSet; self.comment = comment; self.isUnsigned = isUnsigned; self.isZerofill = isZerofill; self.ordinalPosition = ordinalPosition
         }
     }
 
@@ -239,14 +264,74 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         public var autovacuumEnabled: Bool?
         public var parallelWorkers: Int?
         public var tablespace: String?
-        // MSSQL
+        // MSSQL — General
         public var dataCompression: String?
         public var filegroup: String?
         public var lockEscalation: String?
+        public var createdDate: String?
+        public var modifiedDate: String?
+        public var isSystemObject: Bool?
+        public var usesAnsiNulls: Bool?
+        public var isReplicated: Bool?
+        // MSSQL — Storage
+        public var textFilegroup: String?
+        public var filestreamFilegroup: String?
+        public var isPartitioned: Bool?
+        public var partitionScheme: String?
+        public var partitionColumn: String?
+        public var partitionCount: Int?
+        // MSSQL — Temporal
+        public var isSystemVersioned: Bool?
+        public var historyTableSchema: String?
+        public var historyTableName: String?
+        public var periodStartColumn: String?
+        public var periodEndColumn: String?
+        // MSSQL — In-Memory OLTP
+        public var isMemoryOptimized: Bool?
+        public var memoryOptimizedDurability: String?
+        // MSSQL — Change Tracking
+        public var changeTrackingEnabled: Bool?
+        public var trackColumnsUpdated: Bool?
+        // MySQL — Table Options
+        public var storageEngine: String?
+        public var characterSet: String?
+        public var collation: String?
+        public var autoIncrementValue: Int?
+        public var rowFormat: String?
+        public var tableComment: String?
+        public var estimatedRowCount: Int64?
+        public var dataLengthBytes: Int64?
+        public var indexLengthBytes: Int64?
 
-        public init(fillfactor: Int? = nil, toastTupleTarget: Int? = nil, autovacuumEnabled: Bool? = nil, parallelWorkers: Int? = nil, tablespace: String? = nil, dataCompression: String? = nil, filegroup: String? = nil, lockEscalation: String? = nil) {
+        public init(
+            fillfactor: Int? = nil, toastTupleTarget: Int? = nil, autovacuumEnabled: Bool? = nil,
+            parallelWorkers: Int? = nil, tablespace: String? = nil, dataCompression: String? = nil,
+            filegroup: String? = nil, lockEscalation: String? = nil,
+            createdDate: String? = nil, modifiedDate: String? = nil,
+            isSystemObject: Bool? = nil, usesAnsiNulls: Bool? = nil, isReplicated: Bool? = nil,
+            textFilegroup: String? = nil, filestreamFilegroup: String? = nil,
+            isPartitioned: Bool? = nil, partitionScheme: String? = nil, partitionColumn: String? = nil, partitionCount: Int? = nil,
+            isSystemVersioned: Bool? = nil, historyTableSchema: String? = nil, historyTableName: String? = nil,
+            periodStartColumn: String? = nil, periodEndColumn: String? = nil,
+            isMemoryOptimized: Bool? = nil, memoryOptimizedDurability: String? = nil,
+            changeTrackingEnabled: Bool? = nil, trackColumnsUpdated: Bool? = nil,
+            storageEngine: String? = nil, characterSet: String? = nil, collation: String? = nil, autoIncrementValue: Int? = nil,
+            rowFormat: String? = nil, tableComment: String? = nil, estimatedRowCount: Int64? = nil,
+            dataLengthBytes: Int64? = nil, indexLengthBytes: Int64? = nil
+        ) {
             self.fillfactor = fillfactor; self.toastTupleTarget = toastTupleTarget; self.autovacuumEnabled = autovacuumEnabled; self.parallelWorkers = parallelWorkers; self.tablespace = tablespace
             self.dataCompression = dataCompression; self.filegroup = filegroup; self.lockEscalation = lockEscalation
+            self.createdDate = createdDate; self.modifiedDate = modifiedDate
+            self.isSystemObject = isSystemObject; self.usesAnsiNulls = usesAnsiNulls; self.isReplicated = isReplicated
+            self.textFilegroup = textFilegroup; self.filestreamFilegroup = filestreamFilegroup
+            self.isPartitioned = isPartitioned; self.partitionScheme = partitionScheme; self.partitionColumn = partitionColumn; self.partitionCount = partitionCount
+            self.isSystemVersioned = isSystemVersioned; self.historyTableSchema = historyTableSchema; self.historyTableName = historyTableName
+            self.periodStartColumn = periodStartColumn; self.periodEndColumn = periodEndColumn
+            self.isMemoryOptimized = isMemoryOptimized; self.memoryOptimizedDurability = memoryOptimizedDurability
+            self.changeTrackingEnabled = changeTrackingEnabled; self.trackColumnsUpdated = trackColumnsUpdated
+            self.storageEngine = storageEngine; self.characterSet = characterSet; self.collation = collation; self.autoIncrementValue = autoIncrementValue
+            self.rowFormat = rowFormat; self.tableComment = tableComment; self.estimatedRowCount = estimatedRowCount
+            self.dataLengthBytes = dataLengthBytes; self.indexLengthBytes = indexLengthBytes
         }
     }
 

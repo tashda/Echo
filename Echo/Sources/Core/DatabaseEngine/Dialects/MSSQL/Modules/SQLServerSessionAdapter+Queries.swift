@@ -1,6 +1,6 @@
 import Foundation
 import SQLServerKit
-import Logging
+import OSLog
 
 extension SQLServerSessionAdapter {
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -102,6 +102,7 @@ extension SQLServerSessionAdapter {
 
             // Primary result set state (streamed progressively)
             var primaryColumns: [ColumnInfo] = []
+            var canUseRawPath = true
             var primaryPreviewRows: [[String?]] = []
             primaryPreviewRows.reserveCapacity(initialPreviewBatch)
             var primaryRowCount = 0
@@ -144,6 +145,7 @@ extension SQLServerSessionAdapter {
 
                     if resultSetIndex == 0 {
                         primaryColumns = columns
+                        canUseRawPath = columns.allSatisfy { TDSBinaryDecoder.canDecodeRaw($0.dataType) }
                         worker = ResultStreamBatchWorker(
                             label: "dk.tippr.echo.mssql.streamWorker",
                             columns: columns,
@@ -158,14 +160,11 @@ extension SQLServerSessionAdapter {
                     }
 
                 case .row(let row):
-                    let stringValues = row.values.map { value -> String? in
-                        value.isNull ? nil : value.description
-                    }
-
                     if resultSetIndex == 0 {
                         primaryRowCount += 1
 
                         if primaryRowCount <= initialPreviewBatch {
+                            let stringValues = row.toStringArray()
                             primaryPreviewRows.append(stringValues)
                             pendingPayloads.append(ResultStreamBatchWorker.Payload(
                                 previewValues: stringValues,
@@ -173,7 +172,20 @@ extension SQLServerSessionAdapter {
                                 totalRowCount: primaryRowCount,
                                 decodeDuration: 0
                             ))
+                        } else if canUseRawPath {
+                            let (buffers, lengths, totalLength) = row.rawColumnBuffers()
+                            pendingPayloads.append(ResultStreamBatchWorker.Payload(
+                                previewValues: nil,
+                                storage: .raw(ResultStreamBatchWorker.RawRow(
+                                    buffers: buffers,
+                                    lengths: lengths,
+                                    totalLength: totalLength
+                                )),
+                                totalRowCount: primaryRowCount,
+                                decodeDuration: 0
+                            ))
                         } else {
+                            let stringValues = row.toStringArray()
                             pendingPayloads.append(ResultStreamBatchWorker.Payload(
                                 previewValues: nil,
                                 storage: .stringValues(stringValues),
@@ -193,7 +205,7 @@ extension SQLServerSessionAdapter {
                             self.logger.debug("[MSSQLStream] first-row latency=\(String(format: "%.3f", latency))s")
                         }
                     } else {
-                        currentAdditionalRows.append(stringValues)
+                        currentAdditionalRows.append(row.toStringArray())
                     }
 
                 case .message(let msg):
@@ -294,7 +306,7 @@ extension SQLServerSessionAdapter {
 
     // MARK: - Non-Streaming Conversion
 
-    private func convertSQLServerRowsToEcho(_ rows: [SQLServerRow]) -> QueryResultSet {
+    func convertSQLServerRowsToEcho(_ rows: [SQLServerRow]) -> QueryResultSet {
         var echoColumns: [ColumnInfo] = []
         var echoRows: [[String?]] = []
 
@@ -321,4 +333,5 @@ extension SQLServerSessionAdapter {
             commandTag: nil
         )
     }
+
 }

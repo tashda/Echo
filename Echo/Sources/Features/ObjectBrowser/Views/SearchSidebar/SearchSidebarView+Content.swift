@@ -1,117 +1,125 @@
 import SwiftUI
 
 extension SearchSidebarView {
-    private var requiresDatabaseContext: Bool {
-        viewModel.selectedCategories.contains { $0 != .queryTabs }
-    }
 
-    private var hasQueryTabFilter: Bool {
-        viewModel.selectedCategories.contains(.queryTabs)
+    /// Content uses a stable ZStack so the view tree structure never changes
+    /// when switching between placeholder and results. This prevents structural
+    /// identity changes that would propagate up and destroy @FocusState in the
+    /// search bar (which is a sibling in the parent VStack).
+    var content: some View {
+        ZStack {
+            if !viewModel.groupedResultsCache.isEmpty {
+                resultsList
+            }
+
+            if let placeholder = placeholderContent {
+                placeholder
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
-    var content: some View {
-        let requiresDatabase = requiresDatabaseContext
-        let hasQueryTabs = hasQueryTabFilter
-
-        if requiresDatabase && !hasQueryTabs && activeSession == nil {
-            SearchPlaceholderView(
+    private var placeholderContent: (some View)? {
+        if !viewModel.hasSessions {
+            ContentUnavailableView(
+                "No Connections",
                 systemImage: "externaldrive",
-                title: "No active connection",
-                subtitle: "Connect to a database server to start searching."
-            )
-        } else if requiresDatabase && !hasQueryTabs && activeSession?.selectedDatabaseName?.isEmpty != false {
-            SearchPlaceholderView(
-                systemImage: "cylinder",
-                title: "Select a database",
-                subtitle: "Choose a database for the current connection to search its objects."
+                description: Text("Connect to a database server to start searching.")
             )
         } else if viewModel.selectedCategories.isEmpty {
-            SearchPlaceholderView(
+            ContentUnavailableView(
+                "No Filters Selected",
                 systemImage: "slider.horizontal.3",
-                title: "Enable at least one filter",
-                subtitle: "Pick one or more object types to include in the search."
+                description: Text("Pick one or more object types to include in the search.")
             )
         } else if viewModel.trimmedQuery.count < viewModel.minimumSearchLength {
-            SearchPlaceholderView(
-                systemImage: "text.magnifyingglass",
-                title: "Search the selected database",
-                subtitle: "Enter at least \(viewModel.minimumSearchLength) characters to see results."
+            ContentUnavailableView(
+                "Search",
+                systemImage: "magnifyingglass",
+                description: Text("Enter at least \(viewModel.minimumSearchLength) characters to see results.")
             )
-        } else if viewModel.isSearching {
-            VStack(spacing: SpacingTokens.sm) {
-                ProgressView()
-                Text("Searching...")
-                    .font(TypographyTokens.caption2.weight(.medium))
-                    .foregroundStyle(ColorTokens.Text.secondary)
+        } else if viewModel.isSearching && viewModel.groupedResultsCache.isEmpty {
+            ProgressView()
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, SpacingTokens.xl)
+        } else if let error = viewModel.errorMessage, viewModel.groupedResultsCache.isEmpty {
+            ContentUnavailableView {
+                Label("Search Failed", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(error)
+            } actions: {
+                Button("Try Again") { viewModel.retryLastSearch() }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        } else if let error = viewModel.errorMessage {
-            SearchPlaceholderView(
-                systemImage: "exclamationmark.triangle",
-                title: "Search failed",
-                subtitle: error,
-                actionTitle: "Try Again",
-                action: { viewModel.retryLastSearch() }
-            )
-        } else if viewModel.results.isEmpty {
-            SearchPlaceholderView(
-                systemImage: "questionmark",
-                title: "No matches",
-                subtitle: "No objects match your query. Try different keywords or filters."
-            )
-        } else {
-            resultsList
+        } else if viewModel.groupedResultsCache.isEmpty && viewModel.trimmedQuery.count >= viewModel.minimumSearchLength && !viewModel.isSearching {
+            ContentUnavailableView.search(text: viewModel.trimmedQuery)
         }
     }
 
     var resultsList: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: SpacingTokens.sm, pinnedViews: .sectionHeaders) {
-                ForEach(groupedResults, id: \.category) { group in
+            LazyVStack(alignment: .leading, spacing: SpacingTokens.xs, pinnedViews: .sectionHeaders) {
+                ForEach(viewModel.groupedResultsCache, id: \.key) { group in
                     Section {
-                        VStack(spacing: SpacingTokens.xs) {
+                        VStack(spacing: 0) {
                             ForEach(group.results) { result in
                                 SearchResultRow(
-                                    result: result,
+                                    result: resultToLegacy(result),
                                     query: viewModel.trimmedQuery,
+                                    serverName: result.serverName,
+                                    databaseName: result.databaseName,
                                     onSelect: { handleResultTap(result) },
-                                    fetchDefinition: definitionFetcher(for: result)
+                                    fetchDefinition: definitionFetcher(for: result),
+                                    onOpenDefinitionInEditor: openInEditorAction(for: result)
                                 )
+                                .contextMenu { searchResultContextMenu(for: result) }
                             }
                         }
-                        .padding(.horizontal, SpacingTokens.xxxs)
-                        .padding(.bottom, SpacingTokens.xxs)
+                        .padding(.bottom, SpacingTokens.xxs2)
                     } header: {
                         SidebarStickySectionHeader(
-                            title: group.category.displayName,
+                            title: group.displayTitle,
                             count: group.results.count,
                             isExpanded: true,
                             coordinateSpaceName: SearchSidebarConstants.scrollSpace,
                             onTap: nil
                         )
                     }
-                    .id("search-section-\(group.category.rawValue)")
+                    .id("search-section-\(group.key)")
                 }
             }
-            .padding(.vertical, SpacingTokens.xxs)
+            .padding(.top, SpacingTokens.xs)
+            .padding(.bottom, SpacingTokens.xxs)
             .padding(.horizontal, SpacingTokens.xxs)
         }
         .coordinateSpace(name: SearchSidebarConstants.scrollSpace)
     }
 
-    var groupedResults: [(category: SearchSidebarCategory, results: [SearchSidebarResult])]
-    {
-        let groups = Dictionary(grouping: viewModel.results, by: \.category)
-        return SearchSidebarCategory.allCases.compactMap { category in
-            guard let results = groups[category] else { return nil }
-            return (category, results)
+
+    /// Bridge a GlobalSearchResult to SearchSidebarResult for the existing SearchResultRow view.
+    func resultToLegacy(_ result: GlobalSearchResult) -> SearchSidebarResult {
+        SearchSidebarResult(
+            category: result.category,
+            title: result.title,
+            subtitle: result.subtitle,
+            metadata: result.metadata,
+            snippet: result.snippet,
+            payload: result.payload
+        )
+    }
+
+    func openInEditorAction(for result: GlobalSearchResult) -> ((String) -> Void)? {
+        guard let session = viewModel.session(for: result.connectionSessionID) else { return nil }
+        guard definitionFetcher(for: result) != nil else { return nil }
+        return { definition in
+            environmentState.openQueryTab(for: session, presetQuery: definition, database: result.databaseName)
         }
     }
 
-    func definitionFetcher(for result: SearchSidebarResult) -> (() async throws -> String)? {
+    func definitionFetcher(for result: GlobalSearchResult) -> (() async throws -> String)? {
         guard let payload = result.payload else { return nil }
-        guard let session = activeSession else { return nil }
+        guard let session = viewModel.session(for: result.connectionSessionID) else { return nil }
+        let database = result.databaseName
 
         switch payload {
         case .schemaObject(let schema, let name, let type):
@@ -121,7 +129,8 @@ extension SearchSidebarView {
                     try await session.session.getObjectDefinition(
                         objectName: name,
                         schemaName: schema,
-                        objectType: type
+                        objectType: type,
+                        database: database
                     )
                 }
             default:
@@ -132,7 +141,8 @@ extension SearchSidebarView {
                 try await session.session.getObjectDefinition(
                     objectName: name,
                     schemaName: schema,
-                    objectType: .function
+                    objectType: .function,
+                    database: database
                 )
             }
         case .procedure(let schema, let name):
@@ -140,7 +150,8 @@ extension SearchSidebarView {
                 try await session.session.getObjectDefinition(
                     objectName: name,
                     schemaName: schema,
-                    objectType: .procedure
+                    objectType: .procedure,
+                    database: database
                 )
             }
         case .trigger(let schema, _, let name):
@@ -148,7 +159,8 @@ extension SearchSidebarView {
                 try await session.session.getObjectDefinition(
                     objectName: name,
                     schemaName: schema,
-                    objectType: .trigger
+                    objectType: .trigger,
+                    database: database
                 )
             }
         default:

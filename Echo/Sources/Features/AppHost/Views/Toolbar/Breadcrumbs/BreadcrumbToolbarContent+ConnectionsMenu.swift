@@ -65,7 +65,7 @@ final class ConnectionsMenuDelegate: NSObject, NSMenuDelegate {
                 let conn = session.connection
                 let isActive = conn.id == connectionStore.selectedConnectionID
                 let title = displayName(conn)
-                let dbSuffix = session.selectedDatabaseName.map { " — \($0)" } ?? ""
+                let dbSuffix = session.sidebarFocusedDatabase.map { " — \($0)" } ?? ""
                 let item = NSMenuItem(title: title + dbSuffix, action: #selector(switchToSession(_:)), keyEquivalent: "")
                 item.target = self
                 item.representedObject = session

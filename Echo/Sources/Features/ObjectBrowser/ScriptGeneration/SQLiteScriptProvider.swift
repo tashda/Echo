@@ -11,8 +11,8 @@ struct SQLiteScriptProvider: DatabaseScriptProvider {
         quoteIdentifier(name)
     }
 
-    func scriptActions(for objectType: SchemaObjectInfo.ObjectType) -> [DatabaseObjectRow.ScriptAction] {
-        var actions: [DatabaseObjectRow.ScriptAction] = [.create, .drop]
+    func scriptActions(for objectType: SchemaObjectInfo.ObjectType) -> [ScriptAction] {
+        var actions: [ScriptAction] = [.create, .drop]
         switch objectType {
         case .table, .view, .materializedView:
             actions.append(contentsOf: [.select, .selectLimited(1000)])

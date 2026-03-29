@@ -1,5 +1,6 @@
 import Foundation
 import JavaScriptCore
+import OSLog
 
 enum SQLFormatterError: LocalizedError {
     case engineNotReady
@@ -70,7 +71,7 @@ final class SQLFormatter: SQLFormatterProtocol, Sendable {
 
         context.exceptionHandler = { _, exception in
             if let message = exception?.toString() {
-                print("[SQLFormatter] JS exception: \(message)")
+                Logger.formatting.error("JS exception: \(message)")
             }
         }
 

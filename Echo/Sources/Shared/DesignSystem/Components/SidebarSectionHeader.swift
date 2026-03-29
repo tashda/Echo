@@ -27,7 +27,7 @@ public struct SidebarSectionHeader<Trailing: View>: View {
 
             if let isExpanded {
                 Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(TypographyTokens.compact.weight(.semibold))
                     .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }

@@ -13,10 +13,16 @@ extension TableStructureEditorViewModel {
             let identityIncrement: Int?
             let identityGeneration: String?
             let collation: String?
+            let characterSet: String?
+            let comment: String?
+            let isUnsigned: Bool
+            let isZerofill: Bool
+            let ordinalPosition: Int?
 
-            init(name: String, dataType: String, isNullable: Bool, defaultValue: String? = nil, generatedExpression: String? = nil, isIdentity: Bool = false, identitySeed: Int? = nil, identityIncrement: Int? = nil, identityGeneration: String? = nil, collation: String? = nil) {
+            init(name: String, dataType: String, isNullable: Bool, defaultValue: String? = nil, generatedExpression: String? = nil, isIdentity: Bool = false, identitySeed: Int? = nil, identityIncrement: Int? = nil, identityGeneration: String? = nil, collation: String? = nil, characterSet: String? = nil, comment: String? = nil, isUnsigned: Bool = false, isZerofill: Bool = false, ordinalPosition: Int? = nil) {
                 self.name = name; self.dataType = dataType; self.isNullable = isNullable; self.defaultValue = defaultValue; self.generatedExpression = generatedExpression
                 self.isIdentity = isIdentity; self.identitySeed = identitySeed; self.identityIncrement = identityIncrement; self.identityGeneration = identityGeneration; self.collation = collation
+                self.characterSet = characterSet; self.comment = comment; self.isUnsigned = isUnsigned; self.isZerofill = isZerofill; self.ordinalPosition = ordinalPosition
             }
         }
 
@@ -32,11 +38,17 @@ extension TableStructureEditorViewModel {
         var identityIncrement: Int?
         var identityGeneration: String?
         var collation: String?
+        var characterSet: String?
+        var comment: String?
+        var isUnsigned: Bool
+        var isZerofill: Bool
+        var ordinalPosition: Int?
         var isDeleted: Bool = false
 
-        init(original: Snapshot?, name: String, dataType: String, isNullable: Bool, defaultValue: String? = nil, generatedExpression: String? = nil, isIdentity: Bool = false, identitySeed: Int? = nil, identityIncrement: Int? = nil, identityGeneration: String? = nil, collation: String? = nil) {
+        init(original: Snapshot?, name: String, dataType: String, isNullable: Bool, defaultValue: String? = nil, generatedExpression: String? = nil, isIdentity: Bool = false, identitySeed: Int? = nil, identityIncrement: Int? = nil, identityGeneration: String? = nil, collation: String? = nil, characterSet: String? = nil, comment: String? = nil, isUnsigned: Bool = false, isZerofill: Bool = false, ordinalPosition: Int? = nil) {
             self.original = original; self.name = name; self.dataType = dataType; self.isNullable = isNullable; self.defaultValue = defaultValue; self.generatedExpression = generatedExpression
             self.isIdentity = isIdentity; self.identitySeed = identitySeed; self.identityIncrement = identityIncrement; self.identityGeneration = identityGeneration; self.collation = collation
+            self.characterSet = characterSet; self.comment = comment; self.isUnsigned = isUnsigned; self.isZerofill = isZerofill; self.ordinalPosition = ordinalPosition
         }
 
         var isNew: Bool { original == nil }
@@ -77,10 +89,25 @@ extension TableStructureEditorViewModel {
             return original.collation != collation
         }
 
+        var hasCharacterSetChange: Bool {
+            guard let original else { return characterSet != nil }
+            return original.characterSet != characterSet
+        }
+
+        var hasCommentChange: Bool {
+            guard let original else { return comment != nil }
+            return original.comment != comment
+        }
+
+        var hasNumericAttributeChange: Bool {
+            guard let original else { return isUnsigned || isZerofill }
+            return original.isUnsigned != isUnsigned || original.isZerofill != isZerofill
+        }
+
         var isDirty: Bool {
             if isDeleted { return true }
             if isNew { return true }
-            return hasRename || hasTypeChange || hasNullabilityChange || hasDefaultChange || hasExpressionChange || hasIdentityChange || hasCollationChange
+            return hasRename || hasTypeChange || hasNullabilityChange || hasDefaultChange || hasExpressionChange || hasIdentityChange || hasCollationChange || hasCharacterSetChange || hasCommentChange || hasNumericAttributeChange
         }
     }
 

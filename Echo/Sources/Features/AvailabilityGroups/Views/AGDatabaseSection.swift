@@ -4,6 +4,8 @@ import SQLServerKit
 struct AGDatabaseSection: View {
     let databases: [SQLServerAGDatabase]
     let detailState: AvailabilityGroupsViewModel.LoadingState
+    var groupName: String?
+    var onRemoveDatabase: ((String) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.sm) {
@@ -72,6 +74,15 @@ struct AGDatabaseSection: View {
         }
         .padding(.vertical, SpacingTokens.xs)
         .padding(.horizontal, SpacingTokens.sm)
+        .contextMenu {
+            if let onRemove = onRemoveDatabase, groupName != nil {
+                Button(role: .destructive) {
+                    onRemove(db.databaseName)
+                } label: {
+                    Label("Remove from Group", systemImage: "minus.circle")
+                }
+            }
+        }
     }
 
     private func headerCell(_ text: String, width: CGFloat) -> some View {

@@ -28,10 +28,33 @@ struct SidebarRow<Trailing: View>: View {
     var accentColor: Color = ColorTokens.accent
     @ViewBuilder var trailing: () -> Trailing
 
-    @Environment(\.sidebarDensity) private var density
+    init(
+        depth: Int,
+        icon: Icon,
+        label: String,
+        subtitle: String? = nil,
+        isExpanded: Binding<Bool>? = nil,
+        isSelected: Bool = false,
+        iconColor: Color = ColorTokens.Sidebar.symbol,
+        labelColor: Color = ColorTokens.Text.primary,
+        labelFont: Font = SidebarRowConstants.labelFont,
+        accentColor: Color = ColorTokens.accent,
+        @ViewBuilder trailing: @escaping () -> Trailing
+    ) {
+        self.depth = depth
+        self.icon = icon
+        self.label = label
+        self.subtitle = subtitle
+        self.isExpanded = isExpanded
+        self.isSelected = isSelected
+        self.iconColor = iconColor
+        self.labelColor = labelColor
+        self.labelFont = labelFont
+        self.accentColor = accentColor
+        self.trailing = trailing
+    }
 
-    @State private var isHovered = false
-    @State private var isContextMenuVisible = false
+    @Environment(\.sidebarDensity) private var density
 
     private var densityVerticalPadding: CGFloat { density == .large ? 5 : SidebarRowConstants.rowVerticalPadding }
     private var densityIconFrameWidth: CGFloat { density == .large ? 20 : SidebarRowConstants.iconFrameWidth }
@@ -52,12 +75,6 @@ struct SidebarRow<Trailing: View>: View {
         if isSelected {
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
                 .fill(ColorTokens.Sidebar.selectedFill)
-        } else if isContextMenuVisible {
-            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Sidebar.contextFill)
-        } else if isHovered {
-            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Sidebar.hoverFill)
         } else {
             Color.clear
         }
@@ -114,16 +131,6 @@ struct SidebarRow<Trailing: View>: View {
             .contentShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
         }
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
-            guard isHovered else { return }
-            withAnimation(.easeInOut(duration: 0.1)) { isContextMenuVisible = true }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
-            withAnimation(.easeInOut(duration: 0.15)) { isContextMenuVisible = false }
-        }
         .buttonStyle(.plain)
         .focusable(false)
     }
@@ -134,6 +141,7 @@ struct SidebarRow<Trailing: View>: View {
         case .system(let name):
             Image(systemName: name)
                 .font(densityIconFont)
+                .imageScale(.medium)
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(resolvedIconColor)
                 .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)

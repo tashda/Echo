@@ -19,6 +19,8 @@ public enum TypographyTokens {
     public static let caption = SwiftUI.Font.system(.caption, design: .default)
     public static let footnote = SwiftUI.Font.system(.footnote, design: .default)
     public static let monospaced = SwiftUI.Font.system(.body, design: .monospaced)
+    /// Monospaced font for code editors (function bodies, SQL preview, etc.)
+    public static let code = SwiftUI.Font.system(size: 13, design: .monospaced)
 
     // Fixed-size styles for macOS UI where precise sizing matters
     /// 9pt — toolbar badges, compact indicators
@@ -90,6 +92,18 @@ public enum TypographyTokens {
         /// 11pt monospaced — same base as `path` today, separate token for future divergence.
         public static let sql = SwiftUI.Font.system(size: 11, design: .monospaced)
     }
+
+    // MARK: - Icon / Empty State Sizes
+    /// 6pt — density preview micro dots
+    public static let micro = SwiftUI.Font.system(size: 6)
+    /// 28pt — medium empty state icons
+    public static let iconMedium = SwiftUI.Font.system(size: 28)
+    /// 32pt — standard empty state icons, wizard graphics
+    public static let iconDisplay = SwiftUI.Font.system(size: 32)
+    /// 40pt — large empty state icons
+    public static let iconLarge = SwiftUI.Font.system(size: 40)
+    /// 48pt — hero wizard icons
+    public static let iconHero = SwiftUI.Font.system(size: 48)
 
     /// 16pt — large headers
     public static let display = SwiftUI.Font.system(size: 16)

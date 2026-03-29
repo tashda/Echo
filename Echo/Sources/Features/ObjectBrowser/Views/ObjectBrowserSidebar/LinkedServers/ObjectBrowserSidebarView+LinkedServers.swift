@@ -12,26 +12,27 @@ extension ObjectBrowserSidebarView {
         let servers = viewModel.linkedServersBySession[connID] ?? []
         let isLoading = viewModel.linkedServersLoadingBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-            folderHeaderRow(
-                title: "Linked Servers",
-                icon: "link",
-                count: servers.isEmpty ? nil : servers.count,
-                isExpanded: isExpanded,
-                action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        viewModel.linkedServersExpandedBySession[connID] = !isExpanded
-                    }
-                    if !isExpanded && servers.isEmpty && !isLoading {
-                        loadLinkedServers(session: session)
-                    }
-                },
-                depth: 0
-            )
-
-            if isExpanded {
-                linkedServersContent(session: session, servers: servers, isLoading: isLoading)
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { newValue in
+                viewModel.linkedServersExpandedBySession[connID] = newValue
+                if newValue && servers.isEmpty && !isLoading {
+                    loadLinkedServers(session: session)
+                }
             }
+        )
+
+        folderHeaderRow(
+            title: "Linked Servers",
+            icon: "link",
+            count: servers.isEmpty ? nil : servers.count,
+            isExpanded: expandedBinding,
+            isLoading: isLoading,
+            depth: 0
+        )
+
+        if isExpanded {
+            linkedServersContent(session: session, servers: servers, isLoading: isLoading)
         }
     }
 
@@ -43,15 +44,19 @@ extension ObjectBrowserSidebarView {
         servers: [ObjectBrowserSidebarViewModel.LinkedServerItem],
         isLoading: Bool
     ) -> some View {
-        if isLoading {
-            linkedServersLoadingIndicator()
-        } else if !servers.isEmpty {
+        if servers.isEmpty {
+            SidebarRow(
+                depth: 1,
+                icon: .none,
+                label: isLoading ? "Loading…" : "No linked servers",
+                labelColor: ColorTokens.Text.tertiary,
+                labelFont: TypographyTokens.detail
+            )
+        } else {
             ForEach(servers) { server in
                 linkedServerRow(server: server, session: session)
             }
         }
-
-        newLinkedServerButton(session: session)
     }
 
     // MARK: - Row
@@ -100,41 +105,16 @@ extension ObjectBrowserSidebarView {
         Divider()
 
         Button(role: .destructive) {
-            viewModel.dropLinkedServerTarget = .init(
+            sheetState.dropLinkedServerTarget = .init(
                 connectionID: session.connection.id,
                 serverName: server.name
             )
-            viewModel.showDropLinkedServerAlert = true
+            sheetState.showDropLinkedServerAlert = true
         } label: {
             Label("Drop", systemImage: "trash")
         }
-    }
-
-    // MARK: - New Linked Server Button
-
-    func newLinkedServerButton(session: ConnectionSession) -> some View {
-        Button {
-            viewModel.newLinkedServerSessionID = session.connection.id
-            viewModel.showNewLinkedServerSheet = true
-        } label: {
-            SidebarRow(
-                depth: 1,
-                icon: .system("plus.circle"),
-                label: "New Linked Server",
-                iconColor: ColorTokens.Text.tertiary,
-                labelColor: ColorTokens.Text.tertiary
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Loading Indicator
-
-    func linkedServersLoadingIndicator() -> some View {
-        SidebarRow(depth: 1, icon: .none, label: "Loading linked servers\u{2026}", labelColor: ColorTokens.Text.secondary, labelFont: TypographyTokens.detail) {
-            ProgressView()
-                .controlSize(.mini)
-        }
+        .disabled(!(session.permissions?.canManageLinkedServers ?? true))
+        .help(session.permissions?.canManageLinkedServers ?? true ? "" : "Requires sysadmin or setupadmin role")
     }
 
 }

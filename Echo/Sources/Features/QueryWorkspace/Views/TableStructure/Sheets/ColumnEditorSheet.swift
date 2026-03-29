@@ -27,22 +27,37 @@ struct ColumnEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: draft.isEditingExisting ? "Edit Column" : "New Column",
+            icon: "tablecells",
+            subtitle: draft.isEditingExisting ? "Modify column properties." : "Define a new column for this table.",
+            primaryAction: "Save",
+            canSubmit: draft.canSave,
+            onSubmit: {
+                applyDraft()
+            },
+            onCancel: {
+                cancelEditing()
+            },
+            destructiveAction: draft.isEditingExisting ? "Delete Column" : nil,
+            onDestructive: draft.isEditingExisting ? {
+                dismiss()
+                onDelete()
+            } : nil
+        ) {
             Form {
                 generalSection
                 behaviorSection
                 identitySection
                 collationSection
+                if databaseType == .mysql {
+                    mysqlSection
+                }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            toolbar
         }
         .frame(minWidth: 440, idealWidth: 500, minHeight: 440)
-        .navigationTitle(draft.isEditingExisting ? "Edit Column" : "New Column")
     }
 
     private var generalSection: some View {
@@ -53,31 +68,8 @@ struct ColumnEditorSheet: View {
                     .multilineTextAlignment(.trailing)
             }
             
-            if hasDataTypeDropdown {
-                PropertyRow(title: "Data Type") {
-                    Picker("", selection: typeSelectionBinding) {
-                        Text("Custom").tag("")
-                        ForEach(dataTypeOptions(for: databaseType), id: \.self) { type in
-                            Text(type).tag(type)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                }
-                
-                if draft.selectedDataType == nil {
-                    PropertyRow(title: "Custom Data Type") {
-                        TextField("", text: dataTypeInputBinding, prompt: Text("e.g. int, varchar(255)"))
-                            .textFieldStyle(.plain)
-                            .multilineTextAlignment(.trailing)
-                    }
-                }
-            } else {
-                PropertyRow(title: "Data Type") {
-                    TextField("", text: dataTypeInputBinding, prompt: Text("e.g. int, varchar(255)"))
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.trailing)
-                }
+            PropertyRow(title: "Data Type") {
+                DataTypePicker(selection: dataTypeInputBinding, databaseType: databaseType)
             }
         } footer: {
             if !draft.canSave {
@@ -119,36 +111,6 @@ struct ColumnEditorSheet: View {
             Text("Leave optional fields blank to omit them.")
                 .font(TypographyTokens.formDescription)
         }
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            if draft.isEditingExisting {
-                Button("Delete Column", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-                .tint(ColorTokens.Status.error)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                cancelEditing()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraft()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
     }
 
     var hasDataTypeDropdown: Bool {

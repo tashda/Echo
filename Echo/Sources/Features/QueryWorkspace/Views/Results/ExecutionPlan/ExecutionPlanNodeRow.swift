@@ -97,7 +97,7 @@ struct ExecutionPlanNodeRow: View {
     private var operatorIcon: some View {
         let (iconName, color) = operatorIconInfo
         return Image(systemName: iconName)
-            .font(.system(size: 10))
+            .font(TypographyTokens.label)
             .foregroundStyle(color)
     }
 

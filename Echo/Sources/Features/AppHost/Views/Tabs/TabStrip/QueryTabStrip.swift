@@ -56,12 +56,16 @@ struct QueryTabStrip: View {
         }
     }
 
+    @State private var isNewTabHovered = false
+
     let tabReorderAnimation = Animation.interactiveSpring(response: 0.2, dampingFraction: 0.9, blendDuration: 0)
     private let tabStripHeight: CGFloat = WorkspaceChromeMetrics.tabStripTotalHeight
     private let baseHorizontalInset: CGFloat = 4
     private let basePlateExtension: CGFloat = 0
     private let basePlateEdgeInset: CGFloat = 2
     private let basePlateCornerRadius: CGFloat = 14
+    private let newTabButtonSize: CGFloat = 28
+    private let newTabButtonGap: CGFloat = 6
     private var basePlateHeight: CGFloat { WorkspaceChromeMetrics.chromeBackgroundHeight }
     private var tabContentVerticalPadding: CGFloat {
         max((tabStripHeight - basePlateHeight) / 2, 0)
@@ -75,7 +79,8 @@ struct QueryTabStrip: View {
 
             let effectiveLeadingPadding = leadingPadding + baseHorizontalInset
             let effectiveTrailingPadding = trailingPadding + baseHorizontalInset
-            let availableWidth = max(geo.size.width - effectiveLeadingPadding - effectiveTrailingPadding, 0)
+            let newTabReserved = hasTabs ? newTabButtonSize + newTabButtonGap : 0
+            let availableWidth = max(geo.size.width - effectiveLeadingPadding - effectiveTrailingPadding - newTabReserved, 0)
             let separatorWidth = CGFloat(max(orderedTabs.count - 1, 0)) * tabHairlineWidth()
             let effectiveWidth = max(availableWidth - separatorWidth, 0)
             let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
@@ -106,9 +111,14 @@ struct QueryTabStrip: View {
                             }
                         )
                         .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if hasTabs {
+                        newTabButton
+                            .padding(.leading, newTabButtonGap)
+                    }
                 }
                 .padding(.leading, effectiveLeadingPadding)
-                .padding(.trailing, effectiveTrailingPadding)
+                .padding(.trailing, hasTabs ? 7 : effectiveTrailingPadding)
                 .padding(.vertical, tabContentVerticalPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(tabReorderAnimation, value: tabStore.tabs.map(\.id))
@@ -135,6 +145,26 @@ struct QueryTabStrip: View {
         let pinned = tabs.filter { $0.isPinned }.map { ($0, true) }
         let regular = tabs.filter { !$0.isPinned }.map { ($0, false) }
         return pinned + regular
+    }
+
+    private var newTabButton: some View {
+        Button {
+            environmentState.openQueryTab()
+        } label: {
+            Image(systemName: "plus")
+                .font(TypographyTokens.prominent.weight(.medium))
+                .foregroundStyle(.primary)
+                .frame(width: newTabButtonSize, height: newTabButtonSize)
+                .background {
+                    Circle()
+                        .fill(Color.primary.opacity(isNewTabHovered ? 0.06 : 0))
+                }
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular, in: .circle)
+        .onHover { isNewTabHovered = $0 }
+        .help("New Tab")
+        .accessibilityLabel("New Tab")
     }
 
     private func tabGroup(orderedTabs: [(WorkspaceTab, Bool)], tabWidth: CGFloat) -> some View {

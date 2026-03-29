@@ -16,6 +16,7 @@ struct SettingsWindowScene: Scene {
                 .environment(coordinator.clipboardHistory)
                 .environment(coordinator.appearanceStore)
                 .environment(coordinator.notificationEngine)
+                .environment(coordinator.authState)
         }
         .defaultSize(width: 1000, height: 700)
         .windowResizability(.contentMinSize)

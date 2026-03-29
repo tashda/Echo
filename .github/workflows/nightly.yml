@@ -1,9 +1,7 @@
 name: Nightly Tests
 
 on:
-  schedule:
-    - cron: '0 2 * * *'  # 2 AM UTC daily
-  workflow_dispatch:
+  workflow_dispatch:  # Manual only — requires self-hosted runner
 
 jobs:
   extended-integration:
@@ -64,7 +62,7 @@ jobs:
         rm -rf TestResults-extended-integration TestResults-extended-integration.xcresult
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
-          -testPlan ExtendedIntegrationTests \
+          -testPlan IntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-extended-integration \
           -disable-concurrent-destination-testing \

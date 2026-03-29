@@ -1,6 +1,6 @@
 import Foundation
 import SQLServerKit
-import Logging
+import OSLog
 
 extension MSSQLEncryptionMode {
     var asSQLServerEncryptionMode: SQLServerEncryptionMode {
@@ -13,7 +13,7 @@ extension MSSQLEncryptionMode {
 }
 
 struct MSSQLNIOFactory: DatabaseFactory {
-    private let logger = Logger(label: "dk.tippr.echo.mssql")
+    private let logger = Logger.mssql
 
     static func makeAuthentication(
         from authentication: DatabaseAuthenticationConfiguration
@@ -130,9 +130,10 @@ struct MSSQLNIOFactory: DatabaseFactory {
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
         let resolvedDatabase = database?.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Always login to master to avoid failures when the target database is offline.
-        // The selected database is tracked separately in the session.
-        let loginDatabase = "master"
+        // Connect to the target database directly so metadata operations (sys.schemas,
+        // sys.objects, etc.) resolve without cross-database three-part naming. Falls back
+        // to master only when no database is specified.
+        let loginDatabase = (resolvedDatabase?.isEmpty == false) ? resolvedDatabase! : "master"
 
         logger.info("Connecting to SQL Server at \(host):\(port)/\(loginDatabase)")
 

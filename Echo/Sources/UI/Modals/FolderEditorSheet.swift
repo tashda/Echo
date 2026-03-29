@@ -119,10 +119,22 @@ struct FolderEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: isEditing ? "Edit Folder" : "New Folder",
+            icon: selectedIcon,
+            subtitle: isEditing ? "Modify folder settings and credentials." : "Create a folder to organize your connections.",
+            primaryAction: isEditing ? "Save" : "Create",
+            canSubmit: isValid,
+            onSubmit: { await saveFolder() },
+            onCancel: { dismiss() },
+            destructiveAction: isEditing ? "Delete" : nil,
+            onDestructive: isEditing ? {
+                if let folder = editingFolder {
+                    Task { try? await connectionStore.deleteFolder(folder); dismiss() }
+                }
+            } : nil
+        ) {
             formContent
-            Divider()
-            footerButtons
         }
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
@@ -362,32 +374,6 @@ struct FolderEditorSheet: View {
                 }
             }
         }
-    }
-
-    // MARK: - Footer
-
-    private var footerButtons: some View {
-        HStack {
-            if let folder = editingFolder {
-                Button("Delete", role: .destructive) {
-                    Task { try? await connectionStore.deleteFolder(folder); dismiss() }
-                }
-                .buttonStyle(.bordered)
-                .tint(ColorTokens.Status.error)
-            }
-
-            Spacer()
-
-            Button("Cancel", role: .cancel) { dismiss() }
-                .buttonStyle(.bordered)
-                .keyboardShortcut(.cancelAction)
-
-            Button(isEditing ? "Save" : "Create") { Task { await saveFolder() } }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!isValid)
-        }
-        .padding(SpacingTokens.md)
     }
 
     // MARK: - Logic

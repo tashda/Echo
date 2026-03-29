@@ -14,6 +14,10 @@ nonisolated struct PostgresToolLocator {
         locateTool(name: "psql", customPath: customPath)
     }
 
+    static func pgDumpAllURL(customPath: String? = nil) -> URL? {
+        locateTool(name: "pg_dumpall", customPath: customPath)
+    }
+
     static func version(of tool: URL) async throws -> String {
         let process = Process()
         process.executableURL = tool

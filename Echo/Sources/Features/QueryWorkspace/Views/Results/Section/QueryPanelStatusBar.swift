@@ -11,7 +11,7 @@ struct QueryPanelStatusBar: View {
     }
 
     private var hasActivity: Bool {
-        query.hasExecutedAtLeastOnce || query.isExecuting || query.errorMessage != nil
+        query.hasExecutedAtLeastOnce || query.isExecuting || query.errorMessage != nil || query.isEstablishingConnection
     }
 
     private var visibleSegments: [PanelSegment] {
@@ -19,6 +19,8 @@ struct QueryPanelStatusBar: View {
             switch segment {
             case .executionPlan:
                 return query.executionPlan != nil
+            case .statistics:
+                return query.isExecuting || query.livePerformanceReport != nil || query.lastPerformanceReport != nil
             default:
                 return true
             }
@@ -49,9 +51,9 @@ struct QueryPanelStatusBar: View {
             isPanelOpen: panelState.isOpen
         )
 
+        config.statusBubble = buildStatusBubble()
         if hasActivity {
             config.metrics = buildMetrics()
-            config.statusBubble = buildStatusBubble()
         }
 
         config.modeIndicators = buildModeIndicators()
@@ -96,8 +98,11 @@ struct QueryPanelStatusBar: View {
             return .init(
                 label: isMaterializing ? "Loading rows" : "Completed",
                 tint: .green,
-                isPulsing: isMaterializing
+                isPulsing: false
             )
+        }
+        if query.isEstablishingConnection {
+            return .init(label: "Connecting", tint: .secondary, isPulsing: true)
         }
         return .init(label: "Ready", tint: .secondary, isPulsing: false)
     }

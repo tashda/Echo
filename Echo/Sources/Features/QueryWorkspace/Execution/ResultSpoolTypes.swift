@@ -156,16 +156,24 @@ struct ResultBinaryRowCodec {
             let cellData = data[index..<end]
             index = end
 
-            let oid = columnIndex < columns.count
-                ? (PostgresDataTypeOIDMap.oid(for: columns[columnIndex].dataType) ?? 25)
-                : 25
-            if let formatted = DirectBinaryDecoder.format(cellData, oid: oid) {
-                result.append(formatted)
+            let colType = columnIndex < columns.count ? columns[columnIndex].dataType : "text"
+
+            // Check if this is a TDS (MSSQL) column type or Postgres
+            if TDSBinaryDecoder.isTDSType(colType) {
+                if let formatted = TDSBinaryDecoder.format(cellData, dataType: colType) {
+                    result.append(formatted)
+                } else {
+                    result.append(String(data: Data(cellData), encoding: .utf8))
+                }
             } else {
-                // Fallback for types DirectBinaryDecoder can't handle (e.g., Numeric)
-                let slowFormatter = PostgresPayloadFormatter()
-                let payload = ResultCellPayload(dataTypeOID: oid, format: .binary, bytes: Data(cellData))
-                result.append(slowFormatter.stringValue(for: payload, columnIndex: columnIndex))
+                let oid = PostgresDataTypeOIDMap.oid(for: colType) ?? 25
+                if let formatted = DirectBinaryDecoder.format(cellData, oid: oid) {
+                    result.append(formatted)
+                } else {
+                    let slowFormatter = PostgresPayloadFormatter()
+                    let payload = ResultCellPayload(dataTypeOID: oid, format: .binary, bytes: Data(cellData))
+                    result.append(slowFormatter.stringValue(for: payload, columnIndex: columnIndex))
+                }
             }
             columnIndex += 1
         }

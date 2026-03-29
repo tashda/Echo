@@ -24,14 +24,14 @@ extension SQLTextView {
         // Need at least a "database." prefix (2+ components)
         guard components.count >= 2, let dbName = components.first, !dbName.isEmpty else { return }
 
-        // Fire when the database has no schemas loaded yet.
-        // If the database is in the structure but has no schemas, or if the database
-        // is not in the structure at all (user may be referencing a valid DB not yet discovered),
-        // trigger the load.
-        let hasSchemas = structure.databases
-            .first(where: { $0.name.caseInsensitiveCompare(dbName) == .orderedSame })?
-            .schemas.isEmpty == false
-        guard !hasSchemas else { return }
+        // Only trigger a load when dbName matches a known database in the structure.
+        // If it doesn't match any database, it's likely a schema-qualified reference
+        // (e.g., "Sales.Customer") rather than a cross-database reference.
+        guard let database = structure.databases
+            .first(where: { $0.name.caseInsensitiveCompare(dbName) == .orderedSame }) else { return }
+
+        // Already has schemas loaded — nothing to do.
+        guard database.schemas.isEmpty else { return }
 
         onSchemaLoadNeeded?(dbName)
     }

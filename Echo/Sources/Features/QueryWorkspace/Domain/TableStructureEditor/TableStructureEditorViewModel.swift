@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 enum TableStructureSection: String, CaseIterable, Identifiable {
-    case columns, indexes, constraints, relations
+    case columns, indexes, constraints, relations, partitions, inheritance
     var id: String { rawValue }
     var displayName: String {
         switch self {
@@ -10,6 +10,8 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
         case .indexes: return "Indexes"
         case .constraints: return "Constraints"
         case .relations: return "Relations"
+        case .partitions: return "Partitions"
+        case .inheritance: return "Inheritance"
         }
     }
     var displayTitle: String { displayName }
@@ -19,6 +21,20 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
         case .indexes: return "bolt.horizontal"
         case .constraints: return "shield.lefthalf.filled"
         case .relations: return "arrow.triangle.merge"
+        case .partitions: return "square.split.2x2"
+        case .inheritance: return "arrow.triangle.branch"
+        }
+    }
+
+    /// Sections available for a given database dialect.
+    static func sections(for databaseType: DatabaseType) -> [TableStructureSection] {
+        switch databaseType {
+        case .postgresql:
+            return [.columns, .indexes, .constraints, .relations, .partitions, .inheritance]
+        case .microsoftSQL:
+            return [.columns, .indexes, .constraints, .relations]
+        default:
+            return [.columns, .indexes, .constraints, .relations]
         }
     }
 }
@@ -39,6 +55,10 @@ final class TableStructureEditorViewModel {
     var isApplying: Bool = false
     var lastError: String?
     var lastSuccessMessage: String?
+
+    /// nil = not yet checked, true = has data, false = no data
+    var partitionsAvailable: Bool?
+    var inheritanceAvailable: Bool?
 
     let schemaName: String
     let tableName: String
@@ -61,6 +81,8 @@ final class TableStructureEditorViewModel {
         switch databaseType {
         case .microsoftSQL:
             return SQLServerDialectGenerator(schema: schemaName, database: "")
+        case .mysql:
+            return MySQLDialectGenerator(schema: schemaName)
         default:
             return PostgreSQLDialectGenerator(schema: schemaName)
         }
@@ -98,17 +120,13 @@ final class TableStructureEditorViewModel {
         lastError = nil
         lastSuccessMessage = nil
         let statements = generateStatements()
-        guard !statements.isEmpty else {
-            lastSuccessMessage = "No changes to apply"
-            return
-        }
+        guard !statements.isEmpty else { return }
         isApplying = true
         defer { isApplying = false }
         let handle = activityEngine?.begin("Alter \(tableName)", connectionSessionID: connectionSessionID)
         let dialect = dialectGenerator
         do {
-            let executionPlan = [dialect.beginTransaction()] + statements + [dialect.commitTransaction()]
-            for statement in executionPlan {
+            for statement in [dialect.beginTransaction()] + statements + [dialect.commitTransaction()] {
                 _ = try await session.executeUpdate(statement)
             }
             let refreshed = try await session.getTableStructureDetails(schema: schemaName, table: tableName)
@@ -135,7 +153,12 @@ final class TableStructureEditorViewModel {
 
     @discardableResult
     func addColumn() -> ColumnModel {
-        let model = ColumnModel(original: nil, name: "new_column", dataType: "text", isNullable: true, defaultValue: nil, generatedExpression: nil, isIdentity: false, identitySeed: nil, identityIncrement: nil, identityGeneration: nil, collation: nil)
+        let defaultType: String = switch databaseType {
+        case .mysql: "varchar(255)"
+        case .microsoftSQL: "nvarchar(255)"
+        default: "text"
+        }
+        let model = ColumnModel(original: nil, name: "new_column", dataType: defaultType, isNullable: true, defaultValue: nil, generatedExpression: nil, isIdentity: false, identitySeed: nil, identityIncrement: nil, identityGeneration: nil, collation: nil, characterSet: nil, comment: nil, isUnsigned: false, isZerofill: false, ordinalPosition: nil)
         columns.append(model)
         return model
     }

@@ -89,7 +89,7 @@ struct BookmarkRow: View {
             Text("Bookmark Details").font(TypographyTokens.headline)
             ScrollView { Text(bookmark.query).font(TypographyTokens.standard.weight(.medium).monospaced()).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 260)
             HStack(spacing: SpacingTokens.sm) {
-                Button(action: onOpen) { Label("Open in New Tab", systemImage: "arrow.up.right.square") }.buttonStyle(.borderedProminent)
+                Button(action: onOpen) { Label("Open in New Tab", systemImage: "arrow.up.right.square") }.buttonStyle(.bordered)
                 Button(action: onCopy) { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(.bordered)
             }
         }.padding(SpacingTokens.md)

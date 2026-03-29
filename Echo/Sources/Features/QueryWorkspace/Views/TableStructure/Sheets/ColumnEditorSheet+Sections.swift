@@ -54,4 +54,29 @@ extension ColumnEditorSheet {
             }
         }
     }
+
+    var mysqlSection: some View {
+        Section("MySQL") {
+            PropertyRow(title: "Character Set") {
+                TextField("", text: $draft.characterSet, prompt: Text("e.g. utf8mb4"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+            PropertyRow(title: "Unsigned") {
+                Toggle("", isOn: $draft.isUnsigned)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            PropertyRow(title: "Zerofill") {
+                Toggle("", isOn: $draft.isZerofill)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            PropertyRow(title: "Comment") {
+                TextField("", text: $draft.comment, prompt: Text("Optional column comment"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+    }
 }

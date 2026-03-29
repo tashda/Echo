@@ -1,11 +1,10 @@
 import SwiftUI
 import EchoSense
+import SQLServerKit
+import PostgresKit
 
 @MainActor @Observable
 final class ObjectBrowserSidebarViewModel {
-    var searchText = ""
-    var debouncedSearchText = ""
-    var isSearchFieldFocused = false
     var expandedServerIDs: Set<UUID> = []
     var selectedObjectID: String?
     var knownSessionIDs: Set<UUID> = []
@@ -19,7 +18,6 @@ final class ObjectBrowserSidebarViewModel {
     var expandedDatabasesBySession: [UUID: Set<String>] = [:]
     var expandedObjectGroupsBySession: [String: Set<SchemaObjectInfo.ObjectType>] = [:]
     var expandedObjectIDsBySession: [String: Set<String>] = [:]
-    var selectedSchemaNameBySession: [String: String] = [:]
     /// Stores the auto-expand object types per connection, derived from sidebar settings at init time.
     @ObservationIgnored internal var defaultExpandedObjectTypes: [UUID: Set<SchemaObjectInfo.ObjectType>] = [:]
     var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
@@ -31,27 +29,16 @@ final class ObjectBrowserSidebarViewModel {
     // Server folder groups (Databases, Management, etc.)
     var databasesFolderExpandedBySession: [UUID: Bool] = [:]
     var managementFolderExpandedBySession: [UUID: Bool] = [:]
+    var hideOfflineDatabasesBySession: [UUID: Bool] = [:]
 
     // Agent Jobs state (per-connection, MSSQL only)
     var agentJobsExpandedBySession: [UUID: Bool] = [:]
     var agentJobsBySession: [UUID: [AgentJobItem]] = [:]
     var agentJobsLoadingBySession: [UUID: Bool] = [:]
-    var showNewJobSheet = false
-    var newJobSessionID: UUID?
-
     // Linked Servers state (per-connection, MSSQL only)
     var linkedServersExpandedBySession: [UUID: Bool] = [:]
     var linkedServersBySession: [UUID: [LinkedServerItem]] = [:]
     var linkedServersLoadingBySession: [UUID: Bool] = [:]
-    var showNewLinkedServerSheet = false
-    var newLinkedServerSessionID: UUID?
-    var showDropLinkedServerAlert = false
-    var dropLinkedServerTarget: DropLinkedServerTarget?
-
-    struct DropLinkedServerTarget {
-        let connectionID: UUID
-        let serverName: String
-    }
 
     // Security state — server-level (per-connection)
     var securityFolderExpandedBySession: [UUID: Bool] = [:]
@@ -66,9 +53,6 @@ final class ObjectBrowserSidebarViewModel {
     // PG separate folders
     var securityPGLoginRolesExpandedBySession: [UUID: Bool] = [:]
     var securityPGGroupRolesExpandedBySession: [UUID: Bool] = [:]
-    // MSSQL server role sheet
-    var showSecurityServerRoleSheet = false
-    var securityServerRoleSheetSessionID: UUID?
 
     // Security state — database-level (keyed by "connID#dbName")
     var dbSecurityExpandedByDB: [String: Bool] = [:]
@@ -82,93 +66,24 @@ final class ObjectBrowserSidebarViewModel {
     var dbSecuritySchemasByDB: [String: [SecuritySchemaItem]] = [:]
     var dbSecurityLoadingByDB: [String: Bool] = [:]
 
-    // Security sheets
-    var showSecurityLoginSheet = false
-    var securityLoginSheetEditName: String?
-    var securityLoginSheetSessionID: UUID?
-    var showSecurityUserSheet = false
-    var securityUserSheetEditName: String?
-    var securityUserSheetSessionID: UUID?
-    var securityUserSheetDatabaseName: String?
-    var showSecurityPGRoleSheet = false
-    var securityPGRoleSheetEditName: String?
-    var securityPGRoleSheetSessionID: UUID?
+    // PostgreSQL Advanced Objects sidebar state (keyed by "connID-dbName")
+    var advancedObjectsExpandedByDB: [String: Bool] = [:]
 
-    // Database properties sheet
-    var showDatabaseProperties = false
-    var propertiesDatabaseName: String?
-    var propertiesConnectionID: UUID?
+    // PostgreSQL Replication sidebar state (keyed by "connID-dbName")
+    var replicationPubExpanded: [String: Bool] = [:]
+    var replicationSubExpanded: [String: Bool] = [:]
+    var replicationPubData: [String: [PostgresPublicationInfo]] = [:]
+    var replicationSubData: [String: [PostgresSubscriptionInfo]] = [:]
 
-    // New database sheet
-    var showNewDatabaseSheet = false
-    var newDatabaseConnectionID: UUID?
+    // SSIS (per-connection, MSSQL only)
+    var ssisExpandedBySession: [UUID: Bool] = [:]
+    var ssisFoldersBySession: [UUID: [SQLServerSSISFolder]] = [:]
+    var ssisLoadingBySession: [UUID: Bool] = [:]
 
-    // PostgreSQL Backup/Restore sheets
-    var showPgBackupSheet = false
-    var showPgRestoreSheet = false
-    var pgBackupDatabaseName: String?
-    var pgBackupConnectionID: UUID?
-
-    // Database Mail sheet
-    var showDatabaseMailSheet = false
-    var databaseMailConnectionID: UUID?
-
-    // Change Tracking / CDC sheet
-    var showChangeTrackingSheet = false
-    var changeTrackingDatabaseName: String?
-    var changeTrackingConnectionID: UUID?
-
-    // Full-Text Search sheet
-    var showFullTextSheet = false
-    var fullTextDatabaseName: String?
-    var fullTextConnectionID: UUID?
-
-    // Replication sheet
-    var showReplicationSheet = false
-    var replicationDatabaseName: String?
-    var replicationConnectionID: UUID?
-
-    // CMS sheet
-    var showCMSSheet = false
-    var cmsConnectionID: UUID?
-
-    // Drop database confirmation
-    var showDropDatabaseAlert = false
-    var dropDatabaseTarget: DropDatabaseTarget?
-
-    struct DropDatabaseTarget {
-        let sessionID: UUID
-        let connectionID: UUID
-        let databaseName: String
-        let databaseType: DatabaseType
-        let variant: DropVariant
-    }
-
-    enum DropVariant {
-        case standard
-        case cascade
-        case force
-    }
-
-    // Drop security principal confirmation
-    var showDropSecurityPrincipalAlert = false
-    var dropSecurityPrincipalTarget: DropSecurityPrincipalTarget?
-
-    struct DropSecurityPrincipalTarget {
-        let sessionID: UUID
-        let connectionID: UUID
-        let name: String
-        let kind: SecurityPrincipalKind
-        /// Database name, only for database-scoped principals (e.g. MSSQL users).
-        let databaseName: String?
-    }
-
-    enum SecurityPrincipalKind: String {
-        case pgRole = "Role"
-        case mssqlLogin = "Login"
-        case mssqlUser = "User"
-        case mssqlServerRole = "Server Role"
-    }
+    // Database Snapshots (per-connection, MSSQL only)
+    var databaseSnapshotsExpandedBySession: [UUID: Bool] = [:]
+    var databaseSnapshotsBySession: [UUID: [SQLServerDatabaseSnapshot]] = [:]
+    var databaseSnapshotsLoadingBySession: [UUID: Bool] = [:]
 
     struct LinkedServerItem: Identifiable, Hashable {
         let id: String
@@ -231,66 +146,13 @@ final class ObjectBrowserSidebarViewModel {
         let owner: String?
     }
 
-    @ObservationIgnored private var searchDebounceTask: Task<Void, Never>?
-    /// Tracks whether a debounce observer is already running.
-    @ObservationIgnored private var isDebounceActive = false
-
-    func setupSearchDebounce(proxy: ScrollViewProxy) {
-        guard !isDebounceActive else { return }
-        isDebounceActive = true
-
-        // Use onChange-driven debounce via Task-based approach.
-        // The caller should wire onChange(of: searchText) to call handleSearchTextChanged(proxy:).
-    }
-
-    func handleSearchTextChanged(proxy: ScrollViewProxy) {
-        searchDebounceTask?.cancel()
-        let newValue = searchText
-        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmed.isEmpty {
-            debouncedSearchText = ""
-            searchDebounceTask = Task {
-                await Task.yield()
-                guard !Task.isCancelled else { return }
-                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-            }
-        } else {
-            let pending = newValue
-            searchDebounceTask = Task {
-                try? await Task.sleep(nanoseconds: 200_000_000)
-                guard !Task.isCancelled else { return }
-                debouncedSearchText = pending
-                await Task.yield()
-                guard !Task.isCancelled else { return }
-                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-            }
-        }
-    }
-
-    func stopSearchDebounce() {
-        searchDebounceTask?.cancel()
-        searchDebounceTask = nil
-        isDebounceActive = false
-    }
-
-    func resetFilters(for session: ConnectionSession?, selectedSession: ConnectionSession?) {
-        if !searchText.isEmpty {
-            searchText = ""
-            debouncedSearchText = ""
-        }
+    func resetExpandedState(for session: ConnectionSession?, selectedSession: ConnectionSession?) {
         guard let targetSession = session ?? selectedSession else { return }
         let connID = targetSession.connection.id
         let prefix = connID.uuidString + "#"
-        for key in selectedSchemaNameBySession.keys where key.hasPrefix(prefix) { selectedSchemaNameBySession.removeValue(forKey: key) }
         for key in expandedObjectIDsBySession.keys where key.hasPrefix(prefix) { expandedObjectIDsBySession.removeValue(forKey: key) }
         let defaults = defaultExpandedObjectTypes[connID] ?? Set(SchemaObjectInfo.ObjectType.allCases)
         for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) { expandedObjectGroupsBySession[key] = defaults }
-    }
-
-    private func supportedObjectTypes(for session: ConnectionSession?) -> [SchemaObjectInfo.ObjectType] {
-        guard let session else { return SchemaObjectInfo.ObjectType.allCases }
-        return SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
     }
 
     // MARK: - Database Expansion
@@ -325,4 +187,47 @@ final class ObjectBrowserSidebarViewModel {
         databaseSchemaLoadedOnce.contains(pinnedStorageKey(connectionID: connectionID, databaseName: databaseName))
     }
 
+    // Server Triggers (per-connection, MSSQL only)
+    var serverTriggersExpandedBySession: [UUID: Bool] = [:]
+    var serverTriggersBySession: [UUID: [ServerTriggerItem]] = [:]
+    var serverTriggersLoadingBySession: [UUID: Bool] = [:]
+
+    struct ServerTriggerItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let isDisabled: Bool
+        let typeDescription: String
+        let events: [String]
+    }
+
+    // Database DDL Triggers (keyed by "connID#dbName")
+    var dbDDLTriggersExpandedByDB: [String: Bool] = [:]
+    var dbDDLTriggersByDB: [String: [DatabaseDDLTriggerItem]] = [:]
+    var dbDDLTriggersLoadingByDB: [String: Bool] = [:]
+
+    struct DatabaseDDLTriggerItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let isDisabled: Bool
+        let events: [String]
+    }
+
+    // Service Broker (keyed by "connID#dbName")
+    var serviceBrokerExpandedByDB: [String: Bool] = [:]
+    var serviceBrokerSubExpandedByDB: [String: Set<String>] = [:]
+    var serviceBrokerLoadingByDB: [String: Bool] = [:]
+    var serviceBrokerMessageTypesByDB: [String: [String]] = [:]
+    var serviceBrokerContractsByDB: [String: [String]] = [:]
+    var serviceBrokerQueuesByDB: [String: [String]] = [:]
+    var serviceBrokerServicesByDB: [String: [String]] = [:]
+    var serviceBrokerRoutesByDB: [String: [String]] = [:]
+    var serviceBrokerBindingsByDB: [String: [String]] = [:]
+
+    // External Resources / PolyBase (keyed by "connID#dbName")
+    var externalResourcesExpandedByDB: [String: Bool] = [:]
+    var externalResourcesSubExpandedByDB: [String: Set<String>] = [:]
+    var externalResourcesLoadingByDB: [String: Bool] = [:]
+    var externalDataSourcesByDB: [String: [String]] = [:]
+    var externalTablesByDB: [String: [String]] = [:]
+    var externalFileFormatsByDB: [String: [String]] = [:]
 }

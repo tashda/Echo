@@ -33,12 +33,14 @@ extension MSSQLDedicatedQuerySession {
     func getObjectDefinition(
         objectName: String,
         schemaName: String,
-        objectType: SchemaObjectInfo.ObjectType
+        objectType: SchemaObjectInfo.ObjectType,
+        database: String? = nil
     ) async throws -> String {
         try await metadataSession.getObjectDefinition(
             objectName: objectName,
             schemaName: schemaName,
-            objectType: objectType
+            objectType: objectType,
+            database: database
         )
     }
 
@@ -128,6 +130,42 @@ extension MSSQLDedicatedQuerySession {
 
     func shrinkDatabase() async throws -> DatabaseMaintenanceResult {
         try await metadataSession.shrinkDatabase()
+    }
+
+    func shrinkDatabase(targetPercent: Int, truncateOnly: Bool) async throws -> DatabaseMaintenanceResult {
+        try await metadataSession.shrinkDatabase(targetPercent: targetPercent, truncateOnly: truncateOnly)
+    }
+
+    func shrinkFile(fileName: String, targetSizeMB: Int) async throws -> DatabaseMaintenanceResult {
+        try await metadataSession.shrinkFile(fileName: fileName, targetSizeMB: targetSizeMB)
+    }
+
+    func listDatabaseFiles() async throws -> [SQLServerDatabaseFile] {
+        try await metadataSession.listDatabaseFiles()
+    }
+
+    func detachDatabase(name: String, skipChecks: Bool) async throws {
+        try await metadataSession.detachDatabase(name: name, skipChecks: skipChecks)
+    }
+
+    func attachDatabase(name: String, files: [String]) async throws {
+        try await metadataSession.attachDatabase(name: name, files: files)
+    }
+
+    func listDatabaseSnapshots() async throws -> [SQLServerDatabaseSnapshot] {
+        try await metadataSession.listDatabaseSnapshots()
+    }
+
+    func createDatabaseSnapshot(name: String, sourceDatabase: String) async throws {
+        try await metadataSession.createDatabaseSnapshot(name: name, sourceDatabase: sourceDatabase)
+    }
+
+    func deleteDatabaseSnapshot(name: String) async throws {
+        try await metadataSession.deleteDatabaseSnapshot(name: name)
+    }
+
+    func revertToSnapshot(snapshotName: String) async throws {
+        try await metadataSession.revertToSnapshot(snapshotName: snapshotName)
     }
 
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession {

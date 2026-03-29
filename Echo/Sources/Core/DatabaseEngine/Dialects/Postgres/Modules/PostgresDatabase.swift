@@ -2,11 +2,12 @@ import Foundation
 import PostgresKit
 import PostgresWire
 import Logging
+import os
 
 typealias PostgresQueryResult = PostgresRowSequence
 
 struct PostgresNIOFactory: DatabaseFactory {
-    private let logger = Logger(label: "dk.tippr.echo.postgres")
+    private let packageLogger = Logging.Logger(label: "dk.tippr.echo.postgres")
 
     func connect(
         host: String,
@@ -28,7 +29,7 @@ struct PostgresNIOFactory: DatabaseFactory {
         }
         let effectiveDatabase = (database?.isEmpty == false) ? database : "postgres"
         let databaseLabel = effectiveDatabase ?? "postgres"
-        logger.info("Connecting to PostgreSQL at \(host):\(port)/\(databaseLabel)")
+        os.Logger.postgres.info("Connecting to PostgreSQL at \(host):\(port)/\(databaseLabel)")
 
         let wireSslMode: PostgresSSLMode = switch tlsMode {
         case .disable: .disable
@@ -55,13 +56,13 @@ struct PostgresNIOFactory: DatabaseFactory {
 
         let serverConnection = try await PostgresServerConnection.connect(
             configuration: configuration,
-            logger: logger
+            logger: packageLogger
         )
 
         return PostgresSession(
             client: serverConnection.primaryClient,
             serverConnection: serverConnection,
-            logger: logger
+            packageLogger: packageLogger
         )
     }
 }
@@ -71,12 +72,12 @@ extension PostgresSession: @unchecked Sendable {}
 final class PostgresSession: DatabaseSession {
     let client: PostgresKit.PostgresClient
     let serverConnection: PostgresServerConnection?
-    let logger: Logger
+    let packageLogger: Logging.Logger
 
-    init(client: PostgresKit.PostgresClient, serverConnection: PostgresServerConnection? = nil, logger: Logger) {
+    init(client: PostgresKit.PostgresClient, serverConnection: PostgresServerConnection? = nil, packageLogger: Logging.Logger) {
         self.client = client
         self.serverConnection = serverConnection
-        self.logger = logger
+        self.packageLogger = packageLogger
     }
 
     func close() async {
@@ -92,11 +93,16 @@ final class PostgresSession: DatabaseSession {
         return try await meta.isSuperuser(using: client)
     }
 
+    func fetchPermissions() async throws -> (any DatabasePermissionProviding)? {
+        let perms = try await client.security.currentPermissions()
+        return PostgresPermissionAdapter(permissions: perms)
+    }
+
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
         guard let serverConnection else { return self }
         let dbClient = try await serverConnection.client(for: database)
         if dbClient === client { return self }
-        return PostgresSession(client: dbClient, serverConnection: serverConnection, logger: logger)
+        return PostgresSession(client: dbClient, serverConnection: serverConnection, packageLogger: packageLogger)
     }
 
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
@@ -295,7 +301,19 @@ final class PostgresSession: DatabaseSession {
         return TableStructureDetails(columns: columns, primaryKey: primaryKey, indexes: indexes, uniqueConstraints: uniqueConstraints, foreignKeys: foreignKeys, dependencies: dependencies, checkConstraints: checkConstraints, tableProperties: tableProperties)
     }
 
-    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String? = nil) async throws -> String {
+        // If a specific database is requested, delegate to a session connected to that database
+        if let database {
+            let targetSession = try await sessionForDatabase(database)
+            if let pgSession = targetSession as? PostgresSession {
+                return try await pgSession.getObjectDefinition(
+                    objectName: objectName,
+                    schemaName: schemaName,
+                    objectType: objectType
+                )
+            }
+        }
+
         switch objectType {
         case .table, .materializedView:
             let columns = try await getTableSchema(objectName, schemaName: schemaName)
@@ -326,8 +344,8 @@ final class PostgresSession: DatabaseSession {
 
         case .view:
             let meta = PostgresMetadata()
-            if let definition = try await meta.viewDefinition(using: client, schema: schemaName, view: objectName) {
-                return definition
+            if let queryBody = try await meta.viewDefinition(using: client, schema: schemaName, view: objectName) {
+                return "CREATE VIEW \"\(schemaName)\".\"\(objectName)\" AS\n\(queryBody)"
             }
             return "-- View definition unavailable"
 

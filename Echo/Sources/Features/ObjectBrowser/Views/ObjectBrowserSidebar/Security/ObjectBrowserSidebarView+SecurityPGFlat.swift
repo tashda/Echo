@@ -20,12 +20,11 @@ extension ObjectBrowserSidebarView {
                 title: "Login Roles",
                 icon: "person.crop.circle",
                 count: loginRoles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityPGLoginRolesExpandedBySession[connID] = !isExpanded
-                }
-            }
+                isExpanded: Binding<Bool>(
+                    get: { isExpanded },
+                    set: { newValue in viewModel.securityPGLoginRolesExpandedBySession[connID] = newValue }
+                )
+            )
             .contextMenu {
                 Button {
                     Task {
@@ -37,9 +36,9 @@ extension ObjectBrowserSidebarView {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 Button {
-                    viewModel.securityPGRoleSheetSessionID = connID
-                    viewModel.securityPGRoleSheetEditName = nil
-                    viewModel.showSecurityPGRoleSheet = true
+                    sheetState.securityPGRoleSheetSessionID = connID
+                    sheetState.securityPGRoleSheetEditName = nil
+                    sheetState.showSecurityPGRoleSheet = true
                 } label: {
                     Label("New Login Role", systemImage: "person.badge.plus")
                 }
@@ -47,9 +46,21 @@ extension ObjectBrowserSidebarView {
         }
 
         if isExpanded {
-            ForEach(loginRoles) { role in
+            if loginRoles.isEmpty {
                 sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                    pgRoleRow(role: role, session: session)
+                    SidebarRow(
+                        depth: 0,
+                        icon: .none,
+                        label: "No login roles found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                }
+            } else {
+                ForEach(loginRoles) { role in
+                    sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                        pgRoleRow(role: role, session: session)
+                    }
                 }
             }
         }
@@ -70,12 +81,11 @@ extension ObjectBrowserSidebarView {
                 title: "Group Roles",
                 icon: "person.2.circle",
                 count: groupRoles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityPGGroupRolesExpandedBySession[connID] = !isExpanded
-                }
-            }
+                isExpanded: Binding<Bool>(
+                    get: { isExpanded },
+                    set: { newValue in viewModel.securityPGGroupRolesExpandedBySession[connID] = newValue }
+                )
+            )
             .contextMenu {
                 Button {
                     Task {
@@ -87,9 +97,9 @@ extension ObjectBrowserSidebarView {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 Button {
-                    viewModel.securityPGRoleSheetSessionID = connID
-                    viewModel.securityPGRoleSheetEditName = nil
-                    viewModel.showSecurityPGRoleSheet = true
+                    sheetState.securityPGRoleSheetSessionID = connID
+                    sheetState.securityPGRoleSheetEditName = nil
+                    sheetState.showSecurityPGRoleSheet = true
                 } label: {
                     Label("New Group Role", systemImage: "person.2.badge.plus")
                 }
@@ -97,9 +107,21 @@ extension ObjectBrowserSidebarView {
         }
 
         if isExpanded {
-            ForEach(groupRoles) { role in
+            if groupRoles.isEmpty {
                 sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                    pgRoleRow(role: role, session: session)
+                    SidebarRow(
+                        depth: 0,
+                        icon: .none,
+                        label: "No group roles found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                }
+            } else {
+                ForEach(groupRoles) { role in
+                    sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                        pgRoleRow(role: role, session: session)
+                    }
                 }
             }
         }

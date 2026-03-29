@@ -15,6 +15,7 @@ struct ExecutionPlanView: View {
         case flow
         case rawPlan
         case missingIndexes
+        case compare
     }
 
     var body: some View {
@@ -35,6 +36,7 @@ struct ExecutionPlanView: View {
                 if !plan.missingIndexes.isEmpty {
                     Text("Missing Indexes (\(plan.missingIndexes.count))").tag(PlanTab.missingIndexes)
                 }
+                Text("Compare").tag(PlanTab.compare)
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 360)
@@ -61,6 +63,8 @@ struct ExecutionPlanView: View {
             rawPlanView
         case .missingIndexes:
             missingIndexesView
+        case .compare:
+            ExecutionPlanComparisonView(currentPlan: plan)
         }
     }
 

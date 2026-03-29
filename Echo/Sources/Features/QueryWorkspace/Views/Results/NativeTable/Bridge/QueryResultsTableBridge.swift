@@ -2,6 +2,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import OSLog
 
 extension QueryResultsTableView {
     @MainActor
@@ -65,9 +66,7 @@ extension QueryResultsTableView {
         var pendingClearColumnHighlightNotification = false
         nonisolated(unsafe) var rowCountUpdateWorkItem: DispatchWorkItem?
         var lastObservedExecutionGeneration: Int = 0
-        static let isGridDiagnosticsEnabled: Bool = {
-            ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
-        }()
+        static let isGridDiagnosticsEnabled = false
 
         init(_ parent: QueryResultsTableView, queryState: QueryEditorState, clipboardHistory: ClipboardHistoryStore, persistedState: QueryResultsGridState?) {
             self.parent = parent
@@ -165,6 +164,8 @@ extension QueryResultsTableView {
                 state.lastRowCount = 0
                 state.lastResultToken = 0
                 state.hiddenColumnIndices.removeAll()
+                state.selectedRowIndex = nil
+                state.selectedColumnIndex = nil
             }
 
             // Rebuild columns and reload table from scratch
@@ -214,6 +215,12 @@ extension QueryResultsTableView {
             }
         }
 
+        func syncPersistedSelection() {
+            guard let persistedState else { return }
+            persistedState.selectedRowIndex = selectionFocus?.row ?? selectionRegion?.normalizedRowRange.lowerBound
+            persistedState.selectedColumnIndex = selectionFocus?.column ?? selectionRegion?.normalizedColumnRange.lowerBound
+        }
+
         // Helper methods
         func resolvedFont(for style: SQLEditorTokenPalette.ResultGridStyle) -> NSFont {
             if let cached = cachedFontStyles[style] {
@@ -256,8 +263,7 @@ extension QueryResultsTableView {
         }
 
         func debugLog(_ message: String) {
-            guard Coordinator.isGridDiagnosticsEnabled else { return }
-            print("[GridDebug] \(message)")
+            Logger.grid.debug("\(message)")
         }
 
         var isDraggingSelection: Bool {

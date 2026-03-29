@@ -21,6 +21,7 @@ final class AvailabilityGroupsViewModel {
     var selectedGroupId: String?
     var replicas: [SQLServerAGReplica] = []
     var databases: [SQLServerAGDatabase] = []
+    var listeners: [SQLServerAvailabilityGroupsClient.SQLServerAGListener] = []
     var detailLoadingState: LoadingState = .idle
     var showFailoverConfirmation = false
     var failoverGroupName: String?
@@ -66,6 +67,7 @@ final class AvailabilityGroupsViewModel {
         do {
             replicas = try await agClient.listReplicas(groupId: groupId)
             databases = try await agClient.listDatabases(groupId: groupId)
+            listeners = try await agClient.listListeners(groupId: groupId)
             detailLoadingState = .loaded
         } catch {
             detailLoadingState = .error(error.localizedDescription)
@@ -96,6 +98,37 @@ final class AvailabilityGroupsViewModel {
             await loadGroupDetails(groupId: groupId)
         }
         await loadAll()
+    }
+
+    func setBackupPreference(groupName: String, preference: String) async {
+        do {
+            try await agClient.setBackupPreference(groupName: groupName, preference: preference)
+            await loadAll()
+        } catch {
+            loadingState = .error(error.localizedDescription)
+        }
+    }
+
+    func removeDatabase(groupName: String, databaseName: String) async {
+        do {
+            try await agClient.removeDatabase(groupName: groupName, databaseName: databaseName)
+            if let groupId = selectedGroupId {
+                await loadGroupDetails(groupId: groupId)
+            }
+        } catch {
+            detailLoadingState = .error(error.localizedDescription)
+        }
+    }
+
+    func addDatabase(groupName: String, databaseName: String) async {
+        do {
+            try await agClient.addDatabase(groupName: groupName, databaseName: databaseName)
+            if let groupId = selectedGroupId {
+                await loadGroupDetails(groupId: groupId)
+            }
+        } catch {
+            detailLoadingState = .error(error.localizedDescription)
+        }
     }
 
     func estimatedMemoryUsageBytes() -> Int {

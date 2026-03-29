@@ -96,7 +96,13 @@ struct JobDetailsView: View {
         }
         .onChange(of: viewModel.errorMessage) { _, error in
             if let error {
-                notificationEngine?.post(category: .jobError, message: error, duration: 5.0)
+                // Suppress notification for permission-denied errors — the PermissionBanner
+                // already communicates this to the user.
+                let isPermissionError = error.localizedLowercase.contains("permission was denied")
+                    || error.localizedLowercase.contains("not have permission")
+                if !isPermissionError {
+                    notificationEngine?.post(category: .jobError, message: error, duration: 5.0)
+                }
                 viewModel.errorMessage = nil
             }
         }

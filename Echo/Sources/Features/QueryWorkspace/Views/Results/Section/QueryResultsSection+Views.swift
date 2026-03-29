@@ -12,6 +12,12 @@ extension QueryResultsSection {
                 switch selectedTab {
                 case .results:
                     resultsView
+                case .textResults:
+                    textResultsView
+                case .verticalResults:
+                    verticalResultsView
+                case .statistics:
+                    statisticsView
                 case .messages:
                     messagesView
 #if os(macOS)
@@ -19,6 +25,14 @@ extension QueryResultsSection {
                     jsonInspectorView()
                 case .executionPlan:
                     executionPlanView
+                case .spatial:
+                    spatialView
+                case .tuning:
+                    tuningView
+                case .policyManagement:
+                    EmptyView()
+                case .history:
+                    QueryHistoryPanelView(connectionID: connection.id)
 #endif
                 }
             }
@@ -31,10 +45,21 @@ extension QueryResultsSection {
         Group {
             if hasRows || !query.additionalResults.isEmpty {
 #if os(macOS)
-                if query.additionalResults.isEmpty {
-                    primaryResultsTable
-                } else {
-                    multiResultSetView
+                VStack(spacing: 0) {
+                    resultsToolbar
+                    Divider()
+                    switch gridState.detailMode {
+                    case .table:
+                        if query.additionalResults.isEmpty {
+                            primaryResultsTable
+                        } else {
+                            multiResultSetView
+                        }
+                    case .form:
+                        formResultsView
+                    case .fieldTypes:
+                        fieldTypesResultsView
+                    }
                 }
 #else
                 QueryResultsGridView(
@@ -51,6 +76,13 @@ extension QueryResultsSection {
                 noRowsReturnedView
             }
         }
+#if os(macOS)
+        .sheet(item: $resultExportViewModel) { viewModel in
+            DataExportSheet(viewModel: viewModel) {
+                resultExportViewModel = nil
+            }
+        }
+#endif
     }
 
 #if os(macOS)
@@ -95,10 +127,7 @@ extension QueryResultsSection {
     }
 
     private var multiResultSetView: some View {
-        let allSets = query.allResultSetsForDisplay
         return VStack(spacing: 0) {
-            resultSetTabBar(count: allSets.count)
-
             if query.selectedResultSetIndex == 0 && hasRows {
                 primaryResultsTable
             } else if query.selectedResultSetIndex > 0,
@@ -115,7 +144,7 @@ extension QueryResultsSection {
         }
     }
 
-    private func resultSetTabBar(count: Int) -> some View {
+    func resultSetTabBar(count: Int) -> some View {
         HStack(spacing: SpacingTokens.xxs) {
             ForEach(0..<count, id: \.self) { index in
                 let rowCount = resultSetRowCount(at: index)
@@ -123,7 +152,7 @@ extension QueryResultsSection {
                     query.selectedResultSetIndex = index
                 } label: {
                     HStack(spacing: SpacingTokens.xxs) {
-                        Text("Result \(index + 1)")
+                        Text(resultSetTabLabel(at: index))
                             .font(TypographyTokens.detail)
                         Text("(\(rowCount))")
                             .font(TypographyTokens.compact)
@@ -145,6 +174,19 @@ extension QueryResultsSection {
         .padding(.horizontal, SpacingTokens.xs)
         .padding(.vertical, SpacingTokens.xxs2)
         .background(ColorTokens.Background.secondary)
+    }
+
+    private func resultSetTabLabel(at index: Int) -> String {
+        guard let metadata = query.batchResultMetadata, index < metadata.count else {
+            return "Result \(index + 1)"
+        }
+        let label = metadata[index]
+        // Count how many result sets are in this batch
+        let batchResultCount = metadata.filter { $0.batchIndex == label.batchIndex }.count
+        if batchResultCount > 1 {
+            return "Batch \(label.batchIndex + 1): Result \(label.resultSetIndexInBatch + 1)"
+        }
+        return "Batch \(label.batchIndex + 1)"
     }
 
     private func resultSetRowCount(at index: Int) -> Int {
@@ -256,6 +298,18 @@ extension QueryResultsSection {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+    }
+
+    var spatialView: some View {
+        SpatialResultsView(query: query)
+    }
+
+    var tuningView: some View {
+        ContentUnavailableView {
+            Label("Tuning Advisor", systemImage: "wand.and.stars")
+        } description: {
+            Text("Missing index recommendations will appear here.")
         }
     }
 #endif

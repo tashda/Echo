@@ -10,29 +10,37 @@ extension ObjectBrowserSidebarView {
     func dbRolesSection(session: ConnectionSession, dbKey: String) -> some View {
         let roles = viewModel.dbSecurityRolesByDB[dbKey] ?? []
         let isExpanded = viewModel.dbSecurityRolesExpandedByDB[dbKey] ?? false
+        let dbName = databaseNameFromKey(dbKey)
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.databaseSection,
-                title: "Database Roles",
-                icon: "shield",
-                count: roles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.dbSecurityRolesExpandedByDB[dbKey] = !isExpanded
-                }
-            }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.databaseSection,
+            title: "Database Roles",
+            icon: "shield",
+            count: roles.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.dbSecurityRolesExpandedByDB[dbKey] = newValue }
+            )
+        )
 
-            if isExpanded {
+        if isExpanded {
+            if roles.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.databaseLeaf,
+                    icon: .none,
+                    label: "No database roles found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
                 ForEach(roles) { role in
-                    dbRoleRow(role: role, session: session)
+                    dbRoleRow(role: role, session: session, databaseName: dbName)
                 }
             }
         }
     }
 
-    func dbRoleRow(role: ObjectBrowserSidebarViewModel.SecurityDatabaseRoleItem, session: ConnectionSession) -> some View {
+    func dbRoleRow(role: ObjectBrowserSidebarViewModel.SecurityDatabaseRoleItem, session: ConnectionSession, databaseName: String) -> some View {
         let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
         return SidebarRow(
             depth: SecuritySidebarDepth.databaseLeaf,
@@ -80,6 +88,20 @@ extension ObjectBrowserSidebarView {
                     }
                 }
             }
+
+            Divider()
+
+            // Group 10: Properties — ALWAYS last
+            Button {
+                let value = environmentState.prepareRoleEditorWindow(
+                    connectionSessionID: session.connection.id,
+                    database: databaseName,
+                    existingRole: role.name
+                )
+                openWindow(id: RoleEditorWindow.sceneID, value: value)
+            } label: {
+                Label("Properties", systemImage: "info.circle")
+            }
         }
     }
 
@@ -90,20 +112,27 @@ extension ObjectBrowserSidebarView {
         let appRoles = viewModel.dbSecurityAppRolesByDB[dbKey] ?? []
         let isExpanded = viewModel.dbSecurityAppRolesExpandedByDB[dbKey] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.databaseSection,
-                title: "Application Roles",
-                icon: "app.badge",
-                count: appRoles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.dbSecurityAppRolesExpandedByDB[dbKey] = !isExpanded
-                }
-            }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.databaseSection,
+            title: "Application Roles",
+            icon: "app.badge",
+            count: appRoles.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.dbSecurityAppRolesExpandedByDB[dbKey] = newValue }
+            )
+        )
 
-            if isExpanded {
+        if isExpanded {
+            if appRoles.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.databaseLeaf,
+                    icon: .none,
+                    label: "No application roles found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
                 ForEach(appRoles) { appRole in
                     dbAppRoleRow(appRole: appRole, session: session)
                 }

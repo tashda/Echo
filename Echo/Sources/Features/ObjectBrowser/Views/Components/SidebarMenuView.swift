@@ -23,7 +23,6 @@ struct SidebarMenu: View {
         case snippets = "Snippets"
         case history = "History"
         case connections = "Connections"
-        case database = "Database Administration"
 
         var icon: String {
             switch self {
@@ -34,7 +33,6 @@ struct SidebarMenu: View {
             case .snippets: return "curlybraces"
             case .history: return "clock"
             case .connections: return "externaldrive"
-            case .database: return "cylinder.split.1x2"
             }
         }
 
@@ -47,7 +45,6 @@ struct SidebarMenu: View {
             case .snippets: return "curlybraces"
             case .history: return "clock.fill"
             case .connections: return "externaldrive.fill"
-            case .database: return "cylinder.split.1x2.fill"
             }
         }
 
@@ -58,7 +55,6 @@ struct SidebarMenu: View {
         VStack(spacing: 0) {
             navigationBar
                 .padding(.horizontal, SpacingTokens.xxs2)
-                .padding(.bottom, SpacingTokens.xs)
 
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -91,6 +87,11 @@ struct SidebarMenu: View {
             guard focus != nil else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedNavSection = .folder
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .activateSidebarSearch)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedNavSection = .search
             }
         }
     }

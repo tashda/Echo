@@ -1,14 +1,13 @@
 import Foundation
 import AppKit
 
-@MainActor
 @Observable
 final class PostgresBackupRestoreViewModel {
     let connection: SavedConnection
     @ObservationIgnored let session: DatabaseSession
-    @ObservationIgnored private let processRunner = PostgresProcessRunner()
-    @ObservationIgnored private let connectionPassword: String?
-    @ObservationIgnored private let resolvedUsername: String?
+    @ObservationIgnored let processRunner = PostgresProcessRunner()
+    @ObservationIgnored let connectionPassword: String?
+    @ObservationIgnored let resolvedUsername: String?
     @ObservationIgnored var activityEngine: ActivityEngine?
     @ObservationIgnored var connectionSessionID: UUID?
     @ObservationIgnored var panelState: BottomPanelState?
@@ -192,12 +191,13 @@ final class PostgresBackupRestoreViewModel {
         restoreStderrOutput = []
     }
 
-    private func log(_ text: String, severity: QueryExecutionMessage.Severity = .info, category: String = "Backup") {
+    func log(_ text: String, severity: QueryExecutionMessage.Severity = .info, category: String = "Backup") {
         panelState?.appendMessage(text, severity: severity, category: category)
     }
 
     // MARK: - File Pickers
 
+    @MainActor
     func selectOutputFile() {
         if outputFormat == .directory {
             let panel = NSOpenPanel()
@@ -223,6 +223,7 @@ final class PostgresBackupRestoreViewModel {
         }
     }
 
+    @MainActor
     func selectInputFile() {
         let panel = NSOpenPanel()
         panel.title = "Select Backup File"
@@ -235,364 +236,6 @@ final class PostgresBackupRestoreViewModel {
             inputURL = url
             inputPath = url.path
             detectFormat()
-        }
-    }
-
-    // MARK: - Backup
-
-    func executeBackup(customToolPath: String?) async {
-        guard canBackup, let outputURL else { return }
-        guard let pgDump = PostgresToolLocator.pgDumpURL(customPath: customToolPath) else {
-            backupPhase = .failed(message: "pg_dump not found. Install PostgreSQL or configure a custom tool path in Settings.")
-            return
-        }
-
-        backupPhase = .running
-        backupStderrOutput = []
-        let handle = activityEngine?.begin("Backup \(databaseName)", connectionSessionID: connectionSessionID)
-
-        var args: [String] = []
-        args.append(contentsOf: ["--dbname", buildConnectionURI(database: databaseName)])
-        args.append(contentsOf: ["--format", outputFormat.pgDumpFlag])
-        args.append(contentsOf: ["--file", outputURL.path])
-
-        if (outputFormat == .custom || outputFormat == .directory) && compression > 0 {
-            args.append(contentsOf: ["--compress", String(compression)])
-        }
-        if outputFormat == .directory && parallelJobs > 1 {
-            args.append(contentsOf: ["--jobs", String(parallelJobs)])
-        }
-        if schemaOnly { args.append("--schema-only") }
-        if dataOnly { args.append("--data-only") }
-        if noOwner { args.append("--no-owner") }
-        if noPrivileges { args.append("--no-privileges") }
-        if noTablespaces { args.append("--no-tablespaces") }
-        if clean { args.append("--clean") }
-        if ifExists { args.append("--if-exists") }
-        if createDatabase { args.append("--create") }
-        if !encoding.isEmpty { args.append(contentsOf: ["--encoding", encoding]) }
-        if !roleName.isEmpty { args.append(contentsOf: ["--role", roleName]) }
-        if !includeBlobs && !dataOnly { args.append("--no-blobs") }
-        if useInserts {
-            if columnInserts {
-                args.append("--column-inserts")
-            } else {
-                args.append("--inserts")
-            }
-            if rowsPerInsert > 0 {
-                args.append(contentsOf: ["--rows-per-insert", String(rowsPerInsert)])
-            }
-            if onConflictDoNothing { args.append("--on-conflict-do-nothing") }
-        }
-        if disableTriggers { args.append("--disable-triggers") }
-        if disableDollarQuoting { args.append("--disable-dollar-quoting") }
-        if forceDoubleQuotes { args.append("--quote-all-identifiers") }
-        if useSetSessionAuth { args.append("--use-set-session-authorization") }
-        if !lockWaitTimeout.isEmpty { args.append(contentsOf: ["--lock-wait-timeout", lockWaitTimeout]) }
-        if !extraFloatDigits.isEmpty { args.append(contentsOf: ["--extra-float-digits", extraFloatDigits]) }
-
-        // Pattern-based filters
-        for pattern in splitPatterns(includeTables) {
-            args.append(contentsOf: ["--table", pattern])
-        }
-        for pattern in splitPatterns(excludeTables) {
-            args.append(contentsOf: ["--exclude-table", pattern])
-        }
-        for pattern in splitPatterns(includeSchemas) {
-            args.append(contentsOf: ["--schema", pattern])
-        }
-        for pattern in splitPatterns(excludeSchemas) {
-            args.append(contentsOf: ["--exclude-schema", pattern])
-        }
-        for pattern in splitPatterns(excludeTableData) {
-            args.append(contentsOf: ["--exclude-table-data", pattern])
-        }
-
-        args.append("--no-password")
-        if verbose { args.append("--verbose") }
-
-        // Extra arguments escape hatch
-        let extraArgs = extraArguments.trimmingCharacters(in: .whitespaces)
-        if !extraArgs.isEmpty {
-            args.append(contentsOf: extraArgs.split(separator: " ").map(String.init))
-        }
-
-        let env = buildEnvironment()
-
-        log("Starting backup of \(databaseName)\u{2026}", severity: .info, category: "Backup")
-        nonisolated(unsafe) let panel = panelState
-
-        do {
-            let result = try await processRunner.run(
-                executable: pgDump,
-                arguments: args,
-                environment: env
-            ) { @Sendable line in
-                Task { @MainActor in
-                    panel?.appendMessage(line, severity: .info, category: "Backup")
-                }
-            }
-
-            backupStderrOutput = result.stderrLines
-            if result.exitCode == 0 {
-                backupPhase = .completed(messages: [])
-                log("Backup completed for \(databaseName) to \(outputURL.lastPathComponent).", severity: .success, category: "Backup")
-                notificationEngine?.post(.backupCompleted(database: databaseName, destination: outputURL.lastPathComponent))
-                handle?.succeed()
-            } else {
-                let errorMsg = result.stderrLines.last ?? "pg_dump exited with code \(result.exitCode)"
-                backupPhase = .failed(message: errorMsg)
-                log("Backup failed: \(errorMsg)", severity: .error, category: "Backup")
-                notificationEngine?.post(.backupFailed(database: databaseName, reason: errorMsg))
-                handle?.fail(errorMsg)
-            }
-        } catch {
-            backupPhase = .failed(message: error.localizedDescription)
-            log("Backup failed: \(error.localizedDescription)", severity: .error, category: "Backup")
-            notificationEngine?.post(.backupFailed(database: databaseName, reason: error.localizedDescription))
-            handle?.fail(error.localizedDescription)
-        }
-    }
-
-    func cancelBackup() {
-        if isBackupRunning {
-            backupPhase = .failed(message: "Backup cancelled")
-        }
-    }
-
-    // MARK: - Restore
-
-    func executeRestore(customToolPath: String?) async {
-        guard canRestore, let inputURL else { return }
-
-        if isPlainSQL(url: inputURL) {
-            await restorePlainSQL(from: inputURL, customToolPath: customToolPath)
-            return
-        }
-
-        guard let pgRestore = PostgresToolLocator.pgRestoreURL(customPath: customToolPath) else {
-            restorePhase = .failed(message: "pg_restore not found. Install PostgreSQL or configure a custom tool path in Settings.")
-            return
-        }
-
-        restorePhase = .running
-        restoreStderrOutput = []
-        let handle = activityEngine?.begin("Restore \(restoreDatabaseName)", connectionSessionID: connectionSessionID)
-
-        var args: [String] = []
-        args.append(contentsOf: ["--dbname", buildConnectionURI(database: restoreDatabaseName)])
-
-        if restoreSchemaOnly { args.append("--schema-only") }
-        if restoreDataOnly { args.append("--data-only") }
-        if restoreNoOwner { args.append("--no-owner") }
-        if restoreNoPrivileges { args.append("--no-privileges") }
-        if restoreNoTablespaces { args.append("--no-tablespaces") }
-        if restoreClean { args.append("--clean") }
-        if restoreIfExists { args.append("--if-exists") }
-        if restoreCreateDatabase { args.append("--create") }
-        if restoreUseSetSessionAuth { args.append("--use-set-session-authorization") }
-        if restoreDisableTriggers { args.append("--disable-triggers") }
-        args.append("--no-password")
-        if restoreParallelJobs > 1 {
-            args.append(contentsOf: ["--jobs", String(restoreParallelJobs)])
-        }
-        if restoreVerbose { args.append("--verbose") }
-
-        // Extra arguments escape hatch
-        let extraArgs = restoreExtraArguments.trimmingCharacters(in: .whitespaces)
-        if !extraArgs.isEmpty {
-            args.append(contentsOf: extraArgs.split(separator: " ").map(String.init))
-        }
-
-        args.append(inputURL.path)
-
-        let env = buildEnvironment()
-        log("Starting restore to \(restoreDatabaseName)\u{2026}", severity: .info, category: "Restore")
-        nonisolated(unsafe) let panel = panelState
-
-        do {
-            let result = try await processRunner.run(
-                executable: pgRestore,
-                arguments: args,
-                environment: env
-            ) { @Sendable line in
-                Task { @MainActor in
-                    let sev: QueryExecutionMessage.Severity = line.contains("error:") ? .error : line.contains("warning:") ? .warning : .info
-                    panel?.appendMessage(line, severity: sev, category: "Restore")
-                }
-            }
-
-            restoreStderrOutput = result.stderrLines
-            if result.exitCode == 0 {
-                restorePhase = .completed(messages: [])
-                log("Restore completed for \(restoreDatabaseName).", severity: .success, category: "Restore")
-                notificationEngine?.post(.restoreCompleted(database: restoreDatabaseName))
-                handle?.succeed()
-            } else {
-                let errorMsg = result.stderrLines.last ?? "pg_restore exited with code \(result.exitCode)"
-                restorePhase = .failed(message: errorMsg)
-                log("Restore failed: \(errorMsg)", severity: .error, category: "Restore")
-                notificationEngine?.post(.restoreFailed(database: restoreDatabaseName, reason: errorMsg))
-                handle?.fail(errorMsg)
-            }
-        } catch {
-            restorePhase = .failed(message: error.localizedDescription)
-            handle?.fail(error.localizedDescription)
-        }
-    }
-
-    func cancelRestore() {
-        if isRestoreRunning {
-            restorePhase = .failed(message: "Restore cancelled")
-        }
-    }
-
-    // MARK: - List Contents
-
-    func listContents(customToolPath: String?) async {
-        guard let inputURL else { return }
-        guard let pgRestore = PostgresToolLocator.pgRestoreURL(customPath: customToolPath) else { return }
-
-        do {
-            // pg_restore --list outputs to stdout — run via Process directly
-            let listProcess = Process()
-            listProcess.executableURL = pgRestore
-            listProcess.arguments = ["--list", inputURL.path]
-            let pipe = Pipe()
-            listProcess.standardOutput = pipe
-            listProcess.standardError = Pipe()
-            try listProcess.run()
-            listProcess.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let lines = output.split(separator: "\n").filter { !$0.hasPrefix(";") }
-
-            dumpContents = lines.enumerated().compactMap { index, line in
-                let str = String(line).trimmingCharacters(in: .whitespaces)
-                guard !str.isEmpty else { return nil }
-                let parts = str.split(separator: " ", maxSplits: 6).map(String.init)
-                guard parts.count >= 4 else {
-                    return PgRestoreListItem(id: index, line: str, type: "UNKNOWN", schema: nil, name: str)
-                }
-                let type = parts.count > 3 ? parts[3] : "UNKNOWN"
-                let schema = parts.count > 4 ? parts[4] : nil
-                let name = parts.count > 5 ? parts[5] : (parts.last ?? "")
-                return PgRestoreListItem(id: index, line: str, type: type, schema: schema, name: name)
-            }
-        } catch {
-            dumpContents = []
-        }
-    }
-
-    // MARK: - Private
-
-    private func splitPatterns(_ input: String) -> [String] {
-        input
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-    }
-
-    private func buildConnectionURI(database: String) -> String {
-        let sslmode = "prefer"
-        let host = connection.host.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? connection.host
-        let effectiveUsername = resolvedUsername ?? connection.username
-        let user = effectiveUsername.addingPercentEncoding(withAllowedCharacters: .urlUserAllowed) ?? effectiveUsername
-        let db = database.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? database
-
-        var userInfo = user
-        if let password = connectionPassword, !password.isEmpty {
-            let encodedPassword = password.addingPercentEncoding(withAllowedCharacters: .urlPasswordAllowed) ?? password
-            userInfo = "\(user):\(encodedPassword)"
-        }
-
-        return "postgresql://\(userInfo)@\(host):\(connection.port)/\(db)?sslmode=\(sslmode)"
-    }
-
-    private func buildEnvironment() -> [String: String] {
-        var env: [String: String] = [:]
-        if let password = connectionPassword, !password.isEmpty {
-            env["PGPASSWORD"] = password
-        }
-        env["PGSSLMODE"] = connection.useTLS ? "require" : "disable"
-        if let sharedSupport = Bundle.main.sharedSupportURL {
-            let toolsDir = sharedSupport.appendingPathComponent("PostgresTools").path
-            env["DYLD_LIBRARY_PATH"] = toolsDir
-            env["DYLD_FALLBACK_LIBRARY_PATH"] = toolsDir
-        }
-        return env
-    }
-
-    private func detectFormat() {
-        guard let url = inputURL else { return }
-        let ext = url.pathExtension.lowercased()
-        var isDir: ObjCBool = false
-        FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-
-        if isDir.boolValue {
-            detectedFormat = .directory
-        } else if ext == "sql" {
-            detectedFormat = .plain
-        } else if ext == "tar" {
-            detectedFormat = .tar
-        } else {
-            detectedFormat = .custom
-        }
-    }
-
-    private func isPlainSQL(url: URL) -> Bool {
-        let ext = url.pathExtension.lowercased()
-        if ext == "sql" { return true }
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
-        defer { handle.closeFile() }
-        guard let data = try? handle.read(upToCount: 32) else { return false }
-        guard let header = String(data: data, encoding: .utf8) else { return false }
-        let trimmed = header.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.hasPrefix("--") || trimmed.hasPrefix("CREATE") || trimmed.hasPrefix("SET")
-    }
-
-    private func restorePlainSQL(from url: URL, customToolPath: String?) async {
-        restorePhase = .running
-        restoreStderrOutput = []
-        let handle = activityEngine?.begin("Restore \(restoreDatabaseName)", connectionSessionID: connectionSessionID)
-        guard let psql = PostgresToolLocator.psqlURL(customPath: customToolPath) else {
-            restorePhase = .failed(message: "psql not found. Install PostgreSQL or configure a custom tool path in Settings.")
-            handle?.fail("psql not found")
-            return
-        }
-
-        let env = buildEnvironment()
-        nonisolated(unsafe) let panel = panelState
-
-        do {
-            let result = try await processRunner.run(
-                executable: psql,
-                arguments: [
-                    "--dbname", buildConnectionURI(database: restoreDatabaseName),
-                    "--file", url.path,
-                    "--no-password"
-                ],
-                environment: env
-            ) { @Sendable line in
-                Task { @MainActor in
-                    let severity: QueryExecutionMessage.Severity = line.contains("ERROR:") ? .error : line.contains("WARNING:") ? .warning : .info
-                    panel?.appendMessage(line, severity: severity, category: "Restore")
-                }
-            }
-
-            restoreStderrOutput = result.stderrLines
-            if result.exitCode == 0 {
-                restorePhase = .completed(messages: ["Plain SQL restore completed."])
-                handle?.succeed()
-            } else {
-                let errorMsg = result.stderrLines.last ?? "psql exited with code \(result.exitCode)"
-                restorePhase = .failed(message: errorMsg)
-                handle?.fail(errorMsg)
-            }
-        } catch {
-            restorePhase = .failed(message: error.localizedDescription)
-            handle?.fail(error.localizedDescription)
         }
     }
 }

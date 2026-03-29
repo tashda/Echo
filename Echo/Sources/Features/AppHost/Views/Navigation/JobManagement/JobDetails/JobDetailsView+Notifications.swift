@@ -87,8 +87,12 @@ extension JobDetailsView {
         notificationsLoaded = true
     }
 
+    private var canSaveNotification: Bool {
+        !(notifyLevel > 0 && notifyOperator.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
     private var notificationEditorSheet: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: "Edit Notification") {
             Form {
                 Section("Email Notification") {
                     if viewModel.operators.isEmpty {
@@ -128,16 +132,14 @@ extension JobDetailsView {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+        } footer: {
+            Spacer()
+            Button("Cancel") {
+                showEditNotificationSheet = false
+            }
+            .keyboardShortcut(.cancelAction)
 
-            Divider()
-
-            HStack {
-                Spacer()
-                Button("Cancel") {
-                    showEditNotificationSheet = false
-                }
-                .keyboardShortcut(.cancelAction)
-
+            if canSaveNotification {
                 Button("Save") {
                     Task {
                         await viewModel.setNotification(
@@ -152,11 +154,14 @@ extension JobDetailsView {
                         }
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.defaultAction)
-                .disabled(notifyLevel > 0 && notifyOperator.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } else {
+                Button("Save") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
             }
-            .padding(SpacingTokens.md2)
         }
         .frame(minWidth: 420, minHeight: 320)
     }

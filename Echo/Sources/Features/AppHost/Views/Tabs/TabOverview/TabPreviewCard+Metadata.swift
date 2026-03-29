@@ -78,6 +78,35 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
         return ("waveform.path.ecg", "Ready", ColorTokens.Text.secondary)
     case .availabilityGroups:
         return ("server.rack", "Ready", ColorTokens.Text.secondary)
+    case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .postgresAdvancedObjects:
+        return ("lock.shield", "Ready", ColorTokens.Text.secondary)
+    case .schemaDiff:
+        return ("doc.on.doc", "Ready", ColorTokens.Text.secondary)
+    case .serverSecurity:
+        return ("lock.shield", "Ready", ColorTokens.Text.secondary)
+    case .errorLog:
+        return ("doc.text", "Ready", ColorTokens.Text.secondary)
+    case .profiler:
+        return ("trace", "Ready", ColorTokens.Text.secondary)
+    case .resourceGovernor:
+        return ("r.square.on.square", "Ready", ColorTokens.Text.secondary)
+    case .serverProperties:
+        return ("gearshape.2", "Ready", ColorTokens.Text.secondary)
+    case .tuningAdvisor:
+        return ("wand.and.stars", "Ready", ColorTokens.Text.secondary)
+    case .policyManagement:
+        return ("checkmark.seal", "Ready", ColorTokens.Text.secondary)
+    case .tableData:
+        if let vm = tab.tableDataVM {
+            if vm.isLoading {
+                return ("progress.indicator", "Loading", .orange)
+            }
+            if let error = vm.errorMessage, !error.isEmpty {
+                return ("exclamationmark.triangle.fill", "Error", .red)
+            }
+            return ("tablecells.badge.ellipsis", "Ready", ColorTokens.Text.secondary)
+        }
+        return ("tablecells.badge.ellipsis", "Ready", ColorTokens.Text.secondary)
     }
 }
 
@@ -114,7 +143,27 @@ extension TabPreviewCard {
             return []
         case .availabilityGroups:
             return []
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+            return []
+        case .errorLog:
+            return []
+        case .profiler, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
+            return []
+        case .tableData:
+            return tableDataMetrics
         }
+    }
+
+    private var tableDataMetrics: [Metric] {
+        guard let vm = tab.tableDataVM else { return [] }
+        var items: [Metric] = []
+        if vm.totalLoadedRows > 0 {
+            items.append(Metric(icon: "tablecells", text: "\(EchoFormatters.compactNumber(vm.totalLoadedRows)) rows", color: ColorTokens.Text.secondary))
+        }
+        if vm.hasPendingEdits {
+            items.append(Metric(icon: "pencil", text: "\(vm.pendingEdits.count) edits", color: .orange))
+        }
+        return items
     }
 
     private var activityMonitorMetrics: [Metric] {
@@ -132,6 +181,8 @@ extension TabPreviewCard {
                 items.append(Metric(icon: "person.2", text: "\(s.processes.count) procs", color: .secondary))
                 items.append(Metric(icon: "arrow.left.arrow.right", text: "\(Int(ov.transactionsPerSec)) tx/s", color: .secondary))
             }
+        case .mysql(let s):
+            items.append(Metric(icon: "person.2", text: "\(s.processes.count) procs", color: .secondary))
         }
         
         return items
@@ -213,6 +264,28 @@ extension TabPreviewCard {
             return "Extended Events"
         case .availabilityGroups:
             return "Availability Groups"
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity:
+            return "Database Security"
+        case .serverSecurity:
+            return "Server Security"
+        case .errorLog:
+            return "Error Log"
+        case .profiler:
+            return "SQL Profiler"
+        case .resourceGovernor:
+            return "Resource Governor"
+        case .serverProperties:
+            return "Server Properties"
+        case .tuningAdvisor:
+            return "Tuning Advisor"
+        case .policyManagement:
+            return "Policy Management"
+        case .tableData:
+            return "Table Data"
+        case .postgresAdvancedObjects:
+            return "Advanced Objects"
+        case .schemaDiff:
+            return "Schema Diff"
         }
     }
 }

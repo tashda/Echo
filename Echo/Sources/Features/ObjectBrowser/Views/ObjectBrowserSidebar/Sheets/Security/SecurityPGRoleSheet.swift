@@ -74,7 +74,7 @@ struct SecurityPGRoleSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: isEditing ? "Edit Role" : "New Role") {
             HStack(spacing: 0) {
                 sidebar
                     .frame(width: 170)
@@ -84,10 +84,36 @@ struct SecurityPGRoleSheet: View {
                 detailPane
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        } footer: {
+            if let error = errorMessage {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(ColorTokens.Status.warning)
+                Text(error)
+                    .font(TypographyTokens.formDescription)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(2)
+            }
 
-            Divider()
+            Spacer()
 
-            toolbarView
+            Button("Cancel", role: .cancel) {
+                onComplete()
+            }
+            .buttonStyle(.bordered)
+            .keyboardShortcut(.cancelAction)
+
+            if isFormValid {
+                Button(isEditing ? "Save" : "Create Role") {
+                    Task { await submit() }
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.defaultAction)
+            } else {
+                Button(isEditing ? "Save" : "Create Role") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
         .frame(minWidth: 640, minHeight: 480)
         .frame(idealWidth: 680, idealHeight: 520)
@@ -144,34 +170,4 @@ struct SecurityPGRoleSheet: View {
         }
     }
 
-    // MARK: - Toolbar
-
-    private var toolbarView: some View {
-        HStack {
-            if let error = errorMessage {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(ColorTokens.Status.warning)
-                Text(error)
-                    .font(TypographyTokens.formDescription)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .lineLimit(2)
-            }
-
-            Spacer()
-
-            Button("Cancel", role: .cancel) {
-                onComplete()
-            }
-            .buttonStyle(.bordered)
-            .keyboardShortcut(.cancelAction)
-
-            Button(isEditing ? "Save" : "Create Role") {
-                Task { await submit() }
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!isFormValid)
-        }
-        .padding(SpacingTokens.md)
-    }
 }

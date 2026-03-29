@@ -94,6 +94,7 @@ private struct JobQueueWindowContent: View {
                             }
                         }
                     }
+                    .disabled(!(connectionSession?.permissions?.canManageAgent ?? true))
                 }
             }
 
@@ -104,6 +105,7 @@ private struct JobQueueWindowContent: View {
                     Label("New Job", systemImage: "plus")
                 }
                 .help("New Job")
+                .disabled(!(connectionSession?.permissions?.canManageAgent ?? true))
             }
 
             // Refresh (separate group)

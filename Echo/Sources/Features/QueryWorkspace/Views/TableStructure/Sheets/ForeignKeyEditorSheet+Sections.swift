@@ -63,39 +63,6 @@ extension ForeignKeyEditorSheet {
         }
     }
 
-    var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            if draft.isEditingExisting {
-                Button("Delete Foreign Key", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-                .tint(ColorTokens.Status.error)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                dismiss()
-                if !draft.isEditingExisting {
-                    onCancelNew()
-                }
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraftToModel()
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
-    }
 }
 
 // MARK: - ForeignKeyAction Enum

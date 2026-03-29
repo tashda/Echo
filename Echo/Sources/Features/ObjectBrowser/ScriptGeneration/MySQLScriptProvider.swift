@@ -7,8 +7,8 @@ struct MySQLScriptProvider: DatabaseScriptProvider {
         return "`\(escaped)`"
     }
 
-    func scriptActions(for objectType: SchemaObjectInfo.ObjectType) -> [DatabaseObjectRow.ScriptAction] {
-        var actions: [DatabaseObjectRow.ScriptAction] = [.create]
+    func scriptActions(for objectType: SchemaObjectInfo.ObjectType) -> [ScriptAction] {
+        var actions: [ScriptAction] = [.create]
         if objectType == .view {
             actions.append(.createOrReplace)
         }

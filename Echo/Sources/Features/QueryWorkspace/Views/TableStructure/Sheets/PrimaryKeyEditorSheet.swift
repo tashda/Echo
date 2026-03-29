@@ -26,7 +26,26 @@ struct PrimaryKeyEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: draft.isEditingExisting ? "Edit Primary Key" : "New Primary Key",
+            icon: "key",
+            subtitle: draft.isEditingExisting ? "Modify the primary key columns." : "Define the primary key for this table.",
+            primaryAction: "Save",
+            canSubmit: draft.canSave,
+            onSubmit: {
+                applyDraftChanges()
+                dismiss()
+            },
+            onCancel: {
+                dismiss()
+                cancelIfNew()
+            },
+            destructiveAction: draft.isEditingExisting ? "Delete Primary Key" : nil,
+            onDestructive: draft.isEditingExisting ? {
+                dismiss()
+                onDelete()
+            } : nil
+        ) {
             Form {
                 Section {
                     PropertyRow(title: "Constraint Name") {
@@ -70,45 +89,8 @@ struct PrimaryKeyEditorSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            toolbar
         }
         .frame(minWidth: 420, idealWidth: 460, minHeight: 340)
-        .navigationTitle(draft.isEditingExisting ? "Edit Primary Key" : "New Primary Key")
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            if draft.isEditingExisting {
-                Button("Delete Primary Key", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-                .tint(ColorTokens.Status.error)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                dismiss()
-                cancelIfNew()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraftChanges()
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
     }
 
     struct Draft {

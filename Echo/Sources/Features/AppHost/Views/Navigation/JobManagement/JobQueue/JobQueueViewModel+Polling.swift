@@ -8,9 +8,10 @@ extension JobQueueViewModel {
     func startActivityPolling() {
         stopActivityPolling()
         activityPollTask = Task { [weak self] in
-            guard let self else { return }
             while !Task.isCancelled {
+                guard let self else { return }
                 await self.checkJobActivity()
+                guard !Task.isCancelled else { return }
                 try? await Task.sleep(for: .seconds(2))
             }
         }
@@ -90,7 +91,8 @@ extension JobQueueViewModel {
                 await loadJobs()
             }
         } catch {
-            // Ignore polling errors silently
+            // Connection-level errors mean the session is gone — stop polling
+            stopActivityPolling()
         }
     }
 

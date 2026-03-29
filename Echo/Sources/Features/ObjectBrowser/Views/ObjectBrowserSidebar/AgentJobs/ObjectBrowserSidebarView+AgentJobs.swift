@@ -12,39 +12,40 @@ extension ObjectBrowserSidebarView {
         let jobs = viewModel.agentJobsBySession[connID] ?? []
         let isLoading = viewModel.agentJobsLoadingBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-            folderHeaderRow(
-                title: "Agent Jobs",
-                icon: "clock",
-                count: jobs.isEmpty ? nil : jobs.count,
-                isExpanded: isExpanded,
-                action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        viewModel.agentJobsExpandedBySession[connID] = !isExpanded
-                    }
-                    if !isExpanded && jobs.isEmpty && !isLoading {
-                        loadAgentJobs(session: session)
-                    }
-                },
-                depth: 0
-            )
-            .contextMenu {
-                Button {
-                    environmentState.openJobQueueTab(for: session)
-                } label: {
-                    Label("Open in Tab", systemImage: "list.bullet.rectangle")
-                }
-                Button {
-                    let sessionID = environmentState.prepareJobQueueWindow(for: session)
-                    openWindow(id: JobQueueWindow.sceneID, value: sessionID)
-                } label: {
-                    Label("Open in New Window", systemImage: "rectangle.portrait.and.arrow.right")
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { newValue in
+                viewModel.agentJobsExpandedBySession[connID] = newValue
+                if newValue && jobs.isEmpty && !isLoading {
+                    loadAgentJobs(session: session)
                 }
             }
+        )
 
-            if isExpanded {
-                agentJobsContent(session: session, jobs: jobs, isLoading: isLoading)
+        folderHeaderRow(
+            title: "Agent Jobs",
+            icon: "clock",
+            count: jobs.isEmpty ? nil : jobs.count,
+            isExpanded: expandedBinding,
+            isLoading: isLoading,
+            depth: 0
+        )
+        .contextMenu {
+            Button {
+                environmentState.openJobQueueTab(for: session)
+            } label: {
+                Label("Open in Tab", systemImage: "list.bullet.rectangle")
             }
+            Button {
+                let sessionID = environmentState.prepareJobQueueWindow(for: session)
+                openWindow(id: JobQueueWindow.sceneID, value: sessionID)
+            } label: {
+                Label("Open in New Window", systemImage: "rectangle.portrait.and.arrow.right")
+            }
+        }
+
+        if isExpanded {
+            agentJobsContent(session: session, jobs: jobs, isLoading: isLoading)
         }
     }
 
@@ -67,9 +68,15 @@ extension ObjectBrowserSidebarView {
                 agentJobsOverviewButton(session: session)
             }
 
-            if isLoading {
+            if jobs.isEmpty {
                 sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                    agentJobsLoadingIndicator()
+                    SidebarRow(
+                        depth: 0,
+                        icon: .none,
+                        label: isLoading ? "Loading…" : "No jobs found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
                 }
             } else {
                 ForEach(jobs) { job in
@@ -78,11 +85,6 @@ extension ObjectBrowserSidebarView {
                     }
                 }
             }
-
-            // New Job button
-            sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                newJobButton(session: session)
-            }
         }
     }
 
@@ -90,19 +92,22 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isLoading = viewModel.agentJobsLoadingBySession[connID] ?? false
 
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { newValue in
+                viewModel.agentJobsExpandedBySession[connID] = newValue
+                if newValue && jobs.isEmpty && !isLoading {
+                    loadAgentJobs(session: session)
+                }
+            }
+        )
+
         return folderHeaderRow(
             title: "Agent Jobs",
             icon: "clock",
             count: jobs.isEmpty ? nil : jobs.count,
-            isExpanded: isExpanded,
-            action: {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.agentJobsExpandedBySession[connID] = !isExpanded
-                }
-                if !isExpanded && jobs.isEmpty && !isLoading {
-                    loadAgentJobs(session: session)
-                }
-            }
+            isExpanded: expandedBinding,
+            isLoading: isLoading
         )
     }
 

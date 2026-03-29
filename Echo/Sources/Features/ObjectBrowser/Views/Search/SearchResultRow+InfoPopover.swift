@@ -58,6 +58,18 @@ extension SearchResultRow {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxHeight: 400)
+
+                if let onOpenDefinitionInEditor {
+                    Divider()
+                    Button {
+                        onOpenDefinitionInEditor(definition)
+                        isInfoPresented = false
+                    } label: {
+                        Label("Open in Query Editor", systemImage: "doc.text")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
             }
         }
     }

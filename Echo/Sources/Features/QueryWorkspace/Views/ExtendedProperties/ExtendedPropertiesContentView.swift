@@ -77,7 +77,7 @@ struct ExtendedPropertiesContentView: View {
     private var emptyState: some View {
         VStack(spacing: SpacingTokens.sm) {
             Image(systemName: "tag")
-                .font(.system(size: 32))
+                .font(TypographyTokens.iconDisplay)
                 .foregroundStyle(ColorTokens.Text.tertiary)
             Text("No Extended Properties")
                 .font(TypographyTokens.standard.weight(.medium))

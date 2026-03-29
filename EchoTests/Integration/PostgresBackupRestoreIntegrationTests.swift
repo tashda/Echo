@@ -9,7 +9,7 @@ import Foundation
 ///
 /// Requires a validated PostgreSQL fixture.
 /// Environment variables: TEST_PG_HOST, TEST_PG_PORT, TEST_PG_DATABASE, TEST_PG_USER, TEST_PG_PASSWORD
-@Suite("PostgreSQL Backup & Restore")
+@Suite("PostgreSQL Backup & Restore", .enabled(if: ProcessInfo.processInfo.environment["USE_DOCKER"] != nil || ProcessInfo.processInfo.environment["TEST_PG_HOST"] != nil, "Requires Postgres fixture"))
 struct PostgresBackupRestoreIntegrationTests {
 
     // MARK: - Config & Helpers
@@ -27,6 +27,14 @@ struct PostgresBackupRestoreIntegrationTests {
     }
 
     private func loadConfig() throws -> PGConfig {
+        // Skip unless running against a real database (self-hosted CI or explicit config).
+        // Check ProcessInfo.processInfo.environment directly — echoTestEnv() reads
+        // .ci-fixtures/test-fixtures.env which is checked into the repo, so it always
+        // returns non-nil for USE_DOCKER even on GitHub-hosted runners with no database.
+        let env = ProcessInfo.processInfo.environment
+        let hasDockerEnv = env["USE_DOCKER"] != nil
+        let hasExplicitHost = env["TEST_PG_HOST"] != nil || env["ECHO_PG_HOST"] != nil
+        try #require(hasDockerEnv || hasExplicitHost, "Skipping: no Postgres fixture configured")
         let host = echoTestEnv("TEST_PG_HOST") ?? echoTestEnv("ECHO_PG_HOST") ?? "127.0.0.1"
         let portValue = echoTestEnv("TEST_PG_PORT") ?? echoTestEnv("ECHO_PG_PORT") ?? "54322"
         let database = echoTestEnv("TEST_PG_BACKUP_DATABASE")

@@ -1,13 +1,13 @@
 import Foundation
 import SQLServerKit
-import Logging
+import OSLog
 
-final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSession, @unchecked Sendable {
+nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSession, @unchecked Sendable {
     private var connection: SQLServerConnection
     private let connectionConfiguration: SQLServerConnection.Configuration
     private var reconnectTask: Task<SQLServerConnection, Error>?
     let metadataSession: SQLServerSessionAdapter
-    let logger = Logger(label: "dk.tippr.echo.mssql.query")
+    let logger = Logger.query
 
     init(
         connection: SQLServerConnection,
@@ -87,4 +87,21 @@ final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSession, @unchecke
     var maintenance: SQLServerMaintenanceClient { metadataSession.maintenance }
     var replication: SQLServerReplicationClient { metadataSession.replication }
     var cms: SQLServerCMSClient { metadataSession.cms }
+    var errorLog: SQLServerErrorLogClient { metadataSession.errorLog }
+    var audit: SQLServerAuditClient { metadataSession.audit }
+    var alwaysEncrypted: SQLServerAlwaysEncryptedClient { metadataSession.alwaysEncrypted }
+    var triggers: SQLServerTriggerClient { metadataSession.triggers }
+    var temporal: SQLServerTemporalClient { metadataSession.temporal }
+    var serviceBroker: SQLServerServiceBrokerClient { metadataSession.serviceBroker }
+    var polyBase: SQLServerPolyBaseClient { metadataSession.polyBase }
+    var tuning: SQLServerTuningClient { metadataSession.tuning }
+    var profiler: SQLServerProfilerClient { metadataSession.profiler }
+    var resourceGovernor: SQLServerResourceGovernorClient { metadataSession.resourceGovernor }
+    var policy: SQLServerPolicyClient { metadataSession.policy }
+    var dependencies: SQLServerDependencyClient { metadataSession.dependencies }
+    var dac: SQLServerDACClient { metadataSession.dac }
+    var bulkCopy: SQLServerBulkCopyClient { metadataSession.bulkCopy! }
+    var ssis: SQLServerSSISClient { metadataSession.ssis }
+    var ssas: SQLServerSSASClient { metadataSession.ssas }
+    var ssrs: SQLServerSSRSClient { metadataSession.ssrs }
 }

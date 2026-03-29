@@ -12,7 +12,7 @@ extension ObjectBrowserSidebarView {
             await environmentState.loadSchemaForDatabase(databaseName, connectionSession: session)
             selectedConnectionID = session.connection.id
             viewModel.ensureServerExpanded(for: session.connection.id, sessions: sessions)
-            viewModel.resetFilters(for: session, selectedSession: selectedSession)
+            viewModel.resetExpandedState(for: session, selectedSession: selectedSession)
         }
     }
 

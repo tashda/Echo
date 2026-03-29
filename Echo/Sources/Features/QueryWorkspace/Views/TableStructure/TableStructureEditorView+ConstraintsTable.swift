@@ -78,7 +78,7 @@ extension TableStructureEditorView {
     }
 
     private var constraintsTable: some View {
-        Table(of: ConstraintRowModel.self, selection: $selectedConstraintIDs) {
+        Table(constraintRows, selection: $selectedConstraintIDs) {
             TableColumn("Kind") { row in
                 Text(row.kind.rawValue)
                     .font(TypographyTokens.Table.kindBadge)
@@ -107,14 +107,10 @@ extension TableStructureEditorView {
                     if row.kind != .check {
                         Image(systemName: row.isDeferrable ? "checkmark" : "minus")
                             .font(TypographyTokens.detail)
-                            .foregroundStyle(row.isDeferrable ? accentColor : ColorTokens.Text.tertiary)
+                            .foregroundStyle(row.isDeferrable ? .blue : ColorTokens.Text.tertiary)
                     }
                 }
                 .width(70)
-            }
-        } rows: {
-            ForEach(constraintRows) { row in
-                TableRow(row)
             }
         }
         .contextMenu(forSelectionType: ConstraintRowModel.ID.self) { selection in
@@ -126,7 +122,6 @@ extension TableStructureEditorView {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
-        .environment(\.defaultMinListRowHeight, 28)
     }
 
     @ViewBuilder

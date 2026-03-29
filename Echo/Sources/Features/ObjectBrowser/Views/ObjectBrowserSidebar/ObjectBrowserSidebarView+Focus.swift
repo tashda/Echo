@@ -16,8 +16,8 @@ extension ObjectBrowserSidebarView {
             return
         }
 
+        // Step 1: Expand tree state immediately (instant, no I/O)
         await MainActor.run {
-            viewModel.searchText = ""
             if selectedConnectionID != focus.connectionID {
                 selectedConnectionID = focus.connectionID
             }
@@ -26,12 +26,20 @@ extension ObjectBrowserSidebarView {
             viewModel.ensureDatabaseExpanded(connectionID: focus.connectionID, databaseName: focus.databaseName)
         }
 
-        if session.selectedDatabaseName?.localizedCaseInsensitiveCompare(focus.databaseName) != .orderedSame {
-            await environmentState.reconnectSession(session, to: focus.databaseName)
+        // Step 2: Check if the schema data is already cached — if so, skip the expensive network call
+        let alreadyCached = await MainActor.run {
+            hasCachedSchema(session: session, databaseName: focus.databaseName, schemaName: focus.schemaName, objectName: focus.objectName, objectType: focus.objectType)
         }
 
-        await environmentState.refreshDatabaseStructure(for: session.id, scope: .selectedDatabase, databaseOverride: focus.databaseName)
+        if !alreadyCached {
+            // Only reconnect/refresh if we don't have the data
+            if session.sidebarFocusedDatabase?.localizedCaseInsensitiveCompare(focus.databaseName) != .orderedSame {
+                await environmentState.reconnectSession(session, to: focus.databaseName)
+            }
+            await environmentState.refreshDatabaseStructure(for: session.id, scope: .selectedDatabase, databaseOverride: focus.databaseName)
+        }
 
+        // Step 3: Apply focus and scroll
         guard let refreshedSession = await MainActor.run(body: {
             environmentState.sessionGroup.sessionForConnection(focus.connectionID)
         }) else {
@@ -45,6 +53,20 @@ extension ObjectBrowserSidebarView {
         }
     }
 
+    /// Checks if the target object already exists in the cached structure, avoiding expensive schema reload.
+    private func hasCachedSchema(session: ConnectionSession, databaseName: String, schemaName: String, objectName: String, objectType: SchemaObjectInfo.ObjectType) -> Bool {
+        guard let structure = session.databaseStructure else { return false }
+        guard let database = structure.databases.first(where: {
+            $0.name.localizedCaseInsensitiveCompare(databaseName) == .orderedSame
+        }) else { return false }
+        guard let schema = database.schemas.first(where: {
+            $0.name.localizedCaseInsensitiveCompare(schemaName) == .orderedSame
+        }) else { return false }
+        return schema.objects.contains(where: {
+            $0.type == objectType && $0.name.localizedCaseInsensitiveCompare(objectName) == .orderedSame
+        })
+    }
+
     private func applyExplorerFocus(_ focus: ExplorerFocus, session: ConnectionSession, proxy: ScrollViewProxy) {
         let connID = focus.connectionID
         let dbKey = "\(connID.uuidString)#\(focus.databaseName)"
@@ -52,11 +74,6 @@ extension ObjectBrowserSidebarView {
         if !groups.contains(focus.objectType) {
             groups.insert(focus.objectType)
             viewModel.expandedObjectGroupsBySession[dbKey] = groups
-        }
-
-        let currentSchema = viewModel.selectedSchemaNameBySession[dbKey]
-        if currentSchema?.caseInsensitiveCompare(focus.schemaName) != .orderedSame {
-            viewModel.selectedSchemaNameBySession[dbKey] = focus.schemaName
         }
 
         guard let structure = session.databaseStructure,
@@ -71,14 +88,16 @@ extension ObjectBrowserSidebarView {
 
             var ids = viewModel.expandedObjectIDsBySession[dbKey] ?? []
             if !ids.contains(object.id) {
-                Task {
-                    ids.insert(object.id)
-                    self.viewModel.expandedObjectIDsBySession[dbKey] = ids
-                }
+                ids.insert(object.id)
+                viewModel.expandedObjectIDsBySession[dbKey] = ids
             }
 
-            withAnimation(.easeInOut(duration: 0.3)) {
-                proxy.scrollTo(object.id, anchor: .center)
+            // Brief delay for SwiftUI to lay out the expanded tree, then scroll
+            Task {
+                try? await Task.sleep(for: .milliseconds(50))
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(object.id, anchor: .center)
+                }
             }
         }
     }

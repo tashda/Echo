@@ -70,7 +70,15 @@ struct NewDatabaseSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayout(
+            title: "New Database",
+            primaryAction: "Create",
+            canSubmit: canCreate,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { createDatabase() },
+            onCancel: { onDismiss() }
+        ) {
             HStack(spacing: 0) {
                 sidebar
                     .frame(width: 170)
@@ -80,30 +88,6 @@ struct NewDatabaseSheet: View {
                 detailPane
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            Divider()
-
-            HStack {
-                if let error = errorMessage {
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Status.error)
-                        .lineLimit(1)
-                }
-                Spacer()
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Button("Cancel") { onDismiss() }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.cancelAction)
-                Button("Create") { createDatabase() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!canCreate)
-            }
-            .padding(SpacingTokens.md)
         }
         .frame(minWidth: 640, minHeight: 480)
         .frame(idealWidth: 680, idealHeight: 520)

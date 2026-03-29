@@ -7,6 +7,7 @@
     }
   ],
   "defaultOptions": {
+    "defaultTestExecutionTimeAllowance": 180,
     "performanceAntipatternCheckerEnabled": true
   },
   "testTargets": [
@@ -14,6 +15,11 @@
       "parallelizable": false,
       "selectedTests": [
         "FactoryConnectionTests",
+        "MSSQLActivityMonitorTests",
+        "MSSQLAgentManagementTests",
+        "MSSQLAgentTests",
+        "MSSQLBackupRestoreTests",
+        "MSSQLBulkImportTests",
         "MSSQLColumnTests",
         "MSSQLConnectionTests",
         "MSSQLConstraintTests",
@@ -24,6 +30,7 @@
         "MSSQLDatabaseAdminTests",
         "MSSQLFunctionTests",
         "MSSQLIndexTests",
+        "MSSQLMaintenanceTests",
         "MSSQLMetadataTests",
         "MSSQLProcedureTests",
         "MSSQLQueryTests",
@@ -38,6 +45,9 @@
         "MSSQLTransactionTests",
         "MSSQLTriggerTests",
         "MSSQLViewTests",
+        "PGActivityMonitorTests",
+        "PGAdvancedObjectAlterTests",
+        "PGBulkImportTests",
         "PGColumnTests",
         "PGConnectionTests",
         "PGConstraintTests",
@@ -61,12 +71,14 @@
         "PGTransactionTests",
         "PGTriggerTests",
         "PGViewTests",
+        "PostgresBackupRestoreIntegrationTests",
         "SQLiteBulkImportTests",
         "SQLiteConnectionTests",
         "SQLiteDataTypeTests",
         "SQLiteQueryTests",
         "SQLiteSchemaTests",
         "SQLiteTableOperationsTests",
+        "SQLiteTriggerDiscoveryTests",
         "SessionProtocolComplianceTests"
       ],
       "target": {

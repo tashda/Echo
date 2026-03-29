@@ -1,10 +1,7 @@
 name: "Runner Health Check"
 
 on:
-  schedule:
-    # Every 6 hours: midnight, 6am, noon, 6pm UTC
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+  workflow_dispatch:  # Manual only — requires self-hosted runner
 
 jobs:
   health:

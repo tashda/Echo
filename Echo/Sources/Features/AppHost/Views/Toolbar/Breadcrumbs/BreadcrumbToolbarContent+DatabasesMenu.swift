@@ -63,7 +63,7 @@ final class DatabasesMenuDelegate: NSObject, NSMenuDelegate {
             return
         }
 
-        let selectedDB = session.selectedDatabaseName
+        let selectedDB = session.sidebarFocusedDatabase
 
         for db in structure.databases {
             let item = NSMenuItem(title: db.name, action: #selector(selectDatabase(_:)), keyEquivalent: "")

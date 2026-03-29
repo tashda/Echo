@@ -63,6 +63,17 @@ extension DatabasesSettingsView {
         )
     }
 
+    var mysqlToolCustomPathBinding: Binding<String> {
+        Binding(
+            get: { settings.mysqlToolCustomPath ?? "" },
+            set: { newValue in
+                var updated = settings
+                updated.mysqlToolCustomPath = newValue.isEmpty ? nil : newValue
+                Task { try? await projectStore.updateGlobalSettings(updated) }
+            }
+        )
+    }
+
     // MARK: - Formatters
 
     func formatRowCount(_ value: Int) -> String {

@@ -37,6 +37,19 @@ extension TableStructureEditorView {
         if let collation = column.collation, !collation.isEmpty {
             fields.append(.init(label: "Collation", value: collation))
         }
+        if let characterSet = column.characterSet, !characterSet.isEmpty {
+            fields.append(.init(label: "Character Set", value: characterSet))
+        }
+        if let comment = column.comment, !comment.isEmpty {
+            fields.append(.init(label: "Comment", value: comment))
+        }
+        if viewModel.databaseType == .mysql {
+            fields.append(.init(label: "Unsigned", value: column.isUnsigned ? "Yes" : "No"))
+            fields.append(.init(label: "Zerofill", value: column.isZerofill ? "Yes" : "No"))
+            if let ordinal = column.ordinalPosition {
+                fields.append(.init(label: "Position", value: "\(ordinal)"))
+            }
+        }
 
         let pkColumns = Set(viewModel.primaryKey?.columns ?? [])
         if pkColumns.contains(column.name) {
@@ -90,6 +103,24 @@ extension TableStructureEditorView {
             }
             if let le = props.lockEscalation, !le.isEmpty {
                 fields.append(.init(label: "Lock Escalation", value: le))
+            }
+            if props.isSystemVersioned == true {
+                fields.append(.init(label: "System Versioned", value: "Yes"))
+                if let hs = props.historyTableSchema, let ht = props.historyTableName {
+                    fields.append(.init(label: "History Table", value: "\(hs).\(ht)"))
+                }
+                if let ps = props.periodStartColumn {
+                    fields.append(.init(label: "Period Start", value: ps))
+                }
+                if let pe = props.periodEndColumn {
+                    fields.append(.init(label: "Period End", value: pe))
+                }
+            }
+            if props.isMemoryOptimized == true {
+                fields.append(.init(label: "Memory Optimized", value: "Yes"))
+                if let dur = props.memoryOptimizedDurability {
+                    fields.append(.init(label: "Durability", value: dur))
+                }
             }
         }
 

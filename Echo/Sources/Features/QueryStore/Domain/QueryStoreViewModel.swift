@@ -29,8 +29,30 @@ final class QueryStoreViewModel {
     var selectedQueryId: Int?
     var queryPlans: [SQLServerQueryStorePlan] = []
     var plansLoadingState: LoadingState = .idle
+    var waitStats: [SQLServerQueryStoreClient.SQLServerQueryStoreWaitStat] = []
     var orderBy: SQLServerQueryStoreTopQueryOrder = .totalDuration
     var forcingPlanId: Int?
+
+    // Filters
+    var filterTimeRange: TimeRange = .lastDay
+    var filterQueryText = ""
+    var filterMinExecutions = 1
+
+    enum TimeRange: String, CaseIterable {
+        case lastHour = "Last Hour"
+        case lastDay = "Last 24 Hours"
+        case lastWeek = "Last 7 Days"
+        case allTime = "All Time"
+
+        var startDate: Date? {
+            switch self {
+            case .lastHour: return Date().addingTimeInterval(-3600)
+            case .lastDay: return Date().addingTimeInterval(-86400)
+            case .lastWeek: return Date().addingTimeInterval(-604800)
+            case .allTime: return nil
+            }
+        }
+    }
 
     init(
         queryStoreClient: SQLServerQueryStoreClient,
@@ -46,7 +68,15 @@ final class QueryStoreViewModel {
         loadingState = .loading
         do {
             let opts = try await queryStoreClient.options(database: databaseName)
-            let top = try await queryStoreClient.topQueries(database: databaseName, limit: 25, orderBy: orderBy)
+            let textFilter = filterQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let top = try await queryStoreClient.topQueries(
+                database: databaseName,
+                limit: 25,
+                orderBy: orderBy,
+                startDate: filterTimeRange.startDate,
+                minExecutionCount: filterMinExecutions > 1 ? filterMinExecutions : nil,
+                queryTextFilter: textFilter.isEmpty ? nil : textFilter
+            )
             let regressed = try await queryStoreClient.regressedQueries(database: databaseName, limit: 20)
             storeOptions = opts
             topQueries = top
@@ -73,8 +103,14 @@ final class QueryStoreViewModel {
 
     func refreshTopQueries() async {
         do {
+            let textFilter = filterQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
             topQueries = try await queryStoreClient.topQueries(
-                database: databaseName, limit: 25, orderBy: orderBy
+                database: databaseName,
+                limit: 25,
+                orderBy: orderBy,
+                startDate: filterTimeRange.startDate,
+                minExecutionCount: filterMinExecutions > 1 ? filterMinExecutions : nil,
+                queryTextFilter: textFilter.isEmpty ? nil : textFilter
             )
         } catch {
             loadingState = .error(error.localizedDescription)
@@ -84,10 +120,17 @@ final class QueryStoreViewModel {
     func selectQuery(_ queryId: Int) async {
         selectedQueryId = queryId
         plansLoadingState = .loading
+        waitStats = []
         do {
             queryPlans = try await queryStoreClient.queryPlans(
                 database: databaseName, queryId: queryId
             )
+            // Load wait stats for the first plan
+            if let firstPlan = queryPlans.first {
+                waitStats = try await queryStoreClient.waitStats(
+                    database: databaseName, planId: firstPlan.planId
+                )
+            }
             plansLoadingState = .loaded
         } catch {
             plansLoadingState = .error(error.localizedDescription)

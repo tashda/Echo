@@ -44,9 +44,14 @@ extension ObjectBrowserSidebarView {
         }
     }
 
-    func createMSSQLServerRole(session: ConnectionSession) async {
-        // Open a script tab with a CREATE SERVER ROLE template
-        openScriptTab(sql: "CREATE SERVER ROLE [NewServerRole];", session: session)
+    func createMSSQLServerRole(session: ConnectionSession) {
+        sheetState.newSecuritySheetSessionID = session.id
+        sheetState.showNewServerRoleSheet = true
+    }
+
+    func createMSSQLCredential(session: ConnectionSession) {
+        sheetState.newSecuritySheetSessionID = session.id
+        sheetState.showNewCredentialSheet = true
     }
 
     func dropMSSQLServerRole(name: String, session: ConnectionSession) async {
@@ -67,7 +72,7 @@ extension ObjectBrowserSidebarView {
 
     // MARK: - Drop Security Principal Dispatch
 
-    func executeDropSecurityPrincipal(_ target: ObjectBrowserSidebarViewModel.DropSecurityPrincipalTarget, session: ConnectionSession) async {
+    func executeDropSecurityPrincipal(_ target: SidebarSheetState.DropSecurityPrincipalTarget, session: ConnectionSession) async {
         switch target.kind {
         case .pgRole:
             await dropPGRole(name: target.name, session: session)

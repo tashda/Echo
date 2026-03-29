@@ -72,9 +72,9 @@ import SwiftUI
         )
         queryHistory.insert(item, at: 0)
 
-        // Keep only the last 50 queries
-        if queryHistory.count > 50 {
-            queryHistory = Array(queryHistory.prefix(50))
+        // Keep only the last 500 queries
+        if queryHistory.count > 500 {
+            queryHistory = Array(queryHistory.prefix(500))
         }
 
         saveQueryHistory()
@@ -113,9 +113,18 @@ import SwiftUI
         }
     }
 
+    private var historySaveTask: Task<Void, Never>?
+
     private func saveQueryHistory() {
-        if let data = try? JSONEncoder().encode(queryHistory) {
-            UserDefaults.standard.set(data, forKey: "queryHistory")
+        historySaveTask?.cancel()
+        historySaveTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            let history = queryHistory
+            let data = try? JSONEncoder().encode(history)
+            if let data {
+                UserDefaults.standard.set(data, forKey: "queryHistory")
+            }
         }
     }
 }

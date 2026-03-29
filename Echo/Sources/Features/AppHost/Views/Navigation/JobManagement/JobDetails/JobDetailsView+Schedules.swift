@@ -33,35 +33,44 @@ extension JobDetailsView {
             AgentJobScheduleEditorSheet(
                 title: "New Schedule",
                 actionLabel: "Create Schedule"
-            ) { name, enabled, frequency, interval, startHour, startMinute, weekdays, monthDay, startDate, oneTimeDate in
+            ) { result in
                 let freqType: Int
                 let freqInterval: Int
-                let activeStartTime: Int? = startHour * 10000 + startMinute * 100
+                let activeStartTime: Int? = result.startHour * 10000 + result.startMinute * 100
                 var freqRecurrenceFactor: Int? = nil
                 var activeStartDate: Int? = nil
+                var activeEndDate: Int? = nil
 
-                switch frequency {
+                switch result.frequency {
                 case .daily:
-                    freqType = 4; freqInterval = interval
+                    freqType = 4; freqInterval = result.interval
                 case .weekly:
-                    freqType = 8; freqInterval = weekdays.reduce(0, |); freqRecurrenceFactor = interval
+                    freqType = 8; freqInterval = result.weekdays.reduce(0, |); freqRecurrenceFactor = result.interval
                 case .monthly:
-                    freqType = 16; freqInterval = monthDay; freqRecurrenceFactor = interval
+                    freqType = 16; freqInterval = result.monthDay; freqRecurrenceFactor = result.interval
                 case .once:
                     freqType = 1; freqInterval = 0
-                    let comps = Calendar.current.dateComponents([.year, .month, .day], from: oneTimeDate)
+                    let comps = Calendar.current.dateComponents([.year, .month, .day], from: result.oneTimeDate)
                     activeStartDate = (comps.year ?? 2026) * 10000 + (comps.month ?? 1) * 100 + (comps.day ?? 1)
+                }
+
+                if result.useActiveWindow && result.frequency != .once {
+                    let startComps = Calendar.current.dateComponents([.year, .month, .day], from: result.activeStartDate)
+                    activeStartDate = (startComps.year ?? 2026) * 10000 + (startComps.month ?? 1) * 100 + (startComps.day ?? 1)
+                    let endComps = Calendar.current.dateComponents([.year, .month, .day], from: result.activeEndDate)
+                    activeEndDate = (endComps.year ?? 2027) * 10000 + (endComps.month ?? 1) * 100 + (endComps.day ?? 1)
                 }
 
                 Task {
                     await viewModel.addAndAttachSchedule(
-                        name: name,
-                        enabled: enabled,
+                        name: result.name,
+                        enabled: result.enabled,
                         freqType: freqType,
                         freqInterval: freqInterval,
                         activeStartTime: activeStartTime,
                         freqRecurrenceFactor: freqRecurrenceFactor,
-                        activeStartDate: activeStartDate
+                        activeStartDate: activeStartDate,
+                        activeEndDate: activeEndDate
                     )
                     showAddScheduleSheet = false
                 }

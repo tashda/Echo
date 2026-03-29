@@ -6,24 +6,11 @@ extension DatabaseObjectRow {
             ForEach(object.columns, id: \.name) { (column: ColumnInfo) in
                 DatabaseObjectColumnRow(
                     column: column,
-                    isHovered: hoveredColumnID == column.name,
+                    isHovered: false,
                     onCopyName: { copyColumnName(column) },
                     onRename: { openStructureEditor(for: column) },
                     onDrop: { openStructureEditor(for: column, preferDrop: true) }
                 )
-#if os(macOS)
-                .onHover { hovering in
-                    var transaction = Transaction()
-                    transaction.animation = nil
-                    withTransaction(transaction) {
-                        if hovering {
-                            hoveredColumnID = column.name
-                        } else if hoveredColumnID == column.name {
-                            hoveredColumnID = nil
-                        }
-                    }
-                }
-#endif
             }
         }
         .onDisappear {

@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// A sidebar connection header that integrates naturally with the tree.
+/// A sidebar connection header that matches SidebarRow's exact layout.
 ///
-/// Uses the same visual language as `SidebarRow` — identical hover, selection, and
-/// context-menu fills — but with a two-line layout (name + version) and a slightly
-/// bolder typographic treatment to distinguish servers from their children.
+/// Single-line row (connection name only) with a status dot overlaid on the
+/// server icon. Database type and version appear as a tooltip on hover.
+/// Visually identical in height and spacing to a depth-0 SidebarRow.
 struct SidebarConnectionHeader: View {
     let connectionName: String
     let subtitle: String
@@ -18,9 +18,6 @@ struct SidebarConnectionHeader: View {
     var trailingAccessory: TrailingAccessory = .chevron
 
     @Environment(\.sidebarDensity) private var density
-
-    @State private var isHovered = false
-    @State private var isContextMenuVisible = false
 
     enum TrailingAccessory {
         case chevron
@@ -42,14 +39,13 @@ struct SidebarConnectionHeader: View {
         }
     }
 
-    // MARK: - Density
+    // MARK: - Density (matches SidebarRow exactly)
 
-    private var densityVerticalPadding: CGFloat { density == .large ? 5 : SpacingTokens.xs }
-    private var densityIconFont: Font { density == .large ? Font.system(size: 15, weight: .regular) : .system(size: 14, weight: .medium) }
+    private var densityVerticalPadding: CGFloat { density == .large ? 5 : SidebarRowConstants.rowVerticalPadding }
+    private var densityIconFont: Font { density == .large ? Font.system(size: 15, weight: .regular) : SidebarRowConstants.iconFont }
     private var densityIconFrameWidth: CGFloat { density == .large ? 20 : SidebarRowConstants.iconFrameWidth }
     private var densityIconFrameHeight: CGFloat { density == .large ? 18 : SidebarRowConstants.iconFrameHeight }
-    private var densityNameFont: Font { density == .large ? Font.system(size: 13, weight: .medium) : SidebarRowConstants.labelFont.weight(.semibold) }
-    private var densitySubtitleFont: Font { density == .large ? Font.system(size: 10) : TypographyTokens.compact }
+    private var densityLabelFont: Font { density == .large ? Font.system(size: 13, weight: .regular) : SidebarRowConstants.labelFont }
     private var densityStatusDotSize: CGFloat { density == .large ? 7 : 6 }
 
     // MARK: - Icon
@@ -60,17 +56,8 @@ struct SidebarConnectionHeader: View {
 
     // MARK: - Highlight
 
-    @ViewBuilder
     private var highlightFill: some View {
-        if isContextMenuVisible {
-            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Sidebar.contextFill)
-        } else if isHovered {
-            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Sidebar.hoverFill)
-        } else {
-            Color.clear
-        }
+        Color.clear
     }
 
     // MARK: - Body
@@ -90,6 +77,7 @@ struct SidebarConnectionHeader: View {
                 ZStack(alignment: .bottomTrailing) {
                     Image(systemName: databaseType.symbolName)
                         .font(densityIconFont)
+                        .imageScale(.medium)
                         .symbolRenderingMode(.monochrome)
                         .foregroundStyle(iconColor)
                         .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
@@ -101,36 +89,22 @@ struct SidebarConnectionHeader: View {
                         .offset(x: 1.5, y: 1.5)
                 }
 
-                // Name + subtitle
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: SpacingTokens.xxs) {
-                        Text(connectionName)
-                            .font(densityNameFont)
-                            .foregroundStyle(ColorTokens.Text.primary)
-                            .lineLimit(1)
+                // Connection name — single line, same font as SidebarRow
+                Text(connectionName)
+                    .font(densityLabelFont)
+                    .foregroundStyle(ColorTokens.Text.primary)
+                    .lineLimit(1)
 
-                        if isSecure {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: density == .large ? 9 : 8))
-                                .foregroundStyle(ColorTokens.Text.quaternary)
-                        }
-                    }
+                if isSecure {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: density == .large ? 9 : 8))
+                        .foregroundStyle(ColorTokens.Text.quaternary)
+                }
 
-                    HStack(spacing: SpacingTokens.xxs) {
-                        Text(subtitle)
-                            .font(densitySubtitleFont)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                            .lineLimit(1)
-
-                        if case .error = connectionState {
-                            Text("\u{2022}")
-                                .font(densitySubtitleFont)
-                                .foregroundStyle(ColorTokens.Status.error)
-                            Text("Error")
-                                .font(densitySubtitleFont)
-                                .foregroundStyle(ColorTokens.Status.error)
-                        }
-                    }
+                if case .error = connectionState {
+                    Text("Error")
+                        .font(SidebarRowConstants.trailingFont)
+                        .foregroundStyle(ColorTokens.Status.error)
                 }
 
                 Spacer(minLength: SpacingTokens.xxxs)
@@ -146,16 +120,7 @@ struct SidebarConnectionHeader: View {
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)) { _ in
-            guard isHovered else { return }
-            withAnimation(.easeInOut(duration: 0.1)) { isContextMenuVisible = true }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)) { _ in
-            withAnimation(.easeInOut(duration: 0.15)) { isContextMenuVisible = false }
-        }
+        .help(subtitle)
         .focusable(false)
     }
 
@@ -174,7 +139,7 @@ struct SidebarConnectionHeader: View {
                 action()
             } label: {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(TypographyTokens.detail.weight(.semibold))
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
             .buttonStyle(.plain)

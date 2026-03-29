@@ -9,9 +9,27 @@ concurrency:
   group: ci-light-${{ github.ref_name }}
   cancel-in-progress: true
 
+env:
+  PG_TOOLS_SCRIPT: |
+    brew list libpq >/dev/null 2>&1 || brew install libpq
+    brew list krb5 >/dev/null 2>&1 || brew install krb5
+    brew list zstd >/dev/null 2>&1 || brew install zstd
+    brew list lz4 >/dev/null 2>&1 || brew install lz4
+    brew list gettext >/dev/null 2>&1 || brew install gettext
+    LIBPQ_PREFIX="$(brew --prefix libpq)"
+    mkdir -p Tools/PostgresTools
+    cp "$LIBPQ_PREFIX/bin/pg_dump" Tools/PostgresTools/
+    cp "$LIBPQ_PREFIX/bin/pg_restore" Tools/PostgresTools/
+    SEARCH_DIRS="$LIBPQ_PREFIX/lib $(brew --prefix krb5)/lib $(brew --prefix zstd)/lib $(brew --prefix lz4)/lib $(brew --prefix gettext)/lib $(brew --prefix openssl@3)/lib /opt/homebrew/lib /usr/local/lib"
+    for lib in libpq.5.dylib libzstd.1.dylib liblz4.1.dylib libssl.3.dylib libcrypto.3.dylib libintl.8.dylib libgssapi_krb5.2.2.dylib libkrb5.3.3.dylib libk5crypto.3.1.dylib libkrb5support.1.1.dylib libcom_err.3.0.dylib; do
+      for dir in $SEARCH_DIRS; do
+        if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
+      done
+    done
+
 jobs:
-  build:
-    name: "Step 1: Build"
+  build-and-test:
+    name: "Build & Test"
     runs-on: macos-26
     steps:
     - uses: actions/checkout@v4
@@ -20,34 +38,14 @@ jobs:
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '26'
+
+    - name: Install PostgreSQL tools
+      run: ${{ env.PG_TOOLS_SCRIPT }}
 
     - name: Clear SPM cache
       run: |
         rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
         rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
-
-    - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
-
-    - name: Build
-      run: |
-        xcodebuild build-for-testing -project Echo.xcodeproj \
-          -scheme Echo \
-          -testPlan UnitTests \
-          -destination 'platform=macOS' \
-          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep' \
-
-  unit-tests:
-    name: "Step 2: Unit Tests"
-    needs: build
-    runs-on: macos-26
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Select Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '26'
 
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
@@ -60,104 +58,29 @@ jobs:
           -testPlan UnitTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-unit \
-          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep' \
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
 
-    - name: Upload Results
+    - name: Run SQLite Integration Tests
+      run: |
+        find . -maxdepth 1 -name "TestResults-sqlite*" -exec rm -rf {} + 2>/dev/null || true
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -testPlan SQLiteIntegrationTests \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-sqlite \
+          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+
+    - name: Upload Unit Test Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-unit
         path: TestResults-unit.xcresult
 
-  integration-tests:
-    name: "Step 3: Integration Tests"
-    needs: unit-tests
-    runs-on: [self-hosted, echo-test-server]
-    env:
-      DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
-      USE_DOCKER: "1"
-      ECHO_REQUIRE_VALIDATED_FIXTURES: "1"
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/checkout@v4
-      with:
-        repository: tashda/sqlserver-nio
-        ref: dev
-        path: vendor/sqlserver-nio
-    - uses: actions/checkout@v4
-      with:
-        repository: tashda/postgres-wire
-        ref: dev
-        path: vendor/postgres-wire
-
-    - name: Kill stale processes
-      run: |
-        pkill -9 -f xcodebuild 2>/dev/null || true
-        pkill -9 -f Echo.app 2>/dev/null || true
-        pkill -9 -f swift-frontend 2>/dev/null || true
-        sleep 3
-        rm -rf DerivedData-Echo 2>/dev/null || true
-
-    - name: Prepare environment
-      run: |
-        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security set-keychain-settings ~/Library/Keychains/login.keychain-db
-        security set-key-partition-list -S apple-tool:,apple:,codesign:,teamid:,apple-events: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
-
-    - name: Suppress macOS prompts
-      run: |
-        defaults write /Library/Preferences/com.apple.networkd EnableLoopbackLocalNetwork -bool true 2>/dev/null || true
-        defaults write com.apple.linkd autoShortcut -bool false 2>/dev/null || true
-        defaults write NSGlobalDomain NSAppSleepDisabled -bool YES 2>/dev/null || true
-
-    - name: Verify Docker
-      run: |
-        export PATH="/usr/local/bin:$PATH"
-        if ! /usr/local/bin/colima status > /dev/null 2>&1; then
-          /usr/local/bin/colima start --cpu 4 --memory 8 --arch x86_64
-        fi
-        docker info > /dev/null 2>&1
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-    - name: Ensure PostgreSQL client tools
-      run: |
-        if ! command -v brew >/dev/null 2>&1; then
-          echo "::error::Homebrew required" >&2; exit 1
-        fi
-        brew list libpq >/dev/null 2>&1 || brew install libpq
-        LIBPQ_BIN="$(brew --prefix libpq)/bin"
-        echo "ECHO_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
-        echo "TEST_PG_TOOL_PATH=$LIBPQ_BIN" >> "$GITHUB_ENV"
-
-    - name: Bootstrap database fixtures
-      run: |
-        chmod +x .github/scripts/bootstrap-db-fixtures.sh
-        .github/scripts/bootstrap-db-fixtures.sh all
-
-    - name: Run Integration Tests
-      timeout-minutes: 60
-      run: |
-        find . -maxdepth 1 -name "TestResults-integration*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj -derivedDataPath DerivedData-Echo \
-          -scheme Echo \
-          -testPlan DatabaseIntegrationTests \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-integration \
-          -disable-concurrent-destination-testing \
-          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep' \
-
-    - name: Verify Results
-      if: always()
-      run: |
-        python3 .github/scripts/verify_xcresult.py \
-          --path TestResults-integration.xcresult \
-          --label "Integration tests" \
-          --min-executed 1
-
-    - name: Upload Results
+    - name: Upload SQLite Test Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-integration
-        path: TestResults-integration.xcresult
+        name: test-results-sqlite
+        path: TestResults-sqlite.xcresult

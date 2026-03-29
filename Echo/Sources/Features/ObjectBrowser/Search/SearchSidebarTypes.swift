@@ -1,6 +1,6 @@
 import Foundation
 
-enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable {
+enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable, Sendable {
     case tables
     case views
     case materializedViews
@@ -47,8 +47,8 @@ enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable {
     var defaultSelected: Bool { true }
 }
 
-struct SearchSidebarResult: Identifiable, Hashable {
-    enum Payload: Hashable {
+struct SearchSidebarResult: Identifiable, Hashable, Sendable {
+    enum Payload: Hashable, Sendable {
         case schemaObject(schema: String, name: String, type: SchemaObjectInfo.ObjectType)
         case column(schema: String, table: String, column: String)
         case index(schema: String, table: String, name: String)
@@ -68,28 +68,14 @@ struct SearchSidebarResult: Identifiable, Hashable {
     let payload: Payload?
 }
 
-struct SearchSidebarCache: Equatable {
+/// Cache for the global search sidebar state.
+struct GlobalSearchSidebarCache: Equatable {
     var query: String = ""
     var selectedCategories: Set<SearchSidebarCategory> = Set(SearchSidebarCategory.allCases.filter { $0.defaultSelected })
-    var results: [SearchSidebarResult] = []
+    var scope: SearchScope = .allServers
+    var results: [GlobalSearchResult] = []
     var errorMessage: String?
     var isSearching: Bool = false
-}
-
-struct SearchSidebarContextKey: Hashable {
-    let connectionID: UUID
-    private let normalizedDatabaseName: String?
-
-    init(connectionID: UUID, databaseName: String?) {
-        self.connectionID = connectionID
-        if let trimmed = databaseName?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty {
-            normalizedDatabaseName = trimmed
-        } else {
-            normalizedDatabaseName = nil
-        }
-    }
-
-    var databaseName: String? { normalizedDatabaseName }
 }
 
 struct SearchSidebarQueryTabSnapshot: Equatable {

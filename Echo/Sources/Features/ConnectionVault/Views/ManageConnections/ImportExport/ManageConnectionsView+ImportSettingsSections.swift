@@ -98,6 +98,10 @@ extension ManageConnectionsView {
         }
     }
 
+    private var canImportSettings: Bool {
+        !importSelectedConnectionIDs.isEmpty || !importSelectedIdentityIDs.isEmpty || importIncludeSettings
+    }
+
     func importFooterView(source: Project, targetID: UUID) -> some View {
         HStack {
             Spacer()
@@ -107,24 +111,30 @@ extension ManageConnectionsView {
             }
             .keyboardShortcut(.cancelAction)
 
-            Button("Import Selected Items") {
-                Task {
-                    try? await projectStore.importProjectResources(
-                        from: source,
-                        into: targetID,
-                        connectionStore: connectionStore,
-                        merge: importSettingsMerge,
-                        includeSettings: importIncludeSettings,
-                        connectionIDs: importSelectedConnectionIDs,
-                        identityIDs: importSelectedIdentityIDs
-                    )
-                    showImportSettingsPopup = false
-                    importSettingsSourceProject = nil
+            if canImportSettings {
+                Button("Import Selected Items") {
+                    Task {
+                        try? await projectStore.importProjectResources(
+                            from: source,
+                            into: targetID,
+                            connectionStore: connectionStore,
+                            merge: importSettingsMerge,
+                            includeSettings: importIncludeSettings,
+                            connectionIDs: importSelectedConnectionIDs,
+                            identityIDs: importSelectedIdentityIDs
+                        )
+                        showImportSettingsPopup = false
+                        importSettingsSourceProject = nil
+                    }
                 }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Import Selected Items") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
             }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(importSelectedConnectionIDs.isEmpty && importSelectedIdentityIDs.isEmpty && !importIncludeSettings)
         }
         .padding(SpacingTokens.md)
     }

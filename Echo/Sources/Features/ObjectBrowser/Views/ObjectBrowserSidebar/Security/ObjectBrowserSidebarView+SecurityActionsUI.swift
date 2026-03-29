@@ -35,49 +35,67 @@ extension ObjectBrowserSidebarView {
         switch session.connection.databaseType {
         case .microsoftSQL:
             Button {
-                viewModel.securityLoginSheetSessionID = connID
-                viewModel.securityLoginSheetEditName = nil
-                viewModel.showSecurityLoginSheet = true
+                let value = environmentState.prepareLoginEditorWindow(
+                    connectionSessionID: connID,
+                    existingLogin: nil
+                )
+                openWindow(id: LoginEditorWindow.sceneID, value: value)
             } label: {
                 Label("New Login", systemImage: "person.badge.plus")
             }
         case .postgresql:
             Button {
-                viewModel.securityPGRoleSheetSessionID = connID
-                viewModel.securityPGRoleSheetEditName = nil
-                viewModel.showSecurityPGRoleSheet = true
+                sheetState.securityPGRoleSheetSessionID = connID
+                sheetState.securityPGRoleSheetEditName = nil
+                sheetState.showSecurityPGRoleSheet = true
             } label: {
                 Label("New Login Role", systemImage: "person.badge.plus")
             }
             Button {
-                viewModel.securityPGRoleSheetSessionID = connID
-                viewModel.securityPGRoleSheetEditName = nil
-                viewModel.showSecurityPGRoleSheet = true
+                sheetState.securityPGRoleSheetSessionID = connID
+                sheetState.securityPGRoleSheetEditName = nil
+                sheetState.showSecurityPGRoleSheet = true
             } label: {
                 Label("New Group Role", systemImage: "person.2.badge.plus")
             }
         default:
             EmptyView()
         }
+
+        Divider()
+
+        // Group 3: Open Security Management Tab
+        if session.connection.databaseType == .microsoftSQL {
+            Button {
+                environmentState.openServerSecurityTab(connectionID: session.connection.id)
+            } label: {
+                Label("Open Security Management", systemImage: "lock.shield")
+            }
+        }
     }
 
     // MARK: - Shared UI Helpers
 
-    func securitySectionHeader(depth: Int, title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
-        let expandedBinding = Binding<Bool>(
-            get: { isExpanded },
-            set: { _ in action() }
-        )
-
+    func securitySectionHeader(depth: Int, title: String, icon: String, count: Int?, isExpanded: Binding<Bool>, isLoading: Bool = false) -> some View {
         let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
         let iconColor = ExplorerSidebarPalette.folderIconColor(title: title, colored: colored)
+        let animatedBinding = Binding<Bool>(
+            get: { isExpanded.wrappedValue },
+            set: { newValue in
+                withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
+                    isExpanded.wrappedValue = newValue
+                }
+            }
+        )
 
-        return Button(action: action) {
+        return Button {
+            animatedBinding.wrappedValue.toggle()
+        } label: {
             SidebarRow(
                 depth: depth,
                 icon: .system(icon),
                 label: title,
-                isExpanded: expandedBinding,
+                isExpanded: animatedBinding,
                 iconColor: iconColor
             ) {
                 if let count {
@@ -85,33 +103,13 @@ extension ObjectBrowserSidebarView {
                         .font(SidebarRowConstants.trailingFont)
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.mini)
+                }
             }
         }
-        .buttonStyle(.plain)
-    }
-
-    func securityLoadingRow(depth: Int, _ text: String) -> some View {
-        SidebarRow(
-            depth: depth,
-            icon: .none,
-            label: text,
-            labelColor: ColorTokens.Text.secondary,
-            labelFont: TypographyTokens.detail
-        )
-    }
-
-    // MARK: - New Item Button
-
-    func newItemButton(depth: Int, title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            SidebarRow(
-                depth: depth,
-                icon: .system("plus.circle"),
-                label: title,
-                iconColor: ColorTokens.Text.tertiary,
-                labelColor: ColorTokens.Text.tertiary
-            )
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
     }
 

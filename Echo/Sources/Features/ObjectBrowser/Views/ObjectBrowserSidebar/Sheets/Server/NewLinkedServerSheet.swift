@@ -30,42 +30,27 @@ struct NewLinkedServerSheet: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            sheetHeader
-            Divider()
-            sheetContent
-            Divider()
-            sheetFooter
+        SheetLayout(
+            title: "New Linked Server",
+            icon: "link.badge.plus",
+            subtitle: "Connect to an external data source via OLE DB.",
+            primaryAction: "Create",
+            canSubmit: canCreate && !isCreating,
+            isSubmitting: isCreating,
+            errorMessage: errorMessage,
+            onSubmit: { createLinkedServer() },
+            onCancel: { onDismiss() }
+        ) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: SpacingTokens.md) {
+                    serverDetailsSection
+                    loginMappingSection
+                }
+                .padding(SpacingTokens.lg)
+            }
+            .frame(maxHeight: 400)
         }
         .frame(width: 460)
-    }
-
-    private var sheetHeader: some View {
-        HStack {
-            Text("New Linked Server")
-                .font(TypographyTokens.prominent.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.primary)
-            Spacer()
-        }
-        .padding(.horizontal, SpacingTokens.lg)
-        .padding(.vertical, SpacingTokens.md)
-    }
-
-    private var sheetContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SpacingTokens.md) {
-                serverDetailsSection
-                loginMappingSection
-
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Status.error)
-                }
-            }
-            .padding(SpacingTokens.lg)
-        }
-        .frame(maxHeight: 400)
     }
 
     private var serverDetailsSection: some View {
@@ -130,26 +115,6 @@ struct NewLinkedServerSheet: View {
                 }
             }
         }
-    }
-
-    private var sheetFooter: some View {
-        HStack {
-            Spacer()
-
-            Button("Cancel") {
-                onDismiss()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Create") {
-                createLinkedServer()
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!canCreate || isCreating)
-        }
-        .padding(.horizontal, SpacingTokens.lg)
-        .padding(.vertical, SpacingTokens.md)
     }
 
     private var canCreate: Bool {

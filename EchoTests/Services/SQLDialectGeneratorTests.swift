@@ -780,3 +780,109 @@ struct SQLServerDialectGeneratorTests {
         #expect(result.isEmpty)
     }
 }
+
+// MARK: - MySQLDialectGenerator
+
+@Suite("MySQLDialectGenerator")
+struct MySQLDialectGeneratorTests {
+    let gen = MySQLDialectGenerator(schema: "sakila")
+
+    private var table: String {
+        gen.qualifiedTable(schema: "sakila", table: "actor")
+    }
+
+    @Test func quoteIdentifierRegularName() {
+        #expect(gen.quoteIdentifier("name") == "`name`")
+    }
+
+    @Test func qualifiedTableSchemaAndTable() {
+        #expect(table == "`sakila`.`actor`")
+    }
+
+    @Test func beginTransaction() {
+        #expect(gen.beginTransaction() == "START TRANSACTION;")
+    }
+
+    @Test func addColumnWithAutoIncrement() {
+        let result = gen.addColumn(
+            table: table,
+            name: "actor_id",
+            dataType: "int",
+            isNullable: false,
+            defaultValue: nil,
+            generatedExpression: nil,
+            identity: (seed: 1, increment: 1, generation: "AUTO_INCREMENT"),
+            collation: nil
+        )
+        #expect(result == "ALTER TABLE `sakila`.`actor` ADD COLUMN `actor_id` int NOT NULL AUTO_INCREMENT;")
+    }
+
+    @Test func addColumnWithGeneratedExpression() {
+        let result = gen.addColumn(
+            table: table,
+            name: "full_name",
+            dataType: "varchar(255)",
+            isNullable: true,
+            defaultValue: "'fallback'",
+            generatedExpression: "concat(first_name, ' ', last_name)",
+            identity: nil,
+            collation: nil
+        )
+        #expect(result.contains("GENERATED ALWAYS AS (concat(first_name, ' ', last_name)) STORED"))
+        #expect(!result.contains("DEFAULT"))
+    }
+
+    @Test func alterColumnTypeUsesModifyColumn() {
+        let result = gen.alterColumnType(table: table, column: "first_name", newType: "varchar(100)", isNullable: false)
+        #expect(result == "ALTER TABLE `sakila`.`actor` MODIFY COLUMN `first_name` varchar(100) NOT NULL;")
+    }
+
+    @Test func addPrimaryKeyOmitsConstraintName() {
+        let result = gen.addPrimaryKey(table: table, name: "PRIMARY", columns: ["actor_id"], isDeferrable: false, isInitiallyDeferred: false)
+        #expect(result == "ALTER TABLE `sakila`.`actor` ADD PRIMARY KEY (`actor_id`);")
+    }
+
+    @Test func dropConstraintPrimaryKey() {
+        #expect(gen.dropConstraint(table: table, name: "PRIMARY") == "ALTER TABLE `sakila`.`actor` DROP PRIMARY KEY;")
+    }
+
+    @Test func dropConstraintForeignKey() {
+        #expect(gen.dropConstraint(table: table, name: "fk_actor") == "ALTER TABLE `sakila`.`actor` DROP FOREIGN KEY `fk_actor`;")
+    }
+
+    @Test func createUniqueIndexWithIndexType() {
+        let result = gen.createIndex(
+            table: table,
+            name: "idx_actor_name",
+            columns: [(name: "last_name", sort: "ASC")],
+            includeColumns: [],
+            isUnique: true,
+            filter: nil,
+            indexType: "hash"
+        )
+        #expect(result == "CREATE UNIQUE INDEX `idx_actor_name` ON `sakila`.`actor` USING HASH (`last_name` ASC);")
+    }
+
+    @Test func createFulltextIndexUsesMySQLPrefixSyntax() {
+        let result = gen.createIndex(
+            table: table,
+            name: "idx_actor_notes",
+            columns: [(name: "notes", sort: "ASC")],
+            includeColumns: [],
+            isUnique: false,
+            filter: nil,
+            indexType: "fulltext"
+        )
+        #expect(result == "CREATE FULLTEXT INDEX `idx_actor_notes` ON `sakila`.`actor` (`notes` ASC);")
+    }
+
+    @Test func alterTablePropertiesBuildsExpectedStatements() {
+        let result = gen.alterTableProperties(
+            table: table,
+            properties: [("ENGINE", "InnoDB"), ("AUTO_INCREMENT", "42"), ("CHARACTER SET", "utf8mb4")]
+        )
+        #expect(result.count == 2)
+        #expect(result[0] == "ALTER TABLE `sakila`.`actor` ENGINE = InnoDB, AUTO_INCREMENT = 42;")
+        #expect(result[1] == "ALTER TABLE `sakila`.`actor` CONVERT TO CHARACTER SET utf8mb4;")
+    }
+}

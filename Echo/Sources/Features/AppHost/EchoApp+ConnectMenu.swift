@@ -98,7 +98,7 @@ struct ConnectMenuCommands: Commands {
                     .foregroundStyle(ColorTokens.Text.secondary)
             } else {
                 ForEach(databases, id: \.name) { database in
-                    let isSelected = databaseNamesEqual(database.name, session.selectedDatabaseName)
+                    let isSelected = databaseNamesEqual(database.name, session.sidebarFocusedDatabase)
                     Button {
                         selectDatabase(database.name, in: session)
                     } label: {
@@ -117,7 +117,7 @@ struct ConnectMenuCommands: Commands {
 
     private func activeSessionLabel(for session: ConnectionSession, isPrimary: Bool) -> String {
         let connectionName = displayName(for: session.connection)
-        let selected = trimmedDatabaseName(session.selectedDatabaseName)
+        let selected = trimmedDatabaseName(session.sidebarFocusedDatabase)
         let fallbackDatabase: String? = session.connection.database.isEmpty ? nil : session.connection.database
         if let database = selected ?? trimmedDatabaseName(fallbackDatabase) {
             let base = "\(connectionName) • \(database)"
@@ -164,7 +164,7 @@ struct ConnectMenuCommands: Commands {
     }
 
     private func selectDatabase(_ databaseName: String, in session: ConnectionSession) {
-        guard !databaseNamesEqual(databaseName, session.selectedDatabaseName) else { return }
+        guard !databaseNamesEqual(databaseName, session.sidebarFocusedDatabase) else { return }
         Task {
             await MainActor.run {
                 environmentState.sessionGroup.setActiveSession(session.id)

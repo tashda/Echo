@@ -112,11 +112,6 @@ extension WorkspaceTabContainerView {
             )
         }
 
-        // Update the parent connection session's selected database
-        if let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
-            session.selectedDatabaseName = targetDatabase
-        }
-
         environmentState.notificationEngine?.post(category: .databaseSwitched, message: "Switched to \(targetDatabase)")
     }
 

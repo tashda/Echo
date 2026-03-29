@@ -11,6 +11,10 @@ struct FullTextSearchSheet: View {
     @State private var errorMessage: String?
     @State private var catalogs: [SQLServerFullTextCatalog] = []
     @State private var indexes: [SQLServerFullTextIndex] = []
+    @State private var showNewCatalogSheet = false
+    @State private var showNewIndexSheet = false
+    @State private var confirmDropCatalog: SQLServerFullTextCatalog?
+    @State private var isBusy = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,6 +37,38 @@ struct FullTextSearchSheet: View {
         .frame(minWidth: 480, minHeight: 340)
         .frame(idealWidth: 520, idealHeight: 380)
         .task { await loadData() }
+        .sheet(isPresented: $showNewIndexSheet) {
+            NewFullTextIndexSheet(
+                catalogs: catalogs,
+                session: session,
+                onCreated: {
+                    showNewIndexSheet = false
+                    Task { await loadData() }
+                },
+                onCancel: { showNewIndexSheet = false }
+            )
+        }
+        .sheet(isPresented: $showNewCatalogSheet) {
+            NewFullTextCatalogSheet { name, isDefault, accentSensitive in
+                await createCatalog(name: name, isDefault: isDefault, accentSensitive: accentSensitive)
+            } onCancel: {
+                showNewCatalogSheet = false
+            }
+        }
+        .alert("Drop Catalog?", isPresented: Binding(
+            get: { confirmDropCatalog != nil },
+            set: { if !$0 { confirmDropCatalog = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { confirmDropCatalog = nil }
+            Button("Drop", role: .destructive) {
+                if let catalog = confirmDropCatalog {
+                    confirmDropCatalog = nil
+                    Task { await dropCatalog(name: catalog.name) }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to drop the catalog \(confirmDropCatalog?.name ?? "")? This action cannot be undone.")
+        }
     }
 
     private var headerBar: some View {
@@ -53,7 +89,7 @@ struct FullTextSearchSheet: View {
         HStack {
             Spacer()
             Button("Done") { onDismiss() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.cancelAction)
         }
         .padding(SpacingTokens.md)
@@ -73,8 +109,18 @@ struct FullTextSearchSheet: View {
     @ViewBuilder
     private var catalogsSection: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Full-Text Catalogs")
-                .font(TypographyTokens.standard.weight(.semibold))
+            HStack {
+                Text("Full-Text Catalogs")
+                    .font(TypographyTokens.standard.weight(.semibold))
+                Spacer()
+                Button {
+                    showNewCatalogSheet = true
+                } label: {
+                    Label("New Catalog", systemImage: "books.vertical")
+                }
+                .controlSize(.small)
+                .disabled(isBusy)
+            }
 
             if catalogs.isEmpty {
                 Text("No full-text catalogs in this database.")
@@ -102,6 +148,22 @@ struct FullTextSearchSheet: View {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(ColorTokens.Background.secondary)
                     )
+                    .contextMenu {
+                        Button {
+                            Task { await rebuildCatalog(name: catalog.name) }
+                        } label: {
+                            Label("Rebuild", systemImage: "hammer")
+                        }
+                        .disabled(isBusy)
+
+                        Divider()
+
+                        Button(role: .destructive) {
+                            confirmDropCatalog = catalog
+                        } label: {
+                            Label("Drop Catalog", systemImage: "trash")
+                        }
+                    }
                 }
             }
         }
@@ -110,8 +172,18 @@ struct FullTextSearchSheet: View {
     @ViewBuilder
     private var indexesSection: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Full-Text Indexes")
-                .font(TypographyTokens.standard.weight(.semibold))
+            HStack {
+                Text("Full-Text Indexes")
+                    .font(TypographyTokens.standard.weight(.semibold))
+                Spacer()
+                Button {
+                    showNewIndexSheet = true
+                } label: {
+                    Label("New Index", systemImage: "plus.rectangle.on.rectangle")
+                }
+                .controlSize(.small)
+                .disabled(isBusy || catalogs.isEmpty)
+            }
 
             if indexes.isEmpty {
                 Text("No full-text indexes in this database.")
@@ -137,6 +209,36 @@ struct FullTextSearchSheet: View {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(ColorTokens.Background.secondary)
                     )
+                    .contextMenu {
+                        Button {
+                            Task { await startPopulation(table: index.tableName, type: .full) }
+                        } label: {
+                            Label("Start Full Population", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(isBusy)
+
+                        Button {
+                            Task { await startPopulation(table: index.tableName, type: .incremental) }
+                        } label: {
+                            Label("Start Incremental Population", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(isBusy)
+
+                        Button {
+                            Task { await stopPopulation(table: index.tableName) }
+                        } label: {
+                            Label("Stop Population", systemImage: "stop.circle")
+                        }
+                        .disabled(isBusy)
+
+                        Divider()
+
+                        Button(role: .destructive) {
+                            Task { await dropIndex(table: index.tableName) }
+                        } label: {
+                            Label("Drop Index", systemImage: "trash")
+                        }
+                    }
                 }
             }
         }
@@ -175,5 +277,78 @@ struct FullTextSearchSheet: View {
             errorMessage = error.localizedDescription
             isLoading = false
         }
+    }
+
+    private func createCatalog(name: String, isDefault: Bool, accentSensitive: Bool) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        isBusy = true
+        do {
+            try await mssql.fullText.createCatalog(name: name, isDefault: isDefault, accentSensitive: accentSensitive)
+            showNewCatalogSheet = false
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isBusy = false
+    }
+
+    private func dropCatalog(name: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        isBusy = true
+        do {
+            try await mssql.fullText.dropCatalog(name: name)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isBusy = false
+    }
+
+    private func rebuildCatalog(name: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        isBusy = true
+        do {
+            try await mssql.fullText.rebuildCatalog(name: name)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isBusy = false
+    }
+
+    private func dropIndex(table: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        isBusy = true
+        do {
+            try await mssql.fullText.dropIndex(schema: "dbo", table: table)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isBusy = false
+    }
+
+    private func startPopulation(table: String, type: SQLServerFullTextClient.PopulationType) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        isBusy = true
+        do {
+            try await mssql.fullText.startPopulation(schema: "dbo", table: table, type: type)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isBusy = false
+    }
+
+    private func stopPopulation(table: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        isBusy = true
+        do {
+            try await mssql.fullText.stopPopulation(schema: "dbo", table: table)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isBusy = false
     }
 }

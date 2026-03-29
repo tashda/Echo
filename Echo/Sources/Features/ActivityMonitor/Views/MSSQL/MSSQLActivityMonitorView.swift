@@ -6,7 +6,26 @@ struct MSSQLActivityMonitorView: View {
     @Environment(EnvironmentState.self) var environmentState
     @Environment(AppState.self) private var appState
 
-    @State private var selectedSection: MSSQLActivitySection = .processes
+    @State private var internalSelectedSection: MSSQLActivitySection = .processes
+    private var selectedSection: MSSQLActivitySection {
+        get {
+            if let str = viewModel.selectedSection, let sec = MSSQLActivitySection(rawValue: str) {
+                return sec
+            }
+            return internalSelectedSection
+        }
+        nonmutating set {
+            viewModel.selectedSection = newValue.rawValue
+            internalSelectedSection = newValue
+        }
+    }
+
+    private var selectedSectionBinding: Binding<MSSQLActivitySection> {
+        Binding(
+            get: { self.selectedSection },
+            set: { self.selectedSection = $0 }
+        )
+    }
 
     @State private var processesSortOrder = [KeyPathComparator(\SQLServerProcessInfo.sessionId)]
     @State private var waitsSortOrder = [KeyPathComparator(\SQLServerWaitStatDelta.waitTimeMsDelta, order: .reverse)]
@@ -27,6 +46,7 @@ struct MSSQLActivityMonitorView: View {
         case io = "I/O"
         case queries = "Queries"
         case xevents = "XEvents"
+        case profiler = "Profiler"
     }
 
     var body: some View {
@@ -34,6 +54,11 @@ struct MSSQLActivityMonitorView: View {
             VStack(spacing: 0) {
                 TabSectionToolbar { sectionPicker }
                 xeventsContent
+            }
+        } else if selectedSection == .profiler {
+            VStack(spacing: 0) {
+                TabSectionToolbar { sectionPicker }
+                profilerContent
             }
         } else {
             ActivityMonitorTabFrame(
@@ -49,7 +74,7 @@ struct MSSQLActivityMonitorView: View {
             } sectionContent: {
                 sectionTable
             }
-            .onChange(of: selectedSection) { _, _ in
+            .onChange(of: viewModel.selectedSection) { _, _ in
                 environmentState.dataInspectorContent = nil
             }
             .onChange(of: selectedProcessIDs) { _, ids in pushProcessInspector(ids: ids) }
@@ -62,7 +87,7 @@ struct MSSQLActivityMonitorView: View {
     // MARK: - Section Picker
 
     private var sectionPicker: some View {
-        Picker(selection: $selectedSection) {
+        Picker(selection: selectedSectionBinding) {
             ForEach(MSSQLActivitySection.allCases, id: \.self) { section in
                 Text(section.rawValue).tag(section)
             }
@@ -97,6 +122,7 @@ struct MSSQLActivityMonitorView: View {
                     selection: $selectedProcessIDs,
                     onPopout: popout,
                     onKill: kill,
+                    canKill: environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)?.permissions?.canManageServerState ?? true,
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
                 )
             case .waits:
@@ -131,6 +157,8 @@ struct MSSQLActivityMonitorView: View {
                 )
             case .xevents:
                 EmptyView()
+            case .profiler:
+                EmptyView()
             }
         } else {
             EmptyTablePlaceholder()
@@ -142,12 +170,36 @@ struct MSSQLActivityMonitorView: View {
     @ViewBuilder
     private var xeventsContent: some View {
         if let xeVM = viewModel.extendedEventsVM {
-            ExtendedEventsView(viewModel: xeVM, panelState: xeventsPanelState)
+            ExtendedEventsView(
+                viewModel: xeVM,
+                panelState: xeventsPanelState,
+                onPopout: { sql in popout(sql) },
+                onDoubleClick: { appState.showInfoSidebar.toggle() }
+            )
         } else {
             ContentUnavailableView {
                 Label("Extended Events", systemImage: "waveform.path.ecg")
             } description: {
                 Text("Extended Events is not available for this connection.")
+            }
+        }
+    }
+
+    // MARK: - Profiler
+
+    @ViewBuilder
+    private var profilerContent: some View {
+        if let profilerVM = viewModel.profilerVM {
+            ProfilerView(
+                viewModel: profilerVM,
+                onPopout: popout,
+                onDoubleClick: { appState.showInfoSidebar.toggle() }
+            )
+        } else {
+            ContentUnavailableView {
+                Label("SQL Profiler", systemImage: "chart.line.uptrend.xyaxis")
+            } description: {
+                Text("SQL Profiler is not available for this connection.")
             }
         }
     }

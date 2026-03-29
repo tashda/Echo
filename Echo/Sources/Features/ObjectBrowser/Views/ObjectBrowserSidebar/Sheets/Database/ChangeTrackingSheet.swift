@@ -11,6 +11,7 @@ struct ChangeTrackingSheet: View {
     @State var errorMessage: String?
     @State var cdcTables: [SQLServerCDCTable] = []
     @State var ctStatus: [SQLServerChangeTrackingStatus] = []
+    @State var ctTables: [SQLServerChangeTrackingClient.SQLServerCTTable] = []
     @State var confirmEnableCDC: CDCEnableTarget?
     @State var confirmDisableCDC: CDCDisableTarget?
 
@@ -27,9 +28,16 @@ struct ChangeTrackingSheet: View {
         let captureInstance: String?
     }
 
+    var canManageState: Bool {
+        session.permissions?.canManageServerState ?? true
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             headerBar
+            if !canManageState {
+                PermissionBanner(message: "Enabling or disabling CDC requires the sysadmin role.")
+            }
             Divider()
 
             if isLoading {
@@ -98,7 +106,7 @@ struct ChangeTrackingSheet: View {
         HStack {
             Spacer()
             Button("Done") { onDismiss() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.cancelAction)
         }
         .padding(SpacingTokens.md)
@@ -113,10 +121,41 @@ struct ChangeTrackingSheet: View {
         do {
             cdcTables = try await mssql.changeTracking.listCDCTables()
             ctStatus = try await mssql.changeTracking.changeTrackingStatus()
+            ctTables = try await mssql.changeTracking.listChangeTrackingTables()
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription
             isLoading = false
+        }
+    }
+
+    func enableCT() async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        do {
+            try await mssql.changeTracking.enableChangeTracking(database: databaseName)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func disableCT() async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        do {
+            try await mssql.changeTracking.disableChangeTracking(database: databaseName)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func disableCTTable(schema: String, table: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        do {
+            try await mssql.changeTracking.disableTableChangeTracking(schema: schema, table: table)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

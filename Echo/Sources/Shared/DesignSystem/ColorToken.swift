@@ -180,30 +180,51 @@ public enum ColorTokens {
 
     // Explorer / Object Browser
     public enum Explorer {
+        // Data objects (cool tones)
         public static let databaseFolder = Color.green
         public static let databaseInstance = Color.blue
         public static let tables = Color.cyan
         public static let views = Color.teal
-        public static let materializedViews = Color.indigo
+        public static let materializedViews = Color.mint
         public static let functions = Color.orange
         public static let procedures = Color.red
         public static let triggers = Color(red: 0.95, green: 0.75, blue: 0.0) // Gold
-        public static let extensions = Color.mint
-
-        public static let jobs = Color.blue
-        public static let security = Color.purple
+        public static let sequences = Color.brown
+        public static let types = Color.pink
+        public static let extensions = Color.indigo
         public static let queryStore = Color.indigo
-        public static let users = Color.pink
-        public static let roles = Color.pink
-        public static let logins = Color.pink
-        public static let serverRoles = Color.pink
-        public static let credentials = Color.pink
-        public static let linkedServers = Color.purple
 
+        // Server infrastructure
+        public static let jobs = Color.orange
+        public static let databaseSnapshots = Color.cyan
+        public static let integrationServices = Color.indigo
+
+        // Security (purple family with variation)
+        public static let security = Color.purple
+        public static let logins = Color(red: 0.7, green: 0.4, blue: 0.9)
+        public static let serverRoles = Color.red
+        public static let credentials = Color(red: 0.6, green: 0.5, blue: 0.8)
+        public static let users = Color.pink
+        public static let roles = Color(red: 0.8, green: 0.5, blue: 0.7)
+        public static let linkedServers = Color.teal
+
+        // Management (earth tones)
         public static let management = Color.brown
-        public static let extendedEvents = Color.teal
-        public static let databaseMail = Color.blue
+        public static let extendedEvents = Color.purple
+        public static let databaseMail = Color.indigo
         public static let activityMonitor = Color.orange
+        public static let sqlProfiler = Color.red
+        public static let resourceGovernor = Color.mint
+        public static let tuningAdvisor = Color(red: 0.95, green: 0.75, blue: 0.0) // Gold
+        public static let policyManagement = Color.green
+
+        // Triggers (consistent gold)
+        public static let serverTriggers = Color(red: 0.95, green: 0.75, blue: 0.0)
+        public static let databaseTriggers = Color(red: 0.95, green: 0.75, blue: 0.0)
+
+        // Other server-level
+        public static let serviceBroker = Color.blue
+        public static let externalResources = Color.brown
     }
 }
 

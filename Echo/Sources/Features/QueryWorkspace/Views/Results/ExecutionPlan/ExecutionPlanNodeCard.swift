@@ -110,7 +110,7 @@ struct ExecutionPlanNodeCard: View {
     private var operatorIcon: some View {
         let (iconName, color) = operatorIconInfo
         return Image(systemName: iconName)
-            .font(.system(size: 13, weight: .medium))
+            .font(TypographyTokens.standard.weight(.medium))
             .foregroundStyle(color)
     }
 

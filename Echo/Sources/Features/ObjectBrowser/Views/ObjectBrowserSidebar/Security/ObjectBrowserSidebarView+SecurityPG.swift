@@ -13,38 +13,46 @@ extension ObjectBrowserSidebarView {
         let loginRoles = allRoles.filter { $0.loginType.contains("Login") || $0.loginType.contains("Superuser") }
         let isExpanded = viewModel.securityPGLoginRolesExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.serverSection,
-                title: "Login Roles",
-                icon: "person.crop.circle",
-                count: loginRoles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityPGLoginRolesExpandedBySession[connID] = !isExpanded
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.serverSection,
+            title: "Login Roles",
+            icon: "person.crop.circle",
+            count: loginRoles.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.securityPGLoginRolesExpandedBySession[connID] = newValue }
+            )
+        )
+        .contextMenu {
+            Button {
+                Task {
+                    let handle = AppDirector.shared.activityEngine.begin("Refreshing login roles", connectionSessionID: session.id)
+                    await loadServerSecurityAsync(session: session)
+                    handle.succeed()
                 }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .contextMenu {
-                Button {
-                    Task {
-                        let handle = AppDirector.shared.activityEngine.begin("Refreshing login roles", connectionSessionID: session.id)
-                        await loadServerSecurityAsync(session: session)
-                        handle.succeed()
-                    }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                Button {
-                    viewModel.securityPGRoleSheetSessionID = connID
-                    viewModel.securityPGRoleSheetEditName = nil
-                    viewModel.showSecurityPGRoleSheet = true
-                } label: {
-                    Label("New Login Role", systemImage: "person.badge.plus")
-                }
+            Button {
+                sheetState.securityPGRoleSheetSessionID = connID
+                sheetState.securityPGRoleSheetEditName = nil
+                sheetState.showSecurityPGRoleSheet = true
+            } label: {
+                Label("New Login Role", systemImage: "person.badge.plus")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
+        }
 
-            if isExpanded {
+        if isExpanded {
+            if loginRoles.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.serverLeaf,
+                    icon: .none,
+                    label: "No login roles found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
                 ForEach(loginRoles) { role in
                     pgRoleRow(role: role, session: session)
                 }
@@ -61,38 +69,46 @@ extension ObjectBrowserSidebarView {
         let groupRoles = allRoles.filter { $0.loginType == "Group Role" }
         let isExpanded = viewModel.securityPGGroupRolesExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.serverSection,
-                title: "Group Roles",
-                icon: "person.2.circle",
-                count: groupRoles.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityPGGroupRolesExpandedBySession[connID] = !isExpanded
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.serverSection,
+            title: "Group Roles",
+            icon: "person.2.circle",
+            count: groupRoles.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.securityPGGroupRolesExpandedBySession[connID] = newValue }
+            )
+        )
+        .contextMenu {
+            Button {
+                Task {
+                    let handle = AppDirector.shared.activityEngine.begin("Refreshing group roles", connectionSessionID: session.id)
+                    await loadServerSecurityAsync(session: session)
+                    handle.succeed()
                 }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .contextMenu {
-                Button {
-                    Task {
-                        let handle = AppDirector.shared.activityEngine.begin("Refreshing group roles", connectionSessionID: session.id)
-                        await loadServerSecurityAsync(session: session)
-                        handle.succeed()
-                    }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                Button {
-                    viewModel.securityPGRoleSheetSessionID = connID
-                    viewModel.securityPGRoleSheetEditName = nil
-                    viewModel.showSecurityPGRoleSheet = true
-                } label: {
-                    Label("New Group Role", systemImage: "person.2.badge.plus")
-                }
+            Button {
+                sheetState.securityPGRoleSheetSessionID = connID
+                sheetState.securityPGRoleSheetEditName = nil
+                sheetState.showSecurityPGRoleSheet = true
+            } label: {
+                Label("New Group Role", systemImage: "person.2.badge.plus")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
+        }
 
-            if isExpanded {
+        if isExpanded {
+            if groupRoles.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.serverLeaf,
+                    icon: .none,
+                    label: "No group roles found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
                 ForEach(groupRoles) { role in
                     pgRoleRow(role: role, session: session)
                 }
@@ -124,6 +140,7 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Reassign Owned Objects", systemImage: "arrow.triangle.swap")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
 
             Divider()
 
@@ -147,25 +164,26 @@ extension ObjectBrowserSidebarView {
 
             // Group 9: Destructive
             Button(role: .destructive) {
-                viewModel.dropSecurityPrincipalTarget = .init(
+                sheetState.dropSecurityPrincipalTarget = .init(
                     sessionID: session.id,
                     connectionID: session.connection.id,
                     name: role.name,
                     kind: .pgRole,
                     databaseName: nil
                 )
-                viewModel.showDropSecurityPrincipalAlert = true
+                sheetState.showDropSecurityPrincipalAlert = true
             } label: {
                 Label("Drop Role", systemImage: "trash")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
 
             Divider()
 
             // Group 10: Properties — ALWAYS last
             Button {
-                viewModel.securityPGRoleSheetSessionID = session.connection.id
-                viewModel.securityPGRoleSheetEditName = role.name
-                viewModel.showSecurityPGRoleSheet = true
+                sheetState.securityPGRoleSheetSessionID = session.connection.id
+                sheetState.securityPGRoleSheetEditName = role.name
+                sheetState.showSecurityPGRoleSheet = true
             } label: {
                 Label("Properties", systemImage: "info.circle")
             }

@@ -5,6 +5,47 @@ extension NewAgentJobSheet {
 
     // MARK: - Actions
 
+    func loadCategories() {
+        Task {
+            do {
+                if let mssql = session.session as? MSSQLSession {
+                    let categories = try await mssql.agent.listCategories()
+                    await MainActor.run {
+                        availableCategories = categories.map(\.name).sorted()
+                    }
+                }
+            } catch {
+                availableCategories = []
+            }
+        }
+    }
+
+    func createCategory() async {
+        let name = newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else {
+            newCategoryError = "Category name is required"
+            return
+        }
+        guard let mssql = session.session as? MSSQLSession else {
+            newCategoryError = "Not connected to a SQL Server instance"
+            return
+        }
+
+        do {
+            try await mssql.agent.createCategory(name: name)
+            await MainActor.run {
+                availableCategories.append(name)
+                availableCategories.sort()
+                jobCategory = name
+                showNewCategorySheet = false
+            }
+        } catch {
+            await MainActor.run {
+                newCategoryError = error.localizedDescription
+            }
+        }
+    }
+
     func loadCurrentLogin() {
         guard jobOwner.isEmpty else { return }
         Task {
@@ -92,7 +133,9 @@ extension NewAgentJobSheet {
                 let sch = SQLServerAgentJobSchedule(
                     name: scheduleName.isEmpty ? "Schedule_\(name)" : scheduleName,
                     enabled: schedule.enabled,
-                    kind: kind
+                    kind: kind,
+                    activeStartDate: schedule.activeStartDateInt,
+                    activeEndDate: schedule.activeEndDateInt
                 )
                 _ = builder.addSchedule(sch)
             }

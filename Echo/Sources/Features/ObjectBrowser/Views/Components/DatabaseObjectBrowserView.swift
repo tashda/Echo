@@ -4,8 +4,6 @@ import SwiftUI
 struct DatabaseObjectBrowserView: View {
     let database: DatabaseInfo
     let connection: SavedConnection
-    @Binding var searchText: String
-    @Binding var selectedSchemaName: String?
     @Binding var expandedObjectGroups: Set<SchemaObjectInfo.ObjectType>
     @Binding var expandedObjectIDs: Set<String>
     @Binding var pinnedObjectIDs: Set<String>
@@ -17,22 +15,18 @@ struct DatabaseObjectBrowserView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(EnvironmentState.self) var environmentState
+    @Environment(ObjectBrowserSidebarViewModel.self) var viewModel
 
-    @State private var snapshotCache = ExplorerSnapshotCache()
+    @State private var snapshotData: SnapshotData = .empty
+    @State internal var showNewSequenceSheet = false
+    @State internal var showNewTriggerSheet = false
 
     private var supportedObjectTypes: [SchemaObjectInfo.ObjectType] {
         SchemaObjectInfo.ObjectType.supported(for: connection.databaseType)
     }
 
-    var normalizedSearchQuery: String? {
-        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed.lowercased()
-    }
-
-    private var isSearching: Bool { normalizedSearchQuery != nil }
-
     func displayName(for object: SchemaObjectInfo) -> String {
-        selectedSchemaName == nil ? object.fullName : object.name
+        object.fullName
     }
 
     func shouldShowColumns(for object: SchemaObjectInfo) -> Bool {
@@ -75,10 +69,6 @@ struct DatabaseObjectBrowserView: View {
             .flatMap({ $0.objects.filter { $0.type == .table } })
             .first(where: { $0.fullName == fullName }) else { return }
 
-        if let selected = selectedSchemaName, selected != target.schema {
-            selectedSchemaName = nil
-        }
-
         expandedObjectGroups.insert(.table)
         expandedObjectIDs.insert(target.id)
 
@@ -89,70 +79,67 @@ struct DatabaseObjectBrowserView: View {
         }
     }
 
-    var body: some View {
-        let input = SnapshotInput(
-            database: database,
-            normalizedQuery: normalizedSearchQuery,
-            selectedSchemaName: selectedSchemaName,
+    private var snapshotIdentity: SnapshotIdentity {
+        let totalObjects = database.schemas.reduce(0) { $0 + $1.objects.count }
+        return SnapshotIdentity(
+            databaseName: database.name,
+            schemaCount: database.schemas.count,
+            objectCount: totalObjects,
+            extensionCount: database.extensions.count,
             pinnedIDs: pinnedObjectIDs,
             supportedTypes: supportedObjectTypes
         )
-        let snapshot = snapshotCache.data
+    }
 
-        Group {
-            if isSearching && snapshot.filteredCount == 0 {
-                SearchEmptyStateView(query: searchText)
-            } else {
-                if !snapshot.pinned.isEmpty {
-                    pinnedSection(snapshot.pinned)
-                }
+    var body: some View {
+        let snapshot = snapshotData
 
-                ForEach(supportedObjectTypes, id: \.self) { type in
-                    typeSection(type, snapshot.grouped[type] ?? [])
+        // Use LazyVStack (not Group) to prevent child flattening into the parent LazyVStack
+        // and to virtualize rows — only visible rows are materialized.
+        // Without a container, multiple expanded databases would emit children with colliding IDs.
+        LazyVStack(spacing: 0) {
+            if !snapshot.pinned.isEmpty {
+                pinnedSection(snapshot.pinned)
+            }
+
+            ForEach(supportedObjectTypes, id: \.self) { type in
+                typeSection(type, snapshot.grouped[type] ?? [])
+            }
+        }
+        .task(id: snapshotIdentity) {
+            let db = database
+            let pins = pinnedObjectIDs
+            let types = supportedObjectTypes
+            let newData = await SnapshotBuilder.buildData(from: db, pinnedIDs: pins, supportedTypes: types)
+            if newData != snapshotData {
+                snapshotData = newData
+            }
+        }
+        .sheet(isPresented: $showNewSequenceSheet) {
+            if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+                let schema = database.schemas.first?.name ?? "public"
+                NewSequenceSheet(session: session, schemaName: schema) {
+                    showNewSequenceSheet = false
+                    reloadSchema()
                 }
             }
         }
-        .onAppear { snapshotCache.update(with: input) }
-        .onChange(of: input) { _, newValue in
-            snapshotCache.update(with: newValue)
-            autoExpandForSearch()
+        .sheet(isPresented: $showNewTriggerSheet) {
+            if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+                let schema = database.schemas.first?.name ?? "public"
+                NewTriggerSheet(session: session, schemaName: schema) {
+                    showNewTriggerSheet = false
+                    reloadSchema()
+                }
+            }
         }
     }
 
-    private func autoExpandForSearch() {
-        guard isSearching else { return }
-        let snapshot = snapshotCache.data
-
-        for (type, objects) in snapshot.grouped where !objects.isEmpty {
-            expandedObjectGroups.insert(type)
+    private func reloadSchema() {
+        if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+            Task {
+                await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
+            }
         }
-
-        if !snapshot.matchingChildObjectIDs.isEmpty {
-            expandedObjectIDs.formUnion(snapshot.matchingChildObjectIDs)
-        }
-    }
-}
-
-private struct SearchEmptyStateView: View {
-    let query: String
-    private var formattedQuery: String {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "your search" : "\"\(trimmed)\""
-    }
-    var body: some View {
-        VStack(spacing: SpacingTokens.sm2) {
-            Image(systemName: "magnifyingglass")
-                .font(TypographyTokens.hero.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("Nothing found for \(formattedQuery)")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .multilineTextAlignment(.center)
-            Text("Try adjusting your filters or search terms.")
-                .font(TypographyTokens.caption2)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-        }
-        .padding(.vertical, SpacingTokens.xxl)
-        .frame(maxWidth: .infinity)
     }
 }

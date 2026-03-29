@@ -46,19 +46,13 @@ extension DatabaseObjectRow {
 
     internal func openDataPreview() {
         guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
-        let qualified = qualifiedName(schema: object.schema, name: object.name)
-        let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
-        let columnLines = columns.joined(separator: ",\n    ")
-        let databaseType = connection.databaseType
-        let sql = makeSelectStatement(
-            qualifiedName: qualified,
-            columnLines: columnLines,
-            databaseType: databaseType,
-            limit: 200,
-            offset: 0
-        )
         Task { @MainActor in
-            environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
+            environmentState.openTableDataTab(
+                for: session,
+                schema: object.schema,
+                table: object.name,
+                databaseName: databaseName
+            )
         }
     }
     
@@ -107,6 +101,69 @@ extension DatabaseObjectRow {
         """
         Task { @MainActor in
             environmentState.openQueryTab(for: session, presetQuery: sql, autoExecute: true, database: databaseName)
+        }
+    }
+
+    internal func openTableProperties() {
+        let value = environmentState.prepareTablePropertiesWindow(
+            connectionSessionID: connection.id,
+            schemaName: object.schema,
+            tableName: object.name,
+            databaseType: connection.databaseType
+        )
+        openWindow(id: TablePropertiesWindow.sceneID, value: value)
+    }
+
+    internal func openPgObjectProperties() {
+        switch object.type {
+        case .trigger:
+            let tableName = object.triggerTable ?? ""
+            let value = environmentState.prepareTriggerEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                tableName: tableName,
+                existingTrigger: object.name
+            )
+            openWindow(id: TriggerEditorWindow.sceneID, value: value)
+
+        case .view:
+            let value = environmentState.prepareViewEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                existingView: object.name,
+                isMaterialized: false
+            )
+            openWindow(id: ViewEditorWindow.sceneID, value: value)
+
+        case .materializedView:
+            let value = environmentState.prepareViewEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                existingView: object.name,
+                isMaterialized: true
+            )
+            openWindow(id: ViewEditorWindow.sceneID, value: value)
+
+        case .sequence:
+            let value = environmentState.prepareSequenceEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                existingSequence: object.name
+            )
+            openWindow(id: SequenceEditorWindow.sceneID, value: value)
+
+        case .type:
+            // Default to composite; the TypeEditorWindow will detect the actual category on load
+            let value = environmentState.prepareTypeEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                existingType: object.name,
+                typeCategory: .composite
+            )
+            openWindow(id: TypeEditorWindow.sceneID, value: value)
+
+        default:
+            break
         }
     }
 

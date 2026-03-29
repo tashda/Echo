@@ -72,7 +72,6 @@ extension ManageConnectionsView {
                 Spacer()
                 }
                 .padding(SpacingTokens.md)
-                .background(.bar)
         }
     }
 

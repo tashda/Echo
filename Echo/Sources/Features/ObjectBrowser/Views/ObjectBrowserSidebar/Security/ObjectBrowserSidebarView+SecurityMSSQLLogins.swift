@@ -17,38 +17,49 @@ extension ObjectBrowserSidebarView {
         let certLogins = allLogins.filter { Self.certificateLoginTypes.contains($0.loginType) }
         let isExpanded = viewModel.securityLoginsExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.serverSection,
-                title: "Logins",
-                icon: "person.2",
-                count: standardLogins.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityLoginsExpandedBySession[connID] = !isExpanded
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.serverSection,
+            title: "Logins",
+            icon: "person.2",
+            count: standardLogins.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.securityLoginsExpandedBySession[connID] = newValue }
+            )
+        )
+        .contextMenu {
+            Button {
+                Task {
+                    let handle = AppDirector.shared.activityEngine.begin("Refreshing logins", connectionSessionID: session.id)
+                    await loadServerSecurityAsync(session: session)
+                    handle.succeed()
                 }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .contextMenu {
-                Button {
-                    Task {
-                        let handle = AppDirector.shared.activityEngine.begin("Refreshing logins", connectionSessionID: session.id)
-                        await loadServerSecurityAsync(session: session)
-                        handle.succeed()
-                    }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                Button {
-                    viewModel.securityLoginSheetSessionID = connID
-                    viewModel.securityLoginSheetEditName = nil
-                    viewModel.showSecurityLoginSheet = true
-                } label: {
-                    Label("New Login", systemImage: "person.badge.plus")
-                }
+            Button {
+                let value = environmentState.prepareLoginEditorWindow(
+                    connectionSessionID: connID,
+                    existingLogin: nil
+                )
+                openWindow(id: LoginEditorWindow.sceneID, value: value)
+            } label: {
+                Label("New Login", systemImage: "person.badge.plus")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
+            .help(session.permissions?.canManageRoles ?? true ? "" : "Requires securityadmin or sysadmin role")
+        }
 
-            if isExpanded {
+        if isExpanded {
+            if standardLogins.isEmpty && certLogins.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.serverLeaf,
+                    icon: .none,
+                    label: "No logins found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
                 ForEach(standardLogins) { login in
                     loginRow(login: login, session: session)
                 }
@@ -66,23 +77,20 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isExpanded = viewModel.securityCertLoginsExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.serverNestedSection,
-                title: "Certificate Logins",
-                icon: "doc.badge.lock",
-                count: certLogins.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityCertLoginsExpandedBySession[connID] = !isExpanded
-                }
-            }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.serverNestedSection,
+            title: "Certificate Logins",
+            icon: "doc.badge.lock",
+            count: certLogins.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.securityCertLoginsExpandedBySession[connID] = newValue }
+            )
+        )
 
-            if isExpanded {
-                ForEach(certLogins) { login in
-                    loginRow(login: login, session: session, depth: 4)
-                }
+        if isExpanded {
+            ForEach(certLogins) { login in
+                loginRow(login: login, session: session, depth: 4)
             }
         }
     }
@@ -148,37 +156,42 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Enable Login", systemImage: "checkmark.circle")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
         } else {
             Button {
                 Task { await enableMSSQLLogin(name: login.name, enabled: false, session: session) }
             } label: {
                 Label("Disable Login", systemImage: "nosign")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
         }
 
         Divider()
 
         // Group 9: Destructive
         Button(role: .destructive) {
-            viewModel.dropSecurityPrincipalTarget = .init(
+            sheetState.dropSecurityPrincipalTarget = .init(
                 sessionID: session.id,
                 connectionID: session.connection.id,
                 name: login.name,
                 kind: .mssqlLogin,
                 databaseName: nil
             )
-            viewModel.showDropSecurityPrincipalAlert = true
+            sheetState.showDropSecurityPrincipalAlert = true
         } label: {
             Label("Drop Login", systemImage: "trash")
         }
+        .disabled(!(session.permissions?.canManageRoles ?? true))
 
         Divider()
 
         // Group 10: Properties — ALWAYS last
         Button {
-            viewModel.securityLoginSheetSessionID = session.connection.id
-            viewModel.securityLoginSheetEditName = login.name
-            viewModel.showSecurityLoginSheet = true
+            let value = environmentState.prepareLoginEditorWindow(
+                connectionSessionID: session.connection.id,
+                existingLogin: login.name
+            )
+            openWindow(id: LoginEditorWindow.sceneID, value: value)
         } label: {
             Label("Properties", systemImage: "info.circle")
         }

@@ -20,11 +20,11 @@ extension NewAgentJobSheet {
                 Section("Step \(index + 1)") {
                     TextField("Name", text: $steps[index].name, prompt: Text("e.g. Run cleanup query"))
                     Picker("Type", selection: $steps[index].subsystem) {
-                        Text("T-SQL").tag(SubsystemChoice.tsql)
-                        Text("CmdExec").tag(SubsystemChoice.cmdExec)
-                        Text("PowerShell").tag(SubsystemChoice.powershell)
+                        ForEach(SubsystemChoice.allCases) { choice in
+                            Text(choice.rawValue).tag(choice)
+                        }
                     }
-                    if steps[index].subsystem == .tsql {
+                    if steps[index].subsystem == .tsql || steps[index].subsystem.isReplicationSubsystem {
                         Picker("Database", selection: $steps[index].database) {
                             Text("Default").tag("")
                             ForEach(databaseNames, id: \.self) { db in
@@ -104,6 +104,10 @@ extension NewAgentJobSheet {
 
                     scheduleFrequencyOptions(index: index)
 
+                    if schedules[index].mode != .once {
+                        activeWindowSection(index: index)
+                    }
+
                     scheduleSummary(for: schedules[index])
 
                     Button("Remove Schedule", role: .destructive) {
@@ -173,6 +177,15 @@ extension NewAgentJobSheet {
                 .toggleStyle(.button)
                 .controlSize(.small)
             }
+        }
+    }
+
+    @ViewBuilder
+    func activeWindowSection(index: Int) -> some View {
+        Toggle("Limit active window", isOn: $schedules[index].useActiveWindow)
+        if schedules[index].useActiveWindow {
+            DatePicker("Active start date", selection: $schedules[index].activeStartDate, displayedComponents: .date)
+            DatePicker("Active end date", selection: $schedules[index].activeEndDate, displayedComponents: .date)
         }
     }
 

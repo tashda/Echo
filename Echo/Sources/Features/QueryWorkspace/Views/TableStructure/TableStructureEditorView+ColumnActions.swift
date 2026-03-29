@@ -12,7 +12,7 @@ extension TableStructureEditorView {
 
     internal func presentBulkEditor(mode: BulkColumnEditorPresentation.Mode, columns: [TableStructureEditorViewModel.ColumnModel]) {
         guard !columns.isEmpty else { return }
-        bulkColumnEditor = BulkColumnEditorPresentation(mode: mode, columnIDs: columns.map(\.id))
+        activeSheet = .bulkColumn(BulkColumnEditorPresentation(mode: mode, columnIDs: columns.map(\.id)))
     }
 
     internal func pruneSelectedColumns() {
@@ -20,22 +20,13 @@ extension TableStructureEditorView {
         selectedColumnIDs = selectedColumnIDs.intersection(valid)
     }
 
-    internal func rebuildColumnIndexLookup() {
-        columnIndexLookup = Dictionary(
-            uniqueKeysWithValues: viewModel.columns.enumerated().map { pair in
-                let (index, column) = pair
-                return (column.id, index)
-            }
-        )
-    }
-
     internal func presentNewColumn() {
         let model = viewModel.addColumn()
-        activeColumnEditor = ColumnEditorPresentation(columnID: model.id, isNew: true)
+        activeSheet = .column(ColumnEditorPresentation(columnID: model.id, isNew: true))
     }
 
     internal func presentColumnEditor(for column: TableStructureEditorViewModel.ColumnModel) {
-        activeColumnEditor = ColumnEditorPresentation(columnID: column.id, isNew: column.isNew)
+        activeSheet = .column(ColumnEditorPresentation(columnID: column.id, isNew: column.isNew))
     }
 
     internal func columnChangeDescription(for column: TableStructureEditorViewModel.ColumnModel) -> String? {

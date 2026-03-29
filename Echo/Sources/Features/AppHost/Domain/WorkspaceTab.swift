@@ -36,6 +36,19 @@ final class WorkspaceTab: Identifiable {
         case queryStore
         case extendedEvents
         case availabilityGroups
+        case databaseSecurity
+        case postgresSecurity
+        case mysqlSecurity
+        case serverSecurity
+        case errorLog
+        case profiler
+        case resourceGovernor
+        case serverProperties
+        case tuningAdvisor
+        case policyManagement
+        case tableData
+        case postgresAdvancedObjects
+        case schemaDiff
     }
 
     enum Content {
@@ -52,6 +65,19 @@ final class WorkspaceTab: Identifiable {
         case queryStore(QueryStoreViewModel)
         case extendedEvents(ExtendedEventsViewModel)
         case availabilityGroups(AvailabilityGroupsViewModel)
+        case databaseSecurity(DatabaseSecurityViewModel)
+        case postgresSecurity(PostgresDatabaseSecurityViewModel)
+        case mysqlSecurity(MySQLDatabaseSecurityViewModel)
+        case serverSecurity(ServerSecurityViewModel)
+        case errorLog(ErrorLogViewModel)
+        case profiler(ProfilerViewModel)
+        case resourceGovernor(ResourceGovernorViewModel)
+        case serverProperties(ServerPropertiesViewModel)
+        case tuningAdvisor(TuningAdvisorViewModel)
+        case policyManagement(PolicyManagementViewModel)
+        case tableData(TableDataViewModel)
+        case postgresAdvancedObjects(PostgresAdvancedObjectsViewModel)
+        case schemaDiff(SchemaDiffViewModel)
     }
 
     let id = UUID()
@@ -59,6 +85,16 @@ final class WorkspaceTab: Identifiable {
     @ObservationIgnored private(set) var session: DatabaseSession
     @ObservationIgnored let connectionSessionID: UUID
     @ObservationIgnored private(set) var ownsSession: Bool
+    /// Waiters for the dedicated session upgrade. Resolved when `upgradeToDedicatedSession` is called,
+    /// or rejected when `markDedicatedSessionFailed` is called.
+    @ObservationIgnored private var sessionUpgradeWaiters: [CheckedContinuation<DatabaseSession, any Error>] = []
+    /// Whether a dedicated session upgrade is in progress.
+    @ObservationIgnored private(set) var isAwaitingDedicatedSession: Bool = false
+    /// Error message when dedicated session creation failed. Non-nil means the tab
+    /// has no isolated connection and query execution should be blocked.
+    var dedicatedSessionError: String?
+
+    var isDedicatedSessionFailed: Bool { dedicatedSessionError != nil }
 
     var title: String
     private(set) var content: Content
@@ -97,12 +133,73 @@ final class WorkspaceTab: Identifiable {
         setupRowCountRefreshHandler()
     }
 
+    func configureQueryLaunch(autoExecute: Bool) {
+        query?.shouldAutoExecuteOnAppear = autoExecute
+    }
+
+    /// Marks this tab as expecting a dedicated session upgrade.
+    func markAwaitingDedicatedSession() {
+        isAwaitingDedicatedSession = true
+    }
+
     /// Replaces the shared metadata session with a dedicated query session once
     /// the background connection completes. Called for MSSQL tabs where the
     /// dedicated connection is established asynchronously after the tab appears.
     func upgradeToDedicatedSession(_ dedicatedSession: DatabaseSession) {
         session = dedicatedSession
         ownsSession = true
+        isAwaitingDedicatedSession = false
+        dedicatedSessionError = nil
+        // Resume any waiters blocked on the upgrade
+        let waiters = sessionUpgradeWaiters
+        sessionUpgradeWaiters.removeAll()
+        for waiter in waiters {
+            waiter.resume(returning: dedicatedSession)
+        }
+    }
+
+    /// Marks the dedicated session as failed. Blocks query execution until retry succeeds.
+    func markDedicatedSessionFailed(_ message: String) {
+        dedicatedSessionError = message
+        isAwaitingDedicatedSession = false
+        // Reject any waiters blocked on the upgrade
+        let waiters = sessionUpgradeWaiters
+        sessionUpgradeWaiters.removeAll()
+        for waiter in waiters {
+            waiter.resume(throwing: DedicatedSessionError.connectionFailed(message))
+        }
+    }
+
+    /// Returns the dedicated session, waiting for the background upgrade if still in progress.
+    /// Throws if the dedicated session fails to establish.
+    func awaitDedicatedSession() async throws -> DatabaseSession {
+        if !isAwaitingDedicatedSession {
+            if let error = dedicatedSessionError {
+                throw DedicatedSessionError.connectionFailed(error)
+            }
+            return session
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            if !isAwaitingDedicatedSession {
+                if let error = dedicatedSessionError {
+                    continuation.resume(throwing: DedicatedSessionError.connectionFailed(error))
+                } else {
+                    continuation.resume(returning: session)
+                }
+            } else {
+                sessionUpgradeWaiters.append(continuation)
+            }
+        }
+    }
+
+    enum DedicatedSessionError: LocalizedError {
+        case connectionFailed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .connectionFailed(let message): message
+            }
+        }
     }
 
     var kind: Kind {
@@ -120,6 +217,19 @@ final class WorkspaceTab: Identifiable {
         case .queryStore: return .queryStore
         case .extendedEvents: return .extendedEvents
         case .availabilityGroups: return .availabilityGroups
+        case .databaseSecurity: return .databaseSecurity
+        case .postgresSecurity: return .postgresSecurity
+        case .mysqlSecurity: return .mysqlSecurity
+        case .serverSecurity: return .serverSecurity
+        case .errorLog: return .errorLog
+        case .profiler: return .profiler
+        case .resourceGovernor: return .resourceGovernor
+        case .serverProperties: return .serverProperties
+        case .tuningAdvisor: return .tuningAdvisor
+        case .policyManagement: return .policyManagement
+        case .tableData: return .tableData
+        case .postgresAdvancedObjects: return .postgresAdvancedObjects
+        case .schemaDiff: return .schemaDiff
         }
     }
 
@@ -188,6 +298,71 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var databaseSecurity: DatabaseSecurityViewModel? {
+        if case .databaseSecurity(let vm) = content { return vm }
+        return nil
+    }
+
+    var postgresSecurity: PostgresDatabaseSecurityViewModel? {
+        if case .postgresSecurity(let vm) = content { return vm }
+        return nil
+    }
+
+    var mysqlSecurity: MySQLDatabaseSecurityViewModel? {
+        if case .mysqlSecurity(let vm) = content { return vm }
+        return nil
+    }
+
+    var serverSecurity: ServerSecurityViewModel? {
+        if case .serverSecurity(let vm) = content { return vm }
+        return nil
+    }
+
+    var errorLogVM: ErrorLogViewModel? {
+        if case .errorLog(let vm) = content { return vm }
+        return nil
+    }
+
+    var profilerVM: ProfilerViewModel? {
+        if case .profiler(let vm) = content { return vm }
+        return nil
+    }
+
+    var resourceGovernorVM: ResourceGovernorViewModel? {
+        if case .resourceGovernor(let vm) = content { return vm }
+        return nil
+    }
+
+    var serverPropertiesVM: ServerPropertiesViewModel? {
+        if case .serverProperties(let vm) = content { return vm }
+        return nil
+    }
+
+    var tuningAdvisorVM: TuningAdvisorViewModel? {
+        if case .tuningAdvisor(let vm) = content { return vm }
+        return nil
+    }
+
+    var policyManagementVM: PolicyManagementViewModel? {
+        if case .policyManagement(let vm) = content { return vm }
+        return nil
+    }
+
+    var tableDataVM: TableDataViewModel? {
+        if case .tableData(let vm) = content { return vm }
+        return nil
+    }
+
+    var postgresAdvancedObjectsVM: PostgresAdvancedObjectsViewModel? {
+        if case .postgresAdvancedObjects(let vm) = content { return vm }
+        return nil
+    }
+
+    var schemaDiffVM: SchemaDiffViewModel? {
+        if case .schemaDiff(let vm) = content { return vm }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         setupRowCountRefreshHandler()
@@ -222,6 +397,22 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .availabilityGroups(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+            return baseOverhead + 256 * 1024
+        case .errorLog:
+            return baseOverhead + 256 * 1024
+        case .profiler:
+            return baseOverhead + 1024 * 1024
+        case .resourceGovernor:
+            return baseOverhead + 1024 * 1024
+        case .serverProperties:
+            return baseOverhead + 1024 * 1024
+        case .tuningAdvisor:
+            return baseOverhead + 1024 * 1024
+        case .policyManagement:
+            return baseOverhead + 1024 * 1024
+        case .tableData(let vm):
+            return baseOverhead + vm.estimatedMemoryUsageBytes()
         }
     }
 
@@ -229,9 +420,9 @@ final class WorkspaceTab: Identifiable {
         switch content {
         case .query:
             return .forQueryTab()
-        case .maintenance, .mssqlMaintenance:
+        case .maintenance, .mssqlMaintenance, .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .errorLog, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement, .tableData, .postgresAdvancedObjects, .schemaDiff:
             return .forMaintenanceTab()
-        case .extendedEvents:
+        case .extendedEvents, .profiler:
             return .forExtendedEventsTab()
         default:
             return .forGenericTab()

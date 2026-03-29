@@ -58,8 +58,41 @@ struct QueryStoreView: View {
         }
     }
 
+    private var filterBar: some View {
+        HStack(spacing: SpacingTokens.md) {
+            Picker("Time Range", selection: $viewModel.filterTimeRange) {
+                ForEach(QueryStoreViewModel.TimeRange.allCases, id: \.self) { range in
+                    Text(range.rawValue).tag(range)
+                }
+            }
+            .frame(width: 160)
+
+            TextField("Filter query text", text: $viewModel.filterQueryText, prompt: Text("Search queries"))
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 220)
+
+            Stepper("Min Executions: \(viewModel.filterMinExecutions)", value: $viewModel.filterMinExecutions, in: 1...10000)
+                .font(TypographyTokens.detail)
+
+            Button {
+                Task { await viewModel.refreshTopQueries() }
+            } label: {
+                Label("Apply", systemImage: "line.3.horizontal.decrease.circle")
+            }
+            .controlSize(.small)
+        }
+        .padding(.horizontal, SpacingTokens.md)
+        .padding(.vertical, SpacingTokens.xs)
+        .background(ColorTokens.Background.secondary)
+    }
+
     private var contentView: some View {
         VStack(spacing: 0) {
+            if viewModel.selectedSection == .topQueries {
+                filterBar
+                Divider()
+            }
+
             switch viewModel.selectedSection {
             case .topQueries:
                 QueryStoreTopQueriesSection(
@@ -77,6 +110,17 @@ struct QueryStoreView: View {
                 Divider()
                 QueryStorePlanDetailSection(viewModel: viewModel)
                     .frame(maxHeight: 220)
+
+                if !viewModel.waitStats.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Wait Statistics")
+                            .font(TypographyTokens.headline)
+                            .padding(SpacingTokens.sm)
+                        QueryStoreWaitStatsSection(waitStats: viewModel.waitStats)
+                    }
+                    .frame(maxHeight: 180)
+                }
             }
         }
     }

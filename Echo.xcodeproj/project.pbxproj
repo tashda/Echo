@@ -13,7 +13,8 @@
 		0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C92F5EEFA40027641E /* SQLServerKit */; };
 		0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */ = {isa = PBXBuildFile; productRef = 0A697AED2F5EF8220027641E /* EchoSense */; };
 		0A698A422F5F88AA0027641E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 0A698A412F5F88AA0027641E /* Sparkle */; };
-		0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLNIO */; };
+		0A79557E2E8F10A9002279AE /* MySQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLKit */; };
+		0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557F2E8F10A9002279AE /* MySQLWire */; };
 		6030A29ABBCD58751DCA65AE /* SourceCodePro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */; };
 		8ECF63DBB3844802B62E76D4 /* UbuntuMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */; };
 		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
@@ -163,7 +164,8 @@
 			files = (
 				0A6970C52F5EEF5E0027641E /* PostgresKit in Frameworks */,
 				0A6970C72F5EEF5E0027641E /* PostgresWire in Frameworks */,
-				0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */,
+				0A79557E2E8F10A9002279AE /* MySQLKit in Frameworks */,
+				0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */,
 				0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */,
 				0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */,
 				0A698A422F5F88AA0027641E /* Sparkle in Frameworks */,
@@ -281,7 +283,8 @@
 			);
 			name = Echo;
 			packageProductDependencies = (
-				0A79557D2E8F10A9002279AE /* MySQLNIO */,
+				0A79557D2E8F10A9002279AE /* MySQLKit */,
+				0A79557F2E8F10A9002279AE /* MySQLWire */,
 				0A6970C12F5EEF090027641E /* SQLiteNIO */,
 				0A6970C42F5EEF5E0027641E /* PostgresKit */,
 				0A6970C62F5EEF5E0027641E /* PostgresWire */,
@@ -368,7 +371,7 @@
 			mainGroup = 0ADF948C2E78B95200E993F8;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-nio" */,
+				0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */,
 				0A6970C02F5EEF090027641E /* XCRemoteSwiftPackageReference "sqlite-nio" */,
 				0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */,
 				0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */,
@@ -841,12 +844,12 @@
 				minimumVersion = 2.9.0;
 			};
 		};
-		0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-nio" */ = {
+		0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/vapor/mysql-nio.git";
+			repositoryURL = "https://github.com/tashda/mysql-wire";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.8.0;
+				branch = dev;
+				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -882,10 +885,15 @@
 			package = 0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
 		};
-		0A79557D2E8F10A9002279AE /* MySQLNIO */ = {
+		0A79557D2E8F10A9002279AE /* MySQLKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-nio" */;
-			productName = MySQLNIO;
+			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */;
+			productName = MySQLKit;
+		};
+		0A79557F2E8F10A9002279AE /* MySQLWire */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */;
+			productName = MySQLWire;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

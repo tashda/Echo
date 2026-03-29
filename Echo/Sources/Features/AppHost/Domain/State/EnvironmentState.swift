@@ -24,8 +24,38 @@ final class EnvironmentState {
     var sessionGroup = ActiveSessionGroup()
     var pinnedObjectIDs: [String] = []
     var recentConnections: [RecentConnectionRecord] = []
-    var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
+    var searchSidebarCache: GlobalSearchSidebarCache = GlobalSearchSidebarCache()
     var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
+    var userEditorViewModels: [UserEditorWindowValue: UserEditorViewModel] = [:]
+    var loginEditorViewModels: [LoginEditorWindowValue: LoginEditorViewModel] = [:]
+    var databaseEditorViewModels: [DatabaseEditorWindowValue: DatabaseEditorViewModel] = [:]
+    var serverEditorViewModels: [ServerEditorWindowValue: ServerEditorViewModel] = [:]
+    var roleEditorViewModels: [RoleEditorWindowValue: RoleEditorViewModel] = [:]
+    var functionEditorViewModels: [FunctionEditorWindowValue: FunctionEditorViewModel] = [:]
+    var pgRoleEditorViewModels: [PgRoleEditorWindowValue: PgRoleEditorViewModel] = [:]
+    var publicationEditorViewModels: [PublicationEditorWindowValue: PublicationEditorViewModel] = [:]
+    var subscriptionEditorViewModels: [SubscriptionEditorWindowValue: SubscriptionEditorViewModel] = [:]
+    var tablePropertiesViewModels: [TablePropertiesWindowValue: TablePropertiesViewModel] = [:]
+    var permissionManagerViewModels: [PermissionManagerWindowValue: PermissionManagerViewModel] = [:]
+    var triggerEditorViewModels: [TriggerEditorWindowValue: TriggerEditorViewModel] = [:]
+    var viewEditorViewModels: [ViewEditorWindowValue: ViewEditorViewModel] = [:]
+    var sequenceEditorViewModels: [SequenceEditorWindowValue: SequenceEditorViewModel] = [:]
+    var typeEditorViewModels: [TypeEditorWindowValue: TypeEditorViewModel] = [:]
+    var activeLoginEditorValue: LoginEditorWindowValue?
+    var activeUserEditorValue: UserEditorWindowValue?
+    var activeDatabaseEditorValue: DatabaseEditorWindowValue?
+    var activeServerEditorValue: ServerEditorWindowValue?
+    var activeRoleEditorValue: RoleEditorWindowValue?
+    var activeFunctionEditorValue: FunctionEditorWindowValue?
+    var activePgRoleEditorValue: PgRoleEditorWindowValue?
+    var activePublicationEditorValue: PublicationEditorWindowValue?
+    var activeSubscriptionEditorValue: SubscriptionEditorWindowValue?
+    var activeTablePropertiesValue: TablePropertiesWindowValue?
+    var activePermissionManagerValue: PermissionManagerWindowValue?
+    var activeTriggerEditorValue: TriggerEditorWindowValue?
+    var activeViewEditorValue: ViewEditorWindowValue?
+    var activeSequenceEditorValue: SequenceEditorWindowValue?
+    var activeTypeEditorValue: TypeEditorWindowValue?
     var dataInspectorContent: DataInspectorContent?
     @ObservationIgnored private var lastPushedInspectorTitle: String?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []
@@ -225,10 +255,22 @@ final class EnvironmentState {
 
                 // Transition: pending → active session
                 pendingConnections.removeAll { $0.id == connection.id }
+
+                // Clean up Job Queue VMs for any existing session being replaced
+                if let oldSession = sessionGroup.activeSessions.first(where: { $0.connection.id == connection.id }) {
+                    detachedJobQueueViewModels[oldSession.id]?.stopActivityPolling()
+                    detachedJobQueueViewModels.removeValue(forKey: oldSession.id)
+                }
+
+                // Start structure load BEFORE adding session to the sidebar.
+                // This way the load runs in parallel with the sidebar rendering the new session.
+                startStructureLoadTask(for: connectionSession)
+                Task { await connectionSession.refreshPermissions() }
+                connectionSession.startHealthCheck()
+
                 sessionGroup.addSession(connectionSession)
                 connectionStates[connection.id] = .connected
-                recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
-                startStructureLoadTask(for: connectionSession)
+                recordRecentConnection(for: connection, databaseName: connectionSession.sidebarFocusedDatabase)
                 notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")
             } catch {
                 guard !Task.isCancelled else { return }

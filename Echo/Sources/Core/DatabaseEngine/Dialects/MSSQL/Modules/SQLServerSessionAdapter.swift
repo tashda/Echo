@@ -1,6 +1,6 @@
 import Foundation
 import SQLServerKit
-import Logging
+import OSLog
 
 /// Serializes metadata trace file writes to avoid data races
 private actor MetadataTraceWriter {
@@ -19,11 +19,11 @@ private actor MetadataTraceWriter {
 }
 
 /// Adapter to make SQLServerClient conform to Echo's DatabaseSession protocol
-final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
+nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     let client: SQLServerClient
     private let configuration: SQLServerClient.Configuration
     nonisolated(unsafe) private(set) var database: String?
-    let logger = Logger(label: "dk.tippr.echo.mssql.metadata")
+    let logger = Logger.mssql
     let metadataTraceEnabled = ProcessInfo.processInfo.environment["MSSQL_METADATA_TRACE"] == "1"
     let metadataTracePath: String?
     private static let traceWriter = MetadataTraceWriter()
@@ -55,7 +55,6 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     func metadataTrace(_ line: String) {
         guard metadataTraceEnabled else { return }
         logger.info("\(line)")
-        print(line)
         guard let path = metadataTracePath else { return }
         let payload = line + "\n"
         guard let data = payload.data(using: .utf8) else { return }
@@ -98,6 +97,23 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     var maintenance: SQLServerMaintenanceClient { client.maintenance }
     var replication: SQLServerReplicationClient { client.replication }
     var cms: SQLServerCMSClient { client.cms }
+    var errorLog: SQLServerErrorLogClient { client.errorLog }
+    var audit: SQLServerAuditClient { client.audit }
+    var alwaysEncrypted: SQLServerAlwaysEncryptedClient { client.alwaysEncrypted }
+    var triggers: SQLServerTriggerClient { client.triggers }
+    var temporal: SQLServerTemporalClient { client.temporal }
+    var serviceBroker: SQLServerServiceBrokerClient { client.serviceBroker }
+    var polyBase: SQLServerPolyBaseClient { client.polyBase }
+    var tuning: SQLServerTuningClient { client.tuning }
+    var profiler: SQLServerProfilerClient { client.profiler }
+    var resourceGovernor: SQLServerResourceGovernorClient { client.resourceGovernor }
+    var policy: SQLServerPolicyClient { client.policy }
+    var dependencies: SQLServerDependencyClient { client.dependencies }
+    var dac: SQLServerDACClient { client.dac }
+    var bulkCopy: SQLServerBulkCopyClient { SQLServerBulkCopyClient(client: client) }
+    var ssis: SQLServerSSISClient { client.ssis }
+    var ssas: SQLServerSSASClient { client.ssas }
+    var ssrs: SQLServerSSRSClient { client.ssrs }
 
     func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
         let nioResult = try await client.maintenance.rebuildIndex(schema: schema, table: table, name: index)
@@ -278,6 +294,52 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
         return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
     }
 
+    func shrinkDatabase(targetPercent: Int, truncateOnly: Bool) async throws -> DatabaseMaintenanceResult {
+        guard let dbName = try await currentDatabaseName() else {
+            return DatabaseMaintenanceResult(operation: "Shrink Database", messages: ["No active database context"], succeeded: false)
+        }
+        let option: SQLServerShrinkOption = truncateOnly ? .truncateOnly : .defaultBehavior
+        let nioResult = try await client.maintenance.shrinkDatabase(database: dbName, targetPercent: targetPercent, option: option)
+        return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
+    }
+
+    func shrinkFile(fileName: String, targetSizeMB: Int) async throws -> DatabaseMaintenanceResult {
+        guard let dbName = try await currentDatabaseName() else {
+            return DatabaseMaintenanceResult(operation: "Shrink File", messages: ["No active database context"], succeeded: false)
+        }
+        let nioResult = try await client.maintenance.shrinkFile(database: dbName, fileName: fileName, targetSizeMB: targetSizeMB)
+        return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
+    }
+
+    func listDatabaseFiles() async throws -> [SQLServerDatabaseFile] {
+        guard let dbName = try await currentDatabaseName() else { return [] }
+        return try await client.admin.fetchDatabaseFiles(name: dbName)
+    }
+
+    func detachDatabase(name: String, skipChecks: Bool) async throws {
+        _ = try await client.admin.detachDatabase(name: name, skipChecks: skipChecks)
+    }
+
+    func attachDatabase(name: String, files: [String]) async throws {
+        _ = try await client.admin.attachDatabase(name: name, files: files)
+    }
+
+    func listDatabaseSnapshots() async throws -> [SQLServerDatabaseSnapshot] {
+        try await client.admin.listSnapshots()
+    }
+
+    func createDatabaseSnapshot(name: String, sourceDatabase: String) async throws {
+        _ = try await client.admin.createSnapshot(name: name, sourceDatabase: sourceDatabase)
+    }
+
+    func deleteDatabaseSnapshot(name: String) async throws {
+        _ = try await client.admin.dropSnapshot(name: name)
+    }
+
+    func revertToSnapshot(snapshotName: String) async throws {
+        _ = try await client.admin.revertToSnapshot(snapshotName: snapshotName)
+    }
+
     func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
         let nioResult = try await client.maintenance.updateStatistics(schema: schema, table: table)
         return DatabaseMaintenanceResult(operation: nioResult.operation, messages: nioResult.messages, succeeded: nioResult.succeeded)
@@ -316,6 +378,11 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     func isSuperuser() async throws -> Bool {
         let result = try await simpleQuery("SELECT CASE WHEN IS_SRVROLEMEMBER('sysadmin') = 1 THEN 1 ELSE 0 END AS is_superuser")
         return result.rows.first?.first == "1"
+    }
+
+    func fetchPermissions() async throws -> (any DatabasePermissionProviding)? {
+        let perms = try await client.metadata.checkServerPermissions()
+        return MSSQLPermissionAdapter(permissions: perms)
     }
 
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {

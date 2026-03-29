@@ -7,19 +7,15 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
         let alreadyLoaded = viewModel.isDatabaseSchemaLoadedOnce(connectionID: connID, databaseName: database.name)
-        let needsLoad = !hasSchemas && !isLoading && !alreadyLoaded
 
         Group {
             if hasSchemas {
-                VStack(spacing: SpacingTokens.xxxs) {
-                    Color.clear.frame(height: 0)
-                        .id("\(connID)-\(database.name)-objects-top")
+                Color.clear.frame(height: 0)
+                    .id("\(connID)-\(database.name)-objects-top")
 
-                    DatabaseObjectBrowserView(
+                DatabaseObjectBrowserView(
                         database: database,
                         connection: session.connection,
-                        searchText: $viewModel.debouncedSearchText,
-                        selectedSchemaName: viewModel.selectedSchemaNameBinding(for: connID, database: database.name),
                         expandedObjectGroups: viewModel.expandedObjectGroupsBinding(for: connID, database: database.name),
                         expandedObjectIDs: viewModel.expandedObjectIDsBinding(for: connID, database: database.name),
                         pinnedObjectIDs: viewModel.pinnedObjectsBinding(for: database, connectionID: connID),
@@ -36,45 +32,93 @@ extension ObjectBrowserSidebarView {
                     .environment(environmentState)
                     .environment(viewModel)
 
+                    // Replication (Postgres only)
+                    if session.connection.databaseType == .postgresql {
+                        postgresReplicationSection(database: database, session: session)
+                            .environment(viewModel)
+                    }
+
                     // Database-level Security
                     if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
                         databaseSecuritySection(database: database, session: session)
                             .environment(viewModel)
                     }
 
+                    // Advanced Objects (Postgres only)
+                    if session.connection.databaseType == .postgresql {
+                        postgresAdvancedObjectsSection(database: database, session: session)
+                            .environment(viewModel)
+                    }
+
                     // Query Store (MSSQL only)
                     if session.connection.databaseType == .microsoftSQL && database.isOnline {
                         queryStoreRow(database: database, session: session)
+                        databaseDDLTriggersSection(database: database, session: session)
+                        serviceBrokerSection(database: database, session: session)
+                        externalResourcesSection(database: database, session: session)
                     }
-                }
-            } else if alreadyLoaded {
-                // Schema was fetched but the database has no user objects — don't re-fetch
-                SidebarRow(
-                    depth: 2,
-                    icon: .none,
-                    label: "No objects",
-                    labelColor: ColorTokens.Text.tertiary,
-                    labelFont: TypographyTokens.detail
-                )
             } else {
-                // Show minimal loading text — the database header row already has a spinner
+                // No schemas yet — show loading indicator. This covers:
+                // - Load not started yet (needsLoad=true, .onAppear will trigger)
+                // - Load in progress (isLoading=true)
+                // - Load completed but ForEach hasn't re-iterated with updated data yet
+                // - Initial structure load still running
+                // If the database genuinely has no objects, this will show briefly
+                // then the empty type sections (Tables 0, Views 0, etc.) will appear.
                 SidebarRow(
                     depth: 2,
                     icon: .none,
-                    label: "Loading\u{2026}",
+                    label: "Loading…",
                     labelColor: ColorTokens.Text.tertiary,
                     labelFont: TypographyTokens.detail
-                )
+                ) {
+                    ProgressView()
+                        .controlSize(.mini)
+                }
             }
         }
         .onAppear {
-            guard needsLoad else { return }
-            // Use an unstructured Task so SwiftUI view re-renders (caused by
-            // setDatabaseLoading) cannot cancel the in-flight connection.
-            Task { @MainActor in
-                viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
-                await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
+            loadSchemaIfNeeded(connID: connID, database: database, session: session)
+        }
+        .onChange(of: database.schemas.isEmpty) { _, _ in
+            // Re-check after structure updates — schemas may have arrived
+        }
+        .onChange(of: isLoading) { _, _ in
+            // Re-check after loading state changes
+        }
+    }
+
+    private func loadSchemaIfNeeded(connID: UUID, database: DatabaseInfo, session: ConnectionSession) {
+        let hasSchemas = !database.schemas.isEmpty && database.schemas.contains(where: { !$0.objects.isEmpty })
+        let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
+        let alreadyLoaded = viewModel.isDatabaseSchemaLoadedOnce(connectionID: connID, databaseName: database.name)
+        let needsLoad = !hasSchemas && !isLoading && !alreadyLoaded
+        guard needsLoad else { return }
+
+        Task { @MainActor in
+            let loadStart = CFAbsoluteTimeGetCurrent()
+            let structureState = session.structureLoadingState
+            print("[PERF] \(database.name): load started (structureState=\(structureState), existingDBCount=\(session.databaseStructure?.databases.count ?? 0))")
+            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
+            await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
+            let loadEnd = CFAbsoluteTimeGetCurrent()
+            print("[PERF] \(database.name): load completed in \(String(format: "%.3f", loadEnd - loadStart))s, UI update pending")
+
+            // Only mark as "loaded once" if schemas actually arrived.
+            // If the load returned empty, don't set the flag — allow retry.
+            let updatedDB = session.databaseStructure?.databases.first(where: { $0.name == database.name })
+            let gotSchemas = updatedDB?.schemas.contains(where: { !$0.objects.isEmpty }) ?? false
+            if gotSchemas {
                 viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
+            } else {
+                // Clear loading state but DON'T mark as loaded-once — allow future retry
+                let key = viewModel.pinnedStorageKey(connectionID: connID, databaseName: database.name)
+                viewModel.databaseSchemaLoadingStates[key] = false
+            }
+
+            if session.connection.databaseType == .postgresql {
+                await loadPublicationsIfNeeded(session: session, database: database.name)
+                await loadSubscriptionsIfNeeded(session: session, database: database.name)
             }
         }
     }
@@ -91,7 +135,7 @@ extension ObjectBrowserSidebarView {
         } label: {
             SidebarRow(
                 depth: 2,
-                icon: .system("chart.bar.xaxis"),
+                icon: .system("chart.bar"),
                 label: "Query Store",
                 iconColor: ExplorerSidebarPalette.folderIconColor(title: "Query Store", colored: colored)
             )

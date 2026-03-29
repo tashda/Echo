@@ -202,7 +202,9 @@ extension QueryEditorState {
         additionalResults = result.additionalResults
         selectedResultSetIndex = 0
         dataClassification = result.dataClassification
-        // Use the authoritative total — don't preserve inflated streaming estimates
+        // Use the authoritative total — don't preserve inflated streaming estimates.
+        // materialized reflects how many rows have been decoded and are ready to display.
+        // The status bar shows "Loading rows" until materialized catches up to totalReported.
         rowProgress = RowProgress(materialized: max(rowProgress.materialized, truncated.count), reported: total, received: total)
         materializedHighWaterMark = max(materializedHighWaterMark, rowProgress.materialized)
         visibleRowLimit = isResultsOnly ? min(initialVisibleRowBatch, total) : nil

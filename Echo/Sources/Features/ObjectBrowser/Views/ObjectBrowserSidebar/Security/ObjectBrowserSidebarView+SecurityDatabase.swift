@@ -13,46 +13,45 @@ extension ObjectBrowserSidebarView {
         let isExpanded = viewModel.dbSecurityExpandedByDB[dbKey] ?? false
         let expandedBinding = Binding<Bool>(
             get: { isExpanded },
-            set: { _ in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.dbSecurityExpandedByDB[dbKey] = !isExpanded
+            set: { newValue in
+                withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
+                    viewModel.dbSecurityExpandedByDB[dbKey] = newValue
                 }
-                if !isExpanded {
+                if newValue {
                     loadDatabaseSecurityIfNeeded(database: database, session: session)
                 }
             }
         )
 
-        VStack(alignment: .leading, spacing: 0) {
+        Button {
+            expandedBinding.wrappedValue.toggle()
+        } label: {
+            SidebarRow(
+                depth: SecuritySidebarDepth.serverNestedSection,
+                icon: .system("shield"),
+                label: "Security",
+                isExpanded: expandedBinding,
+                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Security", colored: projectStore.globalSettings.sidebarIconColorMode == .colorful)
+            )
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contextMenu {
             Button {
-                expandedBinding.wrappedValue.toggle()
+                let dbName = databaseNameFromKey(dbKey)
+                environmentState.openDatabaseSecurityTab(connectionID: session.connection.id, databaseName: dbName)
             } label: {
-                SidebarRow(
-                    depth: SecuritySidebarDepth.serverNestedSection,
-                    icon: .system("shield"),
-                    label: "Security",
-                    isExpanded: expandedBinding,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(title: "Security", colored: projectStore.globalSettings.sidebarIconColorMode == .colorful)
-                )
+                Label("Open Security Management", systemImage: "lock.shield")
             }
-            .buttonStyle(.plain)
+        }
 
-            if isExpanded {
-                databaseSecurityContent(database: database, session: session, dbKey: dbKey)
-            }
+        if isExpanded {
+            databaseSecurityContent(database: database, session: session, dbKey: dbKey)
         }
     }
 
     @ViewBuilder
     func databaseSecurityContent(database: DatabaseInfo, session: ConnectionSession, dbKey: String) -> some View {
-        let isLoading = viewModel.dbSecurityLoadingByDB[dbKey] ?? false
-        let hasData = !(viewModel.dbSecurityUsersByDB[dbKey] ?? []).isEmpty
-            || !(viewModel.dbSecuritySchemasByDB[dbKey] ?? []).isEmpty
-
-        if isLoading && !hasData {
-            securityLoadingRow(depth: SecuritySidebarDepth.databaseSection, "Loading security")
-        }
-
         switch session.connection.databaseType {
         case .microsoftSQL:
             dbUsersSection(session: session, dbKey: dbKey)
@@ -61,6 +60,13 @@ extension ObjectBrowserSidebarView {
             dbSchemasSection(session: session, dbKey: dbKey)
         case .postgresql:
             dbSchemasSection(session: session, dbKey: dbKey)
+        case .mysql:
+            SidebarRow(
+                depth: SecuritySidebarDepth.databaseLeaf,
+                icon: .system("lock.shield"),
+                label: "Users, roles, and grants",
+                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Security", colored: projectStore.globalSettings.sidebarIconColorMode == .colorful)
+            )
         default:
             EmptyView()
         }
@@ -70,34 +76,33 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     func dbUsersSection(session: ConnectionSession, dbKey: String) -> some View {
-        let connID = session.connection.id
         let users = viewModel.dbSecurityUsersByDB[dbKey] ?? []
         let isExpanded = viewModel.dbSecurityUsersExpandedByDB[dbKey] ?? false
         let dbName = databaseNameFromKey(dbKey)
 
-        VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
-                depth: SecuritySidebarDepth.databaseSection,
-                title: "Users",
-                icon: "person",
-                count: users.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.dbSecurityUsersExpandedByDB[dbKey] = !isExpanded
-                }
-            }
+        securitySectionHeader(
+            depth: SecuritySidebarDepth.databaseSection,
+            title: "Users",
+            icon: "person",
+            count: users.count,
+            isExpanded: Binding<Bool>(
+                get: { isExpanded },
+                set: { newValue in viewModel.dbSecurityUsersExpandedByDB[dbKey] = newValue }
+            )
+        )
 
-            if isExpanded {
+        if isExpanded {
+            if users.isEmpty {
+                SidebarRow(
+                    depth: SecuritySidebarDepth.databaseLeaf,
+                    icon: .none,
+                    label: "No users found",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
+            } else {
                 ForEach(users) { user in
                     dbUserRow(user: user, session: session, databaseName: dbName)
-                }
-
-                newItemButton(depth: SecuritySidebarDepth.databaseLeaf, title: "New User") {
-                    viewModel.securityUserSheetSessionID = connID
-                    viewModel.securityUserSheetDatabaseName = dbName
-                    viewModel.securityUserSheetEditName = nil
-                    viewModel.showSecurityUserSheet = true
                 }
             }
         }
@@ -176,26 +181,29 @@ extension ObjectBrowserSidebarView {
 
             // Group 9: Destructive
             Button(role: .destructive) {
-                viewModel.dropSecurityPrincipalTarget = .init(
+                sheetState.dropSecurityPrincipalTarget = .init(
                     sessionID: session.id,
                     connectionID: session.connection.id,
                     name: user.name,
                     kind: .mssqlUser,
                     databaseName: databaseName
                 )
-                viewModel.showDropSecurityPrincipalAlert = true
+                sheetState.showDropSecurityPrincipalAlert = true
             } label: {
                 Label("Drop User", systemImage: "trash")
             }
+            .disabled(!(session.permissions?.canManageRoles ?? true))
 
             Divider()
 
             // Group 10: Properties — ALWAYS last
             Button {
-                viewModel.securityUserSheetSessionID = session.connection.id
-                viewModel.securityUserSheetDatabaseName = databaseName
-                viewModel.securityUserSheetEditName = user.name
-                viewModel.showSecurityUserSheet = true
+                let value = environmentState.prepareUserEditorWindow(
+                    connectionSessionID: session.connection.id,
+                    database: databaseName,
+                    existingUser: user.name
+                )
+                openWindow(id: UserEditorWindow.sceneID, value: value)
             } label: {
                 Label("Properties", systemImage: "info.circle")
             }

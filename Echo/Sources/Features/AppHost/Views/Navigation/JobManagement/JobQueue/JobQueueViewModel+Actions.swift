@@ -114,7 +114,7 @@ extension JobQueueViewModel {
 
     // MARK: - Actions (Steps)
 
-    func addStep(name: String, subsystem: String, database: String?, command: String) async {
+    func addStep(name: String, subsystem: String, database: String?, command: String, proxyName: String? = nil, outputFile: String? = nil) async {
         guard let jobName = selectedJobName() else {
             errorMessage = "No job selected"
             return
@@ -126,7 +126,9 @@ extension JobQueueViewModel {
                 stepName: name,
                 subsystem: subsystem,
                 command: command,
-                database: database
+                database: database,
+                proxyName: proxyName,
+                outputFile: outputFile
             )
             // If there were existing steps, set the previous last step to "Go to next step"
             // so multi-step jobs execute all steps in sequence
@@ -171,7 +173,8 @@ extension JobQueueViewModel {
         freqInterval: Int,
         activeStartTime: Int? = nil,
         freqRecurrenceFactor: Int? = nil,
-        activeStartDate: Int? = nil
+        activeStartDate: Int? = nil,
+        activeEndDate: Int? = nil
     ) async {
         guard let jobName = selectedJobName() else {
             errorMessage = "No job selected"
@@ -185,6 +188,7 @@ extension JobQueueViewModel {
                 freqInterval: freqInterval,
                 activeStartDate: activeStartDate,
                 activeStartTime: activeStartTime,
+                activeEndDate: activeEndDate,
                 freqRecurrenceFactor: freqRecurrenceFactor
             )
             try await agent.attachSchedule(scheduleName: name, toJob: jobName)
@@ -242,6 +246,184 @@ extension JobQueueViewModel {
             try await agent.detachSchedule(scheduleName: scheduleName, fromJob: jobName)
         }
         await loadDetails()
+    }
+
+    // MARK: - Actions (Alerts)
+
+    func createAlert(name: String, severity: Int, messageId: Int, databaseName: String?, eventDescriptionKeyword: String?, enabled: Bool) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.createAlert(
+                    name: name,
+                    severity: severity > 0 ? severity : nil,
+                    messageId: messageId > 0 ? messageId : nil,
+                    databaseName: databaseName,
+                    eventDescriptionKeyword: eventDescriptionKeyword,
+                    enabled: enabled
+                )
+            }
+            await loadAlerts()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func updateAlert(originalName: String, name: String, severity: Int, messageId: Int, databaseName: String?, eventDescriptionKeyword: String?, enabled: Bool) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.updateAlert(
+                    name: originalName,
+                    newName: name != originalName ? name : nil,
+                    severity: severity > 0 ? severity : nil,
+                    messageId: messageId > 0 ? messageId : nil,
+                    databaseName: databaseName,
+                    eventDescriptionKeyword: eventDescriptionKeyword,
+                    enabled: enabled
+                )
+            }
+            await loadAlerts()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func deleteAlert(name: String) async {
+        await performAction { agent in
+            try await agent.deleteAlert(name: name)
+        }
+        await loadAlerts()
+    }
+
+    func toggleAlert(name: String, enabled: Bool) async {
+        await performAction { agent in
+            try await agent.enableAlert(name: name, enabled: enabled)
+        }
+        await loadAlerts()
+    }
+
+    // MARK: - Actions (Proxies)
+
+    func createProxy(name: String, credentialName: String, description: String?, enabled: Bool) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.createProxy(name: name, credentialName: credentialName, description: description, enabled: enabled)
+            }
+            await loadProxies()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func deleteProxy(name: String) async {
+        await performAction { agent in
+            try await agent.deleteProxy(name: name)
+        }
+        await loadProxies()
+    }
+
+    func grantLoginToProxy(proxyName: String, loginName: String) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.grantLoginToProxy(proxyName: proxyName, loginName: loginName)
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func revokeLoginFromProxy(proxyName: String, loginName: String) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.revokeLoginFromProxy(proxyName: proxyName, loginName: loginName)
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func grantProxyToSubsystem(proxyName: String, subsystem: String) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.grantProxyToSubsystem(proxyName: proxyName, subsystem: subsystem)
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func revokeProxyFromSubsystem(proxyName: String, subsystem: String) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.revokeProxyFromSubsystem(proxyName: proxyName, subsystem: subsystem)
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func loadProxySubsystems(proxyName: String) async -> [String] {
+        do {
+            return try await withAgentClient { agent in
+                try await agent.listProxySubsystems(proxyName: proxyName)
+            }
+        } catch {
+            return []
+        }
+    }
+
+    func loadProxyLogins(proxyName: String) async -> [String] {
+        do {
+            return try await withAgentClient { agent in
+                try await agent.listProxyLogins(proxyName: proxyName)
+            }
+        } catch {
+            return []
+        }
+    }
+
+    // MARK: - Actions (Categories)
+
+    func createCategory(name: String) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.createCategory(name: name)
+            }
+            await loadCategories()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func renameCategory(name: String, newName: String) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.renameCategory(name: name, newName: newName)
+            }
+            await loadCategories()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func deleteCategoryAction(name: String) async -> String? {
+        do {
+            try await withAgentClient { agent in
+                try await agent.deleteCategory(name: name)
+            }
+            await loadCategories()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
     }
 }
 

@@ -9,7 +9,9 @@ struct ResultExportFormatTests {
 
     @Test func allCasesIncludesXlsx() {
         #expect(ResultExportFormat.allCases.contains(.xlsx))
-        #expect(ResultExportFormat.allCases.count == 6)
+        #expect(ResultExportFormat.allCases.contains(.html))
+        #expect(ResultExportFormat.allCases.contains(.xml))
+        #expect(ResultExportFormat.allCases.count == 8)
     }
 
     // MARK: - Copy Formats
@@ -33,10 +35,20 @@ struct ResultExportFormatTests {
         #expect(ResultExportFormat.xlsx.menuTitle == "Excel (.xlsx)")
     }
 
+    @Test func htmlAndXMLMenuTitles() {
+        #expect(ResultExportFormat.html.menuTitle == "HTML")
+        #expect(ResultExportFormat.xml.menuTitle == "XML")
+    }
+
     // MARK: - File Extensions
 
     @Test func xlsxFileExtension() {
         #expect(ResultExportFormat.xlsx.fileExtension == "xlsx")
+    }
+
+    @Test func htmlAndXMLFileExtensions() {
+        #expect(ResultExportFormat.html.fileExtension == "html")
+        #expect(ResultExportFormat.xml.fileExtension == "xml")
     }
 
     @Test func allFormatsHaveExtensions() {

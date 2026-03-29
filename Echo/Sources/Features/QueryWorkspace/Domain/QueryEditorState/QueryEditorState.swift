@@ -1,14 +1,15 @@
 import Foundation
 import SwiftUI
 import Observation
-import os.signpost
-import os.log
+import OSLog
 
 @Observable @MainActor final class QueryEditorState {
     var sql: String
     var results: QueryResultSet?
     var errorMessage: String?
     var isExecuting: Bool = false
+    /// True while the query tab is establishing its dedicated database connection.
+    var isEstablishingConnection: Bool = false
     /// Incremented each time `startExecution()` runs. Used as a SwiftUI `.id()`
     /// on the result table so that it is fully recreated between query runs.
     var executionGeneration: Int = 0
@@ -107,6 +108,8 @@ import os.log
     @ObservationIgnored var progressiveMaterializationTask: Task<Void, Never>?
     var additionalResults: [QueryResultSet] = []
     var selectedResultSetIndex: Int = 0
+    /// Batch labels for multi-batch (GO) results. Nil for single-batch execution.
+    var batchResultMetadata: [BatchResultLabel]?
     var executionPlan: ExecutionPlanData?
     var isLoadingExecutionPlan: Bool = false
     var dataClassification: DataClassification?

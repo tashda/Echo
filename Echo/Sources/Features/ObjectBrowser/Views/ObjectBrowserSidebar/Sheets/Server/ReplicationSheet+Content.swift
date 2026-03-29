@@ -8,10 +8,63 @@ extension ReplicationSheet {
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.lg) {
                 distributorSection
+                agentStatusSection
                 publicationsSection
                 subscriptionsSection
             }
             .padding(SpacingTokens.md)
+        }
+    }
+
+    @ViewBuilder
+    var agentStatusSection: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            Text("Agent Status")
+                .font(TypographyTokens.standard.weight(.semibold))
+
+            if agentStatuses.isEmpty {
+                Text("No replication agents configured.")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            } else {
+                ForEach(agentStatuses) { agent in
+                    HStack(spacing: SpacingTokens.sm) {
+                        Circle()
+                            .fill(agentStatusColor(agent.status))
+                            .frame(width: 8, height: 8)
+                        Text(agent.name)
+                            .font(TypographyTokens.standard)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(agent.agentType)
+                            .font(TypographyTokens.compact)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                        Text(agent.status)
+                            .font(TypographyTokens.compact.weight(.medium))
+                            .foregroundStyle(agentStatusColor(agent.status))
+                        if let lastRun = agent.lastRunTime {
+                            Text(lastRun)
+                                .font(TypographyTokens.detail)
+                                .foregroundStyle(ColorTokens.Text.tertiary)
+                        }
+                    }
+                    .padding(SpacingTokens.xs)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(ColorTokens.Background.secondary)
+                    )
+                }
+            }
+        }
+    }
+
+    func agentStatusColor(_ status: String) -> Color {
+        switch status {
+        case "Succeeded", "Idle": return ColorTokens.Status.success
+        case "In progress", "Started": return ColorTokens.Status.info
+        case "Retrying": return ColorTokens.Status.warning
+        case "Failed": return ColorTokens.Status.error
+        default: return ColorTokens.Text.tertiary
         }
     }
 
@@ -26,6 +79,23 @@ extension ReplicationSheet {
                     .foregroundStyle(distributorConfigured ? ColorTokens.Status.success : ColorTokens.Text.tertiary)
                 Text(distributorConfigured ? "Distribution is configured" : "Distribution is not configured")
                     .font(TypographyTokens.standard)
+                Spacer()
+                if distributorConfigured {
+                    Button(role: .destructive) {
+                        showRemoveDistributionAlert = true
+                    } label: {
+                        Label("Remove", systemImage: "trash")
+                    }
+                    .controlSize(.small)
+                } else {
+                    Button {
+                        showConfigureDistribution = true
+                    } label: {
+                        Label("Configure Distribution", systemImage: "gearshape")
+                    }
+                    .controlSize(.small)
+                    .buttonStyle(.bordered)
+                }
             }
             .padding(SpacingTokens.xs)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -39,8 +109,17 @@ extension ReplicationSheet {
     @ViewBuilder
     var publicationsSection: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Publications")
-                .font(TypographyTokens.standard.weight(.semibold))
+            HStack {
+                Text("Publications")
+                    .font(TypographyTokens.standard.weight(.semibold))
+                Spacer()
+                Button {
+                    showNewPublicationSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+            }
 
             if publications.isEmpty {
                 Text("No publications found in this database.")
@@ -49,6 +128,11 @@ extension ReplicationSheet {
             } else {
                 ForEach(publications) { pub in
                     publicationRow(pub)
+                        .contextMenu {
+                            Button("Delete", role: .destructive) {
+                                Task { await deletePublication(pub) }
+                            }
+                        }
                 }
             }
         }
@@ -132,8 +216,18 @@ extension ReplicationSheet {
     @ViewBuilder
     var subscriptionsSection: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Subscriptions")
-                .font(TypographyTokens.standard.weight(.semibold))
+            HStack {
+                Text("Subscriptions")
+                    .font(TypographyTokens.standard.weight(.semibold))
+                Spacer()
+                Button {
+                    showNewSubscriptionSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+                .disabled(publications.isEmpty)
+            }
 
             if subscriptions.isEmpty {
                 Text("No subscriptions found.")
@@ -159,6 +253,17 @@ extension ReplicationSheet {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(ColorTokens.Background.secondary)
                     )
+                    .contextMenu {
+                        Button("Delete", role: .destructive) {
+                            Task {
+                                // Use first publication name as context;
+                                // sp_dropsubscription needs the publication
+                                if let firstPub = publications.first?.name {
+                                    await deleteSubscription(sub, publicationName: firstPub)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -6,38 +6,106 @@ extension WorkspaceTabContainerView {
         guard let tab = tabStore.tabs.first(where: { $0.id == tabId }),
               let queryState = tab.query else { return }
 
+        // Block execution when the dedicated session failed to establish
+        guard !tab.isDedicatedSessionFailed else {
+            queryState.errorMessage = "No dedicated connection. Click \"Retry Connection\" to reconnect."
+            return
+        }
+
         let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
         let baseSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
 
-        // SQLCMD mode: preprocess directives, then rejoin batches for execution
+        // MSSQL: split at GO boundaries and route to multi-batch execution if needed
         var effectiveSQL: String
-        if tab.connection.databaseType == .microsoftSQL, queryState.sqlcmdModeEnabled {
-            let processed = SQLCMDPreprocessor.process(baseSQL)
-            await MainActor.run {
-                for warning in processed.warnings {
-                    queryState.appendMessage(message: warning, severity: .warning, category: "SQLCMD")
-                }
-            }
-            guard !processed.batches.isEmpty else {
+        if tab.connection.databaseType == .microsoftSQL {
+            let splitBatches: [MSSQLBatchSplitter.Batch]
+            if queryState.sqlcmdModeEnabled {
+                // SQLCMD mode: preprocessor handles GO + directives
+                let processed = SQLCMDPreprocessor.process(baseSQL)
                 await MainActor.run {
-                    queryState.appendMessage(
-                        message: "SQLCMD preprocessing produced no executable batches",
-                        severity: .info,
-                        category: "SQLCMD"
-                    )
+                    for warning in processed.warnings {
+                        queryState.appendMessage(message: warning, severity: .warning, category: "SQLCMD")
+                    }
                 }
+                guard !processed.batches.isEmpty else {
+                    await MainActor.run {
+                        queryState.appendMessage(
+                            message: "SQLCMD preprocessing produced no executable batches",
+                            severity: .info,
+                            category: "SQLCMD"
+                        )
+                    }
+                    return
+                }
+                splitBatches = processed.batches.enumerated().map { index, text in
+                    MSSQLBatchSplitter.Batch(text: text, repeatCount: 1, startLine: 0)
+                }
+            } else {
+                // Normal mode: split at GO boundaries
+                let splitResult = MSSQLBatchSplitter.split(baseSQL)
+                splitBatches = splitResult.batches
+            }
+
+            // Expand GO N repeats into flat array
+            let expandedBatches = splitBatches.flatMap { batch in
+                Array(repeating: (text: batch.text, startLine: batch.startLine),
+                      count: max(1, batch.repeatCount))
+            }
+
+            if expandedBatches.count > 1 {
+                // Multi-batch path: execute each batch separately
+                var batchTexts = expandedBatches.map(\.text)
+                let batchStartLines = expandedBatches.map(\.startLine)
+
+                // Resolve execution session
+                let executionSession: DatabaseSession
+                let needsDedicatedSessionWait = tab.isAwaitingDedicatedSession
+                executionSession = tab.session
+
+                // Prepend USE [db] and SET STATISTICS to first batch only
+                if let selectedDB = tab.activeDatabaseName, !selectedDB.isEmpty,
+                   !needsDedicatedSessionWait,
+                   (executionSession as? MSSQLDedicatedQuerySession) == nil {
+                    batchTexts[0] = "USE [\(selectedDB)];\n\(batchTexts[0])"
+                }
+                if queryState.statisticsEnabled {
+                    batchTexts[0] = "SET STATISTICS IO ON;\nSET STATISTICS TIME ON;\n\(batchTexts[0])"
+                }
+
+                let resolvedSession: DatabaseSession
+                if needsDedicatedSessionWait {
+                    do {
+                        resolvedSession = try await tab.awaitDedicatedSession()
+                    } catch {
+                        queryState.errorMessage = "No dedicated connection. Click \"Retry Connection\" to reconnect."
+                        return
+                    }
+                } else {
+                    resolvedSession = executionSession
+                }
+
+                await runBatchQuery(
+                    tabId: tabId,
+                    batches: batchTexts,
+                    batchStartLines: batchStartLines,
+                    queryState: queryState,
+                    resolvedSession: resolvedSession,
+                    tab: tab,
+                    trimmedSQL: trimmedSQL
+                )
                 return
             }
-            // Each batch must be executed separately since GO is a client-side separator.
-            // Join with semicolons and newlines to form a single multi-statement batch.
-            // For batches repeated via GO N, duplicates already exist in the array.
-            effectiveSQL = processed.batches.joined(separator: ";\n")
+
+            // Single batch: fall through to existing simpleQuery path
+            effectiveSQL = expandedBatches.first?.text ?? baseSQL
         } else {
             effectiveSQL = baseSQL
         }
 
-        // Resolve the execution session -- for PostgreSQL, route through the database-specific session
+        // Resolve the execution session — for PostgreSQL, route through database-specific session.
+        // MSSQL dedicated session wait is deferred to inside the Task so startExecution() runs immediately.
         let executionSession: DatabaseSession
+        let needsDedicatedSessionWait = tab.isAwaitingDedicatedSession
         if tab.connection.databaseType == .postgresql,
            let activeDB = tab.activeDatabaseName, !activeDB.isEmpty {
             executionSession = (try? await tab.session.sessionForDatabase(activeDB)) ?? tab.session
@@ -48,8 +116,11 @@ extension WorkspaceTabContainerView {
         // For pooled MSSQL sessions we still need to set database context explicitly.
         // Dedicated query tabs are already connected to their target database, and sending
         // an extra USE batch before the query creates an unnecessary multi-statement stream.
+        // Prepend USE [db] only for pooled MSSQL sessions that are NOT awaiting
+        // a dedicated session upgrade. Dedicated sessions connect to the target database.
         if tab.connection.databaseType == .microsoftSQL,
            let selectedDB = tab.activeDatabaseName, !selectedDB.isEmpty,
+           !needsDedicatedSessionWait,
            (executionSession as? MSSQLDedicatedQuerySession) == nil {
             effectiveSQL = "USE [\(selectedDB)];\n\(effectiveSQL)"
         }
@@ -78,9 +149,17 @@ extension WorkspaceTabContainerView {
                         state.updateForeignKeyResolutionContext(schema: nil, table: nil)
                     }
                 }
+                // Wait for dedicated session if still connecting
+                let resolvedSession: DatabaseSession
+                if needsDedicatedSessionWait {
+                    resolvedSession = try await tab.awaitDedicatedSession()
+                } else {
+                    resolvedSession = executionSession
+                }
+
                 let perQueryMode = await MainActor.run { state.streamingModeOverride }
                 let executionMode: ResultStreamingExecutionMode? = perQueryMode == .auto ? nil : perQueryMode
-                let result = try await executionSession.simpleQuery(effectiveSQL, executionMode: executionMode) { [weak state] update in
+                let result = try await resolvedSession.simpleQuery(effectiveSQL, executionMode: executionMode) { [weak state] update in
                     guard let state else { return }
 
                     Task { @MainActor in
@@ -214,7 +293,7 @@ extension WorkspaceTabContainerView {
     }
 
     /// Returns true if the SQL begins with a DDL statement that modifies schema objects.
-    private func isDDL(_ sql: String) -> Bool {
+    func isDDL(_ sql: String) -> Bool {
         let upper = sql.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let ddlKeywords = ["CREATE ", "ALTER ", "DROP ", "RENAME ", "TRUNCATE ", "COMMENT "]
         return ddlKeywords.contains(where: { upper.hasPrefix($0) })

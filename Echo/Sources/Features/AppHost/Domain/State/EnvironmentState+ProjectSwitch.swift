@@ -37,7 +37,7 @@ extension EnvironmentState {
         tabStore.closeAllTabs()
 
         // 3. Clear transient state
-        searchSidebarCaches.removeAll()
+        searchSidebarCache = GlobalSearchSidebarCache()
         dataInspectorContent = nil
         lastError = nil
         observedSessionIDs.removeAll()

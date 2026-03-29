@@ -69,6 +69,8 @@ struct InfoSidebarView: View {
                     JobHistoryInspectorPanel(content: historyContent)
                 case .cellValue(let cellContent):
                     CellValueInspectorPanel(content: cellContent)
+                case .sqlHelp(let helpContent):
+                    SQLHelpInspectorPanel(content: helpContent)
                 }
             }
         } else {

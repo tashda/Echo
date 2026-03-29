@@ -180,11 +180,15 @@ struct GlobalSettings: Codable, Hashable {
     var nativePsqlAllowShellEscape: Bool = true
     var nativePsqlAllowFileCommands: Bool = true
     var pgToolCustomPath: String?
+    var mysqlToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarIconSize: SidebarIconSize = .medium
     var sidebarDensity: SidebarDensity = .default
     var activityMonitorRefreshInterval: Double = 5.0
     var hideInaccessibleDatabases: Bool = false
+    var searchIncludeOfflineDatabases: Bool = false
+    var searchMinimumQueryLength: Int = 2
+    var searchDefaultCategories: Set<String>?
     var notificationPreferences: NotificationPreferences = NotificationPreferences()
 
     /// Returns the effective auto-expand sections for a given database type.
@@ -260,12 +264,16 @@ struct GlobalSettings: Codable, Hashable {
         case nativePsqlAllowShellEscape
         case nativePsqlAllowFileCommands
         case pgToolCustomPath
+        case mysqlToolCustomPath
         case sidebarIconColorMode
         case sidebarIconSize
         case sidebarDensity
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
         case hideInaccessibleDatabases
+        case searchIncludeOfflineDatabases
+        case searchMinimumQueryLength
+        case searchDefaultCategories
         case notificationPreferences
     }
 
@@ -355,6 +363,7 @@ struct GlobalSettings: Codable, Hashable {
         nativePsqlAllowShellEscape = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowShellEscape) ?? true
         nativePsqlAllowFileCommands = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowFileCommands) ?? true
         pgToolCustomPath = try container.decodeIfPresent(String.self, forKey: .pgToolCustomPath)
+        mysqlToolCustomPath = try container.decodeIfPresent(String.self, forKey: .mysqlToolCustomPath)
 
         if let mode = try container.decodeIfPresent(SidebarIconColorMode.self, forKey: .sidebarIconColorMode) {
             sidebarIconColorMode = mode
@@ -368,6 +377,9 @@ struct GlobalSettings: Codable, Hashable {
         
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
         hideInaccessibleDatabases = try container.decodeIfPresent(Bool.self, forKey: .hideInaccessibleDatabases) ?? false
+        searchIncludeOfflineDatabases = try container.decodeIfPresent(Bool.self, forKey: .searchIncludeOfflineDatabases) ?? false
+        searchMinimumQueryLength = try container.decodeIfPresent(Int.self, forKey: .searchMinimumQueryLength) ?? 2
+        searchDefaultCategories = try container.decodeIfPresent(Set<String>.self, forKey: .searchDefaultCategories)
         notificationPreferences = try container.decodeIfPresent(NotificationPreferences.self, forKey: .notificationPreferences) ?? NotificationPreferences()
     }
 
@@ -449,11 +461,15 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(nativePsqlAllowShellEscape, forKey: .nativePsqlAllowShellEscape)
         try container.encode(nativePsqlAllowFileCommands, forKey: .nativePsqlAllowFileCommands)
         try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
+        try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
         try container.encode(sidebarIconSize, forKey: .sidebarIconSize)
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)
+        try container.encode(searchIncludeOfflineDatabases, forKey: .searchIncludeOfflineDatabases)
+        try container.encode(searchMinimumQueryLength, forKey: .searchMinimumQueryLength)
+        try container.encodeIfPresent(searchDefaultCategories, forKey: .searchDefaultCategories)
         try container.encode(notificationPreferences, forKey: .notificationPreferences)
     }
 

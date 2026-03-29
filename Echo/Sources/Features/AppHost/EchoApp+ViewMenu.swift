@@ -49,6 +49,13 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("y", modifiers: [.command, .shift])
             .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
 
+            Button {
+                NotificationCenter.default.post(name: .activateSidebarSearch, object: nil)
+            } label: {
+                Label("Find in Sidebar", systemImage: "magnifyingglass")
+            }
+            .keyboardShortcut("f", modifiers: [.command, .shift])
+
             Divider()
 
             Button {

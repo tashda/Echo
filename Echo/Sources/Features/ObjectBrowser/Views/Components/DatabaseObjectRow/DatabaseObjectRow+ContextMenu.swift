@@ -1,4 +1,5 @@
 import SwiftUI
+import PostgresKit
 
 extension DatabaseObjectRow {
     var contextMenuContent: some View {
@@ -95,6 +96,7 @@ extension DatabaseObjectRow {
         } label: {
             Label(item.title, systemImage: item.systemImage)
         }
+        .disabled(item.isDisabled)
     }
 
     @ViewBuilder
@@ -198,15 +200,17 @@ extension DatabaseObjectRow {
             )
         }
 
-        items.append(
-            ContextMenuActionItem(
-                id: "viewStructure",
-                title: "View Structure",
-                systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up",
-                role: nil,
-                action: { openStructureTab() }
+        if object.type == .table || object.type == .extension {
+            items.append(
+                ContextMenuActionItem(
+                    id: "viewStructure",
+                    title: "View Structure",
+                    systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up",
+                    role: nil,
+                    action: { openStructureTab() }
+                )
             )
-        )
+        }
 
         if connection.databaseType == .microsoftSQL {
             items.append(
@@ -257,6 +261,7 @@ extension DatabaseObjectRow {
                 title: connection.databaseType == .sqlite ? "Rename (Limited)" : "Rename",
                 systemImage: "character.cursor.ibeam",
                 role: nil,
+                isDisabled: !canModifySchema,
                 action: { initiateRename() }
             )
         )
@@ -281,6 +286,18 @@ extension DatabaseObjectRow {
     private func computeMaintenanceItems() -> [ContextMenuActionItem] {
         var items: [ContextMenuActionItem] = []
 
+        if connection.databaseType == .microsoftSQL {
+            items.append(
+                ContextMenuActionItem(
+                    id: "generateScripts",
+                    title: "Generate Scripts...",
+                    systemImage: "script.badge.plus",
+                    role: nil,
+                    action: { showGenerateScriptsWizard = true }
+                )
+            )
+        }
+
         if supportsBulkImport {
             items.append(
                 ContextMenuActionItem(
@@ -293,21 +310,111 @@ extension DatabaseObjectRow {
             )
         }
 
+        if object.type == .table || object.type == .view {
+            items.append(
+                ContextMenuActionItem(
+                    id: "exportData",
+                    title: "Export Data",
+                    systemImage: "square.and.arrow.up",
+                    role: nil,
+                    action: { showExportSheet = true }
+                )
+            )
+        }
+
+        // Cluster (PostgreSQL tables only)
+        if object.type == .table && connection.databaseType == .postgresql {
+            items.append(
+                ContextMenuActionItem(
+                    id: "cluster",
+                    title: "Cluster",
+                    systemImage: "arrow.triangle.2.circlepath",
+                    role: nil,
+                    action: { clusterTable() }
+                )
+            )
+        }
+
+        // Temporal table actions
+        if object.type == .table && connection.databaseType == .microsoftSQL {
+            if object.isSystemVersioned == true {
+                items.append(
+                    ContextMenuActionItem(
+                        id: "queryHistory",
+                        title: "Query History...",
+                        systemImage: "clock.arrow.circlepath",
+                        role: nil,
+                        action: { openTemporalHistoryQuery() }
+                    )
+                )
+            }
+            if object.isSystemVersioned != true && object.isHistoryTable != true {
+                items.append(
+                    ContextMenuActionItem(
+                        id: "enableVersioning",
+                        title: "Enable System Versioning...",
+                        systemImage: "clock.badge.checkmark",
+                        role: nil,
+                        action: {
+                            sheetState.enableVersioningConnectionID = connection.id
+                            sheetState.enableVersioningDatabaseName = databaseName
+                            sheetState.enableVersioningSchemaName = object.schema
+                            sheetState.enableVersioningTableName = object.name
+                            sheetState.showEnableVersioningSheet = true
+                        }
+                    )
+                )
+            }
+        }
+
         return items
+    }
+
+    private func clusterTable() {
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
+        Task {
+            let handle = AppDirector.shared.activityEngine.begin("Clustering \(object.name)", connectionSessionID: session.id)
+            do {
+                guard let pg = session.session as? PostgresSession else { return }
+                try await pg.client.admin.clusterTable(table: object.name, index: nil, schema: object.schema)
+                handle.succeed()
+            } catch {
+                handle.fail(error.localizedDescription)
+            }
+        }
+    }
+
+    private func openTemporalHistoryQuery() {
+        let qualified = "[\(object.schema)].[\(object.name)]"
+        let sql = "SELECT * FROM \(qualified) FOR SYSTEM_TIME ALL ORDER BY ValidFrom DESC;"
+        environmentState.openQueryTab(presetQuery: sql)
     }
 
     /// Group 9: Properties
     private func computePropertiesItems() -> [ContextMenuActionItem] {
         var items: [ContextMenuActionItem] = []
 
-        if object.type == .table && connection.databaseType == .microsoftSQL {
+        if object.type == .table {
             items.append(
                 ContextMenuActionItem(
                     id: "tableProperties",
                     title: "Properties",
                     systemImage: "info.circle",
                     role: nil,
-                    action: { openTablePropertiesQuery() }
+                    action: { openTableProperties() }
+                )
+            )
+        }
+
+        let pgEditableTypes: Set<SchemaObjectInfo.ObjectType> = [.trigger, .view, .materializedView, .sequence, .type]
+        if connection.databaseType == .postgresql && pgEditableTypes.contains(object.type) {
+            items.append(
+                ContextMenuActionItem(
+                    id: "pgObjectProperties",
+                    title: "Properties",
+                    systemImage: "info.circle",
+                    role: nil,
+                    action: { openPgObjectProperties() }
                 )
             )
         }
@@ -326,6 +433,7 @@ extension DatabaseObjectRow {
                     title: "Truncate Table",
                     systemImage: "xmark.bin",
                     role: .destructive,
+                    isDisabled: !canModifySchema,
                     action: { initiateTruncate() }
                 )
             )
@@ -337,6 +445,7 @@ extension DatabaseObjectRow {
                 title: "Drop",
                 systemImage: "trash",
                 role: .destructive,
+                isDisabled: !canModifySchema,
                 action: { initiateDrop(includeIfExists: false) }
             )
         )
@@ -344,115 +453,4 @@ extension DatabaseObjectRow {
         return items
     }
 
-    internal struct ContextMenuActionItem: Identifiable {
-        let id: String
-        let title: String
-        let systemImage: String
-        let role: ButtonRole?
-        let action: () -> Void
-
-        init(
-            id: String? = nil,
-            title: String,
-            systemImage: String,
-            role: ButtonRole?,
-            action: @escaping () -> Void
-        ) {
-            self.id = id ?? title
-            self.title = title
-            self.systemImage = systemImage
-            self.role = role
-            self.action = action
-        }
-    }
-
-    internal enum ScriptAction {
-        case create
-        case createOrReplace
-        case alter
-        case alterTable
-        case drop
-        case dropIfExists
-        case select
-        case selectLimited(Int)
-        case execute
-        case insert
-        case update
-        case delete
-
-        var identifier: String {
-            switch self {
-            case .create: return "create"
-            case .createOrReplace: return "createOrReplace"
-            case .alter: return "alter"
-            case .alterTable: return "alterTable"
-            case .drop: return "drop"
-            case .dropIfExists: return "dropIfExists"
-            case .select: return "select"
-            case .selectLimited(let limit): return "selectLimited_\(limit)"
-            case .execute: return "execute"
-            case .insert: return "insert"
-            case .update: return "update"
-            case .delete: return "delete"
-            }
-        }
-
-        var isReadGroup: Bool {
-            switch self {
-            case .select, .selectLimited: return true
-            default: return false
-            }
-        }
-
-        var isCreateModifyGroup: Bool {
-            switch self {
-            case .create, .createOrReplace, .alter, .alterTable: return true
-            default: return false
-            }
-        }
-
-        var isWriteGroup: Bool {
-            switch self {
-            case .insert, .update, .delete: return true
-            default: return false
-            }
-        }
-
-        var isExecuteGroup: Bool {
-            switch self {
-            case .execute: return true
-            default: return false
-            }
-        }
-
-        var isDestroyGroup: Bool {
-            switch self {
-            case .drop, .dropIfExists: return true
-            default: return false
-            }
-        }
-    }
-
-    internal var supportsStructure: Bool {
-        switch object.type {
-        case .table, .view, .materializedView, .extension: return true
-        case .function, .trigger, .procedure, .sequence, .type, .synonym: return false
-        }
-    }
-
-    internal var supportsDiagram: Bool {
-        object.type == .table
-    }
-
-    internal var supportsBulkImport: Bool {
-        object.type == .table
-    }
-
-    private var supportsTruncateTable: Bool {
-        guard object.type == .table else { return false }
-        switch connection.databaseType {
-        case .postgresql, .mysql, .microsoftSQL: return true
-        case .sqlite: return false
-        }
-    }
 }

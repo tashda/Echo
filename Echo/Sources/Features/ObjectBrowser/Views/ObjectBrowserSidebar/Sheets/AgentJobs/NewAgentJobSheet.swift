@@ -12,6 +12,10 @@ struct NewAgentJobSheet: View {
     @State var jobOwner = ""
     @State var jobCategory = ""
     @State var startAfterCreate = false
+    @State var availableCategories: [String] = []
+    @State var showNewCategorySheet = false
+    @State var newCategoryName = ""
+    @State var newCategoryError: String?
 
     // Steps
     @State var steps: [StepEntry] = []
@@ -52,20 +56,57 @@ struct NewAgentJobSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: "New Agent Job") {
             HStack(spacing: 0) {
                 sidebar
                 Divider()
                 detailPane
             }
+        } footer: {
+            if let error = errorMessage {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(ColorTokens.Status.warning)
+                Text(error)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(2)
+            }
 
-            Divider()
-            toolbarView
+            Spacer()
+
+            Button("Cancel", role: .cancel) {
+                onComplete()
+            }
+            .keyboardShortcut(.cancelAction)
+
+            if isFormValid {
+                Button("Create Job") {
+                    Task { await createJob() }
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Create Job") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
         .frame(minWidth: 620, idealWidth: 660, minHeight: 480, idealHeight: 520)
         .onAppear {
             loadCurrentLogin()
             loadDatabaseNames()
+            loadCategories()
+        }
+        .sheet(isPresented: $showNewCategorySheet) {
+            NewAgentCategorySheet(
+                categoryName: $newCategoryName,
+                errorMessage: $newCategoryError,
+                onCreate: {
+                    Task { await createCategory() }
+                },
+                onCancel: { showNewCategorySheet = false }
+            )
         }
     }
 
@@ -94,35 +135,6 @@ struct NewAgentJobSheet: View {
         }
     }
 
-    // MARK: - Toolbar
-
-    var toolbarView: some View {
-        HStack {
-            if let error = errorMessage {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(ColorTokens.Status.warning)
-                Text(error)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .lineLimit(2)
-            }
-
-            Spacer()
-
-            Button("Cancel", role: .cancel) {
-                onComplete()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Create Job") {
-                Task { await createJob() }
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!isFormValid)
-        }
-        .padding(SpacingTokens.md2)
-    }
 
     // MARK: - General Page
 
@@ -137,7 +149,23 @@ struct NewAgentJobSheet: View {
             }
             Section("Ownership") {
                 TextField("Owner", text: $jobOwner, prompt: Text("sa"))
-                TextField("Category", text: $jobCategory, prompt: Text("[Uncategorized (Local)]"))
+                HStack {
+                    Picker("Category", selection: $jobCategory) {
+                        Text("[Uncategorized (Local)]").tag("")
+                        ForEach(availableCategories, id: \.self) { cat in
+                            Text(cat).tag(cat)
+                        }
+                    }
+                    Button {
+                        newCategoryName = ""
+                        newCategoryError = nil
+                        showNewCategorySheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Create new category")
+                }
             }
         }
         .formStyle(.grouped)

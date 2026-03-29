@@ -13,16 +13,23 @@ struct AgentJobScheduleEditorSheet: View {
     @State var monthDay: Int = 1
     @State var startDate: Date = Date()
     @State var oneTimeDate: Date = Date()
+    @State var useActiveWindow: Bool = false
+    @State var activeStartDate: Date = Date()
+    @State var activeEndDate: Date = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
+    @State var activeStartHour: Int = 0
+    @State var activeStartMinute: Int = 0
+    @State var activeEndHour: Int = 23
+    @State var activeEndMinute: Int = 59
 
     let title: String
     let actionLabel: String
-    let onSave: (String, Bool, ScheduleFrequency, Int, Int, Int, Set<Int>, Int, Date, Date) -> Void
+    let onSave: (ScheduleEditorResult) -> Void
     let onCancel: () -> Void
 
     init(
         title: String = "New Schedule",
         actionLabel: String = "Create Schedule",
-        onSave: @escaping (String, Bool, ScheduleFrequency, Int, Int, Int, Set<Int>, Int, Date, Date) -> Void,
+        onSave: @escaping (ScheduleEditorResult) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.title = title
@@ -57,6 +64,17 @@ struct AgentJobScheduleEditorSheet: View {
                     Section {
                         DatePicker("Starting from", selection: $startDate, displayedComponents: .date)
                     }
+
+                    Section("Active Window") {
+                        Toggle("Limit active window", isOn: $useActiveWindow)
+                            .toggleStyle(.switch)
+                        if useActiveWindow {
+                            DatePicker("Start date", selection: $activeStartDate, displayedComponents: .date)
+                            activeTimePicker(label: "Start time", hour: $activeStartHour, minute: $activeStartMinute)
+                            DatePicker("End date", selection: $activeEndDate, displayedComponents: .date)
+                            activeTimePicker(label: "End time", hour: $activeEndHour, minute: $activeEndMinute)
+                        }
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -69,7 +87,15 @@ struct AgentJobScheduleEditorSheet: View {
                 Button("Cancel", role: .cancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
                 Button(actionLabel) {
-                    onSave(name, enabled, frequency, interval, startHour, startMinute, weekdays, monthDay, startDate, oneTimeDate)
+                    onSave(ScheduleEditorResult(
+                        name: name, enabled: enabled, frequency: frequency,
+                        interval: interval, startHour: startHour, startMinute: startMinute,
+                        weekdays: weekdays, monthDay: monthDay, startDate: startDate,
+                        oneTimeDate: oneTimeDate, useActiveWindow: useActiveWindow,
+                        activeStartDate: activeStartDate, activeEndDate: activeEndDate,
+                        activeStartHour: activeStartHour, activeStartMinute: activeStartMinute,
+                        activeEndHour: activeEndHour, activeEndMinute: activeEndMinute
+                    ))
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!isValid)
@@ -105,6 +131,26 @@ struct AgentJobScheduleEditorSheet: View {
             .labelsHidden()
             Text(":")
             Picker("Minute", selection: $startMinute) {
+                ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { m in
+                    Text(String(format: "%02d", m)).tag(m)
+                }
+            }
+            .frame(width: 70)
+            .labelsHidden()
+        }
+    }
+
+    private func activeTimePicker(label: String, hour: Binding<Int>, minute: Binding<Int>) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Picker("Hour", selection: hour) {
+                ForEach(0..<24, id: \.self) { h in Text(String(format: "%02d", h)).tag(h) }
+            }
+            .frame(width: 70)
+            .labelsHidden()
+            Text(":")
+            Picker("Minute", selection: minute) {
                 ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { m in
                     Text(String(format: "%02d", m)).tag(m)
                 }

@@ -15,6 +15,11 @@ struct ReplicationSheet: View {
     @State var subscriptions: [SQLServerSubscription] = []
     @State var expandedPublication: String?
     @State var articles: [SQLServerReplicationArticle] = []
+    @State var agentStatuses: [SQLServerReplicationClient.SQLServerReplicationAgentStatus] = []
+    @State var showNewPublicationSheet = false
+    @State var showNewSubscriptionSheet = false
+    @State var showConfigureDistribution = false
+    @State var showRemoveDistributionAlert = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,6 +46,46 @@ struct ReplicationSheet: View {
         .frame(minWidth: 520, minHeight: 380)
         .frame(idealWidth: 580, idealHeight: 460)
         .task { await loadData() }
+        .sheet(isPresented: $showNewPublicationSheet) {
+            NewPublicationSheet(
+                databaseName: databaseName,
+                session: session,
+                onCreated: { Task { await loadData() } },
+                onDismiss: { showNewPublicationSheet = false }
+            )
+        }
+        .sheet(isPresented: $showNewSubscriptionSheet) {
+            NewSubscriptionSheet(
+                publications: publications,
+                session: session,
+                onCreated: { Task { await loadData() } },
+                onDismiss: { showNewSubscriptionSheet = false }
+            )
+        }
+        .sheet(isPresented: $showConfigureDistribution) {
+            ConfigureDistributionSheet(session: session) {
+                showConfigureDistribution = false
+                Task { await loadData() }
+            }
+        }
+        .alert("Remove Distribution?", isPresented: $showRemoveDistributionAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Remove", role: .destructive) {
+                Task { await removeDistribution() }
+            }
+        } message: {
+            Text("This will remove the distributor configuration, distribution database, and all associated publications. This action cannot be undone.")
+        }
+    }
+
+    func removeDistribution() async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        do {
+            try await mssql.replication.removeDistributor(force: true)
+            await loadData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private var headerBar: some View {
@@ -61,7 +106,7 @@ struct ReplicationSheet: View {
         HStack {
             Spacer()
             Button("Done") { onDismiss() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.cancelAction)
         }
         .padding(SpacingTokens.md)
@@ -77,6 +122,7 @@ struct ReplicationSheet: View {
             distributorConfigured = try await mssql.replication.isDistributorConfigured()
             publications = try await mssql.replication.listPublications()
             subscriptions = try await mssql.replication.listSubscriptions()
+            agentStatuses = try await mssql.replication.agentStatus()
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription
@@ -90,6 +136,42 @@ struct ReplicationSheet: View {
             articles = try await mssql.replication.listArticles(publicationName: publicationName)
         } catch {
             articles = []
+        }
+    }
+
+    func deletePublication(_ pub: SQLServerPublication) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        let handle = AppDirector.shared.activityEngine.begin(
+            "Drop publication \(pub.name)",
+            connectionSessionID: session.id
+        )
+        do {
+            try await mssql.replication.dropPublication(name: pub.name)
+            handle.succeed()
+            await loadData()
+        } catch {
+            handle.fail(error.localizedDescription)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func deleteSubscription(_ sub: SQLServerSubscription, publicationName: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        let handle = AppDirector.shared.activityEngine.begin(
+            "Drop subscription \(sub.subscriberServer).\(sub.subscriberDB)",
+            connectionSessionID: session.id
+        )
+        do {
+            try await mssql.replication.dropSubscription(
+                publicationName: publicationName,
+                subscriberServer: sub.subscriberServer,
+                subscriberDB: sub.subscriberDB
+            )
+            handle.succeed()
+            await loadData()
+        } catch {
+            handle.fail(error.localizedDescription)
+            errorMessage = error.localizedDescription
         }
     }
 }

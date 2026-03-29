@@ -44,7 +44,11 @@ struct DatabasesSettingsView: View {
 
             switch selectedTab {
             case .mysql:
-                mySQLSettings
+                Form {
+                    mySQLSettings
+                }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
             case .sqlite:
                 sqliteSettings
             default:
@@ -95,16 +99,6 @@ struct DatabasesSettingsView: View {
         } footer: {
             Text("When enabled, databases that the current login cannot access are hidden from the sidebar.")
         }
-    }
-
-    @ViewBuilder
-    var mySQLSettings: some View {
-        ContentUnavailableView {
-            Label("No Settings", systemImage: "slider.horizontal.3")
-        } description: {
-            Text("There are no MySQL-specific settings at this time.")
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder

@@ -207,7 +207,74 @@ struct TabPreviewCard: View {
             ExtendedEventsPreview()
         case .availabilityGroups:
             AvailabilityGroupsPreview()
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects:
+            SecurityPreview()
+        case .errorLog:
+            EmptyPreviewPlaceholder(message: "Error Log")
+        case .profiler:
+            EmptyPreviewPlaceholder(message: "SQL Profiler")
+        case .resourceGovernor:
+            EmptyPreviewPlaceholder(message: "Resource Governor")
+        case .serverProperties:
+            EmptyPreviewPlaceholder(message: "Server Properties")
+        case .tuningAdvisor:
+            EmptyPreviewPlaceholder(message: "Tuning Advisor")
+        case .policyManagement:
+            PolicyManagementPreview()
+        case .tableData:
+            TableDataTabPreview(viewModel: tab.tableDataVM)
+        case .schemaDiff:
+            EmptyPreviewPlaceholder(message: "Schema Diff")
         }
+    }
+}
+
+struct PolicyManagementPreview: View {
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "checkmark.seal")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Policy Management")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct TableDataTabPreview: View {
+    let viewModel: TableDataViewModel?
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "tablecells.badge.ellipsis")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            if let vm = viewModel {
+                Text("\(vm.schemaName).\(vm.tableName)")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            } else {
+                Text("Table Data")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct SecurityPreview: View {
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "lock.shield")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Security Management")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

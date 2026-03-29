@@ -7,36 +7,46 @@ struct TableStructureEditorView: View {
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(EnvironmentState.self) internal var environmentState
     
-    @State internal var activeIndexEditor: IndexEditorPresentation?
-    @State internal var activeColumnEditor: ColumnEditorPresentation?
-    @State internal var activePrimaryKeyEditor: PrimaryKeyEditorPresentation?
-    @State internal var activeUniqueConstraintEditor: UniqueConstraintEditorPresentation?
-    @State internal var activeForeignKeyEditor: ForeignKeyEditorPresentation?
-    @State internal var activeCheckConstraintEditor: CheckConstraintEditorPresentation?
+    @State internal var activeSheet: TableStructureSheet?
     @State internal var selectedSection: TableStructureSection
     @State internal var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
     @State internal var selectedIndexIDs: Set<TableStructureEditorViewModel.IndexModel.ID> = []
     @State internal var selectedForeignKeyIDs: Set<TableStructureEditorViewModel.ForeignKeyModel.ID> = []
-    @State internal var columnIndexLookup: [UUID: Int] = [:]
-    @State internal var bulkColumnEditor: BulkColumnEditorPresentation?
-    @State internal var showScriptPreview = false
-
     @State internal var selectedConstraintIDs: Set<ConstraintRowModel.ID> = []
+    @State internal var scriptPreviewStatements: [String] = []
+
+    internal var columnIndexLookup: [UUID: Int] {
+        Dictionary(uniqueKeysWithValues: viewModel.columns.enumerated().map { ($0.element.id, $0.offset) })
+    }
+
+    enum TableStructureSheet: Identifiable {
+        case index(IndexEditorPresentation)
+        case column(ColumnEditorPresentation)
+        case primaryKey(PrimaryKeyEditorPresentation)
+        case uniqueConstraint(UniqueConstraintEditorPresentation)
+        case foreignKey(ForeignKeyEditorPresentation)
+        case checkConstraint(CheckConstraintEditorPresentation)
+        case scriptPreview
+        case bulkColumn(BulkColumnEditorPresentation)
+
+        var id: String {
+            switch self {
+            case .index(let p): "index-\(p.indexID)"
+            case .column(let p): "column-\(p.columnID)"
+            case .primaryKey: "primaryKey"
+            case .uniqueConstraint(let p): "uniqueConstraint-\(p.constraintID)"
+            case .foreignKey(let p): "foreignKey-\(p.foreignKeyID)"
+            case .checkConstraint(let p): "checkConstraint-\(p.constraintID)"
+            case .scriptPreview: "scriptPreview"
+            case .bulkColumn: "bulkColumn"
+            }
+        }
+    }
 
     init(tab: WorkspaceTab, viewModel: TableStructureEditorViewModel) {
         self.tab = tab
         self.viewModel = viewModel
         _selectedSection = State(initialValue: viewModel.requestedSection ?? .columns)
-
-        // Initialize column index lookup
-        _columnIndexLookup = State(
-            initialValue: Dictionary(
-                uniqueKeysWithValues: viewModel.columns.enumerated().map { pair in
-                    let (index, column) = pair
-                    return (column.id, index)
-                }
-            )
-        )
     }
 
     internal var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
@@ -58,9 +68,9 @@ struct TableStructureEditorView: View {
                 Task { await viewModel.reload() }
             }
         }
-        .onChange(of: viewModel.columns) { _, _ in
-            rebuildColumnIndexLookup()
-            pruneSelectedColumns()
+        .onChange(of: selectedSection) {
+            viewModel.lastError = nil
+            viewModel.lastSuccessMessage = nil
         }
         .background { sheetModifiers }
     }
@@ -101,7 +111,18 @@ struct TableStructureEditorView: View {
     internal func applyChanges() {
         Task {
             await viewModel.applyChanges()
-            if viewModel.lastError == nil {
+            if let error = viewModel.lastError {
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
+                    message: error
+                )
+            } else if viewModel.lastSuccessMessage != nil {
+                environmentState.notificationEngine?.post(
+                    category: .generalSuccess,
+                    icon: "checkmark.circle",
+                    message: "Structure of \(viewModel.tableName) updated",
+                    style: .success
+                )
                 await environmentState.refreshDatabaseStructure(
                     for: tab.connectionSessionID,
                     scope: .selectedDatabase,
@@ -133,6 +154,6 @@ struct TableStructureEditorView: View {
             }
         }
 
-        bulkColumnEditor = nil
+        activeSheet = nil
     }
 }

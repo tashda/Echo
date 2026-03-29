@@ -7,6 +7,7 @@ struct MSSQLActivityProcesses: View {
     @Binding var selection: Set<SQLServerProcessInfo.ID>
     let onPopout: (String) -> Void
     let onKill: (Int) -> Void
+    var canKill: Bool = true
     var onDoubleClick: (() -> Void)?
 
     @State private var showKillAlert = false
@@ -101,6 +102,7 @@ struct MSSQLActivityProcesses: View {
                 } label: {
                     Label("Kill Process", systemImage: "xmark.octagon")
                 }
+                .disabled(!canKill)
             }
         } primaryAction: { _ in
             onDoubleClick?()

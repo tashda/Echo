@@ -1,8 +1,12 @@
 import Foundation
-import MySQLNIO
-import NIOCore
+import MySQLKit
+import MySQLWire
 
 extension MySQLSession {
+    func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
+        MySQLActivityMonitorWrapper(session: self)
+    }
+
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
         let schemaName: String
         if let schema, !schema.isEmpty {
@@ -84,7 +88,7 @@ extension MySQLSession {
         }
     }
 
-    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String? = nil) async throws -> String {
         let qualifiedName = "`\(schemaName.replacingOccurrences(of: "`", with: "``"))`.`\(objectName.replacingOccurrences(of: "`", with: "``"))`"
         let sql: String
         switch objectType {
@@ -110,7 +114,7 @@ extension MySQLSession {
             throw DatabaseError.queryError("MySQL does not support synonyms")
         }
 
-        let rows = try await connection.simpleQuery(sql).get()
+        let rows = try await client.query.simpleQuery(sql)
         guard let row = rows.first else {
             throw DatabaseError.queryError("Definition not found")
         }
@@ -136,13 +140,12 @@ extension MySQLSession {
     }
 
     func executeUpdate(_ sql: String) async throws -> Int {
-        var affectedRows: Int = 0
-        let future = connection.query(sql, onMetadata: { metadata in
-            affectedRows = Int(metadata.affectedRows)
-        })
         do {
-            _ = try await future.get()
-            return affectedRows
+            let result = try await client.query.query(sql)
+            if let metadata = result.metadata {
+                return Int(metadata.affectedRows)
+            }
+            return result.rows.count
         } catch {
             throw DatabaseError.queryError(error.localizedDescription)
         }
@@ -157,7 +160,22 @@ extension MySQLSession {
     }
 
     func dropIndex(schema: String, name: String) async throws {
-        _ = try await executeUpdate("DROP INDEX `\(name.replacingOccurrences(of: "`", with: "``"))` ON `\(schema.replacingOccurrences(of: "`", with: "``"))`.`\(name.replacingOccurrences(of: "`", with: "``"))`")
+        // MySQL DROP INDEX requires ON <table>, but the protocol only passes schema + index name.
+        // We find the table by querying information_schema.
+        let lookupSQL = """
+        SELECT TABLE_NAME FROM information_schema.statistics
+        WHERE TABLE_SCHEMA = '\(schema.replacingOccurrences(of: "'", with: "''"))'
+        AND INDEX_NAME = '\(name.replacingOccurrences(of: "'", with: "''"))'
+        LIMIT 1;
+        """
+        let result = try await simpleQuery(lookupSQL)
+        guard let tableName = result.rows.first?.first ?? nil else {
+            throw DatabaseError.queryError("Could not find table for index '\(name)' in schema '\(schema)'")
+        }
+        let escapedIndex = name.replacingOccurrences(of: "`", with: "``")
+        let escapedSchema = schema.replacingOccurrences(of: "`", with: "``")
+        let escapedTable = tableName.replacingOccurrences(of: "`", with: "``")
+        _ = try await executeUpdate("DROP INDEX `\(escapedIndex)` ON `\(escapedSchema)`.`\(escapedTable)`")
     }
 
     func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
@@ -177,7 +195,50 @@ extension MySQLSession {
     }
 
     func getDatabaseHealth() async throws -> SQLServerDatabaseHealth {
-        SQLServerDatabaseHealth(name: "", owner: "", createDate: Date(), sizeMB: 0, recoveryModel: "", status: "", compatibilityLevel: 0, collationName: nil)
+        // Gather basic MySQL server information for the health display
+        let dbName: String
+        if let defaultDatabase, !defaultDatabase.isEmpty {
+            dbName = defaultDatabase
+        } else if let current = try await currentDatabaseName(), !current.isEmpty {
+            dbName = current
+        } else {
+            dbName = "unknown"
+        }
+
+        var sizeMB: Double = 0
+        var collation: String?
+        var charset: String?
+
+        let sizeSQL = """
+        SELECT
+            ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb,
+            DEFAULT_CHARACTER_SET_NAME,
+            DEFAULT_COLLATION_NAME
+        FROM information_schema.schemata s
+        LEFT JOIN information_schema.tables t ON t.table_schema = s.schema_name
+        WHERE s.schema_name = '\(dbName.replacingOccurrences(of: "'", with: "''"))'
+        GROUP BY s.schema_name, DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME;
+        """
+
+        let result = try await simpleQuery(sizeSQL)
+        if let row = result.rows.first {
+            sizeMB = Double(row[0] ?? "0") ?? 0
+            charset = row[1]
+            collation = row[2]
+        }
+
+        let status = charset.map { "Charset: \($0)" } ?? "Online"
+
+        return SQLServerDatabaseHealth(
+            name: dbName,
+            owner: "",
+            createDate: Date(),
+            sizeMB: sizeMB,
+            recoveryModel: "",
+            status: status,
+            compatibilityLevel: 0,
+            collationName: collation
+        )
     }
 
     func getBackupHistory(limit: Int) async throws -> [SQLServerBackupHistoryEntry] {
@@ -185,7 +246,31 @@ extension MySQLSession {
     }
 
     func checkDatabaseIntegrity() async throws -> DatabaseMaintenanceResult {
-        DatabaseMaintenanceResult(operation: "Check Integrity", messages: ["Not implemented"], succeeded: false)
+        let dbName: String
+        if let defaultDatabase, !defaultDatabase.isEmpty {
+            dbName = defaultDatabase
+        } else if let current = try await currentDatabaseName(), !current.isEmpty {
+            dbName = current
+        } else {
+            return DatabaseMaintenanceResult(operation: "Check Integrity", messages: ["No database selected."], succeeded: false)
+        }
+
+        let tables = try await listTablesAndViews(schema: dbName)
+        let tableNames = tables.filter { $0.type == .table }.map(\.name)
+        guard !tableNames.isEmpty else {
+            return DatabaseMaintenanceResult(operation: "Check Integrity", messages: ["No tables found."], succeeded: true)
+        }
+
+        let qualified = tableNames.map { "`\(dbName)`.`\($0)`" }.joined(separator: ", ")
+        let result = try await simpleQuery("CHECK TABLE \(qualified)")
+        let messages = result.rows.compactMap { $0.last ?? nil }
+        let hasError = messages.contains(where: { $0.lowercased().contains("error") || $0.lowercased().contains("corrupt") })
+
+        return DatabaseMaintenanceResult(
+            operation: "Check Integrity",
+            messages: messages.isEmpty ? ["All tables passed integrity check."] : messages,
+            succeeded: !hasError
+        )
     }
 
     func shrinkDatabase() async throws -> DatabaseMaintenanceResult {

@@ -8,6 +8,10 @@ struct MSSQLMaintenanceIndexesView: View {
     @State private var sortOrder = [KeyPathComparator(\SQLServerIndexFragmentation.fragmentationPercent, order: .reverse)]
     @State private var selection: Set<SQLServerIndexFragmentation.ID> = []
 
+    private var session: ConnectionSession? {
+        environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Table(viewModel.fragmentedIndexes, selection: $selection, sortOrder: $sortOrder) {
@@ -83,6 +87,7 @@ struct MSSQLMaintenanceIndexesView: View {
                     } label: {
                         Label("Rebuild Index", systemImage: "hammer")
                     }
+                    .disabled(!(session?.permissions?.canManageServerState ?? true))
 
                     Button {
                         Task {
@@ -91,6 +96,7 @@ struct MSSQLMaintenanceIndexesView: View {
                     } label: {
                         Label("Reorganize Index", systemImage: "arrow.triangle.2.circlepath")
                     }
+                    .disabled(!(session?.permissions?.canManageServerState ?? true))
 
                     Button {
                         Task {
@@ -99,6 +105,7 @@ struct MSSQLMaintenanceIndexesView: View {
                     } label: {
                         Label("Update Statistics", systemImage: "chart.bar")
                     }
+                    .disabled(!(session?.permissions?.canManageServerState ?? true))
                     
                     Divider()
                     

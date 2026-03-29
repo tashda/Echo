@@ -112,7 +112,7 @@ struct ExecutionConsoleView: View {
     private var emptyState: some View {
         VStack(spacing: SpacingTokens.sm) {
             Image(systemName: "text.bubble")
-                .font(.system(size: 28))
+                .font(TypographyTokens.iconMedium)
                 .foregroundStyle(ColorTokens.Text.tertiary)
             Text("No Messages")
                 .font(TypographyTokens.standard.weight(.medium))

@@ -8,7 +8,7 @@ struct PgRestoreSidebarSheet: View {
     @State private var selectedPage: PgRestorePage = .general
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: "Restore Database") {
             HStack(spacing: 0) {
                 sidebar
                     .frame(width: 170)
@@ -16,8 +16,8 @@ struct PgRestoreSidebarSheet: View {
                 detailPane
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            Divider()
-            footerBar
+        } footer: {
+            footerContent
         }
         .frame(minWidth: 640, minHeight: 480)
         .frame(idealWidth: 700, idealHeight: 540)

@@ -10,6 +10,10 @@ struct PostgresMaintenanceIndexes: View {
 
     @State private var selectedDefinition: String?
 
+    private var session: ConnectionSession? {
+        environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
+    }
+
     var body: some View {
         Group {
             if viewModel.isLoadingIndexes && viewModel.indexStats.isEmpty {
@@ -168,6 +172,7 @@ struct PostgresMaintenanceIndexes: View {
         } label: {
             Label("REINDEX\(countSuffix)", systemImage: "arrow.clockwise")
         }
+        .disabled(!(session?.permissions?.canVacuumFull ?? true))
 
         Button(role: .destructive) {
             runOnAll(indexes: indexes, operation: "Drop Index") { index in
@@ -201,7 +206,7 @@ struct PostgresMaintenanceIndexes: View {
                 Button("Done") {
                     selectedDefinition = nil
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.defaultAction)
             }
             .padding()

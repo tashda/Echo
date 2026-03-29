@@ -39,6 +39,7 @@ final class AppDirector {
     @ObservationIgnored let diagramCacheStore: DiagramCacheStore
     @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
     @ObservationIgnored let activityEngine: ActivityEngine
+    @ObservationIgnored let authState: AuthState
 #if os(macOS)
     @ObservationIgnored private nonisolated(unsafe) var windowFocusObservers: [NSObjectProtocol] = []
 #endif
@@ -85,6 +86,7 @@ final class AppDirector {
         self.diagramBuilder = DiagramBuilder(cacheManager: cacheManager, keyStore: keyStore)
 
         self.activityEngine = ActivityEngine()
+        self.authState = AuthState()
 
         self.environmentState = EnvironmentState(
             projectStore: projectStore,
@@ -156,6 +158,7 @@ final class AppDirector {
         }
 
         await environmentState.load()
+        await authState.restoreSession()
 
         isInitialized = true
         ensureInitialWorkspaceState()

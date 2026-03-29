@@ -105,7 +105,17 @@ struct AvailabilityGroupsView: View {
                 VStack(alignment: .leading, spacing: SpacingTokens.lg) {
                     AGGroupPicker(viewModel: viewModel)
                     AGReplicaSection(replicas: viewModel.replicas, detailState: viewModel.detailLoadingState)
-                    AGDatabaseSection(databases: viewModel.databases, detailState: viewModel.detailLoadingState)
+                    AGDatabaseSection(
+                        databases: viewModel.databases,
+                        detailState: viewModel.detailLoadingState,
+                        groupName: viewModel.selectedGroup?.name,
+                        onRemoveDatabase: { dbName in
+                            if let groupName = viewModel.selectedGroup?.name {
+                                Task { await viewModel.removeDatabase(groupName: groupName, databaseName: dbName) }
+                            }
+                        }
+                    )
+                    AGListenerSection(listeners: viewModel.listeners, detailState: viewModel.detailLoadingState)
                 }
                 .padding(SpacingTokens.lg)
             }

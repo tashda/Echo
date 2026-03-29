@@ -12,7 +12,7 @@ extension TableStructureEditorView {
                 } actions: {
                     Button("Add Index") {
                         let newIndex = viewModel.addIndex()
-                        activeIndexEditor = IndexEditorPresentation(indexID: newIndex.id)
+                        activeSheet = .index(IndexEditorPresentation(indexID: newIndex.id))
                     }
                 }
             } else {
@@ -26,7 +26,7 @@ extension TableStructureEditorView {
     }
 
     private var indexesTable: some View {
-        Table(of: TableStructureEditorViewModel.IndexModel.self, selection: $selectedIndexIDs) {
+        Table(activeIndexes, selection: $selectedIndexIDs) {
             TableColumn("Kind") { index in
                 Text(index.isUnique ? "UQ" : "IX")
                     .font(TypographyTokens.Table.kindBadge)
@@ -41,11 +41,11 @@ extension TableStructureEditorView {
             .width(min: 120, ideal: 200)
 
             TableColumn("Type") { index in
-                Text(indexTypeDisplay(index))
+                Text(index.indexType.lowercased())
                     .font(TypographyTokens.Table.category)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
-            .width(viewModel.databaseType == .microsoftSQL ? 100 : 60)
+            .width(min: 60, ideal: 100)
 
             TableColumn("Key Columns") { index in
                 Text(indexKeyColumns(index))
@@ -71,21 +71,17 @@ extension TableStructureEditorView {
                     .help(index.effectiveFilterCondition ?? "")
             }
             .width(min: 60, ideal: 120)
-        } rows: {
-            ForEach(activeIndexes) { index in
-                TableRow(index)
-            }
         }
         .contextMenu(forSelectionType: TableStructureEditorViewModel.IndexModel.ID.self) { selection in
             if selection.isEmpty {
                 Button("Add Index") {
                     let newIndex = viewModel.addIndex()
-                    activeIndexEditor = IndexEditorPresentation(indexID: newIndex.id)
+                    activeSheet = .index(IndexEditorPresentation(indexID: newIndex.id))
                 }
             } else if let indexID = selection.first,
                let index = activeIndexes.first(where: { $0.id == indexID }) {
                 Button("Edit Index") {
-                    activeIndexEditor = IndexEditorPresentation(indexID: index.id)
+                    activeSheet = .index(IndexEditorPresentation(indexID: index.id))
                 }
 
                 if !index.isNew {
@@ -102,12 +98,11 @@ extension TableStructureEditorView {
             }
         } primaryAction: { selection in
             if let indexID = selection.first {
-                activeIndexEditor = IndexEditorPresentation(indexID: indexID)
+                activeSheet = .index(IndexEditorPresentation(indexID: indexID))
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
-        .environment(\.defaultMinListRowHeight, 28)
     }
 
     private func rebuildIndex(_ index: TableStructureEditorViewModel.IndexModel) async {
@@ -117,16 +112,6 @@ extension TableStructureEditorView {
             environmentState.notificationEngine?.post(category: .indexRebuildFailed, message: error)
         } else {
             environmentState.notificationEngine?.post(category: .indexRebuilt, message: "Index \"\(index.name)\" rebuilt successfully")
-        }
-    }
-
-    private func indexTypeDisplay(_ index: TableStructureEditorViewModel.IndexModel) -> String {
-        if viewModel.databaseType == .microsoftSQL {
-            // MSSQL: "clustered", "nonclustered", etc.
-            return index.indexType.lowercased()
-        } else {
-            // PG: "btree", "gin", "gist", "brin", "hash"
-            return index.indexType.lowercased()
         }
     }
 

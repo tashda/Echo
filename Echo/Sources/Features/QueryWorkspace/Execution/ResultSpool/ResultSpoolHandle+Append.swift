@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 extension ResultSpoolHandle {
     func append(
@@ -15,18 +16,13 @@ extension ResultSpoolHandle {
         if !headerWritten {
             try writeHeader(columns: columns, using: writeHandle)
         }
-#if DEBUG
-        let appendStart = CFAbsoluteTimeGetCurrent()
         debugLog("append start rows=\(rows.count) encoded=\(encodedRows.count) rowRange=\(String(describing: rowRange))")
-#endif
 
         let startRow: Int
         if let range = rowRange {
             startRow = range.lowerBound
             if range.upperBound > metadata.totalRowCount {
-#if DEBUG
                 debugLog("append: updating totalRowCount from \(metadata.totalRowCount) to \(range.upperBound) (rowRange provided)")
-#endif
                 metadata.totalRowCount = range.upperBound
             }
         } else {
@@ -82,10 +78,7 @@ extension ResultSpoolHandle {
         totalBytesWritten += bytesWritten
         appendInMemoryRows(rows)
         persistStats(lastBatch: payloads.count, metrics: metrics, isFinished: false)
-#if DEBUG
-        let duration = CFAbsoluteTimeGetCurrent() - appendStart
-        debugLog("append finished batchCount=\(payloads.count) totalRowCount=\(metadata.totalRowCount) bytes=\(bytesWritten) duration=\(String(format: "%.3f", duration))")
-#endif
+        debugLog("append finished batchCount=\(payloads.count) totalRowCount=\(metadata.totalRowCount) bytes=\(bytesWritten)")
     }
 
     func bytesForPayload(_ payload: ResultBinaryRow) -> Int {
@@ -105,9 +98,7 @@ extension ResultSpoolHandle {
         persistMetadata()
         persistStats(lastBatch: 0, metrics: metrics, isFinished: true)
         try writeHandle?.synchronize()
-#if DEBUG
         debugLog("markFinished commandTag=\(String(describing: commandTag)) totalRowCount=\(metadata.totalRowCount)")
-#endif
     }
 
     func writeHeader(columns: [ColumnInfo], using handle: FileHandle) throws {
@@ -142,7 +133,7 @@ extension ResultSpoolHandle {
                 }
                 try data.write(to: metaURL, options: .atomic)
             } catch {
-                print("ResultSpoolHandle: Failed to persist metadata \(error)")
+                Logger.spool.error("Failed to persist metadata: \(error)")
             }
         }
     }

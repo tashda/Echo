@@ -25,15 +25,28 @@ struct BulkColumnEditorSheet: View {
     @State internal var selectedPresetType: String? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: "Edit Columns") {
             contentForm
+        } footer: {
+            Spacer()
 
-            Divider()
+            Button("Cancel") { onCancel() }
+                .keyboardShortcut(.cancelAction)
 
-            toolbar
+            if canApply {
+                Button("Apply") {
+                    applyChanges()
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.bordered)
+            } else {
+                Button("Apply") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
         .frame(minWidth: 360, idealWidth: 420, minHeight: formHeight)
-        .navigationTitle("Edit Columns")
     }
 
     private var contentForm: some View {
@@ -77,27 +90,8 @@ struct BulkColumnEditorSheet: View {
 
     @ViewBuilder
     var dataTypePicker: some View {
-        Picker("", selection: presetTypeBinding) {
-            ForEach(dataTypeOptions(for: databaseType), id: \.self) { option in
-                Text(option).tag(Optional(option))
-            }
-            Text("Custom").tag(Optional<String>.none)
-        }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .frame(maxWidth: 180, alignment: .trailing)
-    }
-
-    var presetTypeBinding: Binding<String?> {
-        Binding(
-            get: { selectedPresetType },
-            set: { newValue in
-                selectedPresetType = newValue
-                if let preset = newValue {
-                    dataType = preset
-                }
-            }
-        )
+        DataTypePicker(selection: $dataType, databaseType: databaseType)
+            .frame(maxWidth: 240, alignment: .trailing)
     }
 
     func inlineField(text: Binding<String>, alignment: TextAlignment, prompt: Text? = nil) -> some View {

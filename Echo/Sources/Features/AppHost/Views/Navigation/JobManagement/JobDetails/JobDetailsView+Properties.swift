@@ -104,7 +104,7 @@ extension JobDetailsView {
                                 }
                             }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.bordered)
                     }
                 }
             }

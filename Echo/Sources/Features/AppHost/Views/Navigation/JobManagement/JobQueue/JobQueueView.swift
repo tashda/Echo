@@ -18,7 +18,24 @@ struct JobQueueView: View {
         tabStore.tabs.first { $0.jobQueue === viewModel }
     }
 
+    private var canViewJobs: Bool {
+        connectionSession?.permissions?.canViewAgentJobs ?? true
+    }
+
+    private var canManageJobs: Bool {
+        connectionSession?.permissions?.canManageAgent ?? true
+    }
+
     var body: some View {
+        VStack(spacing: 0) {
+        if !canViewJobs {
+            PermissionBanner(
+                message: "You do not have permission to view SQL Agent jobs. This requires membership in SQLAgentUserRole or a higher role.",
+                severity: .noAccess
+            )
+        } else if !canManageJobs {
+            PermissionBanner(message: "Job management requires the sysadmin or SQLAgentOperatorRole role.")
+        }
         NativeSplitView(
             isVertical: false,
             firstMinFraction: 0.30,
@@ -34,6 +51,7 @@ struct JobQueueView: View {
                 JobListView(
                     viewModel: viewModel,
                     notificationEngine: environmentState.notificationEngine,
+                    permissions: connectionSession?.permissions,
                     onNewJob: { showNewJobSheet = true }
                 )
             } second: {
@@ -62,6 +80,9 @@ struct JobQueueView: View {
                 viewModel.selectedHistoryRowID = nil
             }
         }
+        .onDisappear {
+            viewModel.stopActivityPolling()
+        }
         .sheet(isPresented: $showNewJobSheet) {
             if let session = connectionSession {
                 NewAgentJobSheet(session: session, environmentState: environmentState) {
@@ -70,6 +91,7 @@ struct JobQueueView: View {
                 }
             }
         }
+        } // VStack
     }
 
     private var connectionSession: ConnectionSession? {
