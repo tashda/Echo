@@ -65,6 +65,9 @@
             reference = "container:PostgresCompatibilityTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
+            reference = "container:SQLiteIntegrationTests.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
             reference = "container:EchoUITests.xctestplan">
          </TestPlanReference>
       </TestPlans>
