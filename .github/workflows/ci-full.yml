@@ -57,7 +57,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-unit \
           -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES ENABLE_HARDENED_RUNTIME=NO
 
     - name: Run SQLite Integration Tests
       run: |
@@ -66,7 +66,7 @@ jobs:
           -scheme Echo -testPlan SQLiteIntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-sqlite \
-          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES ENABLE_HARDENED_RUNTIME=NO
 
     - name: Upload Unit Test Results
       if: always()
@@ -136,7 +136,7 @@ jobs:
         xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
           MARKETING_VERSION=${{ steps.version.outputs.full }} \
           CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
-          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES ENABLE_HARDENED_RUNTIME=NO
     - name: Package
       run: |
         mkdir -p release
