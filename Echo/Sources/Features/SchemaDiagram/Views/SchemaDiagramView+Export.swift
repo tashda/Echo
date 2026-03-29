@@ -50,7 +50,7 @@ extension SchemaDiagramView {
         case .pdf:
             guard let pdfData = renderDiagramToPDF() else { return }
             try? pdfData.write(to: url)
-        case .htmlDocumentation, .markdownDocumentation, .textDocumentation:
+        case .htmlDocumentation, .markdownDocumentation, .textDocumentation, .sql:
             let content = SchemaDiagramDocumentationExporter.export(
                 title: viewModel.title,
                 nodes: viewModel.nodes,
@@ -278,6 +278,7 @@ private final class PDFPrintView: NSView {
 enum DiagramExportFormat {
     case png
     case pdf
+    case sql
     case htmlDocumentation
     case markdownDocumentation
     case textDocumentation
@@ -286,6 +287,7 @@ enum DiagramExportFormat {
         switch self {
         case .png: "png"
         case .pdf: "pdf"
+        case .sql: "sql"
         case .htmlDocumentation: "html"
         case .markdownDocumentation: "md"
         case .textDocumentation: "txt"
@@ -296,6 +298,7 @@ enum DiagramExportFormat {
         switch self {
         case .png: [.png]
         case .pdf: [.pdf]
+        case .sql: [.plainText]
         case .htmlDocumentation: [.html]
         case .markdownDocumentation: [.plainText]
         case .textDocumentation: [.plainText]

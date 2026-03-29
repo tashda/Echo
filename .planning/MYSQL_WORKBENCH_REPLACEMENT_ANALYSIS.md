@@ -494,7 +494,7 @@ The shared Echo import/export flow now includes JSON export, JSON import, SQL IN
 The remaining goal is no longer to declare whole Workbench surfaces out of scope. The work that remains is the set of parity areas not yet implemented in Echo:
 
 - full server-management parity including broader remote-control workflows and richer administration around client connections beyond the now-implemented local start, stop, and restart controls
-- modeling and engineering parity, including EER-style design flows, forward/reverse engineering, and synchronization workflows that go beyond the current schema diff implementation
+- modeling and engineering parity, including fuller EER-style design flows, reverse engineering, and synchronization workflows that go beyond the now-implemented schema documentation and forward-engineering SQL exports
 - migration and interoperability tooling that Workbench exposes as dedicated wizards
 - the remaining niche utilities and generation workflows that still require a user to keep Workbench installed
 

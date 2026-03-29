@@ -32,6 +32,8 @@ extension SchemaDiagramView {
                 Button("Export as PNG") { exportDiagram(as: .png) }
                 Button("Export as PDF") { exportDiagram(as: .pdf) }
                 Divider()
+                Button("Export Forward Engineering SQL") { exportDiagram(as: .sql) }
+                Divider()
                 Button("Export Documentation as HTML") { exportDiagram(as: .htmlDocumentation) }
                 Button("Export Documentation as Markdown") { exportDiagram(as: .markdownDocumentation) }
                 Button("Export Documentation as Text") { exportDiagram(as: .textDocumentation) }

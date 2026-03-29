@@ -21,6 +21,8 @@ enum SchemaDiagramDocumentationExporter {
             return renderMarkdown(document: document)
         case .textDocumentation:
             return renderText(document: document)
+        case .sql:
+            return SchemaDiagramForwardSQLExporter.export(title: title, nodes: nodes, edges: edges)
         case .png, .pdf:
             return ""
         }
