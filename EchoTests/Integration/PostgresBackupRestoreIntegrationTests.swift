@@ -27,6 +27,10 @@ struct PostgresBackupRestoreIntegrationTests {
     }
 
     private func loadConfig() throws -> PGConfig {
+        // Skip unless running against a real database (self-hosted CI or explicit config)
+        let hasDockerEnv = echoTestEnv("USE_DOCKER") != nil
+        let hasExplicitHost = echoTestEnv("TEST_PG_HOST") != nil || echoTestEnv("ECHO_PG_HOST") != nil
+        try #require(hasDockerEnv || hasExplicitHost, "Skipping: no Postgres fixture configured")
         let host = echoTestEnv("TEST_PG_HOST") ?? echoTestEnv("ECHO_PG_HOST") ?? "127.0.0.1"
         let portValue = echoTestEnv("TEST_PG_PORT") ?? echoTestEnv("ECHO_PG_PORT") ?? "54322"
         let database = echoTestEnv("TEST_PG_BACKUP_DATABASE")
