@@ -107,6 +107,8 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
             return ("tablecells.badge.ellipsis", "Ready", ColorTokens.Text.secondary)
         }
         return ("tablecells.badge.ellipsis", "Ready", ColorTokens.Text.secondary)
+    case .queryBuilder:
+        return ("hammer", "Ready", ColorTokens.Text.secondary)
     }
 }
 
@@ -143,7 +145,7 @@ extension TabPreviewCard {
             return []
         case .availabilityGroups:
             return []
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff, .queryBuilder:
             return []
         case .errorLog:
             return []
@@ -286,6 +288,8 @@ extension TabPreviewCard {
             return "Advanced Objects"
         case .schemaDiff:
             return "Schema Diff"
+        case .queryBuilder:
+            return "Query Builder"
         }
     }
 }

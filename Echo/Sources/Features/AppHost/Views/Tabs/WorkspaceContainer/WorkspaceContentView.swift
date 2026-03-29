@@ -104,6 +104,11 @@ struct WorkspaceContentView: View {
                 SchemaDiffView(viewModel: vm, panelState: tab.panelState)
                     .background(ColorTokens.Background.primary)
             }
+        case .queryBuilder:
+            if let vm = tab.queryBuilderVM {
+                VisualQueryBuilderView(viewModel: vm)
+                    .background(ColorTokens.Background.primary)
+            }
         case .serverSecurity:
             ServerSecurityView(tab: tab).background(ColorTokens.Background.primary)
         case .errorLog:

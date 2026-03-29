@@ -45,6 +45,7 @@ extension WorkspaceTab.Kind {
         case .policyManagement: return "Policy Management"
         case .tableData: return "Table Data"
         case .schemaDiff: return "Schema Diff"
+        case .queryBuilder: return "Query Builder"
         }
     }
 
@@ -71,6 +72,7 @@ extension WorkspaceTab.Kind {
         case .policyManagement: return "checkmark.seal"
         case .tableData: return "tablecells.badge.ellipsis"
         case .schemaDiff: return "doc.on.doc"
+        case .queryBuilder: return "hammer"
         }
     }
 }

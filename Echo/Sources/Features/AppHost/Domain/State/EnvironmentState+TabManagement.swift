@@ -353,6 +353,12 @@ extension EnvironmentState {
         return sessionID
     }
 
+    func openQueryBuilderTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addQueryBuilderTab()
+        registerTab(tab)
+    }
+
     func openTableDataTab(for session: ConnectionSession, schema: String, table: String, databaseName: String? = nil) {
         let tab = session.addTableDataTab(schema: schema, table: table, databaseName: databaseName)
         registerTab(tab)

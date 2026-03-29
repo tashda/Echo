@@ -38,7 +38,7 @@ extension CompactTabPreviewCard {
             return []
         case .availabilityGroups:
             return []
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff, .queryBuilder:
             return []
         case .errorLog:
             return []
@@ -106,6 +106,8 @@ extension CompactTabPreviewCard {
             return "Policy Management"
         case .tableData:
             return "Table Data"
+        case .queryBuilder:
+            return "Query Builder"
         }
         }
 
@@ -166,6 +168,8 @@ extension CompactTabPreviewCard {
                 return "\(vm.schemaName).\(vm.tableName)"
             }
             return "Table data viewer"
+        case .queryBuilder:
+            return "Visual query construction"
         }
         }
 

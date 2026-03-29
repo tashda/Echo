@@ -225,6 +225,8 @@ struct TabPreviewCard: View {
             TableDataTabPreview(viewModel: tab.tableDataVM)
         case .schemaDiff:
             EmptyPreviewPlaceholder(message: "Schema Diff")
+        case .queryBuilder:
+            EmptyPreviewPlaceholder(message: "Visual Query Builder")
         }
     }
 }

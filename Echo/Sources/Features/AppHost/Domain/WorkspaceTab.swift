@@ -49,6 +49,7 @@ final class WorkspaceTab: Identifiable {
         case tableData
         case postgresAdvancedObjects
         case schemaDiff
+        case queryBuilder
     }
 
     enum Content {
@@ -78,6 +79,7 @@ final class WorkspaceTab: Identifiable {
         case tableData(TableDataViewModel)
         case postgresAdvancedObjects(PostgresAdvancedObjectsViewModel)
         case schemaDiff(SchemaDiffViewModel)
+        case queryBuilder(VisualQueryBuilderViewModel)
     }
 
     let id = UUID()
@@ -230,6 +232,7 @@ final class WorkspaceTab: Identifiable {
         case .tableData: return .tableData
         case .postgresAdvancedObjects: return .postgresAdvancedObjects
         case .schemaDiff: return .schemaDiff
+        case .queryBuilder: return .queryBuilder
         }
     }
 
@@ -363,6 +366,11 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var queryBuilderVM: VisualQueryBuilderViewModel? {
+        if case .queryBuilder(let vm) = content { return vm }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         setupRowCountRefreshHandler()
@@ -397,7 +405,7 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .availabilityGroups(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff, .queryBuilder:
             return baseOverhead + 256 * 1024
         case .errorLog:
             return baseOverhead + 256 * 1024

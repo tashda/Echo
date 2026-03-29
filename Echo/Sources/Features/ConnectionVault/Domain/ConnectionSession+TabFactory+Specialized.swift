@@ -352,6 +352,27 @@ extension ConnectionSession {
         return tab
     }
 
+    // MARK: - Visual Query Builder
+
+    @discardableResult
+    func addQueryBuilderTab() -> WorkspaceTab {
+        let viewModel = VisualQueryBuilderViewModel(
+            databaseType: connection.databaseType,
+            session: session
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Query Builder",
+            content: .queryBuilder(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
     // MARK: - Security Tabs
 
     @discardableResult

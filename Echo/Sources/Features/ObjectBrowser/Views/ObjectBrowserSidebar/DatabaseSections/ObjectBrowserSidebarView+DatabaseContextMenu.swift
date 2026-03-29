@@ -158,6 +158,9 @@ func buildDatabaseNSMenu(
                     sheetState.dataMigrationConnectionID = connID
                     sheetState.showDataMigrationWizard = true
                 }
+                sub.addActionItem("Visual Query Builder", systemImage: "hammer") {
+                    environmentState.openQueryBuilderTab(connectionID: connID)
+                }
                 sub.addDivider()
                 sub.addActionItem("Data-tier Application Tasks...", systemImage: "archivebox") {
                     sheetState.dacWizardDatabaseName = database.name
@@ -424,6 +427,12 @@ extension ObjectBrowserSidebarView {
                         sheetState.showDataMigrationWizard = true
                     } label: {
                         Label("Migrate Data...", systemImage: "arrow.right.arrow.left")
+                    }
+
+                    Button {
+                        environmentState.openQueryBuilderTab(connectionID: connID)
+                    } label: {
+                        Label("Visual Query Builder", systemImage: "hammer")
                     }
 
                     Divider()
