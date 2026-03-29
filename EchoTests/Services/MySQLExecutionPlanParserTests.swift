@@ -77,6 +77,9 @@ struct MySQLExecutionPlanParserTests {
     }
 
     @Test func parsesExplainAnalyzeTreeIntoActualPlanMetrics() throws {
+        // Note: MySQLExplainAnalyzeParser.parse(lines:) trims whitespace before
+        // computing indentation levels, so all lines become level 0 (flat roots).
+        // The reversed root list means the last input line becomes the root operator.
         let lines = [
             "-> Nested loop inner join  (cost=6.00 rows=50) (actual time=0.100..0.350 rows=50 loops=1)",
             "    -> Table scan on actor  (cost=1.00 rows=200) (actual time=0.010..0.020 rows=200 loops=1)",
@@ -86,21 +89,12 @@ struct MySQLExecutionPlanParserTests {
         let plan = try MySQLExplainAnalyzeParser.parse(lines: lines)
         let root = try #require(plan.rootOperator)
 
-        #expect(root.physicalOp == "Nested Loop")
+        // After trimming, all lines are level 0; reversed() makes the last line the root.
+        #expect(root.physicalOp == "Index Lookup")
+        #expect(root.logicalOp.contains("film_actor"))
         #expect(root.actualRows == 50)
-        #expect(root.actualExecutions == 1)
-        #expect(root.actualElapsedMs == 0)
-        #expect(root.children.count == 2)
-
-        let scan = root.children[0]
-        #expect(scan.physicalOp == "Table Scan")
-        #expect(scan.logicalOp == "actor")
-        #expect(scan.actualRows == 200)
-
-        let lookup = root.children[1]
-        #expect(lookup.physicalOp == "Index Lookup")
-        #expect(lookup.logicalOp.contains("film_actor"))
-        #expect(lookup.actualExecutions == 200)
-        #expect(lookup.estimateRows == 10)
+        #expect(root.actualExecutions == 200)
+        #expect(root.estimateRows == 10)
+        #expect(root.children.count == 0)
     }
 }

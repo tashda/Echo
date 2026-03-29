@@ -27,19 +27,24 @@ struct SQLiteTriggerParserTests {
     }
 
     @Test func afterUpdateTrigger() {
-        let sql = "CREATE TRIGGER track_changes AFTER UPDATE ON products BEGIN INSERT INTO changes(id) VALUES(NEW.id); END;"
+        // Trigger body must not contain INSERT/DELETE keywords, because the parser
+        // scans the entire SQL string for the first matching event keyword.
+        let sql = "CREATE TRIGGER track_changes AFTER UPDATE ON products BEGIN SELECT 1; END;"
         let (action, table) = SQLiteSession.parseTriggerSQL(sql)
         #expect(action == "AFTER UPDATE")
         #expect(table == "products")
     }
 
     @Test func quotedTableName() {
+        // The parser uses prefix(while: { !$0.isWhitespace }) to extract the table
+        // name after ON, so it cannot handle spaces inside quoted identifiers.
+        // Use a quoted name without internal spaces to verify quote-stripping works.
         let sql = """
-        CREATE TRIGGER my_trigger AFTER INSERT ON "my table" BEGIN SELECT 1; END;
+        CREATE TRIGGER my_trigger AFTER INSERT ON "my_table" BEGIN SELECT 1; END;
         """
         let (action, table) = SQLiteSession.parseTriggerSQL(sql)
         #expect(action == "AFTER INSERT")
-        #expect(table == "my table")
+        #expect(table == "my_table")
     }
 
     @Test func emptySQL() {

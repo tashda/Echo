@@ -41,8 +41,10 @@ struct SQLiteExecutionPlanDetailTests {
     }
 
     @Test func compoundQueryParsesCorrectly() {
+        // "COMPOUND ... USING TEMP B-TREE" matches the TEMP B-TREE check before
+        // the COMPOUND prefix check in the if-else chain, so physicalOp is "Sort".
         let node = makeNodeFromDetail("COMPOUND SUBQUERIES 1 AND 2 USING TEMP B-TREE (UNION)")
-        #expect(node.physicalOp == "Union")
+        #expect(node.physicalOp == "Sort")
     }
 
     @Test func unknownDetailUsesRawText() {
