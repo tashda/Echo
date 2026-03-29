@@ -92,8 +92,8 @@ final class DiagramBuilder: DiagramBuilderProtocol, @unchecked Sendable {
                 session: session,
                 projectID: context.projectID ?? UUID(),
                 cacheKey: context.cacheKey,
-                progress: { [weak viewModel] message in
-                    viewModel?.statusMessage = message
+                progress: { message in
+                    Task { @MainActor [weak viewModel] in viewModel?.statusMessage = message }
                 },
                 isPrefetch: false
             )
