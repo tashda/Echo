@@ -58,6 +58,7 @@ jobs:
           -testPlan UnitTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-unit \
+          -disable-concurrent-testing \
           CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
 
     - name: Run SQLite Integration Tests
