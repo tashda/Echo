@@ -5,52 +5,58 @@ import Testing
 @Suite("DiagramPrefetcher")
 struct DiagramPrefetcherTests {
 
+    /// Thread-safe accumulator for test assertions.
+    private final class Accumulator<T: Sendable>: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _values: [T] = []
+        var values: [T] { lock.withLock { _values } }
+        var count: Int { lock.withLock { _values.count } }
+        func append(_ value: T) { lock.withLock { _values.append(value) } }
+    }
+
     @Test func handlerIsCalledForEnqueuedRequests() async {
         let prefetcher = DiagramPrefetcher()
-        var processedRequests: [DiagramPrefetcher.Request] = []
+        let processed = Accumulator<DiagramPrefetcher.Request>()
 
         let request = makeRequest(schema: "public", table: "users")
 
         await prefetcher.setHandler { req in
-            processedRequests.append(req)
+            processed.append(req)
             return true
         }
 
         await prefetcher.enqueue(request)
-        // Give the internal Task time to process
         try? await Task.sleep(for: .milliseconds(100))
 
-        #expect(processedRequests.count == 1)
-        #expect(processedRequests.first?.cacheKey.table == "users")
+        #expect(processed.count == 1)
+        #expect(processed.values.first?.cacheKey.table == "users")
     }
 
     @Test func requestsQueuedBeforeHandlerAreProcessed() async {
         let prefetcher = DiagramPrefetcher()
-        var processedCount = 0
+        let processed = Accumulator<String>()
 
         let request = makeRequest(schema: "public", table: "orders")
 
-        // Enqueue BEFORE setting handler
         await prefetcher.enqueue(request)
 
-        // Now set handler — should drain the queue
         await prefetcher.setHandler { _ in
-            processedCount += 1
+            processed.append("done")
             return true
         }
 
         try? await Task.sleep(for: .milliseconds(200))
-        #expect(processedCount == 1)
+        #expect(processed.count == 1)
     }
 
     @Test func duplicateRequestsAreIgnored() async {
         let prefetcher = DiagramPrefetcher()
-        var processedCount = 0
+        let processed = Accumulator<String>()
 
         let request = makeRequest(schema: "public", table: "products")
 
         await prefetcher.setHandler { _ in
-            processedCount += 1
+            processed.append("done")
             return true
         }
 
@@ -58,41 +64,37 @@ struct DiagramPrefetcherTests {
         await prefetcher.enqueue(request) // duplicate
 
         try? await Task.sleep(for: .milliseconds(200))
-        #expect(processedCount == 1)
+        #expect(processed.count == 1)
     }
 
     @Test func cancelAllClearsQueue() async {
         let prefetcher = DiagramPrefetcher()
-        var processedCount = 0
+        let processed = Accumulator<String>()
 
         let request1 = makeRequest(schema: "public", table: "a")
         let request2 = makeRequest(schema: "public", table: "b")
 
-        // Enqueue without handler
         await prefetcher.enqueue(request1)
         await prefetcher.enqueue(request2)
 
-        // Cancel all
         await prefetcher.cancelAll()
 
-        // Set handler — queue should be empty
         await prefetcher.setHandler { _ in
-            processedCount += 1
+            processed.append("done")
             return true
         }
 
         try? await Task.sleep(for: .milliseconds(100))
-        #expect(processedCount == 0)
+        #expect(processed.count == 0)
     }
 
     @Test func prioritizedRequestProcessedFirst() async {
         let prefetcher = DiagramPrefetcher()
-        var processedOrder: [String] = []
+        let processedOrder = Accumulator<String>()
 
         let request1 = makeRequest(schema: "public", table: "first")
         let request2 = makeRequest(schema: "public", table: "priority")
 
-        // Enqueue without handler to accumulate
         await prefetcher.enqueue(request1)
         await prefetcher.enqueue(request2, prioritize: true)
 
@@ -102,7 +104,7 @@ struct DiagramPrefetcherTests {
         }
 
         try? await Task.sleep(for: .milliseconds(300))
-        #expect(processedOrder.first == "priority")
+        #expect(processedOrder.values.first == "priority")
     }
 
     // MARK: - Helpers

@@ -19,15 +19,17 @@ extension ServerEditorViewModel {
             async let systemTask = serverConfig.fetchSystemInfo()
             async let securityTask = serverConfig.fetchSecuritySettings()
             async let configsTask = serverConfig.listConfigurations(showAdvanced: true)
+            async let startupTask = serverConfig.fetchStartupParameters()
 
-            let (info, system, security, configs) = try await (
-                infoTask, systemTask, securityTask, configsTask
+            let (info, system, security, configs, startup) = try await (
+                infoTask, systemTask, securityTask, configsTask, startupTask
             )
 
             serverInfo = info
             systemInfo = system
             securitySettings = security
             configurations = configs
+            startupParameters = startup
             isLoading = false
         } catch {
             let raw = error.localizedDescription

@@ -165,7 +165,7 @@ extension TableDataViewModel {
             guard let colIndex = columns.firstIndex(where: { $0.name == pkCol }) else { return nil }
             let colName = quoteIdentifier(pkCol)
             if let value = row[colIndex] {
-                return "\(colName) = \(escapeSQLValue(value))"
+                return "\(colName) = \(renderSQLValue(value, mode: .literal))"
             } else {
                 return "\(colName) IS NULL"
             }

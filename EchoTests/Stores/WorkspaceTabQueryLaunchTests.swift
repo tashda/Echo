@@ -8,7 +8,7 @@ struct WorkspaceTabQueryLaunchTests {
     @Test func configureQueryLaunchEnablesAutoExecution() throws {
         let tab = makeQueryTab()
 
-        try #require(tab.query).configureQueryLaunch(autoExecute: true)
+        tab.configureQueryLaunch(autoExecute: true)
 
         #expect(tab.query?.shouldAutoExecuteOnAppear == true)
     }
@@ -16,7 +16,7 @@ struct WorkspaceTabQueryLaunchTests {
     @Test func configureQueryLaunchLeavesAutoExecutionDisabledWhenRequested() throws {
         let tab = makeQueryTab()
 
-        try #require(tab.query).configureQueryLaunch(autoExecute: false)
+        tab.configureQueryLaunch(autoExecute: false)
 
         #expect(tab.query?.shouldAutoExecuteOnAppear == false)
     }

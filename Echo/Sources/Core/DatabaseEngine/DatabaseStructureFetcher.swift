@@ -174,6 +174,108 @@ public struct PostgresStructureFetcher: DatabaseStructureFetcher {
     }
 }
 
+/// SQLite implementation of DatabaseStructureFetcher
+public struct SQLiteStructureFetcher: DatabaseStructureFetcher {
+    private let session: DatabaseSession
+
+    init(session: DatabaseSession) {
+        self.session = session
+    }
+
+    func fetchStructure(
+        for connection: SavedConnection,
+        credentials: ConnectionCredentials,
+        selectedDatabase: String?,
+        reuseSession: DatabaseSession?,
+        databaseFilter: String?,
+        cachedStructure: DatabaseStructure?,
+        progressHandler: @escaping (Progress) async -> Void,
+        databaseHandler: @escaping (DatabaseInfo, String, String) async -> Void
+    ) async throws -> DatabaseStructure {
+
+        await progressHandler(Progress(fraction: 0.0, message: "Starting SQLite structure fetch"))
+
+        // List all attached databases
+        let databases: [String]
+        do {
+            databases = try await session.listDatabases()
+        } catch {
+            structureLogger.warning("SQLite: failed to list databases: \(error.localizedDescription)")
+            databases = ["main"]
+        }
+
+        let targetDatabases: [String]
+        if let selected = selectedDatabase, !selected.isEmpty {
+            targetDatabases = [selected]
+        } else {
+            targetDatabases = databases
+        }
+
+        await progressHandler(Progress(fraction: 0.1, message: "Loading schemas"))
+
+        var echoDatabases: [DatabaseInfo] = []
+
+        for (index, dbName) in targetDatabases.enumerated() {
+            let progressFraction = 0.1 + (Double(index + 1) / Double(targetDatabases.count)) * 0.8
+            await progressHandler(Progress(fraction: progressFraction, message: "Loading: \(dbName)"))
+
+            var schemaInfos: [SchemaInfo] = []
+
+            if let metadataSession = session as? DatabaseMetadataSession {
+                do {
+                    let schemaInfo = try await metadataSession.loadSchemaInfo(dbName, progress: nil)
+                    if !schemaInfo.objects.isEmpty {
+                        schemaInfos.append(schemaInfo)
+                    }
+                } catch {
+                    structureLogger.warning("SQLite: failed to load schema for '\(dbName)': \(error)")
+                }
+            } else {
+                // Fallback: load tables and views only
+                do {
+                    let objects = try await session.listTablesAndViews(schema: dbName)
+                    if !objects.isEmpty {
+                        schemaInfos.append(SchemaInfo(name: dbName, objects: objects))
+                    }
+                } catch {
+                    structureLogger.warning("SQLite: failed to load objects for '\(dbName)': \(error)")
+                }
+            }
+
+            let databaseInfo = DatabaseInfo(
+                name: dbName,
+                schemas: schemaInfos,
+                schemaCount: schemaInfos.count
+            )
+
+            echoDatabases.append(databaseInfo)
+            await databaseHandler(databaseInfo, dbName, "SQLite")
+        }
+
+        // Add empty entries for databases not in target list
+        let loadedNames = Set(echoDatabases.map(\.name))
+        for dbName in databases where !loadedNames.contains(dbName) {
+            echoDatabases.append(DatabaseInfo(name: dbName, schemas: [], schemaCount: 0))
+        }
+
+        await progressHandler(Progress(fraction: 1.0, message: "SQLite structure fetch completed"))
+
+        let versionString: String
+        do {
+            let result = try await session.simpleQuery("SELECT sqlite_version()")
+            let version = result.rows.first?.first.flatMap { $0 } ?? "?"
+            versionString = "SQLite \(version)"
+        } catch {
+            versionString = "SQLite"
+        }
+
+        return DatabaseStructure(
+            serverVersion: versionString,
+            databases: echoDatabases
+        )
+    }
+}
+
 /// Microsoft SQL Server implementation of DatabaseStructureFetcher
 public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
     private let session: DatabaseSession
@@ -238,9 +340,10 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
                 structureLogger.warning("SQL Server: failed to fetch server version: \(error)")
             }
 
-            for db in databases {
-                await databaseHandler(db, db.name, versionString)
-            }
+            // Skip per-database handler calls for the initial list-only load.
+            // The full database list is returned in the DatabaseStructure below.
+            // Calling databaseHandler 245 times with `await` creates 245 MainActor
+            // suspension points that interleave with SwiftUI rendering, causing lag.
 
             await progressHandler(Progress(fraction: 1.0, message: "SQL Server structure fetch completed"))
             return DatabaseStructure(

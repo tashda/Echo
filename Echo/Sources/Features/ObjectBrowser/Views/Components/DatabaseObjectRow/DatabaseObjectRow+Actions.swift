@@ -114,6 +114,59 @@ extension DatabaseObjectRow {
         openWindow(id: TablePropertiesWindow.sceneID, value: value)
     }
 
+    internal func openPgObjectProperties() {
+        switch object.type {
+        case .trigger:
+            let tableName = object.triggerTable ?? ""
+            let value = environmentState.prepareTriggerEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                tableName: tableName,
+                existingTrigger: object.name
+            )
+            openWindow(id: TriggerEditorWindow.sceneID, value: value)
+
+        case .view:
+            let value = environmentState.prepareViewEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                existingView: object.name,
+                isMaterialized: false
+            )
+            openWindow(id: ViewEditorWindow.sceneID, value: value)
+
+        case .materializedView:
+            let value = environmentState.prepareViewEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                existingView: object.name,
+                isMaterialized: true
+            )
+            openWindow(id: ViewEditorWindow.sceneID, value: value)
+
+        case .sequence:
+            let value = environmentState.prepareSequenceEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                existingSequence: object.name
+            )
+            openWindow(id: SequenceEditorWindow.sceneID, value: value)
+
+        case .type:
+            // Default to composite; the TypeEditorWindow will detect the actual category on load
+            let value = environmentState.prepareTypeEditorWindow(
+                connectionSessionID: connection.id,
+                schemaName: object.schema,
+                existingType: object.name,
+                typeCategory: .composite
+            )
+            openWindow(id: TypeEditorWindow.sceneID, value: value)
+
+        default:
+            break
+        }
+    }
+
     internal func openTablePropertiesQuery() {
         guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let schema = object.schema

@@ -2,6 +2,14 @@ import Foundation
 import XCTest
 @testable import Echo
 
+/// Thread-safe boolean flag for cross-isolation use in tests.
+private final class AtomicFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _value = false
+    var value: Bool { lock.withLock { _value } }
+    func set() { lock.withLock { _value = true } }
+}
+
 /// Runs streaming benchmarks against a live Postgres database when connection
 /// credentials are supplied via environment variables. Skips automatically when
 /// no credentials are provided so CI/local runs stay green.
@@ -139,7 +147,7 @@ final class PostgresStreamingBenchmarkTests: XCTestCase {
         let initialBatchTarget = 500
         let tracker = QueryPerformanceTracker(initialBatchTarget: initialBatchTarget)
         tracker.markQueryDispatched()
-        var didRecordInitialBatch = false
+        let initialBatchFlag = AtomicFlag()
 
         let start = CFAbsoluteTimeGetCurrent()
 
@@ -152,11 +160,11 @@ final class PostgresStreamingBenchmarkTests: XCTestCase {
                 if let metrics = update.metrics {
                     tracker.recordBackendMetrics(metrics)
                 }
-                if !didRecordInitialBatch, update.totalRowCount >= initialBatchTarget {
+                if !initialBatchFlag.value, update.totalRowCount >= initialBatchTarget {
                     tracker.recordInitialBatchReady(totalRowCount: update.totalRowCount)
                     tracker.recordVisibleInitialLimitSatisfied()
                     tracker.recordTableReload()
-                    didRecordInitialBatch = true
+                    initialBatchFlag.set()
                 }
             }
         }

@@ -13,6 +13,7 @@ final class ServerEditorViewModel {
     var systemInfo: SQLServerSystemInfo?
     var securitySettings: SQLServerSecuritySettings?
     var configurations: [SQLServerConfigurationOption] = []
+    var startupParameters: [String] = []
 
     // MARK: - Pending Changes
 

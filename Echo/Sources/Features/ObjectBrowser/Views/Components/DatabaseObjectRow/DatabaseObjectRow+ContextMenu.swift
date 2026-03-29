@@ -406,6 +406,19 @@ extension DatabaseObjectRow {
             )
         }
 
+        let pgEditableTypes: Set<SchemaObjectInfo.ObjectType> = [.trigger, .view, .materializedView, .sequence, .type]
+        if connection.databaseType == .postgresql && pgEditableTypes.contains(object.type) {
+            items.append(
+                ContextMenuActionItem(
+                    id: "pgObjectProperties",
+                    title: "Properties",
+                    systemImage: "info.circle",
+                    role: nil,
+                    action: { openPgObjectProperties() }
+                )
+            )
+        }
+
         return items
     }
 

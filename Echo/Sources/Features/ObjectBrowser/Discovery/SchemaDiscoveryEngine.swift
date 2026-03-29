@@ -18,10 +18,13 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
     func startStructureLoadTask(for session: ConnectionSession) {
         session.structureLoadTask?.cancel()
+        let taskCreatedAt = CFAbsoluteTimeGetCurrent()
+        print("[PERF] startStructureLoadTask: Task created")
         session.structureLoadTask = Task { @MainActor [weak self, weak session] in
             guard let self, let session else { return }
             defer { session.structureLoadTask = nil }
-            
+            print("[PERF] startStructureLoadTask: Task STARTED executing after \(String(format: "%.3f", CFAbsoluteTimeGetCurrent() - taskCreatedAt))s")
+
             ConnectionDebug.log("[SchemaDiscovery] Starting structure load for \(session.connection.connectionName)")
             
             do {
@@ -40,6 +43,8 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
     }
 
     func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {
+        let sessionStart = CFAbsoluteTimeGetCurrent()
+        print("[PERF] initialLoad: loadDatabaseStructureForSession started")
         connectionSession.structureLoadingState = .loading(progress: 0)
         connectionSession.structureLoadingMessage = "Preparing update…"
 
@@ -69,6 +74,8 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
         }
 
         try Task.checkCancellation()
+        let fetchStart = CFAbsoluteTimeGetCurrent()
+        print("[PERF] initialLoad: calling fetchStructure at +\(String(format: "%.3f", fetchStart - sessionStart))s")
 
         do {
             let structure = try await fetcher.fetchStructure(
@@ -84,32 +91,13 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                         connectionSession.structureLoadingMessage = message
                     }
                 },
-                databaseHandler: { database, _, _ in
-                    // Apply each database update immediately so the sidebar shows
-                    // content as soon as it's available. The version counter on
-                    // DatabaseStructure makes each equality check O(1).
-                    var databases = connectionSession.databaseStructure?.databases
-                        ?? connectionSession.connection.cachedStructure?.databases
-                        ?? []
-                    if let index = databases.firstIndex(where: { $0.name == database.name }) {
-                        let merged = Self.mergeDatabaseInfo(partial: database, existing: databases[index])
-                        databases[index] = merged
-                    } else {
-                        let fallbackExisting = connectionSession.connection.cachedStructure?.databases.first(where: { $0.name == database.name })
-                        let merged = Self.mergeDatabaseInfo(partial: database, existing: fallbackExisting)
-                        databases.append(merged)
-                        databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                    }
-
-                    let resolvedServerVersion = interimServerVersion
-                        ?? connectionSession.databaseStructure?.serverVersion
-                        ?? connectionSession.connection.cachedStructure?.serverVersion
-
-                    let updatedStructure = DatabaseStructure(serverVersion: resolvedServerVersion, databases: databases)
-                    self.applyStructureUpdate(updatedStructure, to: connectionSession, cacheResult: false)
-                    self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
+                databaseHandler: { _, _, _ in
+                    // No per-database UI updates during initial load.
+                    // The final structure is applied once after fetchStructure returns.
                 }
             )
+
+            print("[PERF] initialLoad: fetchStructure returned at +\(String(format: "%.3f", CFAbsoluteTimeGetCurrent() - sessionStart))s (\(structure.databases.count) databases)")
 
             if let serverVersion = structure.serverVersion {
                 interimServerVersion = serverVersion
@@ -141,7 +129,9 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
             mergedDatabases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             let finalStructure = DatabaseStructure(serverVersion: interimServerVersion, databases: mergedDatabases)
+            print("[PERF] initialLoad: applying final structure with \(mergedDatabases.count) databases (single UI update)")
             self.applyStructureUpdate(finalStructure, to: connectionSession, cacheResult: true)
+            print("[PERF] initialLoad: done")
 
             connectionSession.structureLoadingState = .ready
             connectionSession.structureLoadingMessage = nil
@@ -166,16 +156,20 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
     /// This allows multiple databases to load in parallel (critical for PostgreSQL where each
     /// database requires a separate connection).
     func loadDatabaseSchemaOnly(_ databaseName: String, for session: ConnectionSession) async {
+        let t0 = CFAbsoluteTimeGetCurrent()
         guard let credentials = identityRepository.resolveAuthenticationConfiguration(
             for: session.connection, overridePassword: nil
-        ) else { return }
+        ) else { print("[PERF] \(databaseName): no credentials"); return }
 
-        guard let fetcher = makeStructureFetcher(for: session) else { return }
+        guard let fetcher = makeStructureFetcher(for: session) else { print("[PERF] \(databaseName): no fetcher"); return }
 
         // Ensure we have a base structure to merge into
         if session.databaseStructure == nil {
             session.databaseStructure = DatabaseStructure(serverVersion: nil, databases: [])
         }
+
+        let t1 = CFAbsoluteTimeGetCurrent()
+        print("[PERF] \(databaseName): setup took \(String(format: "%.3f", t1 - t0))s, calling fetchStructure")
 
         do {
             let structure = try await fetcher.fetchStructure(
@@ -188,16 +182,23 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                 progressHandler: { _ in },
                 databaseHandler: { [weak self, weak session] database, _, _ in
                     guard let self, let session else { return }
-                    Task { @MainActor in
-                        self.mergeSingleDatabase(database, into: session)
-                    }
+                    let mergeStart = CFAbsoluteTimeGetCurrent()
+                    self.mergeSingleDatabase(database, into: session)
+                    print("[PERF] \(databaseName): databaseHandler merge took \(String(format: "%.3f", CFAbsoluteTimeGetCurrent() - mergeStart))s")
                 }
             )
 
+            let t2 = CFAbsoluteTimeGetCurrent()
+            print("[PERF] \(databaseName): fetchStructure returned in \(String(format: "%.3f", t2 - t1))s, \(structure.databases.count) databases, merging final results")
+
             // Final merge of fetcher results
             for db in structure.databases {
+                let mergeStart = CFAbsoluteTimeGetCurrent()
                 mergeSingleDatabase(db, into: session)
+                print("[PERF] \(databaseName): final merge took \(String(format: "%.3f", CFAbsoluteTimeGetCurrent() - mergeStart))s")
             }
+
+            print("[PERF] \(databaseName): total loadDatabaseSchemaOnly \(String(format: "%.3f", CFAbsoluteTimeGetCurrent() - t0))s")
         } catch {
             ConnectionDebug.log("[SchemaDiscovery] loadDatabaseSchemaOnly failed for '\(databaseName)': \(error.localizedDescription)")
         }
@@ -231,7 +232,8 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
         switch connectionSession.connection.databaseType {
         case .postgresql: return PostgresStructureFetcher(session: session)
         case .microsoftSQL: return MSSQLStructureFetcher(session: session)
-        case .mysql, .sqlite: return nil
+        case .sqlite: return SQLiteStructureFetcher(session: session)
+        case .mysql: return nil
         }
     }
 

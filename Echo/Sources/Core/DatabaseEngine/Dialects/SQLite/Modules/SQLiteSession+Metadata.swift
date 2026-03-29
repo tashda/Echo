@@ -1,7 +1,7 @@
 import Foundation
 import SQLiteNIO
 
-extension SQLiteSession {
+extension SQLiteSession: DatabaseMetadataSession {
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
         let connection = try requireConnection()
         let databaseName = normalizedDatabaseName(schema)
@@ -22,6 +22,91 @@ extension SQLiteSession {
                 else { return nil }
                 return SchemaObjectInfo(name: name, schema: databaseName, type: objectType)
             }
+        }
+    }
+
+    func loadSchemaInfo(
+        _ schemaName: String,
+        progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
+    ) async throws -> SchemaInfo {
+        let databaseName = normalizedDatabaseName(schemaName)
+
+        // Load tables and views with columns and FK info
+        let tablesAndViews = try await listTablesAndViews(schema: databaseName)
+        var enrichedObjects: [SchemaObjectInfo] = []
+
+        for (index, object) in tablesAndViews.enumerated() {
+            await progress?(object.type, index + 1, tablesAndViews.count)
+
+            // Enrich tables with column + FK data
+            if object.type == .table {
+                let columns = try await getTableSchema(object.name, schemaName: databaseName)
+                let rawForeignKeys = try await fetchForeignKeys(schema: databaseName, table: object.name)
+
+                // Annotate columns with FK references
+                let enrichedColumns = columns.map { column -> ColumnInfo in
+                    for fk in rawForeignKeys {
+                        if let colIndex = fk.columns.firstIndex(of: column.name),
+                           colIndex < fk.referencedColumns.count {
+                            return ColumnInfo(
+                                name: column.name,
+                                dataType: column.dataType,
+                                isPrimaryKey: column.isPrimaryKey,
+                                isNullable: column.isNullable,
+                                maxLength: column.maxLength,
+                                foreignKey: ColumnInfo.ForeignKeyReference(
+                                    constraintName: "fk_\(object.name)_\(fk.id)",
+                                    referencedSchema: databaseName,
+                                    referencedTable: fk.referencedTable,
+                                    referencedColumn: fk.referencedColumns[colIndex]
+                                )
+                            )
+                        }
+                    }
+                    return column
+                }
+                enrichedObjects.append(SchemaObjectInfo(
+                    name: object.name,
+                    schema: databaseName,
+                    type: object.type,
+                    columns: enrichedColumns
+                ))
+            } else {
+                enrichedObjects.append(object)
+            }
+        }
+
+        // Load triggers
+        let triggers = try await listTriggers(schema: databaseName)
+        await progress?(.trigger, triggers.count, triggers.count)
+
+        let objects = enrichedObjects + triggers
+        return SchemaInfo(name: databaseName, objects: objects)
+    }
+
+    func listTriggers(schema: String?) async throws -> [SchemaObjectInfo] {
+        let connection = try requireConnection()
+        let databaseName = normalizedDatabaseName(schema)
+        let sql = """
+        SELECT name, sql
+        FROM \(quoteIdentifier(databaseName)).sqlite_master
+        WHERE type = 'trigger'
+          AND name NOT LIKE 'sqlite_%'
+        ORDER BY name;
+        """
+        let rows = try await connection.query(sql)
+        return rows.compactMap { row -> SchemaObjectInfo? in
+            guard let name = row.column("name")?.string else { return nil }
+            let createSQL = row.column("sql")?.string ?? ""
+            let (action, table) = Self.parseTriggerSQL(createSQL)
+            return SchemaObjectInfo(
+                name: name,
+                schema: databaseName,
+                type: .trigger,
+                columns: [],
+                triggerAction: action,
+                triggerTable: table
+            )
         }
     }
 
@@ -288,5 +373,79 @@ extension SQLiteSession {
                 onDelete: entry.onDelete
             )
         }
+    }
+
+    // MARK: - Trigger SQL Parsing
+
+    /// Parses a CREATE TRIGGER statement to extract the action (e.g. "AFTER INSERT")
+    /// and the target table name.
+    static func parseTriggerSQL(_ sql: String) -> (action: String?, table: String?) {
+        let upper = sql.uppercased()
+
+        // Extract timing: BEFORE, AFTER, or INSTEAD OF
+        var timing: String?
+        if upper.contains("INSTEAD OF") {
+            timing = "INSTEAD OF"
+        } else if upper.contains("BEFORE") {
+            timing = "BEFORE"
+        } else if upper.contains("AFTER") {
+            timing = "AFTER"
+        }
+
+        // Extract event: INSERT, UPDATE, DELETE
+        var event: String?
+        for keyword in ["INSERT", "UPDATE", "DELETE"] {
+            if upper.contains(keyword) {
+                event = keyword
+                break
+            }
+        }
+
+        let action = [timing, event].compactMap { $0 }.joined(separator: " ")
+
+        // Extract table name from "ON table_name"
+        var table: String?
+        if let onRange = upper.range(of: "\\bON\\s+", options: .regularExpression) {
+            let afterON = sql[onRange.upperBound...]
+            let tableName = afterON.prefix(while: { !$0.isWhitespace && $0 != "(" && $0 != "\n" })
+            if !tableName.isEmpty {
+                // Strip quotes if present
+                let cleaned = tableName
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`[]"))
+                table = cleaned
+            }
+        }
+
+        return (action.isEmpty ? nil : action, table)
+    }
+
+    // MARK: - PRAGMA Browser Support
+
+    /// Fetches the value of a single PRAGMA for the given database.
+    func fetchPragmaValue(_ pragma: String, schema: String?) async throws -> String? {
+        let connection = try requireConnection()
+        let databaseName = normalizedDatabaseName(schema)
+        let sql = "PRAGMA \(databaseName).\(pragma);"
+        let rows = try await connection.query(sql)
+        guard let firstRow = rows.first else { return nil }
+        // PRAGMAs return a column named after the pragma
+        if let value = firstRow.column(pragma) {
+            return value.string ?? value.integer.map(String.init)
+        }
+        return nil
+    }
+
+    // MARK: - Attach/Detach Database
+
+    func attachSQLiteDatabase(path: String, alias: String) async throws {
+        let connection = try requireConnection()
+        let sql = "ATTACH DATABASE '\(escapeSingleQuotes(path))' AS \(quoteIdentifier(alias));"
+        _ = try await connection.query(sql)
+    }
+
+    func detachSQLiteDatabase(alias: String) async throws {
+        let connection = try requireConnection()
+        let sql = "DETACH DATABASE \(quoteIdentifier(alias));"
+        _ = try await connection.query(sql)
     }
 }

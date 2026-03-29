@@ -66,6 +66,7 @@ extension QueryResultsTableView.Coordinator {
         refreshVisibleRowBackgrounds(tableView)
         notifyJsonSelection(region)
         notifyForeignKeySelection(region)
+        syncPersistedSelection()
     }
 
     func refreshSelectionTransition(from old: SelectedRegion?, to new: SelectedRegion?, tableView: NSTableView) {
@@ -199,6 +200,7 @@ extension QueryResultsTableView.Coordinator {
         }
         refreshSelectionTransition(from: previous, to: region, tableView: tableView)
         refreshVisibleRowBackgrounds(tableView)
+        syncPersistedSelection()
     }
 
     func resolvedRowForDragSelection(at point: NSPoint, in tableView: NSTableView) -> Int? {

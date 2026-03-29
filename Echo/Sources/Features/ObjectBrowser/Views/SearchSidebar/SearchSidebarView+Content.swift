@@ -5,7 +5,7 @@ extension SearchSidebarView {
     /// Content uses a stable ZStack so the view tree structure never changes
     /// when switching between placeholder and results. This prevents structural
     /// identity changes that would propagate up and destroy @FocusState in the
-    /// search bar (which lives in the parent's safeAreaInset).
+    /// search bar (which is a sibling in the parent VStack).
     var content: some View {
         ZStack {
             if !viewModel.groupedResultsCache.isEmpty {
@@ -16,6 +16,7 @@ extension SearchSidebarView {
                 placeholder
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -87,7 +88,8 @@ extension SearchSidebarView {
                     .id("search-section-\(group.key)")
                 }
             }
-            .padding(.vertical, SpacingTokens.xxs)
+            .padding(.top, SpacingTokens.xs)
+            .padding(.bottom, SpacingTokens.xxs)
             .padding(.horizontal, SpacingTokens.xxs)
         }
         .coordinateSpace(name: SearchSidebarConstants.scrollSpace)

@@ -133,7 +133,7 @@ struct DatabaseErrorTests {
             userInfo: [NSLocalizedDescriptionKey: "Connection refused by server"]
         )
         let dbError = DatabaseError.from(nsError)
-        guard case .connectionFailed(let msg) = dbError else {
+        guard case .connectionFailed(let msg, _) = dbError else {
             Issue.record("Expected connectionFailed, got \(dbError)")
             return
         }
@@ -225,7 +225,7 @@ struct DatabaseErrorTests {
             userInfo: [NSLocalizedDescriptionKey: "Something completely unexpected"]
         )
         let dbError = DatabaseError.from(nsError)
-        guard case .unknownError(let msg) = dbError else {
+        guard case .unknownError(let msg, _) = dbError else {
             Issue.record("Expected unknownError, got \(dbError)")
             return
         }
@@ -237,7 +237,7 @@ struct DatabaseErrorTests {
             var errorDescription: String? { "Custom error occurred" }
         }
         let dbError = DatabaseError.from(CustomError())
-        guard case .unknownError(let msg) = dbError else {
+        guard case .unknownError(let msg, _) = dbError else {
             Issue.record("Expected unknownError")
             return
         }

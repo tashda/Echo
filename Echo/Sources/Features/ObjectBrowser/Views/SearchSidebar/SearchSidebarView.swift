@@ -13,16 +13,14 @@ struct SearchSidebarView: View {
     @State var isFilterPopoverPresented = false
 
     var body: some View {
-        content
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.bottom, SpacingTokens.sm)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                SearchSidebarSearchBar(
-                    viewModel: viewModel,
-                    isFilterPopoverPresented: $isFilterPopoverPresented
-                )
-            }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        VStack(spacing: 0) {
+            SearchSidebarSearchBar(
+                viewModel: viewModel,
+                isFilterPopoverPresented: $isFilterPopoverPresented
+            )
+
+            content
+        }
         .onAppear {
             if !didRestoreCache {
                 didRestoreCache = true

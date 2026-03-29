@@ -60,7 +60,7 @@ extension MySQLBackupRestoreViewModel {
         }
     }
 
-    fileprivate func processEnvironment() -> [String: String] {
+    internal func processEnvironment() -> [String: String] {
         var environment: [String: String] = [:]
         if let password = connectionPassword, !password.isEmpty {
             environment["MYSQL_PWD"] = password

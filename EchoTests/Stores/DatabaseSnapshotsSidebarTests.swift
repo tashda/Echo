@@ -12,6 +12,10 @@ struct DatabaseSnapshotsSidebarTests {
         ObjectBrowserSidebarViewModel()
     }
 
+    private func makeSheetState() -> SidebarSheetState {
+        SidebarSheetState()
+    }
+
     // MARK: - Initial Snapshot State
 
     @Test func initialSnapshotsExpandedIsEmpty() {
@@ -30,13 +34,13 @@ struct DatabaseSnapshotsSidebarTests {
     }
 
     @Test func initialCreateSnapshotSheetNotShown() {
-        let vm = makeViewModel()
-        #expect(vm.showCreateSnapshotSheet == false)
+        let state = makeSheetState()
+        #expect(state.showCreateSnapshotSheet == false)
     }
 
     @Test func initialCreateSnapshotConnectionIDIsNil() {
-        let vm = makeViewModel()
-        #expect(vm.createSnapshotConnectionID == nil)
+        let state = makeSheetState()
+        #expect(state.createSnapshotConnectionID == nil)
     }
 
     // MARK: - Snapshot Expansion Toggle
@@ -96,66 +100,66 @@ struct DatabaseSnapshotsSidebarTests {
     // MARK: - Create Snapshot Sheet State
 
     @Test func showCreateSnapshotSheetToggles() {
-        let vm = makeViewModel()
+        let state = makeSheetState()
         let connectionID = UUID()
 
-        vm.createSnapshotConnectionID = connectionID
-        vm.showCreateSnapshotSheet = true
+        state.createSnapshotConnectionID = connectionID
+        state.showCreateSnapshotSheet = true
 
-        #expect(vm.showCreateSnapshotSheet == true)
-        #expect(vm.createSnapshotConnectionID == connectionID)
+        #expect(state.showCreateSnapshotSheet == true)
+        #expect(state.createSnapshotConnectionID == connectionID)
     }
 
     @Test func dismissCreateSnapshotSheet() {
-        let vm = makeViewModel()
+        let state = makeSheetState()
         let connectionID = UUID()
 
-        vm.createSnapshotConnectionID = connectionID
-        vm.showCreateSnapshotSheet = true
+        state.createSnapshotConnectionID = connectionID
+        state.showCreateSnapshotSheet = true
 
-        vm.showCreateSnapshotSheet = false
-        #expect(vm.showCreateSnapshotSheet == false)
+        state.showCreateSnapshotSheet = false
+        #expect(state.showCreateSnapshotSheet == false)
     }
 
     // MARK: - Detach Sheet State
 
     @Test func initialDetachSheetNotShown() {
-        let vm = makeViewModel()
-        #expect(vm.showDetachSheet == false)
-        #expect(vm.detachDatabaseName == nil)
-        #expect(vm.detachConnectionID == nil)
+        let state = makeSheetState()
+        #expect(state.showDetachSheet == false)
+        #expect(state.detachDatabaseName == nil)
+        #expect(state.detachConnectionID == nil)
     }
 
     @Test func showDetachSheetSetsState() {
-        let vm = makeViewModel()
+        let state = makeSheetState()
         let connectionID = UUID()
 
-        vm.detachDatabaseName = "AdventureWorks"
-        vm.detachConnectionID = connectionID
-        vm.showDetachSheet = true
+        state.detachDatabaseName = "AdventureWorks"
+        state.detachConnectionID = connectionID
+        state.showDetachSheet = true
 
-        #expect(vm.showDetachSheet == true)
-        #expect(vm.detachDatabaseName == "AdventureWorks")
-        #expect(vm.detachConnectionID == connectionID)
+        #expect(state.showDetachSheet == true)
+        #expect(state.detachDatabaseName == "AdventureWorks")
+        #expect(state.detachConnectionID == connectionID)
     }
 
     // MARK: - Attach Sheet State
 
     @Test func initialAttachSheetNotShown() {
-        let vm = makeViewModel()
-        #expect(vm.showAttachSheet == false)
-        #expect(vm.attachConnectionID == nil)
+        let state = makeSheetState()
+        #expect(state.showAttachSheet == false)
+        #expect(state.attachConnectionID == nil)
     }
 
     @Test func showAttachSheetSetsState() {
-        let vm = makeViewModel()
+        let state = makeSheetState()
         let connectionID = UUID()
 
-        vm.attachConnectionID = connectionID
-        vm.showAttachSheet = true
+        state.attachConnectionID = connectionID
+        state.showAttachSheet = true
 
-        #expect(vm.showAttachSheet == true)
-        #expect(vm.attachConnectionID == connectionID)
+        #expect(state.showAttachSheet == true)
+        #expect(state.attachConnectionID == connectionID)
     }
 
     // MARK: - Multiple Sessions Independence

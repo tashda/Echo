@@ -128,6 +128,7 @@ struct ServerEditorView: View {
         case .connections: connectionsPage()
         case .databaseSettings: databaseSettingsPage()
         case .advanced: advancedPage()
+        case .startupParameters: startupParametersPage()
         case nil: EmptyView()
         }
     }

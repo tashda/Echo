@@ -12,6 +12,7 @@ struct FullTextSearchSheet: View {
     @State private var catalogs: [SQLServerFullTextCatalog] = []
     @State private var indexes: [SQLServerFullTextIndex] = []
     @State private var showNewCatalogSheet = false
+    @State private var showNewIndexSheet = false
     @State private var confirmDropCatalog: SQLServerFullTextCatalog?
     @State private var isBusy = false
 
@@ -36,6 +37,17 @@ struct FullTextSearchSheet: View {
         .frame(minWidth: 480, minHeight: 340)
         .frame(idealWidth: 520, idealHeight: 380)
         .task { await loadData() }
+        .sheet(isPresented: $showNewIndexSheet) {
+            NewFullTextIndexSheet(
+                catalogs: catalogs,
+                session: session,
+                onCreated: {
+                    showNewIndexSheet = false
+                    Task { await loadData() }
+                },
+                onCancel: { showNewIndexSheet = false }
+            )
+        }
         .sheet(isPresented: $showNewCatalogSheet) {
             NewFullTextCatalogSheet { name, isDefault, accentSensitive in
                 await createCatalog(name: name, isDefault: isDefault, accentSensitive: accentSensitive)
@@ -160,8 +172,18 @@ struct FullTextSearchSheet: View {
     @ViewBuilder
     private var indexesSection: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Full-Text Indexes")
-                .font(TypographyTokens.standard.weight(.semibold))
+            HStack {
+                Text("Full-Text Indexes")
+                    .font(TypographyTokens.standard.weight(.semibold))
+                Spacer()
+                Button {
+                    showNewIndexSheet = true
+                } label: {
+                    Label("New Index", systemImage: "plus.rectangle.on.rectangle")
+                }
+                .controlSize(.small)
+                .disabled(isBusy || catalogs.isEmpty)
+            }
 
             if indexes.isEmpty {
                 Text("No full-text indexes in this database.")

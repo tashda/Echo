@@ -2,10 +2,9 @@ import Testing
 import Foundation
 @testable import Echo
 
-@Suite("Postgres Tool Locator")
+@Suite("PostgresToolLocator")
 struct PostgresToolLocatorTests {
-    @Test("Environment tool path takes precedence")
-    func environmentToolPathTakesPrecedence() throws {
+    @Test func environmentToolPathTakesPrecedence() throws {
         let tempDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("echo_pg_tools_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)

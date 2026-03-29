@@ -183,6 +183,28 @@ extension EnvironmentState {
     }
 
     @discardableResult
+    func preparePermissionManagerWindow(
+        connectionSessionID: UUID,
+        databaseName: String,
+        principalName: String?
+    ) -> PermissionManagerWindowValue {
+        let value = PermissionManagerWindowValue(
+            connectionSessionID: connectionSessionID,
+            databaseName: databaseName,
+            principalName: principalName
+        )
+        if permissionManagerViewModels[value] == nil {
+            permissionManagerViewModels[value] = PermissionManagerViewModel(
+                connectionSessionID: connectionSessionID,
+                databaseName: databaseName,
+                principalName: principalName
+            )
+        }
+        activePermissionManagerValue = value
+        return value
+    }
+
+    @discardableResult
     func prepareTablePropertiesWindow(
         connectionSessionID: UUID,
         schemaName: String,
@@ -203,6 +225,111 @@ extension EnvironmentState {
             )
         }
         activeTablePropertiesValue = value
+        return value
+    }
+
+    // MARK: - Trigger Editor
+
+    @discardableResult
+    func prepareTriggerEditorWindow(
+        connectionSessionID: UUID,
+        schemaName: String,
+        tableName: String,
+        existingTrigger: String?
+    ) -> TriggerEditorWindowValue {
+        let value = TriggerEditorWindowValue(
+            connectionSessionID: connectionSessionID,
+            schemaName: schemaName,
+            tableName: tableName,
+            triggerName: existingTrigger
+        )
+        if triggerEditorViewModels[value] == nil {
+            triggerEditorViewModels[value] = TriggerEditorViewModel(
+                connectionSessionID: connectionSessionID,
+                schemaName: schemaName,
+                tableName: tableName,
+                existingTriggerName: existingTrigger
+            )
+        }
+        activeTriggerEditorValue = value
+        return value
+    }
+
+    // MARK: - View Editor
+
+    @discardableResult
+    func prepareViewEditorWindow(
+        connectionSessionID: UUID,
+        schemaName: String,
+        existingView: String?,
+        isMaterialized: Bool
+    ) -> ViewEditorWindowValue {
+        let value = ViewEditorWindowValue(
+            connectionSessionID: connectionSessionID,
+            schemaName: schemaName,
+            viewName: existingView,
+            isMaterialized: isMaterialized
+        )
+        if viewEditorViewModels[value] == nil {
+            viewEditorViewModels[value] = ViewEditorViewModel(
+                connectionSessionID: connectionSessionID,
+                schemaName: schemaName,
+                existingViewName: existingView,
+                isMaterialized: isMaterialized
+            )
+        }
+        activeViewEditorValue = value
+        return value
+    }
+
+    // MARK: - Sequence Editor
+
+    @discardableResult
+    func prepareSequenceEditorWindow(
+        connectionSessionID: UUID,
+        schemaName: String,
+        existingSequence: String?
+    ) -> SequenceEditorWindowValue {
+        let value = SequenceEditorWindowValue(
+            connectionSessionID: connectionSessionID,
+            schemaName: schemaName,
+            sequenceName: existingSequence
+        )
+        if sequenceEditorViewModels[value] == nil {
+            sequenceEditorViewModels[value] = SequenceEditorViewModel(
+                connectionSessionID: connectionSessionID,
+                schemaName: schemaName,
+                existingSequenceName: existingSequence
+            )
+        }
+        activeSequenceEditorValue = value
+        return value
+    }
+
+    // MARK: - Type Editor
+
+    @discardableResult
+    func prepareTypeEditorWindow(
+        connectionSessionID: UUID,
+        schemaName: String,
+        existingType: String?,
+        typeCategory: TypeCategory
+    ) -> TypeEditorWindowValue {
+        let value = TypeEditorWindowValue(
+            connectionSessionID: connectionSessionID,
+            schemaName: schemaName,
+            typeName: existingType,
+            typeCategory: typeCategory
+        )
+        if typeEditorViewModels[value] == nil {
+            typeEditorViewModels[value] = TypeEditorViewModel(
+                connectionSessionID: connectionSessionID,
+                schemaName: schemaName,
+                existingTypeName: existingType,
+                typeCategory: typeCategory
+            )
+        }
+        activeTypeEditorValue = value
         return value
     }
 }

@@ -94,7 +94,10 @@ struct DatabaseObjectBrowserView: View {
     var body: some View {
         let snapshot = snapshotData
 
-        Group {
+        // Use LazyVStack (not Group) to prevent child flattening into the parent LazyVStack
+        // and to virtualize rows — only visible rows are materialized.
+        // Without a container, multiple expanded databases would emit children with colliding IDs.
+        LazyVStack(spacing: 0) {
             if !snapshot.pinned.isEmpty {
                 pinnedSection(snapshot.pinned)
             }

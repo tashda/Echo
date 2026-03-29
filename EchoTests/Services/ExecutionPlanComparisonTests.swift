@@ -29,7 +29,7 @@ struct ExecutionPlanComparisonTests {
         </ShowPlanXML>
         """
 
-        let showPlan = try ShowPlanXMLParser.parse(xml: xml)
+        let showPlan = try Echo.ShowPlanXMLParser.parse(xml: xml)
         #expect(showPlan.statements.count == 1)
 
         let stmt = showPlan.statements[0]

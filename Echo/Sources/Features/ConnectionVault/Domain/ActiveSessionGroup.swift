@@ -63,6 +63,9 @@ final class ActiveSessionGroup {
             }
         }
 
+        // Stop health check before closing
+        session.stopHealthCheck()
+
         // Close the database session properly to avoid driver crashes on deinit
         Task {
             for tab in session.queryTabs where tab.ownsSession {

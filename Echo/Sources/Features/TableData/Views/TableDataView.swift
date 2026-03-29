@@ -18,15 +18,17 @@ struct TableDataView: View {
         }
         .sheet(isPresented: $showingImportSheet) {
             if let connectionSession = viewModel.connectionSession {
-                let importViewModel = BulkImportViewModel(
-                    session: viewModel.session,
-                    connectionSession: connectionSession,
-                    databaseType: viewModel.databaseType,
-                    schema: viewModel.schemaName,
-                    tableName: viewModel.tableName
-                )
-                importViewModel.activityEngine = viewModel.activityEngine
-                BulkImportSheet(viewModel: importViewModel) {
+                BulkImportSheet(viewModel: {
+                    let importViewModel = BulkImportViewModel(
+                        session: viewModel.session,
+                        connectionSession: connectionSession,
+                        databaseType: viewModel.databaseType,
+                        schema: viewModel.schemaName,
+                        tableName: viewModel.tableName
+                    )
+                    importViewModel.activityEngine = viewModel.activityEngine
+                    return importViewModel
+                }()) {
                     showingImportSheet = false
                 }
             }

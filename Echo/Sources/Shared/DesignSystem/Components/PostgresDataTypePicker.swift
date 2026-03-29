@@ -104,6 +104,9 @@ struct PostgresDataTypePicker: View {
                 }
                 .buttonStyle(.plain)
             }
+            .onChange(of: selection) { _, _ in
+                if !textFieldFocused { syncFromSelection() }
+            }
         } else {
             HStack(spacing: SpacingTokens.xxs) {
                 Picker("", selection: $baseType) {

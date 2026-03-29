@@ -2,37 +2,21 @@ import Foundation
 import Testing
 @testable import Echo
 
-@MainActor
 struct MetadataSearchEngineTests {
 
     // MARK: - Helpers
 
-    private func makeSpoolManager() -> ResultSpooler {
-        let tempRoot = FileManager.default.temporaryDirectory
-            .appendingPathComponent("MetadataSearchTests-\(UUID().uuidString)", isDirectory: true)
-        try? FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-        let configuration = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: tempRoot)
-        return ResultSpooler(configuration: configuration)
-    }
-
-    private func makeSession(
+    private func makeSnapshot(
         name: String = "TestServer",
-        database: String = "testdb",
         databaseType: DatabaseType = .microsoftSQL,
         structure: DatabaseStructure? = nil
-    ) -> ConnectionSession {
-        let connection = TestFixtures.savedConnection(
-            connectionName: name,
-            database: database,
-            databaseType: databaseType
+    ) -> MetadataSearchEngine.SessionSnapshot {
+        MetadataSearchEngine.SessionSnapshot(
+            sessionID: UUID(),
+            serverName: name,
+            databaseType: databaseType,
+            structure: structure ?? DatabaseStructure(serverVersion: "", databases: [])
         )
-        let session = ConnectionSession(
-            connection: connection,
-            session: MockDatabaseSession(),
-            spoolManager: makeSpoolManager()
-        )
-        session.databaseStructure = structure
-        return session
     }
 
     private func sampleStructure() -> DatabaseStructure {
@@ -62,33 +46,33 @@ struct MetadataSearchEngineTests {
 
     // MARK: - Basic Search
 
-    @Test func searchReturnsEmptyForShortQuery() {
-        let session = makeSession(structure: sampleStructure())
-        let results = MetadataSearchEngine.search(
+    @Test func searchReturnsEmptyForShortQuery() async {
+        let snapshot = makeSnapshot(structure: sampleStructure())
+        let results = await MetadataSearchEngine.search(
             query: "a",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: Set(SearchSidebarCategory.allCases)
         )
         #expect(results.isEmpty)
     }
 
-    @Test func searchReturnsEmptyWithNoSessions() {
-        let results = MetadataSearchEngine.search(
+    @Test func searchReturnsEmptyWithNoSessions() async {
+        let results = await MetadataSearchEngine.search(
             query: "customers",
             scope: .allServers,
-            sessions: [],
+            snapshots: [],
             categories: Set(SearchSidebarCategory.allCases)
         )
         #expect(results.isEmpty)
     }
 
-    @Test func searchFindsTableByName() {
-        let session = makeSession(structure: sampleStructure())
-        let results = MetadataSearchEngine.search(
+    @Test func searchFindsTableByName() async {
+        let snapshot = makeSnapshot(structure: sampleStructure())
+        let results = await MetadataSearchEngine.search(
             query: "customers",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: [.tables]
         )
         #expect(results.count == 1)
@@ -96,36 +80,36 @@ struct MetadataSearchEngineTests {
         #expect(results.first?.category == .tables)
     }
 
-    @Test func searchFindsViewByName() {
-        let session = makeSession(structure: sampleStructure())
-        let results = MetadataSearchEngine.search(
+    @Test func searchFindsViewByName() async {
+        let snapshot = makeSnapshot(structure: sampleStructure())
+        let results = await MetadataSearchEngine.search(
             query: "active",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: [.views]
         )
         #expect(results.count == 1)
         #expect(results.first?.title == "dbo.ActiveCustomers")
     }
 
-    @Test func searchFindsProcedureByName() {
-        let session = makeSession(structure: sampleStructure())
-        let results = MetadataSearchEngine.search(
+    @Test func searchFindsProcedureByName() async {
+        let snapshot = makeSnapshot(structure: sampleStructure())
+        let results = await MetadataSearchEngine.search(
             query: "GetCustomer",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: [.procedures]
         )
         #expect(results.count == 1)
         #expect(results.first?.title == "dbo.GetCustomerOrders")
     }
 
-    @Test func searchFindsColumnByName() {
-        let session = makeSession(structure: sampleStructure())
-        let results = MetadataSearchEngine.search(
+    @Test func searchFindsColumnByName() async {
+        let snapshot = makeSnapshot(structure: sampleStructure())
+        let results = await MetadataSearchEngine.search(
             query: "email",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: [.columns]
         )
         #expect(results.count == 1)
@@ -134,12 +118,12 @@ struct MetadataSearchEngineTests {
         #expect(results.first?.metadata == "nvarchar(255)")
     }
 
-    @Test func searchIsCaseInsensitive() {
-        let session = makeSession(structure: sampleStructure())
-        let results = MetadataSearchEngine.search(
+    @Test func searchIsCaseInsensitive() async {
+        let snapshot = makeSnapshot(structure: sampleStructure())
+        let results = await MetadataSearchEngine.search(
             query: "ORDERS",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: [.tables]
         )
         #expect(results.count == 1)
@@ -148,20 +132,20 @@ struct MetadataSearchEngineTests {
 
     // MARK: - Category Filtering
 
-    @Test func searchRespectsCategories() {
-        let session = makeSession(structure: sampleStructure())
+    @Test func searchRespectsCategories() async {
+        let snapshot = makeSnapshot(structure: sampleStructure())
 
         // "Customer" matches tables, views, and procedures
-        let tablesOnly = MetadataSearchEngine.search(
+        let tablesOnly = await MetadataSearchEngine.search(
             query: "customer",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: [.tables]
         )
-        let allCategories = MetadataSearchEngine.search(
+        let allCategories = await MetadataSearchEngine.search(
             query: "customer",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: [.tables, .views, .procedures, .columns]
         )
 
@@ -171,9 +155,9 @@ struct MetadataSearchEngineTests {
 
     // MARK: - Multi-Session Search
 
-    @Test func searchAcrossMultipleSessions() {
-        let session1 = makeSession(name: "Server1", structure: sampleStructure())
-        let session2 = makeSession(name: "Server2", structure: DatabaseStructure(
+    @Test func searchAcrossMultipleSessions() async {
+        let snapshot1 = makeSnapshot(name: "Server1", structure: sampleStructure())
+        let snapshot2 = makeSnapshot(name: "Server2", structure: DatabaseStructure(
             serverVersion: "15.0",
             databases: [
                 DatabaseInfo(name: "inventory", schemas: [
@@ -184,10 +168,10 @@ struct MetadataSearchEngineTests {
             ]
         ))
 
-        let results = MetadataSearchEngine.search(
+        let results = await MetadataSearchEngine.search(
             query: "customer",
             scope: .allServers,
-            sessions: [session1, session2],
+            snapshots: [snapshot1, snapshot2],
             categories: [.tables]
         )
 
@@ -199,9 +183,9 @@ struct MetadataSearchEngineTests {
 
     // MARK: - Scope Filtering
 
-    @Test func scopeFiltersByServer() {
-        let session1 = makeSession(name: "Server1", structure: sampleStructure())
-        let session2 = makeSession(name: "Server2", structure: DatabaseStructure(
+    @Test func scopeFiltersByServer() async {
+        let snapshot1 = makeSnapshot(name: "Server1", structure: sampleStructure())
+        let snapshot2 = makeSnapshot(name: "Server2", structure: DatabaseStructure(
             serverVersion: "15.0",
             databases: [
                 DatabaseInfo(name: "other", schemas: [
@@ -212,31 +196,31 @@ struct MetadataSearchEngineTests {
             ]
         ))
 
-        let results = MetadataSearchEngine.search(
+        let results = await MetadataSearchEngine.search(
             query: "orders",
-            scope: .server(connectionSessionID: session1.id),
-            sessions: [session1, session2],
+            scope: .server(connectionSessionID: snapshot1.sessionID),
+            snapshots: [snapshot1, snapshot2],
             categories: [.tables]
         )
 
-        #expect(results.allSatisfy { $0.connectionSessionID == session1.id })
+        #expect(results.allSatisfy { $0.connectionSessionID == snapshot1.sessionID })
         #expect(results.count == 1)
     }
 
-    @Test func scopeFiltersByDatabase() {
-        let session = makeSession(structure: sampleStructure())
+    @Test func scopeFiltersByDatabase() async {
+        let snapshot = makeSnapshot(structure: sampleStructure())
 
-        let allResults = MetadataSearchEngine.search(
+        let allResults = await MetadataSearchEngine.search(
             query: "report",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: [.tables, .views]
         )
 
-        let scopedResults = MetadataSearchEngine.search(
+        let scopedResults = await MetadataSearchEngine.search(
             query: "report",
-            scope: .database(connectionSessionID: session.id, databaseName: "analytics"),
-            sessions: [session],
+            scope: .database(connectionSessionID: snapshot.sessionID, databaseName: "analytics"),
+            snapshots: [snapshot],
             categories: [.tables, .views]
         )
 
@@ -247,12 +231,12 @@ struct MetadataSearchEngineTests {
 
     // MARK: - Provenance
 
-    @Test func resultsHaveCorrectProvenance() {
-        let session = makeSession(name: "MyServer", structure: sampleStructure())
-        let results = MetadataSearchEngine.search(
+    @Test func resultsHaveCorrectProvenance() async {
+        let snapshot = makeSnapshot(name: "MyServer", structure: sampleStructure())
+        let results = await MetadataSearchEngine.search(
             query: "daily",
             scope: .allServers,
-            sessions: [session],
+            snapshots: [snapshot],
             categories: [.tables]
         )
 
@@ -260,7 +244,7 @@ struct MetadataSearchEngineTests {
         let result = results[0]
         #expect(result.serverName == "MyServer")
         #expect(result.databaseName == "analytics")
-        #expect(result.connectionSessionID == session.id)
+        #expect(result.connectionSessionID == snapshot.sessionID)
         #expect(result.title == "reporting.DailyMetrics")
     }
 }

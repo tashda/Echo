@@ -143,7 +143,7 @@ extension ObjectBrowserSidebarView {
         }
         .disabled(!(session.permissions?.canCreateDatabases ?? true))
 
-        if session.connection.databaseType == .microsoftSQL {
+        if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .sqlite {
             Divider()
 
             Button {

@@ -101,7 +101,7 @@ final class MySQLBackupRestoreViewModel {
 
     @MainActor
     func openFile(_ url: URL) {
-        NSWorkspace.shared.openFile(url.path)
+        NSWorkspace.shared.open(url)
     }
 
     private func normalizedURL(from path: String) -> URL? {

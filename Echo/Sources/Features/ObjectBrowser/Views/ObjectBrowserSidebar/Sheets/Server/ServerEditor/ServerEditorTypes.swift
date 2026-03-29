@@ -17,6 +17,7 @@ enum ServerEditorPage: String, Hashable, CaseIterable, Identifiable {
     case connections
     case databaseSettings
     case advanced
+    case startupParameters
 
     var id: String { rawValue }
 
@@ -29,6 +30,7 @@ enum ServerEditorPage: String, Hashable, CaseIterable, Identifiable {
         case .connections: "Connections"
         case .databaseSettings: "Database Settings"
         case .advanced: "Advanced"
+        case .startupParameters: "Startup Parameters"
         }
     }
 
@@ -41,6 +43,7 @@ enum ServerEditorPage: String, Hashable, CaseIterable, Identifiable {
         case .connections: "network"
         case .databaseSettings: "externaldrive"
         case .advanced: "gearshape.2"
+        case .startupParameters: "flag"
         }
     }
 }

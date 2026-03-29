@@ -119,9 +119,10 @@ extension ObjectBrowserSidebarView {
         )
 
         if isExpanded {
-            let hasSchemas = !database.schemas.isEmpty && database.schemas.contains(where: { !$0.objects.isEmpty })
-            databaseContent(database: database, session: session, hasSchemas: hasSchemas, proxy: proxy)
+            DatabaseContentView(databaseName: database.name, session: session) { liveDatabase, hasSchemas in
+                databaseContent(database: liveDatabase, session: session, hasSchemas: hasSchemas, proxy: proxy)
             }
+        }
     }
 
     func databaseHeaderRow(database: DatabaseInfo, session: ConnectionSession, isExpanded: Bool, isSelected: Bool, accentColor: Color) -> some View {

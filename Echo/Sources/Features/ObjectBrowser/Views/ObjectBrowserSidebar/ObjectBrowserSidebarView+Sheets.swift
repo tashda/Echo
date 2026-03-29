@@ -172,22 +172,39 @@ extension ObjectBrowserSidebarView {
                 if let dbName = sheetState.detachDatabaseName,
                    let connID = sheetState.detachConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    DetachDatabaseSheet(
-                        databaseName: dbName,
-                        session: session,
-                        environmentState: environmentState,
-                        onDismiss: { sheetState.showDetachSheet = false }
-                    )
+                    if session.connection.databaseType == .sqlite {
+                        SQLiteDetachDatabaseSheet(
+                            databaseName: dbName,
+                            session: session,
+                            environmentState: environmentState,
+                            onDismiss: { sheetState.showDetachSheet = false }
+                        )
+                    } else {
+                        DetachDatabaseSheet(
+                            databaseName: dbName,
+                            session: session,
+                            environmentState: environmentState,
+                            onDismiss: { sheetState.showDetachSheet = false }
+                        )
+                    }
                 }
             }
             .sheet(isPresented: $sheetState.showAttachSheet) {
                 if let connID = sheetState.attachConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    AttachDatabaseSheet(
-                        session: session,
-                        environmentState: environmentState,
-                        onDismiss: { sheetState.showAttachSheet = false }
-                    )
+                    if session.connection.databaseType == .sqlite {
+                        SQLiteAttachDatabaseSheet(
+                            session: session,
+                            environmentState: environmentState,
+                            onDismiss: { sheetState.showAttachSheet = false }
+                        )
+                    } else {
+                        AttachDatabaseSheet(
+                            session: session,
+                            environmentState: environmentState,
+                            onDismiss: { sheetState.showAttachSheet = false }
+                        )
+                    }
                 }
             }
             .sheet(isPresented: $sheetState.showCreateSnapshotSheet) {

@@ -175,35 +175,29 @@ struct ExecutionPlanComparisonView: View {
     private func parseXMLPlan(_ xml: String) throws -> ExecutionPlanData {
         let showPlan = try ShowPlanXMLParser.parse(xml: xml)
         return ExecutionPlanData(
-            statements: showPlan.statements.map { stmt in
-                ExecutionPlanStatement(
-                    statementText: stmt.statementText,
-                    statementType: stmt.statementType,
-                    subtreeCost: stmt.statementSubTreeCost,
-                    estimatedRows: stmt.statementEstRows,
-                    optimizationLevel: stmt.optimizationLevel,
-                    queryPlan: stmt.queryPlan.map { qp in
-                        ExecutionPlanQueryPlan(
-                            cachedPlanSize: qp.cachedPlanSize,
-                            compileTime: qp.compileTime,
-                            compileCPU: qp.compileCPU,
-                            rootOperator: qp.rootOperator.map { convertOperator($0) },
-                            missingIndexes: qp.missingIndexes.map { idx in
-                                ExecutionPlanMissingIndex(
-                                    impact: idx.impact,
-                                    database: idx.database,
-                                    schema: idx.schema,
-                                    table: idx.table,
-                                    equalityColumns: idx.equalityColumns,
-                                    inequalityColumns: idx.inequalityColumns,
-                                    includeColumns: idx.includeColumns
-                                )
-                            }
-                        )
-                    }
-                )
-            },
+            statements: showPlan.statements.map(convertStatement),
             xml: xml
+        )
+    }
+
+    private func convertStatement(_ stmt: ShowPlanStatement) -> ExecutionPlanStatement {
+        ExecutionPlanStatement(
+            statementText: stmt.statementText,
+            statementType: stmt.statementType,
+            subtreeCost: stmt.statementSubTreeCost,
+            estimatedRows: stmt.statementEstRows,
+            optimizationLevel: stmt.optimizationLevel,
+            queryPlan: stmt.queryPlan.map(convertQueryPlan)
+        )
+    }
+
+    private func convertQueryPlan(_ qp: ShowPlanQueryPlan) -> ExecutionPlanQueryPlan {
+        ExecutionPlanQueryPlan(
+            cachedPlanSize: qp.cachedPlanSize,
+            compileTime: qp.compileTime,
+            compileCPU: qp.compileCPU,
+            rootOperator: qp.rootOperator.map(convertOperator),
+            missingIndexes: qp.missingIndexes.map(convertMissingIndex)
         )
     }
 
@@ -228,6 +222,18 @@ struct ExecutionPlanComparisonView: View {
                 [col.table, col.column].compactMap { $0 }.joined(separator: ".")
             },
             warnings: op.warnings
+        )
+    }
+
+    private func convertMissingIndex(_ idx: ShowPlanMissingIndex) -> ExecutionPlanMissingIndex {
+        ExecutionPlanMissingIndex(
+            impact: idx.impact,
+            database: idx.database,
+            schema: idx.schema,
+            table: idx.table,
+            equalityColumns: idx.equalityColumns,
+            inequalityColumns: idx.inequalityColumns,
+            includeColumns: idx.includeColumns
         )
     }
 }

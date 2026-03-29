@@ -20,6 +20,7 @@ struct SettingsView: View {
         case diagrams
         case applicationCache
         case keyboardShortcuts
+        case account
 
         var id: String { rawValue }
 
@@ -36,6 +37,7 @@ struct SettingsView: View {
             case .diagrams: return "Diagrams"
             case .applicationCache: return "Application Cache"
             case .keyboardShortcuts: return "Keyboard Shortcuts"
+            case .account: return "Account"
             }
         }
 
@@ -51,6 +53,7 @@ struct SettingsView: View {
             case .diagrams: return "rectangle.connected.to.line.below"
             case .applicationCache: return "internaldrive"
             case .keyboardShortcuts: return "command"
+            case .account: return "person.crop.circle"
             case .echoSense: return nil
             }
         }
@@ -215,6 +218,9 @@ struct SettingsView: View {
 
         case .keyboardShortcuts:
             KeyboardShortcutsSettingsView()
+
+        case .account:
+            AccountSettingsView()
         }
     }
 

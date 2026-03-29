@@ -79,6 +79,10 @@ struct MSSQLDataTypePicker: View {
                 }
                 .buttonStyle(.plain)
             }
+            .onChange(of: selection) { _, _ in
+                // Re-sync if selection changed externally (e.g. context menu)
+                if !textFieldFocused { syncFromSelection() }
+            }
         } else {
             HStack(spacing: SpacingTokens.xxs) {
                 Picker("", selection: $baseType) {

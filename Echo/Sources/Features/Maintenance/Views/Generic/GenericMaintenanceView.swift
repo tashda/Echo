@@ -44,6 +44,12 @@ struct GenericMaintenanceView: View {
                         Divider().padding(.leading, SpacingTokens.lg)
                     }
                 }
+
+                if viewModel.databaseType == .sqlite {
+                    Divider()
+                        .padding(.vertical, SpacingTokens.sm)
+                    SQLitePRAGMABrowserView(session: viewModel.session)
+                }
             }
             .padding(SpacingTokens.md)
         }

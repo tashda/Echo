@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import SQLServerKit
 @testable import Echo
@@ -234,17 +235,18 @@ enum MSSQLTestSession {
         let port = Int(ProcessInfo.processInfo.environment["TEST_RUNNER_ECHO_MSSQL_PORT"] ?? "14332") ?? 14332
         let password = ProcessInfo.processInfo.environment["TEST_RUNNER_ECHO_MSSQL_PASSWORD"] ?? "YourStrong@Passw0rd"
 
-        let config = DatabaseClientConfiguration(
+        let factory = MSSQLNIOFactory()
+        return try await factory.connect(
             host: "localhost",
             port: port,
-            username: "sa",
-            password: password,
             database: "master",
-            dialect: .microsoftSQL
+            tls: false,
+            authentication: DatabaseAuthenticationConfiguration(
+                method: .sqlPassword,
+                username: "sa",
+                password: password
+            )
         )
-
-        let session = try await DatabaseFactoryProvider.createSession(config: config)
-        return session
     }
 }
 

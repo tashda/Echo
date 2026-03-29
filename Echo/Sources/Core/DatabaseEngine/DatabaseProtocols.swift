@@ -70,10 +70,23 @@ public protocol DatabaseSession: Sendable {
 
     // Multi-batch execution (GO batch separator support)
     func executeBatches(_ batches: [String], progressHandler: BatchProgressHandler?) async throws -> [BatchResult]
+
+    /// Checks whether the connection to the database is still alive.
+    /// Returns `true` if a lightweight query succeeds, `false` otherwise.
+    func connectionIsAlive() async -> Bool
 }
 
 // Default for callers that don't need to specify a database
 public extension DatabaseSession {
+    func connectionIsAlive() async -> Bool {
+        do {
+            _ = try await simpleQuery("SELECT 1")
+            return true
+        } catch {
+            return false
+        }
+    }
+
     func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
         try await getObjectDefinition(objectName: objectName, schemaName: schemaName, objectType: objectType, database: nil)
     }

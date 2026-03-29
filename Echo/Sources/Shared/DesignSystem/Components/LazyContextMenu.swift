@@ -4,47 +4,73 @@ import AppKit
 /// A ViewModifier that provides context menus via AppKit's NSMenu instead of
 /// SwiftUI's `.contextMenu`. The menu is only constructed when the user right-clicks,
 /// avoiding SwiftUI's eager evaluation of `.contextMenu` closures during body rendering.
+/// Shows a subtle highlight while the context menu is open.
 struct LazyContextMenuModifier: ViewModifier {
     let menuBuilder: () -> NSMenu
+    @State private var isMenuVisible = false
 
     func body(content: Content) -> some View {
-        content.overlay {
-            LazyContextMenuRepresentable(menuBuilder: menuBuilder)
+        content
+            .background {
+                if isMenuVisible {
+                    RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                        .fill(ColorTokens.Sidebar.contextFill)
+                }
+            }
+            .overlay {
+                LazyContextMenuRepresentable(
+                    menuBuilder: menuBuilder,
+                    onMenuOpen: { isMenuVisible = true },
+                    onMenuClose: { isMenuVisible = false }
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+            }
     }
 }
 
 private struct LazyContextMenuRepresentable: NSViewRepresentable {
     let menuBuilder: () -> NSMenu
+    let onMenuOpen: () -> Void
+    let onMenuClose: () -> Void
 
     func makeNSView(context: Context) -> LazyContextMenuNSView {
         let view = LazyContextMenuNSView()
         view.menuBuilder = menuBuilder
+        view.onMenuOpen = onMenuOpen
+        view.onMenuClose = onMenuClose
         return view
     }
 
     func updateNSView(_ nsView: LazyContextMenuNSView, context: Context) {
         nsView.menuBuilder = menuBuilder
+        nsView.onMenuOpen = onMenuOpen
+        nsView.onMenuClose = onMenuClose
     }
 }
 
 final class LazyContextMenuNSView: NSView, @unchecked Sendable {
-    // Safe: this view and its menuBuilder are only accessed on the main thread.
     nonisolated(unsafe) var menuBuilder: (() -> NSMenu)?
+    nonisolated(unsafe) var onMenuOpen: (() -> Void)?
+    nonisolated(unsafe) var onMenuClose: (() -> Void)?
 
     nonisolated override func menu(for event: NSEvent) -> NSMenu? {
-        // menu(for:) is always called on the main thread by AppKit.
-        menuBuilder?()
+        guard let menu = menuBuilder?() else { return nil }
+        menu.delegate = self
+        onMenuOpen?()
+        return menu
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        // Only claim the hit for right-clicks (context menu).
-        // For left-clicks, return nil so SwiftUI buttons underneath receive the tap.
         guard let event = window?.currentEvent, event.type == .rightMouseDown else {
             return nil
         }
         return frame.contains(point) ? self : nil
+    }
+}
+
+extension LazyContextMenuNSView: NSMenuDelegate {
+    nonisolated func menuDidClose(_ menu: NSMenu) {
+        onMenuClose?()
     }
 }
 

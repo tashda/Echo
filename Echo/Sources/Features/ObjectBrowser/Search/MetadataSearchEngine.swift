@@ -175,6 +175,37 @@ enum MetadataSearchEngine {
             }
         }
 
+        if categories.contains(.foreignKeys) {
+            var fkCount = 0
+            for item in allObjects where fkCount < maxResultsPerCategoryPerDatabase {
+                guard item.object.type == .table else { continue }
+                for column in item.object.columns where fkCount < maxResultsPerCategoryPerDatabase {
+                    guard let fk = column.foreignKey else { continue }
+                    let fkName = fk.constraintName.lowercased()
+                    let refTable = fk.referencedTable.lowercased()
+                    let refColumn = fk.referencedColumn.lowercased()
+                    let colName = column.name.lowercased()
+
+                    if fkName.contains(query) || refTable.contains(query)
+                        || refColumn.contains(query) || colName.contains(query) {
+                        results.append(GlobalSearchResult(
+                            connectionSessionID: connectionSessionID,
+                            serverName: serverName,
+                            databaseName: database.name,
+                            databaseType: databaseType,
+                            category: .foreignKeys,
+                            title: fk.constraintName,
+                            subtitle: "\(item.schema).\(item.object.name).\(column.name)",
+                            metadata: "→ \(fk.referencedTable).\(fk.referencedColumn)",
+                            snippet: nil,
+                            payload: .foreignKey(schema: item.schema, table: item.object.name, name: fk.constraintName)
+                        ))
+                        fkCount += 1
+                    }
+                }
+            }
+        }
+
         return results
     }
 

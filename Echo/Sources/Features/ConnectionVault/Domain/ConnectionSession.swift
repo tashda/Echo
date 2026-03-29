@@ -39,6 +39,7 @@ final class ConnectionSession: Identifiable {
     /// tab gets a ready connection instantly without waiting for TCP+TLS+login.
     @ObservationIgnored var preWarmedDedicatedSession: DatabaseSession?
     @ObservationIgnored var preWarmTask: Task<Void, Never>?
+    @ObservationIgnored var healthCheckTask: Task<Void, Never>?
 
     @ObservationIgnored var defaultInitialBatchSize: Int
     @ObservationIgnored var defaultBackgroundStreamingThreshold: Int
@@ -96,6 +97,31 @@ final class ConnectionSession: Identifiable {
     /// Called at connection time and on toolbar refresh.
     func refreshPermissions() async {
         permissions = try? await session.fetchPermissions()
+    }
+
+    /// Starts a background task that periodically checks if the connection is alive.
+    /// Runs every 5 minutes for idle connections. On failure, sets state to `.disconnected`.
+    func startHealthCheck() {
+        healthCheckTask?.cancel()
+        healthCheckTask = Task(name: "health-check-\(connection.connectionName)") { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(300))
+                guard !Task.isCancelled else { break }
+                guard let self else { break }
+                guard self.connectionState.isConnected else { break }
+
+                let alive = await self.session.connectionIsAlive()
+                if !alive && self.connectionState.isConnected {
+                    self.connectionState = .disconnected
+                }
+            }
+        }
+    }
+
+    /// Stops the health check background task.
+    func stopHealthCheck() {
+        healthCheckTask?.cancel()
+        healthCheckTask = nil
     }
 }
 

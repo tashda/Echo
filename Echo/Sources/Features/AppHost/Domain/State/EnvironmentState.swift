@@ -36,6 +36,11 @@ final class EnvironmentState {
     var publicationEditorViewModels: [PublicationEditorWindowValue: PublicationEditorViewModel] = [:]
     var subscriptionEditorViewModels: [SubscriptionEditorWindowValue: SubscriptionEditorViewModel] = [:]
     var tablePropertiesViewModels: [TablePropertiesWindowValue: TablePropertiesViewModel] = [:]
+    var permissionManagerViewModels: [PermissionManagerWindowValue: PermissionManagerViewModel] = [:]
+    var triggerEditorViewModels: [TriggerEditorWindowValue: TriggerEditorViewModel] = [:]
+    var viewEditorViewModels: [ViewEditorWindowValue: ViewEditorViewModel] = [:]
+    var sequenceEditorViewModels: [SequenceEditorWindowValue: SequenceEditorViewModel] = [:]
+    var typeEditorViewModels: [TypeEditorWindowValue: TypeEditorViewModel] = [:]
     var activeLoginEditorValue: LoginEditorWindowValue?
     var activeUserEditorValue: UserEditorWindowValue?
     var activeDatabaseEditorValue: DatabaseEditorWindowValue?
@@ -46,6 +51,11 @@ final class EnvironmentState {
     var activePublicationEditorValue: PublicationEditorWindowValue?
     var activeSubscriptionEditorValue: SubscriptionEditorWindowValue?
     var activeTablePropertiesValue: TablePropertiesWindowValue?
+    var activePermissionManagerValue: PermissionManagerWindowValue?
+    var activeTriggerEditorValue: TriggerEditorWindowValue?
+    var activeViewEditorValue: ViewEditorWindowValue?
+    var activeSequenceEditorValue: SequenceEditorWindowValue?
+    var activeTypeEditorValue: TypeEditorWindowValue?
     var dataInspectorContent: DataInspectorContent?
     @ObservationIgnored private var lastPushedInspectorTitle: String?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []
@@ -252,11 +262,15 @@ final class EnvironmentState {
                     detachedJobQueueViewModels.removeValue(forKey: oldSession.id)
                 }
 
+                // Start structure load BEFORE adding session to the sidebar.
+                // This way the load runs in parallel with the sidebar rendering the new session.
+                startStructureLoadTask(for: connectionSession)
+                Task { await connectionSession.refreshPermissions() }
+                connectionSession.startHealthCheck()
+
                 sessionGroup.addSession(connectionSession)
                 connectionStates[connection.id] = .connected
                 recordRecentConnection(for: connection, databaseName: connectionSession.sidebarFocusedDatabase)
-                startStructureLoadTask(for: connectionSession)
-                Task { await connectionSession.refreshPermissions() }
                 notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")
             } catch {
                 guard !Task.isCancelled else { return }

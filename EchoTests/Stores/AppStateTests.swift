@@ -36,7 +36,7 @@ struct AppStateTests {
         state.showError(.connectionFailed("first"))
         state.showError(.queryError("second"))
 
-        if case .queryError(let msg) = state.currentError {
+        if case .queryError(let msg, _) = state.currentError {
             #expect(msg == "second")
         } else {
             Issue.record("Expected queryError")

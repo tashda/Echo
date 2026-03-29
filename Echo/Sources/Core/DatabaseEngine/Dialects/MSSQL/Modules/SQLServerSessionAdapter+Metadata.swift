@@ -42,9 +42,12 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
     }
 
     func loadDatabaseInfo(databaseName: String) async throws -> DatabaseInfo {
+        let t0 = CFAbsoluteTimeGetCurrent()
         let structure = try await metadataTimed("loadDatabaseStructure") {
             try await client.metadata.loadDatabaseStructure(database: databaseName, includeComments: false)
         }
+        let t1 = CFAbsoluteTimeGetCurrent()
+        print("[PERF] \(databaseName): sqlserver-nio loadDatabaseStructure took \(String(format: "%.3f", t1 - t0))s (\(structure.schemas.count) schemas)")
 
         let schemaInfos = structure.schemas.map { schema -> SchemaInfo in
             var objects: [SchemaObjectInfo] = []
@@ -74,6 +77,9 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
         if let meta = try? await client.metadata.databaseState(name: databaseName) {
             stateDesc = meta.stateDescription
         }
+        let t2 = CFAbsoluteTimeGetCurrent()
+        let totalObjects = schemaInfos.reduce(0) { $0 + $1.objects.count }
+        print("[PERF] \(databaseName): total loadDatabaseInfo \(String(format: "%.3f", t2 - t0))s (\(schemaInfos.count) schemas, \(totalObjects) objects)")
 
         return DatabaseInfo(name: databaseName, schemas: schemaInfos, schemaCount: schemaInfos.count, stateDescription: stateDesc)
     }

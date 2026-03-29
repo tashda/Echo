@@ -90,6 +90,15 @@ func buildDatabaseNSMenu(
         }
     }
 
+    if dbType == .sqlite && database.name.lowercased() != "main" && database.name.lowercased() != "temp" {
+        menu.addDivider()
+        menu.addActionItem("Detach Database...", systemImage: "externaldrive.badge.minus") {
+            sheetState.detachDatabaseName = database.name
+            sheetState.detachConnectionID = connID
+            sheetState.showDetachSheet = true
+        }
+    }
+
     if dbType == .microsoftSQL {
         let ctItem = menu.addActionItem("Change Tracking / CDC", systemImage: "arrow.triangle.2.circlepath") {
             sheetState.changeTrackingDatabaseName = database.name
@@ -304,6 +313,19 @@ extension ObjectBrowserSidebarView {
                 } label: {
                     Label("Restore", systemImage: "arrow.up.doc")
                 }
+            }
+        }
+
+        if session.connection.databaseType == .sqlite
+            && database.name.lowercased() != "main"
+            && database.name.lowercased() != "temp" {
+            Divider()
+            Button {
+                sheetState.detachDatabaseName = database.name
+                sheetState.detachConnectionID = connID
+                sheetState.showDetachSheet = true
+            } label: {
+                Label("Detach Database...", systemImage: "externaldrive.badge.minus")
             }
         }
 

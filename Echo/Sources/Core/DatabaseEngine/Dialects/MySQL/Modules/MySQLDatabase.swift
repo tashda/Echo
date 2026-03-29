@@ -34,16 +34,12 @@ struct MySQLNIOFactory: DatabaseFactory {
             connectTimeoutSeconds: connectTimeoutSeconds
         )
 
-        do {
-            return MySQLSession(
-                client: MySQLClient(configuration: configuration, logger: logger),
-                configuration: configuration,
-                logger: logger,
-                defaultDatabase: database
-            )
-        } catch {
-            throw DatabaseError.connectionFailed(error.localizedDescription)
-        }
+        return MySQLSession(
+            client: MySQLClient(configuration: configuration, logger: logger),
+            configuration: configuration,
+            logger: logger,
+            defaultDatabase: database
+        )
     }
 }
 

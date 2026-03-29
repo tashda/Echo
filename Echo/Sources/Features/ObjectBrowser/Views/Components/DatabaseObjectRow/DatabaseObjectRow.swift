@@ -118,7 +118,9 @@ struct DatabaseObjectRow: View, Equatable {
                 tableFeatureBadges
             }
         }
-        .contextMenu { contextMenuContent }
+        .lazyContextMenu {
+            self.buildNSMenu()
+        }
     }
 
     @ViewBuilder
