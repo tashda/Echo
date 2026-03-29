@@ -27,6 +27,10 @@ extension TabOverviewView {
                             .foregroundStyle(isActiveServer ? ColorTokens.accent : ColorTokens.Text.secondary)
                     }
 
+                    if group.connection.databaseType.isBeta {
+                        FeatureBadge.beta
+                    }
+
                     Text("\(group.totalTabCount) tab\(group.totalTabCount == 1 ? "" : "s")")
                         .font(TypographyTokens.caption2.weight(.medium))
                         .foregroundStyle(ColorTokens.Text.secondary)
