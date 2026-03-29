@@ -495,7 +495,7 @@ The remaining goal is no longer to declare whole Workbench surfaces out of scope
 
 - full server-management parity including broader remote-control workflows and richer administration around client connections beyond the now-implemented local start, stop, and restart controls
 - modeling and engineering parity, including fuller EER-style design flows, reverse engineering, and synchronization workflows that go beyond the now-implemented schema documentation, forward-engineering SQL exports, and diagram-model JSON export
-- migration and interoperability tooling that Workbench exposes as dedicated wizards, beyond the now-connected schema-diff synchronization flow from reverse-engineered diagrams
+- migration and interoperability tooling that Workbench exposes as dedicated wizards, beyond the now-connected schema-diff synchronization flow and file-based migration-script export from reverse-engineered diagrams
 - the remaining niche utilities and generation workflows that still require a user to keep Workbench installed
 
 ---

@@ -84,6 +84,12 @@ struct SchemaDiffView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
+
+                Button("Export Migration SQL") {
+                    exportMigrationSQL()
+                }
+                .buttonStyle(.borderless)
+                .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
             }
         }
     }

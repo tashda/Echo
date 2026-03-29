@@ -71,4 +71,17 @@ struct SchemaDiffViewModelTests {
         #expect(sql.contains("CREATE TABLE customers"))
         #expect(!sql.contains("No changes needed"))
     }
+
+    @Test func migrationExportFilenameReflectsSchemaSelection() {
+        let viewModel = SchemaDiffViewModel(
+            session: MockDatabaseSession(),
+            connectionID: UUID(),
+            connectionSessionID: UUID()
+        )
+
+        viewModel.sourceSchema = "inventory"
+        viewModel.targetSchema = "inventory_next"
+
+        #expect(viewModel.migrationExportFilename == "schema-diff-inventory-to-inventory_next.sql")
+    }
 }

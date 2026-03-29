@@ -61,6 +61,12 @@ final class SchemaDiffViewModel {
             && sourceSchema != targetSchema && !isComparing
     }
 
+    var migrationExportFilename: String {
+        let safeSource = sourceSchema.nilIfEmpty ?? "source"
+        let safeTarget = targetSchema.nilIfEmpty ?? "target"
+        return "schema-diff-\(safeSource)-to-\(safeTarget).sql"
+    }
+
     var availableObjectTypes: [String] {
         Array(Set(diffs.map(\.objectType))).sorted {
             $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
