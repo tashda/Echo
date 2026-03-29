@@ -55,15 +55,17 @@ struct DiagramPrefetcherTests {
 
         let request = makeRequest(schema: "public", table: "products")
 
+        // Enqueue both requests BEFORE setting the handler so the prefetcher
+        // cannot process the first one before the duplicate is enqueued.
+        await prefetcher.enqueue(request)
+        await prefetcher.enqueue(request) // duplicate
+
         await prefetcher.setHandler { _ in
             processed.append("done")
             return true
         }
 
-        await prefetcher.enqueue(request)
-        await prefetcher.enqueue(request) // duplicate
-
-        try? await Task.sleep(for: .milliseconds(200))
+        try? await Task.sleep(for: .milliseconds(500))
         #expect(processed.count == 1)
     }
 

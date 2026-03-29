@@ -57,13 +57,19 @@ struct MySQLExecutionPlanParserTests {
         #expect(nestedLoop.physicalOp == "Nested Loop")
         #expect(nestedLoop.children.count == 2)
 
-        let actorScan = nestedLoop.children[0]
+        // Each element in the nested_loop array is {"table": {...}} which the parser
+        // wraps in a "Table" node whose child is the actual table access node.
+        let actorWrapper = nestedLoop.children[0]
+        #expect(actorWrapper.physicalOp == "Table")
+        let actorScan = try #require(actorWrapper.children.first)
         #expect(actorScan.physicalOp == "Table Scan")
         #expect(actorScan.logicalOp == "actor")
         #expect(actorScan.estimateRows == 200)
         #expect(actorScan.outputColumns == ["actor_id", "first_name"])
 
-        let joinProbe = nestedLoop.children[1]
+        let joinWrapper = nestedLoop.children[1]
+        #expect(joinWrapper.physicalOp == "Table")
+        let joinProbe = try #require(joinWrapper.children.first)
         #expect(joinProbe.physicalOp == "Index Lookup")
         #expect(joinProbe.logicalOp == "film_actor")
         #expect(joinProbe.warnings.contains(where: { $0.contains("Filter:") }))

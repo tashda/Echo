@@ -232,6 +232,11 @@ extension Tag {
 /// Uses the same Docker MSSQL instance as MSSQLDockerTestCase.
 enum MSSQLTestSession {
     static func create() async throws -> DatabaseSession {
+        try #require(
+            ProcessInfo.processInfo.environment["USE_DOCKER"] != nil,
+            "Skipping: no MSSQL fixture (USE_DOCKER not set)"
+        )
+
         let port = Int(ProcessInfo.processInfo.environment["TEST_RUNNER_ECHO_MSSQL_PORT"] ?? "14332") ?? 14332
         let password = ProcessInfo.processInfo.environment["TEST_RUNNER_ECHO_MSSQL_PASSWORD"] ?? "YourStrong@Passw0rd"
 
