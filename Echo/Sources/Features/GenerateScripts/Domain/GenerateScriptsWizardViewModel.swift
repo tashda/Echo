@@ -22,9 +22,9 @@ final class GenerateScriptsWizardViewModel {
     // MARK: - Step 1: Object Selection
 
     /// All scriptable objects grouped by category.
-    var objectsByCategory: [(category: String, objects: [SQLServerObjectIdentifier])] = []
+    var objectsByCategory: [(category: String, objects: [GenerateScriptsObject])] = []
     /// Set of selected object IDs.
-    var selectedObjectIDs: Set<SQLServerObjectIdentifier> = []
+    var selectedObjectIDs: Set<String> = []
     /// Categories with all objects selected (for "Select All" checkboxes).
     var isLoadingObjects = false
 
@@ -61,16 +61,20 @@ final class GenerateScriptsWizardViewModel {
 
     // MARK: - Dependencies
 
-    private let session: DatabaseSession
-    private let databaseName: String
-    private let logger = Logger(label: "GenerateScriptsWizardViewModel")
+    let session: DatabaseSession
+    let databaseName: String
+    let databaseType: DatabaseType
+    let preferredObjectID: String?
+    let logger = Logger(label: "GenerateScriptsWizardViewModel")
 
     /// Called when the script should be opened in a new query tab.
     var onOpenInQueryTab: ((String) -> Void)?
 
-    init(session: DatabaseSession, databaseName: String) {
+    init(session: DatabaseSession, databaseName: String, databaseType: DatabaseType, preferredObject: SchemaObjectInfo? = nil) {
         self.session = session
         self.databaseName = databaseName
+        self.databaseType = databaseType
+        self.preferredObjectID = preferredObject.map { GenerateScriptsObject($0).id }
     }
 
     // MARK: - Navigation
@@ -99,29 +103,29 @@ final class GenerateScriptsWizardViewModel {
 
     func isAllSelected(in category: String) -> Bool {
         guard let group = objectsByCategory.first(where: { $0.category == category }) else { return false }
-        return group.objects.allSatisfy { selectedObjectIDs.contains($0) }
+        return group.objects.allSatisfy { selectedObjectIDs.contains($0.id) }
     }
 
     func toggleAll(in category: String) {
         guard let group = objectsByCategory.first(where: { $0.category == category }) else { return }
         if isAllSelected(in: category) {
-            for obj in group.objects { selectedObjectIDs.remove(obj) }
+            for obj in group.objects { selectedObjectIDs.remove(obj.id) }
         } else {
-            for obj in group.objects { selectedObjectIDs.insert(obj) }
+            for obj in group.objects { selectedObjectIDs.insert(obj.id) }
         }
     }
 
-    func toggleObject(_ obj: SQLServerObjectIdentifier) {
-        if selectedObjectIDs.contains(obj) {
-            selectedObjectIDs.remove(obj)
+    func toggleObject(_ obj: GenerateScriptsObject) {
+        if selectedObjectIDs.contains(obj.id) {
+            selectedObjectIDs.remove(obj.id)
         } else {
-            selectedObjectIDs.insert(obj)
+            selectedObjectIDs.insert(obj.id)
         }
     }
 
     func selectAll() {
         for group in objectsByCategory {
-            for obj in group.objects { selectedObjectIDs.insert(obj) }
+            for obj in group.objects { selectedObjectIDs.insert(obj.id) }
         }
     }
 
@@ -129,103 +133,9 @@ final class GenerateScriptsWizardViewModel {
         selectedObjectIDs.removeAll()
     }
 
-    // MARK: - Load Objects
-
-    func loadObjects() {
-        guard let deps = session.dependencies else { return }
-        isLoadingObjects = true
-        let db = databaseName
-
-        Task { [deps, db] in
-            do {
-                let objects = try await deps.listAllObjects(database: db)
-                let grouped = Dictionary(grouping: objects) { $0.typeCategory }
-                let categoryOrder = ["Tables", "Views", "Stored Procedures", "Functions", "Triggers", "Synonyms", "Types", "Sequences"]
-                self.objectsByCategory = categoryOrder.compactMap { cat in
-                    guard let objs = grouped[cat], !objs.isEmpty else { return nil }
-                    return (category: cat, objects: objs)
-                }
-                // Default: select all
-                self.selectedObjectIDs = Set(objects)
-                self.isLoadingObjects = false
-            } catch {
-                logger.error("Failed to load objects: \(error)")
-                self.isLoadingObjects = false
-            }
-        }
-    }
-
-    // MARK: - Script Generation
-
-    func generate() {
-        guard let deps = session.dependencies else { return }
-        isGenerating = true
-        progress = 0
-        statusMessage = "Analyzing dependencies..."
-        generationError = nil
-        generationSucceeded = false
-        let db = databaseName
-
-        Task { [deps, db] in
-            do {
-                let graph = try await deps.buildGraph(database: db)
-                let allSorted = graph.resolvedOrder()
-                let sortedSelected = allSorted.filter { selectedObjectIDs.contains($0) }
-
-                var script = "-- Generated by Echo on \(Date().formatted())\n"
-                if includeUseDatabase {
-                    script += "USE [\(databaseName)];\nGO\n\n"
-                }
-
-                let total = Double(sortedSelected.count)
-                for (index, obj) in sortedSelected.enumerated() {
-                    statusMessage = "Scripting \(obj.qualifiedName)..."
-
-                    if scriptDropAndCreate {
-                        if checkExistence {
-                            script += "IF OBJECT_ID(N'\(obj.qualifiedName)', N'\(obj.type)') IS NOT NULL\n"
-                            script += "    DROP \(Self.sqlKeyword(for: obj.type)) \(obj.qualifiedName);\nGO\n\n"
-                        } else {
-                            script += "DROP \(Self.sqlKeyword(for: obj.type)) \(obj.qualifiedName);\nGO\n\n"
-                        }
-                    }
-
-                    if let definition = try await deps.scriptObjectDDL(
-                        database: db,
-                        schema: obj.schema,
-                        name: obj.name,
-                        objectType: obj.type
-                    ) {
-                        if checkExistence && !scriptDropAndCreate {
-                            script += "IF OBJECT_ID(N'\(obj.qualifiedName)', N'\(obj.type)') IS NULL\nBEGIN\n"
-                            script += definition
-                            script += "\nEND\nGO\n\n"
-                        } else {
-                            script += definition
-                            script += "\nGO\n\n"
-                        }
-                    }
-
-                    progress = Double(index + 1) / max(total, 1)
-                }
-
-                self.generatedScript = script
-                self.statusMessage = "Script generation complete."
-                self.isGenerating = false
-                self.generationSucceeded = true
-                deliverOutput(script)
-            } catch {
-                logger.error("Script generation failed: \(error)")
-                self.generationError = error.localizedDescription
-                self.statusMessage = "Error: \(error.localizedDescription)"
-                self.isGenerating = false
-            }
-        }
-    }
-
     // MARK: - Output Delivery
 
-    private func deliverOutput(_ script: String) {
+    func deliverOutput(_ script: String) {
         switch outputDestination {
         case .clipboard:
             NSPasteboard.general.clearContents()
@@ -250,22 +160,6 @@ final class GenerateScriptsWizardViewModel {
             } catch {
                 logger.error("Failed to save script file: \(error)")
             }
-        }
-    }
-
-    // MARK: - Helpers
-
-    private static func sqlKeyword(for type: String) -> String {
-        switch type {
-        case "U": return "TABLE"
-        case "V": return "VIEW"
-        case "P": return "PROCEDURE"
-        case "FN", "IF", "TF": return "FUNCTION"
-        case "TR": return "TRIGGER"
-        case "SN": return "SYNONYM"
-        case "TT": return "TYPE"
-        case "SO": return "SEQUENCE"
-        default: return "OBJECT"
         }
     }
 }

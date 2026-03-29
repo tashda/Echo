@@ -1,5 +1,4 @@
 import SwiftUI
-import SQLServerKit
 
 /// Step 1 of the Generate Scripts wizard: object selection tree with category checkboxes.
 struct GenerateScriptsSelectObjectsStep: View {
@@ -87,10 +86,10 @@ struct GenerateScriptsSelectObjectsStep: View {
         }
     }
 
-    private func objectRow(_ obj: SQLServerObjectIdentifier) -> some View {
+    private func objectRow(_ obj: GenerateScriptsObject) -> some View {
         HStack(spacing: SpacingTokens.xs) {
             Toggle(isOn: Binding(
-                get: { viewModel.selectedObjectIDs.contains(obj) },
+                get: { viewModel.selectedObjectIDs.contains(obj.id) },
                 set: { _ in viewModel.toggleObject(obj) }
             )) {
                 EmptyView()
@@ -109,14 +108,16 @@ struct GenerateScriptsSelectObjectsStep: View {
 
     private func iconForCategory(_ category: String) -> String {
         switch category {
-        case "Tables": return "tablecells"
-        case "Views": return "eye"
-        case "Stored Procedures": return "gearshape.fill"
-        case "Functions": return "function"
-        case "Triggers": return "bolt.fill"
-        case "Synonyms": return "arrow.triangle.branch"
-        case "Types": return "textformat"
-        case "Sequences": return "number"
+        case SchemaObjectInfo.ObjectType.table.pluralDisplayName: return SchemaObjectInfo.ObjectType.table.systemImage
+        case SchemaObjectInfo.ObjectType.view.pluralDisplayName: return SchemaObjectInfo.ObjectType.view.systemImage
+        case SchemaObjectInfo.ObjectType.materializedView.pluralDisplayName: return SchemaObjectInfo.ObjectType.materializedView.systemImage
+        case SchemaObjectInfo.ObjectType.procedure.pluralDisplayName: return SchemaObjectInfo.ObjectType.procedure.systemImage
+        case SchemaObjectInfo.ObjectType.function.pluralDisplayName: return SchemaObjectInfo.ObjectType.function.systemImage
+        case SchemaObjectInfo.ObjectType.trigger.pluralDisplayName: return SchemaObjectInfo.ObjectType.trigger.systemImage
+        case SchemaObjectInfo.ObjectType.synonym.pluralDisplayName: return SchemaObjectInfo.ObjectType.synonym.systemImage
+        case SchemaObjectInfo.ObjectType.type.pluralDisplayName: return SchemaObjectInfo.ObjectType.type.systemImage
+        case SchemaObjectInfo.ObjectType.sequence.pluralDisplayName: return SchemaObjectInfo.ObjectType.sequence.systemImage
+        case SchemaObjectInfo.ObjectType.extension.pluralDisplayName: return SchemaObjectInfo.ObjectType.extension.systemImage
         default: return "cube"
         }
     }

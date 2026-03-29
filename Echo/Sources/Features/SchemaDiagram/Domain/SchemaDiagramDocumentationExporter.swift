@@ -23,6 +23,13 @@ enum SchemaDiagramDocumentationExporter {
             return renderText(document: document)
         case .sql:
             return SchemaDiagramForwardSQLExporter.export(title: title, nodes: nodes, edges: edges)
+        case .jsonModel:
+            return SchemaDiagramModelExporter.export(
+                title: title,
+                nodes: nodes,
+                edges: edges,
+                layout: DiagramLayoutSnapshot(nodePositions: [])
+            )
         case .png, .pdf:
             return ""
         }

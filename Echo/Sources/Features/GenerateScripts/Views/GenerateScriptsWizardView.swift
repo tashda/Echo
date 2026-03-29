@@ -1,5 +1,4 @@
 import SwiftUI
-import SQLServerKit
 
 /// Multi-step wizard sheet for bulk scripting database objects.
 struct GenerateScriptsWizardView: View {

@@ -23,6 +23,7 @@ The project is no longer at the planning-only stage:
 - the shared Table Data editor now exposes Workbench-style cell actions including NULL assignment, text transforms, file-backed value loading, raw SQL expression mode, and direct table import access
 - query tabs now expose a dedicated statistics panel for execution timing, row/batch flow, and resource usage alongside messages, plans, and result views
 - query tabs now expose a real context-help inspector for selected SQL statements and clauses, using the shared Echo inspector/sidebar architecture instead of a MySQL-only panel
+- the shared Generate Scripts wizard now works for MySQL databases and objects, with typed object discovery, MySQL-safe DDL wrapping, table-data script generation, and shared output targets instead of a SQL Server-only implementation
 - MySQL table structure editing now has typed `mysql-wire` metadata, a MySQL dialect generator, and shared table editor UI support
 - the shared table properties window now has a real MySQL general/storage editor backed by typed `mysql-wire` table-options metadata and `ALTER TABLE` property updates
 - MySQL server administration now includes a real server properties tab with overview metrics, full variable/status browsing, variable editing, table-backed/file-backed log viewing, and a MySQL options-file configuration editor for local config inspection/editing

@@ -94,7 +94,9 @@ struct DatabaseObjectRowAlerts: ViewModifier {
                        let dbName = databaseName {
                         let vm = GenerateScriptsWizardViewModel(
                             session: session.session,
-                            databaseName: dbName
+                            databaseName: dbName,
+                            databaseType: connection.databaseType,
+                            preferredObject: object
                         )
                         GenerateScriptsWizardView(viewModel: vm)
                             .onAppear {

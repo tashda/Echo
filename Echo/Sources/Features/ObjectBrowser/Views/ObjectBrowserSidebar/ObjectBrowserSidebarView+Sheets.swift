@@ -320,7 +320,8 @@ extension ObjectBrowserSidebarView {
                    let dbName = sheetState.generateScriptsDatabaseName {
                     let vm = GenerateScriptsWizardViewModel(
                         session: session.session,
-                        databaseName: dbName
+                        databaseName: dbName,
+                        databaseType: session.connection.databaseType
                     )
                     GenerateScriptsWizardView(viewModel: vm)
                         .onAppear {
