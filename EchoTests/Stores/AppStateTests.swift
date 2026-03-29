@@ -146,17 +146,17 @@ struct AppStateTests {
         #expect(state.queryHistory[1].query == "SELECT 1;")
     }
 
-    @Test func addToQueryHistoryLimitsTo50() {
+    @Test func addToQueryHistoryLimitsTo500() {
         let state = AppState()
         state.clearQueryHistory()
 
-        for i in 0..<60 {
+        for i in 0..<510 {
             state.addToQueryHistory("SELECT \(i);")
         }
 
-        #expect(state.queryHistory.count == 50)
+        #expect(state.queryHistory.count == 500)
         // Most recent should be at index 0
-        #expect(state.queryHistory[0].query == "SELECT 59;")
+        #expect(state.queryHistory[0].query == "SELECT 509;")
     }
 
     @Test func addToQueryHistoryWithNilOptionals() {
