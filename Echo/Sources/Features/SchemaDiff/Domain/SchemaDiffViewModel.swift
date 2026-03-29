@@ -67,6 +67,12 @@ final class SchemaDiffViewModel {
         return "schema-diff-\(safeSource)-to-\(safeTarget).sql"
     }
 
+    func comparisonReportFilename(for format: SchemaDiffComparisonReportFormat) -> String {
+        let safeSource = sourceSchema.nilIfEmpty ?? "source"
+        let safeTarget = targetSchema.nilIfEmpty ?? "target"
+        return "schema-diff-\(safeSource)-to-\(safeTarget)-report.\(format.fileExtension)"
+    }
+
     var availableObjectTypes: [String] {
         Array(Set(diffs.map(\.objectType))).sorted {
             $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
@@ -180,6 +186,15 @@ final class SchemaDiffViewModel {
     func migrationSQLForSelectedDiff() -> String? {
         guard let selectedDiff else { return nil }
         return generateMigrationSQL(for: selectedDiff)
+    }
+
+    func comparisonReport(for format: SchemaDiffComparisonReportFormat) -> String {
+        SchemaDiffComparisonReportBuilder.build(
+            sourceSchema: sourceSchema,
+            targetSchema: targetSchema,
+            diffs: filteredDiffs,
+            format: format
+        )
     }
 
     private func comparePostgres(_ pg: PostgresSession) async throws -> [SchemaDiffItem] {

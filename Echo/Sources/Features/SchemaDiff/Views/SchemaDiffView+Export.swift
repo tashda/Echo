@@ -18,4 +18,23 @@ extension SchemaDiffView {
             try? sql.write(to: url, atomically: true, encoding: .utf8)
         }
     }
+
+    func exportComparisonReport(as format: SchemaDiffComparisonReportFormat) {
+        let report = viewModel.comparisonReport(for: format)
+        guard !report.isEmpty else { return }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = switch format {
+        case .text, .markdown: [.plainText]
+        case .html: [.html]
+        }
+        panel.nameFieldStringValue = viewModel.comparisonReportFilename(for: format)
+        panel.canCreateDirectories = true
+        panel.prompt = "Export"
+
+        panel.beginSheetModal(for: NSApp.keyWindow ?? NSApp.mainWindow!) { response in
+            guard response == .OK, let url = panel.url else { return }
+            try? report.write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
 }

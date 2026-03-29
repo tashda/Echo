@@ -92,6 +92,13 @@ struct SchemaDiffView: View {
                 .buttonStyle(.borderless)
                 .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
 
+                Menu("Export Report") {
+                    Button("Export as HTML") { exportComparisonReport(as: .html) }
+                    Button("Export as Markdown") { exportComparisonReport(as: .markdown) }
+                    Button("Export as Text") { exportComparisonReport(as: .text) }
+                }
+                .disabled(viewModel.filteredDiffs.isEmpty)
+
                 Button("Open Migration SQL") {
                     openMigrationSQLInQueryTab()
                 }
