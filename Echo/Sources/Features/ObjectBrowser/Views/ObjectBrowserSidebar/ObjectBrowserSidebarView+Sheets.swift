@@ -369,6 +369,28 @@ extension ObjectBrowserSidebarView {
                     )
                 }
             }
+            // Data Migration Wizard
+            .sheet(isPresented: $sheetState.showDataMigrationWizard) {
+                let vm = DataMigrationWizardViewModel()
+                let sessions = environmentState.sessionGroup.activeSessions
+                DataMigrationWizardView(viewModel: vm)
+                    .onAppear {
+                        vm.availableSessions = sessions
+                        if let connID = sheetState.dataMigrationConnectionID,
+                           let session = sessions.first(where: { $0.connection.id == connID }) {
+                            vm.sourceSessionID = session.id
+                            vm.loadSourceDatabases()
+                        }
+                        vm.onOpenInQueryTab = { [weak environmentState] script in
+                            let targetSession = sessions.first(where: { $0.id == vm.targetSessionID })
+                            environmentState?.openQueryTab(
+                                for: targetSession,
+                                presetQuery: script,
+                                database: vm.targetDatabaseName
+                            )
+                        }
+                    }
+            }
     }
 
     func applyAlerts<V: View>(to content: V) -> some View {

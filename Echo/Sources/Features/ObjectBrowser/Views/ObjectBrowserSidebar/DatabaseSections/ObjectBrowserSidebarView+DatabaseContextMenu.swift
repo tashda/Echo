@@ -154,6 +154,10 @@ func buildDatabaseNSMenu(
                     sheetState.quickImportConnectionID = connID
                     sheetState.showQuickImportSheet = true
                 }
+                sub.addActionItem("Migrate Data...", systemImage: "arrow.right.arrow.left") {
+                    sheetState.dataMigrationConnectionID = connID
+                    sheetState.showDataMigrationWizard = true
+                }
                 sub.addDivider()
                 sub.addActionItem("Data-tier Application Tasks...", systemImage: "archivebox") {
                     sheetState.dacWizardDatabaseName = database.name
@@ -413,6 +417,13 @@ extension ObjectBrowserSidebarView {
                         sheetState.showQuickImportSheet = true
                     } label: {
                         Label("Import Flat File...", systemImage: "square.and.arrow.down.on.square")
+                    }
+
+                    Button {
+                        sheetState.dataMigrationConnectionID = connID
+                        sheetState.showDataMigrationWizard = true
+                    } label: {
+                        Label("Migrate Data...", systemImage: "arrow.right.arrow.left")
                     }
 
                     Divider()

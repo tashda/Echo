@@ -212,4 +212,9 @@ final class SidebarSheetState {
     var enableVersioningDatabaseName: String?
     var enableVersioningSchemaName: String?
     var enableVersioningTableName: String?
+
+    // MARK: - Data Migration Wizard
+
+    var showDataMigrationWizard = false
+    var dataMigrationConnectionID: UUID?
 }
