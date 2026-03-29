@@ -59,7 +59,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-unit \
           -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 
     - name: Run SQLite Integration Tests
       run: |
@@ -69,7 +69,7 @@ jobs:
           -testPlan SQLiteIntegrationTests \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-sqlite \
-          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 
     - name: Upload Unit Test Results
       if: always()
