@@ -52,6 +52,7 @@ final class ServerPropertiesViewModel {
 
     let connectionID: UUID
     let connectionSessionID: UUID
+    let connectionHost: String
     @ObservationIgnored let session: DatabaseSession
     @ObservationIgnored let processRunner = MySQLProcessRunner()
     @ObservationIgnored var activityEngine: ActivityEngine?
@@ -78,10 +79,11 @@ final class ServerPropertiesViewModel {
     var loadedConfigFileContents = ""
     var configStatusMessage: String?
 
-    init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID) {
+    init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID, connectionHost: String = "") {
         self.session = session
         self.connectionID = connectionID
         self.connectionSessionID = connectionSessionID
+        self.connectionHost = connectionHost
     }
 
     func setPanelState(_ state: BottomPanelState) {
@@ -94,20 +96,23 @@ final class ServerPropertiesViewModel {
     }
 
     func loadCurrentSection() async {
-        guard let mysql = session as? MySQLSession else { return }
-        switch selectedSection {
-        case .overview:
-            await loadOverview(mysql: mysql)
-        case .control:
-            await refreshServerControlState(mysql: mysql)
-        case .variables:
-            await loadVariables(mysql: mysql)
-        case .status:
-            await loadStatusVariables(mysql: mysql)
-        case .logs:
-            await loadLogs(mysql: mysql)
-        case .configuration:
-            await loadConfiguration(mysql: mysql)
+        if let mysql = session as? MySQLSession {
+            switch selectedSection {
+            case .overview:
+                await loadOverview(mysql: mysql)
+            case .control:
+                await refreshServerControlState(mysql: mysql)
+            case .variables:
+                await loadVariables(mysql: mysql)
+            case .status:
+                await loadStatusVariables(mysql: mysql)
+            case .logs:
+                await loadLogs(mysql: mysql)
+            case .configuration:
+                await loadConfiguration(mysql: mysql)
+            }
+        } else if session is PostgresSession {
+            await loadPostgresSection()
         }
     }
 

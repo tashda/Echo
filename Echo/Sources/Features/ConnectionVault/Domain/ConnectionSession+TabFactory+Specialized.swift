@@ -170,7 +170,8 @@ extension ConnectionSession {
         let viewModel = ServerPropertiesViewModel(
             session: session,
             connectionID: connection.id,
-            connectionSessionID: id
+            connectionSessionID: id,
+            connectionHost: connection.host
         )
         viewModel.activityEngine = AppDirector.shared.activityEngine
         let tab = WorkspaceTab(
