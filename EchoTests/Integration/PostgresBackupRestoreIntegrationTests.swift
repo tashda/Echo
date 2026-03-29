@@ -9,7 +9,7 @@ import Foundation
 ///
 /// Requires a validated PostgreSQL fixture.
 /// Environment variables: TEST_PG_HOST, TEST_PG_PORT, TEST_PG_DATABASE, TEST_PG_USER, TEST_PG_PASSWORD
-@Suite("PostgreSQL Backup & Restore")
+@Suite("PostgreSQL Backup & Restore", .enabled(if: ProcessInfo.processInfo.environment["USE_DOCKER"] != nil || ProcessInfo.processInfo.environment["TEST_PG_HOST"] != nil, "Requires Postgres fixture"))
 struct PostgresBackupRestoreIntegrationTests {
 
     // MARK: - Config & Helpers

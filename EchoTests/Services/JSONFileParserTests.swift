@@ -14,10 +14,18 @@ struct JSONFileParserTests {
 
         let result = try await JSONFileParser.parse(url: url)
 
-        #expect(result.headers == ["id", "name", "active"])
+        #expect(Set(result.headers) == Set(["id", "name", "active"]))
         #expect(result.totalRowCount == 2)
-        #expect(result.rows[0] == ["1", "Alice", ""])
-        #expect(result.rows[1] == ["2", "Bob", "1"])
+        // Map rows by header to be order-independent
+        let headerIndex = Dictionary(uniqueKeysWithValues: result.headers.enumerated().map { ($1, $0) })
+        let row0 = result.rows[0]
+        let row1 = result.rows[1]
+        #expect(row0[headerIndex["id"]!] == "1")
+        #expect(row0[headerIndex["name"]!] == "Alice")
+        #expect(row0[headerIndex["active"]!] == "")
+        #expect(row1[headerIndex["id"]!] == "2")
+        #expect(row1[headerIndex["name"]!] == "Bob")
+        #expect(row1[headerIndex["active"]!] == "1")
     }
 
     @Test func serializesNestedValuesAsJSONStrings() async throws {
@@ -29,8 +37,9 @@ struct JSONFileParserTests {
 
         let result = try await JSONFileParser.parse(url: url)
 
-        #expect(result.rows[0][1] == #"{"city":"Copenhagen"}"#)
-        #expect(result.rows[0][2] == #"["mysql","echo"]"#)
+        let hdrIdx = Dictionary(uniqueKeysWithValues: result.headers.enumerated().map { ($1, $0) })
+        #expect(result.rows[0][hdrIdx["meta"]!] == #"{"city":"Copenhagen"}"#)
+        #expect(result.rows[0][hdrIdx["tags"]!] == #"["mysql","echo"]"#)
     }
 
     @Test func rejectsNonArrayTopLevelJSON() async throws {

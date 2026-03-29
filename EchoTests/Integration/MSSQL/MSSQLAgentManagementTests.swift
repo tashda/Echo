@@ -6,6 +6,7 @@ import SQLServerKit
 /// Integration tests for SQL Server Agent management operations:
 /// alert CRUD, proxy management, category management, and job creation with all subsystems.
 /// Uses typed sqlserver-nio APIs per project conventions.
+@Suite(.enabled(if: ProcessInfo.processInfo.environment["USE_DOCKER"] != nil, "Requires MSSQL Docker fixture"))
 struct MSSQLAgentManagementTests {
 
     // MARK: - Alert CRUD
@@ -232,10 +233,6 @@ extension Tag {
 /// Uses the same Docker MSSQL instance as MSSQLDockerTestCase.
 enum MSSQLTestSession {
     static func create() async throws -> DatabaseSession {
-        try #require(
-            ProcessInfo.processInfo.environment["USE_DOCKER"] != nil,
-            "Skipping: no MSSQL fixture (USE_DOCKER not set)"
-        )
 
         let port = Int(ProcessInfo.processInfo.environment["TEST_RUNNER_ECHO_MSSQL_PORT"] ?? "14332") ?? 14332
         let password = ProcessInfo.processInfo.environment["TEST_RUNNER_ECHO_MSSQL_PASSWORD"] ?? "YourStrong@Passw0rd"
