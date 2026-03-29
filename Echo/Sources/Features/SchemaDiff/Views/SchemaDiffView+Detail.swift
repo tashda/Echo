@@ -3,6 +3,7 @@ import AppKit
 
 struct SchemaDiffDetailView: View {
     @Bindable var viewModel: SchemaDiffViewModel
+    @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
         Group {
@@ -42,6 +43,12 @@ struct SchemaDiffDetailView: View {
                 let sql = viewModel.generateMigrationSQL(for: item)
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(sql, forType: .string)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
+            Button("Open in Query Tab") {
+                openSelectedMigrationSQL()
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -94,5 +101,15 @@ struct SchemaDiffDetailView: View {
         case .modified: return ColorTokens.Status.warning
         case .identical: return ColorTokens.Text.tertiary
         }
+    }
+
+    private func openSelectedMigrationSQL() {
+        guard let sql = viewModel.migrationSQLForSelectedDiff(),
+              let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == viewModel.connectionSessionID }) else {
+            return
+        }
+
+        let database = session.connection.databaseType == .mysql ? viewModel.targetSchema : nil
+        environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
     }
 }

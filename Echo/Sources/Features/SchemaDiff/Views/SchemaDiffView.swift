@@ -5,6 +5,7 @@ struct SchemaDiffView: View {
     @Bindable var viewModel: SchemaDiffViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
         MaintenanceTabFrame(
@@ -87,6 +88,12 @@ struct SchemaDiffView: View {
 
                 Button("Export Migration SQL") {
                     exportMigrationSQL()
+                }
+                .buttonStyle(.borderless)
+                .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
+
+                Button("Open Migration SQL") {
+                    openMigrationSQLInQueryTab()
                 }
                 .buttonStyle(.borderless)
                 .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
@@ -178,5 +185,16 @@ struct SchemaDiffView: View {
         case .modified: return ColorTokens.Status.warning
         case .identical: return ColorTokens.Text.tertiary
         }
+    }
+
+    private func openMigrationSQLInQueryTab() {
+        let sql = viewModel.generateMigrationSQLForFilteredDiffs()
+        guard !sql.isEmpty,
+              let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == viewModel.connectionSessionID }) else {
+            return
+        }
+
+        let database = session.connection.databaseType == .mysql ? viewModel.targetSchema : nil
+        environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
     }
 }

@@ -84,4 +84,28 @@ struct SchemaDiffViewModelTests {
 
         #expect(viewModel.migrationExportFilename == "schema-diff-inventory-to-inventory_next.sql")
     }
+
+    @Test func selectedMigrationSQLUsesCurrentSelection() {
+        let viewModel = SchemaDiffViewModel(
+            session: MockDatabaseSession(),
+            connectionID: UUID(),
+            connectionSessionID: UUID()
+        )
+
+        viewModel.sourceSchema = "source_db"
+        viewModel.targetSchema = "target_db"
+        let diff = SchemaDiffItem(
+            objectType: "table",
+            objectName: "customers",
+            status: .added,
+            sourceDDL: nil,
+            targetDDL: "CREATE TABLE customers (id INT);"
+        )
+        viewModel.diffs = [diff]
+        viewModel.selectedDiffID = diff.id
+
+        let sql = viewModel.migrationSQLForSelectedDiff()
+
+        #expect(sql?.contains("CREATE TABLE customers") == true)
+    }
 }

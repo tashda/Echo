@@ -177,6 +177,11 @@ final class SchemaDiffViewModel {
             .joined(separator: "\n\n")
     }
 
+    func migrationSQLForSelectedDiff() -> String? {
+        guard let selectedDiff else { return nil }
+        return generateMigrationSQL(for: selectedDiff)
+    }
+
     private func comparePostgres(_ pg: PostgresSession) async throws -> [SchemaDiffItem] {
         let sourceObjects = try await pg.client.introspection.listTablesAndViews(schema: sourceSchema).map {
             DiffObject(kind: $0.kind.rawValue, name: $0.name)
