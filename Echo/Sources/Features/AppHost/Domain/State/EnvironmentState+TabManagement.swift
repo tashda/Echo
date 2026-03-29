@@ -364,7 +364,82 @@ extension EnvironmentState {
     }
 
     func openDiagramTab(for session: ConnectionSession, object: SchemaObjectInfo) {
-        // Implementation
+        let selectedProjectID = projectStore.selectedProject?.id
+        let title = "\(object.schema).\(object.name)"
+        let cacheKey = selectedProjectID.map {
+            DiagramCacheKey(
+                projectID: $0,
+                connectionID: session.connection.id,
+                schema: object.schema,
+                table: object.name
+            )
+        }
+        let context = SchemaDiagramContext(
+            projectID: selectedProjectID,
+            connectionID: session.connection.id,
+            connectionSessionID: session.id,
+            object: object,
+            cacheKey: cacheKey
+        )
+        let databaseName = session.connection.databaseType == .mysql
+            ? object.schema
+            : (session.connection.database.isEmpty ? nil : session.connection.database)
+
+        let placeholder = SchemaDiagramViewModel(
+            nodes: [],
+            edges: [],
+            baseNodeID: "\(object.schema).\(object.name)",
+            title: title,
+            isLoading: true,
+            statusMessage: "Loading \(title)…",
+            context: context
+        )
+
+        let tab = session.addDiagramTab(
+            for: object,
+            viewModel: placeholder,
+            databaseName: databaseName
+        )
+        if tabStore.getTab(id: tab.id) == nil {
+            registerTab(tab)
+        }
+        tabStore.selectTab(tab)
+
+        guard tab.diagram === placeholder else { return }
+
+        Task {
+            do {
+                let diagram = try await diagramBuilder.buildSchemaDiagram(
+                    for: object,
+                    session: session,
+                    projectID: selectedProjectID ?? UUID(),
+                    cacheKey: cacheKey,
+                    progress: { [weak placeholder] message in
+                        Task { @MainActor in
+                            placeholder?.statusMessage = message
+                        }
+                    },
+                    isPrefetch: false
+                )
+
+                await MainActor.run {
+                    placeholder.nodes = diagram.nodes
+                    placeholder.edges = diagram.edges
+                    placeholder.layoutIdentifier = diagram.layoutIdentifier
+                    placeholder.cachedStructure = diagram.cachedStructure
+                    placeholder.cachedChecksum = diagram.cachedChecksum
+                    placeholder.loadSource = diagram.loadSource
+                    placeholder.statusMessage = nil
+                    placeholder.errorMessage = nil
+                    placeholder.isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    placeholder.errorMessage = error.localizedDescription
+                    placeholder.isLoading = false
+                }
+            }
+        }
     }
 
     func duplicateTab(_ tab: WorkspaceTab) {

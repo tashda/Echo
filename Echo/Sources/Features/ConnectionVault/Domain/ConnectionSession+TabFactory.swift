@@ -119,7 +119,6 @@ extension ConnectionSession {
             databaseType: connection.databaseType
         )
         viewModel.activityEngine = AppDirector.shared.activityEngine
-        viewModel.connectionSession = self
         viewModel.connectionSessionID = id
         if let focus {
             viewModel.focusSection(focus)
@@ -224,6 +223,37 @@ extension ConnectionSession {
             title: "\(table) (Data)",
             content: .tableData(viewModel),
             activeDatabaseName: databaseName ?? sidebarFocusedDatabase
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addDiagramTab(
+        for object: SchemaObjectInfo,
+        viewModel: SchemaDiagramViewModel,
+        databaseName: String? = nil
+    ) -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { tab in
+            guard let diagram = tab.diagram,
+                  let context = diagram.context else {
+                return false
+            }
+            return context.object == object
+        }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: viewModel.title,
+            content: .diagram(viewModel),
+            activeDatabaseName: databaseName
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id

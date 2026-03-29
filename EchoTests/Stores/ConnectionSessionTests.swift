@@ -67,6 +67,68 @@ final class ConnectionSessionTests: XCTestCase {
         XCTAssertEqual(cs.activeQueryTabID, t2.id)
     }
 
+    func testAddDiagramTabCreatesDiagramTab() async {
+        let cs = makeConnectionSession()
+        let object = TestFixtures.schemaObjectInfo(name: "orders", schema: "sales", type: .table)
+        let viewModel = SchemaDiagramViewModel(
+            nodes: [],
+            edges: [],
+            baseNodeID: "sales.orders",
+            title: "sales.orders",
+            context: SchemaDiagramContext(
+                projectID: UUID(),
+                connectionID: cs.connection.id,
+                connectionSessionID: cs.id,
+                object: object,
+                cacheKey: nil
+            )
+        )
+
+        let tab = cs.addDiagramTab(for: object, viewModel: viewModel, databaseName: "sales")
+
+        XCTAssertEqual(cs.queryTabs.count, 1)
+        XCTAssertEqual(tab.kind, .diagram)
+        XCTAssertEqual(tab.activeDatabaseName, "sales")
+        XCTAssertNotNil(tab.diagram)
+    }
+
+    func testAddDiagramTabReusesExistingObjectDiagram() async {
+        let cs = makeConnectionSession()
+        let object = TestFixtures.schemaObjectInfo(name: "orders", schema: "sales", type: .table)
+        let first = SchemaDiagramViewModel(
+            nodes: [],
+            edges: [],
+            baseNodeID: "sales.orders",
+            title: "sales.orders",
+            context: SchemaDiagramContext(
+                projectID: UUID(),
+                connectionID: cs.connection.id,
+                connectionSessionID: cs.id,
+                object: object,
+                cacheKey: nil
+            )
+        )
+        let second = SchemaDiagramViewModel(
+            nodes: [],
+            edges: [],
+            baseNodeID: "sales.orders",
+            title: "sales.orders",
+            context: SchemaDiagramContext(
+                projectID: UUID(),
+                connectionID: cs.connection.id,
+                connectionSessionID: cs.id,
+                object: object,
+                cacheKey: nil
+            )
+        )
+
+        let firstTab = cs.addDiagramTab(for: object, viewModel: first, databaseName: "sales")
+        let secondTab = cs.addDiagramTab(for: object, viewModel: second, databaseName: "sales")
+
+        XCTAssertEqual(cs.queryTabs.count, 1)
+        XCTAssertEqual(firstTab.id, secondTab.id)
+    }
+
     // MARK: - Close Tab
 
     func testCloseQueryTabRemovesTab() async {
