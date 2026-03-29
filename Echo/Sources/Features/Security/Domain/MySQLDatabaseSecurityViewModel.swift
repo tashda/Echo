@@ -9,6 +9,11 @@ final class MySQLDatabaseSecurityViewModel {
         case roles = "Roles"
         case privileges = "Privileges"
         case advancedObjects = "Advanced Objects"
+        case passwordPolicies = "Password Policies"
+        case dataMasking = "Data Masking"
+        case encryption = "Encryption"
+        case audit = "Audit"
+        case firewall = "Firewall"
     }
 
     let connectionID: UUID
@@ -49,6 +54,63 @@ final class MySQLDatabaseSecurityViewModel {
     var selectedAdvancedObjectDefinition: AdvancedObjectDefinition?
     var isLoadingAdvancedObjects = false
 
+    // MARK: - Enterprise Security State
+
+    struct PasswordPolicyInfo: Identifiable {
+        let id: String
+        let name: String
+        let value: String
+    }
+
+    struct MaskingRule: Identifiable {
+        let id: String
+        let schema: String
+        let table: String
+        let column: String
+        let function: String
+    }
+
+    struct EncryptionInfo: Identifiable {
+        let id: String
+        let name: String
+        let value: String
+        let category: String
+    }
+
+    struct AuditLogEntry: Identifiable {
+        let id: String
+        let timestamp: String
+        let user: String
+        let host: String
+        let event: String
+        let command: String
+        let query: String
+    }
+
+    struct FirewallRule: Identifiable {
+        let id: String
+        let userhost: String
+        let rule: String
+        let mode: String
+    }
+
+    var passwordPolicies: [PasswordPolicyInfo] = []
+    var isLoadingPasswordPolicies = false
+
+    var maskingRules: [MaskingRule] = []
+    var isLoadingMasking = false
+
+    var encryptionInfo: [EncryptionInfo] = []
+    var isLoadingEncryption = false
+
+    var auditLogEntries: [AuditLogEntry] = []
+    var isLoadingAudit = false
+    var auditPluginInstalled = false
+
+    var firewallRules: [FirewallRule] = []
+    var isLoadingFirewall = false
+    var firewallPluginInstalled = false
+
     init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID) {
         self.session = session
         self.connectionID = connectionID
@@ -75,6 +137,16 @@ final class MySQLDatabaseSecurityViewModel {
             await loadPrivileges(mysql: mysql)
         case .advancedObjects:
             await loadProgrammableObjects(mysql: mysql)
+        case .passwordPolicies:
+            await loadPasswordPolicies()
+        case .dataMasking:
+            await loadMaskingRules()
+        case .encryption:
+            await loadEncryptionInfo()
+        case .audit:
+            await loadAuditLog()
+        case .firewall:
+            await loadFirewallRules()
         }
     }
 
