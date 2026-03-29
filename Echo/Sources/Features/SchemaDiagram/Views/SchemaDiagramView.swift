@@ -13,7 +13,7 @@ struct SchemaDiagramView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(DiagramBuilder.self) var diagramBuilder
-    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(EnvironmentState.self) var environmentState
 
     @Environment(AppearanceStore.self) var appearanceStore
 

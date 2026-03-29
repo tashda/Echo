@@ -65,6 +65,18 @@ final class SchemaDiagramNodeModel: Identifiable {
     }
 }
 
+struct SchemaDiagramAnnotation: Identifiable {
+    let id: UUID
+    var text: String
+    var position: CGPoint
+
+    init(text: String = "New note", position: CGPoint = .zero) {
+        self.id = UUID()
+        self.text = text
+        self.position = position
+    }
+}
+
 struct SchemaDiagramContext: Hashable {
     let projectID: UUID?
     let connectionID: UUID
@@ -77,6 +89,7 @@ struct SchemaDiagramContext: Hashable {
 final class SchemaDiagramViewModel {
     var nodes: [SchemaDiagramNodeModel]
     var edges: [SchemaDiagramEdge]
+    var annotations: [SchemaDiagramAnnotation]
     var isLoading: Bool
     var statusMessage: String?
     var errorMessage: String?
@@ -91,6 +104,7 @@ final class SchemaDiagramViewModel {
     init(
         nodes: [SchemaDiagramNodeModel],
         edges: [SchemaDiagramEdge],
+        annotations: [SchemaDiagramAnnotation] = [],
         baseNodeID: String,
         title: String,
         isLoading: Bool = false,
@@ -104,6 +118,7 @@ final class SchemaDiagramViewModel {
     ) {
         self.nodes = nodes
         self.edges = edges
+        self.annotations = annotations
         self.baseNodeID = baseNodeID
         self.title = title
         self.isLoading = isLoading
@@ -147,5 +162,26 @@ final class SchemaDiagramViewModel {
             )
         }
         return DiagramLayoutSnapshot(layoutID: layoutIdentifier, nodePositions: positions)
+    }
+
+    // MARK: - Annotations
+
+    func addAnnotation(at position: CGPoint, text: String = "New note") {
+        let annotation = SchemaDiagramAnnotation(text: text, position: position)
+        annotations.append(annotation)
+    }
+
+    func updateAnnotation(id: UUID, text: String) {
+        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        annotations[index].text = text
+    }
+
+    func moveAnnotation(id: UUID, to position: CGPoint) {
+        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        annotations[index].position = position
+    }
+
+    func removeAnnotation(id: UUID) {
+        annotations.removeAll(where: { $0.id == id })
     }
 }

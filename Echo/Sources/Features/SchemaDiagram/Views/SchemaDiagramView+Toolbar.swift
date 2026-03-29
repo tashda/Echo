@@ -52,6 +52,38 @@ extension SchemaDiagramView {
             Divider()
                 .frame(height: 16)
 
+            Menu {
+                Button {
+                    createTableFromDiagram()
+                } label: {
+                    Label("New Table", systemImage: "tablecells")
+                }
+
+                Button {
+                    createRelationshipFromDiagram()
+                } label: {
+                    Label("New Relationship", systemImage: "arrow.triangle.swap")
+                }
+
+                Divider()
+
+                Button {
+                    addAnnotationToDiagram()
+                } label: {
+                    Label("Add Note", systemImage: "note.text")
+                }
+            } label: {
+                Label("Design", systemImage: "pencil.and.ruler")
+                    .labelStyle(.iconOnly)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .disabled(viewModel.context == nil)
+            .help("Design Tools")
+
+            Divider()
+                .frame(height: 16)
+
             loadSourceBadge
 
             Button {
@@ -64,6 +96,17 @@ extension SchemaDiagramView {
             .controlSize(.small)
             .disabled(viewModel.context == nil)
             .help("Open Schema Diff")
+
+            Button {
+                synchronizeModelWithDatabase()
+            } label: {
+                Label("Synchronize Model", systemImage: "arrow.triangle.2.circlepath")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(viewModel.context == nil || viewModel.nodes.isEmpty)
+            .help("Compare diagram snapshot with live database")
 
             Menu {
                 Button("Open Forward Engineering SQL") {

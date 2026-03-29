@@ -25,6 +25,36 @@ struct DiagramCanvas: View {
                         .opacity(nodeMatchesSearch(node) ? 1.0 : 0.2)
                         .position(position(for: node.position))
                 }
+
+                ForEach(viewModel.annotations) { annotation in
+                    DiagramAnnotationView(
+                        annotation: annotation,
+                        zoom: zoom,
+                        onUpdate: { text in viewModel.updateAnnotation(id: annotation.id, text: text) },
+                        onDelete: { viewModel.removeAnnotation(id: annotation.id) }
+                    )
+                    .position(position(for: annotation.position))
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                isDraggingNode = true
+                                let delta = CGSize(
+                                    width: value.translation.width / zoom,
+                                    height: value.translation.height / zoom
+                                )
+                                viewModel.moveAnnotation(
+                                    id: annotation.id,
+                                    to: CGPoint(
+                                        x: annotation.position.x + delta.width,
+                                        y: annotation.position.y + delta.height
+                                    )
+                                )
+                            }
+                            .onEnded { _ in
+                                isDraggingNode = false
+                            }
+                    )
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .scaleEffect(zoom, anchor: .topLeading)
