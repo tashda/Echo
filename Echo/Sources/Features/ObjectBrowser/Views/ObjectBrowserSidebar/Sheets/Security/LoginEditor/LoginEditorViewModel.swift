@@ -3,6 +3,7 @@ import SQLServerKit
 import Observation
 
 @Observable
+@MainActor
 final class LoginEditorViewModel {
     let connectionSessionID: UUID
     let existingLoginName: String?

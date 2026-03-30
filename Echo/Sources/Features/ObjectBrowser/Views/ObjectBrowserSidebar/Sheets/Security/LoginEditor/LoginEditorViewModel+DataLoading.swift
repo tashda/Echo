@@ -16,28 +16,23 @@ extension LoginEditorViewModel {
         do {
             let data = try await mssql.serverSecurity.getServerLoginEditorData(name: existingLoginName)
             
-            await MainActor.run {
-                self.applyFetchedData(data)
-                self.isLoadingGeneral = false
-                self.isLoadingRoles = false
-                self.isLoadingMappings = false
-                self.isLoadingSecurables = false
-                self.hasLoadedRoles = true
-                self.hasLoadedMappings = true
-                self.hasLoadedSecurables = true
-                self.takeSnapshot()
-            }
+            self.applyFetchedData(data)
+            self.isLoadingGeneral = false
+            self.isLoadingRoles = false
+            self.isLoadingMappings = false
+            self.isLoadingSecurables = false
+            self.hasLoadedRoles = true
+            self.hasLoadedMappings = true
+            self.hasLoadedSecurables = true
+            self.takeSnapshot()
         } catch {
-            await MainActor.run {
-                self.isLoadingGeneral = false
-                self.isLoadingRoles = false
-                self.isLoadingMappings = false
-                self.isLoadingSecurables = false
-            }
+            self.isLoadingGeneral = false
+            self.isLoadingRoles = false
+            self.isLoadingMappings = false
+            self.isLoadingSecurables = false
         }
     }
 
-    @MainActor
     private func applyFetchedData(_ data: ServerLoginEditorData) {
         self.availableDatabases = data.availableDatabases.sorted()
         
