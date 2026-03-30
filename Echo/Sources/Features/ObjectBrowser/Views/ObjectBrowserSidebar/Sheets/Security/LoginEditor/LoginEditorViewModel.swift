@@ -10,6 +10,8 @@ final class LoginEditorViewModel {
 
     var isEditing: Bool { existingLoginName != nil }
 
+    var serverName: String?
+
     // MARK: - General Page State
 
     var loginName = ""
@@ -21,6 +23,7 @@ final class LoginEditorViewModel {
     var enforcePasswordPolicy = true
     var enforcePasswordExpiration = false
     var loginEnabled = true
+    var isLocked = false
 
     var availableDatabases: [String] = ["master"]
 
@@ -48,6 +51,39 @@ final class LoginEditorViewModel {
     // MARK: - Securables State
 
     var serverPermissions: [LoginEditorPermissionEntry] = []
+
+    var isConnectSQLGranted: ConnectPermissionState {
+        get {
+            if let connectSQLPerm = serverPermissions.first(where: { $0.permission == ServerPermissionName.connectSql.rawValue }) {
+                if connectSQLPerm.isGranted { return .granted }
+                if connectSQLPerm.isDenied { return .denied }
+            }
+            return .unspecified
+        }
+        set {
+            if let index = serverPermissions.firstIndex(where: { $0.permission == ServerPermissionName.connectSql.rawValue }) {
+                var perm = serverPermissions[index]
+                switch newValue {
+                case .granted:
+                    perm.isGranted = true
+                    perm.isDenied = false
+                case .denied:
+                    perm.isGranted = false
+                    perm.isDenied = true
+                case .unspecified:
+                    perm.isGranted = false
+                    perm.isDenied = false
+                }
+                serverPermissions[index] = perm
+            }
+        }
+    }
+
+    enum ConnectPermissionState {
+        case granted
+        case denied
+        case unspecified
+    }
 
     // MARK: - Loading State
 

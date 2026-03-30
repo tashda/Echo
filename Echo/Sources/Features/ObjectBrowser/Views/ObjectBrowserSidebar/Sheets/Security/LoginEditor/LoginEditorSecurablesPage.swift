@@ -4,6 +4,11 @@ struct LoginEditorSecurablesPage: View {
     @Bindable var viewModel: LoginEditorViewModel
 
     var body: some View {
+        Section {
+            Text("Permissions for \(viewModel.serverName ?? "server")")
+                .font(TypographyTokens.formDescription)
+                .foregroundStyle(ColorTokens.Text.secondary)
+        }
         if !viewModel.isEditing {
             Section {
                 Text("Server permissions can be configured after the login is created.")

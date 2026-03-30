@@ -31,6 +31,17 @@ struct LoginEditorGeneralPage: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
             }
+            if viewModel.isEditing && viewModel.authType == .sql {
+                PropertyRow(
+                    title: "Login is locked out",
+                    info: "Indicates if the login is currently locked out due to failed password attempts."
+                ) {
+                    Toggle("", isOn: $viewModel.isLocked)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .disabled(true) // Locked status is read-only
+                }
+            }
         }
 
         if viewModel.authType == .sql {
@@ -69,6 +80,26 @@ struct LoginEditorGeneralPage: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .disabled(!viewModel.enforcePasswordPolicy)
+                }
+            }
+        }
+
+        Section("Status") {
+            PropertyRow(title: "Permission to connect to database engine") {
+                Picker("", selection: $viewModel.isConnectSQLGranted) {
+                    Text("Grant").tag(LoginEditorViewModel.ConnectPermissionState.granted)
+                    Text("Deny").tag(LoginEditorViewModel.ConnectPermissionState.denied)
+                    Text("Unspecified").tag(LoginEditorViewModel.ConnectPermissionState.unspecified)
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+            }
+            if viewModel.isEditing && viewModel.authType == .sql {
+                PropertyRow(title: "Login is locked out") {
+                    Toggle("", isOn: $viewModel.isLocked)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .disabled(true)
                 }
             }
         }

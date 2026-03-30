@@ -34,12 +34,14 @@ extension LoginEditorViewModel {
     }
 
     private func applyFetchedData(_ data: ServerLoginEditorData) {
+        self.serverName = data.serverName
         self.availableDatabases = data.availableDatabases.sorted()
         
         // 1. General Info
         if let login = data.loginInfo {
             self.loginName = login.name
             self.loginEnabled = !login.isDisabled
+            self.isLocked = login.isLocked ?? false
             self.defaultDatabase = login.defaultDatabase ?? "master"
             self.defaultLanguage = login.defaultLanguage ?? ""
             self.enforcePasswordPolicy = login.isPolicyChecked ?? true
@@ -53,7 +55,7 @@ extension LoginEditorViewModel {
         // 2. Roles
         let memberSet = Set(data.memberOfRoles)
         var roles = data.allServerRoles.map { role in
-            let isMember = memberSet.contains(role.name)
+            let isMember = memberSet.contains(role.name) || role.name == "public"
             return LoginEditorRoleEntry(
                 name: role.name,
                 isFixed: role.isFixed,
