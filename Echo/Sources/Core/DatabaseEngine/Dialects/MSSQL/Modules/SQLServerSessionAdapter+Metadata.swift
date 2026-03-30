@@ -1,26 +1,17 @@
 import Foundation
 import SQLServerKit
+import OSLog
 
-extension SQLServerSessionAdapter: DatabaseMetadataSession {
+extension SQLServerSessionAdapter {
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
-        let tables = try await client.metadata.listTables(
-            database: database,
-            schema: schema,
-            includeComments: false
-        )
-        return tables.compactMap { table in
-            if table.isSystemObject {
-                return nil
-            }
-            let objectType: SchemaObjectInfo.ObjectType = table.isView ? .view : .table
-            return SchemaObjectInfo(
+        let database = self.database
+        let tables = try await client.metadata.listTables(database: database, schema: schema)
+        return tables.map { table in
+            SchemaObjectInfo(
                 name: table.name,
                 schema: table.schema,
-                type: objectType,
-                comment: table.comment,
-                isSystemVersioned: table.isSystemVersioned ? true : nil,
-                isHistoryTable: table.isHistoryTable ? true : nil,
-                isMemoryOptimized: table.isMemoryOptimized ? true : nil
+                type: table.isView ? .view : .table,
+                comment: table.comment
             )
         }
     }
@@ -30,71 +21,30 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
         return databases.map(\.name)
     }
 
-    /// List databases with state and access information for the sidebar.
-    func listDatabasesWithState() async throws -> [(name: String, stateDescription: String?, hasAccess: Bool?)] {
-        let databases = try await client.metadata.listDatabases()
-        return databases.map { (name: $0.name, stateDescription: $0.stateDescription, hasAccess: $0.hasAccess) }
-    }
-
     func listSchemas() async throws -> [String] {
         let schemas = try await client.metadata.listSchemas(in: database)
         return schemas.map(\.name)
     }
 
-    func loadDatabaseInfo(databaseName: String) async throws -> DatabaseInfo {
-        let t0 = CFAbsoluteTimeGetCurrent()
-        let structure = try await metadataTimed("loadDatabaseStructure") {
-            try await client.metadata.loadDatabaseStructure(database: databaseName, includeComments: false)
-        }
-        let t1 = CFAbsoluteTimeGetCurrent()
-        print("[PERF] \(databaseName): sqlserver-nio loadDatabaseStructure took \(String(format: "%.3f", t1 - t0))s (\(structure.schemas.count) schemas)")
+    func listExtensions() async throws -> [SchemaObjectInfo] {
+        // SQL Server does not have "extensions" in the Postgres sense.
+        []
+    }
 
-        let schemaInfos = structure.schemas.map { schema -> SchemaInfo in
-            var objects: [SchemaObjectInfo] = []
-            objects.reserveCapacity(schema.tables.count + schema.views.count + schema.functions.count + schema.procedures.count + schema.triggers.count)
-
-            for table in schema.tables {
-                objects.append(makeTableObjectInfo(from: table, type: .table))
-            }
-            for view in schema.views {
-                objects.append(makeTableObjectInfo(from: view, type: .view))
-            }
-            for routine in schema.functions {
-                objects.append(makeRoutineObjectInfo(from: routine))
-            }
-            for routine in schema.procedures {
-                objects.append(makeRoutineObjectInfo(from: routine))
-            }
-            for trigger in schema.triggers {
-                objects.append(makeTriggerObjectInfo(from: trigger))
-            }
-
-            return SchemaInfo(name: schema.name, objects: objects)
-        }
-
-        // Fetch database state from sys.databases
-        var stateDesc: String?
-        if let meta = try? await client.metadata.databaseState(name: databaseName) {
-            stateDesc = meta.stateDescription
-        }
-        let t2 = CFAbsoluteTimeGetCurrent()
-        let totalObjects = schemaInfos.reduce(0) { $0 + $1.objects.count }
-        print("[PERF] \(databaseName): total loadDatabaseInfo \(String(format: "%.3f", t2 - t0))s (\(schemaInfos.count) schemas, \(totalObjects) objects)")
-
-        return DatabaseInfo(name: databaseName, schemas: schemaInfos, schemaCount: schemaInfos.count, stateDescription: stateDesc)
+    func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo] {
+        []
     }
 
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {
-        let schema = schemaName ?? "dbo"
+        let effectiveSchema = schemaName ?? "dbo"
         let columns = try await client.metadata.listColumns(
             database: database,
-            schema: schema,
-            table: tableName,
-            includeComments: false
+            schema: effectiveSchema,
+            table: tableName
         )
-        let primaryKeys = try await client.metadata.listPrimaryKeysFromCatalog(
+        let primaryKeys = try await client.metadata.listPrimaryKeys(
             database: database,
-            schema: schema,
+            schema: effectiveSchema,
             table: tableName
         )
         let primaryKeyColumns = Set(primaryKeys.flatMap { $0.columns.map { $0.column.lowercased() } })
@@ -139,266 +89,137 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
             return definition
         }
 
-        // Fall back to the simpler OBJECT_DEFINITION() approach using three-part naming
-        let qualifiedName: String
-        if let effectiveDatabase {
-            qualifiedName = "[\(effectiveDatabase.replacing("]", with: "]]"))].[\(schemaName.replacing("]", with: "]]"))].[\(objectName.replacing("]", with: "]]"))]"
-        } else {
-            qualifiedName = "[\(schemaName.replacing("]", with: "]]"))].[\(objectName.replacing("]", with: "]]"))]"
-        }
-        let sql = "SELECT OBJECT_DEFINITION(OBJECT_ID(N'\(qualifiedName)')) AS [definition]"
-        let result = try await simpleQuery(sql)
-        if let firstRow = result.rows.first, let definition = firstRow.first ?? nil, !definition.isEmpty {
+        // Fall back to the simpler OBJECT_DEFINITION() approach
+        if let definition = try await client.metadata.objectDefinitionString(
+            database: effectiveDatabase,
+            schema: schemaName,
+            name: objectName
+        ) {
             return definition
         }
 
         throw DatabaseError.queryError("Object definition not found for [\(schemaName)].[\(objectName)]")
     }
 
+    func getTableStructureDetails(schema: String, table: String, database db: String) async throws -> TableStructureDetails {
+        try await getTableStructureDetailsImpl(schema: schema, table: table, database: db)
+    }
+
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
-        let columnMetadata = try await client.metadata.listColumns(
-            database: database,
-            schema: schema,
-            table: table
-        )
+        try await getTableStructureDetailsImpl(schema: schema, table: table, database: database)
+    }
 
-        let primaryKeyMetadata = try await client.metadata.listPrimaryKeys(
-            database: database,
-            schema: schema,
-            table: table
-        )
-
-        let uniqueConstraintMetadata = try await client.metadata.listUniqueConstraints(
-            database: database,
-            schema: schema,
-            table: table
-        )
-
-        let foreignKeyMetadata = try await client.metadata.listForeignKeys(
-            database: database,
-            schema: schema,
-            table: table
-        )
-
-        let indexMetadata = try await client.metadata.listIndexes(
-            database: database,
-            schema: schema,
-            table: table
-        )
-
-        let columns = columnMetadata.map { column in
+    private func getTableStructureDetailsImpl(schema: String, table: String, database db: String?) async throws -> TableStructureDetails {
+        let columns = try await client.metadata.listColumns(database: db, schema: schema, table: table, includeComments: true)
+        let primaryKeys = try await client.metadata.listPrimaryKeys(database: db, schema: schema, table: table)
+        let indexes = try await client.metadata.listIndexes(database: db, schema: schema, table: table)
+        let uniqueConstraints = try await client.metadata.listUniqueConstraints(database: db, schema: schema, table: table)
+        let foreignKeys = try await client.metadata.listForeignKeys(database: db, schema: schema, table: table)
+        let checkConstraints = try await client.metadata.listCheckConstraints(database: db, schema: schema, table: table)
+        let props = try await client.metadata.tableProperties(database: db, schema: schema, table: table)
+        
+        let pkColumns = Set(primaryKeys.flatMap { $0.columns.map { $0.column } })
+        
+        let mappedColumns = columns.map { col in
             TableStructureDetails.Column(
-                name: column.name,
-                dataType: column.typeName,
-                isNullable: column.isNullable,
-                defaultValue: column.defaultDefinition,
-                generatedExpression: column.computedDefinition,
-                isIdentity: column.isIdentity,
-                identitySeed: column.identitySeed,
-                identityIncrement: column.identityIncrement,
-                identityGeneration: column.isIdentity ? "ALWAYS" : nil,
-                collation: column.collationName
+                name: col.name,
+                dataType: col.typeName,
+                isNullable: col.isNullable,
+                defaultValue: col.defaultValue,
+                generatedExpression: col.generatedExpression,
+                isIdentity: col.isIdentity,
+                identitySeed: col.identitySeed,
+                identityIncrement: col.identityIncrement,
+                collation: col.collation,
+                comment: col.comment,
+                ordinalPosition: col.ordinalPosition
             )
         }
-
-        let primaryKey = primaryKeyMetadata.first(where: { $0.type == .primaryKey }).map { pk in
-            let ordered = pk.columns.sorted { $0.ordinal < $1.ordinal }.map(\.column)
-            return TableStructureDetails.PrimaryKey(name: pk.name, columns: ordered)
+        
+        let mappedPK = primaryKeys.first.map { pk in
+            TableStructureDetails.PrimaryKey(
+                name: pk.name,
+                columns: pk.columns.map { $0.column }
+            )
         }
-
-        let uniqueConstraints = uniqueConstraintMetadata.map { constraint in
-            let ordered = constraint.columns.sorted { $0.ordinal < $1.ordinal }.map(\.column)
-            return TableStructureDetails.UniqueConstraint(name: constraint.name, columns: ordered)
+        
+        let mappedIndexes = indexes.map { idx in
+            TableStructureDetails.Index(
+                name: idx.name,
+                columns: idx.columns.map { col in
+                    TableStructureDetails.Index.Column(
+                        name: col.column,
+                        position: col.ordinal,
+                        sortOrder: col.isDescending ? .descending : .ascending,
+                        isIncluded: col.isIncluded
+                    )
+                },
+                isUnique: idx.isUnique,
+                filterCondition: idx.filterDefinition
+            )
         }
-
-        let foreignKeys = foreignKeyMetadata.map { fk in
-            let ordered = fk.columns.sorted { $0.ordinal < $1.ordinal }
-            return TableStructureDetails.ForeignKey(
+        
+        let mappedUQs = uniqueConstraints.map { uq in
+            TableStructureDetails.UniqueConstraint(
+                name: uq.name,
+                columns: uq.columns.map { $0.column }
+            )
+        }
+        
+        let mappedFKs = foreignKeys.map { fk in
+            TableStructureDetails.ForeignKey(
                 name: fk.name,
-                columns: ordered.map(\.parentColumn),
+                columns: fk.columns.map { $0.parentColumn },
                 referencedSchema: fk.referencedSchema,
                 referencedTable: fk.referencedTable,
-                referencedColumns: ordered.map(\.referencedColumn),
+                referencedColumns: fk.columns.map { $0.referencedColumn },
                 onUpdate: fk.updateAction,
                 onDelete: fk.deleteAction
             )
         }
-
-        let excludedIndexNames = Set(uniqueConstraintMetadata.map(\.name)).union(Set(primaryKeyMetadata.map(\.name)))
-        let indexes = indexMetadata
-            .filter { !excludedIndexNames.contains($0.name) }
-            .map { index in
-                let columns = index.columns
-                    .sorted { $0.ordinal < $1.ordinal }
-                    .map { column in
-                        TableStructureDetails.Index.Column(
-                            name: column.column,
-                            position: column.ordinal,
-                            sortOrder: column.isDescending ? .descending : .ascending,
-                            isIncluded: column.isIncluded
-                        )
-                    }
-                return TableStructureDetails.Index(
-                    name: index.name,
-                    columns: columns,
-                    isUnique: index.isUnique,
-                    filterCondition: index.filterDefinition
-                )
-            }
-
-        // Check constraints
-        var checkConstraints: [TableStructureDetails.CheckConstraint] = []
-        if let nioConstraints = try? await client.constraints.listCheckConstraints(database: database, schema: schema, table: table) {
-            checkConstraints = nioConstraints.map { constraint in
-                var expression = constraint.definition
-                if expression.hasPrefix("(") && expression.hasSuffix(")") {
-                    expression = String(expression.dropFirst().dropLast())
-                }
-                return TableStructureDetails.CheckConstraint(name: constraint.name, expression: expression)
-            }
-        }
-
-        // Table properties (including temporal, in-memory OLTP, and SSMS parity fields)
-        var tableProperties: TableStructureDetails.TableProperties?
-        if let props = try? await client.metadata.tableProperties(database: database, schema: schema, table: table) {
-            let dateFormatter = { () -> DateFormatter in
-                let df = DateFormatter()
-                df.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-                return df
-            }()
-            tableProperties = TableStructureDetails.TableProperties(
-                dataCompression: props.dataCompression,
-                filegroup: props.filegroup,
-                lockEscalation: props.lockEscalation,
-                createdDate: props.createDate.map { dateFormatter.string(from: $0) },
-                modifiedDate: props.modifyDate.map { dateFormatter.string(from: $0) },
-                isSystemObject: props.isSystemObject,
-                usesAnsiNulls: props.usesAnsiNulls ?? false,
-                isReplicated: props.isReplicated,
-                textFilegroup: props.textFilegroup,
-                filestreamFilegroup: props.filestreamFilegroup,
-                isPartitioned: props.isPartitioned,
-                partitionScheme: props.isPartitioned == true ? props.partitionScheme : nil,
-                partitionColumn: props.isPartitioned == true ? props.partitionColumn : nil,
-                partitionCount: props.isPartitioned == true ? props.partitionCount : nil,
-                isSystemVersioned: props.isSystemVersioned,
-                historyTableSchema: props.historyTableSchema,
-                historyTableName: props.historyTableName,
-                periodStartColumn: props.periodStartColumn,
-                periodEndColumn: props.periodEndColumn,
-                isMemoryOptimized: props.isMemoryOptimized,
-                memoryOptimizedDurability: props.isMemoryOptimized == true ? props.memoryOptimizedDurability : nil,
-                changeTrackingEnabled: props.changeTrackingEnabled,
-                trackColumnsUpdated: props.trackColumnsUpdated
+        
+        let mappedCKs = checkConstraints.map { ck in
+            TableStructureDetails.CheckConstraint(
+                name: ck.name,
+                expression: ck.definition
             )
         }
+
+        let tableProps = TableStructureDetails.TableProperties(
+            dataCompression: props.dataCompression,
+            filegroup: props.filegroup,
+            lockEscalation: props.lockEscalation,
+            createdDate: props.createDate?.formatted(),
+            modifiedDate: props.modifyDate?.formatted(),
+            isSystemObject: props.isSystemObject,
+            usesAnsiNulls: props.usesAnsiNulls,
+            isReplicated: props.isReplicated,
+            textFilegroup: props.textFilegroup,
+            filestreamFilegroup: props.filestreamFilegroup,
+            isPartitioned: props.isPartitioned,
+            partitionScheme: props.partitionScheme,
+            partitionColumn: props.partitionColumn,
+            partitionCount: props.partitionCount,
+            isSystemVersioned: props.isSystemVersioned,
+            historyTableSchema: props.historyTableSchema,
+            historyTableName: props.historyTableName,
+            periodStartColumn: props.periodStartColumn,
+            periodEndColumn: props.periodEndColumn,
+            isMemoryOptimized: props.isMemoryOptimized,
+            memoryOptimizedDurability: props.memoryOptimizedDurability,
+            changeTrackingEnabled: props.changeTrackingEnabled,
+            trackColumnsUpdated: props.trackColumnsUpdated
+        )
 
         return TableStructureDetails(
-            columns: columns,
-            primaryKey: primaryKey,
-            indexes: indexes,
-            uniqueConstraints: uniqueConstraints,
-            foreignKeys: foreignKeys,
-            dependencies: [],
-            checkConstraints: checkConstraints,
-            tableProperties: tableProperties
+            columns: mappedColumns,
+            primaryKey: mappedPK,
+            indexes: mappedIndexes,
+            uniqueConstraints: mappedUQs,
+            foreignKeys: mappedFKs,
+            dependencies: [], // Dependencies are not currently fetched via nio
+            checkConstraints: mappedCKs,
+            tableProperties: tableProps
         )
-    }
-
-    func loadSchemaInfo(
-        _ schemaName: String,
-        progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
-    ) async throws -> SchemaInfo {
-        let schema = try await client.metadata.loadSchemaStructure(
-            database: database,
-            schema: schemaName,
-            includeComments: false
-        )
-
-        var objects: [SchemaObjectInfo] = []
-        objects.reserveCapacity(schema.tables.count + schema.views.count + schema.functions.count + schema.procedures.count + schema.triggers.count)
-
-        for table in schema.tables {
-            objects.append(makeTableObjectInfo(from: table, type: .table))
-        }
-        for view in schema.views {
-            objects.append(makeTableObjectInfo(from: view, type: .view))
-        }
-        for routine in schema.functions {
-            objects.append(makeRoutineObjectInfo(from: routine))
-        }
-        for routine in schema.procedures {
-            objects.append(makeRoutineObjectInfo(from: routine))
-        }
-        for trigger in schema.triggers {
-            objects.append(makeTriggerObjectInfo(from: trigger))
-        }
-
-        for synonym in schema.synonyms {
-            objects.append(SchemaObjectInfo(name: synonym.name, schema: synonym.schema, type: .synonym, comment: synonym.comment))
-        }
-
-        if let progress {
-            let total = objects.count
-            if total > 0 {
-                var current = 0
-                for object in objects {
-                    current += 1
-                    await progress(object.type, current, total)
-                }
-            }
-        }
-
-        return SchemaInfo(name: schemaName, objects: objects)
-    }
-
-    private func makeTableObjectInfo(from table: SQLServerTableStructure, type: SchemaObjectInfo.ObjectType) -> SchemaObjectInfo {
-        let primaryKeyColumns = Set(table.primaryKey?.columns.map { $0.column.lowercased() } ?? [])
-        let columns = table.columns.map { column in
-            ColumnInfo(
-                name: column.name,
-                dataType: column.typeName,
-                isPrimaryKey: primaryKeyColumns.contains(column.name.lowercased()),
-                isNullable: column.isNullable,
-                maxLength: column.maxLength
-            )
-        }
-        return SchemaObjectInfo(
-            name: table.table.name,
-            schema: table.table.schema,
-            type: type,
-            columns: columns,
-            comment: table.table.comment
-        )
-    }
-
-    private func makeRoutineObjectInfo(from routine: RoutineMetadata) -> SchemaObjectInfo {
-        let type: SchemaObjectInfo.ObjectType = routine.type == .procedure ? .procedure : .function
-        return SchemaObjectInfo(
-            name: routine.name,
-            schema: routine.schema,
-            type: type,
-            comment: routine.comment
-        )
-    }
-
-    private func makeTriggerObjectInfo(from trigger: TriggerMetadata) -> SchemaObjectInfo {
-        SchemaObjectInfo(
-            name: trigger.name,
-            schema: trigger.schema,
-            type: .trigger,
-            columns: [],
-            triggerAction: trigger.isInsteadOf ? "INSTEAD OF" : "AFTER",
-            triggerTable: trigger.table,
-            comment: trigger.comment
-        )
-    }
-
-    func listAvailableExtensions() async throws -> [AvailableExtensionInfo] {
-        []
-    }
-
-    func installExtension(name: String, schema: String?, version: String?, cascade: Bool) async throws {
-        throw DatabaseError.queryError("Extensions are not supported for SQL Server")
     }
 }

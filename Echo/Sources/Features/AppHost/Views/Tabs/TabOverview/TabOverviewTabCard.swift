@@ -201,8 +201,6 @@ struct TabPreviewCard: View {
             ActivityMonitorPreview(viewModel: tab.activityMonitor)
         case .maintenance, .mssqlMaintenance:
             MaintenancePreview()
-        case .queryStore:
-            QueryStorePreview(viewModel: tab.queryStoreVM)
         case .extendedEvents:
             ExtendedEventsPreview()
         case .availabilityGroups:
@@ -277,20 +275,6 @@ struct SecurityPreview: View {
                 .foregroundStyle(ColorTokens.Text.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-struct QueryStorePreview: View {
-    let viewModel: QueryStoreViewModel?
-    var body: some View {
-        VStack(spacing: SpacingTokens.xxs) {
-            Image(systemName: "chart.bar.xaxis")
-                .font(TypographyTokens.hero)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("Query Store")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
     }
 }
 

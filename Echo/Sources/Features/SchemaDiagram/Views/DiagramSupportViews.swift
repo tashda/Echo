@@ -51,9 +51,8 @@ struct CommandScrollZoomCapture: NSViewRepresentable {
         }
 
         deinit {
-            Task { @MainActor [weak self] in
-                self?.removeMonitor()
-            }
+            // Monitor cleanup is handled by viewWillMove(toWindow: nil) which is called
+            // before deallocation. No additional cleanup needed in deinit.
         }
 
         private func installMonitorIfNeeded() {

@@ -79,18 +79,19 @@ struct LoginEditorGeneralPage: View {
                     Toggle("", isOn: $viewModel.enforcePasswordExpiration)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .disabled(!viewModel.enforcePasswordPolicy)
-                }
-            }
-        }
+                        import SwiftUI
+                        import SQLServerKit
 
-        Section("Status") {
-            PropertyRow(title: "Permission to connect to database engine") {
-                Picker("", selection: $viewModel.isConnectSQLGranted) {
-                    Text("Grant").tag(LoginEditorViewModel.ConnectPermissionState.granted)
-                    Text("Deny").tag(LoginEditorViewModel.ConnectPermissionState.denied)
-                    Text("Unspecified").tag(LoginEditorViewModel.ConnectPermissionState.unspecified)
-                }
+                        struct LoginEditorGeneralPage: View {
+                        ...
+                                Section("Status") {
+                                    PropertyRow(title: "Permission to connect to database engine") {
+                                        Picker("", selection: $viewModel.permissionConnectToEngine) {
+                                            Text("Grant").tag(ConnectSQLPermissionState.granted)
+                                            Text("Deny").tag(ConnectSQLPermissionState.denied)
+                                            Text("Unspecified").tag(ConnectSQLPermissionState.unspecified)
+                                        }
+                        ...
                 .labelsHidden()
                 .pickerStyle(.segmented)
             }

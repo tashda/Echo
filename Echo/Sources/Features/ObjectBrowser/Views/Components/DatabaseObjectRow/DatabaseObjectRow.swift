@@ -29,6 +29,7 @@ struct DatabaseObjectRow: View, Equatable {
     @State internal var showBulkImportSheet = false
     @State internal var showExportSheet = false
     @State internal var showGenerateScriptsWizard = false
+    @State internal var showExecuteProcedureSheet = false
 
     private var canExpand: Bool {
         showColumns && !object.columns.isEmpty
@@ -71,6 +72,7 @@ struct DatabaseObjectRow: View, Equatable {
             showBulkImportSheet: $showBulkImportSheet,
             showExportSheet: $showExportSheet,
             showGenerateScriptsWizard: $showGenerateScriptsWizard,
+            showExecuteProcedureSheet: $showExecuteProcedureSheet,
             performDrop: { includeIfExists in performDrop(includeIfExists: includeIfExists) },
             performTruncate: { performTruncate() },
             performRename: { performRename() }

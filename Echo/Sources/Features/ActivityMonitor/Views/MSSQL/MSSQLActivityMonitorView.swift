@@ -66,7 +66,7 @@ struct MSSQLActivityMonitorView: View {
                 hasPermission: !viewModel.permissionDenied,
                 hasSnapshot: viewModel.isReady,
                 selectedSQLContext: $selectedSQLContext,
-                onOpenInQueryWindow: openInQueryWindow
+                onOpenInQueryWindow: { sql, db in openInQueryWindow(sql: sql, database: db) }
             ) {
                 sectionPicker
             } sparklines: {
@@ -120,7 +120,7 @@ struct MSSQLActivityMonitorView: View {
                     processes: snap.processes,
                     sortOrder: $processesSortOrder,
                     selection: $selectedProcessIDs,
-                    onPopout: popout,
+                    onPopout: { sql in popout(sql) },
                     onKill: kill,
                     canKill: environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)?.permissions?.canManageServerState ?? true,
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
@@ -152,7 +152,8 @@ struct MSSQLActivityMonitorView: View {
                     queries: snap.expensiveQueries,
                     sortOrder: $queriesSortOrder,
                     selection: $selectedQueryIDs,
-                    onPopout: popout,
+                    onPopout: { sql in popout(sql) },
+                    onOpenInQueryWindow: { sql, db in openInQueryWindow(sql: sql, database: db) },
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
                 )
             case .xevents:
@@ -192,7 +193,7 @@ struct MSSQLActivityMonitorView: View {
         if let profilerVM = viewModel.profilerVM {
             ProfilerView(
                 viewModel: profilerVM,
-                onPopout: popout,
+                onPopout: { sql in popout(sql) },
                 onDoubleClick: { appState.showInfoSidebar.toggle() }
             )
         } else {
@@ -206,8 +207,8 @@ struct MSSQLActivityMonitorView: View {
 
     // MARK: - Actions
 
-    private func popout(_ sql: String) {
-        selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details")
+    private func popout(_ sql: String, database: String? = nil) {
+        selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details", databaseName: database, dialect: .microsoftSQL)
     }
 
     private func kill(_ id: Int) {
@@ -221,11 +222,14 @@ struct MSSQLActivityMonitorView: View {
         }
     }
 
-    private func openInQueryWindow(sql: String) {
-        if let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) {
-            environmentState.openQueryTab(for: session, presetQuery: sql)
-        } else {
-            environmentState.openQueryTab(presetQuery: sql)
+    private func openInQueryWindow(sql: String, database: String? = nil) {
+        Task {
+            let formatted = (try? await SQLFormatter.shared.format(sql: sql, dialect: .microsoftSQL)) ?? sql
+            if let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) {
+                environmentState.openQueryTab(for: session, presetQuery: formatted, database: database)
+            } else {
+                environmentState.openQueryTab(presetQuery: formatted, database: database)
+            }
         }
     }
 }

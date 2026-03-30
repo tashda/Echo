@@ -66,12 +66,12 @@ extension SubscriptionEditorViewModel {
 
         do {
             if isEditing {
-                try await pg.client.admin.dropSubscription(name: subscriptionName, ifExists: true)
+                try await pg.client.replication.dropSubscription(name: subscriptionName, ifExists: true)
             }
 
             let trimmedSlot = slotName.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            try await pg.client.admin.createSubscription(
+            try await pg.client.replication.createSubscription(
                 name: subscriptionName,
                 connectionString: connectionString,
                 publications: parsedPublicationNames,

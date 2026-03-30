@@ -1,40 +1,21 @@
 import Foundation
+import MySQLKit
 
 extension MySQLDatabaseSecurityViewModel {
 
     // MARK: - Password Policies
 
     func loadPasswordPolicies() async {
+        guard let mysql = session as? MySQLSession else { return }
         isLoadingPasswordPolicies = true
         defer { isLoadingPasswordPolicies = false }
         do {
-            let result = try await session.simpleQuery("""
-                SELECT Variable_name, Value FROM performance_schema.global_variables
-                WHERE Variable_name IN (
-                    'default_password_lifetime',
-                    'password_history',
-                    'password_reuse_interval',
-                    'password_require_current',
-                    'validate_password.policy',
-                    'validate_password.length',
-                    'validate_password.mixed_case_count',
-                    'validate_password.number_count',
-                    'validate_password.special_char_count',
-                    'validate_password_policy',
-                    'validate_password_length',
-                    'validate_password_mixed_case_count',
-                    'validate_password_number_count',
-                    'validate_password_special_char_count',
-                    'disconnect_on_expired_password',
-                    'authentication_policy'
-                )
-                ORDER BY Variable_name
-            """)
-            passwordPolicies = result.rows.map { row in
+            let variables = try await mysql.client.security.passwordPolicyVariables()
+            passwordPolicies = variables.map { variable in
                 PasswordPolicyInfo(
-                    id: row[safe: 0] ?? UUID().uuidString,
-                    name: row[safe: 0] ?? "\u{2014}",
-                    value: row[safe: 1] ?? "\u{2014}"
+                    id: variable.name,
+                    name: variable.name,
+                    value: variable.value
                 )
             }
         } catch {
@@ -43,9 +24,10 @@ extension MySQLDatabaseSecurityViewModel {
     }
 
     func setPasswordPolicy(_ name: String, value: String) async {
+        guard let mysql = session as? MySQLSession else { return }
         let handle = activityEngine?.begin("Updating \(name)", connectionSessionID: connectionSessionID)
         do {
-            _ = try await session.simpleQuery("SET GLOBAL \(name) = \(value)")
+            _ = try await mysql.client.serverConfig.setGlobalVariable(name, to: value)
             handle?.succeed()
             panelState?.appendMessage("Updated \(name) = \(value)")
             await loadPasswordPolicies()
@@ -58,31 +40,20 @@ extension MySQLDatabaseSecurityViewModel {
     // MARK: - Data Masking
 
     func loadMaskingRules() async {
+        guard let mysql = session as? MySQLSession else { return }
         isLoadingMasking = true
         defer { isLoadingMasking = false }
         do {
-            // Check if masking component is installed
-            let check = try await session.simpleQuery("""
-                SELECT COUNT(*) FROM information_schema.COMPONENTS
-                WHERE COMPONENT_URN LIKE '%data_masking%'
-            """)
-            let installed = (check.rows.first?[safe: 0]).flatMap(Int.init) ?? 0
-
-            if installed > 0 {
-                let result = try await session.simpleQuery("""
-                    SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, 'MASK' as FUNCTION
-                    FROM information_schema.COLUMNS
-                    WHERE GENERATION_EXPRESSION LIKE '%mask%'
-                    ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME
-                    LIMIT 100
-                """)
-                maskingRules = result.rows.enumerated().map { idx, row in
+            let installed = try await mysql.client.security.maskingComponentInstalled()
+            if installed {
+                let rules = try await mysql.client.security.maskingRules()
+                maskingRules = rules.enumerated().map { idx, rule in
                     MaskingRule(
                         id: "\(idx)",
-                        schema: row[safe: 0] ?? "",
-                        table: row[safe: 1] ?? "",
-                        column: row[safe: 2] ?? "",
-                        function: row[safe: 3] ?? "MASK"
+                        schema: rule.schema,
+                        table: rule.table,
+                        column: rule.column,
+                        function: rule.function
                     )
                 }
             } else {
@@ -97,55 +68,26 @@ extension MySQLDatabaseSecurityViewModel {
     // MARK: - Encryption
 
     func loadEncryptionInfo() async {
+        guard let mysql = session as? MySQLSession else { return }
         isLoadingEncryption = true
         defer { isLoadingEncryption = false }
         do {
-            let result = try await session.simpleQuery("""
-                SELECT Variable_name, Value FROM performance_schema.global_variables
-                WHERE Variable_name IN (
-                    'innodb_encrypt_tables',
-                    'innodb_encrypt_log',
-                    'innodb_redo_log_encrypt',
-                    'innodb_undo_log_encrypt',
-                    'table_encryption_privilege_check',
-                    'default_table_encryption',
-                    'keyring_file_data',
-                    'early-plugin-load',
-                    'binlog_encryption',
-                    'encrypt_tmp_files',
-                    'have_ssl',
-                    'have_openssl',
-                    'ssl_ca',
-                    'ssl_cert',
-                    'ssl_key',
-                    'tls_version',
-                    'tls_ciphersuites'
-                )
-                ORDER BY Variable_name
-            """)
-
-            var items = result.rows.map { row in
+            let variables = try await mysql.client.security.encryptionVariables()
+            var items = variables.map { variable in
                 EncryptionInfo(
-                    id: row[safe: 0] ?? UUID().uuidString,
-                    name: row[safe: 0] ?? "\u{2014}",
-                    value: row[safe: 1] ?? "\u{2014}",
-                    category: categorizeEncryptionVar(row[safe: 0] ?? "")
+                    id: variable.name,
+                    name: variable.name,
+                    value: variable.value,
+                    category: categorizeEncryptionVar(variable.name)
                 )
             }
 
-            // Add tablespace encryption status
-            let tablespaceResult = try? await session.simpleQuery("""
-                SELECT TABLE_SCHEMA, TABLE_NAME, CREATE_OPTIONS
-                FROM information_schema.TABLES
-                WHERE CREATE_OPTIONS LIKE '%ENCRYPTION%'
-                ORDER BY TABLE_SCHEMA, TABLE_NAME
-                LIMIT 50
-            """)
-            if let rows = tablespaceResult?.rows, !rows.isEmpty {
+            let encryptedTables = try? await mysql.client.security.encryptedTables()
+            if let tables = encryptedTables, !tables.isEmpty {
                 items.append(EncryptionInfo(
                     id: "encrypted-tables-count",
                     name: "Encrypted Tables",
-                    value: "\(rows.count) table(s)",
+                    value: "\(tables.count) table(s)",
                     category: "Tablespace"
                 ))
             }
@@ -168,49 +110,36 @@ extension MySQLDatabaseSecurityViewModel {
     // MARK: - Audit Log
 
     func loadAuditLog() async {
+        guard let mysql = session as? MySQLSession else { return }
         isLoadingAudit = true
         defer { isLoadingAudit = false }
         do {
-            // Check if audit plugin is installed
-            let check = try await session.simpleQuery("""
-                SELECT PLUGIN_STATUS FROM information_schema.PLUGINS
-                WHERE PLUGIN_NAME = 'audit_log'
-            """)
-            auditPluginInstalled = !(check.rows.isEmpty)
+            auditPluginInstalled = try await mysql.client.security.auditPluginInstalled()
 
             if auditPluginInstalled {
-                // Try to read from audit log function (MySQL Enterprise)
-                let result = try await session.simpleQuery("""
-                    SELECT * FROM mysql.audit_log_filter LIMIT 50
-                """)
-                auditLogEntries = result.rows.enumerated().map { idx, row in
+                let filters = try await mysql.client.security.auditLogFilters()
+                auditLogEntries = filters.enumerated().map { idx, filter in
                     AuditLogEntry(
                         id: "\(idx)",
-                        timestamp: row[safe: 0] ?? "\u{2014}",
-                        user: row[safe: 1] ?? "",
+                        timestamp: filter.filterName,
+                        user: filter.definition ?? "",
                         host: "",
-                        event: row[safe: 2] ?? "",
+                        event: "Filter",
                         command: "",
                         query: ""
                     )
                 }
             } else {
-                // Fall back to general log for audit-like data
-                let result = try? await session.simpleQuery("""
-                    SELECT event_time, user_host, command_type, argument
-                    FROM mysql.general_log
-                    ORDER BY event_time DESC
-                    LIMIT 50
-                """)
-                auditLogEntries = (result?.rows ?? []).enumerated().map { idx, row in
+                let entries = try? await mysql.client.security.generalLogEntries()
+                auditLogEntries = (entries ?? []).enumerated().map { idx, entry in
                     AuditLogEntry(
                         id: "general-\(idx)",
-                        timestamp: row[safe: 0] ?? "\u{2014}",
-                        user: row[safe: 1] ?? "",
+                        timestamp: entry.eventTime ?? "\u{2014}",
+                        user: entry.userHost ?? "",
                         host: "",
                         event: "Query",
-                        command: row[safe: 2] ?? "",
-                        query: row[safe: 3] ?? ""
+                        command: entry.commandType ?? "",
+                        query: entry.argument ?? ""
                     )
                 }
             }
@@ -222,29 +151,20 @@ extension MySQLDatabaseSecurityViewModel {
     // MARK: - Firewall
 
     func loadFirewallRules() async {
+        guard let mysql = session as? MySQLSession else { return }
         isLoadingFirewall = true
         defer { isLoadingFirewall = false }
         do {
-            // Check if firewall plugin is installed
-            let check = try await session.simpleQuery("""
-                SELECT PLUGIN_STATUS FROM information_schema.PLUGINS
-                WHERE PLUGIN_NAME = 'MYSQL_FIREWALL'
-            """)
-            firewallPluginInstalled = !(check.rows.isEmpty)
+            firewallPluginInstalled = try await mysql.client.security.firewallPluginInstalled()
 
             if firewallPluginInstalled {
-                let result = try await session.simpleQuery("""
-                    SELECT USERHOST, RULE, MODE
-                    FROM mysql.firewall_whitelist
-                    ORDER BY USERHOST
-                    LIMIT 100
-                """)
-                firewallRules = result.rows.enumerated().map { idx, row in
+                let rules = try await mysql.client.security.firewallRules()
+                firewallRules = rules.enumerated().map { idx, rule in
                     FirewallRule(
                         id: "\(idx)",
-                        userhost: row[safe: 0] ?? "",
-                        rule: row[safe: 1] ?? "",
-                        mode: row[safe: 2] ?? ""
+                        userhost: rule.userhost,
+                        rule: rule.rule,
+                        mode: rule.mode
                     )
                 }
             } else {

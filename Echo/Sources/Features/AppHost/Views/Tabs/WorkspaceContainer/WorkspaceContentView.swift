@@ -23,11 +23,11 @@ struct WorkspaceContentView: View {
             tabContentView
         }
         .sheet(item: $selectedSQLContext) { context in
-            SQLInspectorPopover(context: context) { sql in
+            SQLInspectorPopover(context: context) { sql, database in
                 if let session = environmentState.sessionGroup.sessionForConnection(tab.connection.id) {
-                    environmentState.openQueryTab(for: session, presetQuery: sql)
+                    environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
                 } else {
-                    environmentState.openQueryTab(presetQuery: sql)
+                    environmentState.openQueryTab(presetQuery: sql, database: database)
                 }
             }
         }
@@ -72,10 +72,6 @@ struct WorkspaceContentView: View {
             }
         case .maintenance, .mssqlMaintenance:
             MaintenanceView(tab: tab).background(ColorTokens.Background.primary)
-        case .queryStore:
-            if let vm = tab.queryStoreVM {
-                QueryStoreView(viewModel: vm).background(ColorTokens.Background.primary)
-            }
         case .extendedEvents:
             if let vm = tab.extendedEventsVM {
                 ExtendedEventsView(viewModel: vm, panelState: tab.panelState)
@@ -119,7 +115,7 @@ struct WorkspaceContentView: View {
             if let vm = tab.profilerVM {
                 ProfilerView(
                     viewModel: vm,
-                    onPopout: { sql in selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details") },
+                    onPopout: { sql in selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details", dialect: .microsoftSQL) },
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
                 ).background(ColorTokens.Background.primary)
             }

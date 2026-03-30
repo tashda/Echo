@@ -6,14 +6,26 @@ struct SQLPopoutContext: Identifiable {
     let id = UUID()
     let sql: String
     let title: String
+    let databaseName: String?
+    let formatterDialect: SQLFormatter.Dialect
+
+    init(sql: String, title: String, databaseName: String? = nil, dialect: SQLFormatter.Dialect = .postgres) {
+        self.sql = sql
+        self.title = title
+        self.databaseName = databaseName
+        self.formatterDialect = dialect
+    }
 }
 
 // MARK: - SQL Inspector Popover
 
 struct SQLInspectorPopover: View {
     let context: SQLPopoutContext
-    let onOpenInWindow: (String) -> Void
+    let onOpenInWindow: (_ sql: String, _ database: String?) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var formattedSQL: String?
+
+    private var displaySQL: String { formattedSQL ?? context.sql }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,11 +36,11 @@ struct SQLInspectorPopover: View {
 
                 HStack(spacing: SpacingTokens.sm) {
                     Button("Copy SQL") {
-                        PlatformClipboard.copy(context.sql)
+                        PlatformClipboard.copy(displaySQL)
                     }
 
                     Button("Open in Query Window") {
-                        onOpenInWindow(context.sql)
+                        onOpenInWindow(displaySQL, context.databaseName)
                         dismiss()
                     }
                     .buttonStyle(.bordered)
@@ -44,7 +56,7 @@ struct SQLInspectorPopover: View {
             Divider()
 
             ScrollView {
-                Text(context.sql)
+                Text(displaySQL)
                     .font(TypographyTokens.monospaced)
                     .padding(SpacingTokens.lg)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -53,6 +65,11 @@ struct SQLInspectorPopover: View {
             .background(ColorTokens.Background.secondary.opacity(0.5))
         }
         .frame(minWidth: 600, minHeight: 400)
+        .task {
+            if let formatted = try? await SQLFormatter.shared.format(sql: context.sql, dialect: context.formatterDialect) {
+                formattedSQL = formatted
+            }
+        }
     }
 }
 
@@ -60,7 +77,16 @@ struct SQLInspectorPopover: View {
 
 struct SQLQueryCell: View {
     let sql: String
+    let databaseName: String?
     let onPopout: (String) -> Void
+    var onOpenInQueryWindow: ((_ sql: String, _ database: String?) -> Void)?
+
+    init(sql: String, databaseName: String? = nil, onPopout: @escaping (String) -> Void, onOpenInQueryWindow: ((_ sql: String, _ database: String?) -> Void)? = nil) {
+        self.sql = sql
+        self.databaseName = databaseName
+        self.onPopout = onPopout
+        self.onOpenInQueryWindow = onOpenInQueryWindow
+    }
 
     var body: some View {
         HStack(spacing: SpacingTokens.xxs) {
@@ -90,6 +116,17 @@ struct SQLQueryCell: View {
             } label: {
                 Label("Expand SQL", systemImage: "arrow.up.left.and.arrow.down.right")
             }
+
+            if let onOpenInQueryWindow {
+                Button {
+                    onOpenInQueryWindow(sql, databaseName)
+                } label: {
+                    Label("Open in Query Window", systemImage: "terminal")
+                }
+            }
+
+            Divider()
+
             Button {
                 PlatformClipboard.copy(sql)
             } label: {

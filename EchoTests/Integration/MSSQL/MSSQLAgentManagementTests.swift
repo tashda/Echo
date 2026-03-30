@@ -184,7 +184,7 @@ struct MSSQLAgentManagementTests {
         try await mssql.agent.attachSchedule(scheduleName: scheduleName, toJob: jobName)
 
         // Verify
-        let schedules = try await mssql.agent.getJobSchedules(jobName: jobName)
+        let schedules = try await mssql.agent.listJobSchedules(jobName: jobName)
         #expect(!schedules.isEmpty, "Job should have a schedule attached")
 
         // Cleanup

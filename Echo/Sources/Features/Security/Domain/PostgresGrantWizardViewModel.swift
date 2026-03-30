@@ -119,7 +119,7 @@ final class PostgresGrantWizardViewModel {
     func loadSchemas(session: DatabaseSession) async {
         guard let pg = session as? PostgresSession else { return }
         do {
-            availableSchemas = try await pg.client.introspection.listSchemas().map(\.name)
+            availableSchemas = try await pg.client.metadata.listSchemas().map(\.name)
             if !availableSchemas.contains(selectedSchema), let first = availableSchemas.first {
                 selectedSchema = first
             }
@@ -136,10 +136,10 @@ final class PostgresGrantWizardViewModel {
         do {
             switch objectType {
             case .tables:
-                let objects = try await pg.client.introspection.listTablesAndViews(schema: selectedSchema)
+                let objects = try await pg.client.metadata.listTablesAndViews(schema: selectedSchema)
                 availableObjects = objects.filter { $0.kind == .table }.map(\.name).sorted()
             case .sequences:
-                let seqs = try await pg.client.introspection.listSequences(schema: selectedSchema)
+                let seqs = try await pg.client.metadata.listSequences(schema: selectedSchema)
                 availableObjects = seqs.map(\.name).sorted()
             case .functions:
                 let rows = try await pg.client.simpleQuery("""

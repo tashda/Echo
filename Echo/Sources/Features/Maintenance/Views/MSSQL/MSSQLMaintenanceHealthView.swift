@@ -98,12 +98,19 @@ struct MSSQLMaintenanceHealthView: View {
     @ViewBuilder
     private var shrinkDatabaseSection: some View {
         Section("Shrink Database") {
-            PropertyRow(title: "Target %", subtitle: "Minimum free space percentage after shrink.") {
+            PropertyRow(
+                title: "Target %",
+                subtitle: "Minimum free space percentage after shrink.",
+                info: "Sets the percentage of free space left in the database after shrinking. Higher values leave more room for growth but reclaim less space."
+            ) {
                 Stepper("\(viewModel.shrinkTargetPercent)%", value: $viewModel.shrinkTargetPercent, in: 0...99)
                     .frame(width: 120)
             }
 
-            PropertyRow(title: "Option") {
+            PropertyRow(
+                title: "Option",
+                info: "Default: moves pages then truncates. No Truncate: moves pages without releasing space to the OS. Truncate Only: releases trailing free space without moving pages."
+            ) {
                 Picker("", selection: $viewModel.shrinkOption) {
                     ForEach(ShrinkOptionChoice.allCases) { option in
                         Text(option.rawValue).tag(option)
@@ -150,7 +157,10 @@ struct MSSQLMaintenanceHealthView: View {
                     .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Text.tertiary)
             } else {
-                PropertyRow(title: "File") {
+                PropertyRow(
+                    title: "File",
+                    info: "Select the data or log file to shrink. ROWS files contain table data; LOG files contain the transaction log."
+                ) {
                     Picker("", selection: $viewModel.shrinkFileName) {
                         ForEach(viewModel.databaseFiles, id: \.name) { file in
                             Text("\(file.name) (\(file.typeDescription))")
@@ -161,7 +171,11 @@ struct MSSQLMaintenanceHealthView: View {
                     .frame(width: 220)
                 }
 
-                PropertyRow(title: "Target Size (MB)", subtitle: "Enter 0 to shrink as much as possible.") {
+                PropertyRow(
+                    title: "Target Size (MB)",
+                    subtitle: "Enter 0 to shrink as much as possible.",
+                    info: "The file will be shrunk to this size or as close as possible. Cannot be smaller than the minimum size required to hold the data."
+                ) {
                     TextField("", value: $viewModel.shrinkFileTargetMB, format: .number, prompt: Text("0"))
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 100)
@@ -169,7 +183,8 @@ struct MSSQLMaintenanceHealthView: View {
 
                 PropertyRow(
                     title: "Shrink",
-                    subtitle: "Shrink the selected file to the target size."
+                    subtitle: "Shrink the selected file to the target size.",
+                    info: "Runs DBCC SHRINKFILE on the selected file. Use sparingly on data files as it causes index fragmentation."
                 ) {
                     Button {
                         Task { await viewModel.runShrinkFile() }

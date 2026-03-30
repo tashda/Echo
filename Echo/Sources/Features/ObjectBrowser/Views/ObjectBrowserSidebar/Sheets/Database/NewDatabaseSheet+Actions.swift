@@ -26,10 +26,10 @@ extension NewDatabaseSheet {
         let roles = (try? await client.security.listRoles()) ?? []
         pgRoles = roles.map(\.name).sorted()
 
-        pgTemplates = (try? await client.introspection.listDatabaseTemplates()) ?? ["template0", "template1"]
-        pgEncodings = (try? await client.introspection.listEncodings()) ?? ["UTF8"]
-        pgCollations = (try? await client.introspection.listCollations()) ?? []
-        pgTablespaces = (try? await client.introspection.listTablespaces()) ?? ["pg_default"]
+        pgTemplates = (try? await client.metadata.listDatabaseTemplates()) ?? ["template0", "template1"]
+        pgEncodings = (try? await client.metadata.listEncodings()) ?? ["UTF8"]
+        pgCollations = (try? await client.metadata.listCollations()) ?? []
+        pgTablespaces = (try? await client.metadata.listTablespaces()) ?? ["pg_default"]
     }
 
     private func loadMSSQLOptions() async throws {

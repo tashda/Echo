@@ -505,6 +505,15 @@ All MySQL Workbench Community Edition capabilities are now covered in Echo. The 
 
 Echo now credibly replaces MySQL Workbench Community Edition for day-to-day MySQL administration and development, with the added benefit of multi-database support across PostgreSQL, SQL Server, MySQL, and SQLite through a unified native macOS interface.
 
+### Final Parity Features (Multi-Database)
+
+These features were built as multi-database capabilities, not MySQL-specific:
+
+- **PostgreSQL Server Control** — pg_ctl start/stop/restart for local PostgreSQL servers, matching the MySQL server control pattern. Server properties tab now shows overview, control, variables, and status for both MySQL and PostgreSQL.
+- **Canvas Table Creation** — DiagramCreateTableSheet lets users define table name, columns, types, PK, and nullability directly from the diagram. Executes CREATE TABLE DDL and refreshes the diagram. Works for all database types.
+- **Canvas Relationship Creation** — DiagramCreateRelationshipSheet lets users pick source/target tables and columns from the diagram, configure ON DELETE/UPDATE actions, and creates FK constraints. Works for all database types.
+- **Visual Query Builder** — New tab type for drag-and-drop query construction. Users add tables from a sidebar, check/uncheck columns, configure JOINs, add WHERE conditions, set ORDER BY/DISTINCT/LIMIT. SQL is generated in real-time with dialect-aware quoting. Works for PostgreSQL, MySQL, SQL Server, and SQLite.
+
 ---
 
 ## Phase Summary

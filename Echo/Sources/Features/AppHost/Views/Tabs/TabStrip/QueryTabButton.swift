@@ -118,15 +118,6 @@ struct QueryTabButton: View {
                 }
             }
 
-            if let qsVM = tab.queryStoreVM {
-                Divider()
-                Button {
-                    Task { await qsVM.loadAll() }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-            }
-
             Divider()
 
             Button(action: onClose) {

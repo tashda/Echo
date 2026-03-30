@@ -197,7 +197,7 @@ extension ObjectBrowserSidebarView {
         guard let pg = session.session as? PostgresSession else { return }
         let handle = AppDirector.shared.activityEngine.begin("Loading publications", connectionSessionID: session.id)
         do {
-            let pubs = try await pg.client.introspection.listPublications()
+            let pubs = try await pg.client.metadata.listPublications()
             viewModel.setReplicationPublications(pubs, connectionID: session.connection.id, database: database)
             handle.succeed()
         } catch {
@@ -209,7 +209,7 @@ extension ObjectBrowserSidebarView {
         guard let pg = session.session as? PostgresSession else { return }
         let handle = AppDirector.shared.activityEngine.begin("Loading subscriptions", connectionSessionID: session.id)
         do {
-            let subs = try await pg.client.introspection.listSubscriptions()
+            let subs = try await pg.client.metadata.listSubscriptions()
             viewModel.setReplicationSubscriptions(subs, connectionID: session.connection.id, database: database)
             handle.succeed()
         } catch {

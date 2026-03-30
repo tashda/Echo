@@ -108,12 +108,12 @@ nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     var profiler: SQLServerProfilerClient { client.profiler }
     var resourceGovernor: SQLServerResourceGovernorClient { client.resourceGovernor }
     var policy: SQLServerPolicyClient { client.policy }
+    @available(*, deprecated)
     var dependencies: SQLServerDependencyClient { client.dependencies }
+    @available(*, deprecated)
     var dac: SQLServerDACClient { client.dac }
-    var bulkCopy: SQLServerBulkCopyClient { SQLServerBulkCopyClient(client: client) }
+    var bulk: SQLServerBulkClient { SQLServerBulkClient(client: client) }
     var ssis: SQLServerSSISClient { client.ssis }
-    var ssas: SQLServerSSASClient { client.ssas }
-    var ssrs: SQLServerSSRSClient { client.ssrs }
 
     func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
         let nioResult = try await client.maintenance.rebuildIndex(schema: schema, table: table, name: index)
@@ -195,7 +195,7 @@ nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     }
 
     func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation] {
-        let nioStats = try await client.indexes.listFragmentedIndexes()
+        let nioStats = try await client.indexes.listFragmentedIndexes(minFragmentationPercent: 0)
         return nioStats.map { stat in
             SQLServerIndexFragmentation(
                 schemaName: stat.schemaName,

@@ -29,7 +29,7 @@ extension MySQLBackupRestoreViewModel {
             useExtendedInsert: useExtendedInsert,
             tables: backupTableList
         )
-        let command = mysqlSession.client.admin.backupCommand(
+        let command = mysqlSession.client.backupRestore.backupCommand(
             host: connection.host,
             port: connection.port,
             username: resolvedUsername ?? connection.username,

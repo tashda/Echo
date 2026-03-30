@@ -36,6 +36,7 @@ extension LoginEditorViewModel {
     private func applyFetchedData(_ data: ServerLoginEditorData) {
         self.serverName = data.serverName
         self.availableDatabases = data.availableDatabases.sorted()
+        self.permissionConnectToEngine = data.permissionConnectToEngine
         
         // 1. General Info
         if let login = data.loginInfo {

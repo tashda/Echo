@@ -6,10 +6,8 @@ extension MSSQLMaintenanceViewModel {
         isRefreshingTables = true
         defer { isRefreshingTables = false }
         do {
-            if let db = selectedDatabase {
-                _ = try await session.sessionForDatabase(db)
-            }
-            tableStats = try await session.listTableStats()
+            let dbSession = try await resolveSession()
+            tableStats = try await dbSession.listTableStats()
         } catch {
             // Keep existing data if refresh fails
         }
@@ -19,7 +17,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin("Update stats \(table.tableName)", connectionSessionID: connectionSessionID)
         logOperation("Executing: UPDATE STATISTICS [\(table.schemaName)].[\(table.tableName)]", category: "Update Statistics")
         do {
-            let result = try await session.updateTableStatistics(schema: table.schemaName, table: table.tableName)
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.updateTableStatistics(schema: table.schemaName, table: table.tableName)
             if result.succeeded {
                 await refreshTables()
                 let msg = "Statistics updated for table \(table.schemaName).\(table.tableName)."
@@ -44,7 +43,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin("Check table \(table.tableName)", connectionSessionID: connectionSessionID)
         logOperation("Executing: DBCC CHECKTABLE('[\(table.schemaName)].[\(table.tableName)]')", category: "Check Table")
         do {
-            let result = try await session.checkTable(schema: table.schemaName, table: table.tableName)
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.checkTable(schema: table.schemaName, table: table.tableName)
             for msg in result.messages {
                 logOperation(msg, severity: result.succeeded ? .info : .warning, category: "Check Table")
             }
@@ -66,7 +66,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin(label, connectionSessionID: connectionSessionID)
         logOperation("Executing: ALTER TABLE [\(table.schemaName)].[\(table.tableName)] REBUILD", category: "Rebuild Table")
         do {
-            let result = try await session.rebuildTable(schema: table.schemaName, table: table.tableName)
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.rebuildTable(schema: table.schemaName, table: table.tableName)
             if result.succeeded {
                 await refreshTables()
                 let msg = "Table rebuilt for \(table.schemaName).\(table.tableName)."
@@ -92,7 +93,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin(label, connectionSessionID: connectionSessionID)
         logOperation("Executing: ALTER INDEX ALL ON [\(table.schemaName)].[\(table.tableName)] REBUILD", category: "Rebuild Indexes")
         do {
-            let result = try await session.rebuildIndexes(schema: table.schemaName, table: table.tableName)
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.rebuildIndexes(schema: table.schemaName, table: table.tableName)
             if result.succeeded {
                 await refreshTables()
                 let msg = "All indexes rebuilt for \(table.schemaName).\(table.tableName)."
@@ -118,7 +120,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin(label, connectionSessionID: connectionSessionID)
         logOperation("Executing: ALTER INDEX ALL ON [\(table.schemaName)].[\(table.tableName)] REORGANIZE", category: "Reorganize Indexes")
         do {
-            let result = try await session.reorganizeIndexes(schema: table.schemaName, table: table.tableName)
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.reorganizeIndexes(schema: table.schemaName, table: table.tableName)
             if result.succeeded {
                 await refreshTables()
                 let msg = "All indexes reorganized for \(table.schemaName).\(table.tableName)."

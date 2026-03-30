@@ -33,6 +33,7 @@ struct ToolbarNavigationButtons: View {
             .disabled(!canGoBack)
             .help("Go Back")
             .accessibilityLabel("Go Back")
+            .keyboardShortcut("[", modifiers: .command)
 
             Button(action: onForward) {
                 Label("Forward", systemImage: "chevron.right")
@@ -40,6 +41,7 @@ struct ToolbarNavigationButtons: View {
             .disabled(!canGoForward)
             .help("Go Forward")
             .accessibilityLabel("Go Forward")
+            .keyboardShortcut("]", modifiers: .command)
         }
         .controlGroupStyle(.navigation)
     }

@@ -37,45 +37,13 @@ extension ConnectionSession {
             )
         }
 
-        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
             title: "Activity Monitor",
             content: .activityMonitor(viewModel),
-            activeDatabaseName: connName.isEmpty ? connection.host : connName
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addQueryStoreTab(databaseName: String) -> WorkspaceTab? {
-        guard let mssql = session as? MSSQLSession else { return nil }
-
-        // Reuse existing query store tab for THIS specific database if present
-        if let existing = queryTabs.first(where: { tab in
-            guard let vm = tab.queryStoreVM else { return false }
-            return vm.databaseName == databaseName
-        }) {
-            activeQueryTabID = existing.id
-            return existing
-        }
-
-        let viewModel = QueryStoreViewModel(
-            queryStoreClient: mssql.queryStore,
-            databaseName: databaseName,
-            connectionSessionID: id
-        )
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "Query Store (\(databaseName))",
-            content: .queryStore(viewModel)
+            activeDatabaseName: nil
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id

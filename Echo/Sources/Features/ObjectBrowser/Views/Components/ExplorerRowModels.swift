@@ -5,7 +5,7 @@ struct HoveredExplorerRowIDKey: EnvironmentKey {
 }
 
 struct SidebarDensityKey: EnvironmentKey {
-    static let defaultValue: SidebarDensity = .default
+    static let defaultValue: SidebarDensity = .medium
 }
 
 struct SetHoveredExplorerRowIDKey: EnvironmentKey {

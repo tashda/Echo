@@ -59,8 +59,8 @@ struct TableStructureInheritanceView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            parents = try await pg.client.introspection.listInheritanceParents(schema: viewModel.schemaName, table: viewModel.tableName)
-            children = try await pg.client.introspection.listInheritanceChildren(schema: viewModel.schemaName, table: viewModel.tableName)
+            parents = try await pg.client.metadata.listInheritanceParents(schema: viewModel.schemaName, table: viewModel.tableName)
+            children = try await pg.client.metadata.listInheritanceChildren(schema: viewModel.schemaName, table: viewModel.tableName)
         } catch {
             viewModel.lastError = error.localizedDescription
         }

@@ -33,7 +33,6 @@ final class WorkspaceTab: Identifiable {
         case activityMonitor
         case maintenance
         case mssqlMaintenance
-        case queryStore
         case extendedEvents
         case availabilityGroups
         case databaseSecurity
@@ -63,7 +62,6 @@ final class WorkspaceTab: Identifiable {
         case activityMonitor(ActivityMonitorViewModel)
         case maintenance(MaintenanceViewModel)
         case mssqlMaintenance(MSSQLMaintenanceViewModel)
-        case queryStore(QueryStoreViewModel)
         case extendedEvents(ExtendedEventsViewModel)
         case availabilityGroups(AvailabilityGroupsViewModel)
         case databaseSecurity(DatabaseSecurityViewModel)
@@ -216,7 +214,6 @@ final class WorkspaceTab: Identifiable {
         case .activityMonitor: return .activityMonitor
         case .maintenance: return .maintenance
         case .mssqlMaintenance: return .mssqlMaintenance
-        case .queryStore: return .queryStore
         case .extendedEvents: return .extendedEvents
         case .availabilityGroups: return .availabilityGroups
         case .databaseSecurity: return .databaseSecurity
@@ -283,11 +280,6 @@ final class WorkspaceTab: Identifiable {
 
     var mssqlMaintenance: MSSQLMaintenanceViewModel? {
         if case .mssqlMaintenance(let vm) = content { return vm }
-        return nil
-    }
-
-    var queryStoreVM: QueryStoreViewModel? {
-        if case .queryStore(let vm) = content { return vm }
         return nil
     }
 
@@ -397,9 +389,7 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + 1024 * 1024
         case .maintenance(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
-        case .mssqlMaintenance:
-            return baseOverhead + 256 * 1024 // Default estimation
-        case .queryStore(let vm):
+        case .mssqlMaintenance(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .extendedEvents(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()

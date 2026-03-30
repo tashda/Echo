@@ -102,7 +102,7 @@ extension DatabaseEditorViewModel {
         guard let pgSession = session.session as? PostgresSession else { return }
         let client = pgSession.client
 
-        let props = try await client.introspection.fetchDatabaseProperties(name: databaseName)
+        let props = try await client.metadata.fetchDatabaseProperties(name: databaseName)
         pgProps = props
         pgOwner = props.owner
         pgConnectionLimit = props.connectionLimit
@@ -110,23 +110,23 @@ extension DatabaseEditorViewModel {
         pgAllowConnections = props.allowConnections
         pgComment = props.description ?? ""
 
-        pgParams = (try? await client.introspection.fetchDatabaseParameters(databaseOid: props.oid)) ?? []
+        pgParams = (try? await client.metadata.fetchDatabaseParameters(databaseOid: props.oid)) ?? []
         pgOriginalParams = pgParams
 
         let roles = (try? await client.security.listRoles()) ?? []
         pgRoles = roles.map(\.name).sorted()
 
-        pgTablespaces = (try? await client.introspection.listTablespaces()) ?? ["pg_default"]
-        pgSettingDefinitions = (try? await client.introspection.fetchDatabaseConfigurableSettings()) ?? []
+        pgTablespaces = (try? await client.metadata.listTablespaces()) ?? ["pg_default"]
+        pgSettingDefinitions = (try? await client.metadata.fetchDatabaseConfigurableSettings()) ?? []
 
         if let acl = props.acl {
             pgACLEntries = PostgresACLEntry.parse(acl: acl)
         }
 
-        pgDefaultPrivileges = (try? await client.introspection.fetchDefaultPrivileges()) ?? []
+        pgDefaultPrivileges = (try? await client.metadata.fetchDefaultPrivileges()) ?? []
         pgOriginalDefaultPrivileges = pgDefaultPrivileges
 
-        let schemas = (try? await client.introspection.listSchemas()) ?? []
+        let schemas = (try? await client.metadata.listSchemas()) ?? []
         pgSchemas = schemas.map(\.name).sorted()
     }
 

@@ -15,10 +15,8 @@ extension MSSQLMaintenanceViewModel {
 
     func refreshHealth() async {
         do {
-            if let db = selectedDatabase {
-                _ = try await session.sessionForDatabase(db)
-            }
-            healthStats = try await session.getDatabaseHealth()
+            let dbSession = try await resolveSession()
+            healthStats = try await dbSession.getDatabaseHealth()
             healthPermissionError = nil
         } catch {
             healthStats = nil
@@ -39,7 +37,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin("Integrity check \(db)", connectionSessionID: connectionSessionID)
         logOperation("Executing: DBCC CHECKDB(N'\(db)')", category: "Integrity Check")
         do {
-            let result = try await session.checkDatabaseIntegrity()
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.checkDatabaseIntegrity()
             for msg in result.messages {
                 logOperation(msg, severity: result.succeeded ? .info : .warning, category: "Integrity Check")
             }
@@ -65,7 +64,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin("Shrink \(db)", connectionSessionID: connectionSessionID)
         logOperation("Executing: DBCC SHRINKDATABASE(N'\(db)')", category: "Shrink Database")
         do {
-            _ = try await session.shrinkDatabase()
+            let dbSession = try await resolveSession()
+            _ = try await dbSession.shrinkDatabase()
             await refreshHealth()
             let sizeAfter = healthStats?.sizeMB ?? 0
             let summary = "Database shrunk from \(String(format: "%.1f", sizeBefore)) MB to \(String(format: "%.1f", sizeAfter)) MB."
@@ -88,7 +88,8 @@ extension MSSQLMaintenanceViewModel {
         let truncateOnly = shrinkOption == .truncateOnly
         logOperation("Executing: DBCC SHRINKDATABASE(N'\(db)', \(shrinkTargetPercent), \(shrinkOption.rawValue))", category: "Shrink Database")
         do {
-            _ = try await session.shrinkDatabase(targetPercent: shrinkTargetPercent, truncateOnly: truncateOnly)
+            let dbSession = try await resolveSession()
+            _ = try await dbSession.shrinkDatabase(targetPercent: shrinkTargetPercent, truncateOnly: truncateOnly)
             await refreshHealth()
             let sizeAfter = healthStats?.sizeMB ?? 0
             let summary = "Database shrunk from \(String(format: "%.1f", sizeBefore)) MB to \(String(format: "%.1f", sizeAfter)) MB."
@@ -110,7 +111,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin("Shrink file \(shrinkFileName) in \(db)", connectionSessionID: connectionSessionID)
         logOperation("Executing: DBCC SHRINKFILE(N'\(shrinkFileName)', \(shrinkFileTargetMB))", category: "Shrink File")
         do {
-            let result = try await session.shrinkFile(fileName: shrinkFileName, targetSizeMB: shrinkFileTargetMB)
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.shrinkFile(fileName: shrinkFileName, targetSizeMB: shrinkFileTargetMB)
             let summary = result.succeeded
                 ? "File '\(shrinkFileName)' shrunk successfully to target \(shrinkFileTargetMB) MB."
                 : "Shrink file finished with issues: \(result.messages.first ?? "Unknown")"
@@ -129,7 +131,8 @@ extension MSSQLMaintenanceViewModel {
         isLoadingFiles = true
         defer { isLoadingFiles = false }
         do {
-            databaseFiles = try await session.listDatabaseFiles()
+            let dbSession = try await resolveSession()
+            databaseFiles = try await dbSession.listDatabaseFiles()
             if shrinkFileName.isEmpty, let first = databaseFiles.first {
                 shrinkFileName = first.name
             }

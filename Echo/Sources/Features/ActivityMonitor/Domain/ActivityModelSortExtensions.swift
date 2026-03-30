@@ -24,6 +24,7 @@ extension SQLServerFileIOStatDelta {
 extension SQLServerExpensiveQuery {
     var sortableQuery: String { sqlText ?? "" }
     var sortableLastRun: Date { lastExecutionTime ?? .distantPast }
+    var sortableDatabaseName: String { databaseName ?? "" }
     var avgWorkerTime: Int64 { executionCount > 0 ? totalWorkerTime / Int64(executionCount) : 0 }
 }
 

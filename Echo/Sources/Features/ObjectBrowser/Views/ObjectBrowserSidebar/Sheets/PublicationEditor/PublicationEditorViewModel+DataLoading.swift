@@ -30,11 +30,11 @@ extension PublicationEditorViewModel {
     // MARK: - Available Tables
 
     private func loadAvailableTables(pg: PostgresSession) async throws {
-        let schemas = try await pg.client.introspection.listSchemas()
+        let schemas = try await pg.client.metadata.listSchemas()
         var tables: [String] = []
 
         for schema in schemas {
-            let objects = try await pg.client.introspection.listTablesAndViews(schema: schema.name)
+            let objects = try await pg.client.metadata.listTablesAndViews(schema: schema.name)
             for obj in objects where obj.kind == .table {
                 tables.append("\(schema.name).\(obj.name)")
             }
@@ -46,7 +46,7 @@ extension PublicationEditorViewModel {
     // MARK: - Existing Publication
 
     private func loadExistingPublication(pg: PostgresSession) async throws {
-        let publications = try await pg.client.introspection.listPublications()
+        let publications = try await pg.client.metadata.listPublications()
         guard let pub = publications.first(where: { $0.name == publicationName }) else { return }
 
         allTables = pub.allTables
@@ -56,7 +56,7 @@ extension PublicationEditorViewModel {
         publishTruncate = pub.publishTruncate
 
         if !pub.allTables {
-            let pubTables = try await pg.client.introspection.listPublicationTables(publication: publicationName)
+            let pubTables = try await pg.client.metadata.listPublicationTables(publication: publicationName)
             selectedTables = Set(pubTables.map { "\($0.schemaName).\($0.tableName)" })
         }
     }

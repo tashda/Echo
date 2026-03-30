@@ -5,37 +5,54 @@ extension MySQLActivityMonitorView {
     var sectionContentView: some View {
         switch selectedSection {
         case .overview:
-            if let overview = mysqlSnapshot?.overview {
-                MySQLActivityOverviewSection(overview: overview)
+            ScrollView {
+                VStack(alignment: .leading, spacing: SpacingTokens.md) {
+                    if let overview = mysqlSnapshot?.overview {
+                        MySQLActivityOverviewSection(overview: overview)
+                    }
+                    SectionContainer(
+                        title: "Performance Dashboard",
+                        icon: "chart.line.uptrend.xyaxis",
+                        info: "Query throughput, network traffic, and InnoDB buffer pool usage over time."
+                    ) {
+                        MySQLDashboardView(viewModel: viewModel)
+                    }
+                }
+                .padding(SpacingTokens.md)
             }
 
-            SectionContainer(
-                title: "Performance Dashboard",
-                icon: "chart.line.uptrend.xyaxis",
-                info: "Query throughput, network traffic, and InnoDB buffer pool usage over time."
-            ) {
-                MySQLDashboardView(viewModel: viewModel)
-            }
-        case .reports:
-            MySQLPerformanceReportsSection(viewModel: viewModel)
-        case .variables:
-            SectionContainer(
-                title: "Server Variables",
-                icon: "slider.horizontal.3",
-                info: "Current global server variables grouped by prefix."
-            ) {
-                variablesContent
-                    .padding(SpacingTokens.md)
-            }
         case .processes:
-            SectionContainer(
-                title: "Process List",
-                icon: "person.3",
-                info: "Current connections from SHOW FULL PROCESSLIST, with query details and separate kill-query and kill-connection actions."
-            ) {
-                processListContent
-                    .padding(SpacingTokens.md)
+            processListContent
+
+        case .queries:
+            MySQLActivityQueries(viewModel: viewModel) { content in
+                pushInspectorContent(content)
+            } onPopout: { sql in
+                selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details", dialect: .mysql)
             }
+
+        case .waits:
+            MySQLActivityWaits(viewModel: viewModel)
+
+        case .io:
+            MySQLActivityIO(viewModel: viewModel)
+
+        case .innodb:
+            MySQLActivityInnoDB(viewModel: viewModel)
+
+        case .replication:
+            MySQLActivityReplication(viewModel: viewModel)
+
+        case .reports:
+            ScrollView {
+                VStack(alignment: .leading, spacing: SpacingTokens.md) {
+                    MySQLPerformanceReportsSection(viewModel: viewModel)
+                }
+                .padding(SpacingTokens.md)
+            }
+
+        case .variables:
+            variablesContent
         }
     }
 
@@ -65,7 +82,7 @@ extension MySQLActivityMonitorView {
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
         } else {
-            ActivitySectionLoadingView(title: "Server Variables", subtitle: "Loading server variables…")
+            ActivitySectionLoadingView(title: "Server Variables", subtitle: "Loading server variables\u{2026}")
         }
     }
 }

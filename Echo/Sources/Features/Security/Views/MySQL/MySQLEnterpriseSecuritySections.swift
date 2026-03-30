@@ -1,4 +1,5 @@
 import SwiftUI
+import MySQLKit
 
 // MARK: - Password Policies Section
 
@@ -17,7 +18,9 @@ struct MySQLPasswordPoliciesSection: View {
             } actions: {
                 Button("Install Component") {
                     Task {
-                        _ = try? await viewModel.session.simpleQuery("INSTALL COMPONENT 'file://component_validate_password'")
+                        if let mysql = viewModel.session as? MySQLSession {
+                            try? await mysql.client.admin.installComponent("file://component_validate_password")
+                        }
                         await viewModel.loadPasswordPolicies()
                     }
                 }
@@ -60,7 +63,9 @@ struct MySQLDataMaskingSection: View {
             } actions: {
                 Button("Install Component") {
                     Task {
-                        _ = try? await viewModel.session.simpleQuery("INSTALL COMPONENT 'file://component_masking'")
+                        if let mysql = viewModel.session as? MySQLSession {
+                            try? await mysql.client.admin.installComponent("file://component_masking")
+                        }
                         await viewModel.loadMaskingRules()
                     }
                 }
@@ -157,8 +162,10 @@ struct MySQLAuditSection: View {
             } actions: {
                 Button("Enable General Log") {
                     Task {
-                        _ = try? await viewModel.session.simpleQuery("SET GLOBAL general_log = 'ON'")
-                        _ = try? await viewModel.session.simpleQuery("SET GLOBAL log_output = 'TABLE'")
+                        if let mysql = viewModel.session as? MySQLSession {
+                            _ = try? await mysql.client.serverConfig.setGlobalVariable("general_log", to: "'ON'")
+                            _ = try? await mysql.client.serverConfig.setGlobalVariable("log_output", to: "'TABLE'")
+                        }
                         await viewModel.loadAuditLog()
                     }
                 }

@@ -30,7 +30,7 @@ final class ViewEditorViewModel {
 
     // MARK: - Dirty Tracking
 
-    @ObservationIgnored private var snapshot: Snapshot?
+    @ObservationIgnored internal var snapshot: Snapshot?
 
     struct Snapshot {
         let viewName: String
@@ -57,13 +57,18 @@ final class ViewEditorViewModel {
         return false
     }
 
+    // MARK: - Dialect
+
+    let dialect: any ViewEditorDialect
+
     // MARK: - Init
 
-    init(connectionSessionID: UUID, schemaName: String, existingViewName: String?, isMaterialized: Bool) {
+    init(connectionSessionID: UUID, schemaName: String, existingViewName: String?, isMaterialized: Bool, dialect: any ViewEditorDialect) {
         self.connectionSessionID = connectionSessionID
         self.schemaName = schemaName
         self.existingViewName = existingViewName
         self.isMaterialized = isMaterialized
+        self.dialect = dialect
         if let existingViewName {
             self.viewName = existingViewName
         }

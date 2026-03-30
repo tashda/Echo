@@ -16,6 +16,12 @@ struct SchemaDiagramNodeView: View {
             Divider()
                 .foregroundStyle(palette.nodeBorder)
             columnsList
+
+            if !node.indexes.isEmpty {
+                Divider()
+                    .foregroundStyle(palette.nodeBorder)
+                indexesList
+            }
         }
         .fixedSize(horizontal: true, vertical: false)
         .background(
@@ -32,6 +38,11 @@ struct SchemaDiagramNodeView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+            if let db = node.databaseName {
+                Text(db)
+                    .font(TypographyTokens.detail.weight(.medium))
+                    .foregroundStyle(palette.headerSubtitle.opacity(0.7))
+            }
             Text(node.name)
                 .font(TypographyTokens.prominent.weight(.semibold))
                 .foregroundStyle(palette.headerTitle)
@@ -56,6 +67,22 @@ struct SchemaDiagramNodeView: View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             ForEach(node.columns) { column in
                 ColumnRow(nodeID: node.id, column: column, palette: palette)
+            }
+        }
+        .padding(.horizontal, SpacingTokens.sm2)
+        .padding(.vertical, SpacingTokens.sm)
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var indexesList: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+            Text("Indexes")
+                .font(TypographyTokens.detail.weight(.semibold))
+                .foregroundStyle(palette.columnDetail)
+                .padding(.bottom, SpacingTokens.xxs)
+
+            ForEach(node.indexes) { index in
+                IndexRow(index: index, palette: palette)
             }
         }
         .padding(.horizontal, SpacingTokens.sm2)
@@ -129,6 +156,11 @@ private struct ColumnRow: View {
                 .lineLimit(1)
                 .font(TypographyTokens.detail)
                 .foregroundStyle(palette.columnDetail)
+            if !column.isNullable {
+                Text("NN")
+                    .font(TypographyTokens.detail.weight(.medium))
+                    .foregroundStyle(palette.accent.opacity(0.6))
+            }
         }
         .padding(.vertical, SpacingTokens.xxs)
         .fixedSize(horizontal: true, vertical: false)
@@ -160,5 +192,36 @@ private struct ColumnRow: View {
 
     private var columnHighlightColor: Color {
         (column.isPrimaryKey || column.isForeignKey) ? palette.columnHighlight : Color.clear
+    }
+}
+
+private struct IndexRow: View {
+    let index: SchemaDiagramIndex
+    let palette: DiagramPalette
+
+    var body: some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Image(systemName: index.isUnique ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
+                .font(TypographyTokens.label.weight(.medium))
+                .foregroundStyle(palette.columnDetail)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(index.name)
+                    .lineLimit(1)
+                    .font(TypographyTokens.detail.weight(.medium))
+                    .foregroundStyle(palette.columnText)
+                Text(index.columns.joined(separator: ", "))
+                    .lineLimit(1)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(palette.columnDetail)
+            }
+            Spacer(minLength: SpacingTokens.sm)
+            if index.isUnique {
+                Text("UQ")
+                    .font(TypographyTokens.detail.weight(.medium))
+                    .foregroundStyle(palette.accent.opacity(0.6))
+            }
+        }
+        .padding(.vertical, SpacingTokens.xxs)
+        .fixedSize(horizontal: true, vertical: false)
     }
 }

@@ -12,8 +12,9 @@ extension GenerateScriptsWizardViewModel {
             do {
                 let objects: [GenerateScriptsObject]
 
-                if let deps = session.dependencies {
-                    objects = try await deps.listAllObjects(database: db).compactMap { sqlObject in
+                if let mssql = session as? MSSQLSession {
+                    let metadata = mssql.metadata
+                    objects = try await metadata.listAllObjects(database: db).compactMap { sqlObject in
                         guard let type = Self.objectType(forSQLServerTypeCode: sqlObject.type) else {
                             return nil
                         }

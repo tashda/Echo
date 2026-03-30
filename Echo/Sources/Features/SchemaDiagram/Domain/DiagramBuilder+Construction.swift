@@ -8,6 +8,7 @@ extension DiagramBuilder {
         session: any DiagramSchemaProvider,
         projectID: UUID,
         cacheKey: DiagramCacheKey?,
+        databaseName: String? = nil,
         progress: (@Sendable (String) -> Void)? = nil,
         isPrefetch: Bool = false
     ) async throws -> SchemaDiagramViewModel {
@@ -16,7 +17,8 @@ extension DiagramBuilder {
         
         let baseDetails = try await session.getTableStructureDetails(
             schema: object.schema,
-            table: object.name
+            table: object.name,
+            database: databaseName
         )
 
         var tableDetails: [DiagramTableKey: TableStructureDetails] = [baseKey: baseDetails]
@@ -70,7 +72,8 @@ extension DiagramBuilder {
                     progress?("Fetching \(key.schema).\(key.name)…")
                     let details = try await session.getTableStructureDetails(
                         schema: key.schema,
-                        table: key.name
+                        table: key.name,
+                        database: databaseName
                     )
                     tableDetails[key] = details
                 } catch {
@@ -148,7 +151,8 @@ extension DiagramBuilder {
             checksum: checksum,
             loadSource: .live(Date()),
             inboundKeys: inboundRelationshipKeys,
-            outboundKeys: outboundRelationshipKeys
+            outboundKeys: outboundRelationshipKeys,
+            databaseName: databaseName
         )
 
         if let cacheKey, let structureSnapshot, let checksum {

@@ -10,14 +10,14 @@ struct DiagramTableKey: Hashable, Sendable {
 }
 
 protocol DiagramSchemaProvider: Sendable {
-    func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails
+    func getTableStructureDetails(schema: String, table: String, database: String?) async throws -> TableStructureDetails
     var connectionID: UUID { get }
 }
 
 @MainActor
 protocol DiagramBuilderProtocol {
     func buildSchemaDiagram(for object: SchemaObjectInfo, projectID: UUID) async throws -> SchemaDiagramViewModel
-    func buildSchemaDiagram(for object: SchemaObjectInfo, session: any DiagramSchemaProvider, projectID: UUID, cacheKey: DiagramCacheKey?, progress: (@Sendable (String) -> Void)?, isPrefetch: Bool) async throws -> SchemaDiagramViewModel
+    func buildSchemaDiagram(for object: SchemaObjectInfo, session: any DiagramSchemaProvider, projectID: UUID, cacheKey: DiagramCacheKey?, databaseName: String?, progress: (@Sendable (String) -> Void)?, isPrefetch: Bool) async throws -> SchemaDiagramViewModel
     func hydrateCachedDiagram(from payload: DiagramCachePayload) -> SchemaDiagramViewModel
     func queueDiagramPrefetch(for object: SchemaObjectInfo, relatedKeys: [DiagramTableKey], projectID: UUID) async
     func persistDiagramLayout(for viewModel: SchemaDiagramViewModel) async

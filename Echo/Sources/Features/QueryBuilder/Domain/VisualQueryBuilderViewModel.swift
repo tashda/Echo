@@ -323,7 +323,7 @@ final class VisualQueryBuilderViewModel {
         switch databaseType {
         case .microsoftSQL: return "[\(table.schema)].[\(table.name)]"
         case .postgresql: return "\"\(table.schema)\".\"\(table.name)\""
-        case .mysql: return "`\(table.name)`"
+        case .mysql: return "`\(table.schema)`.`\(table.name)`"
         case .sqlite: return "\"\(table.name)\""
         }
     }

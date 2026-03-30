@@ -99,7 +99,7 @@ struct NewSequenceSheet: View {
         let handle = AppDirector.shared.activityEngine.begin("Creating sequence \(seqName)", connectionSessionID: session.id)
         do {
             let qualifiedName = "\(ScriptingActions.pgQuote(schemaName)).\(ScriptingActions.pgQuote(seqName))"
-            try await pg.client.admin.createSequence(
+            try await pg.client.sequences.createSequence(
                 name: qualifiedName,
                 startWith: Int(startWith),
                 incrementBy: Int(incrementBy),

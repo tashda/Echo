@@ -42,7 +42,7 @@ final class ActivityMonitorViewModel {
     // MSSQL Extended Events (nil for non-MSSQL connections)
     var extendedEventsVM: ExtendedEventsViewModel?
     var profilerVM: ProfilerViewModel?
-    var selectedMySQLPerformanceReport: MySQLPerformanceReportKind = .statementAnalysis
+    var selectedMySQLPerformanceReport: MySQLPerformanceReportKind = .unusedIndexes
     var mysqlPerformanceReport: MySQLPerformanceReport?
     var mysqlPerformanceReportError: String?
     var isLoadingMySQLPerformanceReport = false
@@ -153,8 +153,82 @@ final class ActivityMonitorViewModel {
 
     func killMySQLQuery(id: Int) async throws {
         guard let mysqlSession, let threadID = UInt32(exactly: id) else { return }
-        try await mysqlSession.client.admin.killQuery(threadID: threadID)
+        try await mysqlSession.client.activity.killQuery(threadID: threadID)
         refresh()
+    }
+
+    // MARK: - MySQL Section Data
+
+    var mysqlPerformanceClient: MySQLPerformanceClient? {
+        mysqlSession?.client.performance
+    }
+
+    var mysqlReplicationClient: MySQLReplicationClient? {
+        mysqlSession?.client.replication
+    }
+
+    func loadMySQLReport(_ reportSQL: String, name: String) async throws -> MySQLPerformanceReport {
+        guard let performance = mysqlPerformanceClient else {
+            throw DatabaseError.connectionFailed("No MySQL session")
+        }
+        return try await performance.runReport(reportSQL, name: name)
+    }
+
+    func loadMySQLStatementAnalysis(limit: Int = 25) async throws -> MySQLPerformanceReport {
+        guard let performance = mysqlPerformanceClient else {
+            throw DatabaseError.connectionFailed("No MySQL session")
+        }
+        return try await performance.statementAnalysis(limit: limit)
+    }
+
+    func loadMySQLTopRuntimeStatements(limit: Int = 25) async throws -> MySQLPerformanceReport {
+        guard let performance = mysqlPerformanceClient else {
+            throw DatabaseError.connectionFailed("No MySQL session")
+        }
+        return try await performance.topRuntimeStatements(limit: limit)
+    }
+
+    func loadMySQLFullTableScans(limit: Int = 25) async throws -> MySQLPerformanceReport {
+        guard let performance = mysqlPerformanceClient else {
+            throw DatabaseError.connectionFailed("No MySQL session")
+        }
+        return try await performance.fullTableScans(limit: limit)
+    }
+
+    func loadMySQLWaitsGlobal(limit: Int = 50) async throws -> MySQLPerformanceReport {
+        guard let performance = mysqlPerformanceClient else {
+            throw DatabaseError.connectionFailed("No MySQL session")
+        }
+        return try await performance.waitsGlobalByLatency(limit: limit)
+    }
+
+    func loadMySQLWaitsByUser(limit: Int = 50) async throws -> MySQLPerformanceReport {
+        guard let performance = mysqlPerformanceClient else {
+            throw DatabaseError.connectionFailed("No MySQL session")
+        }
+        return try await performance.waitsByUserByLatency(limit: limit)
+    }
+
+    func loadMySQLFileIO(limit: Int = 50) async throws -> MySQLPerformanceReport {
+        guard let performance = mysqlPerformanceClient else {
+            throw DatabaseError.connectionFailed("No MySQL session")
+        }
+        return try await performance.ioGlobalByFileByBytes(limit: limit)
+    }
+
+    func loadMySQLInnoDBStatus() async throws -> MySQLInnoDBStatus {
+        guard let performance = mysqlPerformanceClient else {
+            throw DatabaseError.connectionFailed("No MySQL session")
+        }
+        return try await performance.innodbStatus()
+    }
+
+    func loadMySQLReplicaStatus() async throws -> MySQLReplicationStatus? {
+        try await mysqlReplicationClient?.replicaStatus()
+    }
+
+    func loadMySQLPrimaryStatus() async throws -> MySQLReplicationStatus? {
+        try await mysqlReplicationClient?.primaryStatus()
     }
 
     private func updateHistory(with snapshot: DatabaseActivitySnapshot) {

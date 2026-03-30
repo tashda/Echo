@@ -155,7 +155,7 @@ public struct PostgresStructureFetcher: DatabaseStructureFetcher {
         var versionString = "PostgreSQL"
         if let pgSession = session as? PostgresSession {
             do {
-                if let rawVersion = try await pgSession.client.admin.show("server_version") {
+                if let rawVersion = try await pgSession.client.serverConfig.show("server_version") {
                     // Extract just the version number (e.g. "16.2" from "16.2 (Debian 16.2-1.pgdg120+2)")
                     let components = rawVersion.split(separator: " ", maxSplits: 1)
                     versionString = "PostgreSQL \(components.first ?? Substring(rawVersion))"
@@ -272,6 +272,126 @@ public struct SQLiteStructureFetcher: DatabaseStructureFetcher {
         return DatabaseStructure(
             serverVersion: versionString,
             databases: echoDatabases
+        )
+    }
+}
+
+/// MySQL implementation of DatabaseStructureFetcher
+public struct MySQLStructureFetcher: DatabaseStructureFetcher {
+    private let session: DatabaseSession
+
+    init(session: DatabaseSession) {
+        self.session = session
+    }
+
+    func fetchStructure(
+        for connection: SavedConnection,
+        credentials: ConnectionCredentials,
+        selectedDatabase: String?,
+        reuseSession: DatabaseSession?,
+        databaseFilter: String?,
+        cachedStructure: DatabaseStructure?,
+        progressHandler: @escaping (Progress) async -> Void,
+        databaseHandler: @escaping (DatabaseInfo, String, String) async -> Void
+    ) async throws -> DatabaseStructure {
+
+        await progressHandler(Progress(fraction: 0.0, message: "Starting MySQL structure fetch"))
+
+        // List all databases
+        let allDatabases: [String]
+        do {
+            allDatabases = try await session.listDatabases()
+        } catch {
+            structureLogger.warning("MySQL: failed to list databases: \(error.localizedDescription)")
+            allDatabases = []
+        }
+
+        // When a specific database is selected, load its full schema (lazy expand).
+        // Otherwise, lightweight initial load: only database list + server version.
+        if let selectedDatabase, !selectedDatabase.isEmpty {
+            await progressHandler(Progress(fraction: 0.2, message: "Loading \(selectedDatabase)"))
+
+            var databases: [DatabaseInfo] = []
+            do {
+                let databaseInfo = try await loadDatabaseInfo(
+                    databaseName: selectedDatabase,
+                    progressHandler: progressHandler
+                )
+                databases.append(databaseInfo)
+                await databaseHandler(databaseInfo, selectedDatabase, "MySQL")
+            } catch {
+                structureLogger.warning("MySQL: failed to load database '\(selectedDatabase)': \(error.localizedDescription)")
+                let fallback = DatabaseInfo(name: selectedDatabase, schemas: [], schemaCount: 0)
+                databases.append(fallback)
+                await databaseHandler(fallback, selectedDatabase, "MySQL")
+            }
+
+            await progressHandler(Progress(fraction: 1.0, message: "Done"))
+            return DatabaseStructure(serverVersion: cachedStructure?.serverVersion, databases: databases)
+        }
+
+        // Initial load: list all databases without loading schemas
+        await progressHandler(Progress(fraction: 0.2, message: "Loading MySQL metadata"))
+
+        let systemDatabases: Set<String> = ["information_schema", "performance_schema", "mysql", "sys"]
+        var databases = allDatabases
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            .map { name in
+                DatabaseInfo(
+                    name: name,
+                    schemas: [],
+                    schemaCount: 0,
+                    stateDescription: systemDatabases.contains(name) ? "System" : nil
+                )
+            }
+
+        // If no databases found, try adding the connected database
+        if databases.isEmpty, let defaultDb = connection.database.isEmpty ? nil : connection.database {
+            databases.append(DatabaseInfo(name: defaultDb, schemas: [], schemaCount: 0))
+        }
+
+        await progressHandler(Progress(fraction: 0.6, message: "Fetching server version"))
+
+        var versionString = "MySQL"
+        do {
+            let result = try await session.simpleQuery("SELECT VERSION()")
+            if let version = result.rows.first?.first.flatMap({ $0 }) {
+                versionString = "MySQL \(version)"
+            }
+        } catch {
+            structureLogger.warning("MySQL: failed to fetch server version: \(error)")
+        }
+
+        await progressHandler(Progress(fraction: 1.0, message: "MySQL structure fetch completed"))
+
+        return DatabaseStructure(
+            serverVersion: versionString,
+            databases: databases
+        )
+    }
+
+    private func loadDatabaseInfo(
+        databaseName: String,
+        progressHandler: @escaping (Progress) async -> Void
+    ) async throws -> DatabaseInfo {
+        var schemaInfos: [SchemaInfo] = []
+
+        if let metadataSession = session as? DatabaseMetadataSession {
+            let schemaInfo = try await metadataSession.loadSchemaInfo(databaseName, progress: nil)
+            if !schemaInfo.objects.isEmpty {
+                schemaInfos.append(schemaInfo)
+            }
+        } else {
+            let objects = try await session.listTablesAndViews(schema: databaseName)
+            if !objects.isEmpty {
+                schemaInfos.append(SchemaInfo(name: databaseName, objects: objects))
+            }
+        }
+
+        return DatabaseInfo(
+            name: databaseName,
+            schemas: schemaInfos,
+            schemaCount: schemaInfos.count
         )
     }
 }

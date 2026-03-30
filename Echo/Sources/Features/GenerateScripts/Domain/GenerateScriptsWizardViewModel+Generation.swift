@@ -106,15 +106,6 @@ extension GenerateScriptsWizardViewModel {
         databaseName: String,
         session: DatabaseSession
     ) async throws -> String? {
-        if let deps = session.dependencies {
-            return try await deps.scriptObjectDDL(
-                database: databaseName,
-                schema: object.schema,
-                name: object.name,
-                objectType: GenerateScriptsScriptBuilder.sqlServerTypeCode(for: object.type)
-            )
-        }
-
         return try await session.getObjectDefinition(
             objectName: object.name,
             schemaName: object.schema,
@@ -127,11 +118,11 @@ extension GenerateScriptsWizardViewModel {
         from objects: [GenerateScriptsObject],
         session: DatabaseSession
     ) async throws -> [GenerateScriptsObject] {
-        guard let dependencies = session.dependencies else {
+        guard let mssql = session as? MSSQLSession else {
             return objects
         }
 
-        let graph = try await dependencies.buildGraph(database: databaseName)
+        let graph = try await mssql.metadata.buildGraph(database: databaseName)
         let objectMap = Dictionary(uniqueKeysWithValues: objects.map { ($0.id, $0) })
         let ordered = graph.resolvedOrder().compactMap { sqlObject -> GenerateScriptsObject? in
             guard let type = Self.objectType(forSQLServerTypeCode: sqlObject.type) else {

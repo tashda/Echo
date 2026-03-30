@@ -120,7 +120,7 @@ struct PostgresActivityWAL: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            stats = try await pg.client.introspection.fetchWALStats()
+            stats = try await pg.client.metadata.fetchWALStats()
         } catch {
             stats = nil
         }

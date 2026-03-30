@@ -3,6 +3,8 @@ import SwiftUI
 struct ViewEditorGeneralPage: View {
     @Bindable var viewModel: ViewEditorViewModel
 
+    private var dialect: any ViewEditorDialect { viewModel.dialect }
+
     var body: some View {
         Section("General") {
             if !viewModel.isEditing {
@@ -18,12 +20,14 @@ struct ViewEditorGeneralPage: View {
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
 
-            PropertyRow(title: "Type") {
-                Text(viewModel.isMaterialized ? "Materialized View" : "View")
-                    .foregroundStyle(ColorTokens.Text.secondary)
+            if dialect.supportsMaterializedViews {
+                PropertyRow(title: "Type") {
+                    Text(viewModel.isMaterialized ? "Materialized View" : "View")
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             }
 
-            if viewModel.isEditing {
+            if viewModel.isEditing && dialect.supportsOwnership {
                 PropertyRow(title: "Owner") {
                     TextField("", text: $viewModel.owner, prompt: Text("e.g. postgres"))
                         .textFieldStyle(.plain)
@@ -32,16 +36,18 @@ struct ViewEditorGeneralPage: View {
             }
         }
 
-        Section("Documentation") {
-            PropertyRow(title: "Description") {
-                TextField(
-                    "",
-                    text: $viewModel.description,
-                    prompt: Text("Describe what this view returns"),
-                    axis: .vertical
-                )
-                .textFieldStyle(.plain)
-                .lineLimit(3...6)
+        if dialect.supportsComments {
+            Section("Documentation") {
+                PropertyRow(title: "Description") {
+                    TextField(
+                        "",
+                        text: $viewModel.description,
+                        prompt: Text("Describe what this view returns"),
+                        axis: .vertical
+                    )
+                    .textFieldStyle(.plain)
+                    .lineLimit(3...6)
+                }
             }
         }
     }

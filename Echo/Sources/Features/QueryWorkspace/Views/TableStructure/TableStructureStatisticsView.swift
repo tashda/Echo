@@ -112,7 +112,7 @@ struct TableStructureStatisticsView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            details = try await pg.client.introspection.fetchTableDetails(schema: viewModel.schemaName, table: viewModel.tableName)
+            details = try await pg.client.metadata.fetchTableDetails(schema: viewModel.schemaName, table: viewModel.tableName)
         } catch {
             viewModel.lastError = error.localizedDescription
         }

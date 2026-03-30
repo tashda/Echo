@@ -77,6 +77,8 @@ final class TabDirector {
         // Proactively clean up tab resources to stop background tasks/streaming
         tab.query?.cancelExecution()
         tab.activityMonitor?.stopStreaming()
+        tab.diagram?.loadingTask?.cancel()
+        tab.diagram?.loadingTask = nil
         if tab.ownsSession {
             Task {
                 await tab.session.close()

@@ -190,3 +190,24 @@ enum ScriptActionResolver {
         return actions
     }
 }
+
+/// Determines whether a visual form-based editor is available for a given object type and database.
+/// Delegates to ObjectEditorDialectFactory — if a dialect exists, the editor is available.
+enum VisualEditorResolver {
+    static func hasVisualEditor(for objectType: SchemaObjectInfo.ObjectType, databaseType: DatabaseType) -> Bool {
+        switch objectType {
+        case .view, .materializedView:
+            ObjectEditorDialectFactory.viewDialect(for: databaseType) != nil
+        case .function:
+            ObjectEditorDialectFactory.functionDialect(for: databaseType) != nil
+        case .trigger:
+            ObjectEditorDialectFactory.triggerDialect(for: databaseType) != nil
+        case .sequence:
+            ObjectEditorDialectFactory.sequenceDialect(for: databaseType) != nil
+        case .type:
+            ObjectEditorDialectFactory.typeDialect(for: databaseType) != nil
+        default:
+            false
+        }
+    }
+}

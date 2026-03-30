@@ -207,12 +207,12 @@ extension LoginEditorViewModel {
 
     private func syncServerPermissions(ssec: SQLServerServerSecurityClient, loginName: String) async throws {
         // Handle CONNECT SQL separately from the main loop
-        if let connectSQLPerm = serverPermissions.first(where: { $0.permission == ServerPermissionName.connectSql.rawValue }) {
+        if let originalConnectState = snapshot?.permissionStates[ServerPermissionName.connectSql.rawValue] {
             let originalState = ConnectPermissionState(
-                isGranted: connectSQLPerm.originalState.isGranted,
-                isDenied: connectSQLPerm.originalState.isDenied
+                isGranted: originalConnectState.isGranted,
+                isDenied: originalConnectState.isDenied
             )
-            let currentState = isConnectSQLGranted
+            let currentState = permissionConnectToEngine
 
             if originalState != currentState {
                 // Revoke existing state first
@@ -232,7 +232,7 @@ extension LoginEditorViewModel {
                 }
             }
         }
-
+        
         for perm in serverPermissions where perm.permission != ServerPermissionName.connectSql.rawValue {
             let changed = perm.isGranted != perm.originalState.isGranted ||
                 perm.withGrantOption != perm.originalState.withGrantOption ||
@@ -254,11 +254,10 @@ extension LoginEditorViewModel {
     }
 }
 
-private extension LoginEditorViewModel.ConnectPermissionState {
+private extension ConnectSQLPermissionState {
     init(isGranted: Bool, isDenied: Bool) {
         if isGranted { self = .granted }
         else if isDenied { self = .denied }
         else { self = .unspecified }
     }
 }
-

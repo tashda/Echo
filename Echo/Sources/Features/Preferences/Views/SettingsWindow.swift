@@ -166,7 +166,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .onAppear(perform: configureSettingsWindow)
+        .background(SettingsWindowConfigurator())
     }
 
     @ViewBuilder

@@ -21,7 +21,7 @@ extension MySQLBackupRestoreViewModel {
         restoreOutput = []
 
         let trimmedCharacterSet = defaultCharacterSet.trimmingCharacters(in: .whitespacesAndNewlines)
-        let command = (session as? MySQLSession)?.client.admin.restoreCommand(
+        let command = (session as? MySQLSession)?.client.backupRestore.restoreCommand(
             host: connection.host,
             port: connection.port,
             username: resolvedUsername ?? connection.username,

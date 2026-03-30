@@ -1,17 +1,23 @@
 import SwiftUI
 
 struct MySQLActivityMonitorView: View {
-    enum Section: String, CaseIterable {
+    enum MySQLActivitySection: String, CaseIterable {
         case overview = "Overview"
+        case processes = "Processes"
+        case queries = "Queries"
+        case waits = "Waits"
+        case io = "I/O"
+        case innodb = "InnoDB"
+        case replication = "Repl"
         case reports = "Reports"
         case variables = "Variables"
-        case processes = "Processes"
     }
 
     @Bindable var viewModel: ActivityMonitorViewModel
+    @Environment(EnvironmentState.self) var environmentState
     @State var selectedSQLContext: SQLPopoutContext?
     @State var selectedProcessIDs: Set<Int> = []
-    @State var selectedSection: Section = .overview
+    @State var selectedSection: MySQLActivitySection = .overview
 
     var body: some View {
         ActivityMonitorTabFrame(
@@ -19,24 +25,21 @@ struct MySQLActivityMonitorView: View {
             hasPermission: !viewModel.permissionDenied,
             hasSnapshot: viewModel.isReady,
             selectedSQLContext: $selectedSQLContext,
-            onOpenInQueryWindow: { _ in }
+            onOpenInQueryWindow: { _, _ in }
         ) {
-            Picker("", selection: $selectedSection) {
-                ForEach(Section.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
+            MySQLActivitySectionPicker(selection: $selectedSection)
+                .frame(maxWidth: 520)
         } sparklines: {
             ActivityMonitorSparklineStrip(metrics: sparklineMetrics)
         } sectionContent: {
-            ScrollView {
-                VStack(alignment: .leading, spacing: SpacingTokens.md) {
-                    sectionContentView
-                }
-                .padding(SpacingTokens.md)
-            }
+            sectionContentView
+        }
+        .onChange(of: selectedSection) {
+            environmentState.dataInspectorContent = nil
+            selectedProcessIDs = []
+        }
+        .onChange(of: selectedProcessIDs) { _, ids in
+            pushProcessInspector(ids: ids)
         }
     }
 

@@ -72,8 +72,6 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
         return ("chart.bar.doc.horizontal", "Ready", ColorTokens.Text.secondary)
     case .maintenance, .mssqlMaintenance:
         return ("wrench.and.screwdriver", "Ready", ColorTokens.Text.secondary)
-    case .queryStore:
-        return ("chart.bar.xaxis", "Ready", ColorTokens.Text.secondary)
     case .extendedEvents:
         return ("waveform.path.ecg", "Ready", ColorTokens.Text.secondary)
     case .availabilityGroups:
@@ -138,8 +136,6 @@ extension TabPreviewCard {
         case .activityMonitor:
             return activityMonitorMetrics
         case .maintenance, .mssqlMaintenance:
-            return []
-        case .queryStore:
             return []
         case .extendedEvents:
             return []
@@ -260,8 +256,6 @@ extension TabPreviewCard {
             return "Activity Monitor"
         case .maintenance, .mssqlMaintenance:
             return "Maintenance"
-        case .queryStore:
-            return "Query Store"
         case .extendedEvents:
             return "Extended Events"
         case .availabilityGroups:

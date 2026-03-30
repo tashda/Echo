@@ -132,7 +132,7 @@ struct PostgresActivityConfiguration: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            settings = try await pg.client.introspection.listServerSettings()
+            settings = try await pg.client.metadata.listServerSettings()
         } catch {
             settings = []
         }

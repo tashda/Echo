@@ -87,11 +87,13 @@ final class DiagramBuilder: DiagramBuilderProtocol, @unchecked Sendable {
         viewModel.errorMessage = nil
 
         do {
+            let existingDatabaseName = viewModel.nodes.first?.databaseName
             let refreshed = try await buildSchemaDiagram(
                 for: context.object,
                 session: session,
                 projectID: context.projectID ?? UUID(),
                 cacheKey: context.cacheKey,
+                databaseName: existingDatabaseName,
                 progress: { message in
                     Task { @MainActor [weak viewModel] in viewModel?.statusMessage = message }
                 },

@@ -113,7 +113,7 @@ struct PostgresActivityIOStats: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            stats = try await pg.client.introspection.listTableIOStats(schema: schemaFilter)
+            stats = try await pg.client.metadata.listTableIOStats(schema: schemaFilter)
         } catch {
             stats = []
         }

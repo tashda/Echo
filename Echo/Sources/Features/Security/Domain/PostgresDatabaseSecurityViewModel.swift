@@ -71,7 +71,7 @@ final class PostgresDatabaseSecurityViewModel {
         isLoadingSchemas = true
         defer { isLoadingSchemas = false }
         do {
-            schemas = try await pg.client.introspection.listSchemas()
+            schemas = try await pg.client.metadata.listSchemas()
         } catch {
             panelState?.appendMessage("Failed to load schemas: \(error.localizedDescription)", severity: .error)
         }
@@ -194,9 +194,9 @@ final class PostgresDatabaseSecurityViewModel {
         defer { isLoadingPolicies = false }
         do {
             if availableSchemas.isEmpty {
-                availableSchemas = try await pg.client.introspection.listSchemas().map(\.name)
+                availableSchemas = try await pg.client.metadata.listSchemas().map(\.name)
             }
-            policies = try await pg.client.introspection.listPolicies(schema: policySchemaFilter)
+            policies = try await pg.client.metadata.listPolicies(schema: policySchemaFilter)
         } catch {
             panelState?.appendMessage("Failed to load policies: \(error.localizedDescription)", severity: .error)
         }

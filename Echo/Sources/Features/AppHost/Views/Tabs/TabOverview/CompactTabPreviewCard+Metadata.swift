@@ -32,8 +32,6 @@ extension CompactTabPreviewCard {
             return []
         case .maintenance, .mssqlMaintenance:
             return []
-        case .queryStore:
-            return []
         case .extendedEvents:
             return []
         case .availabilityGroups:
@@ -78,8 +76,6 @@ extension CompactTabPreviewCard {
             return "Activity"
         case .maintenance, .mssqlMaintenance:
             return "Maintenance"
-        case .queryStore:
-            return "Query Store"
         case .extendedEvents:
             return "Extended Events"
         case .availabilityGroups:
@@ -137,8 +133,6 @@ extension CompactTabPreviewCard {
             return "Live system performance monitoring"
         case .maintenance, .mssqlMaintenance:
             return "Database health and maintenance operations"
-        case .queryStore:
-            return "Query Store analysis and plan management"
         case .extendedEvents:
             return "Extended Events session monitoring"
         case .availabilityGroups:

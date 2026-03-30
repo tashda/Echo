@@ -191,7 +191,7 @@ final class TablePropertiesViewModel {
     // MARK: - PostgreSQL
 
     private func loadPostgresProperties(_ pg: PostgresSession) async throws {
-        let details = try await pg.client.introspection.fetchTableDetails(schema: schemaName, table: tableName)
+        let details = try await pg.client.metadata.fetchTableDetails(schema: schemaName, table: tableName)
         pgOwner = details.owner
         pgTablespace = details.tablespace
         pgOid = details.oid
@@ -206,7 +206,7 @@ final class TablePropertiesViewModel {
         indexesSizeBytes = details.indexesSizeBytes
         pgOptions = details.options
 
-        let props = try await pg.client.introspection.tableProperties(schema: schemaName, table: tableName)
+        let props = try await pg.client.metadata.tableProperties(schema: schemaName, table: tableName)
         pgFillfactor = props.fillfactor.map(String.init) ?? ""
         pgToastTupleTarget = props.toastTupleTarget.map(String.init) ?? ""
         pgParallelWorkers = props.parallelWorkers.map(String.init) ?? ""

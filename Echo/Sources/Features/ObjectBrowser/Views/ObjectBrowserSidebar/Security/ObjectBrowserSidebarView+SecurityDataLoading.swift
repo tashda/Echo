@@ -226,7 +226,7 @@ extension ObjectBrowserSidebarView {
     func loadPostgresDatabaseSecurity(database: DatabaseInfo, session: ConnectionSession, dbKey: String) async {
         guard let pg = session.session as? PostgresSession else { return }
         do {
-            let schemas = try await pg.client.introspection.listSchemas()
+            let schemas = try await pg.client.metadata.listSchemas()
 
             let items = schemas.map { schema in
                 ObjectBrowserSidebarViewModel.SecuritySchemaItem(

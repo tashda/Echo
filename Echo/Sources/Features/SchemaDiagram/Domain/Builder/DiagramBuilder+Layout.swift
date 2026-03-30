@@ -11,7 +11,8 @@ extension DiagramBuilder {
         checksum: String? = nil,
         loadSource: DiagramLoadSource = .live(Date()),
         inboundKeys: Set<DiagramTableKey> = [],
-        outboundKeys: Set<DiagramTableKey> = []
+        outboundKeys: Set<DiagramTableKey> = [],
+        databaseName: String? = nil
     ) -> SchemaDiagramViewModel {
         func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
             let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
@@ -21,7 +22,18 @@ extension DiagramBuilder {
                     name: column.name,
                     dataType: column.dataType,
                     isPrimaryKey: primaryKeys.contains(column.name.lowercased()),
-                    isForeignKey: foreignKeys.contains(column.name.lowercased())
+                    isForeignKey: foreignKeys.contains(column.name.lowercased()),
+                    isNullable: column.isNullable
+                )
+            }
+        }
+
+        func buildIndexes(for details: TableStructureDetails) -> [SchemaDiagramIndex] {
+            details.indexes.map { index in
+                SchemaDiagramIndex(
+                    name: index.name,
+                    columns: index.columns.sorted(by: { $0.position < $1.position }).map(\.name),
+                    isUnique: index.isUnique
                 )
             }
         }
@@ -144,11 +156,25 @@ extension DiagramBuilder {
 
         var nodeModels: [SchemaDiagramNodeModel] = []
         if let baseDetails = tableDetails[baseKey] {
-            nodeModels.append(SchemaDiagramNodeModel(schema: baseKey.schema, name: baseKey.name, columns: buildColumns(for: baseDetails), position: storedPositions[baseKey.identifier] ?? .zero))
+            nodeModels.append(SchemaDiagramNodeModel(
+                schema: baseKey.schema,
+                name: baseKey.name,
+                columns: buildColumns(for: baseDetails),
+                indexes: buildIndexes(for: baseDetails),
+                databaseName: databaseName,
+                position: storedPositions[baseKey.identifier] ?? .zero
+            ))
         }
         for key in sortedKeys where key != baseKey {
             guard let details = tableDetails[key] else { continue }
-            nodeModels.append(SchemaDiagramNodeModel(schema: key.schema, name: key.name, columns: buildColumns(for: details), position: storedPositions[key.identifier] ?? .zero))
+            nodeModels.append(SchemaDiagramNodeModel(
+                schema: key.schema,
+                name: key.name,
+                columns: buildColumns(for: details),
+                indexes: buildIndexes(for: details),
+                databaseName: databaseName,
+                position: storedPositions[key.identifier] ?? .zero
+            ))
         }
 
         if !snapshotHasMeaningfulLayout {

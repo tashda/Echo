@@ -186,7 +186,7 @@ struct PostgresActivityMonitorView: View {
     // MARK: - Actions
 
     private func popout(_ sql: String) {
-        selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details")
+        selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details", dialect: .postgres)
     }
 
     private func kill(_ id: Int) {
@@ -200,11 +200,11 @@ struct PostgresActivityMonitorView: View {
         }
     }
 
-    private func openInQueryWindow(sql: String) {
+    private func openInQueryWindow(sql: String, database: String? = nil) {
         if let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) {
-            environmentState.openQueryTab(for: session, presetQuery: sql)
+            environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
         } else {
-            environmentState.openQueryTab(presetQuery: sql)
+            environmentState.openQueryTab(presetQuery: sql, database: database)
         }
     }
 

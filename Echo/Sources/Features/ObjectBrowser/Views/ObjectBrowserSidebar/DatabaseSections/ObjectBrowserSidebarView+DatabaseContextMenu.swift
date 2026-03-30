@@ -46,13 +46,6 @@ func buildDatabaseNSMenu(
         }
     }
 
-    if dbType == .microsoftSQL {
-        let qsItem = menu.addActionItem("Query Store", systemImage: "chart.bar.xaxis") {
-            environmentState.openQueryStoreTab(connectionID: connID, databaseName: database.name)
-        }
-        qsItem.isEnabled = database.isOnline
-    }
-
     menu.addDivider()
 
     // Group 7: Maintenance
@@ -265,15 +258,6 @@ extension ObjectBrowserSidebarView {
                 }
                 .disabled(true)
             }
-        }
-
-        if session.connection.databaseType == .microsoftSQL {
-            Button {
-                environmentState.openQueryStoreTab(connectionID: connID, databaseName: database.name)
-            } label: {
-                Label("Query Store", systemImage: "chart.bar.xaxis")
-            }
-            .disabled(!database.isOnline)
         }
 
         Divider()
