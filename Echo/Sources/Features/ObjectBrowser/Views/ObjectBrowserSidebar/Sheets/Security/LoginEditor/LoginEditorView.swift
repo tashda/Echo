@@ -82,7 +82,7 @@ struct LoginEditorView: View {
         ))
         .task {
             viewModel.errorMessage = nil
-            await viewModel.loadGeneralData(session: session)
+            await viewModel.loadAllData(session: session)
         }
         .onChange(of: selectedPage) { _, page in
             if let page {

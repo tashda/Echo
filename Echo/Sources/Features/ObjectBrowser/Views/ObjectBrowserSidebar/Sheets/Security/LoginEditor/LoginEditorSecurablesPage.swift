@@ -52,7 +52,7 @@ struct LoginEditorSecurablesPage: View {
                         Text(perm.permission)
                             .font(TypographyTokens.formLabel)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundStyle(permissionHasChange(perm) ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+                            .foregroundStyle((perm.isGranted || perm.isDenied) ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
 
                         Toggle("", isOn: $perm.isGranted)
                             .labelsHidden()

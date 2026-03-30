@@ -71,6 +71,8 @@ struct UnsavedChangesGuard: NSViewRepresentable {
                 if response == .alertFirstButtonReturn {
                     self.isClosingAfterChoice = true
                     self.parent.onDiscard()
+                    // Re-trigger the close now that isClosingAfterChoice is true
+                    sender.close()
                 }
             }
             return false

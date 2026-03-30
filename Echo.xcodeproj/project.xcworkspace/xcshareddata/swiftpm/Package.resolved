@@ -25,7 +25,7 @@
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "4ddc2155a0d458291fbcc22b6138976996812b67"
+        "revision" : "08602c701c2e761753d4123eb76cd5b163cd53c2"
       }
     },
     {
@@ -43,7 +43,7 @@
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "ca127266ddd89023db1d6ea5562b92d35dfeabcc"
+        "revision" : "6e2e9321ef525eb56044a90913bd9575ee9d941d"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sparkle-project/Sparkle",
       "state" : {
-        "revision" : "21d8df80440b1ca3b65fa82e40782f1e5a9e6ba2",
-        "version" : "2.9.0"
+        "revision" : "066e75a8b3e99962685d6a90cdd5293ebffd9261",
+        "version" : "2.9.1"
       }
     },
     {
@@ -70,7 +70,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "8eaa7508c9cc62f80b01f295a00ccab56c5c09dd"
+        "revision" : "545a2d94cf69a0009d30dd39e485125ed0aa6cf8"
       }
     },
     {
