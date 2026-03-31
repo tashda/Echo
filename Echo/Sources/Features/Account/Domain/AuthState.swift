@@ -77,6 +77,17 @@ final class AuthState {
         }
     }
 
+    /// SDK-managed Google OAuth — opens ASWebAuthenticationSession internally.
+    func signInWithGoogleOAuth() async {
+        guard let supabaseBackend = backend as? SupabaseAuthBackend else {
+            error = .unknown("Google sign-in requires Supabase backend.")
+            return
+        }
+        await performAuth {
+            try await supabaseBackend.signInWithGoogleOAuth()
+        }
+    }
+
     // MARK: - Email OTP
 
     func sendOTP(email: String) async {

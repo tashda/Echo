@@ -1,72 +1,79 @@
+import AppKit
 import AuthenticationServices
 import CryptoKit
 import Foundation
 
 /// Coordinates OAuth sign-in via Supabase's PKCE flow using ASWebAuthenticationSession.
-/// Works for any Supabase-supported provider (Google, Apple, etc.).
-final class GoogleSignInCoordinator {
+nonisolated final class GoogleSignInCoordinator: NSObject,
+                                                 ASWebAuthenticationPresentationContextProviding,
+                                                 Sendable {
 
-    /// Result of the OAuth flow: the Supabase authorization code and the PKCE code verifier.
     struct OAuthResult: Sendable {
         let authorizationCode: String
         let codeVerifier: String
     }
 
-    /// Triggers the Supabase OAuth flow for Google in a browser session and returns the auth code.
-    func signIn() async throws -> OAuthResult {
-        let codeVerifier = generateCodeVerifier()
-        let codeChallenge = generateCodeChallenge(from: codeVerifier)
+    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+            NSApp.keyWindow ?? NSApp.windows.first ?? ASPresentationAnchor()
+        }
+    }
 
+    func signIn() async throws -> OAuthResult {
         guard let baseURL = SupabaseConfig.baseURL else {
             throw AuthError.unknown("Supabase is not configured.")
         }
 
-        // Build the Supabase authorize URL — Supabase handles the Google redirect internally
-        var components = URLComponents(string: baseURL.absoluteString + "/auth/v1/authorize")!
-        components.queryItems = [
-            URLQueryItem(name: "provider", value: "google"),
-            URLQueryItem(name: "redirect_to", value: SupabaseConfig.redirectURI),
-            URLQueryItem(name: "code_challenge", value: codeChallenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256")
-        ]
+        let codeVerifier = generateCodeVerifier()
+        let codeChallenge = generateCodeChallenge(from: codeVerifier)
 
-        guard let authURL = components.url else {
-            throw AuthError.unknown("Failed to construct Supabase auth URL.")
+        let redirect = SupabaseConfig.redirectURI
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? SupabaseConfig.redirectURI
+
+        let urlString = "\(baseURL.absoluteString)/auth/v1/authorize?provider=google&redirect_to=\(redirect)&code_challenge=\(codeChallenge)&code_challenge_method=S256"
+
+        guard let authURL = URL(string: urlString) else {
+            throw AuthError.unknown("Failed to construct auth URL.")
         }
 
-        let callbackScheme = "dev.echodb.echo"
-
-        let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, any Error>) in
-            let session = ASWebAuthenticationSession(
-                url: authURL,
-                callbackURLScheme: callbackScheme
-            ) { url, error in
-                if let error {
-                    if (error as NSError).code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
-                        continuation.resume(throwing: AuthError.cancelled)
-                    } else {
-                        continuation.resume(throwing: AuthError.unknown(error.localizedDescription))
+        return try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<OAuthResult, any Error>) in
+            // Must create and start the session on the main thread
+            DispatchQueue.main.async { [self] in
+                let session = ASWebAuthenticationSession(
+                    url: authURL,
+                    callbackURLScheme: "dev.echodb.echo"
+                ) { callbackURL, error in
+                    if let error {
+                        let nsError = error as NSError
+                        if nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
+                            continuation.resume(throwing: AuthError.cancelled)
+                        } else {
+                            continuation.resume(throwing: AuthError.unknown("Authentication failed."))
+                        }
+                        return
                     }
-                    return
+
+                    guard let callbackURL,
+                          let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
+                          let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
+                        continuation.resume(throwing: AuthError.unknown("No authorization code received."))
+                        return
+                    }
+
+                    continuation.resume(returning: OAuthResult(
+                        authorizationCode: code,
+                        codeVerifier: codeVerifier
+                    ))
                 }
-                guard let url else {
-                    continuation.resume(throwing: AuthError.unknown("No callback URL received."))
-                    return
+
+                session.presentationContextProvider = self
+                session.prefersEphemeralWebBrowserSession = false
+
+                if !session.start() {
+                    continuation.resume(throwing: AuthError.unknown("Could not start authentication session."))
                 }
-                continuation.resume(returning: url)
             }
-
-            session.prefersEphemeralWebBrowserSession = true
-            session.start()
         }
-
-        // Supabase returns the auth code as a query parameter in the redirect
-        guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
-              let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
-            throw AuthError.unknown("No authorization code in callback URL.")
-        }
-
-        return OAuthResult(authorizationCode: code, codeVerifier: codeVerifier)
     }
 
     // MARK: - PKCE

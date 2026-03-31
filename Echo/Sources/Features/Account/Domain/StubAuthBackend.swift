@@ -19,6 +19,7 @@ struct StubAuthBackend: AuthBackend {
             displayName: name.isEmpty ? nil : name,
             authMethod: .apple,
             createdAt: Date(),
+            avatarURL: nil,
             linkedMethods: []
         )
         let tokens = makeStubTokens(identityToken: String(data: identityToken, encoding: .utf8))
@@ -35,6 +36,7 @@ struct StubAuthBackend: AuthBackend {
             displayName: "Google User",
             authMethod: .google,
             createdAt: Date(),
+            avatarURL: nil,
             linkedMethods: []
         )
         let tokens = makeStubTokens()
@@ -64,6 +66,7 @@ struct StubAuthBackend: AuthBackend {
             displayName: nil,
             authMethod: .email,
             createdAt: Date(),
+            avatarURL: nil,
             linkedMethods: []
         )
         let tokens = makeStubTokens()
@@ -91,6 +94,7 @@ struct StubAuthBackend: AuthBackend {
             displayName: "Stub User",
             authMethod: .apple,
             createdAt: Date(),
+            avatarURL: nil,
             linkedMethods: [method]
         )
     }

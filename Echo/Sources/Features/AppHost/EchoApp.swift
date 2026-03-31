@@ -47,6 +47,7 @@ struct EchoApp: App {
                 .environment(coordinator.appearanceStore)
                 .environment(coordinator.notificationEngine)
                 .environment(coordinator.activityEngine)
+                .environment(coordinator.authState)
                 .task { await coordinator.initialize() }
         }
         .defaultLaunchBehavior(.presented)

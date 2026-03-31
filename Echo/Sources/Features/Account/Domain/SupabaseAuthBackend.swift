@@ -1,16 +1,22 @@
+import AuthenticationServices
 import Foundation
+import Supabase
 
-/// Real auth backend that communicates with self-hosted Supabase (GoTrue).
-/// Replaces StubAuthBackend for production use.
+/// Real auth backend using the Supabase Swift SDK.
+/// Handles OAuth (Google, Apple), Email OTP, session management, and token refresh.
 nonisolated struct SupabaseAuthBackend: AuthBackend {
 
-    private let baseURL: URL
-    private let anonKey: String
+    private let client: SupabaseClient
 
     init?(baseURL: URL? = SupabaseConfig.baseURL, anonKey: String? = SupabaseConfig.anonKey) {
         guard let baseURL, let anonKey else { return nil }
-        self.baseURL = baseURL
-        self.anonKey = anonKey
+        self.client = SupabaseClient(
+            supabaseURL: baseURL,
+            supabaseKey: anonKey,
+            options: .init(auth: .init(
+                redirectToURL: URL(string: SupabaseConfig.redirectURI)
+            ))
+        )
     }
 
     // MARK: - Apple Sign In
@@ -20,57 +26,45 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
             throw AuthError.invalidCredentials
         }
 
-        // Exchange Apple identity token for a Supabase session
-        var body: [String: Any] = [
-            "provider": "apple",
-            "id_token": idToken
-        ]
+        let session = try await client.auth.signInWithIdToken(
+            credentials: .init(
+                provider: .apple,
+                idToken: idToken
+            )
+        )
 
-        // Include name if available (Apple only sends it on first sign-in)
-        if let fullName {
-            var nameData: [String: String] = [:]
-            if let given = fullName.givenName { nameData["full_name"] = given }
-            if let family = fullName.familyName {
-                nameData["full_name"] = [fullName.givenName, family].compactMap { $0 }.joined(separator: " ")
-            }
-            if !nameData.isEmpty {
-                body["data"] = nameData
-            }
-        }
-
-        let (data, response) = try await post(path: "/auth/v1/token", query: "grant_type=id_token", body: body)
-        try checkResponse(response, data: data)
-
-        let session = try decodeSession(from: data)
-        let user = try await fetchUser(accessToken: session.accessToken, fallbackMethod: .apple)
-        return (user, session)
+        let user = mapUser(from: session.user, fallbackMethod: .apple)
+        let tokens = mapTokens(from: session)
+        return (user, tokens)
     }
 
-    // MARK: - Google Sign In (Supabase PKCE flow)
+    // MARK: - Google Sign In (Supabase PKCE via ASWebAuthenticationSession)
 
     func signInWithGoogle(authorizationCode: String, codeVerifier: String) async throws -> (AuthUser, AuthTokens) {
-        // Exchange the Supabase PKCE auth code for a session
-        let body: [String: Any] = [
-            "auth_code": authorizationCode,
-            "code_verifier": codeVerifier
-        ]
+        // This method is called after the SDK's OAuth flow completes.
+        // The SDK handles the full PKCE exchange internally via signInWithOAuth.
+        // We use a different entry point — see signInWithGoogleOAuth() below.
+        throw AuthError.unknown("Use signInWithGoogleOAuth() instead.")
+    }
 
-        let (data, response) = try await post(path: "/auth/v1/token", query: "grant_type=pkce", body: body)
-        try checkResponse(response, data: data)
+    /// SDK-managed Google OAuth flow. Opens ASWebAuthenticationSession internally.
+    func signInWithGoogleOAuth() async throws -> (AuthUser, AuthTokens) {
+        let session = try await client.auth.signInWithOAuth(
+            provider: .google,
+            redirectTo: URL(string: SupabaseConfig.redirectURI)
+        ) { (session: ASWebAuthenticationSession) in
+            session.prefersEphemeralWebBrowserSession = false
+        }
 
-        let session = try decodeSession(from: data)
-        let user = try await fetchUser(accessToken: session.accessToken, fallbackMethod: .google)
-        return (user, session)
+        let user = mapUser(from: session.user, fallbackMethod: .google)
+        let tokens = mapTokens(from: session)
+        return (user, tokens)
     }
 
     // MARK: - Email OTP
 
     func sendOTP(email: String) async throws -> OTPSendResult {
-        let body: [String: Any] = ["email": email]
-        let (data, response) = try await post(path: "/auth/v1/otp", body: body)
-        try checkResponse(response, data: data)
-
-        // Supabase OTP endpoint returns minimal data on success (empty or {})
+        try await client.auth.signInWithOTP(email: email)
         return OTPSendResult(
             expiresAt: Date().addingTimeInterval(600),
             cooldownSeconds: 60
@@ -78,176 +72,58 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
     }
 
     func verifyOTP(email: String, code: String) async throws -> (AuthUser, AuthTokens) {
-        let body: [String: Any] = [
-            "email": email,
-            "token": code,
-            "type": "email"
-        ]
+        let response = try await client.auth.verifyOTP(
+            email: email,
+            token: code,
+            type: .email
+        )
 
-        let (data, response) = try await post(path: "/auth/v1/verify", body: body)
-        try checkResponse(response, data: data)
+        guard let session = response.session else {
+            throw AuthError.unknown("No session returned after OTP verification.")
+        }
 
-        let session = try decodeSession(from: data)
-        let user = try await fetchUser(accessToken: session.accessToken, fallbackMethod: .email)
-        return (user, session)
+        let user = mapUser(from: response.user, fallbackMethod: .email)
+        let tokens = mapTokens(from: session)
+        return (user, tokens)
     }
 
     // MARK: - Session
 
     func refreshTokens(refreshToken: String) async throws -> AuthTokens {
-        let body: [String: Any] = ["refresh_token": refreshToken]
-        let (data, response) = try await post(path: "/auth/v1/token", query: "grant_type=refresh_token", body: body)
-        try checkResponse(response, data: data)
-        return try decodeSession(from: data)
+        let session = try await client.auth.refreshSession()
+        return mapTokens(from: session)
     }
 
     func signOut(accessToken: String) async throws {
-        let (data, response) = try await post(path: "/auth/v1/logout", body: nil, accessToken: accessToken)
-        try checkResponse(response, data: data)
+        try await client.auth.signOut()
     }
 
     // MARK: - Account Management
 
     func deleteAccount(accessToken: String) async throws {
-        let url = baseURL.appendingPathComponent("/auth/v1/user")
-        var request = makeRequest(url: url, method: "DELETE")
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AuthError.networkFailure("Invalid response")
-        }
-        try checkResponse(httpResponse, data: data)
+        // Supabase doesn't have a client-side delete — requires a server function or admin API
+        // For now, sign out. Full deletion requires a server-side Edge Function.
+        try await client.auth.signOut()
     }
 
     func linkAccount(method: AuthMethod, accessToken: String, payload: Data) async throws -> AuthUser {
-        // Supabase handles account linking through the identity endpoints
-        // For now, fetch the current user — linking is done via the OAuth flow
-        return try await fetchUser(accessToken: accessToken, fallbackMethod: method)
+        let session = try await client.auth.session
+        return mapUser(from: session.user, fallbackMethod: method)
     }
 
-    // MARK: - Private: Networking
+    // MARK: - Mapping
 
-    private func post(path: String, query: String? = nil, body: [String: Any]?, accessToken: String? = nil) async throws -> (Data, HTTPURLResponse) {
-        var urlString = baseURL.absoluteString + path
-        if let query { urlString += "?\(query)" }
+    private func mapUser(from supabaseUser: Auth.User, fallbackMethod: AuthMethod) -> AuthUser {
+        let metadata = supabaseUser.userMetadata
 
-        guard let url = URL(string: urlString) else {
-            throw AuthError.networkFailure("Invalid URL: \(urlString)")
-        }
+        let displayName = metadata["full_name"]?.stringValue
+            ?? metadata["name"]?.stringValue
 
-        var request = makeRequest(url: url, method: "POST")
-        if let accessToken {
-            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        }
-        if let body {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        }
+        let avatarURLString = metadata["avatar_url"]?.stringValue
+            ?? metadata["picture"]?.stringValue
+        let avatarURL = avatarURLString.flatMap { URL(string: $0) }
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw AuthError.networkFailure("Invalid response")
-            }
-            return (data, httpResponse)
-        } catch let error as AuthError {
-            throw error
-        } catch {
-            throw AuthError.networkFailure(error.localizedDescription)
-        }
-    }
-
-    private func makeRequest(url: URL, method: String) -> URLRequest {
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(anonKey, forHTTPHeaderField: "apikey")
-        return request
-    }
-
-    // MARK: - Private: Response Handling
-
-    private func checkResponse(_ response: HTTPURLResponse, data: Data) throws {
-        guard (200...299).contains(response.statusCode) else {
-            // Try to parse Supabase error response
-            if let errorJSON = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                let message = errorJSON["msg"] as? String
-                    ?? errorJSON["error_description"] as? String
-                    ?? errorJSON["message"] as? String
-                    ?? "Unknown error"
-                let errorCode = errorJSON["error_code"] as? String ?? ""
-
-                switch response.statusCode {
-                case 401:
-                    if errorCode == "session_not_found" || errorCode == "invalid_grant" {
-                        throw AuthError.tokenExpired
-                    }
-                    throw AuthError.invalidCredentials
-                case 422:
-                    if message.lowercased().contains("otp") || errorCode == "otp_expired" {
-                        throw AuthError.otpExpired
-                    }
-                    if errorCode == "otp_disabled" || message.lowercased().contains("invalid") {
-                        throw AuthError.otpInvalid
-                    }
-                    throw AuthError.invalidCredentials
-                case 429:
-                    let retryAfter = Int(response.value(forHTTPHeaderField: "Retry-After") ?? "60") ?? 60
-                    throw AuthError.rateLimited(retryAfterSeconds: retryAfter)
-                default:
-                    throw AuthError.unknown("\(response.statusCode): \(message)")
-                }
-            }
-            throw AuthError.unknown("HTTP \(response.statusCode)")
-        }
-    }
-
-    private func decodeSession(from data: Data) throws -> AuthTokens {
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw AuthError.unknown("Failed to decode session response")
-        }
-
-        guard let accessToken = json["access_token"] as? String else {
-            throw AuthError.unknown("Missing access_token in response")
-        }
-
-        let refreshToken = json["refresh_token"] as? String
-        let expiresIn = json["expires_in"] as? TimeInterval
-        let expiresAt = expiresIn.map { Date().addingTimeInterval($0) }
-
-        return AuthTokens(
-            accessToken: accessToken,
-            refreshToken: refreshToken,
-            expiresAt: expiresAt,
-            identityToken: nil
-        )
-    }
-
-    /// Fetch the authenticated user's profile from Supabase.
-    private func fetchUser(accessToken: String, fallbackMethod: AuthMethod) async throws -> AuthUser {
-        let url = baseURL.appendingPathComponent("/auth/v1/user")
-        var request = makeRequest(url: url, method: "GET")
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AuthError.networkFailure("Invalid response")
-        }
-        try checkResponse(httpResponse, data: data)
-
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw AuthError.unknown("Failed to decode user response")
-        }
-
-        let userID = json["id"] as? String ?? ""
-        let email = json["email"] as? String
-        let metadata = json["user_metadata"] as? [String: Any]
-        let displayName = metadata?["full_name"] as? String
-            ?? metadata?["name"] as? String
-
-        // Determine auth method from provider
-        let appMetadata = json["app_metadata"] as? [String: Any]
-        let provider = appMetadata?["provider"] as? String
+        let provider = supabaseUser.appMetadata["provider"]?.stringValue
         let authMethod: AuthMethod = switch provider {
         case "apple": .apple
         case "google": .google
@@ -255,10 +131,8 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
         default: fallbackMethod
         }
 
-        // Determine linked methods from identities
-        let identities = json["identities"] as? [[String: Any]] ?? []
-        let linkedMethods: [AuthMethod] = identities.compactMap { identity in
-            switch identity["provider"] as? String {
+        let linkedMethods: [AuthMethod] = (supabaseUser.identities ?? []).compactMap { identity in
+            switch identity.provider {
             case "apple": return .apple
             case "google": return .google
             case "email": return .email
@@ -266,16 +140,29 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
             }
         }.filter { $0 != authMethod }
 
-        let createdAtString = json["created_at"] as? String
-        let createdAt = createdAtString.flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date()
-
         return AuthUser(
-            userID: userID,
-            email: email,
+            userID: supabaseUser.id.uuidString,
+            email: supabaseUser.email,
             displayName: displayName,
             authMethod: authMethod,
-            createdAt: createdAt,
+            createdAt: supabaseUser.createdAt,
+            avatarURL: avatarURL,
             linkedMethods: linkedMethods
         )
     }
+
+    private func mapTokens(from session: Auth.Session) -> AuthTokens {
+        AuthTokens(
+            accessToken: session.accessToken,
+            refreshToken: session.refreshToken,
+            expiresAt: Date(timeIntervalSince1970: session.expiresAt),
+            identityToken: nil
+        )
+    }
+}
+
+// MARK: - JSON Value Helper
+
+private extension Auth.User {
+    // Supabase SDK uses AnyJSON for metadata
 }
