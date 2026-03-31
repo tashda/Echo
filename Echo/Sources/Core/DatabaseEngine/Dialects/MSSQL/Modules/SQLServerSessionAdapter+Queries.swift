@@ -144,7 +144,7 @@ extension SQLServerSessionAdapter {
                         primaryColumns = columns
                         canUseRawPath = columns.allSatisfy { TDSBinaryDecoder.canDecodeRaw($0.dataType) }
                         worker = ResultStreamBatchWorker(
-                            label: "dk.tippr.echo.mssql.streamWorker",
+                            label: "dev.echodb.echo.mssql.streamWorker",
                             columns: columns,
                             streamingPreviewLimit: initialPreviewBatch,
                             maxFlushLatency: maxFlushLatency,

@@ -5,7 +5,7 @@ import SQLServerKit
 
 // No need for extra imports since TDSTokens is now available through SQLServerKit
 
-nonisolated private let structureLogger = os.Logger(subsystem: "dk.tippr.echo.database-structure", category: "Explorer")
+nonisolated private let structureLogger = os.Logger(subsystem: "dev.echodb.echo.database-structure", category: "Explorer")
 
 /// Protocol for database structure fetching operations
 protocol DatabaseStructureFetcher {

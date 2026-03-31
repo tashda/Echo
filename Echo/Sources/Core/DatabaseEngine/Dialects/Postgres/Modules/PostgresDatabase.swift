@@ -7,7 +7,7 @@ import os
 typealias PostgresQueryResult = PostgresRowSequence
 
 struct PostgresNIOFactory: DatabaseFactory {
-    private let packageLogger = Logging.Logger(label: "dk.tippr.echo.postgres")
+    private let packageLogger = Logging.Logger(label: "dev.echodb.echo.postgres")
 
     func connect(
         host: String,

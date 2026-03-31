@@ -86,7 +86,7 @@ final class AppDirector {
         self.diagramBuilder = DiagramBuilder(cacheManager: cacheManager, keyStore: keyStore)
 
         self.activityEngine = ActivityEngine()
-        self.authState = AuthState()
+        self.authState = AuthState(backend: SupabaseAuthBackend() ?? StubAuthBackend())
 
         self.environmentState = EnvironmentState(
             projectStore: projectStore,

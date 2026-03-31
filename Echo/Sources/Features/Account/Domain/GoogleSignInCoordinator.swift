@@ -2,46 +2,39 @@ import AuthenticationServices
 import CryptoKit
 import Foundation
 
-/// Coordinates Sign in with Google via OAuth 2.0 PKCE using ASWebAuthenticationSession.
+/// Coordinates OAuth sign-in via Supabase's PKCE flow using ASWebAuthenticationSession.
+/// Works for any Supabase-supported provider (Google, Apple, etc.).
 final class GoogleSignInCoordinator {
 
-    /// Google OAuth configuration.
-    /// Replace these with real values when the backend is ready.
-    private enum Config {
-        static let clientID = "GOOGLE_CLIENT_ID_PLACEHOLDER"
-        static let redirectURI = "dk.tippr.echo:/oauth2callback"
-        static let authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
-        static let scopes = "openid email profile"
-    }
-
-    /// Result of the OAuth flow: the authorization code and the PKCE code verifier.
+    /// Result of the OAuth flow: the Supabase authorization code and the PKCE code verifier.
     struct OAuthResult: Sendable {
         let authorizationCode: String
         let codeVerifier: String
     }
 
-    /// Triggers the Google OAuth flow in a browser session and returns the auth code.
+    /// Triggers the Supabase OAuth flow for Google in a browser session and returns the auth code.
     func signIn() async throws -> OAuthResult {
         let codeVerifier = generateCodeVerifier()
         let codeChallenge = generateCodeChallenge(from: codeVerifier)
 
-        var components = URLComponents(string: Config.authorizationEndpoint)!
+        guard let baseURL = SupabaseConfig.baseURL else {
+            throw AuthError.unknown("Supabase is not configured.")
+        }
+
+        // Build the Supabase authorize URL — Supabase handles the Google redirect internally
+        var components = URLComponents(string: baseURL.absoluteString + "/auth/v1/authorize")!
         components.queryItems = [
-            URLQueryItem(name: "client_id", value: Config.clientID),
-            URLQueryItem(name: "redirect_uri", value: Config.redirectURI),
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: Config.scopes),
+            URLQueryItem(name: "provider", value: "google"),
+            URLQueryItem(name: "redirect_to", value: SupabaseConfig.redirectURI),
             URLQueryItem(name: "code_challenge", value: codeChallenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256"),
-            URLQueryItem(name: "access_type", value: "offline"),
-            URLQueryItem(name: "prompt", value: "consent")
+            URLQueryItem(name: "code_challenge_method", value: "S256")
         ]
 
         guard let authURL = components.url else {
-            throw AuthError.unknown("Failed to construct Google auth URL.")
+            throw AuthError.unknown("Failed to construct Supabase auth URL.")
         }
 
-        let callbackScheme = "dk.tippr.echo"
+        let callbackScheme = "dev.echodb.echo"
 
         let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, any Error>) in
             let session = ASWebAuthenticationSession(
@@ -67,6 +60,7 @@ final class GoogleSignInCoordinator {
             session.start()
         }
 
+        // Supabase returns the auth code as a query parameter in the redirect
         guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
               let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
             throw AuthError.unknown("No authorization code in callback URL.")

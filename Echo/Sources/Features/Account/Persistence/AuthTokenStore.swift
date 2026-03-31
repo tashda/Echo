@@ -4,7 +4,7 @@ import Security
 /// Persists auth tokens in the macOS Keychain and user metadata on disk.
 /// Thread-safe via actor isolation.
 actor AuthTokenStore {
-    private let serviceName = "dk.tippr.echo.auth"
+    private let serviceName = "dev.echodb.echo.auth"
     private let userFileURL: URL
 
     init() {

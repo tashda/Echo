@@ -5,7 +5,7 @@ import NIOCore
 import os
 
 struct SQLiteFactory: DatabaseFactory {
-    private let packageLogger = Logging.Logger(label: "dk.tippr.echo.sqlite")
+    private let packageLogger = Logging.Logger(label: "dev.echodb.echo.sqlite")
 
     func connect(
         host: String,

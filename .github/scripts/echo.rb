@@ -15,7 +15,7 @@ cask "echo" do
 
   zap trash: [
     "~/Library/Application Support/Echo",
-    "~/Library/Caches/dk.tippr.echo",
-    "~/Library/Preferences/dk.tippr.echo.plist",
+    "~/Library/Caches/dev.echodb.echo",
+    "~/Library/Preferences/dev.echodb.echo.plist",
   ]
 end

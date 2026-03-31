@@ -1,13 +1,13 @@
 import Foundation
 
-@preconcurrency public let ResultStreamingFetchSizeDefaultsKey = "dk.tippr.echo.streaming.fetchSize"
-@preconcurrency public let ResultStreamingFetchRampMultiplierDefaultsKey = "dk.tippr.echo.streaming.fetchRampMultiplier"
-@preconcurrency public let ResultStreamingFetchRampMaxDefaultsKey = "dk.tippr.echo.streaming.fetchRampMax"
-@preconcurrency public let ResultStreamingUseCursorDefaultsKey = "dk.tippr.echo.streaming.useCursor"
-@preconcurrency public let ResultStreamingCursorLimitThresholdDefaultsKey = "dk.tippr.echo.streaming.cursorThreshold"
-@preconcurrency public let ResultStreamingModeDefaultsKey = "dk.tippr.echo.streaming.mode"
-@preconcurrency public let ResultFormattingEnabledDefaultsKey = "dk.tippr.echo.results.formattingEnabled"
-@preconcurrency public let ResultFormattingModeDefaultsKey = "dk.tippr.echo.results.formattingMode"
+@preconcurrency public let ResultStreamingFetchSizeDefaultsKey = "dev.echodb.echo.streaming.fetchSize"
+@preconcurrency public let ResultStreamingFetchRampMultiplierDefaultsKey = "dev.echodb.echo.streaming.fetchRampMultiplier"
+@preconcurrency public let ResultStreamingFetchRampMaxDefaultsKey = "dev.echodb.echo.streaming.fetchRampMax"
+@preconcurrency public let ResultStreamingUseCursorDefaultsKey = "dev.echodb.echo.streaming.useCursor"
+@preconcurrency public let ResultStreamingCursorLimitThresholdDefaultsKey = "dev.echodb.echo.streaming.cursorThreshold"
+@preconcurrency public let ResultStreamingModeDefaultsKey = "dev.echodb.echo.streaming.mode"
+@preconcurrency public let ResultFormattingEnabledDefaultsKey = "dev.echodb.echo.results.formattingEnabled"
+@preconcurrency public let ResultFormattingModeDefaultsKey = "dev.echodb.echo.results.formattingMode"
 
 public enum ResultsFormattingMode: String, Sendable, Codable, CaseIterable, Identifiable {
     case immediate, deferred

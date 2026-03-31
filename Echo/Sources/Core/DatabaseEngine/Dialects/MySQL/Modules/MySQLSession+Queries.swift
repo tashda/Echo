@@ -40,7 +40,7 @@ extension MySQLSession {
                 if columnInfo.isEmpty, !columnMetadata.isEmpty {
                     columnInfo = makeColumnInfo(from: columnMetadata)
                     worker = ResultStreamBatchWorker(
-                        label: "dk.tippr.echo.mysql.streamWorker",
+                        label: "dev.echodb.echo.mysql.streamWorker",
                         columns: columnInfo,
                         streamingPreviewLimit: streamingPreviewLimit,
                         maxFlushLatency: maxFlushLatency,
