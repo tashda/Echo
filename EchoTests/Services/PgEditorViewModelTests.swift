@@ -305,27 +305,27 @@ struct TypeEditorViewModelTests {
     // MARK: - Composite
 
     @Test func newCompositeIsNotEditing() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite, dialect: PostgresTypeDialect())
         #expect(vm.isEditing == false)
         #expect(vm.typeCategory == .composite)
     }
 
     @Test func compositeFormInvalidWithoutAttributes() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite, dialect: PostgresTypeDialect())
         vm.typeName = "my_type"
         // Default attributes have empty name/dataType
         #expect(vm.isFormValid == false)
     }
 
     @Test func compositeFormValidWithAttribute() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite, dialect: PostgresTypeDialect())
         vm.typeName = "address"
         vm.attributes = [TypeAttributeDraft(name: "street", dataType: "text")]
         #expect(vm.isFormValid == true)
     }
 
     @Test func compositeGeneratesCreateSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite, dialect: PostgresTypeDialect())
         vm.typeName = "address"
         vm.attributes = [
             TypeAttributeDraft(name: "street", dataType: "text"),
@@ -341,21 +341,21 @@ struct TypeEditorViewModelTests {
     // MARK: - Enum
 
     @Test func enumFormInvalidWithoutValues() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.typeName = "status"
         // Default enum values have empty value
         #expect(vm.isFormValid == false)
     }
 
     @Test func enumFormValidWithValue() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.typeName = "status"
         vm.enumValues = [EnumValueDraft(value: "active")]
         #expect(vm.isFormValid == true)
     }
 
     @Test func enumGeneratesCreateSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.typeName = "status"
         vm.enumValues = [
             EnumValueDraft(value: "active"),
@@ -370,7 +370,7 @@ struct TypeEditorViewModelTests {
     }
 
     @Test func enumGeneratesAlterSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "status", typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "status", typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.enumValues = [EnumValueDraft(value: "pending")]
 
         let sql = vm.generateSQL()
@@ -381,20 +381,20 @@ struct TypeEditorViewModelTests {
     // MARK: - Range
 
     @Test func rangeFormInvalidWithoutSubtype() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range, dialect: PostgresTypeDialect())
         vm.typeName = "my_range"
         #expect(vm.isFormValid == false)
     }
 
     @Test func rangeFormValidWithSubtype() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range, dialect: PostgresTypeDialect())
         vm.typeName = "int_range"
         vm.subtype = "integer"
         #expect(vm.isFormValid == true)
     }
 
     @Test func rangeGeneratesCreateSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range, dialect: PostgresTypeDialect())
         vm.typeName = "ts_range"
         vm.subtype = "timestamp"
 
@@ -407,20 +407,20 @@ struct TypeEditorViewModelTests {
     // MARK: - Domain
 
     @Test func domainFormInvalidWithoutBaseType() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.typeName = "email"
         #expect(vm.isFormValid == false)
     }
 
     @Test func domainFormValidWithBaseType() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.typeName = "email"
         vm.baseDataType = "text"
         #expect(vm.isFormValid == true)
     }
 
     @Test func domainGeneratesCreateSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.typeName = "positive_int"
         vm.baseDataType = "integer"
         vm.isNotNull = true
@@ -434,7 +434,7 @@ struct TypeEditorViewModelTests {
     }
 
     @Test func domainGeneratesAlterSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "email", typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "email", typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.baseDataType = "text"
         vm.defaultValue = "'unknown@example.com'"
         vm.isNotNull = true
@@ -448,7 +448,7 @@ struct TypeEditorViewModelTests {
     // MARK: - Dirty Tracking
 
     @Test func dirtyTrackingForComposite() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "addr", typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "addr", typeCategory: .composite, dialect: PostgresTypeDialect())
         vm.attributes = [TypeAttributeDraft(name: "street", dataType: "text")]
         vm.takeSnapshot()
         #expect(vm.hasChanges == false)
@@ -457,7 +457,7 @@ struct TypeEditorViewModelTests {
     }
 
     @Test func dirtyTrackingForEnum() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "status", typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "status", typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.enumValues = [EnumValueDraft(value: "active")]
         vm.takeSnapshot()
         #expect(vm.hasChanges == false)
@@ -466,7 +466,7 @@ struct TypeEditorViewModelTests {
     }
 
     @Test func dirtyTrackingForDomain() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "email", typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "email", typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.baseDataType = "text"
         vm.takeSnapshot()
         #expect(vm.hasChanges == false)
