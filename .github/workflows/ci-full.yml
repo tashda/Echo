@@ -155,10 +155,18 @@ jobs:
         echo "patch=$PATCH" >> $GITHUB_OUTPUT
         echo "tag=v$FULL_VERSION" >> $GITHUB_OUTPUT
 
+    - name: Install App Store Connect API key
+      run: |
+        mkdir -p ~/private_keys
+        echo "${{ secrets.ASC_KEY_CONTENT }}" > ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+
     - name: Build Release (signed)
       run: |
         xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
           -allowProvisioningUpdates \
+          -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+          -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
+          -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
           MARKETING_VERSION=${{ steps.version.outputs.full }} \
           CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
           CODE_SIGN_STYLE=Automatic \
