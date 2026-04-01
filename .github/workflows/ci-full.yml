@@ -176,6 +176,23 @@ jobs:
           ENABLE_HARDENED_RUNTIME=YES \
           OTHER_CODE_SIGN_FLAGS='--options runtime --timestamp'
 
+    - name: Sign bundled tools and libraries
+      run: |
+        APP="build/Build/Products/Release/Echo.app"
+        # Sign all dylibs first (dependencies before executables)
+        find "$APP" -name '*.dylib' -exec \
+          codesign --force --sign "Developer ID Application" --timestamp --options runtime {} \;
+        # Sign pg_dump and pg_restore
+        for tool in pg_dump pg_restore; do
+          if [ -f "$APP/Contents/Resources/$tool" ]; then
+            codesign --force --sign "Developer ID Application" --timestamp --options runtime "$APP/Contents/Resources/$tool"
+          fi
+        done
+        # Re-sign the app bundle (picks up nested changes)
+        codesign --force --deep --sign "Developer ID Application" --timestamp --options runtime "$APP"
+        # Verify
+        codesign --verify --deep --strict "$APP"
+
     - name: Package DMG
       run: |
         mkdir -p release dmg-staging
@@ -195,7 +212,19 @@ jobs:
           --apple-id "$APPLE_ID" \
           --password "$APPLE_ID_PASSWORD" \
           --team-id "$APPLE_TEAM_ID" \
-          --wait --timeout 600
+          --wait --timeout 600 2>&1 | tee notarize-output.txt
+
+        # If notarization failed, fetch the log
+        SUBMISSION_ID=$(grep 'id:' notarize-output.txt | head -1 | awk '{print $2}')
+        if grep -q 'Invalid' notarize-output.txt; then
+          echo "::group::Notarization Log"
+          xcrun notarytool log "$SUBMISSION_ID" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID"
+          echo "::endgroup::"
+          exit 1
+        fi
 
         # Staple the notarization ticket
         xcrun stapler staple release/Echo.dmg
