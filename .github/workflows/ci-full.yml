@@ -240,12 +240,16 @@ jobs:
         curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz -o sparkle.tar.xz
         tar -xf sparkle.tar.xz
         DOWNLOAD_PREFIX="https://github.com/tashda/Echo/releases/download/${{ steps.version.outputs.tag }}/"
+        # Move DMG out so generate_appcast only sees the ZIP
+        mv release/Echo.dmg .
         if [ -n "$SPARKLE_PRIVATE_KEY" ]; then
           echo "$SPARKLE_PRIVATE_KEY" | ./bin/generate_appcast --ed-key-file - --download-url-prefix "$DOWNLOAD_PREFIX" release/
         else
           ./bin/generate_appcast --download-url-prefix "$DOWNLOAD_PREFIX" release/
         fi
         cp release/appcast.xml .
+        # Move DMG back for GitHub release
+        mv Echo.dmg release/
 
     - name: Release Notes
       run: |
