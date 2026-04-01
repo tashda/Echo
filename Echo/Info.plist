@@ -17,6 +17,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Echo connects to database servers on your local network.</string>
 	<key>SUPublicEDKey</key>
 	<string>A8LcOV+Qg2WqMJP8AVmskJ5S4EztjgRJ5aEbI2NlS3s=</string>
 	<key>GOOGLE_CLIENT_ID</key>

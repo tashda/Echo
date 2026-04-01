@@ -103,11 +103,12 @@ struct ShrinkEnhancementTests {
 
     @Test func maintenanceSectionHasExpectedCases() {
         let allCases = MSSQLMaintenanceViewModel.MaintenanceSection.allCases
-        #expect(allCases.count == 4)
+        #expect(allCases.count == 5)
         #expect(allCases.contains(.health))
         #expect(allCases.contains(.tables))
         #expect(allCases.contains(.indexes))
         #expect(allCases.contains(.backups))
+        #expect(allCases.contains(.queryStore))
     }
 
     @Test func maintenanceSectionRawValues() {
