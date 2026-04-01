@@ -34,7 +34,7 @@ struct GeneralSettingsView: View {
     @ViewBuilder
     private var accountSection: some View {
         if authState.isSignedIn {
-            SignedInAccountCard(authState: authState)
+            SignedInAccountCard(authState: authState, syncEngine: AppDirector.shared.syncEngine)
         } else {
             SignInAccountCard(authState: authState)
         }

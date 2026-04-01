@@ -15,16 +15,11 @@ struct SignInView: View {
             header
 
             if showEmailOTP {
-                EmailOTPSignInView(authState: authState)
-                    .frame(maxWidth: 320)
-
-                Button("Back to sign-in options") {
+                EmailOTPSignInView(authState: authState, onBack: {
                     showEmailOTP = false
                     authState.cancelOTP()
-                }
-                .buttonStyle(.plain)
-                .font(TypographyTokens.formDescription)
-                .foregroundStyle(ColorTokens.Text.secondary)
+                })
+                .frame(maxWidth: 320)
             } else {
                 signInButtons
             }

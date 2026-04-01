@@ -40,6 +40,11 @@ final class AppDirector {
     @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
     @ObservationIgnored let activityEngine: ActivityEngine
     @ObservationIgnored let authState: AuthState
+    @ObservationIgnored let syncEngine: SyncEngine?
+    @ObservationIgnored let e2eKeyStore = E2EKeyStore()
+    @ObservationIgnored let e2eEnrollmentManager: E2EEnrollmentManager
+    @ObservationIgnored private var syncScheduler: SyncScheduler?
+    @ObservationIgnored private var syncRealtimeListener: SyncRealtimeListener?
 #if os(macOS)
     @ObservationIgnored private nonisolated(unsafe) var windowFocusObservers: [NSObjectProtocol] = []
 #endif
@@ -87,6 +92,36 @@ final class AppDirector {
 
         self.activityEngine = ActivityEngine()
         self.authState = AuthState(backend: SupabaseAuthBackend() ?? StubAuthBackend())
+
+        // Initialize E2E enrollment manager
+        self.e2eEnrollmentManager = E2EEnrollmentManager(keyStore: e2eKeyStore)
+
+        // Initialize sync engine (nil if Supabase is not configured)
+        let engine = SyncEngine()
+        self.syncEngine = engine
+        if let engine {
+            engine.connectionStore = connectionStore
+            engine.projectStore = projectStore
+            engine.e2eKeyStore = e2eKeyStore
+            self.syncScheduler = SyncScheduler(syncEngine: engine)
+
+            // Wire store change notifications to sync engine
+            connectionStore.onDataChanged = { [weak engine] id, collection, projectID, isDelete in
+                if isDelete {
+                    engine?.markDeleted(id: id, collection: collection, projectID: projectID)
+                } else {
+                    engine?.markDirty(id: id, collection: collection, projectID: projectID)
+                }
+                AppDirector.shared.notifySyncDataChanged()
+            }
+
+            // Wire settings changes to sync engine
+            projectStore.onSettingsChanged = { [weak engine] projectID in
+                let settingsDocID = SyncAdapter().settingsDocumentID(for: projectID)
+                engine?.markDirty(id: settingsDocID, collection: .settings, projectID: projectID)
+                AppDirector.shared.notifySyncDataChanged()
+            }
+        }
 
         self.environmentState = EnvironmentState(
             projectStore: projectStore,
@@ -159,6 +194,12 @@ final class AppDirector {
 
         await environmentState.load()
         await authState.restoreSession()
+
+        // Start sync if signed in
+        if authState.isSignedIn {
+            await startSync()
+        }
+        observeAuthState()
 
         isInitialized = true
         ensureInitialWorkspaceState()
@@ -309,9 +350,62 @@ final class AppDirector {
     }
 #endif
 
-#if os(macOS)
-    deinit {
-        windowFocusObservers.forEach { NotificationCenter.default.removeObserver($0) }
+    // MARK: - Sync Lifecycle
+
+    private func startSync() async {
+        guard let syncEngine else { return }
+
+        // If the user changed since last sign-in, reset sync state
+        let currentUserID = authState.currentUser?.userID
+        await syncEngine.resetIfUserChanged(currentUserID: currentUserID)
+
+        // Check E2E enrollment and try auto-unlock
+        await e2eEnrollmentManager.checkEnrollmentStatus()
+        await e2eEnrollmentManager.tryAutoUnlock()
+
+        await syncEngine.start()
+        syncScheduler?.start()
+
+        // Start realtime listener for instant cross-device sync
+        let listener = SyncRealtimeListener(syncEngine: syncEngine)
+        self.syncRealtimeListener = listener
+        await listener.start()
     }
+
+    private func stopSync() async {
+        syncScheduler?.stop()
+        await syncRealtimeListener?.stop()
+        syncRealtimeListener = nil
+        e2eEnrollmentManager.clearOnSignOut()
+        guard let syncEngine else { return }
+        await syncEngine.stop()
+    }
+
+    private func observeAuthState() {
+        _ = withObservationTracking {
+            authState.isSignedIn
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.authState.isSignedIn {
+                    await self.startSync()
+                } else {
+                    await self.stopSync()
+                }
+                self.observeAuthState()
+            }
+        }
+    }
+
+    /// Notify the sync engine that a local data change occurred.
+    /// Called from stores after persisting changes.
+    func notifySyncDataChanged() {
+        syncScheduler?.scheduleSync()
+    }
+
+    deinit {
+#if os(macOS)
+        windowFocusObservers.forEach { NotificationCenter.default.removeObserver($0) }
 #endif
+    }
 }

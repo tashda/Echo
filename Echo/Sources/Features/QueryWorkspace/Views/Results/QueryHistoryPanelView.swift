@@ -126,7 +126,7 @@ private struct QueryHistoryRow: View {
         HStack(spacing: SpacingTokens.sm) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(truncatedQuery)
-                    .font(.system(.body, design: .monospaced))
+                    .font(TypographyTokens.code)
                     .foregroundStyle(ColorTokens.Text.primary)
                     .lineLimit(2)
 

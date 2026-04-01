@@ -173,7 +173,7 @@ struct NewDBAuditSpecSheet: View {
                         ForEach(actions) { action in
                             HStack {
                                 Text(action.sqlExpression)
-                                    .font(.system(.body, design: .monospaced))
+                                    .font(TypographyTokens.code)
                                     .foregroundStyle(ColorTokens.Text.secondary)
                                     .lineLimit(1)
                                 Spacer()

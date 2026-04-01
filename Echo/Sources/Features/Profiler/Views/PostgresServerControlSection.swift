@@ -61,7 +61,7 @@ struct PostgresServerControlSection: View {
                 LabeledContent("pg_ctl") {
                     if let url = PostgresToolLocator.pgCtlURL(customPath: customToolPath) {
                         Text(url.path)
-                            .font(.system(.body, design: .monospaced))
+                            .font(TypographyTokens.code)
                             .foregroundStyle(ColorTokens.Text.secondary)
                             .textSelection(.enabled)
                     } else {

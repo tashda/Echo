@@ -143,7 +143,7 @@ struct NewMaskSheet: View {
 
                 Section("Preview") {
                     Text(maskFunction.sqlExpression)
-                        .font(.system(.body, design: .monospaced))
+                        .font(TypographyTokens.code)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }

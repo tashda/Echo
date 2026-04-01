@@ -210,7 +210,7 @@ extension QueryEditorState {
         visibleRowLimit = isResultsOnly ? min(initialVisibleRowBatch, total) : nil
         refreshMaterializedProgress(); markResultDataChanged(); refreshLivePerformanceReport()
         if shouldPersistResults {
-            activateSpoolIfNeeded(); finalizeSpool(with: result)
+            finalizeSpool(with: result)
             // Progressive materialization is triggered by the spool stats
             // monitor when isFinished arrives — all chunks are written by then.
         } else {

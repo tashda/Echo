@@ -21,9 +21,57 @@ extension SQLServerSessionAdapter {
         return databases.map(\.name)
     }
 
+    /// List databases with state and access information for the sidebar.
+    func listDatabasesWithState() async throws -> [(name: String, stateDescription: String?, hasAccess: Bool?)] {
+        let databases = try await client.metadata.listDatabases()
+        return databases.map { (name: $0.name, stateDescription: $0.stateDescription, hasAccess: $0.hasAccess) }
+    }
+
     func listSchemas() async throws -> [String] {
         let schemas = try await client.metadata.listSchemas(in: database)
         return schemas.map(\.name)
+    }
+
+    func loadDatabaseInfo(databaseName: String) async throws -> DatabaseInfo {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let structure = try await metadataTimed("loadDatabaseStructure") {
+            try await client.metadata.loadDatabaseStructure(database: databaseName, includeComments: false)
+        }
+        let t1 = CFAbsoluteTimeGetCurrent()
+        print("[PERF] \(databaseName): sqlserver-nio loadDatabaseStructure took \(String(format: "%.3f", t1 - t0))s (\(structure.schemas.count) schemas)")
+
+        let schemaInfos = structure.schemas.map { schema -> SchemaInfo in
+            var objects: [SchemaObjectInfo] = []
+            objects.reserveCapacity(schema.tables.count + schema.views.count + schema.functions.count + schema.procedures.count + schema.triggers.count)
+
+            for table in schema.tables {
+                objects.append(makeTableObjectInfo(from: table, type: .table))
+            }
+            for view in schema.views {
+                objects.append(makeTableObjectInfo(from: view, type: .view))
+            }
+            for routine in schema.functions {
+                objects.append(makeRoutineObjectInfo(from: routine))
+            }
+            for routine in schema.procedures {
+                objects.append(makeRoutineObjectInfo(from: routine))
+            }
+            for trigger in schema.triggers {
+                objects.append(makeTriggerObjectInfo(from: trigger))
+            }
+
+            return SchemaInfo(name: schema.name, objects: objects)
+        }
+
+        var stateDesc: String?
+        if let meta = try? await client.metadata.databaseState(name: databaseName) {
+            stateDesc = meta.stateDescription
+        }
+        let t2 = CFAbsoluteTimeGetCurrent()
+        let totalObjects = schemaInfos.reduce(0) { $0 + $1.objects.count }
+        print("[PERF] \(databaseName): total loadDatabaseInfo \(String(format: "%.3f", t2 - t0))s (\(schemaInfos.count) schemas, \(totalObjects) objects)")
+
+        return DatabaseInfo(name: databaseName, schemas: schemaInfos, schemaCount: schemaInfos.count, stateDescription: stateDesc)
     }
 
     func listExtensions() async throws -> [SchemaObjectInfo] {
@@ -115,22 +163,20 @@ extension SQLServerSessionAdapter {
         let indexes = try await client.metadata.listIndexes(database: db, schema: schema, table: table)
         let uniqueConstraints = try await client.metadata.listUniqueConstraints(database: db, schema: schema, table: table)
         let foreignKeys = try await client.metadata.listForeignKeys(database: db, schema: schema, table: table)
-        let checkConstraints = try await client.metadata.listCheckConstraints(database: db, schema: schema, table: table)
+        let checkConstraints = (try? await client.constraints.listCheckConstraints(database: db, schema: schema, table: table)) ?? []
         let props = try await client.metadata.tableProperties(database: db, schema: schema, table: table)
-        
-        let pkColumns = Set(primaryKeys.flatMap { $0.columns.map { $0.column } })
         
         let mappedColumns = columns.map { col in
             TableStructureDetails.Column(
                 name: col.name,
                 dataType: col.typeName,
                 isNullable: col.isNullable,
-                defaultValue: col.defaultValue,
-                generatedExpression: col.generatedExpression,
+                defaultValue: col.defaultDefinition,
+                generatedExpression: col.computedDefinition,
                 isIdentity: col.isIdentity,
                 identitySeed: col.identitySeed,
                 identityIncrement: col.identityIncrement,
-                collation: col.collation,
+                collation: col.collationName,
                 comment: col.comment,
                 ordinalPosition: col.ordinalPosition
             )
@@ -220,6 +266,50 @@ extension SQLServerSessionAdapter {
             dependencies: [], // Dependencies are not currently fetched via nio
             checkConstraints: mappedCKs,
             tableProperties: tableProps
+        )
+    }
+
+    // MARK: - Helpers
+
+    private func makeTableObjectInfo(from table: SQLServerTableStructure, type: SchemaObjectInfo.ObjectType) -> SchemaObjectInfo {
+        let primaryKeyColumns = Set(table.primaryKey?.columns.map { $0.column.lowercased() } ?? [])
+        let columns = table.columns.map { column in
+            ColumnInfo(
+                name: column.name,
+                dataType: column.typeName,
+                isPrimaryKey: primaryKeyColumns.contains(column.name.lowercased()),
+                isNullable: column.isNullable,
+                maxLength: column.maxLength
+            )
+        }
+        return SchemaObjectInfo(
+            name: table.table.name,
+            schema: table.table.schema,
+            type: type,
+            columns: columns,
+            comment: table.table.comment
+        )
+    }
+
+    private func makeRoutineObjectInfo(from routine: RoutineMetadata) -> SchemaObjectInfo {
+        let type: SchemaObjectInfo.ObjectType = routine.type == .procedure ? .procedure : .function
+        return SchemaObjectInfo(
+            name: routine.name,
+            schema: routine.schema,
+            type: type,
+            comment: routine.comment
+        )
+    }
+
+    private func makeTriggerObjectInfo(from trigger: TriggerMetadata) -> SchemaObjectInfo {
+        SchemaObjectInfo(
+            name: trigger.name,
+            schema: trigger.schema,
+            type: .trigger,
+            columns: [],
+            triggerAction: trigger.isInsteadOf ? "INSTEAD OF" : "AFTER",
+            triggerTable: trigger.table,
+            comment: trigger.comment
         )
     }
 }

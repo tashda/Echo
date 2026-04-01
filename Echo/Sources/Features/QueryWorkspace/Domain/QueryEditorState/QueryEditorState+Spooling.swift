@@ -6,6 +6,8 @@ extension QueryEditorState {
         spoolStatsTask = nil
         progressiveMaterializationTask?.cancel()
         progressiveMaterializationTask = nil
+        deferredEnqueueTask?.cancel()
+        deferredEnqueueTask = nil
         deferredSpoolUpdates.removeAll(keepingCapacity: false)
         isSpoolActivationDeferred = true
         resultSpoolID = nil
@@ -36,7 +38,7 @@ extension QueryEditorState {
         if let ingestion = ingestionService {
             let updates = deferredSpoolUpdates
             deferredSpoolUpdates.removeAll()
-            Task {
+            deferredEnqueueTask = Task {
                 for buffered in updates {
                     await ingestion.enqueue(update: buffered.update, isPreview: buffered.treatAsPreview)
                 }
@@ -82,8 +84,12 @@ extension QueryEditorState {
                 }
             }
         } else if shouldPersistResults || streamingMode == .background {
+            guard isSpoolActivationDeferred else { return }
             activateSpoolIfNeeded()
+            let pending = deferredEnqueueTask
+            deferredEnqueueTask = nil
             Task {
+                await pending?.value
                 await ingestionService?.finalize(commandTag: results?.commandTag, metrics: nil)
             }
         }
@@ -91,11 +97,11 @@ extension QueryEditorState {
 
     func finalizeSpool(with result: QueryResultSet) {
         activateSpoolIfNeeded()
+        let pending = deferredEnqueueTask
+        deferredEnqueueTask = nil
         Task {
+            await pending?.value
             await ingestionService?.finalize(with: result)
-            // After all spool data is written and finalized, start progressive
-            // materialization directly. The stats monitor also triggers this,
-            // but with fast execution the timing can race — this ensures it runs.
             beginProgressiveMaterialization()
         }
     }

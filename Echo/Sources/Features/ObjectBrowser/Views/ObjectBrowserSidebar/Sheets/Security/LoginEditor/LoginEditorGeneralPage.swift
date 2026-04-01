@@ -1,4 +1,5 @@
 import SwiftUI
+import SQLServerKit
 
 struct LoginEditorGeneralPage: View {
     @Bindable var viewModel: LoginEditorViewModel
@@ -31,6 +32,7 @@ struct LoginEditorGeneralPage: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
             }
+
             if viewModel.isEditing && viewModel.authType == .sql {
                 PropertyRow(
                     title: "Login is locked out",
@@ -79,29 +81,19 @@ struct LoginEditorGeneralPage: View {
                     Toggle("", isOn: $viewModel.enforcePasswordExpiration)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        import SwiftUI
-                        import SQLServerKit
+                }
+            }
+        }
 
-                        struct LoginEditorGeneralPage: View {
-                        ...
-                                Section("Status") {
-                                    PropertyRow(title: "Permission to connect to database engine") {
-                                        Picker("", selection: $viewModel.permissionConnectToEngine) {
-                                            Text("Grant").tag(ConnectSQLPermissionState.granted)
-                                            Text("Deny").tag(ConnectSQLPermissionState.denied)
-                                            Text("Unspecified").tag(ConnectSQLPermissionState.unspecified)
-                                        }
-                        ...
+        Section("Status") {
+            PropertyRow(title: "Permission to connect to database engine") {
+                Picker("", selection: $viewModel.permissionConnectToEngine) {
+                    Text("Grant").tag(ConnectSQLPermissionState.granted)
+                    Text("Deny").tag(ConnectSQLPermissionState.denied)
+                    Text("Unspecified").tag(ConnectSQLPermissionState.unspecified)
+                }
                 .labelsHidden()
                 .pickerStyle(.segmented)
-            }
-            if viewModel.isEditing && viewModel.authType == .sql {
-                PropertyRow(title: "Login is locked out") {
-                    Toggle("", isOn: $viewModel.isLocked)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .disabled(true)
-                }
             }
         }
 

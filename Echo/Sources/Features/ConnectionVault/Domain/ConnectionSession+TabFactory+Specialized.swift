@@ -6,6 +6,12 @@ import SQLServerKit
 
 extension ConnectionSession {
 
+    /// Display label for the server in tab subtitles — prefers connection name, falls back to host.
+    private var serverLabel: String {
+        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return connName.isEmpty ? connection.host : connName
+    }
+
     @discardableResult
     func addActivityMonitorTab() throws -> WorkspaceTab {
         // Reuse existing activity monitor tab if present
@@ -45,6 +51,7 @@ extension ConnectionSession {
             content: .activityMonitor(viewModel),
             activeDatabaseName: nil
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -72,6 +79,7 @@ extension ConnectionSession {
             title: "Extended Events",
             content: .extendedEvents(viewModel)
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -97,6 +105,7 @@ extension ConnectionSession {
             title: "SQL Profiler",
             content: .profiler(viewModel)
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -122,6 +131,7 @@ extension ConnectionSession {
             title: "Resource Governor",
             content: .resourceGovernor(viewModel)
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -149,6 +159,7 @@ extension ConnectionSession {
             title: "Server Properties",
             content: .serverProperties(viewModel)
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -175,6 +186,7 @@ extension ConnectionSession {
             title: "Tuning Advisor",
             content: .tuningAdvisor(viewModel)
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -199,6 +211,7 @@ extension ConnectionSession {
             title: "Policy Management",
             content: .policyManagement(viewModel)
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -226,6 +239,7 @@ extension ConnectionSession {
             title: "Availability Groups",
             content: .availabilityGroups(viewModel)
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -245,15 +259,15 @@ extension ConnectionSession {
         viewModel.activityEngine = AppDirector.shared.activityEngine
         viewModel.notificationEngine = AppDirector.shared.notificationEngine
 
-        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
             title: "Error Log",
             content: .errorLog(viewModel),
-            activeDatabaseName: connName.isEmpty ? connection.host : connName
+            activeDatabaseName: nil
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -276,14 +290,50 @@ extension ConnectionSession {
         )
         viewModel.activityEngine = AppDirector.shared.activityEngine
 
-        let connName = connection.connectionName
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
             title: "Advanced Objects",
             content: .postgresAdvancedObjects(viewModel),
-            activeDatabaseName: connName.isEmpty ? connection.host : connName
+            activeDatabaseName: nil
+        )
+        tab.tabSubtitle = serverLabel
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    // MARK: - Advanced Objects Tab (MSSQL)
+
+    @discardableResult
+    func addMSSQLAdvancedObjectsTab(databaseName: String) -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.mssqlAdvancedObjectsVM != nil }) {
+            if let vm = existing.mssqlAdvancedObjectsVM, vm.databaseName != databaseName {
+                vm.databaseName = databaseName
+                vm.isInitialized = false
+                Task { await vm.initialize() }
+            }
+            activeQueryTabID = existing.id
+            return existing
+        }
+
+        let viewModel = MSSQLAdvancedObjectsViewModel(
+            session: session,
+            connectionID: connection.id,
+            connectionSessionID: id,
+            databaseName: databaseName
+        )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
+
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Advanced Objects",
+            content: .mssqlAdvancedObjects(viewModel),
+            activeDatabaseName: databaseName
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -314,6 +364,7 @@ extension ConnectionSession {
             title: "Schema Diff",
             content: .schemaDiff(viewModel)
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -335,6 +386,7 @@ extension ConnectionSession {
             title: "Query Builder",
             content: .queryBuilder(viewModel)
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
@@ -463,16 +515,15 @@ extension ConnectionSession {
         )
         viewModel.activityEngine = AppDirector.shared.activityEngine
 
-        let connName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let serverLabel = connName.isEmpty ? connection.host : connName
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
             title: "Server Security",
             content: .serverSecurity(viewModel),
-            activeDatabaseName: serverLabel
+            activeDatabaseName: nil
         )
+        tab.tabSubtitle = serverLabel
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()

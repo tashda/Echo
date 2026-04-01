@@ -38,4 +38,7 @@ protocol AuthBackend: Sendable {
 
     /// Link an additional auth method to an existing account.
     func linkAccount(method: AuthMethod, accessToken: String, payload: Data) async throws -> AuthUser
+
+    /// Update the user's display name in the auth backend.
+    func updateDisplayName(_ name: String) async throws -> AuthUser
 }

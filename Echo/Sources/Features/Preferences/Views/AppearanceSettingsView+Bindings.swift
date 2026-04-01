@@ -75,6 +75,17 @@ extension AppearanceSettingsView {
         )
     }
 
+    var toolbarProjectButtonStyleBinding: Binding<ToolbarProjectButtonStyle> {
+        Binding(
+            get: { projectStore.globalSettings.toolbarProjectButtonStyle },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.toolbarProjectButtonStyle = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
+
     var customAccentColorHexBinding: Binding<String> {
         Binding(
             get: { projectStore.globalSettings.customAccentColorHex ?? "" },

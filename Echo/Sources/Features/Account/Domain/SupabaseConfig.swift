@@ -1,10 +1,25 @@
 import Foundation
+import Supabase
 
 /// Configuration for the self-hosted Supabase backend.
 /// Values are injected via Info.plist from the gitignored Secrets.xcconfig.
 /// If the keys are missing (open-source clone without Secrets.xcconfig), the app
 /// falls back to stub auth and cloud sync is unavailable.
 enum SupabaseConfig {
+
+    /// Single shared SupabaseClient used by both auth and sync.
+    /// Ensures they share the same JWT session.
+    static let sharedClient: SupabaseClient? = {
+        guard let baseURL, let anonKey else { return nil }
+        return SupabaseClient(
+            supabaseURL: baseURL,
+            supabaseKey: anonKey,
+            options: .init(auth: .init(
+                redirectToURL: URL(string: redirectURI),
+                emitLocalSessionAsInitialSession: true
+            ))
+        )
+    }()
     static let baseURL: URL? = {
         guard let string = Bundle.main.infoDictionary?["SUPABASE_URL"] as? String,
               !string.isEmpty,

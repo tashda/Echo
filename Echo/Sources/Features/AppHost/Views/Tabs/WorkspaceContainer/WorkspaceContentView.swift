@@ -23,7 +23,7 @@ struct WorkspaceContentView: View {
             tabContentView
         }
         .sheet(item: $selectedSQLContext) { context in
-            SQLInspectorPopover(context: context) { sql, database in
+            SQLInspectorSheet(context: context) { sql, database in
                 if let session = environmentState.sessionGroup.sessionForConnection(tab.connection.id) {
                     environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
                 } else {
@@ -94,6 +94,10 @@ struct WorkspaceContentView: View {
         case .postgresAdvancedObjects:
             if let vm = tab.postgresAdvancedObjectsVM {
                 PostgresAdvancedObjectsView(viewModel: vm).background(ColorTokens.Background.primary)
+            }
+        case .mssqlAdvancedObjects:
+            if let vm = tab.mssqlAdvancedObjectsVM {
+                MSSQLAdvancedObjectsView(viewModel: vm).background(ColorTokens.Background.primary)
             }
         case .schemaDiff:
             if let vm = tab.schemaDiffVM {

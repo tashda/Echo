@@ -56,7 +56,7 @@ struct CellValueInspectorPanel: View {
             }
 
             Text(displayValue)
-                .font(.system(.body, design: .monospaced))
+                .font(TypographyTokens.code)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(SpacingTokens.sm)

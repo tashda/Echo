@@ -16,7 +16,7 @@ struct AccountSettingsView: View {
 
     private var signedInContent: some View {
         Form {
-            SignedInAccountCard(authState: authState)
+            SignedInAccountCard(authState: authState, syncEngine: AppDirector.shared.syncEngine)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

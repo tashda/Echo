@@ -99,6 +99,19 @@ struct StubAuthBackend: AuthBackend {
         )
     }
 
+    func updateDisplayName(_ name: String) async throws -> AuthUser {
+        try await Task.sleep(for: .milliseconds(300))
+        return AuthUser(
+            userID: "stub-updated",
+            email: "user@example.com",
+            displayName: name,
+            authMethod: .apple,
+            createdAt: Date(),
+            avatarURL: nil,
+            linkedMethods: []
+        )
+    }
+
     // MARK: - Private
 
     private func makeStubTokens(identityToken: String? = nil) -> AuthTokens {

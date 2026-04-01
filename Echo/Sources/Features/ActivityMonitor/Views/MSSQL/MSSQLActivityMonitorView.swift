@@ -66,7 +66,7 @@ struct MSSQLActivityMonitorView: View {
                 hasPermission: !viewModel.permissionDenied,
                 hasSnapshot: viewModel.isReady,
                 selectedSQLContext: $selectedSQLContext,
-                onOpenInQueryWindow: { sql, db in openInQueryWindow(sql: sql, database: db) }
+                onOpenInQueryWindow: { sql, db in environmentState.openFormattedQueryTab(sql: sql, database: db, connectionID: viewModel.connectionID, dialect: .microsoftSQL) }
             ) {
                 sectionPicker
             } sparklines: {
@@ -153,7 +153,7 @@ struct MSSQLActivityMonitorView: View {
                     sortOrder: $queriesSortOrder,
                     selection: $selectedQueryIDs,
                     onPopout: { sql in popout(sql) },
-                    onOpenInQueryWindow: { sql, db in openInQueryWindow(sql: sql, database: db) },
+                    onOpenInQueryWindow: { sql, db in environmentState.openFormattedQueryTab(sql: sql, database: db, connectionID: viewModel.connectionID, dialect: .microsoftSQL) },
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
                 )
             case .xevents:
@@ -222,14 +222,4 @@ struct MSSQLActivityMonitorView: View {
         }
     }
 
-    private func openInQueryWindow(sql: String, database: String? = nil) {
-        Task {
-            let formatted = (try? await SQLFormatter.shared.format(sql: sql, dialect: .microsoftSQL)) ?? sql
-            if let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) {
-                environmentState.openQueryTab(for: session, presetQuery: formatted, database: database)
-            } else {
-                environmentState.openQueryTab(presetQuery: formatted, database: database)
-            }
-        }
-    }
 }

@@ -171,13 +171,14 @@ extension SQLServerSessionAdapter {
                             ))
                         } else if canUseRawPath {
                             let (buffers, lengths, totalLength) = row.rawColumnBuffers()
+                            let encodedRow = ResultStreamBatchWorker.encodeBinaryRow(
+                                totalLength: totalLength,
+                                buffers: buffers,
+                                lengths: lengths
+                            )
                             pendingPayloads.append(ResultStreamBatchWorker.Payload(
                                 previewValues: nil,
-                                storage: .raw(ResultStreamBatchWorker.RawRow(
-                                    buffers: buffers,
-                                    lengths: lengths,
-                                    totalLength: totalLength
-                                )),
+                                storage: .encoded(encodedRow),
                                 totalRowCount: primaryRowCount,
                                 decodeDuration: 0
                             ))

@@ -104,6 +104,18 @@ struct ResultGridColorOverrides: Codable, Hashable {
     var textHex: String?
 }
 
+enum ToolbarProjectButtonStyle: String, Codable, Hashable, CaseIterable {
+    case account
+    case projectIcon
+
+    var displayName: String {
+        switch self {
+        case .account: return "Account"
+        case .projectIcon: return "Project Icon"
+        }
+    }
+}
+
 struct GlobalSettings: Codable, Hashable {
     var appearanceMode: AppearanceMode
     var defaultEditorFontSize: Double
@@ -184,6 +196,7 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarIconSize: SidebarIconSize = .medium
     var sidebarDensity: SidebarDensity = .medium
+    var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
     var hideInaccessibleDatabases: Bool = false
     var searchIncludeOfflineDatabases: Bool = false

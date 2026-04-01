@@ -25,7 +25,9 @@ struct MySQLActivityMonitorView: View {
             hasPermission: !viewModel.permissionDenied,
             hasSnapshot: viewModel.isReady,
             selectedSQLContext: $selectedSQLContext,
-            onOpenInQueryWindow: { _, _ in }
+            onOpenInQueryWindow: { sql, db in
+                environmentState.openFormattedQueryTab(sql: sql, database: db, connectionID: viewModel.connectionID, dialect: .mysql)
+            }
         ) {
             MySQLActivitySectionPicker(selection: $selectedSection)
                 .frame(maxWidth: 520)

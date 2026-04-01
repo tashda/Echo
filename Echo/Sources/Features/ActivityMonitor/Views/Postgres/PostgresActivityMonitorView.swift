@@ -80,7 +80,9 @@ struct PostgresActivityMonitorView: View {
             hasPermission: true,
             hasSnapshot: viewModel.isReady,
             selectedSQLContext: $selectedSQLContext,
-            onOpenInQueryWindow: openInQueryWindow
+            onOpenInQueryWindow: { sql, db in
+                environmentState.openFormattedQueryTab(sql: sql, database: db, connectionID: viewModel.connectionID, dialect: .postgres)
+            }
         ) {
             PostgresActivitySectionPicker(
                 selection: selectedSectionBinding,
@@ -200,13 +202,6 @@ struct PostgresActivityMonitorView: View {
         }
     }
 
-    private func openInQueryWindow(sql: String, database: String? = nil) {
-        if let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) {
-            environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
-        } else {
-            environmentState.openQueryTab(presetQuery: sql, database: database)
-        }
-    }
 
     private func openExtensionManager() {
         guard let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) else { return }

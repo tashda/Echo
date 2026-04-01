@@ -76,7 +76,7 @@ final class LoginEditorViewModel {
 
     // MARK: - Dirty Tracking
 
-    @ObservationIgnored private var snapshot: Snapshot?
+    @ObservationIgnored internal var snapshot: Snapshot?
 
     struct Snapshot {
         let loginEnabled: Bool

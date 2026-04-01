@@ -17,6 +17,10 @@ final class ConnectionStore {
     
     // MARK: - Dependencies
     private let repository: any ConnectionRepositoryProtocol
+
+    /// Called after any data change to notify the sync engine.
+    /// Parameters: (objectID, collection, projectID, isDelete)
+    var onDataChanged: ((_ id: UUID, _ collection: SyncCollection, _ projectID: UUID, _ isDelete: Bool) -> Void)?
     
     // MARK: - Initialization
     init(repository: any ConnectionRepositoryProtocol = ConnectionRepository()) {
@@ -65,8 +69,11 @@ final class ConnectionStore {
     func addConnection(_ connection: SavedConnection) async throws {
         connections.append(connection)
         try await saveConnections()
+        if let projectID = connection.projectID {
+            onDataChanged?(connection.id, .connections, projectID, false)
+        }
     }
-    
+
     func updateConnection(_ connection: SavedConnection) async throws {
         if let index = connections.firstIndex(where: { $0.id == connection.id }) {
             connections[index] = connection
@@ -74,18 +81,29 @@ final class ConnectionStore {
             connections.append(connection)
         }
         try await saveConnections()
+        if let projectID = connection.projectID {
+            onDataChanged?(connection.id, .connections, projectID, false)
+        }
     }
-    
+
     func deleteConnection(_ connection: SavedConnection) async throws {
+        let projectID = connection.projectID
         connections.removeAll { $0.id == connection.id }
         try await saveConnections()
+        if let projectID {
+            onDataChanged?(connection.id, .connections, projectID, true)
+        }
     }
-    
+
     func deleteFolder(_ folder: SavedFolder) async throws {
+        let projectID = folder.projectID
         folders.removeAll { $0.id == folder.id }
         try await saveFolders()
+        if let projectID {
+            onDataChanged?(folder.id, .folders, projectID, true)
+        }
     }
-    
+
     func updateFolder(_ folder: SavedFolder) async throws {
         if let index = folders.firstIndex(where: { $0.id == folder.id }) {
             folders[index] = folder
@@ -93,8 +111,11 @@ final class ConnectionStore {
             folders.append(folder)
         }
         try await saveFolders()
+        if let projectID = folder.projectID {
+            onDataChanged?(folder.id, .folders, projectID, false)
+        }
     }
-    
+
     func updateIdentity(_ identity: SavedIdentity) async throws {
         if let index = identities.firstIndex(where: { $0.id == identity.id }) {
             identities[index] = identity
@@ -102,10 +123,17 @@ final class ConnectionStore {
             identities.append(identity)
         }
         try await saveIdentities()
+        if let projectID = identity.projectID {
+            onDataChanged?(identity.id, .identities, projectID, false)
+        }
     }
-    
+
     func deleteIdentity(_ identity: SavedIdentity) async throws {
+        let projectID = identity.projectID
         identities.removeAll { $0.id == identity.id }
         try await saveIdentities()
+        if let projectID {
+            onDataChanged?(identity.id, .identities, projectID, true)
+        }
     }
 }

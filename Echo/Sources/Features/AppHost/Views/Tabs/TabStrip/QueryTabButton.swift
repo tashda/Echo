@@ -165,7 +165,7 @@ struct QueryTabButton: View {
                 .font(tabTitleFont)
                 .lineLimit(1)
                 .foregroundStyle(tabTitleColor)
-        } else if let dbName = tab.activeDatabaseName, !dbName.isEmpty {
+        } else if let dbName = tab.tabSubtitle ?? tab.activeDatabaseName, !dbName.isEmpty {
             HStack(spacing: SpacingTokens.xxxs) {
                 Text(displayedTitle)
                     .font(tabTitleFont)

@@ -106,6 +106,7 @@ import OSLog
     @ObservationIgnored var isLoadingForeignKeyMapping = false
     @ObservationIgnored var shouldPersistResults = false
     @ObservationIgnored var progressiveMaterializationTask: Task<Void, Never>?
+    @ObservationIgnored var deferredEnqueueTask: Task<Void, Never>?
     var additionalResults: [QueryResultSet] = []
     var selectedResultSetIndex: Int = 0
     /// Batch labels for multi-batch (GO) results. Nil for single-batch execution.

@@ -17,6 +17,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>SUPublicEDKey</key>
+	<string>A8LcOV+Qg2WqMJP8AVmskJ5S4EztjgRJ5aEbI2NlS3s=</string>
 	<key>GOOGLE_CLIENT_ID</key>
 	<string>${GOOGLE_CLIENT_ID}</string>
 	<key>SUPABASE_ANON_KEY</key>

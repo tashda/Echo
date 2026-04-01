@@ -115,8 +115,31 @@ jobs:
             if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
           done
         done
+    - name: Import signing certificate
+      env:
+        DEVELOPER_ID_CERT_BASE64: ${{ secrets.DEVELOPER_ID_CERT_BASE64 }}
+        DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+      run: |
+        # Create a temporary keychain for CI
+        KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
+        KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+        # Import certificate
+        CERT_PATH=$RUNNER_TEMP/certificate.p12
+        echo "$DEVELOPER_ID_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+        security import "$CERT_PATH" -P "$DEVELOPER_ID_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+        rm "$CERT_PATH"
+
+        # Add to search list so codesign finds it
+        security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
+
     - name: Determine version
       id: version
       run: |
@@ -131,18 +154,46 @@ jobs:
         echo "previous_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
         echo "patch=$PATCH" >> $GITHUB_OUTPUT
         echo "tag=v$FULL_VERSION" >> $GITHUB_OUTPUT
-    - name: Build Release
+
+    - name: Build Release (signed)
       run: |
         xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
           MARKETING_VERSION=${{ steps.version.outputs.full }} \
           CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
-          CODE_SIGN_IDENTITY="-" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
-    - name: Package
+          CODE_SIGN_IDENTITY="Developer ID Application" \
+          CODE_SIGN_STYLE=Manual \
+          DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+          ENABLE_HARDENED_RUNTIME=YES \
+          OTHER_CODE_SIGN_FLAGS='--options runtime --timestamp'
+
+    - name: Package DMG
       run: |
-        mkdir -p release
-        cp -R build/Build/Products/Release/Echo.app release/
-        codesign --force --deep -s - release/Echo.app
-        cd release && ditto -c -k --sequesterRsrc --keepParent Echo.app Echo.zip
+        mkdir -p release dmg-staging
+        cp -R build/Build/Products/Release/Echo.app dmg-staging/
+        ln -s /Applications dmg-staging/Applications
+        hdiutil create -volname "Echo" -srcfolder dmg-staging -ov -format UDZO release/Echo.dmg
+        codesign --force --sign "Developer ID Application" --timestamp release/Echo.dmg
+
+    - name: Notarize
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      run: |
+        # Submit for notarization
+        xcrun notarytool submit release/Echo.dmg \
+          --apple-id "$APPLE_ID" \
+          --password "$APPLE_ID_PASSWORD" \
+          --team-id "$APPLE_TEAM_ID" \
+          --wait --timeout 600
+
+        # Staple the notarization ticket
+        xcrun stapler staple release/Echo.dmg
+
+    - name: Create ZIP for Sparkle
+      run: |
+        cd dmg-staging && ditto -c -k --sequesterRsrc --keepParent Echo.app ../release/Echo.zip
+
     - name: Sparkle & Appcast
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
@@ -154,7 +205,8 @@ jobs:
         else
           ./bin/generate_appcast release/
         fi
-        mv release/appcast.xml . && mv release/Echo.zip .
+        cp release/appcast.xml .
+
     - name: Release Notes
       run: |
         python3 .github/scripts/generate_release_notes.py \
@@ -162,12 +214,18 @@ jobs:
           --new-tag "${{ steps.version.outputs.tag }}" \
           --previous-tag "${{ steps.version.outputs.previous_tag }}" \
           --output release-notes.md
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.version.outputs.tag }}
         name: Echo ${{ steps.version.outputs.full }}
         files: |
-          Echo.zip
+          release/Echo.dmg
+          release/Echo.zip
           appcast.xml
         body_path: release-notes.md
+
+    - name: Cleanup keychain
+      if: always()
+      run: security delete-keychain $RUNNER_TEMP/build.keychain-db 2>/dev/null || true

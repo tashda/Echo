@@ -205,7 +205,7 @@ struct TabPreviewCard: View {
             ExtendedEventsPreview()
         case .availabilityGroups:
             AvailabilityGroupsPreview()
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .mssqlAdvancedObjects:
             SecurityPreview()
         case .errorLog:
             EmptyPreviewPlaceholder(message: "Error Log")

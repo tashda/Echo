@@ -57,7 +57,7 @@ struct MySQLProgrammableObjectTemplateSheet: View {
                 }
 
                 TextEditor(text: $sqlBody)
-                    .font(.system(.body, design: .monospaced))
+                    .font(TypographyTokens.code)
                     .frame(minHeight: 180)
             }
 

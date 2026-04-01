@@ -118,7 +118,7 @@ struct TuningAdvisorView: View {
                     GroupBox("SQL Recommendation") {
                         VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                             Text(generateCreateIndexSQL(rec))
-                                .font(.system(.body, design: .monospaced))
+                                .font(TypographyTokens.code)
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 

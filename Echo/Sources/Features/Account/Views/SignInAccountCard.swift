@@ -1,139 +1,121 @@
-import SwiftUI
 import AuthenticationServices
+import SwiftUI
 
-/// Sign-in card shown at the top of General settings when not signed in.
+/// Compact sign-in row shown in General settings when not signed in.
 struct SignInAccountCard: View {
     @Bindable var authState: AuthState
 
-    @State private var email = ""
     @State private var showOTPVerification = false
+    @State private var hoveredProvider: AuthMethod?
 
     var body: some View {
         Section {
-            VStack(spacing: SpacingTokens.lg) {
-                headerContent
-                oauthButtons
-                dividerRow
-                emailSection
-
-                if let error = authState.error {
-                    errorBanner(error)
-                }
+            if showOTPVerification {
+                otpContent
+            } else {
+                signInRow
             }
-            .padding(.vertical, SpacingTokens.sm)
-            .frame(maxWidth: 320)
-            .frame(maxWidth: .infinity)
+
+            if let error = authState.error {
+                errorBanner(error)
+            }
         } header: {
             Text("Echo Account")
         }
     }
 
-    // MARK: - Header
+    // MARK: - Compact Sign-In Row
 
-    private var headerContent: some View {
-        VStack(spacing: SpacingTokens.xs) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: 44))
-                .foregroundStyle(.tertiary)
+    private var signInRow: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sign in to Echo")
+                    .font(TypographyTokens.prominent)
 
-            Text("Sign in to Echo")
-                .font(TypographyTokens.prominent)
+                Text("Sync connections and settings across devices")
+                    .font(TypographyTokens.formDescription)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
 
-            Text("Sync connections, settings, and snippets across your devices.")
-                .font(TypographyTokens.formDescription)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .multilineTextAlignment(.center)
+            Spacer()
+
+            HStack(spacing: SpacingTokens.sm) {
+                appleSignInButton
+                googleSignInButton
+                emailSignInButton
+            }
         }
+        .padding(.vertical, SpacingTokens.xs)
     }
 
-    // MARK: - OAuth Buttons
+    // MARK: - Provider Buttons
 
-    private var oauthButtons: some View {
-        VStack(spacing: SpacingTokens.xs) {
-            // Apple — use the native SignInWithAppleButton for compliance
-            SignInWithAppleButton(.signIn) { request in
-                request.requestedScopes = [.fullName, .email]
-            } onCompletion: { result in
-                handleAppleResult(result)
+    private var appleSignInButton: some View {
+        Button {
+            Task { await signInWithApple() }
+        } label: {
+            providerButton(method: .apple) {
+                Image(systemName: "apple.logo")
+                    .font(.system(size: 16, weight: .medium))
             }
-            .signInWithAppleButtonStyle(.whiteOutline)
-            .frame(height: 36)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .help("Sign in with Apple")
+    }
 
-            // Google — styled to match Apple button height and weight
-            Button {
-                Task { await signInWithGoogle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "globe")
-                        .font(.system(size: 14, weight: .medium))
-                    Text("Sign in with Google")
-                        .font(.system(size: 14, weight: .medium))
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 36)
-                .contentShape(Rectangle())
+    private var googleSignInButton: some View {
+        Button {
+            Task { await authState.signInWithGoogleOAuth() }
+        } label: {
+            providerButton(method: .google) {
+                Image("GoogleLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
             }
-            .buttonStyle(.plain)
+        }
+        .buttonStyle(.plain)
+        .help("Sign in with Google")
+    }
+
+    private var emailSignInButton: some View {
+        Button {
+            showOTPVerification = true
+        } label: {
+            providerButton(method: .email) {
+                Image(systemName: "envelope.fill")
+                    .font(.system(size: 14))
+            }
+        }
+        .buttonStyle(.plain)
+        .help("Sign in with Email")
+    }
+
+    private func providerButton<Icon: View>(method: AuthMethod, @ViewBuilder icon: () -> Icon) -> some View {
+        icon()
+            .foregroundStyle(ColorTokens.Text.primary)
+            .frame(width: 40, height: 40)
             .background {
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(Color.primary.opacity(0.3), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(hoveredProvider == method ? Color.primary.opacity(0.08) : Color.clear)
+                    .animation(.easeInOut(duration: 0.15), value: hoveredProvider)
             }
-        }
-    }
-
-    // MARK: - Divider
-
-    private var dividerRow: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Rectangle()
-                .fill(Color.secondary.opacity(0.2))
-                .frame(height: 1)
-            Text("OR")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Rectangle()
-                .fill(Color.secondary.opacity(0.2))
-                .frame(height: 1)
-        }
-    }
-
-    // MARK: - Email Section
-
-    @ViewBuilder
-    private var emailSection: some View {
-        if showOTPVerification {
-            EmailOTPSignInView(authState: authState)
-        } else {
-            emailInputContent
-        }
-    }
-
-    private var emailInputContent: some View {
-        VStack(spacing: SpacingTokens.xs) {
-            TextField("", text: $email, prompt: Text("Email address"))
-                .textFieldStyle(.roundedBorder)
-                .textContentType(.emailAddress)
-
-            Button {
-                Task {
-                    await authState.sendOTP(email: email)
-                    if authState.error == nil {
-                        showOTPVerification = true
-                    }
-                }
-            } label: {
-                Text("Continue with Email")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 36)
-                    .background(Color.primary, in: RoundedRectangle(cornerRadius: 8))
+            .background {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.75)
             }
-            .buttonStyle(.plain)
-            .disabled(email.isEmpty || !email.contains("@") || authState.isLoading)
-            .opacity(email.isEmpty || !email.contains("@") ? 0.4 : 1)
-        }
+            .onHover { isHovered in
+                hoveredProvider = isHovered ? method : nil
+            }
+    }
+
+    // MARK: - OTP Flow
+
+    private var otpContent: some View {
+        EmailOTPSignInView(authState: authState, onBack: {
+            showOTPVerification = false
+            authState.cancelOTP()
+        })
     }
 
     // MARK: - Error Banner
@@ -155,50 +137,38 @@ struct SignInAccountCard: View {
 
     private func friendlyErrorMessage(_ error: AuthError) -> String {
         switch error {
-        case .otpInvalid:
-            return "That verification code is incorrect. Please try again."
-        case .otpExpired:
-            return "Your verification code has expired. Request a new one."
-        case .invalidCredentials:
-            return "Unable to verify your credentials. Please try again."
-        case .rateLimited(let seconds):
-            return "Too many attempts. Please wait \(seconds) seconds."
-        case .networkFailure:
-            return "Unable to connect. Check your internet and try again."
-        case .cancelled:
-            return "Sign-in was cancelled."
-        default:
-            return error.localizedDescription
+        case .otpInvalid: "That verification code is incorrect. Please try again."
+        case .otpExpired: "Your verification code has expired. Request a new one."
+        case .invalidCredentials: "Unable to verify your credentials. Please try again."
+        case .rateLimited(let seconds): "Too many attempts. Please wait \(seconds) seconds."
+        case .networkFailure: "Unable to connect. Check your internet and try again."
+        case .cancelled: "Sign-in was cancelled."
+        default: error.localizedDescription
         }
     }
 
     // MARK: - Apple Sign In
 
-    private func handleAppleResult(_ result: Result<ASAuthorization, any Error>) {
-        switch result {
-        case .success(let authorization):
-            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
-                  let identityToken = credential.identityToken,
+    private func signInWithApple() async {
+        let coordinator = AppleSignInCoordinator()
+        do {
+            let credential = try await coordinator.signIn()
+            guard let identityToken = credential.identityToken,
                   let authorizationCode = credential.authorizationCode else {
                 authState.setError(.unknown("Missing Apple credential data."))
                 return
             }
-            Task {
-                await authState.signInWithApple(
-                    identityToken: identityToken,
-                    authorizationCode: authorizationCode,
-                    fullName: credential.fullName
-                )
-            }
-        case .failure(let error):
-            if (error as? ASAuthorizationError)?.code == .canceled { return }
+            await authState.signInWithApple(
+                identityToken: identityToken,
+                authorizationCode: authorizationCode,
+                fullName: credential.fullName
+            )
+        } catch let error as AuthError {
+            if case .cancelled = error { return }
+            authState.setError(error)
+            return
+        } catch {
             authState.setError(.unknown(error.localizedDescription))
         }
-    }
-
-    // MARK: - Google Sign In
-
-    private func signInWithGoogle() async {
-        await authState.signInWithGoogleOAuth()
     }
 }

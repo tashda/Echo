@@ -31,7 +31,7 @@ struct ActivityMonitorTabFrame<SectionPicker: View, Sparklines: View, SectionCon
         }
         .background(ColorTokens.Background.primary)
         .sheet(item: $selectedSQLContext) { context in
-            SQLInspectorPopover(context: context) { sql, database in
+            SQLInspectorSheet(context: context) { sql, database in
                 onOpenInQueryWindow(sql, database)
             }
         }

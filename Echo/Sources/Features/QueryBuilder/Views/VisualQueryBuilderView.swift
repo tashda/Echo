@@ -268,7 +268,7 @@ struct VisualQueryBuilderView: View {
 
             ScrollView {
                 Text(viewModel.generatedSQL)
-                    .font(.system(.body, design: .monospaced))
+                    .font(TypographyTokens.code)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(SpacingTokens.sm)
                     .textSelection(.enabled)

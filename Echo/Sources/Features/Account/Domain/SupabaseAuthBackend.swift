@@ -8,15 +8,9 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
 
     private let client: SupabaseClient
 
-    init?(baseURL: URL? = SupabaseConfig.baseURL, anonKey: String? = SupabaseConfig.anonKey) {
-        guard let baseURL, let anonKey else { return nil }
-        self.client = SupabaseClient(
-            supabaseURL: baseURL,
-            supabaseKey: anonKey,
-            options: .init(auth: .init(
-                redirectToURL: URL(string: SupabaseConfig.redirectURI)
-            ))
-        )
+    init?() {
+        guard let client = SupabaseConfig.sharedClient else { return nil }
+        self.client = client
     }
 
     // MARK: - Apple Sign In
@@ -33,7 +27,30 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
             )
         )
 
-        let user = mapUser(from: session.user, fallbackMethod: .apple)
+        // Apple only provides the user's full name on the first sign-in.
+        // Save it to user metadata immediately so it persists in Supabase.
+        if let fullName {
+            var nameParts: [String] = []
+            if let givenName = fullName.givenName { nameParts.append(givenName) }
+            if let familyName = fullName.familyName { nameParts.append(familyName) }
+            let fullNameString = nameParts.joined(separator: " ")
+
+            if !fullNameString.isEmpty {
+                _ = try? await client.auth.update(
+                    user: UserAttributes(
+                        data: [
+                            "full_name": .string(fullNameString),
+                            "given_name": .string(fullName.givenName ?? ""),
+                            "family_name": .string(fullName.familyName ?? ""),
+                        ]
+                    )
+                )
+            }
+        }
+
+        // Re-fetch the session to pick up the updated metadata
+        let currentUser = try await client.auth.session.user
+        let user = mapUser(from: currentUser, fallbackMethod: .apple)
         let tokens = mapTokens(from: session)
         return (user, tokens)
     }
@@ -48,10 +65,12 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
     }
 
     /// SDK-managed Google OAuth flow. Opens ASWebAuthenticationSession internally.
+    /// Forces the Google account picker so users can choose or switch accounts.
     func signInWithGoogleOAuth() async throws -> (AuthUser, AuthTokens) {
         let session = try await client.auth.signInWithOAuth(
             provider: .google,
-            redirectTo: URL(string: SupabaseConfig.redirectURI)
+            redirectTo: URL(string: SupabaseConfig.redirectURI),
+            queryParams: [(name: "prompt", value: "select_account")]
         ) { (session: ASWebAuthenticationSession) in
             session.prefersEphemeralWebBrowserSession = false
         }
@@ -109,6 +128,16 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
     func linkAccount(method: AuthMethod, accessToken: String, payload: Data) async throws -> AuthUser {
         let session = try await client.auth.session
         return mapUser(from: session.user, fallbackMethod: method)
+    }
+
+    func updateDisplayName(_ name: String) async throws -> AuthUser {
+        try await client.auth.update(
+            user: UserAttributes(
+                data: ["full_name": .string(name)]
+            )
+        )
+        let updatedUser = try await client.auth.session.user
+        return mapUser(from: updatedUser, fallbackMethod: .apple)
     }
 
     // MARK: - Mapping

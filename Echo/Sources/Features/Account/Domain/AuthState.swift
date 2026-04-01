@@ -158,6 +158,24 @@ final class AuthState {
         currentUser = nil
     }
 
+    // MARK: - Update Profile
+
+    func updateDisplayName(_ name: String) async {
+        error = nil
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let updatedUser = try await backend.updateDisplayName(name)
+            try await tokenStore.saveUser(updatedUser)
+            currentUser = updatedUser
+        } catch let authError as AuthError {
+            error = authError
+        } catch {
+            self.error = .unknown(error.localizedDescription)
+        }
+    }
+
     // MARK: - Error Reporting
 
     /// Set an error from external callers (e.g. sign-in view callbacks).

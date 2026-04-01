@@ -208,7 +208,7 @@ extension LoginEditorViewModel {
     private func syncServerPermissions(ssec: SQLServerServerSecurityClient, loginName: String) async throws {
         // Handle CONNECT SQL separately from the main loop
         if let originalConnectState = snapshot?.permissionStates[ServerPermissionName.connectSql.rawValue] {
-            let originalState = ConnectPermissionState(
+            let originalState = ConnectSQLPermissionState(
                 isGranted: originalConnectState.isGranted,
                 isDenied: originalConnectState.isDenied
             )

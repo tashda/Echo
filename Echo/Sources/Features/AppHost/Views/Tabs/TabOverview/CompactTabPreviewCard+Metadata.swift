@@ -36,7 +36,7 @@ extension CompactTabPreviewCard {
             return []
         case .availabilityGroups:
             return []
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff, .queryBuilder:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .mssqlAdvancedObjects, .schemaDiff, .queryBuilder:
             return []
         case .errorLog:
             return []
@@ -82,7 +82,7 @@ extension CompactTabPreviewCard {
             return "Availability Groups"
         case .databaseSecurity, .postgresSecurity, .mysqlSecurity:
             return "Database Security"
-        case .postgresAdvancedObjects:
+        case .postgresAdvancedObjects, .mssqlAdvancedObjects:
             return "Advanced Objects"
         case .schemaDiff:
             return "Schema Diff"
@@ -141,6 +141,8 @@ extension CompactTabPreviewCard {
             return "Database security management"
         case .postgresAdvancedObjects:
             return "Advanced PostgreSQL object management"
+        case .mssqlAdvancedObjects:
+            return "Change Tracking, CDC, Full-Text Search, Replication"
         case .schemaDiff:
             return "Compare schema objects between schemas"
         case .serverSecurity:

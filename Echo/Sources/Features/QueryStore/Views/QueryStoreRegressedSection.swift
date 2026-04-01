@@ -3,6 +3,8 @@ import SQLServerKit
 
 struct QueryStoreRegressedSection: View {
     @Bindable var viewModel: QueryStoreViewModel
+    var onPopout: ((String) -> Void)?
+    var onOpenInQueryWindow: ((_ sql: String, _ database: String?) -> Void)?
     var onDoubleClick: (() -> Void)?
     @State private var sortOrder = [
         KeyPathComparator(\SQLServerQueryStoreRegressedQuery.regressionRatio, order: .reverse)
@@ -24,14 +26,12 @@ struct QueryStoreRegressedSection: View {
                 .width(min: 40, ideal: 55, max: 70)
 
                 TableColumn("Query Text", value: \.queryText) { query in
-                    let flat = query.queryText.replacingOccurrences(of: "\n", with: " ")
-                        .replacingOccurrences(of: "\r", with: " ")
-                        .replacingOccurrences(of: "  ", with: " ")
-                    Text(flat.prefix(300))
-                        .font(TypographyTokens.Table.sql)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .help(String(query.queryText.prefix(1000)))
+                    SQLQueryCell(
+                        sql: query.queryText,
+                        databaseName: viewModel.databaseName,
+                        onPopout: { sql in onPopout?(sql) },
+                        onOpenInQueryWindow: onOpenInQueryWindow
+                    )
                 }
                 .width(min: 250, ideal: 500)
 
@@ -69,7 +69,29 @@ struct QueryStoreRegressedSection: View {
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
             .tableColumnAutoResize()
-            .contextMenu(forSelectionType: Int.self) { _ in
+            .contextMenu(forSelectionType: Int.self) { selection in
+                if let queryId = selection.first,
+                   let query = viewModel.regressedQueries.first(where: { $0.queryId == queryId }) {
+                    Button {
+                        onPopout?(query.queryText)
+                    } label: {
+                        Label("Expand SQL", systemImage: "arrow.up.left.and.arrow.down.right")
+                    }
+
+                    Button {
+                        onOpenInQueryWindow?(query.queryText, viewModel.databaseName)
+                    } label: {
+                        Label("Open in Query Window", systemImage: "terminal")
+                    }
+
+                    Divider()
+
+                    Button {
+                        PlatformClipboard.copy(query.queryText)
+                    } label: {
+                        Label("Copy SQL", systemImage: "doc.on.doc")
+                    }
+                }
             } primaryAction: { _ in
                 onDoubleClick?()
             }

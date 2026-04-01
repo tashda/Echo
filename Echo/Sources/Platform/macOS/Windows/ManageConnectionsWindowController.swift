@@ -147,5 +147,6 @@ private struct ManageConnectionsWindowRootView: View {
             .environment(coordinator.appState)
             .environment(coordinator.appearanceStore)
             .environment(coordinator.clipboardHistory)
+            .environment(coordinator.authState)
     }
 }

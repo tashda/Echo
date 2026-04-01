@@ -143,7 +143,7 @@ private struct MouseNavigationCapture: NSViewRepresentable {
         private var canGoForward = false
         private var onBack: () -> Void = {}
         private var onForward: () -> Void = {}
-        private var monitor: Any?
+        private let monitorHolder = MonitorHolder()
         private weak var window: NSWindow?
 
         func update(canGoBack: Bool, canGoForward: Bool, onBack: @escaping () -> Void, onForward: @escaping () -> Void, window: NSWindow?) {
@@ -151,7 +151,7 @@ private struct MouseNavigationCapture: NSViewRepresentable {
             self.canGoForward = canGoForward
             self.onBack = onBack
             self.onForward = onForward
-            
+
             if self.window !== window {
                 self.window = window
                 setupMonitor()
@@ -159,19 +159,17 @@ private struct MouseNavigationCapture: NSViewRepresentable {
         }
 
         private func setupMonitor() {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-            }
-            guard let window else { return }
-            
+            monitorHolder.remove()
+            guard window != nil else { return }
+
             // Monitor local events for this window
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.otherMouseUp, .otherMouseDown]) { [weak self] event in
-                guard let self, 
+            let m = NSEvent.addLocalMonitorForEvents(matching: [.otherMouseUp, .otherMouseDown]) { [weak self] event in
+                guard let self,
                       let window = self.window,
                       event.window === window else {
                     return event
                 }
-                
+
                 // Button 3 = Back, Button 4 = Forward (Standard HID)
                 if event.buttonNumber == 3 {
                     if self.canGoBack {
@@ -188,8 +186,21 @@ private struct MouseNavigationCapture: NSViewRepresentable {
                         return nil // Consume both down and up
                     }
                 }
-                
+
                 return event
+            }
+            monitorHolder.monitor = m
+        }
+    }
+
+    /// Holds the NSEvent monitor in a way that can be cleaned up from nonisolated deinit.
+    private final class MonitorHolder: @unchecked Sendable {
+        var monitor: Any?
+
+        func remove() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
             }
         }
 

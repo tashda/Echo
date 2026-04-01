@@ -16,13 +16,8 @@ struct SchemaDiagramNodeView: View {
             Divider()
                 .foregroundStyle(palette.nodeBorder)
             columnsList
-
-            if !node.indexes.isEmpty {
-                Divider()
-                    .foregroundStyle(palette.nodeBorder)
-                indexesList
-            }
         }
+        .frame(minWidth: 200)
         .fixedSize(horizontal: true, vertical: false)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -71,23 +66,6 @@ struct SchemaDiagramNodeView: View {
         }
         .padding(.horizontal, SpacingTokens.sm2)
         .padding(.vertical, SpacingTokens.sm)
-        .fixedSize(horizontal: true, vertical: false)
-    }
-
-    private var indexesList: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-            Text("Indexes")
-                .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(palette.columnDetail)
-                .padding(.bottom, SpacingTokens.xxs)
-
-            ForEach(node.indexes) { index in
-                IndexRow(index: index, palette: palette)
-            }
-        }
-        .padding(.horizontal, SpacingTokens.sm2)
-        .padding(.vertical, SpacingTokens.sm)
-        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var dragGesture: some Gesture {
@@ -100,9 +78,11 @@ struct SchemaDiagramNodeView: View {
                     isDraggingNode = true
                 }
                 let origin = dragStartPosition ?? node.position
+                // Clamp the zoom divisor to prevent excessive movement at low zoom
+                let effectiveZoom = max(zoom, 0.5)
                 let delta = CGSize(
-                    width: value.translation.width / zoom,
-                    height: value.translation.height / zoom
+                    width: value.translation.width / effectiveZoom,
+                    height: value.translation.height / effectiveZoom
                 )
                 let newPosition = CGPoint(
                     x: origin.x + delta.width,
@@ -116,9 +96,10 @@ struct SchemaDiagramNodeView: View {
             }
             .onEnded { value in
                 let origin = dragStartPosition ?? node.position
+                let effectiveZoom = max(zoom, 0.5)
                 let delta = CGSize(
-                    width: value.translation.width / zoom,
-                    height: value.translation.height / zoom
+                    width: value.translation.width / effectiveZoom,
+                    height: value.translation.height / effectiveZoom
                 )
                 let newPosition = CGPoint(
                     x: origin.x + delta.width,
@@ -146,24 +127,23 @@ private struct ColumnRow: View {
             Image(systemName: columnIconName)
                 .font(TypographyTokens.label.weight(.medium))
                 .foregroundStyle(iconColor)
+                .frame(width: 12)
             Text(column.name)
                 .lineLimit(1)
-                .layoutPriority(1)
                 .font(TypographyTokens.caption2.weight(column.isPrimaryKey ? .semibold : .regular))
                 .foregroundStyle(palette.columnText)
-            Spacer(minLength: SpacingTokens.sm)
-            Text(column.dataType)
-                .lineLimit(1)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(palette.columnDetail)
+            Spacer(minLength: SpacingTokens.lg)
             if !column.isNullable {
                 Text("NN")
                     .font(TypographyTokens.detail.weight(.medium))
                     .foregroundStyle(palette.accent.opacity(0.6))
             }
+            Text(column.dataType)
+                .lineLimit(1)
+                .font(TypographyTokens.detail)
+                .foregroundStyle(palette.columnDetail)
         }
         .padding(.vertical, SpacingTokens.xxs)
-        .fixedSize(horizontal: true, vertical: false)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(columnHighlightColor)
@@ -195,33 +175,46 @@ private struct ColumnRow: View {
     }
 }
 
-private struct IndexRow: View {
+// MARK: - Index Node (separate bubble)
+
+struct SchemaDiagramIndexNodeView: View {
     let index: SchemaDiagramIndex
     let palette: DiagramPalette
+    var position: CGPoint
+    let zoom: CGFloat
 
     var body: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            Image(systemName: index.isUnique ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
-                .font(TypographyTokens.label.weight(.medium))
-                .foregroundStyle(palette.columnDetail)
-            VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+            HStack(spacing: SpacingTokens.xs) {
+                Image(systemName: index.isUnique ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
+                    .font(TypographyTokens.detail.weight(.medium))
+                    .foregroundStyle(palette.accent.opacity(0.7))
                 Text(index.name)
                     .lineLimit(1)
-                    .font(TypographyTokens.detail.weight(.medium))
+                    .font(TypographyTokens.detail.weight(.semibold))
                     .foregroundStyle(palette.columnText)
-                Text(index.columns.joined(separator: ", "))
-                    .lineLimit(1)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(palette.columnDetail)
+                if index.isUnique {
+                    Text("UQ")
+                        .font(TypographyTokens.detail.weight(.bold))
+                        .foregroundStyle(palette.accent.opacity(0.6))
+                }
             }
-            Spacer(minLength: SpacingTokens.sm)
-            if index.isUnique {
-                Text("UQ")
-                    .font(TypographyTokens.detail.weight(.medium))
-                    .foregroundStyle(palette.accent.opacity(0.6))
-            }
+            Text(index.columns.joined(separator: ", "))
+                .lineLimit(2)
+                .font(TypographyTokens.detail)
+                .foregroundStyle(palette.columnDetail)
         }
-        .padding(.vertical, SpacingTokens.xxs)
-        .fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, SpacingTokens.sm)
+        .padding(.vertical, SpacingTokens.xs2)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(palette.nodeBackground.opacity(0.85))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(palette.nodeBorder.opacity(0.6), lineWidth: 0.5)
+        )
+        .shadow(color: palette.nodeShadow.opacity(0.5), radius: 6, x: 0, y: 3)
+        .fixedSize()
     }
 }

@@ -28,15 +28,54 @@ struct SchemaDiagramView: View {
     @State private var lastLoadingState: Bool = false
     @State internal var viewSize: CGSize = .zero
     @State internal var diagramSearchText: String = ""
-    @State internal var showCreateTableSheet = false
-    @State internal var showCreateRelationshipSheet = false
+    @State internal var showRelationships: Bool = true
+    @State internal var showIndexes: Bool = true
 
     internal let minZoom: CGFloat = 0.4
     internal let maxZoom: CGFloat = 2.5
 
     var body: some View {
+        if viewModel.isLoading && viewModel.nodes.isEmpty {
+            loadingPlaceholder
+        } else if let error = viewModel.errorMessage {
+            errorPlaceholder(error)
+        } else {
+            diagramContent
+        }
+    }
+
+    @ViewBuilder
+    private var loadingPlaceholder: some View {
+        TabInitializingPlaceholder(
+            icon: "rectangle.connected.to.line.below",
+            title: "Loading Diagram",
+            subtitle: viewModel.statusMessage ?? "Fetching structure and relationships\u{2026}"
+        )
+    }
+
+    @ViewBuilder
+    private func errorPlaceholder(_ error: String) -> some View {
+        VStack(spacing: SpacingTokens.md) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.largeTitle)
+                .foregroundStyle(ColorTokens.Status.error)
+            VStack(spacing: SpacingTokens.xxs) {
+                Text("Unable to Load Diagram")
+                    .font(TypographyTokens.standard.weight(.medium))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                Text(error)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var diagramContent: some View {
         GeometryReader { geometry in
             let shouldRenderEdges: Bool = {
+                guard showRelationships else { return false }
                 if viewModel.edges.count <= 200 {
                     return true
                 }
@@ -51,6 +90,7 @@ struct SchemaDiagramView: View {
                     offset: contentOffset,
                     palette: palette,
                     renderEdges: shouldRenderEdges,
+                    showIndexes: showIndexes,
                     searchFilter: diagramSearchText,
                     isDraggingNode: $isDraggingNode,
                     onLayoutCommitted: persistLayout
@@ -87,7 +127,11 @@ struct SchemaDiagramView: View {
                 }
                 lastLoadingState = newValue
             }
-            .overlay(statusOverlay)
+            .overlay {
+                if let message = viewModel.statusMessage, !message.isEmpty {
+                    DiagramBannerStatus(message: message, showsProgress: viewModel.isLoading, palette: palette)
+                }
+            }
             .overlay(alignment: .bottomLeading) {
                 if !viewModel.nodes.isEmpty && viewModel.nodes.count > 1 {
                     DiagramMinimapView(
@@ -108,31 +152,6 @@ struct SchemaDiagramView: View {
             }
         }
         .navigationTitle(viewModel.title)
-        .sheet(isPresented: $showCreateTableSheet) {
-            if let context = viewModel.context,
-               let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == context.connectionSessionID }) {
-                DiagramCreateTableSheet(
-                    schemaName: context.object.schema,
-                    databaseType: session.connection.databaseType,
-                    session: session.session
-                ) {
-                    refreshAfterDesignAction()
-                }
-            }
-        }
-        .sheet(isPresented: $showCreateRelationshipSheet) {
-            if let context = viewModel.context,
-               let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == context.connectionSessionID }) {
-                DiagramCreateRelationshipSheet(
-                    schemaName: context.object.schema,
-                    databaseType: session.connection.databaseType,
-                    session: session.session,
-                    availableTables: viewModel.nodes.map { (schema: $0.schema, name: $0.name, columns: $0.columns.map(\.name)) }
-                ) {
-                    refreshAfterDesignAction()
-                }
-            }
-        }
     }
 
     private func persistLayout() {
@@ -140,25 +159,6 @@ struct SchemaDiagramView: View {
         persistTask = Task { @MainActor [viewModel] in
             await diagramBuilder.persistDiagramLayout(for: viewModel)
             persistTask = nil
-        }
-    }
-
-    func openSchemaDiffFromDiagram() {
-        guard let context = viewModel.context,
-              let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == context.connectionSessionID }) else {
-            return
-        }
-
-        let tab = session.addSchemaDiffTab()
-        if let schemaDiff = tab.schemaDiffVM {
-            let resolved = SchemaDiffViewModel.resolvedSchemas(
-                availableSchemas: schemaDiff.availableSchemas,
-                preferredSource: context.object.schema,
-                currentSource: context.object.schema,
-                currentTarget: schemaDiff.targetSchema
-            )
-            schemaDiff.sourceSchema = resolved.source
-            schemaDiff.targetSchema = resolved.target
         }
     }
 

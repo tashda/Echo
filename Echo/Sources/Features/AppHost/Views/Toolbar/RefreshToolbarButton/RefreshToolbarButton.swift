@@ -125,6 +125,16 @@ struct RefreshToolbarButton: View {
                     }
                     return
                 }
+            case .diagram:
+                if let vm = activeTab.diagram {
+                    session.structureLoadingState = .loading(progress: nil)
+                    refreshTask = Task {
+                        await environmentState.diagramBuilder.refreshDiagram(for: vm)
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
             case .profiler:
                 if let vm = activeTab.profilerVM {
                     vm.refresh() // Non-async but might start tasks

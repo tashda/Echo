@@ -13,6 +13,9 @@
 		0A41EC862F7C0B8500AD776A /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC852F7C0B8500AD776A /* Realtime */; };
 		0A41EC882F7C0B8500AD776A /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC872F7C0B8500AD776A /* Storage */; };
 		0A41EC8A2F7C0B8500AD776A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC892F7C0B8500AD776A /* Supabase */; };
+		0A41ECB02F7C856800AD776A /* Crypto in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41ECAF2F7C856800AD776A /* Crypto */; };
+		0A41ECB22F7C856800AD776A /* CryptoExtras in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41ECB12F7C856800AD776A /* CryptoExtras */; };
+		0A41ECB42F7C856800AD776A /* _CryptoExtras in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41ECB32F7C856800AD776A /* _CryptoExtras */; };
 		0A6970C22F5EEF090027641E /* SQLiteNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C12F5EEF090027641E /* SQLiteNIO */; };
 		0A6970C52F5EEF5E0027641E /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C42F5EEF5E0027641E /* PostgresKit */; };
 		0A6970C72F5EEF5E0027641E /* PostgresWire in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C62F5EEF5E0027641E /* PostgresWire */; };
@@ -181,9 +184,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0A41ECB02F7C856800AD776A /* Crypto in Frameworks */,
 				0A41EC8A2F7C0B8500AD776A /* Supabase in Frameworks */,
 				0A41EC822F7C0B8500AD776A /* Functions in Frameworks */,
 				0A6970C52F5EEF5E0027641E /* PostgresKit in Frameworks */,
+				0A41ECB22F7C856800AD776A /* CryptoExtras in Frameworks */,
 				0A6970C72F5EEF5E0027641E /* PostgresWire in Frameworks */,
 				0A41EC862F7C0B8500AD776A /* Realtime in Frameworks */,
 				0A41EC802F7C0B8500AD776A /* Auth in Frameworks */,
@@ -193,6 +198,7 @@
 				0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */,
 				0A41EC882F7C0B8500AD776A /* Storage in Frameworks */,
 				0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */,
+				0A41ECB42F7C856800AD776A /* _CryptoExtras in Frameworks */,
 				0A698A422F5F88AA0027641E /* Sparkle in Frameworks */,
 				0A6970C22F5EEF090027641E /* SQLiteNIO in Frameworks */,
 			);
@@ -322,6 +328,9 @@
 				0A41EC852F7C0B8500AD776A /* Realtime */,
 				0A41EC872F7C0B8500AD776A /* Storage */,
 				0A41EC892F7C0B8500AD776A /* Supabase */,
+				0A41ECAF2F7C856800AD776A /* Crypto */,
+				0A41ECB12F7C856800AD776A /* CryptoExtras */,
+				0A41ECB32F7C856800AD776A /* _CryptoExtras */,
 			);
 			productName = Echo;
 			productReference = 0ADF94952E78B95200E993F8 /* Echo.app */;
@@ -409,6 +418,7 @@
 				0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */,
 				0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */,
 				0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0ADF94962E78B95200E993F8 /* Products */;
@@ -622,7 +632,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Echo/Echo.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Echo/EchoDebug.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -862,6 +872,14 @@
 				minimumVersion = 2.5.1;
 			};
 		};
+		0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-crypto";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.3.0;
+			};
+		};
 		0A6970C02F5EEF090027641E /* XCRemoteSwiftPackageReference "sqlite-nio" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/vapor/sqlite-nio";
@@ -942,6 +960,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		0A41ECAF2F7C856800AD776A /* Crypto */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */;
+			productName = Crypto;
+		};
+		0A41ECB12F7C856800AD776A /* CryptoExtras */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */;
+			productName = CryptoExtras;
+		};
+		0A41ECB32F7C856800AD776A /* _CryptoExtras */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */;
+			productName = _CryptoExtras;
 		};
 		0A6970C12F5EEF090027641E /* SQLiteNIO */ = {
 			isa = XCSwiftPackageProductDependency;

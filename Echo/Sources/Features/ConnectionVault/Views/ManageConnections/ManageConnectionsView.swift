@@ -10,6 +10,7 @@ struct ManageConnectionsView: View {
     @Environment(AppState.self) internal var appState
     @Environment(ClipboardHistoryStore.self) internal var clipboardHistory
     @Environment(AppearanceStore.self) internal var appearanceStore
+    @Environment(AuthState.self) internal var authState
     @Environment(\.dismiss) internal var dismiss
     internal let onClose: (() -> Void)?
 
