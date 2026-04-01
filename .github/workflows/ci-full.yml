@@ -160,10 +160,8 @@ jobs:
         xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
           MARKETING_VERSION=${{ steps.version.outputs.full }} \
           CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
-          CODE_SIGN_IDENTITY="Developer ID Application" \
-          CODE_SIGN_STYLE=Manual \
+          CODE_SIGN_STYLE=Automatic \
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
-          CODE_SIGN_ENTITLEMENTS=Echo/EchoRelease.entitlements \
           ENABLE_HARDENED_RUNTIME=YES \
           OTHER_CODE_SIGN_FLAGS='--options runtime --timestamp'
 
