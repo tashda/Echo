@@ -77,7 +77,7 @@ final class SparkleUpdater: NSObject {
 extension SparkleUpdater: SPUUpdaterDelegate {
     @objc func feedURLString(for updater: SPUUpdater) -> String? {
         // Hardcode the feed URL to ensure it's never missing
-        return "https://raw.githubusercontent.com/tashda/Echo/main/appcast.xml"
+        return "https://github.com/tashda/Echo/releases/latest/download/appcast.xml"
     }
     
     @objc func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
