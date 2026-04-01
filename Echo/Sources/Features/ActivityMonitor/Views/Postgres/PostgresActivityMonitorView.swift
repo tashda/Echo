@@ -80,7 +80,9 @@ struct PostgresActivityMonitorView: View {
             hasPermission: true,
             hasSnapshot: viewModel.isReady,
             selectedSQLContext: $selectedSQLContext,
-            onOpenInQueryWindow: openInQueryWindow
+            onOpenInQueryWindow: { sql, db in
+                environmentState.openFormattedQueryTab(sql: sql, database: db, connectionID: viewModel.connectionID, dialect: .postgres)
+            }
         ) {
             PostgresActivitySectionPicker(
                 selection: selectedSectionBinding,
@@ -186,7 +188,7 @@ struct PostgresActivityMonitorView: View {
     // MARK: - Actions
 
     private func popout(_ sql: String) {
-        selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details")
+        selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details", dialect: .postgres)
     }
 
     private func kill(_ id: Int) {
@@ -200,13 +202,6 @@ struct PostgresActivityMonitorView: View {
         }
     }
 
-    private func openInQueryWindow(sql: String) {
-        if let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) {
-            environmentState.openQueryTab(for: session, presetQuery: sql)
-        } else {
-            environmentState.openQueryTab(presetQuery: sql)
-        }
-    }
 
     private func openExtensionManager() {
         guard let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) else { return }

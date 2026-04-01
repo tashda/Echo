@@ -40,7 +40,7 @@ extension DatabaseEditorViewModel {
             isSaving = false
             if !info.isEmpty { statusMessage = info }
             if let updatedSession = session.session as? MSSQLSession {
-                mssqlFiles = (try? await updatedSession.admin.fetchDatabaseFiles(name: databaseName)) ?? mssqlFiles
+                mssqlFiles = (try? await updatedSession.admin.getDatabaseFiles(name: databaseName)) ?? mssqlFiles
             }
         } catch {
             isSaving = false

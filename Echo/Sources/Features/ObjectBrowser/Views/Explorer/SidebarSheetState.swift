@@ -57,23 +57,8 @@ final class SidebarSheetState {
     var showDatabaseMailSheet = false
     var databaseMailConnectionID: UUID?
 
-    // MARK: - Change Tracking / CDC
+    // MARK: - PostgreSQL Replication Drop Confirmations
 
-    var showChangeTrackingSheet = false
-    var changeTrackingDatabaseName: String?
-    var changeTrackingConnectionID: UUID?
-
-    // MARK: - Full-Text Search
-
-    var showFullTextSheet = false
-    var fullTextDatabaseName: String?
-    var fullTextConnectionID: UUID?
-
-    // MARK: - Replication
-
-    var showReplicationSheet = false
-    var replicationDatabaseName: String?
-    var replicationConnectionID: UUID?
     var pendingDropPublicationName: String?
     var pendingDropPublicationConnID: UUID?
     var pendingDropSubscriptionName: String?

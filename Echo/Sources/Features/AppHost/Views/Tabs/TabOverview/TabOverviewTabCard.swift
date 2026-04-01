@@ -201,13 +201,11 @@ struct TabPreviewCard: View {
             ActivityMonitorPreview(viewModel: tab.activityMonitor)
         case .maintenance, .mssqlMaintenance:
             MaintenancePreview()
-        case .queryStore:
-            QueryStorePreview(viewModel: tab.queryStoreVM)
         case .extendedEvents:
             ExtendedEventsPreview()
         case .availabilityGroups:
             AvailabilityGroupsPreview()
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .mssqlAdvancedObjects:
             SecurityPreview()
         case .errorLog:
             EmptyPreviewPlaceholder(message: "Error Log")
@@ -225,6 +223,8 @@ struct TabPreviewCard: View {
             TableDataTabPreview(viewModel: tab.tableDataVM)
         case .schemaDiff:
             EmptyPreviewPlaceholder(message: "Schema Diff")
+        case .queryBuilder:
+            EmptyPreviewPlaceholder(message: "Visual Query Builder")
         }
     }
 }
@@ -275,20 +275,6 @@ struct SecurityPreview: View {
                 .foregroundStyle(ColorTokens.Text.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-struct QueryStorePreview: View {
-    let viewModel: QueryStoreViewModel?
-    var body: some View {
-        VStack(spacing: SpacingTokens.xxs) {
-            Image(systemName: "chart.bar.xaxis")
-                .font(TypographyTokens.hero)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("Query Store")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
     }
 }
 

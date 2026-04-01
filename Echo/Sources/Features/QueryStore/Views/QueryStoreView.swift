@@ -6,6 +6,8 @@ struct QueryStoreView: View {
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppState.self) private var appState
 
+    @State private var selectedSQLContext: SQLPopoutContext?
+
     var body: some View {
         VStack(spacing: 0) {
             TabSectionToolbar {
@@ -47,6 +49,16 @@ struct QueryStoreView: View {
             }
         }
         .background(ColorTokens.Background.primary)
+        .sheet(item: $selectedSQLContext) { context in
+            SQLInspectorSheet(context: context) { sql, database in
+                environmentState.openFormattedQueryTab(
+                    sql: sql,
+                    database: database,
+                    connectionID: environmentState.sessionGroup.activeSessions.first(where: { $0.id == viewModel.connectionSessionID })?.connection.id ?? UUID(),
+                    dialect: .microsoftSQL
+                )
+            }
+        }
         .task {
             await viewModel.loadAll()
         }
@@ -97,11 +109,15 @@ struct QueryStoreView: View {
             case .topQueries:
                 QueryStoreTopQueriesSection(
                     viewModel: viewModel,
+                    onPopout: popout,
+                    onOpenInQueryWindow: openInQueryWindow,
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
                 )
             case .regressedQueries:
                 QueryStoreRegressedSection(
                     viewModel: viewModel,
+                    onPopout: popout,
+                    onOpenInQueryWindow: openInQueryWindow,
                     onDoubleClick: { appState.showInfoSidebar.toggle() }
                 )
             }
@@ -125,6 +141,17 @@ struct QueryStoreView: View {
         }
     }
 
+    // MARK: - Actions
+
+    private func popout(_ sql: String) {
+        selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details", databaseName: viewModel.databaseName, dialect: .microsoftSQL)
+    }
+
+    private func openInQueryWindow(_ sql: String, _ database: String?) {
+        let connectionID = environmentState.sessionGroup.activeSessions.first(where: { $0.id == viewModel.connectionSessionID })?.connection.id ?? UUID()
+        environmentState.openFormattedQueryTab(sql: sql, database: database, connectionID: connectionID, dialect: .microsoftSQL)
+    }
+
     // MARK: - Inspector
 
     private func pushQueryInspector(queryId: Int?) {
@@ -135,34 +162,34 @@ struct QueryStoreView: View {
         let topQuery = viewModel.topQueries.first(where: { $0.queryId == queryId })
         let regressedQuery = viewModel.regressedQueries.first(where: { $0.queryId == queryId })
 
-        var fields: [DatabaseObjectInspectorContent.Field] = []
-
         if let top = topQuery {
-            fields.append(.init(label: "Query", value: top.queryText))
-            fields.append(.init(label: "Query ID", value: "\(top.queryId)"))
-            fields.append(.init(label: "Executions", value: "\(top.totalExecutions)"))
-            fields.append(.init(label: "Total Duration", value: formatDuration(top.totalDurationUs)))
-            fields.append(.init(label: "Total CPU", value: formatDuration(top.totalCPUUs)))
-            fields.append(.init(label: "Total I/O Reads", value: "\(top.totalIOReads)"))
-            fields.append(.init(label: "Avg Duration", value: formatDuration(top.avgDurationUs)))
-            fields.append(.init(label: "Avg CPU", value: formatDuration(top.avgCPUUs)))
-
+            let fields: [DatabaseObjectInspectorContent.Field] = [
+                .init(label: "Query ID", value: "\(top.queryId)"),
+                .init(label: "Executions", value: "\(top.totalExecutions)"),
+                .init(label: "Total Duration", value: formatDuration(top.totalDurationUs)),
+                .init(label: "Total CPU", value: formatDuration(top.totalCPUUs)),
+                .init(label: "Total I/O Reads", value: "\(top.totalIOReads)"),
+                .init(label: "Avg Duration", value: formatDuration(top.avgDurationUs)),
+                .init(label: "Avg CPU", value: formatDuration(top.avgCPUUs)),
+            ]
             environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
                 title: "Query \(top.queryId)",
                 subtitle: "\(top.totalExecutions) executions \u{2022} \(formatDuration(top.totalDurationUs)) total",
+                sqlText: top.queryText,
                 fields: fields
             ))
         } else if let reg = regressedQuery {
-            fields.append(.init(label: "Query", value: reg.queryText))
-            fields.append(.init(label: "Query ID", value: "\(reg.queryId)"))
-            fields.append(.init(label: "Plans", value: "\(reg.planCount)"))
-            fields.append(.init(label: "Best Avg Duration", value: formatDuration(reg.minAvgDurationUs)))
-            fields.append(.init(label: "Worst Avg Duration", value: formatDuration(reg.maxAvgDurationUs)))
-            fields.append(.init(label: "Regression", value: String(format: "%.1fx", reg.regressionRatio)))
-
+            let fields: [DatabaseObjectInspectorContent.Field] = [
+                .init(label: "Query ID", value: "\(reg.queryId)"),
+                .init(label: "Plans", value: "\(reg.planCount)"),
+                .init(label: "Best Avg Duration", value: formatDuration(reg.minAvgDurationUs)),
+                .init(label: "Worst Avg Duration", value: formatDuration(reg.maxAvgDurationUs)),
+                .init(label: "Regression", value: String(format: "%.1fx", reg.regressionRatio)),
+            ]
             environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
                 title: "Query \(reg.queryId)",
                 subtitle: String(format: "%.1fx regression \u{2022} %d plans", reg.regressionRatio, reg.planCount),
+                sqlText: reg.queryText,
                 fields: fields
             ))
         }

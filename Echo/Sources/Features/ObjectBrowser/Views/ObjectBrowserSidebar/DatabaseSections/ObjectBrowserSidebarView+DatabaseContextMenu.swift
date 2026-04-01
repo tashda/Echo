@@ -46,13 +46,6 @@ func buildDatabaseNSMenu(
         }
     }
 
-    if dbType == .microsoftSQL {
-        let qsItem = menu.addActionItem("Query Store", systemImage: "chart.bar.xaxis") {
-            environmentState.openQueryStoreTab(connectionID: connID, databaseName: database.name)
-        }
-        qsItem.isEnabled = database.isOnline
-    }
-
     menu.addDivider()
 
     // Group 7: Maintenance
@@ -100,26 +93,20 @@ func buildDatabaseNSMenu(
     }
 
     if dbType == .microsoftSQL {
-        let ctItem = menu.addActionItem("Change Tracking / CDC", systemImage: "arrow.triangle.2.circlepath") {
-            sheetState.changeTrackingDatabaseName = database.name
-            sheetState.changeTrackingConnectionID = connID
-            sheetState.showChangeTrackingSheet = true
+        menu.addSubmenu("Advanced Objects", systemImage: "puzzlepiece.extension") { sub in
+            sub.addActionItem("Change Tracking", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90") {
+                environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .changeTracking)
+            }
+            sub.addActionItem("Change Data Capture", systemImage: "arrow.triangle.branch") {
+                environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .cdc)
+            }
+            sub.addActionItem("Full-Text Search", systemImage: "text.magnifyingglass") {
+                environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .fullTextSearch)
+            }
+            sub.addActionItem("Replication", systemImage: "arrow.triangle.swap") {
+                environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .replication)
+            }
         }
-        ctItem.isEnabled = database.isOnline
-
-        let ftItem = menu.addActionItem("Full-Text Search", systemImage: "text.magnifyingglass") {
-            sheetState.fullTextDatabaseName = database.name
-            sheetState.fullTextConnectionID = connID
-            sheetState.showFullTextSheet = true
-        }
-        ftItem.isEnabled = database.isOnline
-
-        let repItem = menu.addActionItem("Replication", systemImage: "arrow.triangle.swap") {
-            sheetState.replicationDatabaseName = database.name
-            sheetState.replicationConnectionID = connID
-            sheetState.showReplicationSheet = true
-        }
-        repItem.isEnabled = database.isOnline
 
         menu.addSubmenu("Tasks", systemImage: "gearshape") { sub in
             if database.isOnline {
@@ -157,6 +144,9 @@ func buildDatabaseNSMenu(
                 sub.addActionItem("Migrate Data...", systemImage: "arrow.right.arrow.left") {
                     sheetState.dataMigrationConnectionID = connID
                     sheetState.showDataMigrationWizard = true
+                }
+                sub.addActionItem("Visual Query Builder", systemImage: "hammer") {
+                    environmentState.openQueryBuilderTab(connectionID: connID)
                 }
                 sub.addDivider()
                 sub.addActionItem("Data-tier Application Tasks...", systemImage: "archivebox") {
@@ -264,15 +254,6 @@ extension ObjectBrowserSidebarView {
             }
         }
 
-        if session.connection.databaseType == .microsoftSQL {
-            Button {
-                environmentState.openQueryStoreTab(connectionID: connID, databaseName: database.name)
-            } label: {
-                Label("Query Store", systemImage: "chart.bar.xaxis")
-            }
-            .disabled(!database.isOnline)
-        }
-
         Divider()
 
         // Group 7: Maintenance
@@ -334,30 +315,30 @@ extension ObjectBrowserSidebarView {
         }
 
         if session.connection.databaseType == .microsoftSQL {
-            Button {
-                sheetState.changeTrackingDatabaseName = database.name
-                sheetState.changeTrackingConnectionID = connID
-                sheetState.showChangeTrackingSheet = true
-            } label: {
-                Label("Change Tracking / CDC", systemImage: "arrow.triangle.2.circlepath")
-            }
-            .disabled(!database.isOnline)
+            Menu("Advanced Objects", systemImage: "puzzlepiece.extension") {
+                Button {
+                    environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .changeTracking)
+                } label: {
+                    Label("Change Tracking", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                }
 
-            Button {
-                sheetState.fullTextDatabaseName = database.name
-                sheetState.fullTextConnectionID = connID
-                sheetState.showFullTextSheet = true
-            } label: {
-                Label("Full-Text Search", systemImage: "text.magnifyingglass")
-            }
-            .disabled(!database.isOnline)
+                Button {
+                    environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .cdc)
+                } label: {
+                    Label("Change Data Capture", systemImage: "arrow.triangle.branch")
+                }
 
-            Button {
-                sheetState.replicationDatabaseName = database.name
-                sheetState.replicationConnectionID = connID
-                sheetState.showReplicationSheet = true
-            } label: {
-                Label("Replication", systemImage: "arrow.triangle.swap")
+                Button {
+                    environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .fullTextSearch)
+                } label: {
+                    Label("Full-Text Search", systemImage: "text.magnifyingglass")
+                }
+
+                Button {
+                    environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .replication)
+                } label: {
+                    Label("Replication", systemImage: "arrow.triangle.swap")
+                }
             }
             .disabled(!database.isOnline)
 
@@ -424,6 +405,12 @@ extension ObjectBrowserSidebarView {
                         sheetState.showDataMigrationWizard = true
                     } label: {
                         Label("Migrate Data...", systemImage: "arrow.right.arrow.left")
+                    }
+
+                    Button {
+                        environmentState.openQueryBuilderTab(connectionID: connID)
+                    } label: {
+                        Label("Visual Query Builder", systemImage: "hammer")
                     }
 
                     Divider()

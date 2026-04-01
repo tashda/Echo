@@ -26,10 +26,10 @@ extension NewDatabaseSheet {
         let roles = (try? await client.security.listRoles()) ?? []
         pgRoles = roles.map(\.name).sorted()
 
-        pgTemplates = (try? await client.introspection.listDatabaseTemplates()) ?? ["template0", "template1"]
-        pgEncodings = (try? await client.introspection.listEncodings()) ?? ["UTF8"]
-        pgCollations = (try? await client.introspection.listCollations()) ?? []
-        pgTablespaces = (try? await client.introspection.listTablespaces()) ?? ["pg_default"]
+        pgTemplates = (try? await client.metadata.listDatabaseTemplates()) ?? ["template0", "template1"]
+        pgEncodings = (try? await client.metadata.listEncodings()) ?? ["UTF8"]
+        pgCollations = (try? await client.metadata.listCollations()) ?? []
+        pgTablespaces = (try? await client.metadata.listTablespaces()) ?? ["pg_default"]
     }
 
     private func loadMSSQLOptions() async throws {
@@ -103,8 +103,7 @@ extension NewDatabaseSheet {
     private func createMSSQLDatabase(name: String) async throws {
         guard let adapter = session.session as? SQLServerSessionAdapter else { return }
 
-        try await adapter.client.admin.createDatabase(
-            name: name,
+        let options = SQLServerCreateDatabaseOptions(
             collation: mssqlCollation.isEmpty ? nil : mssqlCollation,
             containment: mssqlContainment == "NONE" ? nil : mssqlContainment,
             dataFileName: mssqlDataFileName.isEmpty ? nil : mssqlDataFileName,
@@ -115,6 +114,10 @@ extension NewDatabaseSheet {
             logFileSize: mssqlLogFileSize == 8 ? nil : mssqlLogFileSize,
             logFileMaxSize: mssqlLogFileMaxSize == 0 ? nil : mssqlLogFileMaxSize,
             logFileGrowth: mssqlLogFileGrowth == 64 ? nil : mssqlLogFileGrowth
+        )
+        try await adapter.client.admin.createDatabase(
+            name: name,
+            options: options
         )
 
         // Change owner if specified

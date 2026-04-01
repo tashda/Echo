@@ -8,7 +8,7 @@ struct ActivityMonitorTabFrame<SectionPicker: View, Sparklines: View, SectionCon
     let hasPermission: Bool
     let hasSnapshot: Bool
     @Binding var selectedSQLContext: SQLPopoutContext?
-    let onOpenInQueryWindow: (String) -> Void
+    let onOpenInQueryWindow: (_ sql: String, _ database: String?) -> Void
     @ViewBuilder let sectionPicker: () -> SectionPicker
     @ViewBuilder let sparklines: () -> Sparklines
     @ViewBuilder let sectionContent: () -> SectionContent
@@ -31,8 +31,8 @@ struct ActivityMonitorTabFrame<SectionPicker: View, Sparklines: View, SectionCon
         }
         .background(ColorTokens.Background.primary)
         .sheet(item: $selectedSQLContext) { context in
-            SQLInspectorPopover(context: context) { sql in
-                onOpenInQueryWindow(sql)
+            SQLInspectorSheet(context: context) { sql, database in
+                onOpenInQueryWindow(sql, database)
             }
         }
     }

@@ -126,39 +126,6 @@ extension ObjectBrowserSidebarView {
                     )
                 }
             }
-            .sheet(isPresented: $sheetState.showChangeTrackingSheet) {
-                if let dbName = sheetState.changeTrackingDatabaseName,
-                   let connID = sheetState.changeTrackingConnectionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    ChangeTrackingSheet(
-                        databaseName: dbName,
-                        session: session,
-                        onDismiss: { sheetState.showChangeTrackingSheet = false }
-                    )
-                }
-            }
-            .sheet(isPresented: $sheetState.showFullTextSheet) {
-                if let dbName = sheetState.fullTextDatabaseName,
-                   let connID = sheetState.fullTextConnectionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    FullTextSearchSheet(
-                        databaseName: dbName,
-                        session: session,
-                        onDismiss: { sheetState.showFullTextSheet = false }
-                    )
-                }
-            }
-            .sheet(isPresented: $sheetState.showReplicationSheet) {
-                if let dbName = sheetState.replicationDatabaseName,
-                   let connID = sheetState.replicationConnectionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    ReplicationSheet(
-                        databaseName: dbName,
-                        session: session,
-                        onDismiss: { sheetState.showReplicationSheet = false }
-                    )
-                }
-            }
             .sheet(isPresented: $sheetState.showCMSSheet) {
                 if let connID = sheetState.cmsConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {

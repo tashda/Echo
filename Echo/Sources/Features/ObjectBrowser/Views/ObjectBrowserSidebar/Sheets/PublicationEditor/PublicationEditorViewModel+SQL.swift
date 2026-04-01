@@ -69,7 +69,7 @@ extension PublicationEditorViewModel {
 
         do {
             if isEditing {
-                try await pg.client.admin.dropPublication(name: publicationName, ifExists: true)
+                try await pg.client.replication.dropPublication(name: publicationName, ifExists: true)
             }
 
             var operations: [String] = []
@@ -78,7 +78,7 @@ extension PublicationEditorViewModel {
             if publishDelete { operations.append("delete") }
             if publishTruncate { operations.append("truncate") }
 
-            try await pg.client.admin.createPublication(
+            try await pg.client.replication.createPublication(
                 name: publicationName,
                 forAllTables: allTables,
                 tables: allTables ? nil : Array(selectedTables.sorted()),

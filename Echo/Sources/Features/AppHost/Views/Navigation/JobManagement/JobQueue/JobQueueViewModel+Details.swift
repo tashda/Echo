@@ -34,13 +34,13 @@ extension JobQueueViewModel {
             }
 
             // Steps
-            let stepTuples = try await agent.listSteps(jobName: jobName)
-            self.steps = stepTuples.map { step in
-                StepRow(id: step.id, name: step.name, subsystem: step.subsystem, database: step.database, command: step.command)
+            let stepDetails = try await agent.listSteps(jobName: jobName)
+            self.steps = stepDetails.map { step in
+                StepRow(id: step.stepId, name: step.name, subsystem: step.subsystem, database: step.databaseName, command: step.command)
             }
 
             // Schedules
-            let scheduleDetails = try await agent.getJobSchedules(jobName: jobName)
+            let scheduleDetails = try await agent.listJobSchedules(jobName: jobName)
             self.schedules = scheduleDetails.map { sch in
                 let nextRunStr = sch.nextRunDate.map { Self.formatDate($0) }
                 return ScheduleRow(

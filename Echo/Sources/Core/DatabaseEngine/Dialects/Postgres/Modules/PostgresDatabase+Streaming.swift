@@ -73,7 +73,7 @@ extension PostgresSession {
                         columnCount = columns.count
 
                         worker = ResultStreamBatchWorker(
-                            label: "dk.tippr.echo.postgres.simpleStreamWorker",
+                            label: "dev.echodb.echo.postgres.simpleStreamWorker",
                             columns: columns,
                             streamingPreviewLimit: initialPreviewBatch,
                             maxFlushLatency: maxFlushLatency,

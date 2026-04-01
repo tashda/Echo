@@ -3,7 +3,7 @@ import PostgresKit
 
 extension PostgresSession: ExecutionPlanProviding {
     func getEstimatedExecutionPlan(_ sql: String) async throws -> ExecutionPlanData {
-        let lines = try await client.connection.explain(
+        let lines = try await client.executionPlan.explain(
             sql,
             verbose: true,
             format: .json
@@ -12,7 +12,7 @@ extension PostgresSession: ExecutionPlanProviding {
         let planData = try parsePostgresExplainJSON(jsonString, isAnalyze: false)
 
         // Get the text plan for the Raw Plan tab
-        let textLines = try? await client.connection.explain(
+        let textLines = try? await client.executionPlan.explain(
             sql,
             verbose: true
         )
@@ -27,7 +27,7 @@ extension PostgresSession: ExecutionPlanProviding {
         // First execute the query to capture the result set
         let queryResult = try? await simpleQuery(sql)
 
-        let lines = try await client.connection.explain(
+        let lines = try await client.executionPlan.explain(
             sql,
             analyze: true,
             verbose: true,
@@ -38,7 +38,7 @@ extension PostgresSession: ExecutionPlanProviding {
         let planData = try parsePostgresExplainJSON(jsonString, isAnalyze: true)
 
         // Get the readable text plan for the Raw Plan tab
-        let textLines = try? await client.connection.explain(
+        let textLines = try? await client.executionPlan.explain(
             sql,
             analyze: true,
             verbose: true,

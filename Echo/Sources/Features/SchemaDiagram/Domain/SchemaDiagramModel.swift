@@ -26,13 +26,29 @@ struct SchemaDiagramColumn: Identifiable, Hashable {
     let dataType: String
     let isPrimaryKey: Bool
     let isForeignKey: Bool
+    let isNullable: Bool
 
-    init(name: String, dataType: String, isPrimaryKey: Bool, isForeignKey: Bool) {
+    init(name: String, dataType: String, isPrimaryKey: Bool, isForeignKey: Bool, isNullable: Bool = true) {
         self.id = name
         self.name = name
         self.dataType = dataType
         self.isPrimaryKey = isPrimaryKey
         self.isForeignKey = isForeignKey
+        self.isNullable = isNullable
+    }
+}
+
+struct SchemaDiagramIndex: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let columns: [String]
+    let isUnique: Bool
+
+    init(name: String, columns: [String], isUnique: Bool) {
+        self.id = name
+        self.name = name
+        self.columns = columns
+        self.isUnique = isUnique
     }
 }
 
@@ -48,18 +64,24 @@ final class SchemaDiagramNodeModel: Identifiable {
     @ObservationIgnored let name: String
     @ObservationIgnored let displayName: String
     @ObservationIgnored let columns: [SchemaDiagramColumn]
+    @ObservationIgnored let indexes: [SchemaDiagramIndex]
+    @ObservationIgnored let databaseName: String?
     var position: CGPoint
 
     init(
         schema: String,
         name: String,
         columns: [SchemaDiagramColumn],
+        indexes: [SchemaDiagramIndex] = [],
+        databaseName: String? = nil,
         position: CGPoint = .zero
     ) {
         self.schema = schema
         self.name = name
         self.displayName = "\(schema).\(name)"
         self.columns = columns
+        self.indexes = indexes
+        self.databaseName = databaseName
         self.position = position
         self.id = "\(schema).\(name)"
     }
@@ -100,6 +122,7 @@ final class SchemaDiagramViewModel {
     @ObservationIgnored var context: SchemaDiagramContext?
     @ObservationIgnored var cachedStructure: DiagramStructureSnapshot?
     @ObservationIgnored var cachedChecksum: String?
+    @ObservationIgnored var loadingTask: Task<Void, Never>?
 
     init(
         nodes: [SchemaDiagramNodeModel],

@@ -32,7 +32,7 @@ extension SubscriptionEditorViewModel {
     // MARK: - Existing Subscription
 
     private func loadExistingSubscription(pg: PostgresSession) async throws {
-        let subscriptions = try await pg.client.introspection.listSubscriptions()
+        let subscriptions = try await pg.client.metadata.listSubscriptions()
         guard let sub = subscriptions.first(where: { $0.name == subscriptionName }) else { return }
 
         connectionString = sub.connectionInfo

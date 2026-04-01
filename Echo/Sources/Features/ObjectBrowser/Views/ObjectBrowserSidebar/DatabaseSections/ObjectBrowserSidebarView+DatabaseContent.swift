@@ -6,7 +6,6 @@ extension ObjectBrowserSidebarView {
     func databaseContent(database: DatabaseInfo, session: ConnectionSession, hasSchemas: Bool, proxy: ScrollViewProxy) -> some View {
         let connID = session.connection.id
         let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
-        let alreadyLoaded = viewModel.isDatabaseSchemaLoadedOnce(connectionID: connID, databaseName: database.name)
 
         Group {
             if hasSchemas {
@@ -50,9 +49,8 @@ extension ObjectBrowserSidebarView {
                             .environment(viewModel)
                     }
 
-                    // Query Store (MSSQL only)
+                    // DDL Triggers, Service Broker, External Resources (MSSQL only)
                     if session.connection.databaseType == .microsoftSQL && database.isOnline {
-                        queryStoreRow(database: database, session: session)
                         databaseDDLTriggersSection(database: database, session: session)
                         serviceBrokerSection(database: database, session: session)
                         externalResourcesSection(database: database, session: session)
@@ -123,23 +121,4 @@ extension ObjectBrowserSidebarView {
         }
     }
 
-    // MARK: - Query Store Row
-
-    @ViewBuilder
-    func queryStoreRow(database: DatabaseInfo, session: ConnectionSession) -> some View {
-        let connID = session.connection.id
-        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
-
-        Button {
-            environmentState.openQueryStoreTab(connectionID: connID, databaseName: database.name)
-        } label: {
-            SidebarRow(
-                depth: 2,
-                icon: .system("chart.bar"),
-                label: "Query Store",
-                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Query Store", colored: colored)
-            )
-        }
-        .buttonStyle(.plain)
-    }
 }

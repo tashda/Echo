@@ -24,7 +24,7 @@ extension MySQLBackupRestoreViewModel {
             includeData: includeData,
             singleTransaction: singleTransaction
         )
-        let command = mysqlSession.client.admin.backupCommand(
+        let command = mysqlSession.client.backupRestore.backupCommand(
             host: connection.host,
             port: connection.port,
             username: resolvedUsername ?? connection.username,

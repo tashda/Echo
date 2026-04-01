@@ -48,6 +48,5 @@ struct LoginEditorServerRolesPage: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
         }
-        .disabled(role.wrappedValue.name == "public")
     }
 }

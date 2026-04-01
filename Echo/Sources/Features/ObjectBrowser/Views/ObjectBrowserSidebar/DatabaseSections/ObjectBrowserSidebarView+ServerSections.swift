@@ -10,9 +10,9 @@ extension ObjectBrowserSidebarView {
         let isExpanded = viewModel.expandedServerIDs.contains(connID)
         let isNewlyConnected = viewModel.recentlyConnectedIDs.contains(connID)
 
-        // Emit header and content as separate LazyVStack children so expanding
-        // a database doesn't change the height of a single monolithic VStack child.
-        // This gives LazyVStack per-item height tracking for stable scrollbar behavior.
+        // Emit header and content as separate children so expanding a database
+        // doesn't change the height of a single monolithic child.
+        // This gives the parent container per-item height tracking for stable scrollbar behavior.
         serverSectionHeader(session: session, isExpanded: isExpanded)
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(

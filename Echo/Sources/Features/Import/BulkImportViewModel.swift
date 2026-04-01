@@ -260,7 +260,7 @@ final class BulkImportViewModel {
             identityInsert: identityInsert
         )
 
-        let summary = try await adapter.client.bulkCopy.copy(rows: bcpRows, options: options)
+        let summary = try await adapter.client.bulk.copy(rows: bcpRows, options: options)
 
         timerTask?.cancel()
         importedRowCount = summary.totalRows

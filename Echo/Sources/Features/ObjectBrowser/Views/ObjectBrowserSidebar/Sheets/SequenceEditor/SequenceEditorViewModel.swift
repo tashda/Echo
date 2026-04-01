@@ -81,12 +81,17 @@ final class SequenceEditorViewModel {
         return false
     }
 
+    // MARK: - Dialect
+
+    let dialect: any SequenceEditorDialect
+
     // MARK: - Init
 
-    init(connectionSessionID: UUID, schemaName: String, existingSequenceName: String?) {
+    init(connectionSessionID: UUID, schemaName: String, existingSequenceName: String?, dialect: any SequenceEditorDialect) {
         self.connectionSessionID = connectionSessionID
         self.schemaName = schemaName
         self.existingSequenceName = existingSequenceName
+        self.dialect = dialect
         if let existingSequenceName {
             self.sequenceName = existingSequenceName
         }

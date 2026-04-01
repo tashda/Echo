@@ -7,7 +7,7 @@ struct KeychainVault: Sendable {
         case stringEncoding
     }
 
-    private let serviceName = "dk.tippr.echo"
+    private let serviceName = "dev.echodb.echo"
 
     func setPassword(_ password: String, account: String) throws {
         let encoded = Data(password.utf8)

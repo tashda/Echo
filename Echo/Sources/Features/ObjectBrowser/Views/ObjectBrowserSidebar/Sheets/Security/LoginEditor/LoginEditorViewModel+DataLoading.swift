@@ -3,118 +3,134 @@ import SQLServerKit
 
 extension LoginEditorViewModel {
 
-    // MARK: - General + Status
+    // MARK: - Eager Loading
 
-    func loadGeneralData(session: ConnectionSession) async {
+    func loadAllData(session: ConnectionSession) async {
         isLoadingGeneral = true
-        defer {
-            isLoadingGeneral = false
-            takeSnapshot()
-        }
+        isLoadingRoles = true
+        isLoadingMappings = true
+        isLoadingSecurables = true
 
         guard let mssql = session.session as? MSSQLSession else { return }
 
-        // Load databases
         do {
-            let dbs = try await session.session.listDatabases()
-            availableDatabases = dbs.sorted()
-        } catch { }
-
-        // If editing, load existing login properties
-        if let existingName = existingLoginName {
-            do {
-                let ssec = mssql.serverSecurity
-                let logins = try await ssec.listLogins(includeSystemLogins: true)
-                if let login = logins.first(where: { $0.name.caseInsensitiveCompare(existingName) == .orderedSame }) {
-                    loginName = login.name
-                    loginEnabled = !login.isDisabled
-                    defaultDatabase = login.defaultDatabase ?? "master"
-                    defaultLanguage = login.defaultLanguage ?? ""
-                    enforcePasswordPolicy = login.isPolicyChecked ?? true
-                    enforcePasswordExpiration = login.isExpirationChecked ?? false
-                    switch login.type {
-                    case .sql: authType = .sql
-                    default: authType = .windows
-                    }
-                }
-            } catch { }
+            let data = try await mssql.serverSecurity.getServerLoginEditorData(name: existingLoginName)
+            
+            self.applyFetchedData(data)
+            self.isLoadingGeneral = false
+            self.isLoadingRoles = false
+            self.isLoadingMappings = false
+            self.isLoadingSecurables = false
+            self.hasLoadedRoles = true
+            self.hasLoadedMappings = true
+            self.hasLoadedSecurables = true
+            self.takeSnapshot()
+        } catch {
+            self.isLoadingGeneral = false
+            self.isLoadingRoles = false
+            self.isLoadingMappings = false
+            self.isLoadingSecurables = false
         }
+    }
+
+    private func applyFetchedData(_ data: ServerLoginEditorData) {
+        self.serverName = data.serverName
+        self.availableDatabases = data.availableDatabases.sorted()
+        self.permissionConnectToEngine = data.permissionConnectToEngine
+        
+        // 1. General Info
+        if let login = data.loginInfo {
+            self.loginName = login.name
+            self.loginEnabled = !login.isDisabled
+            self.isLocked = login.isLocked ?? false
+            self.defaultDatabase = login.defaultDatabase ?? "master"
+            self.defaultLanguage = login.defaultLanguage ?? ""
+            self.enforcePasswordPolicy = login.isPolicyChecked ?? true
+            self.enforcePasswordExpiration = login.isExpirationChecked ?? false
+            switch login.type {
+            case .sql: self.authType = .sql
+            default: self.authType = .windows
+            }
+        }
+
+        // 2. Roles
+        let memberSet = Set(data.memberOfRoles)
+        var roles = data.allServerRoles.map { role in
+            let isMember = memberSet.contains(role.name) || role.name == "public"
+            return LoginEditorRoleEntry(
+                name: role.name,
+                isFixed: role.isFixed,
+                isMember: isMember,
+                originallyMember: isMember
+            )
+        }
+        roles.sort { a, b in
+            if a.isMember != b.isMember { return a.isMember }
+            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        }
+        self.roleEntries = roles
+
+        // 3. Mappings
+        let mappedSet = Dictionary(
+            data.databaseMappings.map { ($0.databaseName.lowercased(), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        self.mappingEntries = self.availableDatabases.map { db in
+            if let mapping = mappedSet[db.lowercased()] {
+                return LoginEditorMappingEntry(
+                    databaseName: db, isMapped: true, originallyMapped: true,
+                    userName: mapping.userName, defaultSchema: mapping.defaultSchema
+                )
+            } else {
+                return LoginEditorMappingEntry(
+                    databaseName: db, isMapped: false, originallyMapped: false,
+                    userName: nil, defaultSchema: nil
+                )
+            }
+        }
+
+        // 4. Securables (Server Permissions)
+        let existingByName = Dictionary(
+            data.loginPermissions.map { ($0.permission, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        self.serverPermissions = data.allServerPermissions.map { permName in
+            let existing = existingByName[permName]
+            let state = PermissionState(
+                isGranted: existing?.state == "GRANT" || existing?.state == "GRANT_WITH_GRANT_OPTION",
+                withGrantOption: existing?.state == "GRANT_WITH_GRANT_OPTION",
+                isDenied: existing?.state == "DENY"
+            )
+            return LoginEditorPermissionEntry(
+                permission: permName,
+                isGranted: state.isGranted,
+                withGrantOption: state.withGrantOption,
+                isDenied: state.isDenied,
+                originalState: state
+            )
+        }
+    }
+
+    // Keep individual methods for lazy loading fallback, but wrap in MainActor
+    
+    func loadGeneralData(session: ConnectionSession) async {
+        isLoadingGeneral = true
+        defer { isLoadingGeneral = false }
+        // We reuse the new API even for general-only load if needed, or keep it simple.
+        // For simplicity and safety, let's just make it call loadAllData.
+        await loadAllData(session: session)
     }
 
     // MARK: - Server Roles
 
     func loadRoles(session: ConnectionSession) async {
-        isLoadingRoles = true
-        defer {
-            isLoadingRoles = false
-            hasLoadedRoles = true
-        }
-
-        guard let mssql = session.session as? MSSQLSession else { return }
-
-        do {
-            let ssec = mssql.serverSecurity
-            let roles = try await ssec.listServerRoles()
-            var entries = roles.map { role in
-                LoginEditorRoleEntry(name: role.name, isFixed: role.isFixed, isMember: false, originallyMember: false)
-            }
-
-            if let existingName = existingLoginName {
-                for i in entries.indices {
-                    let members = try await ssec.listServerRoleMembers(role: entries[i].name)
-                    let isMember = members.contains { $0.caseInsensitiveCompare(existingName) == .orderedSame }
-                    entries[i] = LoginEditorRoleEntry(
-                        name: entries[i].name,
-                        isFixed: entries[i].isFixed,
-                        isMember: isMember,
-                        originallyMember: isMember
-                    )
-                }
-
-                entries.sort { a, b in
-                    if a.isMember != b.isMember { return a.isMember }
-                    return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
-                }
-            }
-
-            roleEntries = entries
-            takeSnapshot()
-        } catch { }
+        await loadAllData(session: session)
     }
 
     // MARK: - User Mapping
 
     func loadMappings(session: ConnectionSession) async {
-        isLoadingMappings = true
-        defer {
-            isLoadingMappings = false
-            hasLoadedMappings = true
-        }
-
-        guard let mssql = session.session as? MSSQLSession,
-              let existingName = existingLoginName else { return }
-
-        do {
-            let mappings = try await mssql.serverSecurity.listLoginDatabaseMappings(login: existingName)
-            let mappedSet = Dictionary(
-                mappings.map { ($0.databaseName.lowercased(), $0) },
-                uniquingKeysWith: { first, _ in first }
-            )
-
-            mappingEntries = availableDatabases.map { db in
-                if let mapping = mappedSet[db.lowercased()] {
-                    LoginEditorMappingEntry(
-                        databaseName: db, isMapped: true, originallyMapped: true,
-                        userName: mapping.userName, defaultSchema: mapping.defaultSchema
-                    )
-                } else {
-                    LoginEditorMappingEntry(
-                        databaseName: db, isMapped: false, originallyMapped: false,
-                        userName: nil, defaultSchema: nil
-                    )
-                }
-            }
-        } catch { }
+        await loadAllData(session: session)
     }
 
     func loadDatabaseRoles(database: String, session: ConnectionSession) async {
@@ -191,44 +207,6 @@ extension LoginEditorViewModel {
     // MARK: - Securables
 
     func loadSecurables(session: ConnectionSession) async {
-        isLoadingSecurables = true
-        defer {
-            isLoadingSecurables = false
-            hasLoadedSecurables = true
-        }
-
-        guard let mssql = session.session as? MSSQLSession else { return }
-
-        do {
-            // Get all available server permissions
-            let allPermissions = try await mssql.serverSecurity.listAllServerPermissions()
-
-            // Get existing grants/denies for this login
-            var existingByName: [String: (state: String, grantor: String?)] = [:]
-            if let existingName = existingLoginName {
-                let existing = try await mssql.serverSecurity.listPermissions(principal: existingName)
-                for perm in existing {
-                    existingByName[perm.permission] = (state: perm.state, grantor: perm.grantor)
-                }
-            }
-
-            // Build entries for all permissions, merging existing state
-            serverPermissions = allPermissions.map { permName in
-                let existing = existingByName[permName]
-                let state = PermissionState(
-                    isGranted: existing?.state == "GRANT" || existing?.state == "GRANT_WITH_GRANT_OPTION",
-                    withGrantOption: existing?.state == "GRANT_WITH_GRANT_OPTION",
-                    isDenied: existing?.state == "DENY"
-                )
-                return LoginEditorPermissionEntry(
-                    permission: permName,
-                    isGranted: state.isGranted,
-                    withGrantOption: state.withGrantOption,
-                    isDenied: state.isDenied,
-                    originalState: state
-                )
-            }
-            takeSnapshot()
-        } catch { }
+        await loadAllData(session: session)
     }
 }

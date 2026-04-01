@@ -125,7 +125,7 @@ extension DatabasePropertiesSheet {
                 // Reload files to reflect the change
                 if let updatedAdmin = session.session as? MSSQLSession {
                     let freshAdmin = updatedAdmin.admin
-                    mssqlFiles = (try? await freshAdmin.fetchDatabaseFiles(name: databaseName)) ?? mssqlFiles
+                    mssqlFiles = (try? await freshAdmin.getDatabaseFiles(name: databaseName)) ?? mssqlFiles
                 }
             } catch {
                 isSaving = false
@@ -140,7 +140,7 @@ extension DatabasePropertiesSheet {
     func loadMSSQLProperties() async throws {
         guard let mssqlSession = session.session as? MSSQLSession else { return }
         let admin = mssqlSession.admin
-        let props = try await admin.fetchDatabaseProperties(name: databaseName)
+        let props = try await admin.getDatabaseProperties(name: databaseName)
         mssqlProps = props
 
         recoveryModel = SQLServerDatabaseOption.RecoveryModel(rawValue: props.recoveryModel) ?? .full
@@ -172,7 +172,7 @@ extension DatabasePropertiesSheet {
         numericRoundAbort = props.isNumericRoundAbortOn
         dateCorrelation = props.isDateCorrelationOn
 
-        mssqlFiles = (try? await admin.fetchDatabaseFiles(name: databaseName)) ?? []
+        mssqlFiles = (try? await admin.getDatabaseFiles(name: databaseName)) ?? []
 
         // Query Store options
         if let qsOpts = try? await mssqlSession.queryStore.options(database: databaseName) {

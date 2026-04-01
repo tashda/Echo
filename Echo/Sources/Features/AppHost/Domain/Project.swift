@@ -13,6 +13,7 @@ struct Project: Identifiable, Codable, Hashable {
     var colorHex: String
     var iconName: String?
     var isDefault: Bool
+    var isSyncEnabled: Bool
 
     // Project-specific settings
     var settings: ProjectSettings
@@ -31,6 +32,7 @@ struct Project: Identifiable, Codable, Hashable {
         colorHex: String = "",
         iconName: String? = nil,
         isDefault: Bool = false,
+        isSyncEnabled: Bool = false,
         settings: ProjectSettings = ProjectSettings(),
         bookmarks: [Bookmark] = [],
         projectGlobalSettings: GlobalSettings? = nil
@@ -42,9 +44,25 @@ struct Project: Identifiable, Codable, Hashable {
         self.colorHex = colorHex
         self.iconName = iconName
         self.isDefault = isDefault
+        self.isSyncEnabled = isSyncEnabled
         self.settings = settings
         self.bookmarks = bookmarks
         self.projectGlobalSettings = projectGlobalSettings
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? ""
+        iconName = try container.decodeIfPresent(String.self, forKey: .iconName)
+        isDefault = try container.decodeIfPresent(Bool.self, forKey: .isDefault) ?? false
+        isSyncEnabled = try container.decodeIfPresent(Bool.self, forKey: .isSyncEnabled) ?? false
+        settings = try container.decodeIfPresent(ProjectSettings.self, forKey: .settings) ?? ProjectSettings()
+        bookmarks = try container.decodeIfPresent([Bookmark].self, forKey: .bookmarks) ?? []
+        projectGlobalSettings = try container.decodeIfPresent(GlobalSettings.self, forKey: .projectGlobalSettings)
     }
 
     static let defaultProject = Project(

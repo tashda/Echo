@@ -7,6 +7,7 @@ struct DiagramCanvas: View {
     let offset: CGSize
     let palette: DiagramPalette
     let renderEdges: Bool
+    let showIndexes: Bool
     let searchFilter: String
     @Binding var isDraggingNode: Bool
     let onLayoutCommitted: () -> Void
@@ -26,6 +27,22 @@ struct DiagramCanvas: View {
                         .position(position(for: node.position))
                 }
 
+                // Index nodes rendered as separate bubbles near their parent table
+                if showIndexes {
+                    ForEach(viewModel.nodes) { node in
+                        ForEach(Array(node.indexes.enumerated()), id: \.element.id) { offset, index in
+                            SchemaDiagramIndexNodeView(
+                                index: index,
+                                palette: palette,
+                                position: indexPosition(for: node, indexOffset: offset),
+                                zoom: zoom
+                            )
+                            .opacity(nodeMatchesSearch(node) ? 0.85 : 0.15)
+                            .position(position(for: indexPosition(for: node, indexOffset: offset)))
+                        }
+                    }
+                }
+
                 ForEach(viewModel.annotations) { annotation in
                     DiagramAnnotationView(
                         annotation: annotation,
@@ -38,9 +55,10 @@ struct DiagramCanvas: View {
                         DragGesture()
                             .onChanged { value in
                                 isDraggingNode = true
+                                let effectiveZoom = max(zoom, 0.5)
                                 let delta = CGSize(
-                                    width: value.translation.width / zoom,
-                                    height: value.translation.height / zoom
+                                    width: value.translation.width / effectiveZoom,
+                                    height: value.translation.height / effectiveZoom
                                 )
                                 viewModel.moveAnnotation(
                                     id: annotation.id,
@@ -84,6 +102,18 @@ struct DiagramCanvas: View {
 
     private func position(for basePoint: CGPoint) -> CGPoint {
         CGPoint(x: basePoint.x, y: basePoint.y)
+    }
+
+    private func indexPosition(for node: SchemaDiagramNodeModel, indexOffset: Int) -> CGPoint {
+        // Position indexes to the right of the table node, stacked vertically
+        let xOffset: CGFloat = 280
+        let ySpacing: CGFloat = 50
+        let estimatedNodeHeight = CGFloat(node.columns.count) * 20 + 60
+        let startY = node.position.y - estimatedNodeHeight / 2
+        return CGPoint(
+            x: node.position.x + xOffset,
+            y: startY + CGFloat(indexOffset) * ySpacing
+        )
     }
 
     private func nodeMatchesSearch(_ node: SchemaDiagramNodeModel) -> Bool {

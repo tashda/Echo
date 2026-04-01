@@ -4,7 +4,7 @@ import MySQLKit
 import MySQLWire
 
 struct MySQLNIOFactory: DatabaseFactory {
-    private let logger = Logger(label: "dk.tippr.echo.mysql")
+    private let logger = Logger(label: "dev.echodb.echo.mysql")
 
     func connect(
         host: String,

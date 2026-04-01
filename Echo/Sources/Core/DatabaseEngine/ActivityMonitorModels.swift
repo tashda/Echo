@@ -113,9 +113,9 @@ public final class SQLServerActivityMonitorWrapper: DatabaseActivityMonitoring {
 // MARK: - Postgres Wrapper
 
 public final class PostgresActivityMonitorWrapper: DatabaseActivityMonitoring {
-    private let monitor: PostgresAgentClient
+    private let monitor: PostgresActivityClient
 
-    public init(_ monitor: PostgresAgentClient) {
+    public init(_ monitor: PostgresActivityClient) {
         self.monitor = monitor
     }
 
@@ -175,7 +175,7 @@ final class MySQLActivityMonitorWrapper: DatabaseActivityMonitoring {
     func snapshot() async throws -> DatabaseActivitySnapshot {
         async let activitySnapshot = session.client.activity.snapshot()
         async let statusVariables = session.client.performance.dashboardStatus()
-        async let globalVariables = session.client.admin.globalVariables(named: nil)
+        async let globalVariables = session.client.serverConfig.globalVariables(named: nil)
 
         let capturedAt = Date()
         let typedSnapshot = try await state.buildSnapshot(
@@ -206,6 +206,6 @@ final class MySQLActivityMonitorWrapper: DatabaseActivityMonitoring {
     }
 
     func killSession(id: Int) async throws {
-        _ = try await session.client.query.query("KILL \(id)")
+        _ = try await session.client.query("KILL \(id)")
     }
 }

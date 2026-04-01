@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// Reusable SQL preview component for editor windows (Function Editor, Role Editor, etc.).
-/// Shows generated SQL with a copy button and optional header.
+/// Reusable SQL preview component for editor windows, wizards, and anywhere
+/// that displays generated or read-only SQL. Shows a header with copy button
+/// and an optional "Open in Query Window" action.
 struct SQLPreviewSection: View {
     let sql: String
     var title: String = "Generated SQL"
+    var onOpenInQueryWindow: ((String) -> Void)?
 
     @State private var didCopy = false
 
@@ -23,6 +25,17 @@ struct SQLPreviewSection: View {
                 .font(TypographyTokens.caption)
                 .foregroundStyle(ColorTokens.Text.secondary)
             Spacer()
+
+            if let onOpenInQueryWindow {
+                Button {
+                    onOpenInQueryWindow(sql)
+                } label: {
+                    Label("Open in Query Window", systemImage: "arrow.up.right.square")
+                        .font(TypographyTokens.caption)
+                }
+                .buttonStyle(.borderless)
+            }
+
             copyButton
         }
         .padding(.horizontal, SpacingTokens.md)
@@ -42,8 +55,7 @@ struct SQLPreviewSection: View {
 
     private var copyButton: some View {
         Button {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(sql, forType: .string)
+            PlatformClipboard.copy(sql)
             didCopy = true
             Task {
                 try? await Task.sleep(for: .seconds(2))

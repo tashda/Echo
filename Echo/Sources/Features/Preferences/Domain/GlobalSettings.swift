@@ -104,6 +104,18 @@ struct ResultGridColorOverrides: Codable, Hashable {
     var textHex: String?
 }
 
+enum ToolbarProjectButtonStyle: String, Codable, Hashable, CaseIterable {
+    case account
+    case projectIcon
+
+    var displayName: String {
+        switch self {
+        case .account: return "Account"
+        case .projectIcon: return "Project Icon"
+        }
+    }
+}
+
 struct GlobalSettings: Codable, Hashable {
     var appearanceMode: AppearanceMode
     var defaultEditorFontSize: Double
@@ -183,7 +195,8 @@ struct GlobalSettings: Codable, Hashable {
     var mysqlToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarIconSize: SidebarIconSize = .medium
-    var sidebarDensity: SidebarDensity = .default
+    var sidebarDensity: SidebarDensity = .medium
+    var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
     var hideInaccessibleDatabases: Bool = false
     var searchIncludeOfflineDatabases: Bool = false
@@ -373,9 +386,20 @@ struct GlobalSettings: Codable, Hashable {
         }
         
         sidebarIconSize = try container.decodeIfPresent(SidebarIconSize.self, forKey: .sidebarIconSize) ?? .medium
-        sidebarDensity = try container.decodeIfPresent(SidebarDensity.self, forKey: .sidebarDensity) ?? .default
-        
+
+        // Handle migration from legacy 'default' to 'small' while transitioning to 'medium' as new default
+        if let legacyString = try container.decodeIfPresent(String.self, forKey: .sidebarDensity) {
+            if legacyString == "default" {
+                sidebarDensity = .small
+            } else {
+                sidebarDensity = SidebarDensity(rawValue: legacyString) ?? .medium
+            }
+        } else {
+            sidebarDensity = .medium
+        }
+
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
+
         hideInaccessibleDatabases = try container.decodeIfPresent(Bool.self, forKey: .hideInaccessibleDatabases) ?? false
         searchIncludeOfflineDatabases = try container.decodeIfPresent(Bool.self, forKey: .searchIncludeOfflineDatabases) ?? false
         searchMinimumQueryLength = try container.decodeIfPresent(Int.self, forKey: .searchMinimumQueryLength) ?? 2

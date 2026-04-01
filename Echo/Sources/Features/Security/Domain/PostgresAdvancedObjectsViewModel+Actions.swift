@@ -37,7 +37,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Dropping event trigger \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.dropEventTrigger(name: name, ifExists: true, cascade: true)
+            try await pg.client.triggers.dropEventTrigger(name: name, ifExists: true, cascade: true)
             handle?.succeed()
             panelState?.appendMessage("Dropped event trigger '\(name)'")
             await loadCurrentSection()
@@ -51,7 +51,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Dropping domain \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.dropDomain(name: name, ifExists: true, cascade: true, schema: schema)
+            try await pg.client.types.dropDomain(name: name, ifExists: true, cascade: true, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Dropped domain '\(name)'")
             await loadCurrentSection()
@@ -65,7 +65,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Dropping type \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.dropCompositeType(name: name, ifExists: true, cascade: true, schema: schema)
+            try await pg.client.types.dropCompositeType(name: name, ifExists: true, cascade: true, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Dropped composite type '\(name)'")
             await loadCurrentSection()
@@ -79,7 +79,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Dropping range type \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.dropRangeType(name: name, ifExists: true, cascade: true, schema: schema)
+            try await pg.client.types.dropRangeType(name: name, ifExists: true, cascade: true, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Dropped range type '\(name)'")
             await loadCurrentSection()
@@ -165,7 +165,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Creating event trigger \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.createEventTrigger(name: name, event: event, function: function, tags: tags)
+            try await pg.client.triggers.createEventTrigger(name: name, event: event, function: function, tags: tags)
             handle?.succeed()
             panelState?.appendMessage("Created event trigger '\(name)'")
             await loadCurrentSection()
@@ -179,7 +179,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Creating domain \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.createDomain(name: name, dataType: dataType, defaultValue: defaultValue, notNull: notNull, checkExpression: checkExpression, schema: schema)
+            try await pg.client.types.createDomain(name: name, dataType: dataType, defaultValue: defaultValue, notNull: notNull, checkExpression: checkExpression, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Created domain '\(name)'")
             await loadCurrentSection()
@@ -193,7 +193,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Creating composite type \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.createCompositeType(name: name, attributes: attributes, schema: schema)
+            try await pg.client.types.createCompositeType(name: name, attributes: attributes, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Created composite type '\(name)'")
             await loadCurrentSection()
@@ -207,7 +207,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Creating range type \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.createRangeType(name: name, subtype: subtype, subtypeOpClass: opClass, collation: collation, schema: schema)
+            try await pg.client.types.createRangeType(name: name, subtype: subtype, subtypeOpClass: opClass, collation: collation, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Created range type '\(name)'")
             await loadCurrentSection()
@@ -402,7 +402,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Renaming domain \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterDomainRename(name: name, newName: newName, schema: schema)
+            try await pg.client.types.alterDomainRename(name: name, newName: newName, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Renamed domain '\(name)' to '\(newName)'")
             await loadCurrentSection()
@@ -416,7 +416,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Changing owner of domain \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterDomainOwner(name: name, newOwner: newOwner, schema: schema)
+            try await pg.client.types.alterDomainOwner(name: name, newOwner: newOwner, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Changed owner of domain '\(name)' to '\(newOwner)'")
             await loadCurrentSection()
@@ -430,7 +430,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Moving domain \(name) to schema \(newSchema)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterDomainSetSchema(name: name, newSchema: newSchema, schema: schema)
+            try await pg.client.types.alterDomainSetSchema(name: name, newSchema: newSchema, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Moved domain '\(name)' to schema '\(newSchema)'")
             await loadCurrentSection()
@@ -446,7 +446,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Renaming type \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterTypeRename(name: name, newName: newName, schema: schema)
+            try await pg.client.types.alterTypeRename(name: name, newName: newName, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Renamed type '\(name)' to '\(newName)'")
             await loadCurrentSection()
@@ -460,7 +460,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Changing owner of type \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterTypeOwner(name: name, newOwner: newOwner, schema: schema)
+            try await pg.client.types.alterTypeOwner(name: name, newOwner: newOwner, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Changed owner of type '\(name)' to '\(newOwner)'")
             await loadCurrentSection()
@@ -474,7 +474,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Moving type \(name) to schema \(newSchema)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterTypeSetSchema(name: name, newSchema: newSchema, schema: schema)
+            try await pg.client.types.alterTypeSetSchema(name: name, newSchema: newSchema, schema: schema)
             handle?.succeed()
             panelState?.appendMessage("Moved type '\(name)' to schema '\(newSchema)'")
             await loadCurrentSection()
@@ -731,7 +731,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Renaming event trigger \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterEventTriggerRename(name: name, newName: newName)
+            try await pg.client.triggers.alterEventTriggerRename(name: name, newName: newName)
             handle?.succeed()
             panelState?.appendMessage("Renamed event trigger '\(name)' to '\(newName)'")
             await loadCurrentSection()
@@ -745,7 +745,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Changing owner of event trigger \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterEventTriggerOwner(name: name, newOwner: newOwner)
+            try await pg.client.triggers.alterEventTriggerOwner(name: name, newOwner: newOwner)
             handle?.succeed()
             panelState?.appendMessage("Changed owner of event trigger '\(name)' to '\(newOwner)'")
             await loadCurrentSection()
@@ -759,7 +759,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Enabling event trigger \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterEventTriggerEnable(name: name, enable: true)
+            try await pg.client.triggers.alterEventTriggerEnable(name: name, enable: true)
             handle?.succeed()
             panelState?.appendMessage("Enabled event trigger '\(name)'")
             await loadCurrentSection()
@@ -773,7 +773,7 @@ extension PostgresAdvancedObjectsViewModel {
         guard let pg = session as? PostgresSession else { return }
         let handle = activityEngine?.begin("Disabling event trigger \(name)", connectionSessionID: connectionSessionID)
         do {
-            try await pg.client.admin.alterEventTriggerEnable(name: name, enable: false)
+            try await pg.client.triggers.alterEventTriggerEnable(name: name, enable: false)
             handle?.succeed()
             panelState?.appendMessage("Disabled event trigger '\(name)'")
             await loadCurrentSection()

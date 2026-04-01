@@ -10,7 +10,7 @@ struct ViewEditorDefinitionPage: View {
                     .font(TypographyTokens.formLabel)
                     .foregroundStyle(ColorTokens.Text.primary)
                 Spacer()
-                if viewModel.isMaterialized && viewModel.isEditing {
+                if viewModel.isMaterialized && viewModel.isEditing && viewModel.dialect.supportsMaterializedViews {
                     Text("Materialized views must be dropped and recreated to change the definition.")
                         .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.tertiary)

@@ -52,6 +52,7 @@ final class ServerPropertiesViewModel {
 
     let connectionID: UUID
     let connectionSessionID: UUID
+    let connectionHost: String
     @ObservationIgnored let session: DatabaseSession
     @ObservationIgnored let processRunner = MySQLProcessRunner()
     @ObservationIgnored var activityEngine: ActivityEngine?
@@ -78,10 +79,11 @@ final class ServerPropertiesViewModel {
     var loadedConfigFileContents = ""
     var configStatusMessage: String?
 
-    init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID) {
+    init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID, connectionHost: String = "") {
         self.session = session
         self.connectionID = connectionID
         self.connectionSessionID = connectionSessionID
+        self.connectionHost = connectionHost
     }
 
     func setPanelState(_ state: BottomPanelState) {
@@ -94,20 +96,23 @@ final class ServerPropertiesViewModel {
     }
 
     func loadCurrentSection() async {
-        guard let mysql = session as? MySQLSession else { return }
-        switch selectedSection {
-        case .overview:
-            await loadOverview(mysql: mysql)
-        case .control:
-            await refreshServerControlState(mysql: mysql)
-        case .variables:
-            await loadVariables(mysql: mysql)
-        case .status:
-            await loadStatusVariables(mysql: mysql)
-        case .logs:
-            await loadLogs(mysql: mysql)
-        case .configuration:
-            await loadConfiguration(mysql: mysql)
+        if let mysql = session as? MySQLSession {
+            switch selectedSection {
+            case .overview:
+                await loadOverview(mysql: mysql)
+            case .control:
+                await refreshServerControlState(mysql: mysql)
+            case .variables:
+                await loadVariables(mysql: mysql)
+            case .status:
+                await loadStatusVariables(mysql: mysql)
+            case .logs:
+                await loadLogs(mysql: mysql)
+            case .configuration:
+                await loadConfiguration(mysql: mysql)
+            }
+        } else if session is PostgresSession {
+            await loadPostgresSection()
         }
     }
 
@@ -151,8 +156,8 @@ final class ServerPropertiesViewModel {
         defer { isLoading = false }
         let handle = activityEngine?.begin("Loading server overview", connectionSessionID: connectionSessionID)
         do {
-            async let variablesResult = mysql.client.admin.globalVariables()
-            async let statusResult = mysql.client.admin.globalStatus()
+            async let variablesResult = mysql.client.serverConfig.globalVariables()
+            async let statusResult = mysql.client.serverConfig.globalStatus()
             let variables = try await variablesResult
             let status = try await statusResult
             overviewItems = buildOverviewItems(variables: variables, status: status)
@@ -168,7 +173,7 @@ final class ServerPropertiesViewModel {
         defer { isLoading = false }
         let handle = activityEngine?.begin("Loading server variables", connectionSessionID: connectionSessionID)
         do {
-            variables = try await mysql.client.admin.globalVariables()
+            variables = try await mysql.client.serverConfig.globalVariables()
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 .map {
                     PropertyItem(
@@ -193,7 +198,7 @@ final class ServerPropertiesViewModel {
         defer { isLoading = false }
         let handle = activityEngine?.begin("Loading server log settings", connectionSessionID: connectionSessionID)
         do {
-            let destinations = try await mysql.client.admin.logDestinations()
+            let destinations = try await mysql.client.errorLog.logDestinations()
             logDestinations = destinations.map {
                 PropertyItem(id: $0.kind, name: $0.kind, value: $0.value)
             }
@@ -227,7 +232,7 @@ final class ServerPropertiesViewModel {
     }
 
     private func loadLogRows(mysql: MySQLSession, tableName: String) async throws -> [LogRow] {
-        let rows = try await mysql.client.admin.readTableLog(named: tableName, limit: 25)
+        let rows = try await mysql.client.errorLog.readTableLog(named: tableName, limit: 25)
         return rows.enumerated().map { offset, row in
             let timestamp = row["event_time"] ?? row["start_time"] ?? nil
             let userHost = row["user_host"] ?? row["user"] ?? ""
@@ -334,7 +339,7 @@ final class ServerPropertiesViewModel {
 
         let handle = activityEngine?.begin("Updating \(variable.name)", connectionSessionID: connectionSessionID)
         do {
-            _ = try await mysql.client.admin.setGlobalVariable(variable.name, to: trimmed)
+            _ = try await mysql.client.serverConfig.setGlobalVariable(variable.name, to: trimmed)
             handle?.succeed()
             panelState?.appendMessage("Updated global variable \(variable.name)")
             await loadVariables(mysql: mysql)
@@ -349,7 +354,7 @@ final class ServerPropertiesViewModel {
         guard let mysql = session as? MySQLSession, let variable = selectedVariable else { return }
         let handle = activityEngine?.begin("Resetting \(variable.name)", connectionSessionID: connectionSessionID)
         do {
-            _ = try await mysql.client.admin.resetGlobalVariable(variable.name)
+            _ = try await mysql.client.serverConfig.resetGlobalVariable(variable.name)
             handle?.succeed()
             panelState?.appendMessage("Reset global variable \(variable.name)")
             await loadVariables(mysql: mysql)

@@ -58,15 +58,12 @@ extension SQLServerSessionAdapter {
     }
 
     func dropTable(schema: String?, name: String, ifExists: Bool) async throws {
-        if ifExists {
-            _ = try await simpleQuery("IF OBJECT_ID('[\(schema ?? "dbo")].[\(name)]', 'U') IS NOT NULL DROP TABLE [\(schema ?? "dbo")].[\(name)]")
-        } else {
-            try await client.admin.dropTable(
-                name: name,
-                schema: schema ?? "dbo",
-                database: database
-            )
-        }
+        try await client.admin.dropTable(
+            name: name,
+            schema: schema ?? "dbo",
+            database: database,
+            ifExists: ifExists
+        )
     }
 
     func truncateTable(schema: String?, name: String) async throws {
@@ -147,7 +144,7 @@ extension SQLServerSessionAdapter {
                         primaryColumns = columns
                         canUseRawPath = columns.allSatisfy { TDSBinaryDecoder.canDecodeRaw($0.dataType) }
                         worker = ResultStreamBatchWorker(
-                            label: "dk.tippr.echo.mssql.streamWorker",
+                            label: "dev.echodb.echo.mssql.streamWorker",
                             columns: columns,
                             streamingPreviewLimit: initialPreviewBatch,
                             maxFlushLatency: maxFlushLatency,
@@ -174,13 +171,14 @@ extension SQLServerSessionAdapter {
                             ))
                         } else if canUseRawPath {
                             let (buffers, lengths, totalLength) = row.rawColumnBuffers()
+                            let encodedRow = ResultStreamBatchWorker.encodeBinaryRow(
+                                totalLength: totalLength,
+                                buffers: buffers,
+                                lengths: lengths
+                            )
                             pendingPayloads.append(ResultStreamBatchWorker.Payload(
                                 previewValues: nil,
-                                storage: .raw(ResultStreamBatchWorker.RawRow(
-                                    buffers: buffers,
-                                    lengths: lengths,
-                                    totalLength: totalLength
-                                )),
+                                storage: .encoded(encodedRow),
                                 totalRowCount: primaryRowCount,
                                 decodeDuration: 0
                             ))

@@ -100,7 +100,7 @@ extension GenericMaintenanceView {
                         return DatabaseMaintenanceResult(operation: "Flush Tables", messages: ["MySQL admin APIs are unavailable for this session."], succeeded: false)
                     }
 
-                    try await mysqlSession.client.admin.flushTables()
+                    try await mysqlSession.client.maintenance.flushTables()
                     return DatabaseMaintenanceResult(
                         operation: "Flush Tables",
                         messages: ["Flushed open table handles successfully."],
@@ -115,7 +115,7 @@ extension GenericMaintenanceView {
         named operation: String,
         session: DatabaseSession,
         database: String?,
-        executor: (MySQLAdminClient, String, String) async throws -> MySQLMaintenanceResult
+        executor: (MySQLMaintenanceClient, String, String) async throws -> MySQLMaintenanceResult
     ) async throws -> DatabaseMaintenanceResult {
         guard let database, !database.isEmpty else {
             return DatabaseMaintenanceResult(operation: operation, messages: ["No database selected."], succeeded: false)
@@ -132,7 +132,7 @@ extension GenericMaintenanceView {
 
         var messages: [String] = []
         for table in tableNames {
-            let result = try await executor(mysqlSession.client.admin, database, table)
+            let result = try await executor(mysqlSession.client.maintenance, database, table)
             if result.messages.isEmpty {
                 messages.append("\(operation) completed for \(table).")
             } else {

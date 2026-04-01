@@ -1,78 +1,79 @@
+import AppKit
 import AuthenticationServices
 import CryptoKit
 import Foundation
 
-/// Coordinates Sign in with Google via OAuth 2.0 PKCE using ASWebAuthenticationSession.
-final class GoogleSignInCoordinator {
+/// Coordinates OAuth sign-in via Supabase's PKCE flow using ASWebAuthenticationSession.
+nonisolated final class GoogleSignInCoordinator: NSObject,
+                                                 ASWebAuthenticationPresentationContextProviding,
+                                                 Sendable {
 
-    /// Google OAuth configuration.
-    /// Replace these with real values when the backend is ready.
-    private enum Config {
-        static let clientID = "GOOGLE_CLIENT_ID_PLACEHOLDER"
-        static let redirectURI = "dk.tippr.echo:/oauth2callback"
-        static let authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
-        static let scopes = "openid email profile"
-    }
-
-    /// Result of the OAuth flow: the authorization code and the PKCE code verifier.
     struct OAuthResult: Sendable {
         let authorizationCode: String
         let codeVerifier: String
     }
 
-    /// Triggers the Google OAuth flow in a browser session and returns the auth code.
+    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+            NSApp.keyWindow ?? NSApp.windows.first ?? ASPresentationAnchor()
+        }
+    }
+
     func signIn() async throws -> OAuthResult {
+        guard let baseURL = SupabaseConfig.baseURL else {
+            throw AuthError.unknown("Supabase is not configured.")
+        }
+
         let codeVerifier = generateCodeVerifier()
         let codeChallenge = generateCodeChallenge(from: codeVerifier)
 
-        var components = URLComponents(string: Config.authorizationEndpoint)!
-        components.queryItems = [
-            URLQueryItem(name: "client_id", value: Config.clientID),
-            URLQueryItem(name: "redirect_uri", value: Config.redirectURI),
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: Config.scopes),
-            URLQueryItem(name: "code_challenge", value: codeChallenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256"),
-            URLQueryItem(name: "access_type", value: "offline"),
-            URLQueryItem(name: "prompt", value: "consent")
-        ]
+        let redirect = SupabaseConfig.redirectURI
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? SupabaseConfig.redirectURI
 
-        guard let authURL = components.url else {
-            throw AuthError.unknown("Failed to construct Google auth URL.")
+        let urlString = "\(baseURL.absoluteString)/auth/v1/authorize?provider=google&redirect_to=\(redirect)&code_challenge=\(codeChallenge)&code_challenge_method=S256"
+
+        guard let authURL = URL(string: urlString) else {
+            throw AuthError.unknown("Failed to construct auth URL.")
         }
 
-        let callbackScheme = "dk.tippr.echo"
-
-        let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, any Error>) in
-            let session = ASWebAuthenticationSession(
-                url: authURL,
-                callbackURLScheme: callbackScheme
-            ) { url, error in
-                if let error {
-                    if (error as NSError).code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
-                        continuation.resume(throwing: AuthError.cancelled)
-                    } else {
-                        continuation.resume(throwing: AuthError.unknown(error.localizedDescription))
+        return try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<OAuthResult, any Error>) in
+            // Must create and start the session on the main thread
+            DispatchQueue.main.async { [self] in
+                let session = ASWebAuthenticationSession(
+                    url: authURL,
+                    callbackURLScheme: "dev.echodb.echo"
+                ) { callbackURL, error in
+                    if let error {
+                        let nsError = error as NSError
+                        if nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
+                            continuation.resume(throwing: AuthError.cancelled)
+                        } else {
+                            continuation.resume(throwing: AuthError.unknown("Authentication failed."))
+                        }
+                        return
                     }
-                    return
+
+                    guard let callbackURL,
+                          let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
+                          let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
+                        continuation.resume(throwing: AuthError.unknown("No authorization code received."))
+                        return
+                    }
+
+                    continuation.resume(returning: OAuthResult(
+                        authorizationCode: code,
+                        codeVerifier: codeVerifier
+                    ))
                 }
-                guard let url else {
-                    continuation.resume(throwing: AuthError.unknown("No callback URL received."))
-                    return
+
+                session.presentationContextProvider = self
+                session.prefersEphemeralWebBrowserSession = false
+
+                if !session.start() {
+                    continuation.resume(throwing: AuthError.unknown("Could not start authentication session."))
                 }
-                continuation.resume(returning: url)
             }
-
-            session.prefersEphemeralWebBrowserSession = true
-            session.start()
         }
-
-        guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
-              let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
-            throw AuthError.unknown("No authorization code in callback URL.")
-        }
-
-        return OAuthResult(authorizationCode: code, codeVerifier: codeVerifier)
     }
 
     // MARK: - PKCE

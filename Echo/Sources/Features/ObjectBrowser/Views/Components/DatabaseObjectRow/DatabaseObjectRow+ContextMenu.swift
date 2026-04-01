@@ -243,6 +243,30 @@ extension DatabaseObjectRow {
     private func computeEditItems() -> [ContextMenuActionItem] {
         var items: [ContextMenuActionItem] = []
 
+        if (object.type == .procedure || object.type == .function) && !object.parameters.isEmpty {
+            items.append(
+                ContextMenuActionItem(
+                    id: "executeWithParams",
+                    title: "Execute\u{2026}",
+                    systemImage: "play.circle",
+                    role: nil,
+                    action: { showExecuteProcedureSheet = true }
+                )
+            )
+        }
+
+        if VisualEditorResolver.hasVisualEditor(for: object.type, databaseType: connection.databaseType) {
+            items.append(
+                ContextMenuActionItem(
+                    id: "editInDesigner",
+                    title: "Edit in Designer",
+                    systemImage: "rectangle.and.pencil.and.ellipsis",
+                    role: nil,
+                    action: { openVisualEditor() }
+                )
+            )
+        }
+
         if object.type == .procedure || object.type == .function {
             items.append(
                 ContextMenuActionItem(
@@ -406,15 +430,14 @@ extension DatabaseObjectRow {
             )
         }
 
-        let pgEditableTypes: Set<SchemaObjectInfo.ObjectType> = [.trigger, .view, .materializedView, .sequence, .type]
-        if connection.databaseType == .postgresql && pgEditableTypes.contains(object.type) {
+        if VisualEditorResolver.hasVisualEditor(for: object.type, databaseType: connection.databaseType) {
             items.append(
                 ContextMenuActionItem(
-                    id: "pgObjectProperties",
+                    id: "objectEditorProperties",
                     title: "Properties",
                     systemImage: "info.circle",
                     role: nil,
-                    action: { openPgObjectProperties() }
+                    action: { openVisualEditor() }
                 )
             )
         }

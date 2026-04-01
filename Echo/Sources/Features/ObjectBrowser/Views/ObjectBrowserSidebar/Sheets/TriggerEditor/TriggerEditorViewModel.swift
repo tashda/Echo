@@ -85,13 +85,18 @@ final class TriggerEditorViewModel {
         return false
     }
 
+    // MARK: - Dialect
+
+    let dialect: any TriggerEditorDialect
+
     // MARK: - Init
 
-    init(connectionSessionID: UUID, schemaName: String, tableName: String, existingTriggerName: String?) {
+    init(connectionSessionID: UUID, schemaName: String, tableName: String, existingTriggerName: String?, dialect: any TriggerEditorDialect) {
         self.connectionSessionID = connectionSessionID
         self.schemaName = schemaName
         self.tableName = tableName
         self.existingTriggerName = existingTriggerName
+        self.dialect = dialect
         if let existingTriggerName {
             self.triggerName = existingTriggerName
         }

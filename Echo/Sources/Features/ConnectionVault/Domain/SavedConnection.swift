@@ -25,6 +25,14 @@ enum DatabaseType: String, Sendable, Codable, CaseIterable {
         }
     }
 
+    /// Whether this database type is in beta within Echo.
+    nonisolated var isBeta: Bool {
+        switch self {
+        case .mysql: return true
+        case .postgresql, .microsoftSQL, .sqlite: return false
+        }
+    }
+
     nonisolated var symbolName: String {
         switch self {
         case .postgresql, .mysql, .microsoftSQL: return "server.rack"

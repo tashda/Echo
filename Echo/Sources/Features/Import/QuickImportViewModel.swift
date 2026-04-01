@@ -43,7 +43,7 @@ final class QuickImportViewModel {
                     sampleRows = [result.headers] + result.rows
                 }
                 
-                if let bulkClient = session.bulkCopy {
+                if let bulkClient = session.bulk {
                     inferences = bulkClient.inferSchema(headers: headers, sampleRows: sampleRows)
                 }
                 
@@ -69,7 +69,7 @@ final class QuickImportViewModel {
         
         Task {
             do {
-                guard let bulkClient = session.bulkCopy else {
+                guard let bulkClient = session.bulk else {
                     throw NSError(domain: "Echo", code: -1, userInfo: [NSLocalizedDescriptionKey: "Bulk copy not supported"])
                 }
                 

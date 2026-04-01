@@ -30,7 +30,7 @@ extension MySQLSession {
         }
 
         do {
-            let stream = try await client.query.stream(sql)
+            let stream = try await client.stream(sql)
             for try await row in stream {
                 try Task.checkCancellation()
 
@@ -40,7 +40,7 @@ extension MySQLSession {
                 if columnInfo.isEmpty, !columnMetadata.isEmpty {
                     columnInfo = makeColumnInfo(from: columnMetadata)
                     worker = ResultStreamBatchWorker(
-                        label: "dk.tippr.echo.mysql.streamWorker",
+                        label: "dev.echodb.echo.mysql.streamWorker",
                         columns: columnInfo,
                         streamingPreviewLimit: streamingPreviewLimit,
                         maxFlushLatency: maxFlushLatency,
@@ -109,7 +109,7 @@ extension MySQLSession {
 
     private func executeSimpleQuery(_ sql: String) async throws -> QueryResultSet {
         do {
-            let result = try await client.query.query(sql)
+            let result = try await client.query(sql)
             return makeResultSet(from: result.rows)
         } catch {
             throw DatabaseError.queryError(error.localizedDescription)
@@ -141,7 +141,7 @@ extension MySQLSession {
 
     @discardableResult
     internal func performQuery(_ sql: String, binds: [MySQLData] = []) async throws -> ([MySQLRow], MySQLWireQueryMetadata?) {
-        let result = try await client.query.query(sql, binds: binds)
+        let result = try await client.query(sql, binds: binds)
         return (result.rows, result.metadata)
     }
 

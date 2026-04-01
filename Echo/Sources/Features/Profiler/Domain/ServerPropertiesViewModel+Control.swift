@@ -20,7 +20,7 @@ extension ServerPropertiesViewModel {
 
         do {
             try await withTemporaryClient(for: mysql) { client in
-                _ = try await client.admin.globalStatus(named: "Uptime")
+                _ = try await client.serverConfig.globalStatus(named: "Uptime")
             }
             serverControlState = .running
         } catch {
@@ -159,7 +159,7 @@ extension ServerPropertiesViewModel {
         for _ in 0..<10 {
             do {
                 try await withTemporaryClient(for: mysql) { client in
-                    _ = try await client.admin.globalStatus(named: "Uptime")
+                    _ = try await client.serverConfig.globalStatus(named: "Uptime")
                 }
                 return
             } catch {

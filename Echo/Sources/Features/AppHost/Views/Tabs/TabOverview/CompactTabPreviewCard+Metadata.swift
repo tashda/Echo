@@ -32,13 +32,11 @@ extension CompactTabPreviewCard {
             return []
         case .maintenance, .mssqlMaintenance:
             return []
-        case .queryStore:
-            return []
         case .extendedEvents:
             return []
         case .availabilityGroups:
             return []
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .mssqlAdvancedObjects, .schemaDiff, .queryBuilder:
             return []
         case .errorLog:
             return []
@@ -78,15 +76,13 @@ extension CompactTabPreviewCard {
             return "Activity"
         case .maintenance, .mssqlMaintenance:
             return "Maintenance"
-        case .queryStore:
-            return "Query Store"
         case .extendedEvents:
             return "Extended Events"
         case .availabilityGroups:
             return "Availability Groups"
         case .databaseSecurity, .postgresSecurity, .mysqlSecurity:
             return "Database Security"
-        case .postgresAdvancedObjects:
+        case .postgresAdvancedObjects, .mssqlAdvancedObjects:
             return "Advanced Objects"
         case .schemaDiff:
             return "Schema Diff"
@@ -106,6 +102,8 @@ extension CompactTabPreviewCard {
             return "Policy Management"
         case .tableData:
             return "Table Data"
+        case .queryBuilder:
+            return "Query Builder"
         }
         }
 
@@ -135,8 +133,6 @@ extension CompactTabPreviewCard {
             return "Live system performance monitoring"
         case .maintenance, .mssqlMaintenance:
             return "Database health and maintenance operations"
-        case .queryStore:
-            return "Query Store analysis and plan management"
         case .extendedEvents:
             return "Extended Events session monitoring"
         case .availabilityGroups:
@@ -145,6 +141,8 @@ extension CompactTabPreviewCard {
             return "Database security management"
         case .postgresAdvancedObjects:
             return "Advanced PostgreSQL object management"
+        case .mssqlAdvancedObjects:
+            return "Change Tracking, CDC, Full-Text Search, Replication"
         case .schemaDiff:
             return "Compare schema objects between schemas"
         case .serverSecurity:
@@ -166,6 +164,8 @@ extension CompactTabPreviewCard {
                 return "\(vm.schemaName).\(vm.tableName)"
             }
             return "Table data viewer"
+        case .queryBuilder:
+            return "Visual query construction"
         }
         }
 

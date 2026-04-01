@@ -7,7 +7,7 @@ extension ServerPropertiesViewModel {
         defer { isLoading = false }
         let handle = activityEngine?.begin("Loading server status variables", connectionSessionID: connectionSessionID)
         do {
-            statusVariables = try await mysql.client.admin.globalStatus()
+            statusVariables = try await mysql.client.serverConfig.globalStatus()
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 .map {
                     PropertyItem(

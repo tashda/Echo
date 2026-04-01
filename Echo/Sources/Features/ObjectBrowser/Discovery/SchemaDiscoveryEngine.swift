@@ -233,7 +233,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
         case .postgresql: return PostgresStructureFetcher(session: session)
         case .microsoftSQL: return MSSQLStructureFetcher(session: session)
         case .sqlite: return SQLiteStructureFetcher(session: session)
-        case .mysql: return nil
+        case .mysql: return MySQLStructureFetcher(session: session)
         }
     }
 

@@ -4,6 +4,7 @@ extension SchemaDiagramView {
 
     var toolbarOverlay: some View {
         HStack(spacing: SpacingTokens.sm) {
+            // Filter
             HStack(spacing: SpacingTokens.xs) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(ColorTokens.Text.tertiary)
@@ -28,6 +29,7 @@ extension SchemaDiagramView {
             Divider()
                 .frame(height: 16)
 
+            // Export
             Menu {
                 Button("Export as PNG") { exportDiagram(as: .png) }
                 Button("Export as PDF") { exportDiagram(as: .pdf) }
@@ -52,112 +54,24 @@ extension SchemaDiagramView {
             Divider()
                 .frame(height: 16)
 
+            // Visibility toggles
             Menu {
-                Button {
-                    createTableFromDiagram()
-                } label: {
-                    Label("New Table", systemImage: "tablecells")
-                }
-
-                Button {
-                    createRelationshipFromDiagram()
-                } label: {
-                    Label("New Relationship", systemImage: "arrow.triangle.swap")
-                }
-
-                Divider()
-
-                Button {
-                    addAnnotationToDiagram()
-                } label: {
-                    Label("Add Note", systemImage: "note.text")
-                }
+                Toggle("Relationships", isOn: $showRelationships)
+                Toggle("Indexes", isOn: $showIndexes)
             } label: {
-                Label("Design", systemImage: "pencil.and.ruler")
+                Label("Visibility", systemImage: "eye")
                     .labelStyle(.iconOnly)
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .disabled(viewModel.context == nil)
-            .help("Design Tools")
+            .help("Toggle Visibility")
+            .accessibilityLabel("Toggle element visibility")
 
             Divider()
                 .frame(height: 16)
 
+            // Status badge — rightmost
             loadSourceBadge
-
-            Button {
-                openSchemaDiffFromDiagram()
-            } label: {
-                Label("Open Schema Diff", systemImage: "arrow.triangle.branch")
-                    .labelStyle(.iconOnly)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(viewModel.context == nil)
-            .help("Open Schema Diff")
-
-            Button {
-                synchronizeModelWithDatabase()
-            } label: {
-                Label("Synchronize Model", systemImage: "arrow.triangle.2.circlepath")
-                    .labelStyle(.iconOnly)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(viewModel.context == nil || viewModel.nodes.isEmpty)
-            .help("Compare diagram snapshot with live database")
-
-            Menu {
-                Button("Open Forward Engineering SQL") {
-                    openForwardEngineeringSQL()
-                }
-
-                Button("Apply Forward Engineering SQL") {
-                    applyForwardEngineeringSQL()
-                }
-            } label: {
-                Label("Forward Engineering", systemImage: "doc.badge.gearshape")
-                    .labelStyle(.iconOnly)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .disabled(viewModel.context == nil || viewModel.nodes.isEmpty)
-            .help("Forward Engineering")
-
-            if isRefreshing || viewModel.isLoading {
-                ProgressView()
-                    .controlSize(.small)
-            }
-            if !viewModel.isLoading {
-                Button {
-                    guard !isRefreshing else { return }
-                    isRefreshing = true
-                    Task {
-                        await diagramBuilder.refreshDiagram(for: viewModel)
-                        await MainActor.run {
-                            isRefreshing = false
-                        }
-                    }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Refresh Diagram")
-                .accessibilityLabel("Refresh Diagram")
-            } else {
-                Button {} label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.bordered)
-                .disabled(true)
-                .controlSize(.small)
-                .help("Refresh Diagram")
-                .accessibilityLabel("Refresh Diagram")
-            }
         }
         .padding(.horizontal, SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xs)
@@ -179,14 +93,14 @@ extension SchemaDiagramView {
         switch source {
         case .live(let date):
             return (
-                "Live · " + relativeTimeString(since: date),
+                "Live \u{00b7} " + relativeTimeString(since: date),
                 "bolt.fill",
                 ColorTokens.Status.success.opacity(0.9),
                 ColorTokens.Status.success.opacity(0.15)
             )
         case .cache(let date):
             return (
-                "Cached · " + relativeTimeString(since: date),
+                "Cached \u{00b7} " + relativeTimeString(since: date),
                 "clock.fill",
                 ColorTokens.Text.secondary,
                 ColorTokens.Text.primary.opacity(0.08)

@@ -26,6 +26,19 @@ struct AppearanceSettingsView: View {
                 ) {
                     SidebarIconPicker(selection: sidebarIconColorModeBinding)
                 }
+
+                PropertyRow(
+                    title: "Toolbar Project Button",
+                    subtitle: "Show your account avatar or the project icon in the toolbar."
+                ) {
+                    Picker("", selection: toolbarProjectButtonStyleBinding) {
+                        ForEach(ToolbarProjectButtonStyle.allCases, id: \.self) { style in
+                            Text(style.displayName).tag(style)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
             }
 
             Section("Theme") {

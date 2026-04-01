@@ -16,6 +16,7 @@ struct DatabaseObjectRowAlerts: ViewModifier {
     @Binding var showBulkImportSheet: Bool
     @Binding var showExportSheet: Bool
     @Binding var showGenerateScriptsWizard: Bool
+    @Binding var showExecuteProcedureSheet: Bool
 
     let performDrop: (Bool) -> Void
     let performTruncate: () -> Void
@@ -26,6 +27,7 @@ struct DatabaseObjectRowAlerts: ViewModifier {
     private var hasActivePresentation: Bool {
         showDropAlert || showTruncateAlert || showRenameAlert
             || showBulkImportSheet || showExportSheet || showGenerateScriptsWizard
+            || showExecuteProcedureSheet
     }
 
     private func objectTypeDisplayName() -> String {
@@ -115,6 +117,17 @@ struct DatabaseObjectRowAlerts: ViewModifier {
                             tableName: object.name
                         )
                         DataExportSheet(viewModel: vm, onDismiss: { showExportSheet = false })
+                    }
+                }
+                .sheet(isPresented: $showExecuteProcedureSheet) {
+                    if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+                        ExecuteProcedureSheet(
+                            object: object,
+                            connection: connection,
+                            session: session,
+                            environmentState: environmentState,
+                            onDismiss: { showExecuteProcedureSheet = false }
+                        )
                     }
                 }
         } else {

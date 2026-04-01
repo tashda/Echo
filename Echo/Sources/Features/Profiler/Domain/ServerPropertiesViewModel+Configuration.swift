@@ -10,7 +10,7 @@ extension ServerPropertiesViewModel {
         let handle = activityEngine?.begin("Loading MySQL configuration", connectionSessionID: connectionSessionID)
 
         do {
-            let variables = try await mysql.client.admin.globalVariables()
+            let variables = try await mysql.client.serverConfig.globalVariables()
             let variableMap = Dictionary(uniqueKeysWithValues: variables.map { ($0.name.lowercased(), $0.value) })
             let candidates = MySQLServerConfigurationLocator.candidates(
                 host: mysql.configuration.host,

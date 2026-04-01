@@ -3,11 +3,14 @@ import SQLServerKit
 import Observation
 
 @Observable
+@MainActor
 final class LoginEditorViewModel {
     let connectionSessionID: UUID
     let existingLoginName: String?
 
     var isEditing: Bool { existingLoginName != nil }
+
+    var serverName: String?
 
     // MARK: - General Page State
 
@@ -20,6 +23,7 @@ final class LoginEditorViewModel {
     var enforcePasswordPolicy = true
     var enforcePasswordExpiration = false
     var loginEnabled = true
+    var isLocked = false
 
     var availableDatabases: [String] = ["master"]
 
@@ -47,6 +51,7 @@ final class LoginEditorViewModel {
     // MARK: - Securables State
 
     var serverPermissions: [LoginEditorPermissionEntry] = []
+    var permissionConnectToEngine: ConnectSQLPermissionState = .unspecified
 
     // MARK: - Loading State
 
@@ -71,7 +76,7 @@ final class LoginEditorViewModel {
 
     // MARK: - Dirty Tracking
 
-    @ObservationIgnored private var snapshot: Snapshot?
+    @ObservationIgnored internal var snapshot: Snapshot?
 
     struct Snapshot {
         let loginEnabled: Bool

@@ -1,26 +1,17 @@
 import Foundation
 import SQLServerKit
+import OSLog
 
-extension SQLServerSessionAdapter: DatabaseMetadataSession {
+extension SQLServerSessionAdapter {
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
-        let tables = try await client.metadata.listTables(
-            database: database,
-            schema: schema,
-            includeComments: false
-        )
-        return tables.compactMap { table in
-            if table.isSystemObject {
-                return nil
-            }
-            let objectType: SchemaObjectInfo.ObjectType = table.isView ? .view : .table
-            return SchemaObjectInfo(
+        let database = self.database
+        let tables = try await client.metadata.listTables(database: database, schema: schema)
+        return tables.map { table in
+            SchemaObjectInfo(
                 name: table.name,
                 schema: table.schema,
-                type: objectType,
-                comment: table.comment,
-                isSystemVersioned: table.isSystemVersioned ? true : nil,
-                isHistoryTable: table.isHistoryTable ? true : nil,
-                isMemoryOptimized: table.isMemoryOptimized ? true : nil
+                type: table.isView ? .view : .table,
+                comment: table.comment
             )
         }
     }
@@ -72,7 +63,6 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
             return SchemaInfo(name: schema.name, objects: objects)
         }
 
-        // Fetch database state from sys.databases
         var stateDesc: String?
         if let meta = try? await client.metadata.databaseState(name: databaseName) {
             stateDesc = meta.stateDescription
@@ -84,17 +74,25 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
         return DatabaseInfo(name: databaseName, schemas: schemaInfos, schemaCount: schemaInfos.count, stateDescription: stateDesc)
     }
 
+    func listExtensions() async throws -> [SchemaObjectInfo] {
+        // SQL Server does not have "extensions" in the Postgres sense.
+        []
+    }
+
+    func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo] {
+        []
+    }
+
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {
-        let schema = schemaName ?? "dbo"
+        let effectiveSchema = schemaName ?? "dbo"
         let columns = try await client.metadata.listColumns(
             database: database,
-            schema: schema,
-            table: tableName,
-            includeComments: false
+            schema: effectiveSchema,
+            table: tableName
         )
-        let primaryKeys = try await client.metadata.listPrimaryKeysFromCatalog(
+        let primaryKeys = try await client.metadata.listPrimaryKeys(
             database: database,
-            schema: schema,
+            schema: effectiveSchema,
             table: tableName
         )
         let primaryKeyColumns = Set(primaryKeys.flatMap { $0.columns.map { $0.column.lowercased() } })
@@ -139,270 +137,139 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
             return definition
         }
 
-        // Fall back to the simpler OBJECT_DEFINITION() approach using three-part naming
-        let qualifiedName: String
-        if let effectiveDatabase {
-            qualifiedName = "[\(effectiveDatabase.replacing("]", with: "]]"))].[\(schemaName.replacing("]", with: "]]"))].[\(objectName.replacing("]", with: "]]"))]"
-        } else {
-            qualifiedName = "[\(schemaName.replacing("]", with: "]]"))].[\(objectName.replacing("]", with: "]]"))]"
-        }
-        let sql = "SELECT OBJECT_DEFINITION(OBJECT_ID(N'\(qualifiedName)')) AS [definition]"
-        let result = try await simpleQuery(sql)
-        if let firstRow = result.rows.first, let definition = firstRow.first ?? nil, !definition.isEmpty {
+        // Fall back to the simpler OBJECT_DEFINITION() approach
+        if let definition = try await client.metadata.objectDefinitionString(
+            database: effectiveDatabase,
+            schema: schemaName,
+            name: objectName
+        ) {
             return definition
         }
 
         throw DatabaseError.queryError("Object definition not found for [\(schemaName)].[\(objectName)]")
     }
 
+    func getTableStructureDetails(schema: String, table: String, database db: String) async throws -> TableStructureDetails {
+        try await getTableStructureDetailsImpl(schema: schema, table: table, database: db)
+    }
+
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
-        let columnMetadata = try await client.metadata.listColumns(
-            database: database,
-            schema: schema,
-            table: table
-        )
+        try await getTableStructureDetailsImpl(schema: schema, table: table, database: database)
+    }
 
-        let primaryKeyMetadata = try await client.metadata.listPrimaryKeys(
-            database: database,
-            schema: schema,
-            table: table
-        )
-
-        let uniqueConstraintMetadata = try await client.metadata.listUniqueConstraints(
-            database: database,
-            schema: schema,
-            table: table
-        )
-
-        let foreignKeyMetadata = try await client.metadata.listForeignKeys(
-            database: database,
-            schema: schema,
-            table: table
-        )
-
-        let indexMetadata = try await client.metadata.listIndexes(
-            database: database,
-            schema: schema,
-            table: table
-        )
-
-        let columns = columnMetadata.map { column in
+    private func getTableStructureDetailsImpl(schema: String, table: String, database db: String?) async throws -> TableStructureDetails {
+        let columns = try await client.metadata.listColumns(database: db, schema: schema, table: table, includeComments: true)
+        let primaryKeys = try await client.metadata.listPrimaryKeys(database: db, schema: schema, table: table)
+        let indexes = try await client.metadata.listIndexes(database: db, schema: schema, table: table)
+        let uniqueConstraints = try await client.metadata.listUniqueConstraints(database: db, schema: schema, table: table)
+        let foreignKeys = try await client.metadata.listForeignKeys(database: db, schema: schema, table: table)
+        let checkConstraints = (try? await client.constraints.listCheckConstraints(database: db, schema: schema, table: table)) ?? []
+        let props = try await client.metadata.tableProperties(database: db, schema: schema, table: table)
+        
+        let mappedColumns = columns.map { col in
             TableStructureDetails.Column(
-                name: column.name,
-                dataType: column.typeName,
-                isNullable: column.isNullable,
-                defaultValue: column.defaultDefinition,
-                generatedExpression: column.computedDefinition,
-                isIdentity: column.isIdentity,
-                identitySeed: column.identitySeed,
-                identityIncrement: column.identityIncrement,
-                identityGeneration: column.isIdentity ? "ALWAYS" : nil,
-                collation: column.collationName
+                name: col.name,
+                dataType: col.typeName,
+                isNullable: col.isNullable,
+                defaultValue: col.defaultDefinition,
+                generatedExpression: col.computedDefinition,
+                isIdentity: col.isIdentity,
+                identitySeed: col.identitySeed,
+                identityIncrement: col.identityIncrement,
+                collation: col.collationName,
+                comment: col.comment,
+                ordinalPosition: col.ordinalPosition
             )
         }
-
-        let primaryKey = primaryKeyMetadata.first(where: { $0.type == .primaryKey }).map { pk in
-            let ordered = pk.columns.sorted { $0.ordinal < $1.ordinal }.map(\.column)
-            return TableStructureDetails.PrimaryKey(name: pk.name, columns: ordered)
+        
+        let mappedPK = primaryKeys.first.map { pk in
+            TableStructureDetails.PrimaryKey(
+                name: pk.name,
+                columns: pk.columns.map { $0.column }
+            )
         }
-
-        let uniqueConstraints = uniqueConstraintMetadata.map { constraint in
-            let ordered = constraint.columns.sorted { $0.ordinal < $1.ordinal }.map(\.column)
-            return TableStructureDetails.UniqueConstraint(name: constraint.name, columns: ordered)
+        
+        let mappedIndexes = indexes.map { idx in
+            TableStructureDetails.Index(
+                name: idx.name,
+                columns: idx.columns.map { col in
+                    TableStructureDetails.Index.Column(
+                        name: col.column,
+                        position: col.ordinal,
+                        sortOrder: col.isDescending ? .descending : .ascending,
+                        isIncluded: col.isIncluded
+                    )
+                },
+                isUnique: idx.isUnique,
+                filterCondition: idx.filterDefinition
+            )
         }
-
-        let foreignKeys = foreignKeyMetadata.map { fk in
-            let ordered = fk.columns.sorted { $0.ordinal < $1.ordinal }
-            return TableStructureDetails.ForeignKey(
+        
+        let mappedUQs = uniqueConstraints.map { uq in
+            TableStructureDetails.UniqueConstraint(
+                name: uq.name,
+                columns: uq.columns.map { $0.column }
+            )
+        }
+        
+        let mappedFKs = foreignKeys.map { fk in
+            TableStructureDetails.ForeignKey(
                 name: fk.name,
-                columns: ordered.map(\.parentColumn),
+                columns: fk.columns.map { $0.parentColumn },
                 referencedSchema: fk.referencedSchema,
                 referencedTable: fk.referencedTable,
-                referencedColumns: ordered.map(\.referencedColumn),
+                referencedColumns: fk.columns.map { $0.referencedColumn },
                 onUpdate: fk.updateAction,
                 onDelete: fk.deleteAction
             )
         }
-
-        let excludedIndexNames = Set(uniqueConstraintMetadata.map(\.name)).union(Set(primaryKeyMetadata.map(\.name)))
-        let indexes = indexMetadata
-            .filter { !excludedIndexNames.contains($0.name) }
-            .map { index in
-                let columns = index.columns
-                    .sorted { $0.ordinal < $1.ordinal }
-                    .map { column in
-                        TableStructureDetails.Index.Column(
-                            name: column.column,
-                            position: column.ordinal,
-                            sortOrder: column.isDescending ? .descending : .ascending,
-                            isIncluded: column.isIncluded
-                        )
-                    }
-                return TableStructureDetails.Index(
-                    name: index.name,
-                    columns: columns,
-                    isUnique: index.isUnique,
-                    filterCondition: index.filterDefinition
-                )
-            }
-
-        // Check constraints
-        let checkConstraintSQL = """
-            SELECT cc.name, cc.definition
-            FROM sys.check_constraints cc
-            WHERE cc.parent_object_id = OBJECT_ID('\(schema).\(table)')
-            ORDER BY cc.name
-            """
-        var checkConstraints: [TableStructureDetails.CheckConstraint] = []
-        if let results = try? await client.query(checkConstraintSQL) {
-            for row in results {
-                guard let name = row.column("name")?.string,
-                      let definition = row.column("definition")?.string else { continue }
-                var expression = definition
-                if expression.hasPrefix("(") && expression.hasSuffix(")") {
-                    expression = String(expression.dropFirst().dropLast())
-                }
-                checkConstraints.append(TableStructureDetails.CheckConstraint(name: name, expression: expression))
-            }
+        
+        let mappedCKs = checkConstraints.map { ck in
+            TableStructureDetails.CheckConstraint(
+                name: ck.name,
+                expression: ck.definition
+            )
         }
 
-        // Table properties (including temporal, in-memory OLTP, and SSMS parity fields)
-        let propsSQL = """
-            SELECT
-                p.data_compression_desc,
-                fg.name AS filegroup_name,
-                t.lock_escalation_desc,
-                t.temporal_type,
-                hs.name AS history_schema,
-                ht.name AS history_table,
-                pc_start.name AS period_start_column,
-                pc_end.name AS period_end_column,
-                t.is_memory_optimized,
-                t.durability_desc,
-                CONVERT(varchar(23), o.create_date, 121) AS created_date,
-                CONVERT(varchar(23), o.modify_date, 121) AS modified_date,
-                o.is_ms_shipped,
-                t.uses_ansi_nulls,
-                t.is_replicated,
-                fg_lob.name AS text_filegroup,
-                fg_fs.name AS filestream_filegroup,
-                CASE WHEN ps.data_space_id IS NOT NULL THEN 1 ELSE 0 END AS is_partitioned,
-                ps.name AS partition_scheme,
-                pc_part.name AS partition_column,
-                (SELECT COUNT(*) FROM sys.partitions sp WHERE sp.object_id = t.object_id AND sp.index_id IN (0, 1)) AS partition_count,
-                ct.is_track_columns_updated_on AS track_columns_updated
-            FROM sys.tables t
-            JOIN sys.objects o ON o.object_id = t.object_id
-            JOIN sys.partitions p ON p.object_id = t.object_id AND p.index_id IN (0, 1) AND p.partition_number = 1
-            JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id IN (0, 1)
-            JOIN sys.filegroups fg ON fg.data_space_id = i.data_space_id
-            LEFT JOIN sys.tables ht ON ht.object_id = t.history_table_id
-            LEFT JOIN sys.schemas hs ON hs.schema_id = ht.schema_id
-            LEFT JOIN sys.periods pr ON pr.object_id = t.object_id
-            LEFT JOIN sys.columns pc_start ON pc_start.object_id = t.object_id AND pc_start.column_id = pr.start_column_id
-            LEFT JOIN sys.columns pc_end ON pc_end.object_id = t.object_id AND pc_end.column_id = pr.end_column_id
-            LEFT JOIN sys.filegroups fg_lob ON fg_lob.data_space_id = t.lob_data_space_id
-            LEFT JOIN sys.filegroups fg_fs ON fg_fs.data_space_id = t.filestream_data_space_id
-            LEFT JOIN sys.partition_schemes ps ON ps.data_space_id = i.data_space_id
-            LEFT JOIN sys.index_columns ic_part ON ic_part.object_id = i.object_id AND ic_part.index_id = i.index_id AND ic_part.partition_ordinal = 1
-            LEFT JOIN sys.columns pc_part ON pc_part.object_id = t.object_id AND pc_part.column_id = ic_part.column_id
-            LEFT JOIN sys.change_tracking_tables ct ON ct.object_id = t.object_id
-            WHERE t.object_id = OBJECT_ID('\(schema).\(table)')
-            """
-        var tableProperties: TableStructureDetails.TableProperties?
-        if let propsRows = try? await client.query(propsSQL) {
-            for row in propsRows {
-                let compression = row.column("data_compression_desc")?.string
-                let fg = row.column("filegroup_name")?.string
-                let lockEsc = row.column("lock_escalation_desc")?.string
-                let temporalType = row.column("temporal_type")?.int ?? 0
-                let isMemOpt = (row.column("is_memory_optimized")?.int ?? 0) != 0
-                let isPartitioned = (row.column("is_partitioned")?.int ?? 0) != 0
-                let ctTrackCols = row.column("track_columns_updated")?.int
-                tableProperties = TableStructureDetails.TableProperties(
-                    dataCompression: compression, filegroup: fg, lockEscalation: lockEsc,
-                    createdDate: row.column("created_date")?.string,
-                    modifiedDate: row.column("modified_date")?.string,
-                    isSystemObject: (row.column("is_ms_shipped")?.int ?? 0) != 0 ? true : nil,
-                    usesAnsiNulls: (row.column("uses_ansi_nulls")?.int ?? 0) != 0 ? true : false,
-                    isReplicated: (row.column("is_replicated")?.int ?? 0) != 0 ? true : nil,
-                    textFilegroup: row.column("text_filegroup")?.string,
-                    filestreamFilegroup: row.column("filestream_filegroup")?.string,
-                    isPartitioned: isPartitioned ? true : nil,
-                    partitionScheme: isPartitioned ? row.column("partition_scheme")?.string : nil,
-                    partitionColumn: isPartitioned ? row.column("partition_column")?.string : nil,
-                    partitionCount: isPartitioned ? row.column("partition_count")?.int : nil,
-                    isSystemVersioned: temporalType == 2 ? true : nil,
-                    historyTableSchema: row.column("history_schema")?.string,
-                    historyTableName: row.column("history_table")?.string,
-                    periodStartColumn: row.column("period_start_column")?.string,
-                    periodEndColumn: row.column("period_end_column")?.string,
-                    isMemoryOptimized: isMemOpt ? true : nil,
-                    memoryOptimizedDurability: isMemOpt ? row.column("durability_desc")?.string : nil,
-                    changeTrackingEnabled: ctTrackCols != nil ? true : nil,
-                    trackColumnsUpdated: ctTrackCols != nil ? (ctTrackCols != 0) : nil
-                )
-            }
-        }
+        let tableProps = TableStructureDetails.TableProperties(
+            dataCompression: props.dataCompression,
+            filegroup: props.filegroup,
+            lockEscalation: props.lockEscalation,
+            createdDate: props.createDate?.formatted(),
+            modifiedDate: props.modifyDate?.formatted(),
+            isSystemObject: props.isSystemObject,
+            usesAnsiNulls: props.usesAnsiNulls,
+            isReplicated: props.isReplicated,
+            textFilegroup: props.textFilegroup,
+            filestreamFilegroup: props.filestreamFilegroup,
+            isPartitioned: props.isPartitioned,
+            partitionScheme: props.partitionScheme,
+            partitionColumn: props.partitionColumn,
+            partitionCount: props.partitionCount,
+            isSystemVersioned: props.isSystemVersioned,
+            historyTableSchema: props.historyTableSchema,
+            historyTableName: props.historyTableName,
+            periodStartColumn: props.periodStartColumn,
+            periodEndColumn: props.periodEndColumn,
+            isMemoryOptimized: props.isMemoryOptimized,
+            memoryOptimizedDurability: props.memoryOptimizedDurability,
+            changeTrackingEnabled: props.changeTrackingEnabled,
+            trackColumnsUpdated: props.trackColumnsUpdated
+        )
 
         return TableStructureDetails(
-            columns: columns,
-            primaryKey: primaryKey,
-            indexes: indexes,
-            uniqueConstraints: uniqueConstraints,
-            foreignKeys: foreignKeys,
-            dependencies: [],
-            checkConstraints: checkConstraints,
-            tableProperties: tableProperties
+            columns: mappedColumns,
+            primaryKey: mappedPK,
+            indexes: mappedIndexes,
+            uniqueConstraints: mappedUQs,
+            foreignKeys: mappedFKs,
+            dependencies: [], // Dependencies are not currently fetched via nio
+            checkConstraints: mappedCKs,
+            tableProperties: tableProps
         )
     }
 
-    func loadSchemaInfo(
-        _ schemaName: String,
-        progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
-    ) async throws -> SchemaInfo {
-        let schema = try await client.metadata.loadSchemaStructure(
-            database: database,
-            schema: schemaName,
-            includeComments: false
-        )
-
-        var objects: [SchemaObjectInfo] = []
-        objects.reserveCapacity(schema.tables.count + schema.views.count + schema.functions.count + schema.procedures.count + schema.triggers.count)
-
-        for table in schema.tables {
-            objects.append(makeTableObjectInfo(from: table, type: .table))
-        }
-        for view in schema.views {
-            objects.append(makeTableObjectInfo(from: view, type: .view))
-        }
-        for routine in schema.functions {
-            objects.append(makeRoutineObjectInfo(from: routine))
-        }
-        for routine in schema.procedures {
-            objects.append(makeRoutineObjectInfo(from: routine))
-        }
-        for trigger in schema.triggers {
-            objects.append(makeTriggerObjectInfo(from: trigger))
-        }
-
-        for synonym in schema.synonyms {
-            objects.append(SchemaObjectInfo(name: synonym.name, schema: synonym.schema, type: .synonym, comment: synonym.comment))
-        }
-
-        if let progress {
-            let total = objects.count
-            if total > 0 {
-                var current = 0
-                for object in objects {
-                    current += 1
-                    await progress(object.type, current, total)
-                }
-            }
-        }
-
-        return SchemaInfo(name: schemaName, objects: objects)
-    }
+    // MARK: - Helpers
 
     private func makeTableObjectInfo(from table: SQLServerTableStructure, type: SchemaObjectInfo.ObjectType) -> SchemaObjectInfo {
         let primaryKeyColumns = Set(table.primaryKey?.columns.map { $0.column.lowercased() } ?? [])
@@ -444,13 +311,5 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
             triggerTable: trigger.table,
             comment: trigger.comment
         )
-    }
-
-    func listAvailableExtensions() async throws -> [AvailableExtensionInfo] {
-        []
-    }
-
-    func installExtension(name: String, schema: String?, version: String?, cascade: Bool) async throws {
-        throw DatabaseError.queryError("Extensions are not supported for SQL Server")
     }
 }

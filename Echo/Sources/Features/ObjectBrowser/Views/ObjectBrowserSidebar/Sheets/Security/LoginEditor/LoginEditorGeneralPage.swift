@@ -1,4 +1,5 @@
 import SwiftUI
+import SQLServerKit
 
 struct LoginEditorGeneralPage: View {
     @Bindable var viewModel: LoginEditorViewModel
@@ -30,6 +31,18 @@ struct LoginEditorGeneralPage: View {
                 Toggle("", isOn: $viewModel.loginEnabled)
                     .labelsHidden()
                     .toggleStyle(.switch)
+            }
+
+            if viewModel.isEditing && viewModel.authType == .sql {
+                PropertyRow(
+                    title: "Login is locked out",
+                    info: "Indicates if the login is currently locked out due to failed password attempts."
+                ) {
+                    Toggle("", isOn: $viewModel.isLocked)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .disabled(true) // Locked status is read-only
+                }
             }
         }
 
@@ -68,8 +81,19 @@ struct LoginEditorGeneralPage: View {
                     Toggle("", isOn: $viewModel.enforcePasswordExpiration)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .disabled(!viewModel.enforcePasswordPolicy)
                 }
+            }
+        }
+
+        Section("Status") {
+            PropertyRow(title: "Permission to connect to database engine") {
+                Picker("", selection: $viewModel.permissionConnectToEngine) {
+                    Text("Grant").tag(ConnectSQLPermissionState.granted)
+                    Text("Deny").tag(ConnectSQLPermissionState.denied)
+                    Text("Unspecified").tag(ConnectSQLPermissionState.unspecified)
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
             }
         }
 

@@ -108,6 +108,10 @@ struct ConnectionsPopoverView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
 
+                if connection.databaseType.isBeta {
+                    FeatureBadge.beta
+                }
+
                 Spacer()
             }
             .contentShape(Rectangle())

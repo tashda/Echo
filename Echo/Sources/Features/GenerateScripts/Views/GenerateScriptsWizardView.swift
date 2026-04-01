@@ -106,7 +106,7 @@ struct GenerateScriptsWizardView: View {
 
             ScrollView {
                 Text(viewModel.generatedScript.prefix(5000))
-                    .font(.system(.body, design: .monospaced))
+                    .font(TypographyTokens.code)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(SpacingTokens.sm)
                     .textSelection(.enabled)

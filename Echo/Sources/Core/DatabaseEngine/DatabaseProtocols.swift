@@ -63,10 +63,8 @@ public protocol DatabaseSession: Sendable {
     var policy: SQLServerPolicyClient? { get }
     var dependencies: SQLServerDependencyClient? { get }
     var dac: SQLServerDACClient? { get }
-    var bulkCopy: SQLServerBulkCopyClient? { get }
+    var bulk: SQLServerBulkClient? { get }
     var ssis: SQLServerSSISClient? { get }
-    var ssas: SQLServerSSASClient? { get }
-    var ssrs: SQLServerSSRSClient? { get }
 
     // Multi-batch execution (GO batch separator support)
     func executeBatches(_ batches: [String], progressHandler: BatchProgressHandler?) async throws -> [BatchResult]
@@ -298,10 +296,8 @@ public extension DatabaseSession {
     var policy: SQLServerPolicyClient? { nil }
     var dependencies: SQLServerDependencyClient? { nil }
     var dac: SQLServerDACClient? { nil }
-    var bulkCopy: SQLServerBulkCopyClient? { nil }
+    var bulk: SQLServerBulkClient? { nil }
     var ssis: SQLServerSSISClient? { nil }
-    var ssas: SQLServerSSASClient? { nil }
-    var ssrs: SQLServerSSRSClient? { nil }
 
     func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
         throw DatabaseError.queryError("VACUUM is not supported for this database type")

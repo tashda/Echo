@@ -29,7 +29,7 @@ jobs:
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security set-keychain-settings ~/Library/Keychains/login.keychain-db
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        security delete-generic-password -s "dev.echodb.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
 
     - name: Verify Docker (via Colima)
       run: |
@@ -165,7 +165,7 @@ jobs:
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security set-keychain-settings ~/Library/Keychains/login.keychain-db
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        security delete-generic-password -s "dev.echodb.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
 
     - name: Verify Docker (via Colima)
       run: |

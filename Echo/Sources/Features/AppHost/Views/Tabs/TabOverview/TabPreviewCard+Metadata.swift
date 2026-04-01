@@ -72,13 +72,11 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
         return ("chart.bar.doc.horizontal", "Ready", ColorTokens.Text.secondary)
     case .maintenance, .mssqlMaintenance:
         return ("wrench.and.screwdriver", "Ready", ColorTokens.Text.secondary)
-    case .queryStore:
-        return ("chart.bar.xaxis", "Ready", ColorTokens.Text.secondary)
     case .extendedEvents:
         return ("waveform.path.ecg", "Ready", ColorTokens.Text.secondary)
     case .availabilityGroups:
         return ("server.rack", "Ready", ColorTokens.Text.secondary)
-    case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .postgresAdvancedObjects:
+    case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .postgresAdvancedObjects, .mssqlAdvancedObjects:
         return ("lock.shield", "Ready", ColorTokens.Text.secondary)
     case .schemaDiff:
         return ("doc.on.doc", "Ready", ColorTokens.Text.secondary)
@@ -107,6 +105,8 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
             return ("tablecells.badge.ellipsis", "Ready", ColorTokens.Text.secondary)
         }
         return ("tablecells.badge.ellipsis", "Ready", ColorTokens.Text.secondary)
+    case .queryBuilder:
+        return ("hammer", "Ready", ColorTokens.Text.secondary)
     }
 }
 
@@ -137,13 +137,11 @@ extension TabPreviewCard {
             return activityMonitorMetrics
         case .maintenance, .mssqlMaintenance:
             return []
-        case .queryStore:
-            return []
         case .extendedEvents:
             return []
         case .availabilityGroups:
             return []
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .mssqlAdvancedObjects, .schemaDiff, .queryBuilder:
             return []
         case .errorLog:
             return []
@@ -258,8 +256,6 @@ extension TabPreviewCard {
             return "Activity Monitor"
         case .maintenance, .mssqlMaintenance:
             return "Maintenance"
-        case .queryStore:
-            return "Query Store"
         case .extendedEvents:
             return "Extended Events"
         case .availabilityGroups:
@@ -282,10 +278,12 @@ extension TabPreviewCard {
             return "Policy Management"
         case .tableData:
             return "Table Data"
-        case .postgresAdvancedObjects:
+        case .postgresAdvancedObjects, .mssqlAdvancedObjects:
             return "Advanced Objects"
         case .schemaDiff:
             return "Schema Diff"
+        case .queryBuilder:
+            return "Query Builder"
         }
     }
 }

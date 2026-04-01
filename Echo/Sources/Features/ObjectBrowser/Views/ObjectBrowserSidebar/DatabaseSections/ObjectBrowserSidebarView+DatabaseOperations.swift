@@ -13,19 +13,19 @@ extension ObjectBrowserSidebarView {
     func runPostgresMaintenance(session: ConnectionSession, database: String, operation: PostgresMaintenanceOp) async {
         guard let pgSession = session.session as? PostgresSession else { return }
 
-        let admin = pgSession.client.admin
+        let maintenance = pgSession.client.maintenance
         do {
             switch operation {
             case .vacuum:
-                _ = try await admin.vacuum()
+                _ = try await maintenance.vacuum()
             case .vacuumFull:
-                _ = try await admin.vacuum(full: true)
+                _ = try await maintenance.vacuum(full: true)
             case .vacuumAnalyze:
-                _ = try await admin.vacuum(analyze: true)
+                _ = try await maintenance.vacuum(analyze: true)
             case .analyze:
-                _ = try await admin.analyze()
+                _ = try await maintenance.analyze()
             case .reindex:
-                _ = try await admin.reindex(database: database)
+                _ = try await maintenance.reindex(database: database)
             }
         } catch {
             await MainActor.run {

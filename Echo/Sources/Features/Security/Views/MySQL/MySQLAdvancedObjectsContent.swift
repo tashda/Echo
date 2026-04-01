@@ -147,7 +147,7 @@ struct MySQLAdvancedObjectsContent: View {
 
                     ScrollView {
                         Text(definition.definition)
-                            .font(.system(.body, design: .monospaced))
+                            .font(TypographyTokens.code)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }

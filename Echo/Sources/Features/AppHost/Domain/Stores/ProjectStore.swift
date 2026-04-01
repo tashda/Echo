@@ -61,6 +61,9 @@ final class ProjectStore {
         try await repository.saveProjects(projects)
     }
 
+    /// Callback for sync engine — fires when settings change for a project.
+    var onSettingsChanged: ((UUID) -> Void)?
+
     func saveGlobalSettings(_ settings: GlobalSettings) async throws {
         self.globalSettings = settings
         // Update active project in memory
@@ -68,14 +71,17 @@ final class ProjectStore {
            let idx = projects.firstIndex(where: { $0.id == project.id }) {
             projects[idx].projectGlobalSettings = settings
             selectedProject = projects[idx]
-            
+
             // Save projects list (includes this project's settings) asynchronously
             let procs = projects
             Task.detached(priority: .background) {
                 try? await self.repository.saveProjects(procs)
             }
+
+            // Notify sync engine
+            onSettingsChanged?(project.id)
         }
-        
+
         // Also update global_settings.json as fallback asynchronously
         Task.detached(priority: .background) {
             try? await self.repository.saveGlobalSettings(settings)

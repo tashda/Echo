@@ -31,11 +31,10 @@ extension WorkspaceTab.Kind {
         case .extensionsManager: return "Extensions"
         case .activityMonitor: return "Activity"
         case .maintenance, .mssqlMaintenance: return "Maintenance"
-        case .queryStore: return "Query Store"
         case .extendedEvents: return "Extended Events"
         case .availabilityGroups: return "Availability Groups"
         case .databaseSecurity, .postgresSecurity, .mysqlSecurity: return "Database Security"
-        case .postgresAdvancedObjects: return "Advanced Objects"
+        case .postgresAdvancedObjects, .mssqlAdvancedObjects: return "Advanced Objects"
         case .serverSecurity: return "Server Security"
         case .errorLog: return "Error Log"
         case .profiler: return "SQL Profiler"
@@ -45,6 +44,7 @@ extension WorkspaceTab.Kind {
         case .policyManagement: return "Policy Management"
         case .tableData: return "Table Data"
         case .schemaDiff: return "Schema Diff"
+        case .queryBuilder: return "Query Builder"
         }
     }
 
@@ -59,10 +59,10 @@ extension WorkspaceTab.Kind {
         case .extensionsManager: return "puzzlepiece"
         case .activityMonitor: return "chart.bar.doc.horizontal"
         case .maintenance, .mssqlMaintenance: return "wrench.and.screwdriver"
-        case .queryStore: return "chart.bar.xaxis"
         case .extendedEvents: return "bolt.horizontal"
         case .availabilityGroups: return "server.rack"
         case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects: return "lock.shield"
+        case .mssqlAdvancedObjects: return "puzzlepiece.extension"
         case .errorLog: return "doc.text"
         case .profiler: return "trace"
         case .resourceGovernor: return "r.square.on.square"
@@ -71,6 +71,7 @@ extension WorkspaceTab.Kind {
         case .policyManagement: return "checkmark.seal"
         case .tableData: return "tablecells.badge.ellipsis"
         case .schemaDiff: return "doc.on.doc"
+        case .queryBuilder: return "hammer"
         }
     }
 }

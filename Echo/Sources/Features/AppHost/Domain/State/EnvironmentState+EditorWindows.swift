@@ -134,10 +134,13 @@ extension EnvironmentState {
             functionName: existingFunction
         )
         if functionEditorViewModels[value] == nil {
+            let dbType = sessionGroup.sessionForConnection(connectionSessionID)?.connection.databaseType ?? .postgresql
+            guard let dialect = ObjectEditorDialectFactory.functionDialect(for: dbType) else { return value }
             functionEditorViewModels[value] = FunctionEditorViewModel(
                 connectionSessionID: connectionSessionID,
                 schemaName: schemaName,
-                existingFunctionName: existingFunction
+                existingFunctionName: existingFunction,
+                dialect: dialect
             )
         }
         activeFunctionEditorValue = value
@@ -244,11 +247,14 @@ extension EnvironmentState {
             triggerName: existingTrigger
         )
         if triggerEditorViewModels[value] == nil {
+            let dbType = sessionGroup.sessionForConnection(connectionSessionID)?.connection.databaseType ?? .postgresql
+            guard let dialect = ObjectEditorDialectFactory.triggerDialect(for: dbType) else { return value }
             triggerEditorViewModels[value] = TriggerEditorViewModel(
                 connectionSessionID: connectionSessionID,
                 schemaName: schemaName,
                 tableName: tableName,
-                existingTriggerName: existingTrigger
+                existingTriggerName: existingTrigger,
+                dialect: dialect
             )
         }
         activeTriggerEditorValue = value
@@ -271,11 +277,14 @@ extension EnvironmentState {
             isMaterialized: isMaterialized
         )
         if viewEditorViewModels[value] == nil {
+            let dbType = sessionGroup.sessionForConnection(connectionSessionID)?.connection.databaseType ?? .postgresql
+            guard let dialect = ObjectEditorDialectFactory.viewDialect(for: dbType) else { return value }
             viewEditorViewModels[value] = ViewEditorViewModel(
                 connectionSessionID: connectionSessionID,
                 schemaName: schemaName,
                 existingViewName: existingView,
-                isMaterialized: isMaterialized
+                isMaterialized: isMaterialized,
+                dialect: dialect
             )
         }
         activeViewEditorValue = value
@@ -296,10 +305,13 @@ extension EnvironmentState {
             sequenceName: existingSequence
         )
         if sequenceEditorViewModels[value] == nil {
+            let dbType = sessionGroup.sessionForConnection(connectionSessionID)?.connection.databaseType ?? .postgresql
+            guard let dialect = ObjectEditorDialectFactory.sequenceDialect(for: dbType) else { return value }
             sequenceEditorViewModels[value] = SequenceEditorViewModel(
                 connectionSessionID: connectionSessionID,
                 schemaName: schemaName,
-                existingSequenceName: existingSequence
+                existingSequenceName: existingSequence,
+                dialect: dialect
             )
         }
         activeSequenceEditorValue = value
@@ -322,11 +334,14 @@ extension EnvironmentState {
             typeCategory: typeCategory
         )
         if typeEditorViewModels[value] == nil {
+            let dbType = sessionGroup.sessionForConnection(connectionSessionID)?.connection.databaseType ?? .postgresql
+            guard let dialect = ObjectEditorDialectFactory.typeDialect(for: dbType) else { return value }
             typeEditorViewModels[value] = TypeEditorViewModel(
                 connectionSessionID: connectionSessionID,
                 schemaName: schemaName,
                 existingTypeName: existingType,
-                typeCategory: typeCategory
+                typeCategory: typeCategory,
+                dialect: dialect
             )
         }
         activeTypeEditorValue = value

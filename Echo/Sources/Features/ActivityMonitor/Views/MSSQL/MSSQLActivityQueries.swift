@@ -6,6 +6,7 @@ struct MSSQLActivityQueries: View {
     @Binding var sortOrder: [KeyPathComparator<SQLServerExpensiveQuery>]
     @Binding var selection: Set<SQLServerExpensiveQuery.ID>
     let onPopout: (String) -> Void
+    var onOpenInQueryWindow: ((_ sql: String, _ database: String?) -> Void)?
     var onDoubleClick: (() -> Void)?
 
     private var sortedQueries: [SQLServerExpensiveQuery] {
@@ -15,8 +16,18 @@ struct MSSQLActivityQueries: View {
     var body: some View {
         Table(sortedQueries, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Query", value: \.sortableQuery) {
-                SQLQueryCell(sql: $0.sqlText ?? "", onPopout: onPopout)
+                SQLQueryCell(sql: $0.sqlText ?? "", databaseName: $0.databaseName, onPopout: onPopout, onOpenInQueryWindow: onOpenInQueryWindow)
             }
+
+            TableColumn("Database", value: \.sortableDatabaseName) {
+                if let db = $0.databaseName {
+                    Text(db)
+                        .font(TypographyTokens.Table.name)
+                } else {
+                    Text("\u{2014}")
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
+            }.width(min: 80, ideal: 110)
 
             TableColumn("Count", value: \.executionCount) {
                 Text("\($0.executionCount)")
@@ -72,6 +83,22 @@ struct MSSQLActivityQueries: View {
                     if let sql = query.sqlText { onPopout(sql) }
                 } label: {
                     Label("Details", systemImage: "arrow.up.left.and.arrow.down.right")
+                }
+                .disabled(query.sqlText == nil)
+
+                Button {
+                    if let sql = query.sqlText { onOpenInQueryWindow?(sql, query.databaseName) }
+                } label: {
+                    Label("Open in Query Window", systemImage: "terminal")
+                }
+                .disabled(query.sqlText == nil)
+
+                Divider()
+
+                Button {
+                    if let sql = query.sqlText { PlatformClipboard.copy(sql) }
+                } label: {
+                    Label("Copy SQL", systemImage: "doc.on.doc")
                 }
                 .disabled(query.sqlText == nil)
             }

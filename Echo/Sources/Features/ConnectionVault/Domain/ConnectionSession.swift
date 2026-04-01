@@ -132,7 +132,18 @@ extension ConnectionSession: DiagramSchemaProvider {
         connection.id
     }
 
-    func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
-        try await session.getTableStructureDetails(schema: schema, table: table)
+    func getTableStructureDetails(schema: String, table: String, database: String?) async throws -> TableStructureDetails {
+        // For MSSQL, the adapter's `database` property may differ from the database
+        // the user is currently browsing. Pass the explicit database name through
+        // to the adapter so it queries the correct database.
+        if let db = database {
+            if let mssqlAdapter = session as? SQLServerSessionAdapter {
+                return try await mssqlAdapter.getTableStructureDetails(schema: schema, table: table, database: db)
+            }
+            if let dedicated = session as? MSSQLDedicatedQuerySession {
+                return try await dedicated.metadataSession.getTableStructureDetails(schema: schema, table: table, database: db)
+            }
+        }
+        return try await session.getTableStructureDetails(schema: schema, table: table)
     }
 }

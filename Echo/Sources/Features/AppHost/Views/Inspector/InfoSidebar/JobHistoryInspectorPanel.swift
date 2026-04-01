@@ -28,7 +28,7 @@ struct JobHistoryInspectorPanel: View {
                 .foregroundStyle(ColorTokens.Text.secondary)
 
             Text(content.message)
-                .font(.system(.body, design: .monospaced))
+                .font(TypographyTokens.code)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(SpacingTokens.sm)

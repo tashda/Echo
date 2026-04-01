@@ -9,6 +9,7 @@ final class MSSQLMaintenanceViewModel {
         case tables = "Tables"
         case indexes = "Indexes"
         case backups = "Backups"
+        case queryStore = "Query Store"
 
         var id: String { rawValue }
     }
@@ -16,6 +17,7 @@ final class MSSQLMaintenanceViewModel {
     let connectionID: UUID
     let connectionSessionID: UUID
     @ObservationIgnored let session: DatabaseSession
+    @ObservationIgnored private(set) var activeSession: DatabaseSession?
     @ObservationIgnored let notificationEngine: NotificationEngine?
     @ObservationIgnored private(set) var panelState: BottomPanelState?
     @ObservationIgnored var activityEngine: ActivityEngine?
@@ -57,6 +59,9 @@ final class MSSQLMaintenanceViewModel {
     var backupsActiveForm: MSSQLBackupRestoreViewModel.ActiveForm?
     var backupsVM: MSSQLBackupRestoreViewModel?
 
+    // Query Store State
+    var queryStoreVM: QueryStoreViewModel?
+
     init(
         session: DatabaseSession,
         connectionID: UUID,
@@ -70,6 +75,25 @@ final class MSSQLMaintenanceViewModel {
         self.selectedDatabase = initialDatabase
         self.notificationEngine = notificationEngine
         self.backupsVM = MSSQLBackupRestoreViewModel(session: session, databaseName: initialDatabase ?? "")
+        if let db = initialDatabase, !db.isEmpty, let mssql = session as? MSSQLSession {
+            self.queryStoreVM = QueryStoreViewModel(
+                queryStoreClient: mssql.queryStore,
+                databaseName: db,
+                connectionSessionID: connectionSessionID
+            )
+        }
+    }
+
+    func recreateQueryStoreVM(databaseName: String) {
+        guard let mssql = session as? MSSQLSession, !databaseName.isEmpty else {
+            queryStoreVM = nil
+            return
+        }
+        queryStoreVM = QueryStoreViewModel(
+            queryStoreClient: mssql.queryStore,
+            databaseName: databaseName,
+            connectionSessionID: connectionSessionID
+        )
     }
 
     func setPanelState(_ state: BottomPanelState) {
@@ -80,6 +104,15 @@ final class MSSQLMaintenanceViewModel {
     func logOperation(_ text: String, severity: QueryExecutionMessage.Severity = .info, category: String = "Maintenance", duration: TimeInterval? = nil) {
         guard let panelState else { return }
         panelState.appendMessage(text, severity: severity, category: category, duration: duration)
+    }
+
+    /// Returns the session for the currently selected database, caching the result.
+    func resolveSession() async throws -> DatabaseSession {
+        if let active = activeSession { return active }
+        guard let db = selectedDatabase else { return session }
+        let resolved = try await session.sessionForDatabase(db)
+        activeSession = resolved
+        return resolved
     }
 
     func loadDatabases() async {
@@ -101,8 +134,10 @@ final class MSSQLMaintenanceViewModel {
             }
 
             if let db = selectedDatabase {
-                _ = try? await session.sessionForDatabase(db)
-                await loadCurrentSection()
+                if queryStoreVM == nil { recreateQueryStoreVM(databaseName: db) }
+                activeSession = nil
+                _ = try? await resolveSession()
+                await loadAllSections()
             }
         } catch {
             databaseList = []
@@ -112,12 +147,14 @@ final class MSSQLMaintenanceViewModel {
     func selectDatabase(_ database: String) async {
         guard selectedDatabase != database else { return }
         selectedDatabase = database
+        activeSession = nil
         backupsVM?.databaseName = database
         backupsVM?.restoreDatabaseName = database
+        recreateQueryStoreVM(databaseName: database)
         isInitialized = false
         do {
-            _ = try await session.sessionForDatabase(database)
-            await loadCurrentSection()
+            _ = try await resolveSession()
+            await loadAllSections()
             isInitialized = true
         } catch {
             isInitialized = true
@@ -126,7 +163,16 @@ final class MSSQLMaintenanceViewModel {
     }
 
     func refresh() async {
-        await loadCurrentSection()
+        await loadAllSections()
+    }
+
+    /// Loads all sections so every tab has data when the user switches.
+    func loadAllSections() async {
+        guard selectedDatabase != nil else { return }
+        await refreshHealth()
+        await refreshTables()
+        await refreshIndexes()
+        await refreshBackups()
     }
 
     func loadCurrentSection() async {
@@ -141,6 +187,8 @@ final class MSSQLMaintenanceViewModel {
             await refreshIndexes()
         case .backups:
             await refreshBackups()
+        case .queryStore:
+            await queryStoreVM?.loadAll()
         }
     }
 
@@ -148,7 +196,8 @@ final class MSSQLMaintenanceViewModel {
         isRefreshingBackups = true
         defer { isRefreshingBackups = false }
         do {
-            backupHistory = try await session.getBackupHistory(limit: 50)
+            let dbSession = try await resolveSession()
+            backupHistory = try await dbSession.getBackupHistory(limit: 50)
             backupPermissionError = nil
         } catch {
             backupHistory = []
@@ -166,6 +215,7 @@ final class MSSQLMaintenanceViewModel {
         let tableSize = tableStats.count * 256
         let indexSize = fragmentedIndexes.count * 256
         let backupSize = backupHistory.count * 256
-        return 1024 * 64 + healthSize + tableSize + indexSize + backupSize
+        let queryStoreSize = queryStoreVM?.estimatedMemoryUsageBytes() ?? 0
+        return 1024 * 64 + healthSize + tableSize + indexSize + backupSize + queryStoreSize
     }
 }

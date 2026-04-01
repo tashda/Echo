@@ -50,6 +50,18 @@ extension DatabaseObjectRow {
         }
 
         // MARK: - Group 4: Edit / Rename
+        if (object.type == .procedure || object.type == .function) && !object.parameters.isEmpty {
+            menu.addActionItem("Execute\u{2026}", systemImage: "play.circle") { [self] in
+                showExecuteProcedureSheet = true
+            }
+        }
+
+        if VisualEditorResolver.hasVisualEditor(for: object.type, databaseType: dbType) {
+            menu.addActionItem("Edit in Designer", systemImage: "rectangle.and.pencil.and.ellipsis") { [self] in
+                openVisualEditor()
+            }
+        }
+
         if object.type == .procedure || object.type == .function {
             menu.addActionItem("Modify", systemImage: "pencil.and.outline") { [self] in
                 openModifyScript()
@@ -187,13 +199,10 @@ extension DatabaseObjectRow {
             }
         }
 
-        if dbType == .postgresql {
-            let pgPropertiesTypes: Set<SchemaObjectInfo.ObjectType> = [.trigger, .view, .materializedView, .sequence, .type]
-            if pgPropertiesTypes.contains(object.type) {
-                menu.addDivider()
-                menu.addActionItem("Properties", systemImage: "info.circle") { [self] in
-                    openPgObjectProperties()
-                }
+        if VisualEditorResolver.hasVisualEditor(for: object.type, databaseType: dbType) {
+            menu.addDivider()
+            menu.addActionItem("Properties", systemImage: "info.circle") { [self] in
+                openVisualEditor()
             }
         }
 

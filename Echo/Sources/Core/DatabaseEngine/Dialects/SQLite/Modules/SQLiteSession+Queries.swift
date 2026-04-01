@@ -31,7 +31,7 @@ extension SQLiteSession {
                     Task { @MainActor in handler(update) }
                 }
                 worker = ResultStreamBatchWorker(
-                    label: "dk.tippr.echo.sqlite.streamWorker",
+                    label: "dev.echodb.echo.sqlite.streamWorker",
                     columns: resolvedColumns,
                     streamingPreviewLimit: streamingPreviewLimit,
                     maxFlushLatency: maxFlushLatency,
@@ -74,7 +74,7 @@ extension SQLiteSession {
                 Task { @MainActor in handler(update) }
             }
             worker = ResultStreamBatchWorker(
-                label: "dk.tippr.echo.sqlite.streamWorker",
+                label: "dev.echodb.echo.sqlite.streamWorker",
                 columns: resolvedColumns,
                 streamingPreviewLimit: streamingPreviewLimit,
                 maxFlushLatency: maxFlushLatency,

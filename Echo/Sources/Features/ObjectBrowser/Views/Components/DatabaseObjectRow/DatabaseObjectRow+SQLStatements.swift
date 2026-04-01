@@ -4,24 +4,38 @@ import EchoSense
 extension DatabaseObjectRow {
     internal func executeStatement() -> String {
         let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let params = object.parameters.sorted(by: { $0.ordinalPosition < $1.ordinalPosition })
+        let inputParams = params.filter { !$0.isOutput }
+
         switch connection.databaseType {
         case .postgresql:
+            let argList = inputParams.isEmpty ? "/* arguments */"
+                : inputParams.map { "\($0.name.isEmpty ? "" : "/* \($0.name) */ ")NULL::\($0.dataType)" }.joined(separator: ", ")
             if object.type == .procedure {
-                return "CALL \(qualified)(/* arguments */);"
+                return "CALL \(qualified)(\(argList));"
             } else {
-                return "SELECT * FROM \(qualified)(/* arguments */);"
+                return "SELECT * FROM \(qualified)(\(argList));"
             }
         case .mysql:
+            let argList = inputParams.isEmpty ? "/* arguments */"
+                : inputParams.map { "NULL /* \($0.name): \($0.dataType) */" }.joined(separator: ", ")
             if object.type == .procedure {
-                return "CALL \(qualified)(/* arguments */);"
+                return "CALL \(qualified)(\(argList));"
             } else {
-                return "SELECT \(qualified)(/* arguments */);"
+                return "SELECT \(qualified)(\(argList));"
             }
         case .microsoftSQL:
             if object.type == .function {
-                return "SELECT * FROM \(qualified)(/* arguments */);"
+                let argList = inputParams.isEmpty ? "/* arguments */"
+                    : inputParams.map { "NULL /* @\($0.name): \($0.dataType) */" }.joined(separator: ", ")
+                return "SELECT * FROM \(qualified)(\(argList));"
             } else {
-                return "EXEC \(qualified) /* arguments */;"
+                if inputParams.isEmpty {
+                    return "EXEC \(qualified);"
+                } else {
+                    let argList = inputParams.map { "    @\($0.name) = NULL /* \($0.dataType) */" }.joined(separator: ",\n")
+                    return "EXEC \(qualified)\n\(argList);"
+                }
             }
         case .sqlite:
             return "-- Programmable object execution is not supported in SQLite."

@@ -120,7 +120,7 @@ struct PostgresActivityPreparedTxns: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            transactions = try await pg.client.introspection.listPreparedTransactions()
+            transactions = try await pg.client.metadata.listPreparedTransactions()
         } catch {
             transactions = []
         }

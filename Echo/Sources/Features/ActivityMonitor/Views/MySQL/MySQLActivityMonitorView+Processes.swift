@@ -11,23 +11,11 @@ extension MySQLActivityMonitorView {
                     Text("No active connections found.")
                 }
             } else {
-                VStack(alignment: .leading, spacing: SpacingTokens.md) {
-                    processTable(snap.processes)
-                        .frame(minHeight: 240)
-
-                    if let selectedProcess {
-                        processDetails(selectedProcess)
-                    }
-                }
+                processTable(snap.processes)
             }
         } else {
-            ActivitySectionLoadingView(title: "Process List", subtitle: "Loading process list…")
+            ActivitySectionLoadingView(title: "Process List", subtitle: "Loading process list\u{2026}")
         }
-    }
-
-    private var selectedProcess: MySQLProcessInfo? {
-        guard let processID = selectedProcessIDs.first else { return nil }
-        return mysqlSnapshot?.processes.first(where: { $0.id == processID })
     }
 
     private func processTable(_ processes: [MySQLProcessInfo]) -> some View {
@@ -80,7 +68,7 @@ extension MySQLActivityMonitorView {
             TableColumn("Query") { process in
                 if let sql = process.info, !sql.isEmpty {
                     SQLQueryCell(sql: sql) { query in
-                        selectedSQLContext = SQLPopoutContext(sql: query, title: "Query Details")
+                        selectedSQLContext = SQLPopoutContext(sql: query, title: "Query Details", dialect: .mysql)
                     }
                 } else {
                     Text("")
@@ -103,83 +91,8 @@ extension MySQLActivityMonitorView {
                let process = processes.first(where: { $0.id == processID }),
                let sql = process.info,
                !sql.isEmpty {
-                selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details")
+                selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details", dialect: .mysql)
             }
         }
-    }
-
-    private func processDetails(_ process: MySQLProcessInfo) -> some View {
-        SectionContainer(
-            title: "Selected Process",
-            icon: "info.circle",
-            info: "Inspect the selected MySQL thread and terminate either the current statement or the whole connection."
-        ) {
-            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                Group {
-                    processDetailRow(title: "Thread ID", value: "\(process.id)")
-                    processDetailRow(title: "User", value: process.user)
-                    processDetailRow(title: "Host", value: process.host)
-                    processDetailRow(title: "Database", value: process.database ?? "Not Selected")
-                    processDetailRow(title: "Command", value: process.command)
-                    processDetailRow(title: "State", value: process.state ?? "Idle")
-                    processDetailRow(title: "Duration", value: "\(process.time) s")
-                    processDetailRow(title: "Thread Type", value: process.threadTypeDescription)
-                }
-
-                if let sql = process.info, !sql.isEmpty {
-                    VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                        HStack {
-                            Text("Current Statement")
-                                .font(TypographyTokens.formLabel)
-                            Spacer()
-                            Button("Open in Window") {
-                                selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-
-                        Text(sql)
-                            .font(TypographyTokens.monospaced)
-                            .textSelection(.enabled)
-                            .padding(SpacingTokens.sm)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(ColorTokens.Background.secondary.opacity(0.5))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                }
-
-                HStack(spacing: SpacingTokens.sm) {
-                    Button("Kill Query") {
-                        Task { try? await viewModel.killMySQLQuery(id: process.id) }
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("Kill Connection") {
-                        Task { try? await viewModel.killSession(id: process.id) }
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            }
-            .padding(SpacingTokens.md)
-        }
-    }
-
-    private func processDetailRow(title: String, value: String) -> some View {
-        LabeledContent(title) {
-            Text(value)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .textSelection(.enabled)
-        }
-    }
-}
-
-private extension MySQLProcessInfo {
-    var threadTypeDescription: String {
-        if user == "system user" || command.caseInsensitiveCompare("Daemon") == .orderedSame {
-            return "Background"
-        }
-        return "Foreground"
     }
 }

@@ -1,8 +1,10 @@
 import SwiftUI
 
 /// Email + OTP sign-in flow: enter email → receive code → verify.
+/// Uses grouped form rows matching the Settings visual guidelines.
 struct EmailOTPSignInView: View {
     @Bindable var authState: AuthState
+    var onBack: () -> Void
 
     @State private var email = ""
     @State private var otpCode = ""
@@ -18,96 +20,126 @@ struct EmailOTPSignInView: View {
     }
 
     var body: some View {
-        VStack(spacing: SpacingTokens.md) {
-            if authState.isAwaitingOTPVerification {
-                verificationSection
-            } else {
-                emailInputSection
-            }
-
-            if let error = authState.error {
-                Text(error.localizedDescription)
-                    .font(TypographyTokens.formDescription)
-                    .foregroundStyle(ColorTokens.Status.error)
-            }
+        if authState.isAwaitingOTPVerification {
+            verificationRow
+        } else {
+            emailRow
         }
     }
 
-    // MARK: - Email Input
+    // MARK: - Email Input Row
 
-    private var emailInputSection: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Text("Sign in with Email")
-                .font(TypographyTokens.headline)
+    private var emailRow: some View {
+        HStack {
+            Button { onBack() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            }
+            .buttonStyle(.plain)
+            .help("Back to sign-in options")
 
-            Text("Enter your email address. We'll send you a 6-digit verification code.")
-                .font(TypographyTokens.formDescription)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .multilineTextAlignment(.center)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sign in with Email")
+                    .font(TypographyTokens.prominent)
+
+                Text("We'll send a 6-digit code to your email")
+                    .font(TypographyTokens.formDescription)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+
+            Spacer()
 
             TextField("", text: $email, prompt: Text("you@example.com"))
                 .textFieldStyle(.roundedBorder)
                 .textContentType(.emailAddress)
-                .frame(maxWidth: 280)
+                .frame(width: 180)
+                .onSubmit {
+                    if canSendOTP {
+                        Task { await authState.sendOTP(email: email) }
+                        startCooldownTimer()
+                    }
+                }
 
             Button("Send Code") {
                 Task { await authState.sendOTP(email: email) }
                 startCooldownTimer()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
             .disabled(!canSendOTP)
         }
+        .padding(.vertical, SpacingTokens.xs)
     }
 
-    // MARK: - Verification
+    // MARK: - Verification Row
 
-    private var verificationSection: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Text("Enter Verification Code")
-                .font(TypographyTokens.headline)
+    private var verificationRow: some View {
+        HStack {
+            Button { cancelVerification() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            }
+            .buttonStyle(.plain)
+            .help("Back")
 
-            Text("A 6-digit code was sent to **\(email)**")
-                .font(TypographyTokens.formDescription)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .multilineTextAlignment(.center)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Enter Code")
+                    .font(TypographyTokens.prominent)
+
+                Text("Sent to **\(email)**")
+                    .font(TypographyTokens.formDescription)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+
+            Spacer()
 
             TextField("", text: $otpCode, prompt: Text("000000"))
                 .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 160)
+                .frame(width: 90)
                 .multilineTextAlignment(.center)
-                .font(.system(.title3, design: .monospaced))
-
-            HStack(spacing: SpacingTokens.sm) {
-                Button("Verify") {
-                    Task { await authState.verifyOTP(email: email, code: otpCode) }
+                .font(.system(.body, design: .monospaced))
+                .onSubmit {
+                    if canVerify {
+                        Task { await authState.verifyOTP(email: email, code: otpCode) }
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!canVerify)
 
-                Button("Cancel") {
-                    authState.cancelOTP()
-                    otpCode = ""
-                    stopCooldownTimer()
-                }
-                .buttonStyle(.bordered)
+            Button("Verify") {
+                Task { await authState.verifyOTP(email: email, code: otpCode) }
             }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .keyboardShortcut(.defaultAction)
+            .disabled(!canVerify)
 
             if cooldownRemaining > 0 {
-                Text("Resend available in \(cooldownRemaining)s")
-                    .font(TypographyTokens.formDescription)
+                Text("\(cooldownRemaining)s")
+                    .font(TypographyTokens.detail)
                     .foregroundStyle(ColorTokens.Text.tertiary)
-            } else if authState.isAwaitingOTPVerification {
-                Button("Resend Code") {
+                    .monospacedDigit()
+            } else {
+                Button("Resend") {
                     Task { await authState.sendOTP(email: email) }
                     startCooldownTimer()
                 }
                 .buttonStyle(.plain)
                 .font(TypographyTokens.formDescription)
+                .foregroundStyle(ColorTokens.Text.secondary)
             }
         }
+        .padding(.vertical, SpacingTokens.xs)
     }
 
-    // MARK: - Cooldown Timer
+    // MARK: - Helpers
+
+    private func cancelVerification() {
+        authState.cancelOTP()
+        otpCode = ""
+        stopCooldownTimer()
+        onBack()
+    }
 
     private func startCooldownTimer() {
         cooldownRemaining = 60

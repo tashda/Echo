@@ -128,7 +128,7 @@ struct NewRuleSheet: View {
     private func loadTables(schema: String) async {
         guard let pg = viewModel.session as? PostgresSession else { return }
         do {
-            let objects = try await pg.client.introspection.listTablesAndViews(schema: schema)
+            let objects = try await pg.client.metadata.listTablesAndViews(schema: schema)
             availableTables = objects.filter { $0.kind == .table }.map(\.name).sorted()
         } catch {
             availableTables = []

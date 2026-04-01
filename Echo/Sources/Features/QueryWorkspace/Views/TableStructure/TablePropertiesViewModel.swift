@@ -1,5 +1,6 @@
 import Foundation
 import PostgresKit
+import SQLServerKit
 
 @Observable
 final class TablePropertiesViewModel {
@@ -190,7 +191,7 @@ final class TablePropertiesViewModel {
     // MARK: - PostgreSQL
 
     private func loadPostgresProperties(_ pg: PostgresSession) async throws {
-        let details = try await pg.client.introspection.fetchTableDetails(schema: schemaName, table: tableName)
+        let details = try await pg.client.metadata.fetchTableDetails(schema: schemaName, table: tableName)
         pgOwner = details.owner
         pgTablespace = details.tablespace
         pgOid = details.oid
@@ -205,7 +206,7 @@ final class TablePropertiesViewModel {
         indexesSizeBytes = details.indexesSizeBytes
         pgOptions = details.options
 
-        let props = try await pg.client.introspection.tableProperties(schema: schemaName, table: tableName)
+        let props = try await pg.client.metadata.tableProperties(schema: schemaName, table: tableName)
         pgFillfactor = props.fillfactor.map(String.init) ?? ""
         pgToastTupleTarget = props.toastTupleTarget.map(String.init) ?? ""
         pgParallelWorkers = props.parallelWorkers.map(String.init) ?? ""
@@ -283,18 +284,13 @@ final class TablePropertiesViewModel {
             mssqlTrackColumnsUpdated = props.trackColumnsUpdated ?? false
         }
 
-        // Load size via sp_spaceused
-        let sql = "EXEC sp_spaceused N'[\(schemaName)].[\(tableName)]'"
-        if let result = try? await dbSession.simpleQuery(sql), let row = result.rows.first {
-            let colNames = result.columns.map(\.name)
-            func val(_ name: String) -> String? {
-                guard let idx = colNames.firstIndex(of: name), idx < row.count else { return nil }
-                return row[idx]
-            }
-            rowCount = Int(val("rows")?.trimmingCharacters(in: .whitespaces) ?? "") ?? 0
-            totalSizeBytes = parseMSSQLSize(val("reserved"))
-            tableSizeBytes = parseMSSQLSize(val("data"))
-            indexesSizeBytes = parseMSSQLSize(val("index_size"))
+        // Load size via typed spaceUsed API
+        if let mssql = dbSession as? MSSQLSession,
+           let spaceUsed = try? await mssql.admin.spaceUsed(schema: schemaName, table: tableName) {
+            rowCount = Int(spaceUsed.rows.trimmingCharacters(in: .whitespaces)) ?? 0
+            totalSizeBytes = parseMSSQLSize(spaceUsed.reserved)
+            tableSizeBytes = parseMSSQLSize(spaceUsed.data)
+            indexesSizeBytes = parseMSSQLSize(spaceUsed.indexSize)
         }
     }
 

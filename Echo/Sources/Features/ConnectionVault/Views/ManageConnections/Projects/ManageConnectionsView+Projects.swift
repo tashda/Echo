@@ -172,6 +172,37 @@ extension ManageConnectionsView {
                                 }
                             }.gridCellColumns(2)
                         }
+
+                        if AppDirector.shared.syncEngine != nil, authState.isSignedIn {
+                            Divider().gridCellColumns(2)
+
+                            GridRow {
+                                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                                    HStack {
+                                        Label {
+                                            Text("Cloud Sync")
+                                                .foregroundStyle(ColorTokens.Text.secondary)
+                                        } icon: {
+                                            Image(systemName: "icloud")
+                                                .foregroundStyle(ColorTokens.Text.secondary)
+                                        }
+                                        .font(TypographyTokens.standard)
+
+                                        Spacer()
+
+                                        Toggle("", isOn: syncBinding(for: project))
+                                            .toggleStyle(.switch)
+                                            .labelsHidden()
+                                    }
+
+                                    if project.isSyncEnabled {
+                                        Text("Connections, folders, identities, and bookmarks in this project are synced to your Echo account. Passwords stay in your local Keychain.")
+                                            .font(TypographyTokens.detail)
+                                            .foregroundStyle(ColorTokens.Text.tertiary)
+                                    }
+                                }.gridCellColumns(2)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, SpacingTokens.xl2)
@@ -210,6 +241,22 @@ extension ManageConnectionsView {
                     .padding(.leading, SpacingTokens.xxs)
             }
         }
+    }
+
+    private func syncBinding(for project: Project) -> Binding<Bool> {
+        Binding(
+            get: { project.isSyncEnabled },
+            set: { newValue in
+                guard var updated = projectStore.projects.first(where: { $0.id == project.id }) else { return }
+                updated.isSyncEnabled = newValue
+                Task {
+                    try? await projectStore.updateProject(updated)
+                    if newValue, let syncEngine = AppDirector.shared.syncEngine {
+                        try? await syncEngine.performInitialUpload(for: updated)
+                    }
+                }
+            }
+        )
     }
 
     private func settingsDetailRow(label: String, value: String) -> some View {

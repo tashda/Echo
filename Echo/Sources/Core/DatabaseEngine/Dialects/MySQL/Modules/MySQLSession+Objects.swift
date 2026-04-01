@@ -19,28 +19,12 @@ extension MySQLSession {
             return []
         }
 
-        let sql = """
-        SELECT
-            table_name,
-            table_type
-        FROM information_schema.tables
-        WHERE table_schema = ?
-        ORDER BY table_name;
-        """
-
-        let (rows, _) = try await performQuery(sql, binds: [MySQLData(string: schemaName)])
-        return rows.compactMap { row in
-            guard
-                row.columnDefinitions.count >= 2,
-                let name = makeString(row, index: 0),
-                let type = makeString(row, index: 1)
-            else { return nil }
-
-            guard let objectType = SchemaObjectInfo.ObjectType(mysqlTableType: type) else {
+        let objects = try await client.metadata.listTablesAndViews(in: schemaName)
+        return objects.compactMap { object in
+            guard let objectType = SchemaObjectInfo.ObjectType(mysqlSchemaObjectKind: object.kind) else {
                 return nil
             }
-
-            return SchemaObjectInfo(name: name, schema: schemaName, type: objectType)
+            return SchemaObjectInfo(name: object.name, schema: schemaName, type: objectType)
         }
     }
 
@@ -56,92 +40,28 @@ extension MySQLSession {
             return []
         }
 
-        let sql = """
-        SELECT
-            column_name,
-            data_type,
-            is_nullable,
-            column_key,
-            character_maximum_length
-        FROM information_schema.columns
-        WHERE table_schema = ? AND table_name = ?
-        ORDER BY ordinal_position;
-        """
-
-        let (rows, _) = try await performQuery(sql, binds: [MySQLData(string: schema), MySQLData(string: tableName)])
-        return rows.compactMap { row in
-            guard
-                let name = makeString(row, index: 0),
-                let dataType = makeString(row, index: 1),
-                let nullable = makeString(row, index: 2)
-            else { return nil }
-            let key = makeString(row, index: 3)
-            let lengthString = makeString(row, index: 4)
-            let maxLength = lengthString.flatMap { Int($0) }
-            return ColumnInfo(
-                name: name,
-                dataType: dataType,
-                isPrimaryKey: key == "PRI",
-                isNullable: nullable.uppercased() != "NO",
-                maxLength: maxLength
+        let columns = try await client.metadata.listColumns(in: tableName, schema: schema)
+        return columns.map { col in
+            ColumnInfo(
+                name: col.name,
+                dataType: col.dataType,
+                isPrimaryKey: col.isPrimaryKey,
+                isNullable: col.isNullable,
+                maxLength: col.maxLength
             )
         }
     }
 
     func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String? = nil) async throws -> String {
-        let qualifiedName = "`\(schemaName.replacingOccurrences(of: "`", with: "``"))`.`\(objectName.replacingOccurrences(of: "`", with: "``"))`"
-        let sql: String
-        switch objectType {
-        case .table:
-            sql = "SHOW CREATE TABLE \(qualifiedName)"
-        case .view:
-            sql = "SHOW CREATE VIEW \(qualifiedName)"
-        case .materializedView:
-            throw DatabaseError.queryError("MySQL does not support materialized views")
-        case .function:
-            sql = "SHOW CREATE FUNCTION `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
-        case .procedure:
-            sql = "SHOW CREATE PROCEDURE `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
-        case .trigger:
-            sql = "SHOW CREATE TRIGGER `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
-        case .extension:
-            throw DatabaseError.queryError("MySQL does not support extensions")
-        case .sequence:
-            throw DatabaseError.queryError("MySQL does not support sequences")
-        case .type:
-            throw DatabaseError.queryError("MySQL does not support user-defined types")
-        case .synonym:
-            throw DatabaseError.queryError("MySQL does not support synonyms")
+        guard let kind = objectType.mysqlSchemaObjectKind else {
+            throw DatabaseError.queryError("MySQL does not support \(objectType) objects")
         }
-
-        let rows = try await client.query.simpleQuery(sql)
-        guard let row = rows.first else {
-            throw DatabaseError.queryError("Definition not found")
-        }
-
-        if let create = row.values.last ?? nil {
-            let data = MySQLData(
-                type: row.columnDefinitions.last?.columnType ?? .varString,
-                format: row.format,
-                buffer: create,
-                isUnsigned: row.columnDefinitions.last?.flags.contains(.COLUMN_UNSIGNED) ?? false
-            )
-            return data.string ?? ""
-        }
-
-        let combined = row.values.compactMap { buffer -> String? in
-            guard let buffer else { return nil }
-            return buffer.getString(at: buffer.readerIndex, length: buffer.readableBytes)
-        }
-        if let definition = combined.last {
-            return definition
-        }
-        throw DatabaseError.queryError("Unable to decode object definition")
+        return try await client.metadata.objectDefinition(named: objectName, schema: schemaName, kind: kind)
     }
 
     func executeUpdate(_ sql: String) async throws -> Int {
         do {
-            let result = try await client.query.query(sql)
+            let result = try await client.query(sql)
             if let metadata = result.metadata {
                 return Int(metadata.affectedRows)
             }
@@ -151,43 +71,45 @@ extension MySQLSession {
         }
     }
 
+    func dropTable(schema: String?, name: String, ifExists: Bool) async throws {
+        let ifExistsClause = ifExists ? "IF EXISTS " : ""
+        let qualifiedName = schema.map { "`\($0)`.`\(name)`" } ?? "`\(name)`"
+        _ = try await executeUpdate("DROP TABLE \(ifExistsClause)\(qualifiedName)")
+    }
+
+    func truncateTable(schema: String?, name: String) async throws {
+        let qualifiedName = schema.map { "`\($0)`.`\(name)`" } ?? "`\(name)`"
+        _ = try await executeUpdate("TRUNCATE TABLE \(qualifiedName)")
+    }
+
+    func renameTable(schema: String?, oldName: String, newName: String) async throws {
+        let qualifiedOld = schema.map { "`\($0)`.`\(oldName)`" } ?? "`\(oldName)`"
+        let qualifiedNew = schema.map { "`\($0)`.`\(newName)`" } ?? "`\(newName)`"
+        _ = try await executeUpdate("RENAME TABLE \(qualifiedOld) TO \(qualifiedNew)")
+    }
+
     func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
-        return DatabaseMaintenanceResult(operation: "Rebuild", messages: ["Not implemented"], succeeded: false)
+        DatabaseMaintenanceResult(operation: "Rebuild", messages: ["Not implemented"], succeeded: false)
     }
 
     func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
-        return DatabaseMaintenanceResult(operation: "Rebuild", messages: ["Not implemented"], succeeded: false)
+        DatabaseMaintenanceResult(operation: "Rebuild", messages: ["Not implemented"], succeeded: false)
     }
 
     func dropIndex(schema: String, name: String) async throws {
-        // MySQL DROP INDEX requires ON <table>, but the protocol only passes schema + index name.
-        // We find the table by querying information_schema.
-        let lookupSQL = """
-        SELECT TABLE_NAME FROM information_schema.statistics
-        WHERE TABLE_SCHEMA = '\(schema.replacingOccurrences(of: "'", with: "''"))'
-        AND INDEX_NAME = '\(name.replacingOccurrences(of: "'", with: "''"))'
-        LIMIT 1;
-        """
-        let result = try await simpleQuery(lookupSQL)
-        guard let tableName = result.rows.first?.first ?? nil else {
-            throw DatabaseError.queryError("Could not find table for index '\(name)' in schema '\(schema)'")
-        }
-        let escapedIndex = name.replacingOccurrences(of: "`", with: "``")
-        let escapedSchema = schema.replacingOccurrences(of: "`", with: "``")
-        let escapedTable = tableName.replacingOccurrences(of: "`", with: "``")
-        _ = try await executeUpdate("DROP INDEX `\(escapedIndex)` ON `\(escapedSchema)`.`\(escapedTable)`")
+        try await client.indexes.dropIndex(schema: schema, name: name)
     }
 
     func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
-        _ = try await simpleQuery("OPTIMIZE TABLE `\(schema)`.`\(table)`")
+        _ = try await client.maintenance.optimizeTable(schema: schema, table: table)
     }
 
     func analyzeTable(schema: String, table: String) async throws {
-        _ = try await simpleQuery("ANALYZE TABLE `\(schema)`.`\(table)`")
+        _ = try await client.maintenance.analyzeTable(schema: schema, table: table)
     }
 
     func reindexTable(schema: String, table: String) async throws {
-        _ = try await simpleQuery("OPTIMIZE TABLE `\(schema)`.`\(table)`")
+        _ = try await client.maintenance.optimizeTable(schema: schema, table: table)
     }
 
     func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation] {
@@ -195,7 +117,6 @@ extension MySQLSession {
     }
 
     func getDatabaseHealth() async throws -> SQLServerDatabaseHealth {
-        // Gather basic MySQL server information for the health display
         let dbName: String
         if let defaultDatabase, !defaultDatabase.isEmpty {
             dbName = defaultDatabase
@@ -205,39 +126,18 @@ extension MySQLSession {
             dbName = "unknown"
         }
 
-        var sizeMB: Double = 0
-        var collation: String?
-        var charset: String?
-
-        let sizeSQL = """
-        SELECT
-            ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb,
-            DEFAULT_CHARACTER_SET_NAME,
-            DEFAULT_COLLATION_NAME
-        FROM information_schema.schemata s
-        LEFT JOIN information_schema.tables t ON t.table_schema = s.schema_name
-        WHERE s.schema_name = '\(dbName.replacingOccurrences(of: "'", with: "''"))'
-        GROUP BY s.schema_name, DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME;
-        """
-
-        let result = try await simpleQuery(sizeSQL)
-        if let row = result.rows.first {
-            sizeMB = Double(row[0] ?? "0") ?? 0
-            charset = row[1]
-            collation = row[2]
-        }
-
-        let status = charset.map { "Charset: \($0)" } ?? "Online"
+        let info = try await client.metadata.databaseInfo(schema: dbName)
+        let status = info.characterSet.map { "Charset: \($0)" } ?? "Online"
 
         return SQLServerDatabaseHealth(
             name: dbName,
             owner: "",
             createDate: Date(),
-            sizeMB: sizeMB,
+            sizeMB: info.sizeMB,
             recoveryModel: "",
             status: status,
             compatibilityLevel: 0,
-            collationName: collation
+            collationName: info.collation
         )
     }
 
@@ -255,20 +155,18 @@ extension MySQLSession {
             return DatabaseMaintenanceResult(operation: "Check Integrity", messages: ["No database selected."], succeeded: false)
         }
 
-        let tables = try await listTablesAndViews(schema: dbName)
-        let tableNames = tables.filter { $0.type == .table }.map(\.name)
+        let objects = try await client.metadata.listTablesAndViews(in: dbName)
+        let tableNames = objects.filter { $0.kind == .table }.map(\.name)
         guard !tableNames.isEmpty else {
             return DatabaseMaintenanceResult(operation: "Check Integrity", messages: ["No tables found."], succeeded: true)
         }
 
-        let qualified = tableNames.map { "`\(dbName)`.`\($0)`" }.joined(separator: ", ")
-        let result = try await simpleQuery("CHECK TABLE \(qualified)")
-        let messages = result.rows.compactMap { $0.last ?? nil }
-        let hasError = messages.contains(where: { $0.lowercased().contains("error") || $0.lowercased().contains("corrupt") })
+        let result = try await client.maintenance.checkTables(schema: dbName, tables: tableNames)
+        let hasError = result.messages.contains(where: { $0.lowercased().contains("error") || $0.lowercased().contains("corrupt") })
 
         return DatabaseMaintenanceResult(
             operation: "Check Integrity",
-            messages: messages.isEmpty ? ["All tables passed integrity check."] : messages,
+            messages: result.messages.isEmpty ? ["All tables passed integrity check."] : result.messages,
             succeeded: !hasError
         )
     }
@@ -278,8 +176,8 @@ extension MySQLSession {
     }
 
     func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
-        _ = try await simpleQuery("ANALYZE TABLE `\(schema)`.`\(table)`")
-        return DatabaseMaintenanceResult(operation: "Analyze", messages: ["Table analyzed."], succeeded: true)
+        let result = try await client.maintenance.analyzeTable(schema: schema, table: table)
+        return DatabaseMaintenanceResult(operation: "Analyze", messages: result.messages.isEmpty ? ["Table analyzed."] : result.messages, succeeded: true)
     }
 }
 
@@ -288,75 +186,39 @@ extension MySQLSession: DatabaseMetadataSession {
         _ schemaName: String,
         progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
     ) async throws -> SchemaInfo {
-        let tableSQL = """
-        SELECT
-            t.table_name,
-            t.table_type,
-            c.column_name,
-            c.data_type,
-            c.is_nullable,
-            c.column_key,
-            c.character_maximum_length,
-            c.ordinal_position
-        FROM information_schema.tables t
-        LEFT JOIN information_schema.columns c
-          ON c.table_schema = t.table_schema
-         AND c.table_name = t.table_name
-        WHERE t.table_schema = ? AND t.table_type IN ('BASE TABLE', 'VIEW')
-        ORDER BY t.table_name, c.ordinal_position;
-        """
-
-        let (rows, _) = try await performQuery(tableSQL, binds: [MySQLData(string: schemaName)])
-
-        var grouped: [String: SchemaObjectAccumulator] = [:]
-        for row in rows {
-            guard
-                let name = makeString(row, index: 0),
-                let type = makeString(row, index: 1)
-            else { continue }
-
-            let objectType = SchemaObjectInfo.ObjectType(mysqlTableType: type) ?? .table
-            var accumulator = grouped[name] ?? SchemaObjectAccumulator(type: objectType)
-            if let columnName = makeString(row, index: 2) {
-                let dataType = makeString(row, index: 3) ?? ""
-                let nullable = makeString(row, index: 4)
-                let columnKey = makeString(row, index: 5)
-                let length = makeString(row, index: 6)
-                let column = ColumnInfo(
-                    name: columnName,
-                    dataType: dataType,
-                    isPrimaryKey: columnKey == "PRI",
-                    isNullable: (nullable ?? "YES").uppercased() != "NO",
-                    maxLength: length.flatMap { Int($0) }
-                )
-                accumulator.columns.append(column)
-            }
-            grouped[name] = accumulator
-        }
+        let details = try await client.metadata.schemaDetails(schema: schemaName)
 
         if let progress {
-            let orderedNames = grouped.keys.sorted()
-            for (index, name) in orderedNames.enumerated() {
-                if let type = grouped[name]?.type {
-                    await progress(type, index + 1, orderedNames.count)
-                }
+            let orderedNames = details.map(\.name)
+            for (index, detail) in details.enumerated() {
+                let type = SchemaObjectInfo.ObjectType(mysqlSchemaObjectKind: detail.kind) ?? .table
+                await progress(type, index + 1, orderedNames.count)
             }
         }
 
-        let tables: [SchemaObjectInfo] = grouped.map { name, accumulator in
-            SchemaObjectInfo(
-                name: name,
+        let tables: [SchemaObjectInfo] = details.map { detail in
+            let columns = detail.columns.map { col in
+                ColumnInfo(
+                    name: col.name,
+                    dataType: col.dataType,
+                    isPrimaryKey: col.isPrimaryKey,
+                    isNullable: col.isNullable,
+                    maxLength: col.maxLength
+                )
+            }
+            let type = SchemaObjectInfo.ObjectType(mysqlSchemaObjectKind: detail.kind) ?? .table
+            return SchemaObjectInfo(
+                name: detail.name,
                 schema: schemaName,
-                type: accumulator.type,
-                columns: accumulator.columns
+                type: type,
+                columns: columns
             )
         }
-        .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
-        let functions = try await loadRoutineObjects(schemaName: schemaName, progress: progress)
-        let triggers = try await loadTriggerObjects(schemaName: schemaName, progress: progress)
+        let routineObjects = try await loadRoutineObjects(schemaName: schemaName, progress: progress)
+        let triggerObjects = try await loadTriggerObjects(schemaName: schemaName, progress: progress)
 
-        let objects = tables + functions + triggers
+        let objects = tables + routineObjects + triggerObjects
         return SchemaInfo(name: schemaName, objects: objects)
     }
 
@@ -364,27 +226,16 @@ extension MySQLSession: DatabaseMetadataSession {
         schemaName: String,
         progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
     ) async throws -> [SchemaObjectInfo] {
-        let sql = """
-        SELECT routine_name, routine_type
-        FROM information_schema.routines
-        WHERE routine_schema = ?
-        ORDER BY routine_name;
-        """
-        let (rows, _) = try await performQuery(sql, binds: [MySQLData(string: schemaName)])
+        let routines = try await client.metadata.listRoutines(in: schemaName)
         if let progress {
-            for (index, row) in rows.enumerated() {
-                if let kind = makeString(row, index: 1), let type = SchemaObjectInfo.ObjectType(mysqlRoutineType: kind) {
-                    await progress(type, index + 1, rows.count)
-                }
+            for (index, routine) in routines.enumerated() {
+                let type = SchemaObjectInfo.ObjectType(mysqlRoutineType: routine.type) ?? .function
+                await progress(type, index + 1, routines.count)
             }
         }
-        return rows.compactMap { row in
-            guard
-                let name = makeString(row, index: 0),
-                let routineType = makeString(row, index: 1),
-                let type = SchemaObjectInfo.ObjectType(mysqlRoutineType: routineType)
-            else { return nil }
-            return SchemaObjectInfo(name: name, schema: schemaName, type: type)
+        return routines.compactMap { routine in
+            guard let type = SchemaObjectInfo.ObjectType(mysqlRoutineType: routine.type) else { return nil }
+            return SchemaObjectInfo(name: routine.name, schema: schemaName, type: type)
         }
     }
 
@@ -392,23 +243,21 @@ extension MySQLSession: DatabaseMetadataSession {
         schemaName: String,
         progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
     ) async throws -> [SchemaObjectInfo] {
-        let sql = """
-        SELECT trigger_name, event_manipulation, event_object_table
-        FROM information_schema.triggers
-        WHERE trigger_schema = ?
-        ORDER BY trigger_name;
-        """
-        let (rows, _) = try await performQuery(sql, binds: [MySQLData(string: schemaName)])
+        let triggers = try await client.metadata.listTriggers(in: schemaName)
         if let progress {
-            for (index, _) in rows.enumerated() {
-                await progress(.trigger, index + 1, rows.count)
+            for (index, _) in triggers.enumerated() {
+                await progress(.trigger, index + 1, triggers.count)
             }
         }
-        return rows.compactMap { row in
-            guard let name = makeString(row, index: 0) else { return nil }
-            let action = makeString(row, index: 1)
-            let table = makeString(row, index: 2)
-            return SchemaObjectInfo(name: name, schema: schemaName, type: .trigger, columns: [], triggerAction: action, triggerTable: table)
+        return triggers.map { trigger in
+            SchemaObjectInfo(
+                name: trigger.name,
+                schema: schemaName,
+                type: .trigger,
+                columns: [],
+                triggerAction: trigger.event,
+                triggerTable: trigger.table
+            )
         }
     }
 
@@ -418,11 +267,6 @@ extension MySQLSession: DatabaseMetadataSession {
 
     func installExtension(name: String, schema: String?, version: String?, cascade: Bool) async throws {
         throw DatabaseError.queryError("Extensions are not supported for MySQL")
-    }
-
-    private struct SchemaObjectAccumulator {
-        let type: SchemaObjectInfo.ObjectType
-        var columns: [ColumnInfo] = []
     }
 }
 
@@ -440,6 +284,28 @@ internal extension SchemaObjectInfo.ObjectType {
         case "FUNCTION": self = .function
         case "PROCEDURE": self = .procedure
         default: return nil
+        }
+    }
+
+    init?(mysqlSchemaObjectKind kind: MySQLSchemaObjectKind) {
+        switch kind {
+        case .table: self = .table
+        case .view: self = .view
+        case .function: self = .function
+        case .procedure: self = .procedure
+        case .trigger: self = .trigger
+        case .event: return nil
+        }
+    }
+
+    var mysqlSchemaObjectKind: MySQLSchemaObjectKind? {
+        switch self {
+        case .table: return .table
+        case .view: return .view
+        case .function: return .function
+        case .procedure: return .procedure
+        case .trigger: return .trigger
+        case .materializedView, .extension, .sequence, .type, .synonym: return nil
         }
     }
 }

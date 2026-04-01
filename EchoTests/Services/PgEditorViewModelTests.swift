@@ -10,13 +10,13 @@ struct TriggerEditorViewModelTests {
     // MARK: - Init & Editing State
 
     @Test func newTriggerIsNotEditing() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil)
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil, dialect: PostgresTriggerDialect())
         #expect(vm.isEditing == false)
         #expect(vm.triggerName == "")
     }
 
     @Test func existingTriggerIsEditing() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "audit_trigger")
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "audit_trigger", dialect: PostgresTriggerDialect())
         #expect(vm.isEditing == true)
         #expect(vm.triggerName == "audit_trigger")
     }
@@ -24,21 +24,21 @@ struct TriggerEditorViewModelTests {
     // MARK: - Validation
 
     @Test func formInvalidWhenNameEmpty() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil)
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil, dialect: PostgresTriggerDialect())
         vm.functionName = "log_changes"
         vm.onInsert = true
         #expect(vm.isFormValid == false)
     }
 
     @Test func formInvalidWhenFunctionEmpty() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil)
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil, dialect: PostgresTriggerDialect())
         vm.triggerName = "my_trigger"
         vm.onInsert = true
         #expect(vm.isFormValid == false)
     }
 
     @Test func formInvalidWhenNoEventsSelected() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil)
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil, dialect: PostgresTriggerDialect())
         vm.triggerName = "my_trigger"
         vm.functionName = "log_changes"
         vm.onInsert = false
@@ -49,7 +49,7 @@ struct TriggerEditorViewModelTests {
     }
 
     @Test func formValidWithRequiredFields() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil)
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil, dialect: PostgresTriggerDialect())
         vm.triggerName = "my_trigger"
         vm.functionName = "log_changes"
         vm.onInsert = true
@@ -59,14 +59,14 @@ struct TriggerEditorViewModelTests {
     // MARK: - Dirty Tracking
 
     @Test func noChangesAfterSnapshot() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "existing")
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "existing", dialect: PostgresTriggerDialect())
         vm.functionName = "fn"
         vm.takeSnapshot()
         #expect(vm.hasChanges == false)
     }
 
     @Test func detectsChangesAfterSnapshot() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "existing")
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "existing", dialect: PostgresTriggerDialect())
         vm.functionName = "fn"
         vm.takeSnapshot()
         vm.functionName = "fn_changed"
@@ -74,7 +74,7 @@ struct TriggerEditorViewModelTests {
     }
 
     @Test func detectsTimingChange() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "existing")
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "existing", dialect: PostgresTriggerDialect())
         vm.takeSnapshot()
         vm.timing = .before
         #expect(vm.hasChanges == true)
@@ -83,7 +83,7 @@ struct TriggerEditorViewModelTests {
     // MARK: - SQL Generation
 
     @Test func generatesSQLForNewTrigger() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil)
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil, dialect: PostgresTriggerDialect())
         vm.triggerName = "audit_trigger"
         vm.functionName = "log_changes"
         vm.timing = .after
@@ -102,7 +102,7 @@ struct TriggerEditorViewModelTests {
     }
 
     @Test func generatesSQLWithDropForExistingTrigger() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "audit_trigger")
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "audit_trigger", dialect: PostgresTriggerDialect())
         vm.functionName = "log_changes"
         vm.onInsert = true
 
@@ -112,7 +112,7 @@ struct TriggerEditorViewModelTests {
     }
 
     @Test func generatesSQLWithWhenCondition() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil)
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil, dialect: PostgresTriggerDialect())
         vm.triggerName = "check_trigger"
         vm.functionName = "check_fn"
         vm.onUpdate = true
@@ -123,7 +123,7 @@ struct TriggerEditorViewModelTests {
     }
 
     @Test func generatesSQLWithDisabledTrigger() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "audit_trigger")
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: "audit_trigger", dialect: PostgresTriggerDialect())
         vm.functionName = "log_changes"
         vm.onInsert = true
         vm.isEnabled = false
@@ -133,7 +133,7 @@ struct TriggerEditorViewModelTests {
     }
 
     @Test func generatesSQLWithComment() {
-        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil)
+        let vm = TriggerEditorViewModel(connectionSessionID: UUID(), schemaName: "public", tableName: "orders", existingTriggerName: nil, dialect: PostgresTriggerDialect())
         vm.triggerName = "audit_trigger"
         vm.functionName = "log_changes"
         vm.onInsert = true
@@ -151,37 +151,37 @@ struct TriggerEditorViewModelTests {
 struct ViewEditorViewModelTests {
 
     @Test func newViewIsNotEditing() {
-        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false)
+        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false, dialect: PostgresViewDialect())
         #expect(vm.isEditing == false)
     }
 
     @Test func existingViewIsEditing() {
-        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: "active_users", isMaterialized: false)
+        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: "active_users", isMaterialized: false, dialect: PostgresViewDialect())
         #expect(vm.isEditing == true)
         #expect(vm.viewName == "active_users")
     }
 
     @Test func formInvalidWhenNameEmpty() {
-        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false)
+        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false, dialect: PostgresViewDialect())
         vm.definition = "SELECT * FROM users"
         #expect(vm.isFormValid == false)
     }
 
     @Test func formInvalidWhenDefinitionEmpty() {
-        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false)
+        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false, dialect: PostgresViewDialect())
         vm.viewName = "my_view"
         #expect(vm.isFormValid == false)
     }
 
     @Test func formValidWithRequiredFields() {
-        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false)
+        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false, dialect: PostgresViewDialect())
         vm.viewName = "my_view"
         vm.definition = "SELECT * FROM users"
         #expect(vm.isFormValid == true)
     }
 
     @Test func dirtyTrackingWorks() {
-        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: "v", isMaterialized: false)
+        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: "v", isMaterialized: false, dialect: PostgresViewDialect())
         vm.definition = "SELECT 1"
         vm.takeSnapshot()
         #expect(vm.hasChanges == false)
@@ -190,7 +190,7 @@ struct ViewEditorViewModelTests {
     }
 
     @Test func generatesSQLForNewView() {
-        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false)
+        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: false, dialect: PostgresViewDialect())
         vm.viewName = "active_users"
         vm.definition = "SELECT * FROM users WHERE active = true"
 
@@ -201,7 +201,7 @@ struct ViewEditorViewModelTests {
     }
 
     @Test func generatesSQLForNewMaterializedView() {
-        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: true)
+        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: nil, isMaterialized: true, dialect: PostgresViewDialect())
         vm.viewName = "cached_stats"
         vm.definition = "SELECT count(*) FROM events"
 
@@ -211,7 +211,7 @@ struct ViewEditorViewModelTests {
     }
 
     @Test func generatesSQLWithOwnerForExistingView() {
-        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: "v", isMaterialized: false)
+        let vm = ViewEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingViewName: "v", isMaterialized: false, dialect: PostgresViewDialect())
         vm.definition = "SELECT 1"
         vm.owner = "admin"
 
@@ -227,43 +227,43 @@ struct ViewEditorViewModelTests {
 struct SequenceEditorViewModelTests {
 
     @Test func newSequenceIsNotEditing() {
-        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: nil)
+        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: nil, dialect: PostgresSequenceDialect())
         #expect(vm.isEditing == false)
     }
 
     @Test func existingSequenceIsEditing() {
-        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "order_seq")
+        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "order_seq", dialect: PostgresSequenceDialect())
         #expect(vm.isEditing == true)
         #expect(vm.sequenceName == "order_seq")
     }
 
     @Test func formInvalidWhenNameEmpty() {
-        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: nil)
+        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: nil, dialect: PostgresSequenceDialect())
         #expect(vm.isFormValid == false)
     }
 
     @Test func formValidWithName() {
-        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: nil)
+        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: nil, dialect: PostgresSequenceDialect())
         vm.sequenceName = "my_seq"
         #expect(vm.isFormValid == true)
     }
 
     @Test func dirtyTrackingDetectsIncrementChange() {
-        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "seq")
+        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "seq", dialect: PostgresSequenceDialect())
         vm.takeSnapshot()
         vm.incrementBy = "5"
         #expect(vm.hasChanges == true)
     }
 
     @Test func dirtyTrackingDetectsCycleChange() {
-        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "seq")
+        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "seq", dialect: PostgresSequenceDialect())
         vm.takeSnapshot()
         vm.cycle = true
         #expect(vm.hasChanges == true)
     }
 
     @Test func generatesSQLForNewSequence() {
-        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: nil)
+        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: nil, dialect: PostgresSequenceDialect())
         vm.sequenceName = "order_seq"
         vm.startWith = "100"
         vm.incrementBy = "10"
@@ -277,7 +277,7 @@ struct SequenceEditorViewModelTests {
     }
 
     @Test func generatesSQLForAlterSequence() {
-        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "order_seq")
+        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "order_seq", dialect: PostgresSequenceDialect())
         vm.incrementBy = "5"
         vm.cycle = false
 
@@ -288,7 +288,7 @@ struct SequenceEditorViewModelTests {
     }
 
     @Test func generatesSQLWithOwner() {
-        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "order_seq")
+        let vm = SequenceEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingSequenceName: "order_seq", dialect: PostgresSequenceDialect())
         vm.owner = "admin"
         vm.incrementBy = "1"
 
@@ -305,27 +305,27 @@ struct TypeEditorViewModelTests {
     // MARK: - Composite
 
     @Test func newCompositeIsNotEditing() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite, dialect: PostgresTypeDialect())
         #expect(vm.isEditing == false)
         #expect(vm.typeCategory == .composite)
     }
 
     @Test func compositeFormInvalidWithoutAttributes() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite, dialect: PostgresTypeDialect())
         vm.typeName = "my_type"
         // Default attributes have empty name/dataType
         #expect(vm.isFormValid == false)
     }
 
     @Test func compositeFormValidWithAttribute() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite, dialect: PostgresTypeDialect())
         vm.typeName = "address"
         vm.attributes = [TypeAttributeDraft(name: "street", dataType: "text")]
         #expect(vm.isFormValid == true)
     }
 
     @Test func compositeGeneratesCreateSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .composite, dialect: PostgresTypeDialect())
         vm.typeName = "address"
         vm.attributes = [
             TypeAttributeDraft(name: "street", dataType: "text"),
@@ -341,21 +341,21 @@ struct TypeEditorViewModelTests {
     // MARK: - Enum
 
     @Test func enumFormInvalidWithoutValues() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.typeName = "status"
         // Default enum values have empty value
         #expect(vm.isFormValid == false)
     }
 
     @Test func enumFormValidWithValue() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.typeName = "status"
         vm.enumValues = [EnumValueDraft(value: "active")]
         #expect(vm.isFormValid == true)
     }
 
     @Test func enumGeneratesCreateSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.typeName = "status"
         vm.enumValues = [
             EnumValueDraft(value: "active"),
@@ -370,7 +370,7 @@ struct TypeEditorViewModelTests {
     }
 
     @Test func enumGeneratesAlterSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "status", typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "status", typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.enumValues = [EnumValueDraft(value: "pending")]
 
         let sql = vm.generateSQL()
@@ -381,20 +381,20 @@ struct TypeEditorViewModelTests {
     // MARK: - Range
 
     @Test func rangeFormInvalidWithoutSubtype() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range, dialect: PostgresTypeDialect())
         vm.typeName = "my_range"
         #expect(vm.isFormValid == false)
     }
 
     @Test func rangeFormValidWithSubtype() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range, dialect: PostgresTypeDialect())
         vm.typeName = "int_range"
         vm.subtype = "integer"
         #expect(vm.isFormValid == true)
     }
 
     @Test func rangeGeneratesCreateSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .range, dialect: PostgresTypeDialect())
         vm.typeName = "ts_range"
         vm.subtype = "timestamp"
 
@@ -407,20 +407,20 @@ struct TypeEditorViewModelTests {
     // MARK: - Domain
 
     @Test func domainFormInvalidWithoutBaseType() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.typeName = "email"
         #expect(vm.isFormValid == false)
     }
 
     @Test func domainFormValidWithBaseType() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.typeName = "email"
         vm.baseDataType = "text"
         #expect(vm.isFormValid == true)
     }
 
     @Test func domainGeneratesCreateSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: nil, typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.typeName = "positive_int"
         vm.baseDataType = "integer"
         vm.isNotNull = true
@@ -434,7 +434,7 @@ struct TypeEditorViewModelTests {
     }
 
     @Test func domainGeneratesAlterSQL() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "email", typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "email", typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.baseDataType = "text"
         vm.defaultValue = "'unknown@example.com'"
         vm.isNotNull = true
@@ -448,7 +448,7 @@ struct TypeEditorViewModelTests {
     // MARK: - Dirty Tracking
 
     @Test func dirtyTrackingForComposite() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "addr", typeCategory: .composite)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "addr", typeCategory: .composite, dialect: PostgresTypeDialect())
         vm.attributes = [TypeAttributeDraft(name: "street", dataType: "text")]
         vm.takeSnapshot()
         #expect(vm.hasChanges == false)
@@ -457,7 +457,7 @@ struct TypeEditorViewModelTests {
     }
 
     @Test func dirtyTrackingForEnum() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "status", typeCategory: .enum)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "status", typeCategory: .enum, dialect: PostgresTypeDialect())
         vm.enumValues = [EnumValueDraft(value: "active")]
         vm.takeSnapshot()
         #expect(vm.hasChanges == false)
@@ -466,7 +466,7 @@ struct TypeEditorViewModelTests {
     }
 
     @Test func dirtyTrackingForDomain() {
-        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "email", typeCategory: .domain)
+        let vm = TypeEditorViewModel(connectionSessionID: UUID(), schemaName: "public", existingTypeName: "email", typeCategory: .domain, dialect: PostgresTypeDialect())
         vm.baseDataType = "text"
         vm.takeSnapshot()
         #expect(vm.hasChanges == false)

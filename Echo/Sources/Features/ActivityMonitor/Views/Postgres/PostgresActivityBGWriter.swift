@@ -112,7 +112,7 @@ struct PostgresActivityBGWriter: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            stats = try await pg.client.introspection.fetchBGWriterStats()
+            stats = try await pg.client.metadata.fetchBGWriterStats()
         } catch {
             stats = nil
         }

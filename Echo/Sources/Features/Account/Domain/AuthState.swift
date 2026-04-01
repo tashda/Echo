@@ -77,6 +77,17 @@ final class AuthState {
         }
     }
 
+    /// SDK-managed Google OAuth — opens ASWebAuthenticationSession internally.
+    func signInWithGoogleOAuth() async {
+        guard let supabaseBackend = backend as? SupabaseAuthBackend else {
+            error = .unknown("Google sign-in requires Supabase backend.")
+            return
+        }
+        await performAuth {
+            try await supabaseBackend.signInWithGoogleOAuth()
+        }
+    }
+
     // MARK: - Email OTP
 
     func sendOTP(email: String) async {
@@ -145,6 +156,24 @@ final class AuthState {
         try await backend.deleteAccount(accessToken: tokens.accessToken)
         try await tokenStore.clearAll()
         currentUser = nil
+    }
+
+    // MARK: - Update Profile
+
+    func updateDisplayName(_ name: String) async {
+        error = nil
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let updatedUser = try await backend.updateDisplayName(name)
+            try await tokenStore.saveUser(updatedUser)
+            currentUser = updatedUser
+        } catch let authError as AuthError {
+            error = authError
+        } catch {
+            self.error = .unknown(error.localizedDescription)
+        }
     }
 
     // MARK: - Error Reporting

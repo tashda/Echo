@@ -108,12 +108,12 @@ nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     var profiler: SQLServerProfilerClient { client.profiler }
     var resourceGovernor: SQLServerResourceGovernorClient { client.resourceGovernor }
     var policy: SQLServerPolicyClient { client.policy }
+    @available(*, deprecated)
     var dependencies: SQLServerDependencyClient { client.dependencies }
+    @available(*, deprecated)
     var dac: SQLServerDACClient { client.dac }
-    var bulkCopy: SQLServerBulkCopyClient { SQLServerBulkCopyClient(client: client) }
+    var bulk: SQLServerBulkClient { SQLServerBulkClient(client: client) }
     var ssis: SQLServerSSISClient { client.ssis }
-    var ssas: SQLServerSSASClient { client.ssas }
-    var ssrs: SQLServerSSRSClient { client.ssrs }
 
     func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
         let nioResult = try await client.maintenance.rebuildIndex(schema: schema, table: table, name: index)
@@ -148,82 +148,54 @@ nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     }
 
     func listTableStats() async throws -> [SQLServerTableStat] {
-        let sql = """
-            SELECT
-                s.name AS schema_name,
-                t.name AS table_name,
-                CASE WHEN i.index_id = 0 THEN 'Heap' ELSE 'Clustered' END AS table_type,
-                SUM(p.rows) AS row_count,
-                SUM(a.data_pages) * 8 AS data_space_kb,
-                (SUM(a.used_pages) - SUM(a.data_pages)) * 8 AS index_space_kb,
-                (SUM(a.total_pages) - SUM(a.used_pages)) * 8 AS unused_space_kb,
-                SUM(a.total_pages) * 8 AS total_space_kb,
-                (SELECT MAX(sp.last_updated)
-                 FROM sys.stats st
-                 CROSS APPLY sys.dm_db_stats_properties(st.object_id, st.stats_id) sp
-                 WHERE st.object_id = t.object_id) AS last_stats_update
-            FROM sys.tables t
-            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
-            INNER JOIN sys.indexes i ON t.object_id = i.object_id AND i.index_id IN (0, 1)
-            INNER JOIN sys.partitions p ON i.object_id = p.object_id AND i.index_id = p.index_id
-            INNER JOIN sys.allocation_units a ON p.partition_id = a.container_id
-            WHERE t.is_ms_shipped = 0
-            GROUP BY s.name, t.name, i.index_id, i.object_id, t.object_id
-            ORDER BY SUM(p.rows) DESC
-            """
-        let result = try await simpleQuery(sql)
-        return result.rows.compactMap { row -> SQLServerTableStat? in
-            guard row.count >= 9,
-                  let schemaName = row[0],
-                  let tableName = row[1],
-                  let tableType = row[2] else { return nil }
-            let rowCount = Int64(row[3] ?? "0") ?? 0
-            let dataSpaceKB = Int64(row[4] ?? "0") ?? 0
-            let indexSpaceKB = Int64(row[5] ?? "0") ?? 0
-            let unusedSpaceKB = Int64(row[6] ?? "0") ?? 0
-            let totalSpaceKB = Int64(row[7] ?? "0") ?? 0
-            let lastStatsUpdate: Date? = if let dateStr = row[8] {
-                ISO8601DateFormatter().date(from: dateStr)
-            } else {
-                nil
-            }
+        let nioStats = try await client.maintenance.listTableStats()
+        return nioStats.map { stat in
+            let lastUpdate: Date? = stat.lastStatsUpdate.flatMap { ISO8601DateFormatter().date(from: $0) }
             return SQLServerTableStat(
-                schemaName: schemaName,
-                tableName: tableName,
-                tableType: tableType,
-                rowCount: rowCount,
-                dataSpaceKB: dataSpaceKB,
-                indexSpaceKB: indexSpaceKB,
-                unusedSpaceKB: unusedSpaceKB,
-                totalSpaceKB: totalSpaceKB,
-                lastStatsUpdate: lastStatsUpdate,
+                schemaName: stat.schemaName,
+                tableName: stat.tableName,
+                tableType: stat.tableType,
+                rowCount: stat.rowCount,
+                dataSpaceKB: stat.dataSpaceKB,
+                indexSpaceKB: stat.indexSpaceKB,
+                unusedSpaceKB: stat.unusedSpaceKB,
+                totalSpaceKB: stat.totalSpaceKB,
+                lastStatsUpdate: lastUpdate,
                 forwardedRecords: nil
             )
         }
     }
 
     func checkTable(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
-        let sql = "DBCC CHECKTABLE('[\(schema.replacingOccurrences(of: "]", with: "]]"))].[\(table.replacingOccurrences(of: "]", with: "]]"))]') WITH NO_INFOMSGS"
         do {
-            _ = try await simpleQuery(sql)
-            return DatabaseMaintenanceResult(operation: "Check Table", messages: ["CHECKTABLE found 0 allocation errors and 0 consistency errors."], succeeded: true)
+            let messages = try await client.maintenance.checkTable(schema: schema, table: table)
+            let messageTexts = messages.map(\.message)
+            return DatabaseMaintenanceResult(
+                operation: "Check Table",
+                messages: messageTexts.isEmpty ? ["CHECKTABLE found 0 allocation errors and 0 consistency errors."] : messageTexts,
+                succeeded: true
+            )
         } catch {
             return DatabaseMaintenanceResult(operation: "Check Table", messages: [error.localizedDescription], succeeded: false)
         }
     }
 
     func rebuildTable(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
-        let sql = "ALTER TABLE [\(schema.replacingOccurrences(of: "]", with: "]]"))].[\(table.replacingOccurrences(of: "]", with: "]]"))] REBUILD"
         do {
-            _ = try await simpleQuery(sql)
-            return DatabaseMaintenanceResult(operation: "Rebuild Table", messages: ["Table rebuilt successfully."], succeeded: true)
+            let messages = try await client.maintenance.rebuildTable(schema: schema, table: table)
+            let messageTexts = messages.map(\.message)
+            return DatabaseMaintenanceResult(
+                operation: "Rebuild Table",
+                messages: messageTexts.isEmpty ? ["Table rebuilt successfully."] : messageTexts,
+                succeeded: true
+            )
         } catch {
             return DatabaseMaintenanceResult(operation: "Rebuild Table", messages: [error.localizedDescription], succeeded: false)
         }
     }
 
     func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation] {
-        let nioStats = try await client.indexes.listFragmentedIndexes()
+        let nioStats = try await client.indexes.listFragmentedIndexes(minFragmentationPercent: 0)
         return nioStats.map { stat in
             SQLServerIndexFragmentation(
                 schemaName: stat.schemaName,
@@ -313,7 +285,7 @@ nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
 
     func listDatabaseFiles() async throws -> [SQLServerDatabaseFile] {
         guard let dbName = try await currentDatabaseName() else { return [] }
-        return try await client.admin.fetchDatabaseFiles(name: dbName)
+        return try await client.admin.getDatabaseFiles(name: dbName)
     }
 
     func detachDatabase(name: String, skipChecks: Bool) async throws {
@@ -371,13 +343,11 @@ nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     }
 
     func currentDatabaseName() async throws -> String? {
-        let result = try await simpleQuery("SELECT DB_NAME() AS current_db")
-        return result.rows.first?.first ?? nil
+        try await client.currentDatabaseName()
     }
 
     func isSuperuser() async throws -> Bool {
-        let result = try await simpleQuery("SELECT CASE WHEN IS_SRVROLEMEMBER('sysadmin') = 1 THEN 1 ELSE 0 END AS is_superuser")
-        return result.rows.first?.first == "1"
+        try await client.serverSecurity.isMemberOf(role: "sysadmin")
     }
 
     func fetchPermissions() async throws -> (any DatabasePermissionProviding)? {

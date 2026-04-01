@@ -9,6 +9,24 @@ extension EnvironmentState {
         tabStore.addTab(tab)
     }
 
+    /// Opens a query tab with auto-formatted SQL. Resolves the connection session
+    /// from `connectionID` and formats the SQL using the appropriate dialect.
+    func openFormattedQueryTab(
+        sql: String,
+        database: String? = nil,
+        connectionID: UUID,
+        dialect: SQLFormatter.Dialect
+    ) {
+        Task {
+            let formatted = (try? await SQLFormatter.shared.format(sql: sql, dialect: dialect)) ?? sql
+            if let session = sessionGroup.sessionForConnection(connectionID) {
+                openQueryTab(for: session, presetQuery: formatted, database: database)
+            } else {
+                openQueryTab(presetQuery: formatted, database: database)
+            }
+        }
+    }
+
     func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String? = nil, autoExecute: Bool = false, database: String? = nil) {
         let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
         guard let targetSession else { return }
@@ -199,15 +217,12 @@ extension EnvironmentState {
     }
 
     func openQueryStoreTab(connectionID: UUID, databaseName: String) {
+        openMaintenanceTab(connectionID: connectionID, databaseName: databaseName)
+        // Select the Query Store section after the maintenance tab opens
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        // Check for existing tab first — activate it without creating a new one
-        if let existing = session.queryTabs.first(where: { $0.queryStoreVM?.databaseName == databaseName }) {
-            session.activeQueryTabID = existing.id
-            tabStore.selectTab(existing)
-            return
-        }
-        if let tab = session.addQueryStoreTab(databaseName: databaseName) {
-            registerTab(tab)
+        if let tab = session.queryTabs.first(where: { $0.mssqlMaintenance != nil }),
+           let vm = tab.mssqlMaintenance {
+            vm.selectedSection = .queryStore
         }
     }
 
@@ -223,6 +238,27 @@ extension EnvironmentState {
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
         let tab = session.addPostgresAdvancedObjectsTab()
         if let section, let vm = tab.postgresAdvancedObjectsVM {
+            vm.selectedSection = section
+        }
+        registerTab(tab)
+    }
+
+    func openMSSQLAdvancedObjectsTab(connectionID: UUID, databaseName: String, section: MSSQLAdvancedObjectsViewModel.Section? = nil) {
+        if let existing = tabStore.tabs.first(where: { $0.kind == .mssqlAdvancedObjects && $0.connection.id == connectionID }) {
+            if let vm = existing.mssqlAdvancedObjectsVM {
+                if vm.databaseName != databaseName {
+                    vm.databaseName = databaseName
+                    vm.isInitialized = false
+                    Task { await vm.initialize() }
+                }
+                if let section { vm.selectedSection = section }
+            }
+            tabStore.selectTab(existing)
+            return
+        }
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addMSSQLAdvancedObjectsTab(databaseName: databaseName)
+        if let section, let vm = tab.mssqlAdvancedObjectsVM {
             vm.selectedSection = section
         }
         registerTab(tab)
@@ -353,6 +389,12 @@ extension EnvironmentState {
         return sessionID
     }
 
+    func openQueryBuilderTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addQueryBuilderTab()
+        registerTab(tab)
+    }
+
     func openTableDataTab(for session: ConnectionSession, schema: String, table: String, databaseName: String? = nil) {
         let tab = session.addTableDataTab(schema: schema, table: table, databaseName: databaseName)
         registerTab(tab)
@@ -363,7 +405,7 @@ extension EnvironmentState {
         registerTab(tab)
     }
 
-    func openDiagramTab(for session: ConnectionSession, object: SchemaObjectInfo) {
+    func openDiagramTab(for session: ConnectionSession, object: SchemaObjectInfo, activeDatabaseName: String? = nil) {
         let selectedProjectID = projectStore.selectedProject?.id
         let title = "\(object.schema).\(object.name)"
         let cacheKey = selectedProjectID.map {
@@ -381,9 +423,10 @@ extension EnvironmentState {
             object: object,
             cacheKey: cacheKey
         )
-        let databaseName = session.connection.databaseType == .mysql
-            ? object.schema
-            : (session.connection.database.isEmpty ? nil : session.connection.database)
+        let databaseName = activeDatabaseName
+            ?? (session.connection.databaseType == .mysql
+                ? object.schema
+                : (session.connection.database.isEmpty ? nil : session.connection.database))
 
         let placeholder = SchemaDiagramViewModel(
             nodes: [],
@@ -407,13 +450,14 @@ extension EnvironmentState {
 
         guard tab.diagram === placeholder else { return }
 
-        Task {
+        placeholder.loadingTask = Task {
             do {
                 let diagram = try await diagramBuilder.buildSchemaDiagram(
                     for: object,
                     session: session,
                     projectID: selectedProjectID ?? UUID(),
                     cacheKey: cacheKey,
+                    databaseName: databaseName,
                     progress: { [weak placeholder] message in
                         Task { @MainActor in
                             placeholder?.statusMessage = message
@@ -422,22 +466,26 @@ extension EnvironmentState {
                     isPrefetch: false
                 )
 
-                await MainActor.run {
-                    placeholder.nodes = diagram.nodes
-                    placeholder.edges = diagram.edges
-                    placeholder.layoutIdentifier = diagram.layoutIdentifier
-                    placeholder.cachedStructure = diagram.cachedStructure
-                    placeholder.cachedChecksum = diagram.cachedChecksum
-                    placeholder.loadSource = diagram.loadSource
-                    placeholder.statusMessage = nil
-                    placeholder.errorMessage = nil
-                    placeholder.isLoading = false
-                }
+                guard !Task.isCancelled else { return }
+
+                // Yield to let any pending progress-callback Tasks complete
+                // before we clear statusMessage, preventing a race where a
+                // stale progress message overwrites our nil.
+                await Task.yield()
+
+                placeholder.nodes = diagram.nodes
+                placeholder.edges = diagram.edges
+                placeholder.layoutIdentifier = diagram.layoutIdentifier
+                placeholder.cachedStructure = diagram.cachedStructure
+                placeholder.cachedChecksum = diagram.cachedChecksum
+                placeholder.loadSource = diagram.loadSource
+                placeholder.statusMessage = nil
+                placeholder.errorMessage = nil
+                placeholder.isLoading = false
             } catch {
-                await MainActor.run {
-                    placeholder.errorMessage = error.localizedDescription
-                    placeholder.isLoading = false
-                }
+                guard !Task.isCancelled else { return }
+                placeholder.errorMessage = error.localizedDescription
+                placeholder.isLoading = false
             }
         }
     }

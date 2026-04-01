@@ -25,7 +25,7 @@ struct MySQLDatabaseSecurityView: View {
                     EmptyView()
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 400)
+                .frame(maxWidth: 720)
 
                 Spacer()
 
@@ -47,7 +47,7 @@ struct MySQLDatabaseSecurityView: View {
                         Label("Grant…", systemImage: "key.badge.plus")
                     }
                     .buttonStyle(.borderless)
-                case .advancedObjects:
+                case .advancedObjects, .passwordPolicies, .dataMasking, .encryption, .audit, .firewall:
                     EmptyView()
                 }
             }
@@ -62,6 +62,16 @@ struct MySQLDatabaseSecurityView: View {
                     MySQLSecurityPrivilegesSection(viewModel: viewModel)
                 case .advancedObjects:
                     MySQLAdvancedObjectsView(viewModel: viewModel)
+                case .passwordPolicies:
+                    MySQLPasswordPoliciesSection(viewModel: viewModel)
+                case .dataMasking:
+                    MySQLDataMaskingSection(viewModel: viewModel)
+                case .encryption:
+                    MySQLEncryptionSection(viewModel: viewModel)
+                case .audit:
+                    MySQLAuditSection(viewModel: viewModel)
+                case .firewall:
+                    MySQLFirewallSection(viewModel: viewModel)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

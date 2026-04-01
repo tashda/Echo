@@ -7,7 +7,7 @@ import os
 typealias PostgresQueryResult = PostgresRowSequence
 
 struct PostgresNIOFactory: DatabaseFactory {
-    private let packageLogger = Logging.Logger(label: "dk.tippr.echo.postgres")
+    private let packageLogger = Logging.Logger(label: "dev.echodb.echo.postgres")
 
     func connect(
         host: String,
@@ -89,8 +89,7 @@ final class PostgresSession: DatabaseSession {
     }
 
     func isSuperuser() async throws -> Bool {
-        let meta = PostgresMetadata()
-        return try await meta.isSuperuser(using: client)
+        return try await client.metadata.checkSuperuser()
     }
 
     func fetchPermissions() async throws -> (any DatabasePermissionProviding)? {
@@ -106,7 +105,7 @@ final class PostgresSession: DatabaseSession {
     }
 
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
-        PostgresActivityMonitorWrapper(client.agent)
+        PostgresActivityMonitorWrapper(client.activity)
     }
 
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -198,22 +197,19 @@ final class PostgresSession: DatabaseSession {
     }
 
     func truncateTable(schema: String?, name: String) async throws {
-        _ = try await client.connection.truncate(table: name, cascade: false, restartIdentity: false, schema: schema)
+        _ = try await client.bulk.truncate(table: name, cascade: false, restartIdentity: false, schema: schema)
     }
 
     func listDatabases() async throws -> [String] {
-        let meta = PostgresMetadata()
-        return try await meta.listDatabases(using: client)
+        return try await client.metadata.listDatabases()
     }
 
     func listSchemas() async throws -> [String] {
-        let meta = PostgresMetadata()
-        return try await meta.listSchemas(using: client)
+        return try await client.metadata.listSchemas().map { $0.name }
     }
 
     func listExtensions() async throws -> [SchemaObjectInfo] {
-        let meta = PostgresMetadata()
-        let extensions = try await meta.listExtensions(using: client)
+        let extensions = try await client.metadata.listExtensions()
         return extensions.map { ext in
             SchemaObjectInfo(
                 name: ext.name,
@@ -225,7 +221,7 @@ final class PostgresSession: DatabaseSession {
     }
 
     func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo] {
-        // TODO: Add listExtensionObjects to postgres-wire PostgresMetadata
+        // TODO: Add listExtensionObjects to postgres-wire .metadata
         return []
     }
 
@@ -236,15 +232,13 @@ final class PostgresSession: DatabaseSession {
 
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {
         let schema = schemaName ?? "public"
-        let meta = PostgresMetadata()
-        let cols = try await meta.listColumns(using: client, schema: schema, table: tableName)
+        let cols = try await client.metadata.listColumns(schema: schema, table: tableName)
         return cols.map { ColumnInfo(name: $0.name, dataType: $0.dataType, isPrimaryKey: false, isNullable: $0.isNullable, maxLength: nil) }
     }
 
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
-        let meta = PostgresMetadata()
 
-        let columnList = try await meta.listColumns(using: client, schema: schema, table: table)
+        let columnList = try await client.metadata.listColumns(schema: schema, table: table)
         let columns = columnList.map {
             TableStructureDetails.Column(
                 name: $0.name, dataType: $0.dataType, isNullable: $0.isNullable,
@@ -255,13 +249,13 @@ final class PostgresSession: DatabaseSession {
         }
 
         let primaryKey: TableStructureDetails.PrimaryKey?
-        if let p = try? await meta.primaryKey(using: client, schema: schema, table: table) {
+        if let p = try? await client.metadata.primaryKey(schema: schema, table: table) {
             primaryKey = TableStructureDetails.PrimaryKey(name: p.name, columns: p.columns, isDeferrable: p.isDeferrable, isInitiallyDeferred: p.isInitiallyDeferred)
         } else {
             primaryKey = nil
         }
 
-        let indexList = try await meta.listIndexes(using: client, schema: schema, table: table)
+        let indexList = try await client.metadata.listIndexes(schema: schema, table: table)
         let indexes = indexList.map { i in
             let cols = i.columns.enumerated().map { (pos, c) in
                 TableStructureDetails.Index.Column(name: c.name, position: pos + 1, sortOrder: c.isDescending ? .descending : .ascending, isIncluded: c.isIncluded)
@@ -269,27 +263,27 @@ final class PostgresSession: DatabaseSession {
             return TableStructureDetails.Index(name: i.name, columns: cols, isUnique: i.isUnique, filterCondition: i.predicate, indexType: i.indexType)
         }
 
-        let fkList = try await meta.foreignKeys(using: client, schema: schema, table: table)
+        let fkList = try await client.metadata.foreignKeys(schema: schema, table: table)
         let foreignKeys = fkList.map { fk in
             TableStructureDetails.ForeignKey(name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete, isDeferrable: fk.isDeferrable, isInitiallyDeferred: fk.isInitiallyDeferred)
         }
 
-        let uniqueList = try await meta.uniqueConstraints(using: client, schema: schema, table: table)
+        let uniqueList = try await client.metadata.uniqueConstraints(schema: schema, table: table)
         let uniqueConstraints = uniqueList.map {
             TableStructureDetails.UniqueConstraint(name: $0.name, columns: $0.columns, isDeferrable: $0.isDeferrable, isInitiallyDeferred: $0.isInitiallyDeferred)
         }
 
-        let depList = try await meta.dependencies(using: client, schema: schema, table: table)
+        let depList = try await client.metadata.dependencies(schema: schema, table: table)
         let dependencies = depList.map { d in
             TableStructureDetails.Dependency(name: d.name, baseColumns: d.referencingColumns, referencedTable: d.sourceTable, referencedColumns: d.referencedColumns, onUpdate: d.onUpdate, onDelete: d.onDelete)
         }
 
-        let checkList = try await meta.checkConstraints(using: client, schema: schema, table: table)
+        let checkList = try await client.metadata.checkConstraints(schema: schema, table: table)
         let checkConstraints = checkList.map {
             TableStructureDetails.CheckConstraint(name: $0.name, expression: $0.expression)
         }
 
-        let pgProps = try await meta.tableProperties(using: client, schema: schema, table: table)
+        let pgProps = try await client.metadata.tableProperties(schema: schema, table: table)
         let tableProperties = TableStructureDetails.TableProperties(
             fillfactor: pgProps.fillfactor,
             toastTupleTarget: pgProps.toastTupleTarget,
@@ -343,23 +337,20 @@ final class PostgresSession: DatabaseSession {
             """
 
         case .view:
-            let meta = PostgresMetadata()
-            if let queryBody = try await meta.viewDefinition(using: client, schema: schemaName, view: objectName) {
+            if let queryBody = try await client.metadata.viewDefinition(schema: schemaName, view: objectName) {
                 return "CREATE VIEW \"\(schemaName)\".\"\(objectName)\" AS\n\(queryBody)"
             }
             return "-- View definition unavailable"
 
         case .function, .procedure:
-            let meta = PostgresMetadata()
-            if let definition = try await meta.functionDefinition(using: client, schema: schemaName, name: objectName) {
+            if let definition = try await client.metadata.functionDefinition(schema: schemaName, name: objectName) {
                 return definition
             }
             let descriptor = objectType == .function ? "Function" : "Procedure"
             return "-- \(descriptor) definition unavailable"
 
         case .trigger:
-            let meta = PostgresMetadata()
-            if let definition = try await meta.triggerDefinition(using: client, schema: schemaName, name: objectName) {
+            if let definition = try await client.metadata.triggerDefinition(schema: schemaName, name: objectName) {
                 return definition
             }
             return "-- Trigger definition unavailable"
@@ -384,8 +375,7 @@ extension PostgresSession: DatabaseMetadataSession {
         _ schemaName: String,
         progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
     ) async throws -> SchemaInfo {
-        let meta = PostgresMetadata()
-        let summary = try await meta.schemaSummary(using: client, schema: schemaName) { type, current, total in
+        let summary = try await client.metadata.schemaSummary(schema: schemaName) { type, current, total in
             if let progress {
                 let mapped: SchemaObjectInfo.ObjectType
                 switch type {
@@ -436,7 +426,7 @@ extension PostgresSession: DatabaseMetadataSession {
 
         // Sequences via typed API
         do {
-            let sequences = try await client.introspection.listSequences(schema: schemaName)
+            let sequences = try await client.metadata.listSequences(schema: schemaName)
             for seq in sequences {
                 objects.append(SchemaObjectInfo(name: seq.name, schema: schemaName, type: .sequence))
             }
@@ -446,7 +436,7 @@ extension PostgresSession: DatabaseMetadataSession {
 
         // User-defined types via typed API
         do {
-            let types = try await client.introspection.listTypes(schema: schemaName)
+            let types = try await client.types.listTypes(schema: schemaName)
             for pgType in types {
                 objects.append(SchemaObjectInfo(name: pgType.name, schema: schemaName, type: .type, comment: pgType.kind))
             }
@@ -458,25 +448,25 @@ extension PostgresSession: DatabaseMetadataSession {
     }
 
     func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
-        try await client.admin.reindex(table: table)
+        try await client.maintenance.reindex(table: table)
         return DatabaseMaintenanceResult(operation: "Reindex", messages: ["Index rebuilt successfully."], succeeded: true)
     }
 
     func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
-        _ = try await client.admin.reindex(table: table)
+        _ = try await client.maintenance.reindex(table: table)
         return DatabaseMaintenanceResult(operation: "Reindex", messages: ["Table indexes rebuilt successfully."], succeeded: true)
     }
 
     func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
-        try await client.admin.vacuum(schema: schema, table: table, analyze: analyze, full: full)
+        try await client.maintenance.vacuum(schema: schema, table: table, analyze: analyze, full: full)
     }
 
     func analyzeTable(schema: String, table: String) async throws {
-        try await client.admin.analyze(schema: schema, table: table)
+        try await client.maintenance.analyze(schema: schema, table: table)
     }
 
     func reindexTable(schema: String, table: String) async throws {
-        try await client.admin.reindex(schema: schema, table: table)
+        try await client.maintenance.reindex(schema: schema, table: table)
     }
 
     func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
@@ -493,17 +483,17 @@ extension PostgresSession: DatabaseMetadataSession {
     }
 
     func listAvailableExtensions() async throws -> [AvailableExtensionInfo] {
-        // TODO: Add listAvailableExtensions to postgres-wire PostgresMetadata
+        // TODO: Add listAvailableExtensions to postgres-wire .metadata
         return []
     }
 
     func installExtension(name: String, schema: String?, version: String?, cascade: Bool) async throws {
         // Simple CREATE EXTENSION for now. 
         // Note: version selection not yet in Driver's createExtension, will need update.
-        _ = try await client.admin.createExtension(name, ifNotExists: true, schema: schema, version: version, cascade: cascade)
+        _ = try await client.maintenance.createExtension(name, ifNotExists: true, schema: schema, version: version, cascade: cascade)
     }
 
     func updateExtension(name: String, to version: String?) async throws {
-        _ = try await client.admin.updateExtension(name, to: version)
+        _ = try await client.maintenance.updateExtension(name, to: version)
     }
 }

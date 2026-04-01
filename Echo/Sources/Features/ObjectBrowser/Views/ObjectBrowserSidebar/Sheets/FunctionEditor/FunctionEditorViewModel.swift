@@ -102,12 +102,17 @@ final class FunctionEditorViewModel {
         return false
     }
 
+    // MARK: - Dialect
+
+    let dialect: any FunctionEditorDialect
+
     // MARK: - Init
 
-    init(connectionSessionID: UUID, schemaName: String, existingFunctionName: String?) {
+    init(connectionSessionID: UUID, schemaName: String, existingFunctionName: String?, dialect: any FunctionEditorDialect) {
         self.connectionSessionID = connectionSessionID
         self.schemaName = schemaName
         self.existingFunctionName = existingFunctionName
+        self.dialect = dialect
         if let existingFunctionName {
             self.functionName = existingFunctionName
         }

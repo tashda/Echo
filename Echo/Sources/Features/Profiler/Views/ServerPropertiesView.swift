@@ -13,6 +13,8 @@ struct ServerPropertiesView: View {
         Group {
             if viewModel.session is MySQLSession {
                 mysqlContent
+            } else if viewModel.session is PostgresSession {
+                postgresContent
             } else {
                 placeholder
             }
@@ -123,6 +125,44 @@ struct ServerPropertiesView: View {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
+    }
+
+    private var postgresContent: some View {
+        let availableSections: [ServerPropertiesViewModel.Section] = [.overview, .control, .variables, .status]
+        return MaintenanceTabFrame(
+            panelState: panelState,
+            connectionText: tabStore.activeTab?.connection.connectionName ?? "Server",
+            isInitialized: viewModel.isInitialized,
+            statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
+        ) {
+            HStack(spacing: SpacingTokens.md) {
+                Picker(selection: $viewModel.selectedSection) {
+                    ForEach(availableSections, id: \.self) { section in
+                        Text(section.rawValue).tag(section)
+                    }
+                } label: {
+                    EmptyView()
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 400)
+            }
+        } content: {
+            switch viewModel.selectedSection {
+            case .overview:
+                propertiesTable(viewModel.overviewItems)
+            case .control:
+                PostgresServerControlSection(
+                    viewModel: viewModel,
+                    customToolPath: projectStore.globalSettings.pgToolCustomPath
+                )
+            case .variables:
+                propertiesTable(viewModel.filteredVariables, selection: $viewModel.selectedVariableID)
+            case .status:
+                propertiesTable(viewModel.filteredStatusVariables)
+            default:
+                EmptyView()
+            }
+        }
     }
 
     private var placeholder: some View {

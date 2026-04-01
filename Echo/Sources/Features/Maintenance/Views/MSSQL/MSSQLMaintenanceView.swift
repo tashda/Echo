@@ -26,16 +26,12 @@ struct MSSQLMaintenanceView: View {
                 EmptyView()
             }
             .pickerStyle(.segmented)
-            .frame(maxWidth: 340)
+            .frame(maxWidth: 440)
         } content: {
             sectionContent
         }
         .task {
             await viewModel.loadDatabases()
-        }
-        .onChange(of: viewModel.selectedSection) { _, _ in
-            guard viewModel.isInitialized else { return }
-            Task { await viewModel.loadCurrentSection() }
         }
         .onChange(of: panelState.messages.count) { _, _ in
             if !panelState.isOpen && projectStore.globalSettings.autoOpenBottomPanel {
@@ -82,6 +78,16 @@ struct MSSQLMaintenanceView: View {
                 MSSQLMaintenanceIndexesView(viewModel: viewModel)
             case .backups:
                 MSSQLMaintenanceBackupsView(viewModel: viewModel)
+            case .queryStore:
+                if let qsVM = viewModel.queryStoreVM {
+                    QueryStoreView(viewModel: qsVM)
+                } else {
+                    ContentUnavailableView {
+                        Label("Query Store Unavailable", systemImage: "chart.bar.xaxis")
+                    } description: {
+                        Text("Select a database to view Query Store data.")
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

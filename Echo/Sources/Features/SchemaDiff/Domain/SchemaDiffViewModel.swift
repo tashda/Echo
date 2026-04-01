@@ -111,7 +111,7 @@ final class SchemaDiffViewModel {
         do {
             switch session {
             case let pg as PostgresSession:
-                availableSchemas = try await pg.client.introspection.listSchemas().map(\.name)
+                availableSchemas = try await pg.client.metadata.listSchemas().map(\.name)
             case let mysql as MySQLSession:
                 availableSchemas = try await mysql.listDatabases().sorted()
                 let currentDatabase = try await mysql.currentDatabaseName()
@@ -198,10 +198,10 @@ final class SchemaDiffViewModel {
     }
 
     private func comparePostgres(_ pg: PostgresSession) async throws -> [SchemaDiffItem] {
-        let sourceObjects = try await pg.client.introspection.listTablesAndViews(schema: sourceSchema).map {
+        let sourceObjects = try await pg.client.metadata.listTablesAndViews(schema: sourceSchema).map {
             DiffObject(kind: $0.kind.rawValue, name: $0.name)
         }
-        let targetObjects = try await pg.client.introspection.listTablesAndViews(schema: targetSchema).map {
+        let targetObjects = try await pg.client.metadata.listTablesAndViews(schema: targetSchema).map {
             DiffObject(kind: $0.kind.rawValue, name: $0.name)
         }
 
@@ -293,9 +293,9 @@ final class SchemaDiffViewModel {
         do {
             switch object.kind {
             case SchemaObjectKind.view.rawValue, SchemaObjectKind.materializedView.rawValue:
-                return try await pg.client.introspection.viewDefinition(schema: schema, view: object.name)
+                return try await pg.client.metadata.viewDefinition(schema: schema, view: object.name)
             case SchemaObjectKind.table.rawValue:
-                let columns = try await pg.client.introspection.listColumns(schema: schema, table: object.name)
+                let columns = try await pg.client.metadata.listColumns(schema: schema, table: object.name)
                 guard !columns.isEmpty else { return nil }
                 let colDefs = columns.map { "\($0.name) \($0.dataType)\($0.isNullable ? "" : " NOT NULL")" }
                 return "CREATE TABLE \(schema).\(object.name) (\n  " + colDefs.joined(separator: ",\n  ") + "\n);"

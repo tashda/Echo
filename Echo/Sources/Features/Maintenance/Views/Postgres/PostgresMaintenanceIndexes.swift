@@ -216,7 +216,7 @@ struct PostgresMaintenanceIndexes: View {
 
             ScrollView {
                 Text(sql)
-                    .font(.system(.body, design: .monospaced))
+                    .font(TypographyTokens.code)
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)

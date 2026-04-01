@@ -6,10 +6,8 @@ extension MSSQLMaintenanceViewModel {
         isRefreshingIndexes = true
         defer { isRefreshingIndexes = false }
         do {
-            if let db = selectedDatabase {
-                _ = try await session.sessionForDatabase(db)
-            }
-            fragmentedIndexes = try await session.listFragmentedIndexes()
+            let dbSession = try await resolveSession()
+            fragmentedIndexes = try await dbSession.listFragmentedIndexes()
         } catch {
             // Keep existing data if refresh fails
         }
@@ -19,7 +17,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin("Rebuild \(index.indexName)", connectionSessionID: connectionSessionID)
         logOperation("Executing: ALTER INDEX [\(index.indexName)] ON [\(index.schemaName)].[\(index.tableName)] REBUILD", category: "Index Rebuild")
         do {
-            let result = try await session.rebuildIndex(schema: index.schemaName, table: index.tableName, index: index.indexName)
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.rebuildIndex(schema: index.schemaName, table: index.tableName, index: index.indexName)
             if result.succeeded {
                 await refreshIndexes()
                 let msg = "Index \(index.indexName) rebuilt successfully."
@@ -44,7 +43,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin("Reorganize \(index.indexName)", connectionSessionID: connectionSessionID)
         logOperation("Executing: ALTER INDEX [\(index.indexName)] ON [\(index.schemaName)].[\(index.tableName)] REORGANIZE", category: "Index Reorganize")
         do {
-            let result = try await session.reorganizeIndex(schema: index.schemaName, table: index.tableName, index: index.indexName)
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.reorganizeIndex(schema: index.schemaName, table: index.tableName, index: index.indexName)
             if result.succeeded {
                 await refreshIndexes()
                 let msg = "Index \(index.indexName) reorganized successfully."
@@ -69,7 +69,8 @@ extension MSSQLMaintenanceViewModel {
         let handle = activityEngine?.begin("Update stats \(index.indexName)", connectionSessionID: connectionSessionID)
         logOperation("Executing: UPDATE STATISTICS [\(index.schemaName)].[\(index.tableName)] [\(index.indexName)]", category: "Update Statistics")
         do {
-            let result = try await session.updateIndexStatistics(schema: index.schemaName, table: index.tableName, index: index.indexName)
+            let dbSession = try await resolveSession()
+            let result = try await dbSession.updateIndexStatistics(schema: index.schemaName, table: index.tableName, index: index.indexName)
             if result.succeeded {
                 await refreshIndexes()
                 let msg = "Statistics updated for index \(index.indexName) on table \(index.tableName)."

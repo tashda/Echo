@@ -115,6 +115,8 @@ public enum DatabaseError: Error, LocalizedError, Sendable {
             return .queryError(message, underlyingError: sendable)
         case .invalidArgument:
             return .invalidQuery(message)
+        case .notImplemented:
+            return .queryError(message, underlyingError: sendable)
         case .unsupportedPlatform, .unknown:
             return .unknownError(message, underlyingError: sendable)
         }

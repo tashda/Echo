@@ -24,17 +24,88 @@ extension ObjectBrowserSidebarView {
 
         // Group 2: New
         if let title = objectGroupCreationTitle(for: type) {
-            Button {
-                if type == .extension {
-                    environmentState.openExtensionsManagerTab(connectionID: connID, databaseName: database.name)
-                } else {
+            let hasDesigner = VisualEditorResolver.hasVisualEditor(for: type, databaseType: session.connection.databaseType)
+
+            if hasDesigner {
+                Button {
+                    openNewObjectInDesigner(type: type, session: session, database: database)
+                } label: {
+                    Label(title + "\u{2026}", systemImage: objectGroupCreationIcon(for: type))
+                }
+                Button {
                     let schemaName = session.connection.databaseType == .microsoftSQL ? "dbo" : "public"
                     let sql = objectGroupCreationSQL(for: title, databaseType: session.connection.databaseType, schemaName: schemaName)
                     environmentState.openQueryTab(for: session, presetQuery: sql, database: database.name)
+                } label: {
+                    Label(title + " (SQL)", systemImage: "scroll")
                 }
-            } label: {
-                Label(title, systemImage: objectGroupCreationIcon(for: type))
+            } else if type == .extension {
+                Button {
+                    environmentState.openExtensionsManagerTab(connectionID: connID, databaseName: database.name)
+                } label: {
+                    Label(title, systemImage: objectGroupCreationIcon(for: type))
+                }
+            } else {
+                Button {
+                    let schemaName = session.connection.databaseType == .microsoftSQL ? "dbo" : "public"
+                    let sql = objectGroupCreationSQL(for: title, databaseType: session.connection.databaseType, schemaName: schemaName)
+                    environmentState.openQueryTab(for: session, presetQuery: sql, database: database.name)
+                } label: {
+                    Label(title, systemImage: objectGroupCreationIcon(for: type))
+                }
             }
+        }
+    }
+
+    private func openNewObjectInDesigner(type: SchemaObjectInfo.ObjectType, session: ConnectionSession, database: DatabaseInfo) {
+        let connID = session.connection.id
+        let schema = session.connection.databaseType == .microsoftSQL ? "dbo" : "public"
+
+        switch type {
+        case .view:
+            let value = environmentState.prepareViewEditorWindow(
+                connectionSessionID: connID, schemaName: schema,
+                existingView: nil, isMaterialized: false
+            )
+            openWindow(id: ViewEditorWindow.sceneID, value: value)
+
+        case .materializedView:
+            let value = environmentState.prepareViewEditorWindow(
+                connectionSessionID: connID, schemaName: schema,
+                existingView: nil, isMaterialized: true
+            )
+            openWindow(id: ViewEditorWindow.sceneID, value: value)
+
+        case .function:
+            let value = environmentState.prepareFunctionEditorWindow(
+                connectionSessionID: connID, schemaName: schema,
+                existingFunction: nil
+            )
+            openWindow(id: FunctionEditorWindow.sceneID, value: value)
+
+        case .trigger:
+            let value = environmentState.prepareTriggerEditorWindow(
+                connectionSessionID: connID, schemaName: schema,
+                tableName: "", existingTrigger: nil
+            )
+            openWindow(id: TriggerEditorWindow.sceneID, value: value)
+
+        case .sequence:
+            let value = environmentState.prepareSequenceEditorWindow(
+                connectionSessionID: connID, schemaName: schema,
+                existingSequence: nil
+            )
+            openWindow(id: SequenceEditorWindow.sceneID, value: value)
+
+        case .type:
+            let value = environmentState.prepareTypeEditorWindow(
+                connectionSessionID: connID, schemaName: schema,
+                existingType: nil, typeCategory: .composite
+            )
+            openWindow(id: TypeEditorWindow.sceneID, value: value)
+
+        default:
+            break
         }
     }
 
@@ -234,6 +305,12 @@ extension ObjectBrowserSidebarView {
                 openWindow(id: ServerEditorWindow.sceneID, value: value)
             } label: {
                 Label("Properties", systemImage: "info.circle")
+            }
+        } else if session.connection.databaseType == .mysql {
+            Button {
+                environmentState.openServerPropertiesTab(connectionID: session.connection.id)
+            } label: {
+                Label("Server Properties", systemImage: "info.circle")
             }
         }
 

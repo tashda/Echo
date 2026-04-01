@@ -56,11 +56,45 @@ struct SidebarRow<Trailing: View>: View {
 
     @Environment(\.sidebarDensity) private var density
 
-    private var densityVerticalPadding: CGFloat { density == .large ? 5 : SidebarRowConstants.rowVerticalPadding }
-    private var densityIconFrameWidth: CGFloat { density == .large ? 20 : SidebarRowConstants.iconFrameWidth }
-    private var densityIconFrameHeight: CGFloat { density == .large ? 18 : SidebarRowConstants.iconFrameHeight }
-    private var densityIconFont: Font { density == .large ? Font.system(size: 15, weight: .regular) : SidebarRowConstants.iconFont }
-    private var densityLabelFont: Font { density == .large ? Font.system(size: 13, weight: .regular) : labelFont }
+    private var densityVerticalPadding: CGFloat {
+        switch density {
+        case .small: return SidebarRowConstants.rowVerticalPadding // 4pt
+        case .medium: return 4.5
+        case .large: return 5
+        }
+    }
+
+    private var densityIconFrameWidth: CGFloat {
+        switch density {
+        case .small: return SidebarRowConstants.iconFrameWidth // 18pt
+        case .medium: return 19
+        case .large: return 20
+        }
+    }
+
+    private var densityIconFrameHeight: CGFloat {
+        switch density {
+        case .small: return SidebarRowConstants.iconFrameHeight // 16pt
+        case .medium: return 17
+        case .large: return 18
+        }
+    }
+
+    private var densityIconFont: Font {
+        switch density {
+        case .small: return SidebarRowConstants.iconFont // 14pt
+        case .medium: return Font.system(size: 14.5, weight: .regular)
+        case .large: return Font.system(size: 15, weight: .regular)
+        }
+    }
+
+    private var densityLabelFont: Font {
+        switch density {
+        case .small: return labelFont // 11pt
+        case .medium: return Font.system(size: 12, weight: .regular)
+        case .large: return Font.system(size: 13, weight: .regular)
+        }
+    }
 
     private var showChevron: Bool { isExpanded != nil }
     private var expanded: Bool { isExpanded?.wrappedValue ?? false }

@@ -18,7 +18,7 @@ enum QueryResultDetailMode: String, CaseIterable {
 }
 
 extension Notification.Name {
-    static let queryResultsRowCountDidChange = Notification.Name("dk.tippr.echo.queryResultsRowCountDidChange")
+    static let queryResultsRowCountDidChange = Notification.Name("dev.echodb.echo.queryResultsRowCountDidChange")
 }
 
 @Observable @MainActor

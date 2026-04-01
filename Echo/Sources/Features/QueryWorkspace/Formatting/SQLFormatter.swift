@@ -42,7 +42,7 @@ final class SQLFormatter: SQLFormatterProtocol, Sendable {
         }
     }
 
-    private let queue = DispatchQueue(label: "dk.tippr.echo.sqlformatter", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "dev.echodb.echo.sqlformatter", qos: .userInitiated)
     private nonisolated(unsafe) var jsContext: JSContext?
 
     private init() {

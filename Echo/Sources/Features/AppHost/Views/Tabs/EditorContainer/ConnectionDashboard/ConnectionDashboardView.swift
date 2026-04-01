@@ -32,9 +32,15 @@ struct ConnectionDashboardHeader: View {
         VStack(spacing: SpacingTokens.xs) {
             connectionIcon
             VStack(spacing: SpacingTokens.xxs) {
-                Text(session.connection.connectionName)
-                    .font(TypographyTokens.displayLarge.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.primary)
+                HStack(spacing: SpacingTokens.xs) {
+                    Text(session.connection.connectionName)
+                        .font(TypographyTokens.displayLarge.weight(.semibold))
+                        .foregroundStyle(ColorTokens.Text.primary)
+
+                    if session.connection.databaseType.isBeta {
+                        FeatureBadge.beta
+                    }
+                }
 
                 Text(serverSubtitle)
                     .font(TypographyTokens.standard)

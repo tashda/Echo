@@ -100,9 +100,9 @@ struct TableStructurePartitionsView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            partitionInfo = try await pg.client.introspection.fetchPartitionInfo(schema: viewModel.schemaName, table: viewModel.tableName)
+            partitionInfo = try await pg.client.metadata.fetchPartitionInfo(schema: viewModel.schemaName, table: viewModel.tableName)
             if partitionInfo != nil {
-                partitions = try await pg.client.introspection.listPartitions(schema: viewModel.schemaName, table: viewModel.tableName)
+                partitions = try await pg.client.metadata.listPartitions(schema: viewModel.schemaName, table: viewModel.tableName)
             }
         } catch {
             // Not partitioned — leave partitionInfo nil

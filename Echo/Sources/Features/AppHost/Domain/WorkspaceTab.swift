@@ -33,7 +33,6 @@ final class WorkspaceTab: Identifiable {
         case activityMonitor
         case maintenance
         case mssqlMaintenance
-        case queryStore
         case extendedEvents
         case availabilityGroups
         case databaseSecurity
@@ -48,7 +47,9 @@ final class WorkspaceTab: Identifiable {
         case policyManagement
         case tableData
         case postgresAdvancedObjects
+        case mssqlAdvancedObjects
         case schemaDiff
+        case queryBuilder
     }
 
     enum Content {
@@ -62,7 +63,6 @@ final class WorkspaceTab: Identifiable {
         case activityMonitor(ActivityMonitorViewModel)
         case maintenance(MaintenanceViewModel)
         case mssqlMaintenance(MSSQLMaintenanceViewModel)
-        case queryStore(QueryStoreViewModel)
         case extendedEvents(ExtendedEventsViewModel)
         case availabilityGroups(AvailabilityGroupsViewModel)
         case databaseSecurity(DatabaseSecurityViewModel)
@@ -77,7 +77,9 @@ final class WorkspaceTab: Identifiable {
         case policyManagement(PolicyManagementViewModel)
         case tableData(TableDataViewModel)
         case postgresAdvancedObjects(PostgresAdvancedObjectsViewModel)
+        case mssqlAdvancedObjects(MSSQLAdvancedObjectsViewModel)
         case schemaDiff(SchemaDiffViewModel)
+        case queryBuilder(VisualQueryBuilderViewModel)
     }
 
     let id = UUID()
@@ -100,6 +102,9 @@ final class WorkspaceTab: Identifiable {
     private(set) var content: Content
     var isPinned: Bool
     var activeDatabaseName: String?
+    /// Display-only subtitle shown in the tab strip (e.g. server name for server-level tabs).
+    /// Falls back to `activeDatabaseName` when nil.
+    var tabSubtitle: String?
     @ObservationIgnored let bookmarkContext: BookmarkTabContext?
 
     @ObservationIgnored let resultsGridState = QueryResultsGridState()
@@ -214,7 +219,6 @@ final class WorkspaceTab: Identifiable {
         case .activityMonitor: return .activityMonitor
         case .maintenance: return .maintenance
         case .mssqlMaintenance: return .mssqlMaintenance
-        case .queryStore: return .queryStore
         case .extendedEvents: return .extendedEvents
         case .availabilityGroups: return .availabilityGroups
         case .databaseSecurity: return .databaseSecurity
@@ -229,7 +233,9 @@ final class WorkspaceTab: Identifiable {
         case .policyManagement: return .policyManagement
         case .tableData: return .tableData
         case .postgresAdvancedObjects: return .postgresAdvancedObjects
+        case .mssqlAdvancedObjects: return .mssqlAdvancedObjects
         case .schemaDiff: return .schemaDiff
+        case .queryBuilder: return .queryBuilder
         }
     }
 
@@ -280,11 +286,6 @@ final class WorkspaceTab: Identifiable {
 
     var mssqlMaintenance: MSSQLMaintenanceViewModel? {
         if case .mssqlMaintenance(let vm) = content { return vm }
-        return nil
-    }
-
-    var queryStoreVM: QueryStoreViewModel? {
-        if case .queryStore(let vm) = content { return vm }
         return nil
     }
 
@@ -358,8 +359,18 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var mssqlAdvancedObjectsVM: MSSQLAdvancedObjectsViewModel? {
+        if case .mssqlAdvancedObjects(let vm) = content { return vm }
+        return nil
+    }
+
     var schemaDiffVM: SchemaDiffViewModel? {
         if case .schemaDiff(let vm) = content { return vm }
+        return nil
+    }
+
+    var queryBuilderVM: VisualQueryBuilderViewModel? {
+        if case .queryBuilder(let vm) = content { return vm }
         return nil
     }
 
@@ -389,15 +400,13 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + 1024 * 1024
         case .maintenance(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
-        case .mssqlMaintenance:
-            return baseOverhead + 256 * 1024 // Default estimation
-        case .queryStore(let vm):
+        case .mssqlMaintenance(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .extendedEvents(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .availabilityGroups(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .schemaDiff:
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects, .mssqlAdvancedObjects, .schemaDiff, .queryBuilder:
             return baseOverhead + 256 * 1024
         case .errorLog:
             return baseOverhead + 256 * 1024
@@ -420,7 +429,7 @@ final class WorkspaceTab: Identifiable {
         switch content {
         case .query:
             return .forQueryTab()
-        case .maintenance, .mssqlMaintenance, .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .errorLog, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement, .tableData, .postgresAdvancedObjects, .schemaDiff:
+        case .maintenance, .mssqlMaintenance, .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .errorLog, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement, .tableData, .postgresAdvancedObjects, .mssqlAdvancedObjects, .schemaDiff:
             return .forMaintenanceTab()
         case .extendedEvents, .profiler:
             return .forExtendedEventsTab()

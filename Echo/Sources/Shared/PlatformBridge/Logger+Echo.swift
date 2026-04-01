@@ -1,7 +1,7 @@
 import OSLog
 
 extension Logger {
-    private static let subsystem = "dk.tippr.echo"
+    private static let subsystem = "dev.echodb.echo"
 
     static let connection = Logger(subsystem: subsystem, category: "connection")
     static let mssql = Logger(subsystem: subsystem, category: "mssql")

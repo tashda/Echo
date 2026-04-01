@@ -125,7 +125,12 @@ extension TableStructureEditorView {
             }
 
         case .scriptPreview:
-            ScriptPreviewSheet(statements: scriptPreviewStatements) { sql in
+            SQLInspectorSheet(
+                context: SQLPopoutContext(
+                    sql: scriptPreviewStatements.joined(separator: "\n\n"),
+                    title: "Script Preview"
+                )
+            ) { sql, _ in
                 if let session = environmentState.sessionGroup.sessionForConnection(tab.connection.id) {
                     environmentState.openQueryTab(for: session, presetQuery: sql)
                 }

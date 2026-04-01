@@ -60,7 +60,7 @@ struct NewColumnEncryptionKeySheet: View {
                         TextField("", text: $encryptedValue, prompt: Text("0x01234ABCDEF..."))
                             .textFieldStyle(.plain)
                             .multilineTextAlignment(.trailing)
-                            .font(.system(.body, design: .monospaced))
+                            .font(TypographyTokens.code)
                     }
                 }
 

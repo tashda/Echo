@@ -5,6 +5,7 @@
 *.cer
 *.cert
 sparkle_priv.key
+Echo/Configuration/Secrets.xcconfig
 
 # Xcode
 Echo.xcodeproj/xcuserdata/

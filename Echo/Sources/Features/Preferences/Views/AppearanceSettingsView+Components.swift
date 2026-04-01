@@ -214,8 +214,21 @@ private struct SidebarDensityCard: View {
         }
     }
 
-    private var rowSpacing: CGFloat { density == .large ? 6 : 2 }
-    private var rowHeight: CGFloat { density == .large ? 5 : 3 }
+    private var rowSpacing: CGFloat {
+        switch density {
+        case .small: return 2
+        case .medium: return 4
+        case .large: return 6
+        }
+    }
+
+    private var rowHeight: CGFloat {
+        switch density {
+        case .small: return 3
+        case .medium: return 4
+        case .large: return 5
+        }
+    }
 
     private var previewThumbnail: some View {
         ZStack(alignment: .leading) {
@@ -230,11 +243,19 @@ private struct SidebarDensityCard: View {
     }
 
     private func densityRow(icon: String) -> some View {
-        HStack(spacing: SpacingTokens.xxs) {
+        let iconSize: CGFloat = {
+            switch density {
+            case .small: return 6
+            case .medium: return 7
+            case .large: return 8
+            }
+        }()
+        
+        return HStack(spacing: SpacingTokens.xxs) {
             Image(systemName: icon)
-                .font(.system(size: density == .large ? 8 : 6))
+                .font(.system(size: iconSize))
                 .foregroundStyle(Color.primary.opacity(0.55))
-                .frame(width: density == .large ? 8 : 6)
+                .frame(width: iconSize)
             RoundedRectangle(cornerRadius: 0.5)
                 .fill(Color.primary.opacity(0.12))
                 .frame(width: 25, height: rowHeight)

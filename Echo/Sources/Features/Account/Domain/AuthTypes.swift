@@ -33,6 +33,9 @@ struct AuthUser: Codable, Sendable, Equatable {
     let authMethod: AuthMethod
     let createdAt: Date
 
+    /// URL to the user's profile photo (from Google, Apple, etc.).
+    var avatarURL: URL?
+
     /// Linked auth methods beyond the primary sign-in.
     var linkedMethods: [AuthMethod]
 }

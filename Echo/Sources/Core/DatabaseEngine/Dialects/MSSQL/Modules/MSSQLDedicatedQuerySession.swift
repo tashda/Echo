@@ -98,10 +98,10 @@ nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSessio
     var profiler: SQLServerProfilerClient { metadataSession.profiler }
     var resourceGovernor: SQLServerResourceGovernorClient { metadataSession.resourceGovernor }
     var policy: SQLServerPolicyClient { metadataSession.policy }
+    @available(*, deprecated)
     var dependencies: SQLServerDependencyClient { metadataSession.dependencies }
+    @available(*, deprecated)
     var dac: SQLServerDACClient { metadataSession.dac }
-    var bulkCopy: SQLServerBulkCopyClient { metadataSession.bulkCopy! }
+    var bulk: SQLServerBulkClient { metadataSession.bulk! }
     var ssis: SQLServerSSISClient { metadataSession.ssis }
-    var ssas: SQLServerSSASClient { metadataSession.ssas }
-    var ssrs: SQLServerSSRSClient { metadataSession.ssrs }
 }

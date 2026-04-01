@@ -136,13 +136,18 @@ final class TypeEditorViewModel {
         return false
     }
 
+    // MARK: - Dialect
+
+    let dialect: any TypeEditorDialect
+
     // MARK: - Init
 
-    init(connectionSessionID: UUID, schemaName: String, existingTypeName: String?, typeCategory: TypeCategory) {
+    init(connectionSessionID: UUID, schemaName: String, existingTypeName: String?, typeCategory: TypeCategory, dialect: any TypeEditorDialect) {
         self.connectionSessionID = connectionSessionID
         self.schemaName = schemaName
         self.existingTypeName = existingTypeName
         self.typeCategory = typeCategory
+        self.dialect = dialect
         if let existingTypeName {
             self.typeName = existingTypeName
         }

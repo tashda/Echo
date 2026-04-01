@@ -206,7 +206,34 @@ extension LoginEditorViewModel {
     // MARK: - Server Permission Sync
 
     private func syncServerPermissions(ssec: SQLServerServerSecurityClient, loginName: String) async throws {
-        for perm in serverPermissions {
+        // Handle CONNECT SQL separately from the main loop
+        if let originalConnectState = snapshot?.permissionStates[ServerPermissionName.connectSql.rawValue] {
+            let originalState = ConnectSQLPermissionState(
+                isGranted: originalConnectState.isGranted,
+                isDenied: originalConnectState.isDenied
+            )
+            let currentState = permissionConnectToEngine
+
+            if originalState != currentState {
+                // Revoke existing state first
+                if originalState != .unspecified {
+                    try await ssec.revokeRaw(permission: ServerPermissionName.connectSql.rawValue, from: loginName, cascade: false)
+                }
+
+                // Apply new state
+                switch currentState {
+                case .granted:
+                    try await ssec.grantRaw(permission: ServerPermissionName.connectSql.rawValue, to: loginName, withGrantOption: false)
+                case .denied:
+                    try await ssec.denyRaw(permission: ServerPermissionName.connectSql.rawValue, to: loginName)
+                case .unspecified:
+                    // Nothing to do if current state is unspecified after revoke
+                    break
+                }
+            }
+        }
+        
+        for perm in serverPermissions where perm.permission != ServerPermissionName.connectSql.rawValue {
             let changed = perm.isGranted != perm.originalState.isGranted ||
                 perm.withGrantOption != perm.originalState.withGrantOption ||
                 perm.isDenied != perm.originalState.isDenied
@@ -224,5 +251,13 @@ extension LoginEditorViewModel {
                 try await ssec.grantRaw(permission: perm.permission, to: loginName, withGrantOption: perm.withGrantOption)
             }
         }
+    }
+}
+
+private extension ConnectSQLPermissionState {
+    init(isGranted: Bool, isDenied: Bool) {
+        if isGranted { self = .granted }
+        else if isDenied { self = .denied }
+        else { self = .unspecified }
     }
 }

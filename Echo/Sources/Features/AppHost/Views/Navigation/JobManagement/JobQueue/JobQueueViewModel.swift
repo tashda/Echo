@@ -211,7 +211,7 @@ final class JobQueueViewModel {
         isLoadingJobs = true
         defer { isLoadingJobs = false }
         do {
-            let detailed = try await mssql.agent.listJobsDetailed()
+            let detailed = try await mssql.agent.listJobDetails()
             self.jobs = detailed.map { job in
                 JobRow(
                     id: job.jobId,
