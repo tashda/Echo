@@ -158,6 +158,7 @@ jobs:
     - name: Build Release (signed)
       run: |
         xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
+          -allowProvisioningUpdates \
           MARKETING_VERSION=${{ steps.version.outputs.full }} \
           CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
           CODE_SIGN_STYLE=Automatic \
