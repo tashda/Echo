@@ -193,16 +193,14 @@ def main() -> None:
                 continue
             lines.extend([f"### {category}", ""])
             if bucket.features:
-                if bucket.fixes:
-                    lines.append("**Features & Improvements**")
-                    lines.append("")
+                lines.append("**Features & Improvements**")
+                lines.append("")
                 for subject in bucket.features:
                     lines.append(f"- {subject}")
                 lines.append("")
             if bucket.fixes:
-                if bucket.features:
-                    lines.append("**Bug Fixes**")
-                    lines.append("")
+                lines.append("**Bug Fixes**")
+                lines.append("")
                 for subject in bucket.fixes:
                     lines.append(f"- {subject}")
                 lines.append("")
