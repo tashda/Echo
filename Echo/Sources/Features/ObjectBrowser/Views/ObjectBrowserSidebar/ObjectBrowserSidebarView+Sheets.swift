@@ -117,15 +117,6 @@ extension ObjectBrowserSidebarView {
                     }
                 }
             }
-            .sheet(isPresented: $sheetState.showDatabaseMailSheet) {
-                if let connID = sheetState.databaseMailConnectionID,
-                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
-                    DatabaseMailSheet(
-                        session: session,
-                        onDismiss: { sheetState.showDatabaseMailSheet = false }
-                    )
-                }
-            }
             .sheet(isPresented: $sheetState.showCMSSheet) {
                 if let connID = sheetState.cmsConnectionID,
                    let session = environmentState.sessionGroup.sessionForConnection(connID) {

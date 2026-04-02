@@ -75,12 +75,12 @@ struct PostgresTablespacesSection: View {
             }
             Divider()
             if selection.count == 1, let name = selection.first {
-                Button("Rename\u{2026}") {
+                Button {
                     pendingEdit = PendingEdit(action: .rename, objectName: name, initialValue: name)
-                }
-                Button("Change Owner\u{2026}") {
+                } label: { Label("Rename", systemImage: "character.cursor.ibeam") }
+                Button {
                     pendingEdit = PendingEdit(action: .changeOwner, objectName: name, initialValue: "")
-                }
+                } label: { Label("Change Owner", systemImage: "person") }
                 Divider()
                 Button(role: .destructive) { pendingDropName = name } label: {
                     Label("Drop Tablespace", systemImage: "trash")

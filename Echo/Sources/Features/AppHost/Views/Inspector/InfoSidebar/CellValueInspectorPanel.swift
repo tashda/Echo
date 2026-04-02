@@ -14,11 +14,20 @@ struct CellValueInspectorPanel: View {
 
             GroupBox {
                 VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    LabeledContent("Column", value: content.columnName)
+                    PropertyRow(title: "Column") {
+                        Text(content.columnName)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                     Divider()
-                    LabeledContent("Type", value: content.dataType.isEmpty ? "Unknown" : content.dataType)
+                    PropertyRow(title: "Type") {
+                        Text(content.dataType.isEmpty ? "Unknown" : content.dataType)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                     Divider()
-                    LabeledContent("Kind", value: kindLabel)
+                    PropertyRow(title: "Kind") {
+                        Text(kindLabel)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                 }
                 .padding(.vertical, SpacingTokens.xs)
             }

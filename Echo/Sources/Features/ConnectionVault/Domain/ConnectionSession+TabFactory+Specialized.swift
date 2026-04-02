@@ -32,10 +32,12 @@ extension ConnectionSession {
         )
 
         if let mssql = session as? MSSQLSession {
-            viewModel.extendedEventsVM = ExtendedEventsViewModel(
+            let xeVM = ExtendedEventsViewModel(
                 xeClient: mssql.extendedEvents,
                 connectionSessionID: id
             )
+            xeVM.activityEngine = AppDirector.shared.activityEngine
+            viewModel.extendedEventsVM = xeVM
             viewModel.profilerVM = ProfilerViewModel(
                 profilerClient: mssql.profiler,
                 session: session,
@@ -72,6 +74,7 @@ extension ConnectionSession {
             xeClient: mssql.extendedEvents,
             connectionSessionID: id
         )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
@@ -232,6 +235,7 @@ extension ConnectionSession {
             agClient: mssql.availabilityGroups,
             connectionSessionID: id
         )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
         let tab = WorkspaceTab(
             connection: connection,
             session: session,

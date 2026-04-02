@@ -9,10 +9,6 @@ struct SidebarSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Explorer") {
-                Toggle("Show saved connections when disconnected", isOn: showSavedConnectionsBinding)
-            }
-
             Section("General") {
                 ForEach(SidebarAutoExpandSection.generalSections) { section in
                     Toggle(section.displayName, isOn: generalToggle(for: section))
@@ -44,19 +40,7 @@ struct SidebarSettingsView: View {
             }
         }
         .formStyle(.grouped)
-    }
-
-    // MARK: - Explorer toggle
-
-    private var showSavedConnectionsBinding: Binding<Bool> {
-        Binding(
-            get: { settings.showSavedConnectionsInExplorer },
-            set: { newValue in
-                var updated = settings
-                updated.showSavedConnectionsInExplorer = newValue
-                Task { try? await projectStore.updateGlobalSettings(updated) }
-            }
-        )
+        .scrollContentBackground(.hidden)
     }
 
     // MARK: - General toggles

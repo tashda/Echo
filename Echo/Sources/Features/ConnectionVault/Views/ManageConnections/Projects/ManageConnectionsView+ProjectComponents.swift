@@ -68,7 +68,7 @@ struct ProjectIconPickerSheet: View {
     private var formContent: some View {
         Form {
             Section {
-                LabeledContent("Icon") { iconPaletteView }
+                PropertyRow(title: "Icon") { iconPaletteView }
             } header: {
                 Text("Change Icon")
             }

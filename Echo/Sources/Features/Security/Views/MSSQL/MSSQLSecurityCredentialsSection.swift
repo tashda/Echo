@@ -60,7 +60,7 @@ struct MSSQLSecurityCredentialsSection: View {
                 }
 
                 Button { onNewCredential() } label: {
-                    Label("New Credential", systemImage: "key.badge.plus")
+                    Label("New Credential", systemImage: "key.fill")
                 }
             }
         } primaryAction: { _ in }

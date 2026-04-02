@@ -46,13 +46,16 @@ extension DatabaseObjectRow {
 
     internal func openDataPreview() {
         guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let sql: String
+        switch connection.databaseType {
+        case .microsoftSQL:
+            sql = "SELECT TOP 1000 * FROM \(qualified);"
+        default:
+            sql = "SELECT * FROM \(qualified) LIMIT 1000;"
+        }
         Task { @MainActor in
-            environmentState.openTableDataTab(
-                for: session,
-                schema: object.schema,
-                table: object.name,
-                databaseName: databaseName
-            )
+            environmentState.openQueryTab(for: session, presetQuery: sql, autoExecute: true, database: databaseName)
         }
     }
     

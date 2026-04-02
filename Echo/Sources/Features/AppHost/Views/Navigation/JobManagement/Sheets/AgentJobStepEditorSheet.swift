@@ -225,7 +225,7 @@ struct AgentJobStepEditorSheet: View {
     }
 
     private var commandSection: some View {
-        LabeledContent("Command") {
+        PropertyRow(title: "Command") {
             HStack(alignment: .top) {
                 TextEditor(text: $command)
                     .font(TypographyTokens.body.monospaced())

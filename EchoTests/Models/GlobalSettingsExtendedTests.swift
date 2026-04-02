@@ -227,27 +227,15 @@ struct GlobalSettingsExtendedTests {
         settings.editorIndentWrappedLines = 8
         settings.editorEnableAutocomplete = false
         settings.editorQualifyTableCompletions = true
-        settings.editorSuggestKeywords = false
-        settings.editorEnableInlineSuggestions = false
-        settings.editorSuggestFunctions = false
-        settings.editorSuggestSnippets = false
-        settings.editorSuggestHistory = false
-        settings.editorSuggestJoins = false
         settings.editorShowSystemSchemas = true
-        settings.editorAllowCommandPeriodTrigger = false
-        settings.editorAllowControlSpaceTrigger = false
         settings.accentColorSource = .custom
         settings.customAccentColorHex = "FF5500"
         settings.resultsAlternateRowShading = true
         settings.resultsShowRowNumbers = false
-        settings.resultsEnableTypeFormatting = false
         settings.showForeignKeysInInspector = false
         settings.showJsonInInspector = false
         settings.resultsInitialRowLimit = 1000
-        settings.resultsPreviewBatchSize = 1000
         settings.autoOpenInspectorOnSelection = false
-        settings.keepTabsInMemory = true
-        settings.showSavedConnectionsInExplorer = true
         settings.sidebarCustomizePerDatabaseType = true
         settings.sidebarAutoExpandSections = [.databases, .tables]
         settings.sidebarAutoExpandPostgresql = [.databases, .materializedViews]
@@ -273,27 +261,15 @@ struct GlobalSettingsExtendedTests {
         #expect(decoded.editorIndentWrappedLines == 8)
         #expect(decoded.editorEnableAutocomplete == false)
         #expect(decoded.editorQualifyTableCompletions == true)
-        #expect(decoded.editorSuggestKeywords == false)
-        #expect(decoded.editorEnableInlineSuggestions == false)
-        #expect(decoded.editorSuggestFunctions == false)
-        #expect(decoded.editorSuggestSnippets == false)
-        #expect(decoded.editorSuggestHistory == false)
-        #expect(decoded.editorSuggestJoins == false)
         #expect(decoded.editorShowSystemSchemas == true)
-        #expect(decoded.editorAllowCommandPeriodTrigger == false)
-        #expect(decoded.editorAllowControlSpaceTrigger == false)
         #expect(decoded.accentColorSource == .custom)
         #expect(decoded.customAccentColorHex == "FF5500")
         #expect(decoded.resultsAlternateRowShading == true)
         #expect(decoded.resultsShowRowNumbers == false)
-        #expect(decoded.resultsEnableTypeFormatting == false)
         #expect(decoded.showForeignKeysInInspector == false)
         #expect(decoded.showJsonInInspector == false)
         #expect(decoded.resultsInitialRowLimit == 1000)
-        #expect(decoded.resultsPreviewBatchSize == 1000)
         #expect(decoded.autoOpenInspectorOnSelection == false)
-        #expect(decoded.keepTabsInMemory == true)
-        #expect(decoded.showSavedConnectionsInExplorer == true)
         #expect(decoded.sidebarCustomizePerDatabaseType == true)
         #expect(decoded.sidebarAutoExpandSections == [.databases, .tables])
         #expect(decoded.sidebarAutoExpandPostgresql == [.databases, .materializedViews])

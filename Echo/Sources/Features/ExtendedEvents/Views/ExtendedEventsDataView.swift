@@ -39,10 +39,13 @@ struct ExtendedEventsDataView: View {
                 loadingPlaceholder
             } else if case .error(let message) = viewModel.eventDataLoadingState {
                 errorPlaceholder(message)
-            } else if viewModel.eventData.isEmpty {
-                emptyPlaceholder
             } else {
                 eventTable
+                    .overlay {
+                        if viewModel.eventData.isEmpty {
+                            emptyPlaceholder
+                        }
+                    }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -218,13 +221,11 @@ struct ExtendedEventsDataView: View {
     }
 
     private var loadingPlaceholder: some View {
-        VStack(spacing: SpacingTokens.md) {
-            ProgressView()
-            Text("Loading event data...")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabInitializingPlaceholder(
+            icon: "bolt.horizontal",
+            title: "Loading Event Data",
+            subtitle: "Reading event data stream..."
+        )
     }
 
     private func errorPlaceholder(_ message: String) -> some View {

@@ -11,11 +11,11 @@ final class ResultTableRowView: NSTableRowView {
         let bottomCornerRadius: CGFloat
     }
 
-    private var highlightProvider: ((ResultTableRowView, Int) -> SelectionRenderInfo?)?
+    private var highlightProvider: ((ResultTableRowView, Int) -> [SelectionRenderInfo])?
 
     func configure(row: Int,
                    colorProvider: @escaping (Int) -> NSColor,
-                   highlightProvider: @escaping (ResultTableRowView, Int) -> SelectionRenderInfo?) {
+                   highlightProvider: @escaping (ResultTableRowView, Int) -> [SelectionRenderInfo]) {
         self.rowIndex = row
         self.colorProvider = colorProvider
         self.highlightProvider = highlightProvider
@@ -37,16 +37,18 @@ final class ResultTableRowView: NSTableRowView {
             dirtyRect.fill()
         }
 
-        if let info = highlightProvider?(self, rowIndex) {
+        if let infos = highlightProvider?(self, rowIndex) {
             let accent = AppearanceStore.shared.accentNSColor
             let fill = accent.withAlphaComponent(0.18)
             let stroke = accent.withAlphaComponent(0.65)
-            let path = makeRoundedPath(in: info.rect, topRadius: info.topCornerRadius, bottomRadius: info.bottomCornerRadius)
-            fill.setFill()
-            path.fill()
-            stroke.setStroke()
-            path.lineWidth = 1
-            path.stroke()
+            for info in infos {
+                let path = makeRoundedPath(in: info.rect, topRadius: info.topCornerRadius, bottomRadius: info.bottomCornerRadius)
+                fill.setFill()
+                path.fill()
+                stroke.setStroke()
+                path.lineWidth = 1
+                path.stroke()
+            }
         }
     }
 

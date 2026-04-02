@@ -141,7 +141,7 @@ struct MSSQLMaintenanceIndexesView: View {
         let color = if label == "Healthy" {
             ColorTokens.Status.success
         } else if label == "Unused" {
-            Color.orange
+            ColorTokens.Status.warning
         } else {
             ColorTokens.Status.error
         }

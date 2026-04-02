@@ -18,14 +18,17 @@ struct PostgresMaintenanceIndexes: View {
         Group {
             if viewModel.isLoadingIndexes && viewModel.indexStats.isEmpty {
                 loadingView
-            } else if viewModel.indexStats.isEmpty {
-                ContentUnavailableView {
-                    Label("No Index Statistics", systemImage: "list.bullet.indent")
-                } description: {
-                    Text("No user indexes found in the selected database.")
-                }
             } else {
                 indexTable
+                    .overlay {
+                        if viewModel.indexStats.isEmpty {
+                            ContentUnavailableView {
+                                Label("No Index Statistics", systemImage: "list.bullet.indent")
+                            } description: {
+                                Text("No user indexes found in the selected database.")
+                            }
+                        }
+                    }
             }
         }
         .sheet(item: Binding(
@@ -127,7 +130,7 @@ struct PostgresMaintenanceIndexes: View {
     }
 
     private func kindColor(for index: PostgresIndexStat) -> Color {
-        if index.isPrimary { return Color.orange }
+        if index.isPrimary { return ColorTokens.Status.warning }
         if index.isUnique { return ColorTokens.Status.info }
         return ColorTokens.Text.tertiary
     }

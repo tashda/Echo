@@ -19,17 +19,6 @@ struct ApplicationCacheSettingsView: View {
     @State var diagramCacheUsage: UInt64 = 0
     @State var isRefreshingDiagramCache = false
 
-    var usePerTypeStorageLimits: Binding<Bool> {
-        Binding(
-            get: { projectStore.globalSettings.usePerTypeStorageLimits },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.usePerTypeStorageLimits = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
     var body: some View {
         Form {
             cacheManagementSection
@@ -59,15 +48,6 @@ struct ApplicationCacheSettingsView: View {
 
     private var cacheManagementSection: some View {
         Section("Cache Management") {
-            PropertyRow(
-                title: "Keep tabs in memory",
-                info: "Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage."
-            ) {
-                Toggle("", isOn: keepTabsBinding)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-            }
-
             PropertyRow(title: "Query result retention") {
                 Picker("", selection: resultCacheRetentionBinding) {
                     ForEach(Self.retentionOptions, id: \.hours) { option in

@@ -239,6 +239,7 @@ struct VisualQueryBuilderView: View {
                 .buttonStyle(.borderless)
                 .controlSize(.small)
                 .help("Copy SQL to clipboard")
+                .accessibilityLabel("Copy SQL to clipboard")
 
                 Button {
                     environmentState.openQueryTab(presetQuery: viewModel.generatedSQL)
@@ -249,6 +250,7 @@ struct VisualQueryBuilderView: View {
                 .buttonStyle(.borderless)
                 .controlSize(.small)
                 .help("Open in new query tab")
+                .accessibilityLabel("Open in new query tab")
 
                 Button {
                     environmentState.openQueryTab(presetQuery: viewModel.generatedSQL, autoExecute: true)
@@ -260,6 +262,7 @@ struct VisualQueryBuilderView: View {
                 .controlSize(.small)
                 .disabled(!viewModel.hasSelectedColumns)
                 .help("Execute query")
+                .accessibilityLabel("Execute query")
             }
             .padding(.horizontal, SpacingTokens.sm)
             .padding(.vertical, SpacingTokens.xs)

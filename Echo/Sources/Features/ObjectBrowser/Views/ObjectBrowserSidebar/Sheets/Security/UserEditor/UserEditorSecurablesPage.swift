@@ -29,7 +29,7 @@ struct UserEditorSecurablesPage: View {
     private var securableListSection: some View {
         Section {
             HStack {
-                Button("Add\u{2026}") { showSearchSheet = true }
+                Button("Add") { showSearchSheet = true }
                     .buttonStyle(.bordered)
 
                 if viewModel.selectedSecurableID != nil {
@@ -41,7 +41,7 @@ struct UserEditorSecurablesPage: View {
             }
 
             if viewModel.securableEntries.isEmpty {
-                Text("No securables added. Click \"Add\u{2026}\" to search for objects.")
+                Text("No securables added. Click \"Add\" to search for objects.")
                     .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Text.secondary)
             } else {

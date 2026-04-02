@@ -36,7 +36,7 @@ struct ConnectMenuCommands: Commands {
             if hasConnections {
                 connectionMenuItems(parentID: nil, projectID: projectID)
             } else if !hasActiveSessions {
-                Text("No Connections Available")
+                Label("No Connections Available", systemImage: "cable.connector.slash")
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
 
@@ -44,8 +44,10 @@ struct ConnectMenuCommands: Commands {
                 Divider()
             }
 
-            Button("Manage Connections") {
+            Button {
                 ManageConnectionsWindowController.shared.present()
+            } label: {
+                Label("Manage Connections", systemImage: "server.rack")
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
 
@@ -94,7 +96,7 @@ struct ConnectMenuCommands: Commands {
         Menu {
             let databases = availableDatabases(for: session)
             if databases.isEmpty {
-                Text("No Databases Available")
+                Label("No Databases Available", systemImage: "internaldrive")
                     .foregroundStyle(ColorTokens.Text.secondary)
             } else {
                 ForEach(databases, id: \.name) { database in
@@ -134,8 +136,9 @@ struct ConnectMenuCommands: Commands {
                 Image(systemName: "checkmark")
                     .frame(width: 12)
             } else {
-                Color.clear
-                    .frame(width: 12, height: 12)
+                Image(systemName: "cylinder.split.1x2")
+                    .frame(width: 12)
+                    .opacity(0.45)
             }
             Text(name)
                 .lineLimit(1)

@@ -21,6 +21,7 @@ struct QueryBuilderWhereSheet: View {
                             Text("\(table.name) (\(table.alias))").tag(table.id as UUID?)
                         }
                     }
+                    .pickerStyle(.menu)
 
                     if let tid = tableID,
                        let table = viewModel.tables.first(where: { $0.id == tid }) {
@@ -30,6 +31,7 @@ struct QueryBuilderWhereSheet: View {
                                 Text(col.name).tag(col.name)
                             }
                         }
+                        .pickerStyle(.menu)
                     }
                 }
 
@@ -39,6 +41,7 @@ struct QueryBuilderWhereSheet: View {
                             Text(op).tag(op)
                         }
                     }
+                    .pickerStyle(.menu)
 
                     if operatorType != "IS NULL" && operatorType != "IS NOT NULL" {
                         TextField("Value", text: $value, prompt: Text("e.g. 'hello' or 42"))
@@ -46,6 +49,7 @@ struct QueryBuilderWhereSheet: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
         } footer: {
             Spacer()
             Button("Cancel") { dismiss() }
@@ -61,7 +65,7 @@ struct QueryBuilderWhereSheet: View {
                 viewModel.addWhereCondition(tableID: tid, column: column, op: operatorType, value: effectiveValue)
                 dismiss()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
             .disabled(tableID == nil || column.isEmpty)
         }

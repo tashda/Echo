@@ -14,7 +14,7 @@ struct MySQLGrantPrivilegesSheet: View {
         SheetLayoutCustomFooter(title: "Grant Schema Privileges") {
             Form {
                 Section("Scope") {
-                    LabeledContent("Database") {
+                    PropertyRow(title: "Database") {
                         Text(databaseName)
                             .textSelection(.enabled)
                     }
@@ -64,7 +64,7 @@ struct MySQLGrantPrivilegesSheet: View {
                 onApply(grantee, selectedPrivileges.sorted { $0.rawValue < $1.rawValue }, withGrantOption)
                 onDismiss()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
             .disabled(selectedGrantee == nil || selectedPrivileges.isEmpty)
         }

@@ -84,7 +84,7 @@ extension ObjectBrowserSidebarView {
             Button {
                 onCreate()
             } label: {
-                Label("New...", systemImage: "plus")
+                Label("New", systemImage: "plus")
             }
         }
 

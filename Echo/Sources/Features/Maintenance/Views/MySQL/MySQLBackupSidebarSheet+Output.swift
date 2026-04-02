@@ -72,7 +72,7 @@ extension MySQLBackupSidebarSheet {
         Button("Back Up") {
             Task { await viewModel.executeConfiguredBackup(customToolPath: customToolPath) }
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.bordered)
         .keyboardShortcut(.defaultAction)
         .disabled(!viewModel.canBackup)
     }

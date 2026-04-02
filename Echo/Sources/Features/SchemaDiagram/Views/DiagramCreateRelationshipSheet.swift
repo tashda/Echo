@@ -93,6 +93,7 @@ struct DiagramCreateRelationshipSheet: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
         } footer: {
             Spacer()
             Button("Cancel") { dismiss() }
@@ -100,7 +101,7 @@ struct DiagramCreateRelationshipSheet: View {
             Button("Create Relationship") {
                 createRelationship()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
             .disabled(!canCreate || isCreating)
         }

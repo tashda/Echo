@@ -17,22 +17,13 @@ enum QueryEditorConnectionContextResolver {
             ?? normalize(connectionDatabaseName)
     }
 
+    /// Returns the full structure with all databases so that cross-database detection
+    /// can match any database name. EchoSense builds catalogs only for databases that
+    /// have loaded schemas; empty databases are still present for name matching.
     static func completionStructure(
         from structure: DatabaseStructure?,
         selectedDatabase: String?
     ) -> DatabaseStructure? {
-        guard let structure else { return nil }
-        guard let selectedDatabase = normalize(selectedDatabase) else { return structure }
-
-        guard let matchingDatabase = structure.databases.first(where: {
-            $0.name.caseInsensitiveCompare(selectedDatabase) == .orderedSame
-        }) else {
-            return structure
-        }
-
-        return DatabaseStructure(
-            serverVersion: structure.serverVersion,
-            databases: [matchingDatabase]
-        )
+        structure
     }
 }

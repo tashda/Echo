@@ -103,7 +103,15 @@ struct DatabaseObjectRow: View, Equatable {
 
     private var rowContent: some View {
         Button {
-            viewModel.selectedObjectID = object.id
+            if let databaseName {
+                viewModel.selectedObjectID = ExplorerSidebarIdentity.object(
+                    connectionID: connection.id,
+                    databaseName: databaseName,
+                    objectID: object.id
+                )
+            } else {
+                viewModel.selectedObjectID = object.id
+            }
             guard canExpand else { return }
             isExpanded.toggle()
         } label: {
@@ -120,9 +128,18 @@ struct DatabaseObjectRow: View, Equatable {
                 tableFeatureBadges
             }
         }
+        .draggable(qualifiedNameForDrag)
         .lazyContextMenu {
             self.buildNSMenu()
         }
+    }
+
+    private var qualifiedNameForDrag: String {
+        QualifiedNameFormatter.format(
+            schema: object.schema,
+            name: object.name,
+            for: connection.databaseType
+        )
     }
 
     @ViewBuilder

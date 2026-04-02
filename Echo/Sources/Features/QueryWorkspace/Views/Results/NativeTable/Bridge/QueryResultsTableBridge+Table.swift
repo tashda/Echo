@@ -18,7 +18,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         rowView.configure(
             row: row,
             colorProvider: { [weak self] index in self?.rowBackgroundColor(for: index) ?? .clear },
-            highlightProvider: { [weak self, weak tableView] view, index in guard let self, let tableView else { return nil }; return self.selectionRenderInfo(forRow: index, rowView: view, tableView: tableView) }
+            highlightProvider: { [weak self, weak tableView] view, index in guard let self, let tableView else { return [] }; return self.selectionRenderInfos(forRow: index, rowView: view, tableView: tableView) }
         )
         return rowView
     }
@@ -152,7 +152,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         let lower = max(0, visibleRange.location); let upper = min(tableView.numberOfRows, lower + visibleRange.length)
         for row in lower..<upper {
             guard let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? ResultTableRowView else { continue }
-            rowView.configure(row: row, colorProvider: { [weak self] index in self?.rowBackgroundColor(for: index) ?? .clear }, highlightProvider: { [weak self, weak tableView] view, index in guard let self, let tableView else { return nil }; return self.selectionRenderInfo(forRow: index, rowView: view, tableView: tableView) })
+            rowView.configure(row: row, colorProvider: { [weak self] index in self?.rowBackgroundColor(for: index) ?? .clear }, highlightProvider: { [weak self, weak tableView] view, index in guard let self, let tableView else { return [] }; return self.selectionRenderInfos(forRow: index, rowView: view, tableView: tableView) })
         }
     }
 

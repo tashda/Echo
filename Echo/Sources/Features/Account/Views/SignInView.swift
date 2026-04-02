@@ -33,7 +33,7 @@ struct SignInView: View {
     private var header: some View {
         VStack(spacing: SpacingTokens.xs) {
             Image(systemName: "person.crop.circle")
-                .font(.system(size: 48))
+                .font(TypographyTokens.iconHero)
                 .foregroundStyle(ColorTokens.Text.tertiary)
 
             Text("Sign in to Echo")

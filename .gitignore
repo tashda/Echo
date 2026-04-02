@@ -87,6 +87,9 @@ Tools/
 *.pcap
 *.tar.xz
 
+# JS tooling
+tools/node_modules/
+
 # Swift Package Manager
 .build/
 .swiftpm/xcode/

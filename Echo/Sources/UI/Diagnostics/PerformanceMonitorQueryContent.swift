@@ -5,11 +5,6 @@ struct PerformanceMonitorQueryContent: View {
     @Bindable var query: QueryEditorState
 
     var body: some View {
-        QueryPerformanceReportView(
-            title: tab.title,
-            connectionName: tab.connection.connectionName,
-            databaseName: tab.connection.database,
-            query: query
-        )
+        QueryPerformanceReportView(query: query)
     }
 }

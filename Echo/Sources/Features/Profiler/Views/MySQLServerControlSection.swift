@@ -23,7 +23,7 @@ struct MySQLServerControlSection: View {
                 Button("Start") {
                     Task { await viewModel.startLocalMySQLServer(customToolPath: customToolPath) }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .disabled(!canStart)
 
                 Button("Stop") {
@@ -43,38 +43,38 @@ struct MySQLServerControlSection: View {
 
             Form {
                 Section("Status") {
-                    LabeledContent("Connection Host") {
+                    PropertyRow(title: "Connection Host") {
                         Text(viewModel.isLocalMySQLHost ? "Local" : "Remote")
                             .foregroundStyle(ColorTokens.Text.secondary)
                     }
 
-                    LabeledContent("Current State") {
+                    PropertyRow(title: "Current State") {
                         Text(statusText)
                             .foregroundStyle(statusColor)
                     }
 
-                    LabeledContent("mysqladmin") {
+                    PropertyRow(title: "mysqladmin") {
                         Text(MySQLToolLocator.mysqladminURL(customPath: customToolPath)?.path ?? "Not found")
                             .font(TypographyTokens.Table.path)
                             .foregroundStyle(ColorTokens.Text.secondary)
                             .textSelection(.enabled)
                     }
 
-                    LabeledContent("mysql.server") {
+                    PropertyRow(title: "mysql.server") {
                         Text(MySQLToolLocator.mysqlServerScriptURL(customPath: customToolPath)?.path ?? "Not found")
                             .font(TypographyTokens.Table.path)
                             .foregroundStyle(ColorTokens.Text.secondary)
                             .textSelection(.enabled)
                     }
 
-                    LabeledContent("mysqld_safe") {
+                    PropertyRow(title: "mysqld_safe") {
                         Text(MySQLToolLocator.mysqldSafeURL(customPath: customToolPath)?.path ?? "Not found")
                             .font(TypographyTokens.Table.path)
                             .foregroundStyle(ColorTokens.Text.secondary)
                             .textSelection(.enabled)
                     }
 
-                    LabeledContent("mysqld") {
+                    PropertyRow(title: "mysqld") {
                         Text(MySQLToolLocator.mysqldURL(customPath: customToolPath)?.path ?? "Not found")
                             .font(TypographyTokens.Table.path)
                             .foregroundStyle(ColorTokens.Text.secondary)
@@ -84,7 +84,7 @@ struct MySQLServerControlSection: View {
 
                 if let selectedConfig = viewModel.selectedConfigFile {
                     Section("Startup") {
-                        LabeledContent("Defaults File") {
+                        PropertyRow(title: "Defaults File") {
                             Text(selectedConfig.path)
                                 .font(TypographyTokens.Table.path)
                                 .foregroundStyle(ColorTokens.Text.secondary)
@@ -109,6 +109,7 @@ struct MySQLServerControlSection: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
         }
     }
 

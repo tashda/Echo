@@ -75,15 +75,11 @@ struct ConnectionDashboardDatabases: View {
     // MARK: - States
 
     private var loadingState: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            ProgressView()
-                .controlSize(.small)
-            Text("Loading databases…")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.vertical, SpacingTokens.sm)
+        TabInitializingPlaceholder(
+            icon: "cylinder",
+            title: "Loading Databases",
+            subtitle: "Fetching database list..."
+        )
     }
 
     private func failedState(_ message: String?) -> some View {

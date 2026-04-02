@@ -35,9 +35,15 @@ struct QueryResultFormView: View {
                                         .fill(ColorTokens.Background.secondary)
                                 )
 
-                            LabeledContent("Type", value: field.dataType)
+                            PropertyRow(title: "Type") {
+                                Text(field.dataType)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
+                            }
                             if let comment = field.comment, !comment.isEmpty {
-                                LabeledContent("Comment", value: comment)
+                                PropertyRow(title: "Comment") {
+                                    Text(comment)
+                                        .foregroundStyle(ColorTokens.Text.secondary)
+                                }
                             }
                         }
                         .padding(.vertical, SpacingTokens.xxs2)
@@ -45,6 +51,7 @@ struct QueryResultFormView: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
         }
     }
 

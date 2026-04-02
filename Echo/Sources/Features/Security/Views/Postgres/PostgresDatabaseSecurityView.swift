@@ -18,7 +18,7 @@ struct PostgresDatabaseSecurityView: View {
     var body: some View {
         MaintenanceTabFrame(
             panelState: panelState,
-            connectionText: connectionText,
+            serverName: connectionText,
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
@@ -87,7 +87,7 @@ struct PostgresDatabaseSecurityView: View {
             Button {
                 showGrantWizard = true
             } label: {
-                Label("Grant Wizard", systemImage: "key.badge.plus")
+                Label("Grant Wizard", systemImage: "key.fill")
             }
             .buttonStyle(.borderless)
         }

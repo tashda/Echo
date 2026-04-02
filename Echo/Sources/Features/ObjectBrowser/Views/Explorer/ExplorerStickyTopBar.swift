@@ -119,7 +119,7 @@ struct StickyTopBarContent: View {
                                         await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
                                     }
                                 } label: {
-                                    Label(database.name, systemImage: "database")
+                                    Label(database.name, systemImage: "cylinder")
                                 }
                             }
                         }

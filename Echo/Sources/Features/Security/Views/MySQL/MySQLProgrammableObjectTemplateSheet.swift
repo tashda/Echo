@@ -68,7 +68,8 @@ struct MySQLProgrammableObjectTemplateSheet: View {
                     environmentState.openScriptTab(sql: script, connectionID: connectionID)
                     onDismiss()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.defaultAction)
                 .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }

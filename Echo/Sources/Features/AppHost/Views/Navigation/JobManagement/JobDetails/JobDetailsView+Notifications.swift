@@ -111,6 +111,7 @@ extension JobDetailsView {
                                 .tag(op.name)
                             }
                         }
+                        .pickerStyle(.menu)
                     }
 
                     Picker("Notify when", selection: $notifyLevel) {
@@ -119,6 +120,7 @@ extension JobDetailsView {
                         Text("On failure").tag(2)
                         Text("On completion").tag(3)
                     }
+                    .pickerStyle(.menu)
                 }
 
                 Section("Windows Event Log") {
@@ -128,6 +130,7 @@ extension JobDetailsView {
                         Text("On failure").tag(2)
                         Text("On completion").tag(3)
                     }
+                    .pickerStyle(.menu)
                 }
             }
             .formStyle(.grouped)

@@ -11,6 +11,7 @@ struct SearchSettingsView: View {
         Form {
             Section("Scope") {
                 Toggle("Include offline databases", isOn: includeOfflineBinding)
+                    .toggleStyle(.switch)
                 Text("Offline and inaccessible databases are excluded from search results and the database scope picker by default.")
                     .font(TypographyTokens.detail)
                     .foregroundStyle(ColorTokens.Text.tertiary)
@@ -44,6 +45,7 @@ struct SearchSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     // MARK: - Bindings

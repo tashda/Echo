@@ -15,12 +15,18 @@ extension DatabasePropertiesSheet {
         } else {
             ForEach(Array(mssqlFiles.enumerated()), id: \.offset) { index, file in
                 Section(file.name) {
-                    LabeledContent("Type", value: file.typeDescription)
+                    PropertyRow(title: "Type") {
+                        Text(file.typeDescription)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                     if let fg = file.fileGroupName {
-                        LabeledContent("Filegroup", value: fg)
+                        PropertyRow(title: "Filegroup") {
+                            Text(fg)
+                                .foregroundStyle(ColorTokens.Text.secondary)
+                        }
                     }
 
-                    LabeledContent("Size") {
+                    PropertyRow(title: "Size") {
                         HStack(spacing: SpacingTokens.xs) {
                             TextField("", value: fileSizeMBBinding(index: index), format: .number, prompt: Text("100"))
                                 .frame(width: 80)
@@ -33,7 +39,7 @@ extension DatabasePropertiesSheet {
                         }
                     }
 
-                    LabeledContent("Max Size") {
+                    PropertyRow(title: "Max Size") {
                         HStack(spacing: SpacingTokens.xs) {
                             Picker("", selection: fileMaxSizeTypeBinding(index: index, file: file)) {
                                 Text("Unlimited").tag(FileMaxSizeType.unlimited)
@@ -54,7 +60,7 @@ extension DatabasePropertiesSheet {
                         }
                     }
 
-                    LabeledContent("Growth") {
+                    PropertyRow(title: "Growth") {
                         HStack(spacing: SpacingTokens.xs) {
                             Picker("", selection: fileGrowthTypeBinding(index: index, file: file)) {
                                 Text("MB").tag(FileGrowthType.mb)
@@ -75,7 +81,10 @@ extension DatabasePropertiesSheet {
                         }
                     }
 
-                    LabeledContent("Path", value: file.physicalName)
+                    PropertyRow(title: "Path") {
+                        Text(file.physicalName)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                 }
             }
         }

@@ -149,29 +149,55 @@ extension QueryEditorContainer {
 
     /// Triggers a targeted schema load for the tab's active database if its schemas
     /// are not yet present in the session structure. Called when the tab first appears.
-    func ensureCurrentDatabaseStructureLoaded() {
+    func ensureCurrentDatabaseSchemaLoaded() async {
         guard let activeDB = tab.activeDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines),
               !activeDB.isEmpty,
               let session = connectionSession else { return }
-        ensureSchemaLoaded(forDatabase: activeDB, in: session)
+        await loadSchemaIfNeeded(forDatabase: activeDB, in: session)
     }
 
     /// Triggers a targeted schema load for the named database if its schemas are not
     /// yet in the session structure. Called when the user types a cross-DB prefix (e.g. "employees.").
     func ensureSchemaLoaded(forDatabase databaseName: String) {
         guard let session = connectionSession else { return }
-        ensureSchemaLoaded(forDatabase: databaseName, in: session)
+        Task { await loadSchemaIfNeeded(forDatabase: databaseName, in: session) }
     }
 
-    private func ensureSchemaLoaded(forDatabase databaseName: String, in session: ConnectionSession) {
+    private func loadSchemaIfNeeded(forDatabase databaseName: String, in session: ConnectionSession) async {
         guard let normalizedDatabase = normalized(databaseName) else { return }
         guard !session.hasLoadedSchema(forDatabase: normalizedDatabase) else { return }
         guard session.beginSchemaLoad(forDatabase: normalizedDatabase) else { return }
 
-        Task {
-            defer { session.finishSchemaLoad(forDatabase: normalizedDatabase) }
-            guard !session.hasLoadedSchema(forDatabase: normalizedDatabase) else { return }
-            await environmentState.loadSchemaForDatabase(normalizedDatabase, connectionSession: session)
+        defer { session.finishSchemaLoad(forDatabase: normalizedDatabase) }
+        guard !session.hasLoadedSchema(forDatabase: normalizedDatabase) else { return }
+
+        // Track cross-DB schema loads in the status bar and activity engine.
+        let isCrossDB = normalized(tab.activeDatabaseName)?.caseInsensitiveCompare(normalizedDatabase) != .orderedSame
+        if isCrossDB {
+            query.isLoadingCrossDBSchema = true
+            query.crossDBSchemaTarget = normalizedDatabase
+        }
+        let handle = AppDirector.shared.activityEngine.begin(
+            "Loading \(normalizedDatabase) schema",
+            connectionSessionID: session.id
+        )
+
+        await environmentState.loadSchemaForDatabase(normalizedDatabase, connectionSession: session)
+
+        handle.succeed()
+        if isCrossDB {
+            query.isLoadingCrossDBSchema = false
+            query.crossDBSchemaTarget = nil
+        }
+
+        // SwiftUI observation doesn't reliably propagate session.databaseStructure changes
+        // through the computed property chain. Directly post the fresh context so the text
+        // view can update without depending on the SwiftUI render cycle.
+        if let freshContext = editorCompletionContext {
+            NotificationCenter.default.post(
+                name: .completionContextDidUpdate,
+                object: freshContext
+            )
         }
     }
 

@@ -11,7 +11,7 @@ final class ResultTableRowNumberView: NSView {
     private var digitWidth: CGFloat = 0
     private let leadingPadding = ResultsGridMetrics.rowNumberLeadingPadding
     private let trailingPadding = ResultsGridMetrics.rowNumberTrailingPadding
-    private let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+    private let font = NSFont.monospacedDigitSystemFont(ofSize: ResultsGridMetrics.rowNumberFontSize, weight: .regular)
     private let textColor = NSColor(ColorTokens.Text.tertiary)
     private var drawAttributes: [NSAttributedString.Key: Any] = [:]
     private var cachedBackgroundColor: NSColor = .controlBackgroundColor
@@ -147,6 +147,16 @@ final class ResultTableRowNumberView: NSView {
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }
 
+    // MARK: - Key Events
+
+    override func keyDown(with event: NSEvent) {
+        if let tableView = tableView as? ResultTableView {
+            tableView.keyDown(with: event)
+        } else {
+            super.keyDown(with: event)
+        }
+    }
+
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
@@ -157,10 +167,33 @@ final class ResultTableRowNumberView: NSView {
 
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1
         let lineWidth = 1 / max(scale, 1)
-        NSColor.separatorColor.setFill()
-        NSRect(x: bounds.width - lineWidth, y: 0, width: lineWidth, height: bounds.height).fill()
 
         let contentTop = contentAreaTop
+
+        // Draw header area background matching the table header.
+        if contentTop > 0 {
+            NSColor(ColorTokens.Background.primary).setFill()
+            NSRect(x: 0, y: 0, width: bounds.width, height: contentTop).fill()
+
+            // Draw "#" header label, vertically centered.
+            let headerLabel = "#" as NSString
+            let headerTextSize = headerLabel.size(withAttributes: drawAttributes)
+            let headerTextRect = NSRect(
+                x: leadingPadding,
+                y: floor(contentTop / 2 - headerTextSize.height / 2),
+                width: bounds.width - leadingPadding - trailingPadding,
+                height: headerTextSize.height
+            )
+            headerLabel.draw(in: headerTextRect, withAttributes: drawAttributes)
+        }
+
+        // Draw horizontal separator under the header area.
+        NSColor.separatorColor.setFill()
+        NSRect(x: 0, y: contentTop - lineWidth, width: bounds.width, height: lineWidth).fill()
+
+        // Draw vertical separator on right edge.
+        NSColor.separatorColor.setFill()
+        NSRect(x: bounds.width - lineWidth, y: 0, width: lineWidth, height: bounds.height).fill()
 
         let rowArea = NSRect(x: 0, y: contentTop, width: bounds.width, height: bounds.height - contentTop)
         guard rowArea.intersects(dirtyRect) else { return }

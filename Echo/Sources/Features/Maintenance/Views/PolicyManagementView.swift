@@ -61,17 +61,26 @@ struct PolicyManagementView: View {
     
     private var policiesTable: some View {
         Table(viewModel.policies, selection: $viewModel.selectedPolicyID) {
-            TableColumn("Name", value: \.name)
-            TableColumn("Condition", value: \.conditionName)
+            TableColumn("Name") { p in
+                Text(p.name)
+                    .font(TypographyTokens.Table.name)
+            }
+            TableColumn("Condition") { p in
+                Text(p.conditionName)
+                    .font(TypographyTokens.Table.secondaryName)
+            }
             TableColumn("Enabled") { p in
                 Text(p.isEnabled ? "Yes" : "No")
-                    .foregroundStyle(p.isEnabled ? .green : .secondary)
+                    .font(TypographyTokens.Table.status)
+                    .foregroundStyle(p.isEnabled ? ColorTokens.Status.success : .secondary)
             }
             .width(60)
             TableColumn("Mode") { p in
                 Text(executionModeLabel(p.executionMode))
+                    .font(TypographyTokens.Table.category)
             }
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: Int32.self) { selection in
             if let policyId = selection.first,
                let policy = viewModel.policies.first(where: { $0.policyId == policyId }) {
@@ -98,40 +107,57 @@ struct PolicyManagementView: View {
     
     private var conditionsTable: some View {
         Table(viewModel.conditions) {
-            TableColumn("Name", value: \.name)
-            TableColumn("Facet", value: \.facetName)
+            TableColumn("Name") { c in
+                Text(c.name)
+                    .font(TypographyTokens.Table.name)
+            }
+            TableColumn("Facet") { c in
+                Text(c.facetName)
+                    .font(TypographyTokens.Table.category)
+            }
             TableColumn("Expression") { c in
                 Text(c.expression ?? "-")
+                    .font(TypographyTokens.Table.secondaryName)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
     }
     
     private var facetsTable: some View {
         Table(viewModel.facets) {
-            TableColumn("Name", value: \.name)
+            TableColumn("Name") { f in
+                Text(f.name)
+                    .font(TypographyTokens.Table.name)
+            }
             TableColumn("Description") { f in
                 Text(f.description ?? "-")
+                    .font(TypographyTokens.Table.secondaryName)
             }
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
     }
     
     private var historyTable: some View {
         Table(viewModel.history) {
             TableColumn("Date") { h in
                 Text(h.startDate, style: .date)
+                    .font(TypographyTokens.Table.date)
             }
             .width(100)
             TableColumn("Time") { h in
                 Text(h.startDate, style: .time)
+                    .font(TypographyTokens.Table.date)
             }
             .width(100)
             TableColumn("Result") { h in
                 Label(h.result ? "Success" : "Failed", systemImage: h.result ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundStyle(h.result ? .green : .red)
+                    .font(TypographyTokens.Table.status)
+                    .foregroundStyle(h.result ? ColorTokens.Status.success : ColorTokens.Status.error)
             }
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
     }
     
     private func executionModeLabel(_ mode: Int32) -> String {

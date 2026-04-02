@@ -17,6 +17,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var completionContext: SQLEditorCompletionContext?
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onSchemaLoadNeeded: ((String) -> Void)?
+    var validationRequestGeneration: Int = 0
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -71,6 +72,11 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         }
         textView.onSchemaLoadNeeded = onSchemaLoadNeeded
 
+        if validationRequestGeneration != context.coordinator.lastValidationGeneration {
+            context.coordinator.lastValidationGeneration = validationRequestGeneration
+            textView.validateNow()
+        }
+
         if textView.string != text {
             context.coordinator.isUpdatingFromBinding = true
             let currentSelection = textView.selectedRange()
@@ -108,6 +114,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         weak var textView: SQLTextView?
         var theme: SQLEditorTheme
         var isUpdatingFromBinding = false
+        var lastValidationGeneration = 0
 
         init(parent: MacSQLEditorRepresentable) {
             self.parent = parent

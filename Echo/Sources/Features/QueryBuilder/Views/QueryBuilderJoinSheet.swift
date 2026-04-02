@@ -19,6 +19,7 @@ struct QueryBuilderJoinSheet: View {
                             Text(type.rawValue).tag(type)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
 
                 Section("Source Table") {
@@ -28,6 +29,7 @@ struct QueryBuilderJoinSheet: View {
                             Text("\(table.name) (\(table.alias))").tag(table.id as UUID?)
                         }
                     }
+                    .pickerStyle(.menu)
 
                     if let sourceID = sourceTableID,
                        let table = viewModel.tables.first(where: { $0.id == sourceID }) {
@@ -37,6 +39,7 @@ struct QueryBuilderJoinSheet: View {
                                 Text(col.name).tag(col.name)
                             }
                         }
+                        .pickerStyle(.menu)
                     }
                 }
 
@@ -47,6 +50,7 @@ struct QueryBuilderJoinSheet: View {
                             Text("\(table.name) (\(table.alias))").tag(table.id as UUID?)
                         }
                     }
+                    .pickerStyle(.menu)
 
                     if let targetID = targetTableID,
                        let table = viewModel.tables.first(where: { $0.id == targetID }) {
@@ -56,10 +60,12 @@ struct QueryBuilderJoinSheet: View {
                                 Text(col.name).tag(col.name)
                             }
                         }
+                        .pickerStyle(.menu)
                     }
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
         } footer: {
             Spacer()
             Button("Cancel") { dismiss() }
@@ -78,7 +84,7 @@ struct QueryBuilderJoinSheet: View {
                 )
                 dismiss()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
             .disabled(sourceTableID == nil || targetTableID == nil || sourceColumn.isEmpty || targetColumn.isEmpty)
         }

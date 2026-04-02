@@ -52,6 +52,19 @@ public enum TypographyTokens {
     /// 12pt Medium — Status badges and indicators
     public static let statusLabel = SwiftUI.Font.system(size: 12).weight(.medium)
 
+    // MARK: - Specialized Styles
+
+    /// 12pt Semibold — small navigation chevrons, compact bold labels
+    public static let labelBold = SwiftUI.Font.system(size: 12, weight: .semibold)
+    /// 16pt Medium — provider sign-in icons, medium-weight display text
+    public static let displayMedium = SwiftUI.Font.system(size: 16, weight: .medium)
+    /// 18pt Medium Rounded — avatar initials, large stat numbers
+    public static let statNumber = SwiftUI.Font.system(size: 18, weight: .medium, design: .rounded)
+    /// 11pt Monospaced — inline monospaced detail text (indices, short codes)
+    public static let detailMono = SwiftUI.Font.system(size: 11, design: .monospaced)
+    /// 13pt Medium Monospaced — emphasized monospaced text (recovery words, tokens)
+    public static let codeMedium = SwiftUI.Font.system(size: 13, weight: .medium, design: .monospaced)
+
     // MARK: - Table Cell Roles
     // Semantic tokens for SwiftUI Table columns. Change here to update every table at once.
 

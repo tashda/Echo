@@ -11,7 +11,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var displayOptions: SQLEditorDisplayOptions { didSet { applyDisplayOptions() } }
     var backgroundOverride: NSColor? { didSet { applyTheme() } }
     var completionContext: SQLEditorCompletionContext? {
-        didSet { completionEngine.updateContext(completionContext) }
+        didSet {
+            let dbCount = completionContext?.structure?.databases.count ?? 0
+            let nonEmptyDBs = completionContext?.structure?.databases.filter({ !$0.schemas.isEmpty }).count ?? 0
+            crossDBDebug("[CROSSDB-CONTEXT-SET] databases=\(dbCount), withSchemas=\(nonEmptyDBs), selectedDB=\(completionContext?.selectedDatabase ?? "nil")")
+            completionEngine.updateContext(completionContext)
+            retriggerCompletionsIfNeeded(oldContext: oldValue)
+        }
     }
 
     weak var lineNumberRuler: LineNumberRulerView?
@@ -23,6 +29,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var completionWorkItem: DispatchWorkItem?
     var completionTask: Task<Void, Never>?
     var completionGeneration = 0
+    let validationScheduler = SQLValidationScheduler()
+    var currentDiagnostics: [SQLDiagnostic] = []
+    var validationOverlays: [NSView] = []
+    static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()
     var completionController: SQLAutoCompletionController?
@@ -101,14 +111,20 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         self.nextResponder = fallbackResponder
         isEditable = true; isSelectable = true; isRichText = false; isAutomaticQuoteSubstitutionEnabled = false; isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false; isAutomaticSpellingCorrectionEnabled = false; isGrammarCheckingEnabled = false
-        usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: 10, height: 4); allowsUndo = true
+        usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: SpacingTokens.xxs, height: SpacingTokens.xxs); allowsUndo = true
         usesFindBar = true; isIncrementalSearchingEnabled = true
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude); minSize = NSSize(width: 0, height: 320)
         isHorizontallyResizable = false; isVerticallyResizable = true; autoresizingMask = [.width]; wantsLayer = true; layer?.isOpaque = true
         if super.undoManager == nil { self.setValue(fallbackResponder.undoManagerInstance, forKey: "undoManager") }
-        textContainer.widthTracksTextView = false; textContainer.lineFragmentPadding = 10
+        textContainer.widthTracksTextView = false; textContainer.lineFragmentPadding = SpacingTokens.xxs1
         configureDelegates(); applyTheme(); applyDisplayOptions(); scheduleHighlighting(after: 0)
         if let ruleTraceConfig { isRuleTracingEnabled = ruleTraceConfig.isEnabled; onRuleTrace = ruleTraceConfig.onTrace }
+        NotificationCenter.default.addObserver(self, selector: #selector(handleCompletionContextUpdate(_:)), name: .completionContextDidUpdate, object: nil)
+    }
+
+    @objc private func handleCompletionContextUpdate(_ notification: Notification) {
+        guard let context = notification.object as? SQLEditorCompletionContext else { return }
+        completionContext = context
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -212,7 +228,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         super.didChangeText(); sqlDelegate?.sqlTextView(self, didUpdateText: string); lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         notifySelectionChanged(); scheduleHighlighting()
         if !isApplyingCompletion { deactivateManualCompletionSuppression() }
-        updateCompletionIndicator()
+        updateCompletionIndicator(); scheduleValidation()
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {

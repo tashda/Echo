@@ -14,7 +14,6 @@ import SwiftUI
     var workspaceSidebarVisibility: NavigationSplitViewVisibility = .automatic
     var workspaceSidebarWidth: CGFloat = 320
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
-    var keepTabsInMemory = false
 
     // MARK: - Query State
     var isQueryRunning = false

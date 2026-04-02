@@ -51,7 +51,7 @@ extension SecurityPGRoleSheet {
             }
 
         case "integer", "real":
-            LabeledContent("Value") {
+            PropertyRow(title: "Value") {
                 HStack(spacing: SpacingTokens.xxs) {
                     TextField("", text: $newParamValue)
                         .frame(width: 100)
@@ -66,7 +66,7 @@ extension SecurityPGRoleSheet {
             }
 
         default:
-            LabeledContent("Value") {
+            PropertyRow(title: "Value") {
                 HStack(spacing: SpacingTokens.xs) {
                     TextField("", text: $newParamValue)
                         .frame(minWidth: 120)
@@ -76,10 +76,8 @@ extension SecurityPGRoleSheet {
         }
 
         if def.vartype == "bool" || def.vartype == "enum" {
-            LabeledContent {
+            PropertyRow(title: "") {
                 addParameterButton
-            } label: {
-                EmptyView()
             }
         }
     }
@@ -103,7 +101,7 @@ extension SecurityPGRoleSheet {
             }
 
             ForEach(Array(securityLabels.enumerated()), id: \.offset) { index, label in
-                LabeledContent(label.provider) {
+                PropertyRow(title: label.provider) {
                     HStack(spacing: SpacingTokens.xs) {
                         Text(label.label)
                             .font(TypographyTokens.standard)
@@ -124,12 +122,12 @@ extension SecurityPGRoleSheet {
 
         if isEditing {
             Section("Add Security Label") {
-                LabeledContent("Provider") {
+                PropertyRow(title: "Provider") {
                     TextField("", text: $newLabelProvider, prompt: Text("e.g. selinux"))
                         .frame(minWidth: 120)
                 }
 
-                LabeledContent("Label") {
+                PropertyRow(title: "Label") {
                     TextField("", text: $newLabelValue, prompt: Text("e.g. unconfined_u:object_r:user_t:s0"))
                         .frame(minWidth: 120)
                 }

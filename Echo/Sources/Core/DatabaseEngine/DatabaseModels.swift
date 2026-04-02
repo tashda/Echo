@@ -13,6 +13,21 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         case type = "TYPE"
         case synonym = "SYNONYM"
 
+        public nonisolated var displayName: String {
+            switch self {
+            case .table: return "Table"
+            case .view: return "View"
+            case .materializedView: return "Materialized View"
+            case .function: return "Function"
+            case .procedure: return "Procedure"
+            case .trigger: return "Trigger"
+            case .extension: return "Extension"
+            case .sequence: return "Sequence"
+            case .type: return "Type"
+            case .synonym: return "Synonym"
+            }
+        }
+
         public nonisolated var pluralDisplayName: String {
             switch self {
             case .table: return "Tables"

@@ -122,6 +122,9 @@ extension SQLTextView {
             } else {
                 response = self.completionEngine.completions(in: fullText, at: caretLocation)
             }
+            // Debug: log cross-DB completion results
+            let tableInserts = response.suggestions.filter { $0.kind == .table || $0.kind == .view }.prefix(5).map { "'\($0.title)'→'\($0.insertText)'" }
+            crossDBDebug("[COMPLETION] token='\(response.token)', tables=\(Array(tableInserts))")
 
             // Store the last response for use when accepting a suggestion
             self.lastCompletionResponse = response

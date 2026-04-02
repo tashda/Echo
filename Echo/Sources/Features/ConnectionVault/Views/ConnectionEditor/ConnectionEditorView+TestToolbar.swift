@@ -6,7 +6,7 @@ extension ConnectionEditorView {
 
     var testConnectionSection: some View {
         Section {
-            LabeledContent("Test") {
+            PropertyRow(title: "Test") {
                 Button(action: handleTestButton) {
                     HStack(spacing: SpacingTokens.xxs2) {
                         if isTestingConnection {

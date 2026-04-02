@@ -318,6 +318,22 @@ extension EnvironmentState {
         return value
     }
 
+    // MARK: - Database Mail Editor
+
+    @discardableResult
+    func prepareDatabaseMailEditorWindow(
+        connectionSessionID: UUID
+    ) -> DatabaseMailEditorWindowValue {
+        let value = DatabaseMailEditorWindowValue(connectionSessionID: connectionSessionID)
+        if databaseMailEditorViewModels[value] == nil {
+            databaseMailEditorViewModels[value] = DatabaseMailEditorViewModel(
+                connectionSessionID: connectionSessionID
+            )
+        }
+        activeDatabaseMailEditorValue = value
+        return value
+    }
+
     // MARK: - Type Editor
 
     @discardableResult

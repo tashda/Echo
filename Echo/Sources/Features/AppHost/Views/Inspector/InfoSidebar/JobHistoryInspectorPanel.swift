@@ -10,15 +10,30 @@ struct JobHistoryInspectorPanel: View {
 
             GroupBox {
                 VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    LabeledContent("Job", value: content.jobName)
+                    PropertyRow(title: "Job") {
+                        Text(content.jobName)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                     Divider()
-                    LabeledContent("Step", value: "\(content.stepId) — \(content.stepName)")
+                    PropertyRow(title: "Step") {
+                        Text("\(content.stepId) — \(content.stepName)")
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                     Divider()
-                    LabeledContent("Status", value: content.status)
+                    PropertyRow(title: "Status") {
+                        Text(content.status)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                     Divider()
-                    LabeledContent("Run Date", value: content.runDate)
+                    PropertyRow(title: "Run Date") {
+                        Text(content.runDate)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                     Divider()
-                    LabeledContent("Duration", value: content.duration)
+                    PropertyRow(title: "Duration") {
+                        Text(content.duration)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
                 }
                 .padding(.vertical, SpacingTokens.xs)
             }

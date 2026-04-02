@@ -120,28 +120,22 @@ private struct DebouncedColorPicker: View {
     @State private var debounceTask: Task<Void, Never>?
 
     var body: some View {
-        ColorPicker("", selection: Binding(
-            get: { trackingColor },
-            set: { newColor in
-                // 1. Update the UI state immediately
-                trackingColor = newColor
-                
-                // 2. Extract hex for the store
-                guard let hex = newColor.toHex() else { return }
-                
-                // 3. Notify parent for real-time preview (in-memory only)
-                onColorChange(hex)
-                
-                // 4. Debounce the heavy disk save
-                debounceTask?.cancel()
-                debounceTask = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(400))
-                    guard !Task.isCancelled else { return }
-                    onCommit(hex)
+        MinimalColorWell(
+            color: Binding(
+                get: { trackingColor },
+                set: { newColor in
+                    trackingColor = newColor
+                    guard let hex = newColor.toHex() else { return }
+                    onColorChange(hex)
+                    debounceTask?.cancel()
+                    debounceTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(400))
+                        guard !Task.isCancelled else { return }
+                        onCommit(hex)
+                    }
                 }
-            }
-        ), supportsOpacity: false)
-            .labelsHidden()
+            )
+        )
             .onAppear {
                 trackingColor = resolvedColor(hex: currentHex, kind: defaultKind)
                 isInitialized = true
@@ -160,5 +154,52 @@ private struct DebouncedColorPicker: View {
         let tone: SQLEditorPalette.Tone = AppearanceStore.shared.effectiveColorScheme == .dark ? .dark : .light
         let defaults = SQLEditorTokenPalette.ResultGridColors.defaults(for: tone)
         return defaults.style(for: kind).color.color
+    }
+}
+
+/// An NSColorWell with `.minimal` style — no bordered background.
+private struct MinimalColorWell: NSViewRepresentable {
+    @Binding var color: Color
+
+    func makeNSView(context: Context) -> NSColorWell {
+        let well = NSColorWell(style: .minimal)
+        well.supportsAlpha = false
+        well.color = NSColor(color)
+        well.target = context.coordinator
+        well.action = #selector(Coordinator.colorChanged(_:))
+        return well
+    }
+
+    func updateNSView(_ well: NSColorWell, context: Context) {
+        let newNSColor = NSColor(color)
+        // Only update if meaningfully different to avoid fighting the picker during drag
+        if !well.color.approximatelyEquals(newNSColor) {
+            well.color = newNSColor
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(color: $color)
+    }
+
+    @MainActor final class Coordinator: NSObject {
+        var color: Binding<Color>
+
+        init(color: Binding<Color>) {
+            self.color = color
+        }
+
+        @objc func colorChanged(_ sender: NSColorWell) {
+            color.wrappedValue = Color(nsColor: sender.color)
+        }
+    }
+}
+
+private extension NSColor {
+    func approximatelyEquals(_ other: NSColor, tolerance: CGFloat = 0.01) -> Bool {
+        guard let a = usingColorSpace(.sRGB), let b = other.usingColorSpace(.sRGB) else { return false }
+        return abs(a.redComponent - b.redComponent) < tolerance
+            && abs(a.greenComponent - b.greenComponent) < tolerance
+            && abs(a.blueComponent - b.blueComponent) < tolerance
     }
 }

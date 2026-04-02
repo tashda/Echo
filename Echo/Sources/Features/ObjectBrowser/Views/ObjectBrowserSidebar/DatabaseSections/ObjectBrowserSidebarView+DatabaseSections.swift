@@ -50,8 +50,14 @@ extension ObjectBrowserSidebarView {
             let visibleDatabases = structure.databases
                 .filter { !hideInaccessible || $0.isAccessible }
                 .filter { !hideOffline || $0.isOnline }
-            ForEach(visibleDatabases, id: \.name) { database in
-                databaseSection(database: database, session: session, proxy: proxy)
+            let identifiedDatabases = visibleDatabases.map { database in
+                (
+                    id: ExplorerSidebarIdentity.database(connectionID: connID, databaseName: database.name),
+                    database: database
+                )
+            }
+            ForEach(identifiedDatabases, id: \.id) { item in
+                databaseSection(database: item.database, session: session, proxy: proxy)
             }
         }
     }

@@ -57,12 +57,10 @@ enum EchoFormatters {
         return f
     }()
 
-    /// Formats a number compactly: 1.2M, 350K, or 12,345.
+    /// Formats a number with locale-aware thousand separators: 1.2M or 20.160.
     static func compactNumber(_ value: Int) -> String {
         if value >= 1_000_000 {
             return String(format: "%.1fM", Double(value) / 1_000_000)
-        } else if value >= 100_000 {
-            return String(format: "%.0fK", Double(value) / 1_000)
         } else {
             return decimalFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
         }

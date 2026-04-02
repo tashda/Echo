@@ -122,7 +122,6 @@ struct GlobalSettings: Codable, Hashable {
     var defaultEditorFontFamily: String
     var defaultEditorTheme: String
     var fontLigatureOverrides: [String: Bool]
-    var lastCustomEditorFontFamily: String?
     var defaultEditorPaletteIDLight: String
     var defaultEditorPaletteIDDark: String
     var customEditorPalettes: [SQLEditorTokenPalette]
@@ -134,16 +133,8 @@ struct GlobalSettings: Codable, Hashable {
     var editorIndentWrappedLines: Int = 4
     var editorEnableAutocomplete: Bool = true
     var editorQualifyTableCompletions: Bool = false
-    var editorSuggestKeywords: Bool = true
-    var editorEnableInlineSuggestions: Bool = true
-    var editorSuggestFunctions: Bool = true
-    var editorSuggestSnippets: Bool = true
-    var editorSuggestHistory: Bool = true
-    var editorSuggestJoins: Bool = true
-    var editorCompletionAggressiveness: SQLCompletionAggressiveness = .balanced
     var editorShowSystemSchemas: Bool = false
-    var editorAllowCommandPeriodTrigger: Bool = true
-    var editorAllowControlSpaceTrigger: Bool = true
+    var editorEnableLiveValidation: Bool = true
     var accentColorSource: AccentColorSource
     var customAccentColorHex: String?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
@@ -151,35 +142,21 @@ struct GlobalSettings: Codable, Hashable {
     var resultsAlternateRowShading: Bool = false
     var resultsShowRowNumbers: Bool = true
     var resultGridColorOverrides: ResultGridColorOverrides = .init()
-    var resultsEnableTypeFormatting: Bool = true
-    var resultsFormattingMode: ResultsFormattingMode = .immediate
     var showForeignKeysInInspector: Bool = true
     var showJsonInInspector: Bool = true
     var resultsInitialRowLimit: Int = 500
-    var resultsPreviewBatchSize: Int = 500
-    var resultsStreamingMode: ResultStreamingExecutionMode = .auto
-    var mssqlStreamingMode: ResultStreamingExecutionMode = .auto
-    var mysqlStreamingMode: ResultStreamingExecutionMode = .auto
-    var sqliteStreamingMode: ResultStreamingExecutionMode = .auto
     var resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024
     var resultSpoolRetentionHours: Int = 72
     var resultSpoolCustomLocation: String?
     var autoOpenInspectorOnSelection: Bool = true
     var autoOpenBottomPanel: Bool = true
-    var inspectorWidth: Double?
-    var keepTabsInMemory: Bool = false
     var diagramPrefetchMode: DiagramPrefetchMode = .off
     var diagramRefreshCadence: DiagramRefreshCadence = .never
     var diagramCacheMaxBytes: Int = 512 * 1_024 * 1_024
     var diagramVerifyBeforeRefresh: Bool = true
     var diagramRenderRelationshipsForLargeDiagrams: Bool = true
     var diagramUseThemedAppearance: Bool = true
-    var usePerTypeStorageLimits: Bool = false
-    var echoSenseStorageMaxBytes: Int = 512 * 1_024 * 1_024
     var customKeyboardShortcuts: [String: CustomShortcutBinding]?
-    var defaultWindowWidth: Double?
-    var defaultWindowHeight: Double?
-    var showSavedConnectionsInExplorer: Bool = false
     var sidebarAutoExpandSections: Set<SidebarAutoExpandSection> = [.databases]
     var sidebarCustomizePerDatabaseType: Bool = false
     var sidebarAutoExpandPostgresql: Set<SidebarAutoExpandSection>?
@@ -194,7 +171,6 @@ struct GlobalSettings: Codable, Hashable {
     var pgToolCustomPath: String?
     var mysqlToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
-    var sidebarIconSize: SidebarIconSize = .medium
     var sidebarDensity: SidebarDensity = .medium
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
@@ -225,7 +201,6 @@ struct GlobalSettings: Codable, Hashable {
         defaultEditorFontFamily: String = "JetBrainsMono-Regular",
         defaultEditorTheme: String = SQLEditorPalette.aurora.id,
         fontLigatureOverrides: [String: Bool] = [:],
-        lastCustomEditorFontFamily: String? = nil,
         defaultEditorPaletteIDLight: String = SQLEditorPalette.aurora.id,
         defaultEditorPaletteIDDark: String = SQLEditorPalette.midnight.id,
         customEditorPalettes: [SQLEditorTokenPalette] = [],
@@ -237,7 +212,6 @@ struct GlobalSettings: Codable, Hashable {
         self.defaultEditorFontFamily = defaultEditorFontFamily
         self.defaultEditorTheme = defaultEditorTheme
         self.fontLigatureOverrides = fontLigatureOverrides
-        self.lastCustomEditorFontFamily = lastCustomEditorFontFamily
         self.defaultEditorPaletteIDLight = defaultEditorPaletteIDLight
         self.defaultEditorPaletteIDDark = defaultEditorPaletteIDDark
         self.customEditorPalettes = customEditorPalettes
@@ -248,26 +222,21 @@ struct GlobalSettings: Codable, Hashable {
     enum CodingKeys: String, CodingKey {
         case appearanceMode, defaultEditorFontSize, defaultEditorFontFamily, defaultEditorTheme
         case fontLigatureOverrides, defaultEditorPaletteID, defaultEditorPaletteIDLight, defaultEditorPaletteIDDark
-        case lastCustomEditorFontFamily, customEditorPalettes, defaultEditorLineHeight
+        case customEditorPalettes, defaultEditorLineHeight
         case editorShowLineNumbers, editorHighlightSelectedSymbol, editorHighlightDelay
         case editorWrapLines, editorIndentWrappedLines, editorEnableAutocomplete
-        case editorQualifyTableCompletions, editorSuggestKeywords, editorEnableInlineSuggestions
-        case editorSuggestFunctions, editorSuggestSnippets, editorSuggestHistory, editorSuggestJoins
-        case editorCompletionAggressiveness, editorShowSystemSchemas
-        case editorAllowCommandPeriodTrigger, editorAllowControlSpaceTrigger
-        case useServerColorAsAccent, accentColorSource, customAccentColorHex, defaultWindowWidth, defaultWindowHeight
+        case editorQualifyTableCompletions, editorShowSystemSchemas
+        case editorEnableLiveValidation
+        case useServerColorAsAccent, accentColorSource, customAccentColorHex
         case workspaceTabBarStyle, tabOverviewStyle
-        case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides, resultsEnableTypeFormatting, resultsFormattingMode
+        case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides
         case showForeignKeysInInspector, showJsonInInspector
-        case resultsInitialRowLimit, resultsPreviewBatchSize
-        case resultsStreamingMode
-        case mssqlStreamingMode, mysqlStreamingMode, sqliteStreamingMode
+        case resultsInitialRowLimit
         case resultSpoolMaxBytes, resultSpoolRetentionHours, resultSpoolCustomLocation
-        case autoOpenInspectorOnSelection, autoOpenBottomPanel, inspectorWidth, keepTabsInMemory
+        case autoOpenInspectorOnSelection, autoOpenBottomPanel
         case diagramPrefetchMode, diagramRefreshCadence, diagramCacheMaxBytes
         case diagramVerifyBeforeRefresh, diagramRenderRelationshipsForLargeDiagrams, diagramUseThemedAppearance
-        case usePerTypeStorageLimits, echoSenseStorageMaxBytes, customKeyboardShortcuts
-        case showSavedConnectionsInExplorer
+        case customKeyboardShortcuts
         case sidebarAutoExpandSections, sidebarCustomizePerDatabaseType
         case sidebarAutoExpandPostgresql, sidebarAutoExpandSQLServer, sidebarAutoExpandMySQL
         case managedPostgresConsoleEnabled
@@ -279,7 +248,6 @@ struct GlobalSettings: Codable, Hashable {
         case pgToolCustomPath
         case mysqlToolCustomPath
         case sidebarIconColorMode
-        case sidebarIconSize
         case sidebarDensity
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
@@ -297,7 +265,6 @@ struct GlobalSettings: Codable, Hashable {
         defaultEditorFontFamily = try container.decodeIfPresent(String.self, forKey: .defaultEditorFontFamily) ?? "JetBrainsMono-Regular"
         defaultEditorTheme = try container.decodeIfPresent(String.self, forKey: .defaultEditorTheme) ?? SQLEditorPalette.aurora.id
         fontLigatureOverrides = try container.decodeIfPresent([String: Bool].self, forKey: .fontLigatureOverrides) ?? [:]
-        lastCustomEditorFontFamily = try container.decodeIfPresent(String.self, forKey: .lastCustomEditorFontFamily)
         customEditorPalettes = (try? container.decodeIfPresent([SQLEditorTokenPalette].self, forKey: .customEditorPalettes)) ?? []
         let legacyPaletteID = try container.decodeIfPresent(String.self, forKey: .defaultEditorPaletteID)
         let decodedLightID = try container.decodeIfPresent(String.self, forKey: .defaultEditorPaletteIDLight)
@@ -313,16 +280,8 @@ struct GlobalSettings: Codable, Hashable {
         editorIndentWrappedLines = try container.decodeIfPresent(Int.self, forKey: .editorIndentWrappedLines) ?? 4
         editorEnableAutocomplete = try container.decodeIfPresent(Bool.self, forKey: .editorEnableAutocomplete) ?? true
         editorQualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .editorQualifyTableCompletions) ?? false
-        editorSuggestKeywords = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestKeywords) ?? true
-        editorEnableInlineSuggestions = try container.decodeIfPresent(Bool.self, forKey: .editorEnableInlineSuggestions) ?? true
-        editorSuggestFunctions = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestFunctions) ?? true
-        editorSuggestSnippets = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestSnippets) ?? true
-        editorSuggestHistory = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestHistory) ?? true
-        editorSuggestJoins = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestJoins) ?? true
-        editorCompletionAggressiveness = try container.decodeIfPresent(SQLCompletionAggressiveness.self, forKey: .editorCompletionAggressiveness) ?? .balanced
         editorShowSystemSchemas = try container.decodeIfPresent(Bool.self, forKey: .editorShowSystemSchemas) ?? false
-        editorAllowCommandPeriodTrigger = try container.decodeIfPresent(Bool.self, forKey: .editorAllowCommandPeriodTrigger) ?? true
-        editorAllowControlSpaceTrigger = try container.decodeIfPresent(Bool.self, forKey: .editorAllowControlSpaceTrigger) ?? true
+        editorEnableLiveValidation = try container.decodeIfPresent(Bool.self, forKey: .editorEnableLiveValidation) ?? true
         if let source = try container.decodeIfPresent(AccentColorSource.self, forKey: .accentColorSource) {
             accentColorSource = source
         } else {
@@ -330,40 +289,26 @@ struct GlobalSettings: Codable, Hashable {
             accentColorSource = legacyBool ? .connection : .system
         }
         customAccentColorHex = try container.decodeIfPresent(String.self, forKey: .customAccentColorHex)
-        defaultWindowWidth = try container.decodeIfPresent(Double.self, forKey: .defaultWindowWidth)
-        defaultWindowHeight = try container.decodeIfPresent(Double.self, forKey: .defaultWindowHeight)
         workspaceTabBarStyle = try container.decodeIfPresent(WorkspaceTabBarStyle.self, forKey: .workspaceTabBarStyle) ?? .floating
         tabOverviewStyle = try container.decodeIfPresent(TabOverviewStyle.self, forKey: .tabOverviewStyle) ?? .comfortable
         resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
         resultsShowRowNumbers = try container.decodeIfPresent(Bool.self, forKey: .resultsShowRowNumbers) ?? true
         resultGridColorOverrides = try container.decodeIfPresent(ResultGridColorOverrides.self, forKey: .resultGridColorOverrides) ?? .init()
-        resultsEnableTypeFormatting = try container.decodeIfPresent(Bool.self, forKey: .resultsEnableTypeFormatting) ?? true
-        resultsFormattingMode = (try? container.decodeIfPresent(ResultsFormattingMode.self, forKey: .resultsFormattingMode)) ?? .immediate
         showForeignKeysInInspector = try container.decodeIfPresent(Bool.self, forKey: .showForeignKeysInInspector) ?? true
         showJsonInInspector = try container.decodeIfPresent(Bool.self, forKey: .showJsonInInspector) ?? true
         resultsInitialRowLimit = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsInitialRowLimit) ?? 500)
-        resultsPreviewBatchSize = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsPreviewBatchSize) ?? 500)
-        resultsStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .resultsStreamingMode)) ?? .auto
         resultSpoolMaxBytes = try container.decodeIfPresent(Int.self, forKey: .resultSpoolMaxBytes) ?? 5 * 1_024 * 1_024 * 1_024
         resultSpoolRetentionHours = try container.decodeIfPresent(Int.self, forKey: .resultSpoolRetentionHours) ?? 72
         resultSpoolCustomLocation = try container.decodeIfPresent(String.self, forKey: .resultSpoolCustomLocation)
         autoOpenInspectorOnSelection = try container.decodeIfPresent(Bool.self, forKey: .autoOpenInspectorOnSelection) ?? true
         autoOpenBottomPanel = try container.decodeIfPresent(Bool.self, forKey: .autoOpenBottomPanel) ?? true
-        inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
-        keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
         diagramPrefetchMode = try container.decodeIfPresent(DiagramPrefetchMode.self, forKey: .diagramPrefetchMode) ?? .off
         diagramRefreshCadence = try container.decodeIfPresent(DiagramRefreshCadence.self, forKey: .diagramRefreshCadence) ?? .never
         diagramCacheMaxBytes = max(64 * 1_024 * 1_024, try container.decodeIfPresent(Int.self, forKey: .diagramCacheMaxBytes) ?? 512 * 1_024 * 1_024)
         diagramVerifyBeforeRefresh = try container.decodeIfPresent(Bool.self, forKey: .diagramVerifyBeforeRefresh) ?? true
         diagramRenderRelationshipsForLargeDiagrams = try container.decodeIfPresent(Bool.self, forKey: .diagramRenderRelationshipsForLargeDiagrams) ?? true
         diagramUseThemedAppearance = try container.decodeIfPresent(Bool.self, forKey: .diagramUseThemedAppearance) ?? true
-        usePerTypeStorageLimits = try container.decodeIfPresent(Bool.self, forKey: .usePerTypeStorageLimits) ?? false
-        echoSenseStorageMaxBytes = try container.decodeIfPresent(Int.self, forKey: .echoSenseStorageMaxBytes) ?? 512 * 1_024 * 1_024
         customKeyboardShortcuts = try container.decodeIfPresent([String: CustomShortcutBinding].self, forKey: .customKeyboardShortcuts)
-        mssqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mssqlStreamingMode)) ?? .auto
-        mysqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mysqlStreamingMode)) ?? .auto
-        sqliteStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .sqliteStreamingMode)) ?? .auto
-        showSavedConnectionsInExplorer = try container.decodeIfPresent(Bool.self, forKey: .showSavedConnectionsInExplorer) ?? false
         sidebarAutoExpandSections = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandSections) ?? [.databases]
         sidebarCustomizePerDatabaseType = try container.decodeIfPresent(Bool.self, forKey: .sidebarCustomizePerDatabaseType) ?? false
         sidebarAutoExpandPostgresql = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandPostgresql)
@@ -385,8 +330,6 @@ struct GlobalSettings: Codable, Hashable {
             sidebarIconColorMode = legacyBool ? .colorful : .monochrome
         }
         
-        sidebarIconSize = try container.decodeIfPresent(SidebarIconSize.self, forKey: .sidebarIconSize) ?? .medium
-
         // Handle migration from legacy 'default' to 'small' while transitioning to 'medium' as new default
         if let legacyString = try container.decodeIfPresent(String.self, forKey: .sidebarDensity) {
             if legacyString == "default" {
@@ -414,7 +357,6 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(defaultEditorFontFamily, forKey: .defaultEditorFontFamily)
         try container.encode(defaultEditorTheme, forKey: .defaultEditorTheme)
         try container.encode(fontLigatureOverrides, forKey: .fontLigatureOverrides)
-        try container.encodeIfPresent(lastCustomEditorFontFamily, forKey: .lastCustomEditorFontFamily)
         try container.encode(customEditorPalettes, forKey: .customEditorPalettes)
         try container.encode(defaultEditorLineHeight, forKey: .defaultEditorLineHeight)
         try container.encode(editorShowLineNumbers, forKey: .editorShowLineNumbers)
@@ -424,55 +366,33 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(editorIndentWrappedLines, forKey: .editorIndentWrappedLines)
         try container.encode(editorEnableAutocomplete, forKey: .editorEnableAutocomplete)
         try container.encode(editorQualifyTableCompletions, forKey: .editorQualifyTableCompletions)
-        try container.encode(editorSuggestKeywords, forKey: .editorSuggestKeywords)
-        try container.encode(editorEnableInlineSuggestions, forKey: .editorEnableInlineSuggestions)
-        try container.encode(editorSuggestFunctions, forKey: .editorSuggestFunctions)
-        try container.encode(editorSuggestSnippets, forKey: .editorSuggestSnippets)
-        try container.encode(editorSuggestHistory, forKey: .editorSuggestHistory)
-        try container.encode(editorSuggestJoins, forKey: .editorSuggestJoins)
-        try container.encode(editorCompletionAggressiveness, forKey: .editorCompletionAggressiveness)
         try container.encode(editorShowSystemSchemas, forKey: .editorShowSystemSchemas)
-        try container.encode(editorAllowCommandPeriodTrigger, forKey: .editorAllowCommandPeriodTrigger)
-        try container.encode(editorAllowControlSpaceTrigger, forKey: .editorAllowControlSpaceTrigger)
+        try container.encode(editorEnableLiveValidation, forKey: .editorEnableLiveValidation)
         try container.encode(accentColorSource, forKey: .accentColorSource)
         try container.encodeIfPresent(customAccentColorHex, forKey: .customAccentColorHex)
-        try container.encode(defaultWindowWidth, forKey: .defaultWindowWidth)
-        try container.encode(defaultWindowHeight, forKey: .defaultWindowHeight)
         try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
         try container.encode(tabOverviewStyle, forKey: .tabOverviewStyle)
         try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
         try container.encode(resultsShowRowNumbers, forKey: .resultsShowRowNumbers)
         try container.encode(resultGridColorOverrides, forKey: .resultGridColorOverrides)
-        try container.encode(resultsEnableTypeFormatting, forKey: .resultsEnableTypeFormatting)
-        try container.encode(resultsFormattingMode, forKey: .resultsFormattingMode)
         try container.encode(showForeignKeysInInspector, forKey: .showForeignKeysInInspector)
         try container.encode(showJsonInInspector, forKey: .showJsonInInspector)
         try container.encode(resultsInitialRowLimit, forKey: .resultsInitialRowLimit)
-        try container.encode(resultsPreviewBatchSize, forKey: .resultsPreviewBatchSize)
-        try container.encode(resultsStreamingMode, forKey: .resultsStreamingMode)
         try container.encode(resultSpoolMaxBytes, forKey: .resultSpoolMaxBytes)
         try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)
         try container.encode(autoOpenInspectorOnSelection, forKey: .autoOpenInspectorOnSelection)
         try container.encode(autoOpenBottomPanel, forKey: .autoOpenBottomPanel)
-        try container.encodeIfPresent(inspectorWidth, forKey: .inspectorWidth)
-        try container.encode(keepTabsInMemory, forKey: .keepTabsInMemory)
         try container.encode(diagramPrefetchMode, forKey: .diagramPrefetchMode)
         try container.encode(diagramRefreshCadence, forKey: .diagramRefreshCadence)
         try container.encode(diagramCacheMaxBytes, forKey: .diagramCacheMaxBytes)
         try container.encode(diagramVerifyBeforeRefresh, forKey: .diagramVerifyBeforeRefresh)
         try container.encode(diagramRenderRelationshipsForLargeDiagrams, forKey: .diagramRenderRelationshipsForLargeDiagrams)
         try container.encode(diagramUseThemedAppearance, forKey: .diagramUseThemedAppearance)
-        try container.encode(usePerTypeStorageLimits, forKey: .usePerTypeStorageLimits)
-        try container.encode(echoSenseStorageMaxBytes, forKey: .echoSenseStorageMaxBytes)
         try container.encodeIfPresent(customKeyboardShortcuts, forKey: .customKeyboardShortcuts)
-        try container.encode(mssqlStreamingMode, forKey: .mssqlStreamingMode)
-        try container.encode(mysqlStreamingMode, forKey: .mysqlStreamingMode)
-        try container.encode(sqliteStreamingMode, forKey: .sqliteStreamingMode)
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteIDLight)
         try container.encode(defaultEditorPaletteIDDark, forKey: .defaultEditorPaletteIDDark)
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteID)
-        try container.encode(showSavedConnectionsInExplorer, forKey: .showSavedConnectionsInExplorer)
         try container.encode(sidebarAutoExpandSections, forKey: .sidebarAutoExpandSections)
         try container.encode(sidebarCustomizePerDatabaseType, forKey: .sidebarCustomizePerDatabaseType)
         try container.encodeIfPresent(sidebarAutoExpandPostgresql, forKey: .sidebarAutoExpandPostgresql)
@@ -487,7 +407,6 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
         try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
-        try container.encode(sidebarIconSize, forKey: .sidebarIconSize)
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)

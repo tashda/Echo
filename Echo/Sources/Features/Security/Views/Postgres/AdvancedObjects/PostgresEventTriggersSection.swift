@@ -89,12 +89,12 @@ struct PostgresEventTriggersSection: View {
             if selection.count == 1, let name = selection.first {
                 let trigger = viewModel.eventTriggers.first { $0.name == name }
                 let isEnabled = trigger?.enabled == "O"
-                Button("Rename\u{2026}") {
+                Button {
                     pendingEdit = PendingEdit(action: .rename, objectName: name, initialValue: name)
-                }
-                Button("Change Owner\u{2026}") {
+                } label: { Label("Rename", systemImage: "character.cursor.ibeam") }
+                Button {
                     pendingEdit = PendingEdit(action: .changeOwner, objectName: name, initialValue: "")
-                }
+                } label: { Label("Change Owner", systemImage: "person") }
                 Divider()
                 if isEnabled {
                     Button("Disable") {

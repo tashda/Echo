@@ -56,7 +56,7 @@ struct SignInAccountCard: View {
         } label: {
             providerButton(method: .apple) {
                 Image(systemName: "apple.logo")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(TypographyTokens.displayMedium)
             }
         }
         .buttonStyle(.plain)
@@ -84,7 +84,7 @@ struct SignInAccountCard: View {
         } label: {
             providerButton(method: .email) {
                 Image(systemName: "envelope.fill")
-                    .font(.system(size: 14))
+                    .font(TypographyTokens.prominent)
             }
         }
         .buttonStyle(.plain)
@@ -124,7 +124,7 @@ struct SignInAccountCard: View {
         HStack(spacing: SpacingTokens.xs) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-                .font(.system(size: 12))
+                .font(TypographyTokens.caption2)
 
             Text(friendlyErrorMessage(error))
                 .font(TypographyTokens.formDescription)
@@ -132,7 +132,7 @@ struct SignInAccountCard: View {
         }
         .padding(SpacingTokens.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+        .background(ColorTokens.Status.warning.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
     }
 
     private func friendlyErrorMessage(_ error: AuthError) -> String {

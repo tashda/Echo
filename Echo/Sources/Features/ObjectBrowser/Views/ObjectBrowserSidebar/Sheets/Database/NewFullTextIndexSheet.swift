@@ -63,7 +63,7 @@ struct NewFullTextIndexSheet: View {
                 Button("Create Index") {
                     Task { await createIndex() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .disabled(!canCreate)
                 .keyboardShortcut(.defaultAction)
             }

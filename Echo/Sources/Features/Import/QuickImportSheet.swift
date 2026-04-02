@@ -23,7 +23,7 @@ struct QuickImportSheet: View {
             Spacer()
 
             if viewModel.fileURL != nil && !viewModel.isImporting {
-                Button("Change File...") { showFilePicker = true }
+                Button("Change File") { showFilePicker = true }
 
                 if !viewModel.tableName.isEmpty {
                     Button("Import") { viewModel.startImport() }
@@ -66,7 +66,7 @@ struct QuickImportSheet: View {
         } description: {
             Text("Select a CSV or TSV file to begin the import process.")
         } actions: {
-            Button("Select File...") { showFilePicker = true }
+            Button("Select File") { showFilePicker = true }
                 .buttonStyle(.bordered)
         }
     }
@@ -76,21 +76,24 @@ struct QuickImportSheet: View {
             Form {
                 Section("Table Settings") {
                     HStack {
-                        TextField("Schema", text: $viewModel.schema)
-                        TextField("Table Name", text: $viewModel.tableName)
+                        TextField("Schema", text: $viewModel.schema, prompt: Text("e.g. public"))
+                        TextField("Table Name", text: $viewModel.tableName, prompt: Text("e.g. imported_data"))
                     }
                     Picker("Delimiter", selection: $viewModel.delimiter) {
                         ForEach(CSVDelimiter.allCases) { delim in
                             Text(delim.displayName).tag(delim)
                         }
                     }
+                    .pickerStyle(.menu)
                     .onChange(of: viewModel.delimiter) { viewModel.parseFile() }
-                    
+
                     Toggle("First row has headers", isOn: $viewModel.firstRowHasHeaders)
+                        .toggleStyle(.switch)
                         .onChange(of: viewModel.firstRowHasHeaders) { viewModel.parseFile() }
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
             .frame(height: 150)
             
             Divider()
@@ -103,15 +106,19 @@ struct QuickImportSheet: View {
                 Table(viewModel.inferences) {
                     TableColumn("Column Name") { inf in
                         Text(inf.name)
+                            .font(TypographyTokens.Table.name)
                     }
                     TableColumn("Data Type") { inf in
                         Text(inf.dataType)
+                            .font(TypographyTokens.Table.category)
                             .foregroundStyle(.secondary)
                     }
                     TableColumn("Nullable") { inf in
                         Text(inf.isNullable ? "Yes" : "No")
+                            .font(TypographyTokens.Table.status)
                     }
                 }
+                .tableStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
     }

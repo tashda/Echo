@@ -3,7 +3,7 @@ import SwiftUI
 struct GeneralSettingsView: View {
     @Environment(AuthState.self) private var authState
 
-    private var updater = SparkleUpdater.shared
+    @Bindable private var updater = SparkleUpdater.shared
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
@@ -49,11 +49,20 @@ struct GeneralSettingsView: View {
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
 
+            PropertyRow(title: "Status") {
+                Text(updateStatusText)
+                    .foregroundStyle(updateStatusColor)
+            }
+
             PropertyRow(title: "Check for updates") {
                 Button {
-                    updater.checkForUpdates()
+                    if case .updateAvailable = updater.status {
+                        updater.installAvailableUpdate()
+                    } else {
+                        updater.checkForUpdatesFromSettings()
+                    }
                 } label: {
-                    Text("Check for Updates")
+                    Text(updateButtonTitle)
                 }
                 .disabled(!updater.canCheckForUpdates)
             }
@@ -67,5 +76,39 @@ struct GeneralSettingsView: View {
                     .toggleStyle(.switch)
             }
         }
+    }
+
+    private var updateStatusText: String {
+        switch updater.status {
+        case .idle:
+            return "Check for updates to see whether a newer release is available."
+        case .checking:
+            return "Checking for updates…"
+        case let .upToDate(message):
+            return message
+        case let .updateAvailable(version):
+            return "Echo \(version) is available."
+        case let .error(message):
+            return message
+        }
+    }
+
+    private var updateStatusColor: Color {
+        switch updater.status {
+        case .updateAvailable:
+            return ColorTokens.Status.info
+        case .error:
+            return ColorTokens.Status.error
+        default:
+            return ColorTokens.Text.secondary
+        }
+    }
+
+    private var updateButtonTitle: String {
+        if case .updateAvailable = updater.status {
+            return "Install Update"
+        }
+
+        return "Check for Updates"
     }
 }

@@ -8,15 +8,7 @@ extension DatabasesSettingsView {
         intBinding(for: \.resultsInitialRowLimit, min: 100, max: 100_000)
     }
 
-    var previewBatchSizeBinding: Binding<Int> {
-        intBinding(for: \.resultsPreviewBatchSize, min: 100, max: 100_000)
-    }
-
     // MARK: - Engine Mode Bindings
-
-    var mssqlModeBinding: Binding<ResultStreamingExecutionMode> {
-        binding(for: \.mssqlStreamingMode)
-    }
 
     var activityMonitorIntervalBinding: Binding<Double> {
         binding(for: \.activityMonitorRefreshInterval)

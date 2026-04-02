@@ -31,7 +31,7 @@ struct MonospacedFontPicker: View {
     }
 
     var body: some View {
-        LabeledContent("Font Family") {
+        PropertyRow(title: "Font Family") {
             Picker("", selection: $selectedFamily) {
                 ForEach(monospacedFamilies, id: \.self) { family in
                     Text(displayName(for: family)).tag(family)

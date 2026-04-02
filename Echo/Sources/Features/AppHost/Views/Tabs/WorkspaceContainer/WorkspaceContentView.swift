@@ -38,10 +38,6 @@ struct WorkspaceContentView: View {
     @ViewBuilder
     private var tabContentView: some View {
         switch tab.kind {
-        case .tableData:
-            if let vm = tab.tableDataVM {
-                TableDataView(viewModel: vm).background(ColorTokens.Background.primary)
-            }
         case .structure:
             if let vm = tab.structureEditor {
                 TableStructureEditorView(tab: tab, viewModel: vm).background(ColorTokens.Background.primary)

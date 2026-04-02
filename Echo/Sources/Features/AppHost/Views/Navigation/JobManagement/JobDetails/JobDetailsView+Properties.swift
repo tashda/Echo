@@ -18,8 +18,9 @@ extension JobDetailsView {
                 TextField("Name", text: boundProps.name, prompt: Text("job_name"))
 
                 Toggle("Enabled", isOn: boundProps.enabled)
+                    .toggleStyle(.switch)
 
-                LabeledContent("Description") {
+                PropertyRow(title: "Description") {
                     TextField("", text: Binding(
                         get: { boundProps.wrappedValue.description ?? "" },
                         set: { boundProps.wrappedValue.description = $0 }
@@ -31,7 +32,7 @@ extension JobDetailsView {
 
             Section("Ownership") {
                 if viewModel.logins.isEmpty {
-                    LabeledContent("Owner") {
+                    PropertyRow(title: "Owner") {
                         TextField("", text: Binding(
                             get: { boundProps.wrappedValue.owner ?? "" },
                             set: { boundProps.wrappedValue.owner = $0 }
@@ -47,10 +48,11 @@ extension JobDetailsView {
                             Text(login).tag(login)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
 
                 if viewModel.categories.isEmpty {
-                    LabeledContent("Category") {
+                    PropertyRow(title: "Category") {
                         TextField("", text: Binding(
                             get: { boundProps.wrappedValue.category ?? "" },
                             set: { boundProps.wrappedValue.category = $0 }
@@ -66,12 +68,13 @@ extension JobDetailsView {
                             Text(cat).tag(cat)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
             }
 
             Section("Execution") {
                 if viewModel.steps.isEmpty {
-                    LabeledContent("Start Step") {
+                    PropertyRow(title: "Start Step") {
                         Text("No steps defined")
                             .foregroundStyle(ColorTokens.Text.secondary)
                     }
@@ -85,6 +88,7 @@ extension JobDetailsView {
                                 .tag(step.id)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
             }
 

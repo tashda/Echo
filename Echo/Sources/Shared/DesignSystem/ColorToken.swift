@@ -169,6 +169,16 @@ public enum ColorTokens {
         public static let lavender = Color(red: 0.776, green: 0.525, blue: 1.0)
     }
 
+    // Validation glow palette — warm amber/red for error indicators
+    public enum ValidationGlow {
+        public static let amber = Color(red: 1.0, green: 0.75, blue: 0.25)
+        public static let coral = Color(red: 1.0, green: 0.45, blue: 0.40)
+        public static let warmRed = Color(red: 0.95, green: 0.30, blue: 0.30)
+        public static let peach = Color(red: 1.0, green: 0.65, blue: 0.40)
+        public static let gold = Color(red: 1.0, green: 0.85, blue: 0.35)
+        public static let softOrange = Color(red: 1.0, green: 0.60, blue: 0.30)
+    }
+
     // Editor Font Preview — fixed dark-theme palette used in the settings preview widget
     public enum EditorPreview {
         public static let background = Color(white: 0.12)

@@ -38,3 +38,13 @@ struct SettingsRowWithInfo<Control: View>: View {
         }
     }
 }
+
+/// A small indicator for settings that are not currently consumed in the codebase.
+struct SettingsDeadIndicator: View {
+    var body: some View {
+        Circle()
+            .fill(Color.red)
+            .frame(width: 6, height: 6)
+            .help("Dead setting: No consumption in the current codebase.")
+    }
+}

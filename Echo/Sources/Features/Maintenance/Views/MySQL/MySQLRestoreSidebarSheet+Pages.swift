@@ -136,7 +136,7 @@ extension MySQLRestoreSidebarSheet {
         Button("Restore") {
             Task { await viewModel.executeRestore(customToolPath: customToolPath) }
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.bordered)
         .keyboardShortcut(.defaultAction)
         .disabled(!viewModel.canRestore)
     }

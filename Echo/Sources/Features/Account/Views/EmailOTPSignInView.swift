@@ -33,7 +33,7 @@ struct EmailOTPSignInView: View {
         HStack {
             Button { onBack() } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(TypographyTokens.labelBold)
                     .foregroundStyle(ColorTokens.Text.tertiary)
             }
             .buttonStyle(.plain)
@@ -78,7 +78,7 @@ struct EmailOTPSignInView: View {
         HStack {
             Button { cancelVerification() } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(TypographyTokens.labelBold)
                     .foregroundStyle(ColorTokens.Text.tertiary)
             }
             .buttonStyle(.plain)

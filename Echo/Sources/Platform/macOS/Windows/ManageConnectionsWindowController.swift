@@ -17,7 +17,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         fatalError("init(coder:) has not been implemented")
     }
 
-    func present(initialSection: ManageSection? = nil, selectedProjectID: UUID? = nil) {
+    func present(initialSection: ManageSection? = nil, selectedProjectID: UUID? = nil, selectedConnectionID: UUID? = nil) {
         if window == nil {
             configureWindow()
         }
@@ -27,7 +27,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
         hostingController?.rootView = ManageConnectionsWindowRootView(onClose: { [weak self] in
             self?.closeWindow()
-        }, initialSection: initialSection, selectedProjectID: selectedProjectID)
+        }, initialSection: initialSection, selectedProjectID: selectedProjectID, selectedConnectionID: selectedConnectionID)
 
         applyTheme(to: window)
 
@@ -134,11 +134,12 @@ private struct ManageConnectionsWindowRootView: View {
     let onClose: () -> Void
     var initialSection: ManageSection? = nil
     var selectedProjectID: UUID? = nil
+    var selectedConnectionID: UUID? = nil
 
     var body: some View {
         let coordinator = AppDirector.shared
-        ManageConnectionsView(onClose: onClose, initialSection: initialSection, initialProjectID: selectedProjectID)
-            .id("\(initialSection?.rawValue ?? "")-\(selectedProjectID?.uuidString ?? "")")
+        ManageConnectionsView(onClose: onClose, initialSection: initialSection, initialProjectID: selectedProjectID, initialConnectionID: selectedConnectionID)
+            .id("\(initialSection?.rawValue ?? "")-\(selectedProjectID?.uuidString ?? "")-\(selectedConnectionID?.uuidString ?? "")")
             .environment(coordinator.projectStore)
             .environment(coordinator.connectionStore)
             .environment(coordinator.navigationStore)

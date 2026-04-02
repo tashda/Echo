@@ -41,6 +41,7 @@ final class EnvironmentState {
     var viewEditorViewModels: [ViewEditorWindowValue: ViewEditorViewModel] = [:]
     var sequenceEditorViewModels: [SequenceEditorWindowValue: SequenceEditorViewModel] = [:]
     var typeEditorViewModels: [TypeEditorWindowValue: TypeEditorViewModel] = [:]
+    var databaseMailEditorViewModels: [DatabaseMailEditorWindowValue: DatabaseMailEditorViewModel] = [:]
     var activeLoginEditorValue: LoginEditorWindowValue?
     var activeUserEditorValue: UserEditorWindowValue?
     var activeDatabaseEditorValue: DatabaseEditorWindowValue?
@@ -56,6 +57,7 @@ final class EnvironmentState {
     var activeViewEditorValue: ViewEditorWindowValue?
     var activeSequenceEditorValue: SequenceEditorWindowValue?
     var activeTypeEditorValue: TypeEditorWindowValue?
+    var activeDatabaseMailEditorValue: DatabaseMailEditorWindowValue?
     var dataInspectorContent: DataInspectorContent?
     @ObservationIgnored private var lastPushedInspectorTitle: String?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []
