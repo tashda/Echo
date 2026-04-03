@@ -53,6 +53,18 @@ extension SQLQueryValidator {
             guard !checked.contains(key) else { continue }
             checked.insert(key)
 
+            // Skip validation for cross-database references (e.g., "otherdb.dbo.table").
+            // The parser may set schema to "otherdb.dbo" — if the first component is a
+            // known database name, trust the reference.
+            let components = key.split(separator: ".")
+            if components.count >= 2, index.databaseExists(String(components[0])) {
+                continue
+            }
+            // Also skip if the schema name itself is a known database (e.g., "otherdb" as schema)
+            if index.databaseExists(schema) {
+                continue
+            }
+
             if !index.schemaExists(schema) {
                 diagnostics.append(SQLDiagnostic(
                     message: "Unknown schema '\(schema)'",

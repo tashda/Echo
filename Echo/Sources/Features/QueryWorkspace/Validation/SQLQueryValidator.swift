@@ -214,6 +214,10 @@ struct MetadataIndex {
         schemas.contains(name.lowercased())
     }
 
+    func databaseExists(_ name: String) -> Bool {
+        databases.contains(name.lowercased())
+    }
+
     func tableExists(_ table: String, inSchema schema: String) -> Bool {
         tablesBySchema[schema.lowercased()]?.contains(table.lowercased()) ?? false
     }
