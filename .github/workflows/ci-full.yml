@@ -171,8 +171,10 @@ jobs:
           -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
           MARKETING_VERSION=${{ steps.version.outputs.full }} \
           CURRENT_PROJECT_VERSION=${{ steps.version.outputs.build }} \
-          CODE_SIGN_STYLE=Automatic \
+          CODE_SIGN_STYLE=Manual \
+          "CODE_SIGN_IDENTITY=Developer ID Application" \
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+          PROVISIONING_PROFILE_SPECIFIER="" \
           ENABLE_HARDENED_RUNTIME=YES \
           OTHER_CODE_SIGN_FLAGS='--options runtime --timestamp'
 
