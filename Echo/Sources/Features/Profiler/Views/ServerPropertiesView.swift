@@ -45,7 +45,7 @@ struct ServerPropertiesView: View {
     private var mysqlContent: some View {
         MaintenanceTabFrame(
             panelState: panelState,
-            connectionText: tabStore.activeTab?.connection.connectionName ?? "Server",
+            serverName: tabStore.activeTab?.connection.connectionName ?? "Server",
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {
@@ -131,7 +131,7 @@ struct ServerPropertiesView: View {
         let availableSections: [ServerPropertiesViewModel.Section] = [.overview, .control, .variables, .status]
         return MaintenanceTabFrame(
             panelState: panelState,
-            connectionText: tabStore.activeTab?.connection.connectionName ?? "Server",
+            serverName: tabStore.activeTab?.connection.connectionName ?? "Server",
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {

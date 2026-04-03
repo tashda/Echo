@@ -139,7 +139,8 @@ struct ExtendedEventsView: View {
         let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
 
         var config = BottomPanelStatusBarConfiguration(
-            connectionText: connText,
+            serverName: connText,
+            databaseName: nil,
             availableSegments: panelState.availableSegments,
             selectedSegment: panelState.selectedSegment,
             onSelectSegment: { segment in
@@ -170,13 +171,11 @@ struct ExtendedEventsView: View {
     }
 
     private var loadingPlaceholder: some View {
-        VStack(spacing: SpacingTokens.md) {
-            ProgressView()
-            Text("Loading Extended Events sessions...")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabInitializingPlaceholder(
+            icon: "bolt.horizontal",
+            title: "Loading Extended Events",
+            subtitle: "Fetching session data..."
+        )
     }
 
     private func errorPlaceholder(_ message: String) -> some View {

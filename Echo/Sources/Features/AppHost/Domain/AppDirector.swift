@@ -260,7 +260,6 @@ final class AppDirector {
         AppearanceStore.shared.applyAppearanceMode(global.appearanceMode)
         appState.sqlEditorDisplay = SQLEditorThemeResolver.resolveDisplayOptions(globalSettings: global, project: project)
         appState.workspaceTabBarStyle = global.workspaceTabBarStyle
-        appState.keepTabsInMemory = global.keepTabsInMemory
         applyEditorTheme(project: project, global: global)
     }
 

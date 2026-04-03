@@ -10,6 +10,10 @@ import OSLog
     var isExecuting: Bool = false
     /// True while the query tab is establishing its dedicated database connection.
     var isEstablishingConnection: Bool = false
+    /// True while a cross-database schema is being loaded for autocompletion.
+    var isLoadingCrossDBSchema: Bool = false
+    /// The database name currently being loaded for cross-DB autocompletion.
+    var crossDBSchemaTarget: String?
     /// Incremented each time `startExecution()` runs. Used as a SwiftUI `.id()`
     /// on the result table so that it is fully recreated between query runs.
     var executionGeneration: Int = 0
@@ -29,6 +33,8 @@ import OSLog
     var streamingModeOverride: ResultStreamingExecutionMode = .auto
     var statisticsEnabled: Bool = false
     var sqlcmdModeEnabled: Bool = false
+    /// Incremented to trigger on-demand validation. The text view observes this.
+    var validationRequestGeneration: Int = 0
     @ObservationIgnored var rowCountRefreshHandler: (() -> Void)?
     var streamingMode: StreamingMode = .idle
 
@@ -133,7 +139,7 @@ import OSLog
     @ObservationIgnored var debugContinuation: CheckedContinuation<Void, Never>?
 
     init(
-        sql: String = "SELECT current_timestamp;",
+        sql: String = "",
         initialVisibleRowBatch: Int = 500,
         previewRowLimit: Int = 512,
         spoolManager: ResultSpooler,

@@ -52,11 +52,6 @@ final class SidebarSheetState {
     var mysqlBackupDatabaseName: String?
     var mysqlBackupConnectionID: UUID?
 
-    // MARK: - Database Mail
-
-    var showDatabaseMailSheet = false
-    var databaseMailConnectionID: UUID?
-
     // MARK: - PostgreSQL Replication Drop Confirmations
 
     var pendingDropPublicationName: String?

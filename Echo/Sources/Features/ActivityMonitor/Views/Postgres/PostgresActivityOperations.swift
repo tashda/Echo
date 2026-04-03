@@ -11,15 +11,16 @@ struct PostgresActivityOperations: View {
     @State private var pendingCancelPID: Int?
 
     var body: some View {
-        if operations.isEmpty {
-            ContentUnavailableView {
-                Label("No Active Operations", systemImage: "gearshape.arrow.triangle.2.circlepath")
-            } description: {
-                Text("Long-running operations like VACUUM, ANALYZE, CREATE INDEX, and COPY will appear here with progress.")
+        operationsTable
+            .overlay {
+                if operations.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Active Operations", systemImage: "gearshape.arrow.triangle.2.circlepath")
+                    } description: {
+                        Text("Long-running operations like VACUUM, ANALYZE, CREATE INDEX, and COPY will appear here with progress.")
+                    }
+                }
             }
-        } else {
-            operationsTable
-        }
     }
 
     private var operationsTable: some View {

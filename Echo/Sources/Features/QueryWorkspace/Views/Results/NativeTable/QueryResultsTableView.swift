@@ -78,6 +78,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = false
         scrollView.automaticallyAdjustsContentInsets = false
+        scrollView.contentInsets = NSEdgeInsetsZero
 
         let tableView = ResultTableView()
         tableView.usesAlternatingRowBackgroundColors = alternateRowShading
@@ -88,11 +89,12 @@ struct QueryResultsTableView: NSViewRepresentable {
         tableView.allowsColumnReordering = false
         tableView.allowsMultipleSelection = true
         tableView.allowsColumnSelection = false
+        tableView.intercellSpacing = NSSize(width: SpacingTokens.none, height: SpacingTokens.none)
         tableView.autoresizingMask = [.width]
         tableView.backgroundColor = backgroundColor
 
         if let headerView = tableView.headerView {
-            headerView.frame.size.height = max(headerView.frame.size.height, 28)
+            headerView.frame.size.height = max(headerView.frame.size.height, SpacingTokens.lg)
             headerView.isHidden = false
         }
 

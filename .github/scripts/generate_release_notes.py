@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -14,30 +15,44 @@ class Category:
     patterns: tuple[str, ...]
 
 
+# Patterns that identify test-only files (used to reroute commits to Testing & CI)
+TEST_FILE_PATTERNS: dict[str, tuple[str, ...]] = {
+    "echo": ("EchoTests/", ".xctestplan"),
+    "sqlserver-nio": ("Tests/", "Sources/SQLServerKitTesting/", "Sources/SQLServerFixtureTool/"),
+    "postgres-wire": ("Tests/", "Sources/PostgresKitTesting/", "Sources/PostgresFixtureTool/"),
+    "echosense": ("Tests/",),
+}
+
+# Subject-line patterns that indicate a bug fix
+FIX_PATTERNS = re.compile(
+    r"^(fix|bug|patch|hotfix|resolve|correct)\b",
+    re.IGNORECASE,
+)
+
 REPO_CATEGORIES: dict[str, list[Category]] = {
     "sqlserver-nio": [
-        Category("TDS Protocol", ("Sources/SQLServerTDS/", "Tests/TDSLayerTests/")),
+        Category("TDS Protocol", ("Sources/SQLServerTDS/",)),
         Category("Client & Connections", ("Sources/SQLServerKit/Client/", "Sources/SQLServerKit/Connection/")),
         Category("Metadata & Admin APIs", ("Sources/SQLServerKit/Metadata/", "Sources/SQLServerKit/Admin/", "Sources/SQLServerKit/Schema/")),
         Category("Transactions & Queries", ("Sources/SQLServerKit/Transactions/", "Sources/SQLServerKit/Query", "Sources/SQLServerKit/Statement")),
-        Category("Testing & Fixtures", ("Sources/SQLServerKitTesting/", "Sources/SQLServerFixtureTool/", "Tests/")),
+        Category("Testing & CI", ("Tests/", "Sources/SQLServerKitTesting/", "Sources/SQLServerFixtureTool/", ".github/", "scripts/")),
         Category("CI & Release", (".github/", "Package.swift", "scripts/")),
         Category("Documentation", ("README", "TEST_FIXTURES.md", "CHANGELOG", "docs/")),
     ],
     "postgres-wire": [
-        Category("Wire Protocol", ("Sources/PostgresWire/", "Tests/PostgresWireTests/")),
+        Category("Wire Protocol", ("Sources/PostgresWire/",)),
         Category("Client APIs", ("Sources/PostgresKit/",)),
-        Category("Testing & Fixtures", ("Sources/PostgresKitTesting/", "Sources/PostgresFixtureTool/", "Tests/PostgresKitTests/")),
+        Category("Testing & CI", ("Tests/", "Sources/PostgresKitTesting/", "Sources/PostgresFixtureTool/", ".github/", "scripts/")),
         Category("CI & Release", (".github/", "Package.swift", "scripts/")),
         Category("Documentation", ("README", "TEST_FIXTURES.md", "CHANGELOG", "docs/")),
     ],
     "echo": [
-        Category("Query Workspace", ("Echo/Sources/Features/QueryWorkspace/", "EchoTests/Integration/MSSQL", "EchoTests/Integration/Postgres", "EchoTests/Services/")),
+        Category("Query Workspace", ("Echo/Sources/Features/QueryWorkspace/",)),
         Category("Connection & Database Engine", ("Echo/Sources/Core/DatabaseEngine/", "Echo/Sources/Features/ConnectionVault/")),
         Category("App Host & Windowing", ("Echo/Sources/Features/AppHost/", "Echo/Sources/Shared/ActivityEngine/")),
         Category("Design System & Shared UI", ("Echo/Sources/Shared/DesignSystem/", "Echo/Sources/UI/")),
         Category("Operations & Tooling", ("Echo/Sources/Features/Maintenance/", "Echo/Sources/Features/Import/", "Echo/Sources/Features/BackupRestore/", "Echo/Sources/Features/ActivityMonitor/")),
-        Category("Testing & CI", (".github/", "EchoTests/", "*.xctestplan", "TEST_FIXTURES.md")),
+        Category("Testing & CI", ("EchoTests/", ".xctestplan", "TEST_FIXTURES.md", ".github/")),
         Category("Documentation", ("AGENTS.md", "CLAUDE.md", "SSMS_FEATURE_GAP.md", "VISUAL_GUIDELINES.md")),
     ],
     "echosense": [
@@ -46,6 +61,9 @@ REPO_CATEGORIES: dict[str, list[Category]] = {
         Category("Documentation", ("README", "CHANGELOG", "docs/")),
     ],
 }
+
+# Name of the testing category — commits touching only test files are rerouted here
+TESTING_CATEGORY = "Testing & CI"
 
 
 def git(*args: str) -> str:
@@ -64,6 +82,21 @@ def path_matches(path: str, pattern: str) -> bool:
     return path.startswith(pattern) or path == pattern
 
 
+def is_test_only(files: list[str], repo_key: str) -> bool:
+    """Return True if every file in the commit matches a test pattern."""
+    test_patterns = TEST_FILE_PATTERNS.get(repo_key, ())
+    if not test_patterns or not files:
+        return False
+    return all(
+        any(path_matches(f, p) for p in test_patterns)
+        for f in files
+    )
+
+
+def is_fix(subject: str) -> bool:
+    return bool(FIX_PATTERNS.search(subject))
+
+
 def categorize(files: list[str], repo_key: str) -> str:
     categories = REPO_CATEGORIES.get(repo_key, [])
     best_name = "Other Changes"
@@ -76,17 +109,6 @@ def categorize(files: list[str], repo_key: str) -> str:
     return best_name
 
 
-def short_paths(files: list[str], limit: int = 4) -> str:
-    if not files:
-        return ""
-    preview = files[:limit]
-    rendered = ", ".join(f"`{path}`" for path in preview)
-    remainder = len(files) - len(preview)
-    if remainder > 0:
-        rendered += f", and {remainder} more"
-    return rendered
-
-
 def commit_range(previous_tag: str | None) -> str | None:
     if previous_tag:
         verified = subprocess.run(["git", "rev-parse", "--verify", "--quiet", previous_tag], capture_output=True, text=True)
@@ -95,19 +117,40 @@ def commit_range(previous_tag: str | None) -> str | None:
     return None
 
 
-def load_commits(range_spec: str | None, repo_key: str) -> OrderedDict[str, list[tuple[str, list[str]]]]:
+@dataclass
+class CategoryBucket:
+    features: list[str] = field(default_factory=list)
+    fixes: list[str] = field(default_factory=list)
+
+    @property
+    def empty(self) -> bool:
+        return not self.features and not self.fixes
+
+
+def load_commits(range_spec: str | None, repo_key: str) -> tuple[OrderedDict[str, CategoryBucket], int]:
     if range_spec:
         hashes = git_lines("rev-list", "--reverse", "--no-merges", range_spec)
     else:
         hashes = git_lines("rev-list", "--reverse", "--max-count=30", "--no-merges", "HEAD")
 
-    grouped: OrderedDict[str, list[tuple[str, list[str]]]] = OrderedDict()
+    grouped: OrderedDict[str, CategoryBucket] = OrderedDict()
     for commit_hash in hashes:
         subject = git("show", "-s", "--format=%s", commit_hash)
         files = git_lines("show", "--format=", "--name-only", "--diff-filter=ACDMRTUXB", commit_hash)
-        category = categorize(files, repo_key)
-        grouped.setdefault(category, []).append((subject, files))
-    return grouped
+
+        # Route test-only commits to Testing & CI
+        if is_test_only(files, repo_key):
+            category = TESTING_CATEGORY
+        else:
+            category = categorize(files, repo_key)
+
+        bucket = grouped.setdefault(category, CategoryBucket())
+        if is_fix(subject):
+            bucket.fixes.append(subject)
+        else:
+            bucket.features.append(subject)
+
+    return grouped, len(hashes)
 
 
 def main() -> None:
@@ -123,8 +166,7 @@ def main() -> None:
     range_spec = commit_range(previous_tag)
     if range_spec is None:
         previous_tag = None
-    grouped = load_commits(range_spec, args.repo_key)
-    commit_count = sum(len(entries) for entries in grouped.values())
+    grouped, commit_count = load_commits(range_spec, args.repo_key)
     repository = os.environ.get("GITHUB_REPOSITORY", "")
 
     lines: list[str] = [
@@ -143,19 +185,25 @@ def main() -> None:
         lines.append(f"- Compare: https://github.com/{repository}/compare/{previous_tag}...{args.new_tag}")
     lines.extend(["", "## Detailed Changes", ""])
 
-    if not grouped:
+    if not grouped or all(b.empty for b in grouped.values()):
         lines.extend(["- No application changes were detected in the selected range.", ""])
     else:
-        for category, entries in grouped.items():
-            if not entries:
+        for category, bucket in grouped.items():
+            if bucket.empty:
                 continue
             lines.extend([f"### {category}", ""])
-            for subject, files in entries:
-                lines.append(f"- {subject}")
-                touched = short_paths(files)
-                if touched:
-                    lines.append(f"  - Touched: {touched}")
-            lines.append("")
+            if bucket.features:
+                lines.append("**Features & Improvements**")
+                lines.append("")
+                for subject in bucket.features:
+                    lines.append(f"- {subject}")
+                lines.append("")
+            if bucket.fixes:
+                lines.append("**Bug Fixes**")
+                lines.append("")
+                for subject in bucket.fixes:
+                    lines.append(f"- {subject}")
+                lines.append("")
 
     with open(args.output, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines).rstrip() + "\n")

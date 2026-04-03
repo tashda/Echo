@@ -22,7 +22,7 @@ struct MSSQLDatabaseSecurityView: View {
     var body: some View {
         MaintenanceTabFrame(
             panelState: panelState,
-            connectionText: connectionText,
+            serverName: connectionText,
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {

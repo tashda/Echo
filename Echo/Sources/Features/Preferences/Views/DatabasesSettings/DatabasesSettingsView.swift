@@ -75,14 +75,6 @@ struct DatabasesSettingsView: View {
 
     @ViewBuilder
     var sqlServerSettings: some View {
-        Section {
-            DatabaseStreamingModeRow(selection: mssqlModeBinding)
-        } header: {
-            Text("Execution Profile")
-        } footer: {
-            Text("SQL Server currently supports a managed execution profile only.")
-        }
-
         Section("Activity Monitor") {
             Picker("Refresh Interval", selection: activityMonitorIntervalBinding) {
                 Text("1 second").tag(1.0)

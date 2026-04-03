@@ -123,7 +123,7 @@ struct MySQLActivityReplication: View {
                     HStack(spacing: SpacingTokens.xs) {
                         if isThreadStatusKey(key) {
                             Circle()
-                                .fill(value == "Yes" ? Color.green : Color.red)
+                                .fill(value == "Yes" ? ColorTokens.Status.success : ColorTokens.Status.error)
                                 .frame(width: 8, height: 8)
                         }
                         Text(value)

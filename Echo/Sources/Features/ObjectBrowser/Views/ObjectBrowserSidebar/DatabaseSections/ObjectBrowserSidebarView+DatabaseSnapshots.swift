@@ -56,7 +56,7 @@ extension ObjectBrowserSidebarView {
                 sheetState.createSnapshotConnectionID = connID
                 sheetState.showCreateSnapshotSheet = true
             } label: {
-                Label("New Snapshot...", systemImage: "camera.badge.ellipsis")
+                Label("New Snapshot", systemImage: "camera.badge.ellipsis")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

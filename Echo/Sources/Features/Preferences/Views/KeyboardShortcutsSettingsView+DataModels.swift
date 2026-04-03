@@ -122,18 +122,12 @@ struct ShortcutSectionData: Identifiable {
             ]
         ),
         ShortcutSectionData(
-            title: "EchoSense",
-            items: [
-                .init(title: "Command + Period Trigger", context: "Toggle \u{2318}. as a manual EchoSense trigger.", keys: ["⌘", "."]),
-                .init(title: "Control + Space Trigger", context: "Toggle Ctrl+Space as an alternative EchoSense trigger.", keys: ["⌃", "Space"])
-            ]
-        ),
-        ShortcutSectionData(
             title: "Connections",
             items: [
-                .init(title: "Open Manage Connections", context: "Open the Manage Connections window.", keys: ["⌘", "⇧", "M"])
+                .init(title: "Manage Connections", context: "Open the Manage Connections window.", keys: ["⌘", "⇧", "M"])
             ]
         )
+
     ]
 }
 
@@ -141,6 +135,14 @@ struct ShortcutItemData: Identifiable {
     let title: String
     let context: String?
     let keys: [String]
+    let isDead: Bool
 
     var id: String { title }
+
+    init(title: String, context: String? = nil, keys: [String], isDead: Bool = false) {
+        self.title = title
+        self.context = context
+        self.keys = keys
+        self.isDead = isDead
+    }
 }

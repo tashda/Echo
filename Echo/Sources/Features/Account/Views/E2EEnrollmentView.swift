@@ -144,11 +144,11 @@ struct E2EEnrollmentView: View {
                                 let idx = row * 3 + col
                                 HStack(spacing: 4) {
                                     Text("\(idx + 1).")
-                                        .font(.system(size: 11, design: .monospaced))
+                                        .font(TypographyTokens.detailMono)
                                         .foregroundStyle(ColorTokens.Text.tertiary)
                                         .frame(width: 22, alignment: .trailing)
                                     Text(recoveryWords[idx])
-                                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                        .font(TypographyTokens.codeMedium)
                                 }
                                 .frame(minWidth: 110, alignment: .leading)
                             }
@@ -196,7 +196,7 @@ struct E2EEnrollmentView: View {
             Spacer()
 
             Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: 48))
+                .font(TypographyTokens.iconHero)
                 .foregroundStyle(ColorTokens.Status.success)
 
             Text("Credential Sync Active")

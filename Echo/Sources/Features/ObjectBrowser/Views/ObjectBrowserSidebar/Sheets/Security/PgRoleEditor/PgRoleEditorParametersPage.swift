@@ -132,7 +132,7 @@ struct PgRoleEditorParametersPage: View {
             }
 
         default:
-            LabeledContent("Value") {
+            PropertyRow(title: "Value") {
                 HStack(spacing: SpacingTokens.xs) {
                     TextField("", text: $newParamValue, prompt: Text("e.g. value"))
                         .frame(minWidth: 120)

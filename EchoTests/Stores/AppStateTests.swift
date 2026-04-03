@@ -269,6 +269,5 @@ struct AppStateTests {
         #expect(state.showInfoSidebar == false)
         #expect(state.isQueryRunning == false)
         #expect(state.isConnecting == false)
-        #expect(state.keepTabsInMemory == false)
     }
 }

@@ -58,7 +58,7 @@ struct PostgresServerControlSection: View {
             }
 
             Section("Tools") {
-                LabeledContent("pg_ctl") {
+                PropertyRow(title: "pg_ctl") {
                     if let url = PostgresToolLocator.pgCtlURL(customPath: customToolPath) {
                         Text(url.path)
                             .font(TypographyTokens.code)
@@ -91,6 +91,7 @@ struct PostgresServerControlSection: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     private var effectiveDataDir: String? {

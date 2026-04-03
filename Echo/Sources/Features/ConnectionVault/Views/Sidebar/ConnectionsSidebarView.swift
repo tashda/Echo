@@ -120,7 +120,7 @@ struct ConnectionsSidebarView: View {
     @ViewBuilder
     internal func addMenuContent() -> some View {
         Button { onCreateConnection(selectedConnectionFolder); selectedIdentityID = nil } label: {
-            Label("New Connection", systemImage: "network.badge.plus")
+            Label("New Connection", systemImage: "network")
         }
         Button { openFolderCreator(parent: selectedConnectionFolder); selectedIdentityID = nil } label: {
             Label("New Connection Folder", systemImage: "folder.badge.plus")

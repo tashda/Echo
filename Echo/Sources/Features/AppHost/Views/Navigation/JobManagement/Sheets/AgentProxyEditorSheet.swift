@@ -102,7 +102,7 @@ struct AgentProxyEditorSheet: View {
     private var generalSection: some View {
         Section("General") {
             if isEditing {
-                LabeledContent("Name") {
+                PropertyRow(title: "Name") {
                     Text(proxyName)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }

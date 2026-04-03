@@ -73,7 +73,7 @@ extension QueryTabStrip {
         guard tab.kind == .query else { return [] }
         guard let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) else { return [] }
         let databases = session.databaseStructure?.databases ?? []
-        return databases.filter(\.isOnline).map(\.name).sorted()
+        return databases.filter(\.isOnline).map(\.name).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     func switchDatabase(_ databaseName: String, for tab: WorkspaceTab) {

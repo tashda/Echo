@@ -95,8 +95,13 @@ extension ObjectBrowserSidebarView {
             // Brief delay for SwiftUI to lay out the expanded tree, then scroll
             Task {
                 try? await Task.sleep(for: .milliseconds(50))
+                let sidebarObjectID = ExplorerSidebarIdentity.object(
+                    connectionID: connID,
+                    databaseName: database.name,
+                    objectID: object.id
+                )
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    proxy.scrollTo(object.id, anchor: .center)
+                    proxy.scrollTo(sidebarObjectID, anchor: .center)
                 }
             }
         }

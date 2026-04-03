@@ -68,20 +68,24 @@ struct TuningAdvisorView: View {
         Table(viewModel.recommendations, selection: $viewModel.selectedRecommendationID) {
             TableColumn("Table") { rec in
                 Text("\(rec.schemaName).\(rec.tableName)")
+                    .font(TypographyTokens.Table.name)
             }
             .width(min: 200, ideal: 300)
-            
+
             TableColumn("Impact %") { rec in
                 Text(String(format: "%.1f", rec.avgTotalUserCost))
+                    .font(TypographyTokens.Table.percentage)
                     .foregroundStyle(impactColor(rec.avgTotalUserCost))
             }
             .width(80)
-            
+
             TableColumn("User Seeks") { rec in
                 Text("\(rec.userSeeks)")
+                    .font(TypographyTokens.Table.numeric)
             }
             .width(100)
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
     }
     
     private var recommendationDetailView: some View {

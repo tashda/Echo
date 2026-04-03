@@ -84,6 +84,10 @@ final class ResultTableView: NSTableView {
         super.selectRowIndexes(indexes, byExtendingSelection: extend)
     }
 
+    override func selectAll(_ sender: Any?) {
+        selectionDelegate?.selectAllCells(in: self)
+    }
+
     @objc func copy(_ sender: Any?) {
         if selectionDelegate?.performMenuCopy(in: self) == true {
             return

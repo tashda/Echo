@@ -11,14 +11,7 @@ struct QueryStoreTopQueriesSection: View {
     ]
 
     var body: some View {
-        if viewModel.topQueries.isEmpty {
-            ContentUnavailableView {
-                Label("No queries captured", systemImage: "chart.bar.xaxis")
-            } description: {
-                Text("Query Store is collecting data. Queries will appear here once executed.")
-            }
-        } else {
-            Table(sortedQueries, selection: $viewModel.selectedQueryId, sortOrder: $sortOrder) {
+        Table(sortedQueries, selection: $viewModel.selectedQueryId, sortOrder: $sortOrder) {
                 TableColumn("ID", value: \.queryId) { query in
                     Text("\(query.queryId)")
                         .font(TypographyTokens.Table.numeric)
@@ -108,7 +101,15 @@ struct QueryStoreTopQueriesSection: View {
                     Task { await viewModel.selectQuery(queryId) }
                 }
             }
-        }
+            .overlay {
+                if viewModel.topQueries.isEmpty {
+                    ContentUnavailableView {
+                        Label("No queries captured", systemImage: "chart.bar.xaxis")
+                    } description: {
+                        Text("Query Store is collecting data. Queries will appear here once executed.")
+                    }
+                }
+            }
     }
 
     private var sortedQueries: [SQLServerQueryStoreTopQuery] {

@@ -13,6 +13,7 @@ struct MySQLDataTypePicker: View {
     @State private var baseType = ""
     @State private var sizeParam = ""
     @State private var isCustom = false
+    @State private var isSyncing = false
     @FocusState private var textFieldFocused: Bool
 
     static let commonTypes: [(category: String, types: [String])] = [
@@ -48,7 +49,7 @@ struct MySQLDataTypePicker: View {
 
     private static let customSentinel = "__custom__"
 
-    private var allFlat: [String] { Self.commonTypes.flatMap(\.types) }
+    private static let allFlat: [String] = commonTypes.flatMap(\.types)
 
     private var currentParamInfo: (hint: String, defaultValue: String)? {
         Self.parameterInfo[baseType.lowercased()]
@@ -103,12 +104,16 @@ struct MySQLDataTypePicker: View {
                         .textFieldStyle(.plain)
                         .frame(width: 60)
                         .multilineTextAlignment(.center)
-                        .onChange(of: sizeParam) { _, _ in syncToSelection() }
+                        .onChange(of: sizeParam) { _, _ in
+                            guard !isSyncing else { return }
+                            syncToSelection()
+                        }
                     Text(")")
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
             .onChange(of: baseType) { _, newValue in
+                guard !isSyncing else { return }
                 if newValue == Self.customSentinel {
                     isCustom = true
                     baseType = ""
@@ -123,9 +128,11 @@ struct MySQLDataTypePicker: View {
     }
 
     private func syncFromSelection() {
+        isSyncing = true
+        defer { isSyncing = false }
         let parsed = parseType(selection)
-        if allFlat.contains(where: { $0.lowercased() == parsed.base.lowercased() }) {
-            baseType = allFlat.first { $0.lowercased() == parsed.base.lowercased() } ?? parsed.base
+        if Self.allFlat.contains(where: { $0.lowercased() == parsed.base.lowercased() }) {
+            baseType = Self.allFlat.first { $0.lowercased() == parsed.base.lowercased() } ?? parsed.base
             sizeParam = parsed.param.isEmpty ? (Self.parameterInfo[baseType.lowercased()]?.defaultValue ?? "") : parsed.param
         } else if selection.isEmpty {
             baseType = "varchar"
@@ -138,11 +145,14 @@ struct MySQLDataTypePicker: View {
 
     private func syncToSelection() {
         let trimmedParam = sizeParam.trimmingCharacters(in: .whitespaces)
+        let newValue: String
         if needsSizeField && !trimmedParam.isEmpty {
-            selection = "\(baseType)(\(trimmedParam))"
+            newValue = "\(baseType)(\(trimmedParam))"
         } else {
-            selection = baseType
+            newValue = baseType
         }
+        guard newValue != selection else { return }
+        selection = newValue
     }
 
     private func parseType(_ type: String) -> (base: String, param: String) {

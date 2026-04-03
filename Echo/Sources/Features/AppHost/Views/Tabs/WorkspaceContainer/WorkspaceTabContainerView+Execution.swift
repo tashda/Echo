@@ -137,6 +137,7 @@ extension WorkspaceTabContainerView {
         }
         let foreignKeySource = resolveSchemaAndTable(for: inferredObject, connection: tab.connection)
 
+        let activityHandle = AppDirector.shared.activityEngine.begin("Executing query", connectionSessionID: tab.connectionSessionID)
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
@@ -172,6 +173,7 @@ extension WorkspaceTabContainerView {
                 }
                 try Task.checkCancellation()
                 await MainActor.run {
+                    activityHandle.succeed()
                     state.consumeFinalResult(result)
                     state.finishExecution()
 
@@ -255,6 +257,7 @@ extension WorkspaceTabContainerView {
                     }
                 }
                 await MainActor.run {
+                    activityHandle.cancel()
                     state.markCancellationCompleted()
                 }
             } catch {
@@ -269,8 +272,10 @@ extension WorkspaceTabContainerView {
                 }
                 await MainActor.run {
                     if shouldTreatAsCancellation {
+                        activityHandle.cancel()
                         state.markCancellationCompleted()
                     } else {
+                        activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
                         state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
                     }

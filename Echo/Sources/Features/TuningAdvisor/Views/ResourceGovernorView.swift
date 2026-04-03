@@ -90,7 +90,7 @@ struct ResourceGovernorView: View {
             if let config = viewModel.configuration {
                 HStack(spacing: SpacingTokens.xs) {
                     Image(systemName: config.isEnabled ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(config.isEnabled ? .green : .red)
+                        .foregroundStyle(config.isEnabled ? ColorTokens.Status.success : ColorTokens.Status.error)
                     Text(config.isEnabled ? "Enabled" : "Disabled")
                         .font(TypographyTokens.detail)
                 }
@@ -132,15 +132,21 @@ struct ResourceGovernorView: View {
     
     private var poolsTable: some View {
         Table(viewModel.pools, selection: $viewModel.selectedPoolID) {
-            TableColumn("Name", value: \.name)
+            TableColumn("Name") { p in
+                Text(p.name)
+                    .font(TypographyTokens.Table.name)
+            }
             TableColumn("Min/Max CPU %") { p in
                 Text("\(p.minCpuPercent) / \(p.maxCpuPercent)")
+                    .font(TypographyTokens.Table.percentage)
             }
             TableColumn("Memory %") { p in
                 Text("\(p.minMemoryPercent) / \(p.maxMemoryPercent)")
+                    .font(TypographyTokens.Table.percentage)
             }
             TableColumn("Sessions") { p in
                 Text(p.stats.map { "\($0.activeSessionCount)" } ?? "-")
+                    .font(TypographyTokens.Table.numeric)
             }
             .width(60)
             TableColumn("Usage") { p in
@@ -152,6 +158,7 @@ struct ResourceGovernorView: View {
             }
             .width(100)
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: Int32.self) { selection in
             if let id = selection.first, let pool = viewModel.pools.first(where: { $0.poolId == id }) {
                 let isBuiltIn = pool.name == "internal" || pool.name == "default"
@@ -171,19 +178,31 @@ struct ResourceGovernorView: View {
     
     private var groupsTable: some View {
         Table(viewModel.groups, selection: $viewModel.selectedGroupID) {
-            TableColumn("Name", value: \.name)
-            TableColumn("Pool", value: \.poolName)
-            TableColumn("Importance", value: \.importance)
+            TableColumn("Name") { g in
+                Text(g.name)
+                    .font(TypographyTokens.Table.name)
+            }
+            TableColumn("Pool") { g in
+                Text(g.poolName)
+                    .font(TypographyTokens.Table.secondaryName)
+            }
+            TableColumn("Importance") { g in
+                Text(g.importance)
+                    .font(TypographyTokens.Table.category)
+            }
             TableColumn("Requests") { g in
                 Text(g.stats.map { "\($0.activeRequestCount)" } ?? "-")
+                    .font(TypographyTokens.Table.numeric)
             }
             .width(60)
             TableColumn("Queued") { g in
                 Text(g.stats.map { "\($0.queuedRequestCount)" } ?? "0")
-                    .foregroundStyle((g.stats?.queuedRequestCount ?? 0) > 0 ? .orange : .secondary)
+                    .font(TypographyTokens.Table.numeric)
+                    .foregroundStyle((g.stats?.queuedRequestCount ?? 0) > 0 ? ColorTokens.Status.warning : .secondary)
             }
             .width(60)
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: Int32.self) { selection in
             if let id = selection.first, let group = viewModel.groups.first(where: { $0.groupId == id }) {
                 let isBuiltIn = group.name == "internal" || group.name == "default"
@@ -206,7 +225,7 @@ struct ResourceGovernorView: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.secondary.opacity(0.2))
                 Capsule()
-                    .fill(value > 0.8 ? Color.red : Color.accentColor)
+                    .fill(value > 0.8 ? ColorTokens.Status.error : Color.accentColor)
                     .frame(width: geo.size.width * min(max(value, 0), 1))
             }
         }

@@ -26,7 +26,7 @@ struct MySQLAdministrativeRolesSheet: View {
         SheetLayoutCustomFooter(title: "Administrative Roles") {
             Form {
                 Section("Account") {
-                    LabeledContent("User") {
+                    PropertyRow(title: "User") {
                         Text(accountName)
                             .textSelection(.enabled)
                     }
@@ -52,7 +52,7 @@ struct MySQLAdministrativeRolesSheet: View {
                 onApply(selectedRoles)
                 onDismiss()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
         }
         .frame(minWidth: 520, minHeight: 460)

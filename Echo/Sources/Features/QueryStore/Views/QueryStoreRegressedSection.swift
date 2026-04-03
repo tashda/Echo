@@ -11,14 +11,7 @@ struct QueryStoreRegressedSection: View {
     ]
 
     var body: some View {
-        if viewModel.regressedQueries.isEmpty {
-            ContentUnavailableView {
-                Label("No regressed queries", systemImage: "checkmark.circle")
-            } description: {
-                Text("All queries are performing consistently. Regressions appear when a query has multiple plans with significantly different performance.")
-            }
-        } else {
-            Table(sortedQueries, selection: $viewModel.selectedQueryId, sortOrder: $sortOrder) {
+        Table(sortedQueries, selection: $viewModel.selectedQueryId, sortOrder: $sortOrder) {
                 TableColumn("ID", value: \.queryId) { query in
                     Text("\(query.queryId)")
                         .font(TypographyTokens.Table.numeric)
@@ -100,7 +93,15 @@ struct QueryStoreRegressedSection: View {
                     Task { await viewModel.selectQuery(queryId) }
                 }
             }
-        }
+            .overlay {
+                if viewModel.regressedQueries.isEmpty {
+                    ContentUnavailableView {
+                        Label("No regressed queries", systemImage: "checkmark.circle")
+                    } description: {
+                        Text("All queries are performing consistently. Regressions appear when a query has multiple plans with significantly different performance.")
+                    }
+                }
+            }
     }
 
     private var sortedQueries: [SQLServerQueryStoreRegressedQuery] {

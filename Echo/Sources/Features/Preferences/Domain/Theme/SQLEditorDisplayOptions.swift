@@ -9,6 +9,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var autoCompletionEnabled: Bool
     var qualifyTableCompletions: Bool
     var showSystemSchemasInCompletion: Bool
+    var liveValidationEnabled: Bool
 
     init(
         showLineNumbers: Bool = true,
@@ -18,7 +19,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         indentWrappedLines: Int = 4,
         autoCompletionEnabled: Bool = true,
         qualifyTableCompletions: Bool = false,
-        showSystemSchemasInCompletion: Bool = false
+        showSystemSchemasInCompletion: Bool = false,
+        liveValidationEnabled: Bool = true
     ) {
         self.showLineNumbers = showLineNumbers
         self.highlightSelectedSymbol = highlightSelectedSymbol
@@ -28,6 +30,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.autoCompletionEnabled = autoCompletionEnabled
         self.qualifyTableCompletions = qualifyTableCompletions
         self.showSystemSchemasInCompletion = showSystemSchemasInCompletion
+        self.liveValidationEnabled = liveValidationEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -39,6 +42,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case autoCompletionEnabled
         case qualifyTableCompletions
         case showSystemSchemasInCompletion
+        case liveValidationEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -51,6 +55,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         autoCompletionEnabled = try container.decode(Bool.self, forKey: .autoCompletionEnabled)
         qualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .qualifyTableCompletions) ?? false
         showSystemSchemasInCompletion = try container.decodeIfPresent(Bool.self, forKey: .showSystemSchemasInCompletion) ?? false
+        liveValidationEnabled = try container.decodeIfPresent(Bool.self, forKey: .liveValidationEnabled) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -63,5 +68,6 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(autoCompletionEnabled, forKey: .autoCompletionEnabled)
         try container.encode(qualifyTableCompletions, forKey: .qualifyTableCompletions)
         try container.encode(showSystemSchemasInCompletion, forKey: .showSystemSchemasInCompletion)
+        try container.encode(liveValidationEnabled, forKey: .liveValidationEnabled)
     }
 }

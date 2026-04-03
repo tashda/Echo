@@ -36,7 +36,7 @@ struct SQLiteAttachDatabaseSheet: View {
                         TextField("", text: $filePath, prompt: Text("/path/to/database.sqlite"))
                             .textFieldStyle(.roundedBorder)
 
-                        Button("Browse...") {
+                        Button("Browse") {
                             browseForFile()
                         }
                     }

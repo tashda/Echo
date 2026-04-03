@@ -27,6 +27,12 @@ public struct DatabaseStructure: Sendable, Identifiable, Codable, Hashable {
         version &+= 1
     }
 
+    /// Increments version relative to an existing structure's version,
+    /// ensuring the counter is always monotonically increasing.
+    public mutating func incrementVersion(from base: UInt64) {
+        version = base &+ 1
+    }
+
     // MARK: - Codable (exclude version)
 
     private enum CodingKeys: String, CodingKey {

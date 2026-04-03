@@ -23,10 +23,8 @@ extension QueryResultsTableView.Coordinator {
                     tableColumn.minWidth = minWidth
                     if tableColumn.width < minWidth { tableColumn.width = minWidth }
                 }
-                let maxWidth = maximumWidth(for: column)
-                if abs(tableColumn.maxWidth - maxWidth) > 1 {
-                    tableColumn.maxWidth = maxWidth
-                    if tableColumn.width > maxWidth { tableColumn.width = maxWidth }
+                if tableColumn.maxWidth < CGFloat.greatestFiniteMagnitude {
+                    tableColumn.maxWidth = .greatestFiniteMagnitude
                 }
                 tableColumn.headerCell.alignment = .left
             }
@@ -47,7 +45,7 @@ extension QueryResultsTableView.Coordinator {
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("data-\(column.id)"))
             tableColumn.title = column.name
             tableColumn.minWidth = minimumWidth(for: column)
-            tableColumn.maxWidth = maximumWidth(for: column)
+            tableColumn.maxWidth = .greatestFiniteMagnitude
             tableColumn.isEditable = false
             tableColumn.resizingMask = [.userResizingMask]
             let headerCell = ResultTableHeaderCell(textCell: column.name)
@@ -62,11 +60,12 @@ extension QueryResultsTableView.Coordinator {
             // Use persisted width from a previous tab visit when available,
             // skipping the expensive idealWidth() measurement entirely.
             if let savedWidth = savedWidths[column.id], savedWidth > 0 {
-                tableColumn.width = min(max(savedWidth, tableColumn.minWidth), tableColumn.maxWidth)
+                tableColumn.width = max(savedWidth, tableColumn.minWidth)
             } else {
                 let visibleColumnIndex = tableView.tableColumns.count - 1
                 let measuredWidth = idealWidth(forVisibleColumnAt: visibleColumnIndex, in: tableView)
-                tableColumn.width = min(max(measuredWidth, tableColumn.minWidth), tableColumn.maxWidth)
+                let initialMax = maximumWidth(for: column)
+                tableColumn.width = min(max(measuredWidth, tableColumn.minWidth), initialMax)
             }
         }
     }

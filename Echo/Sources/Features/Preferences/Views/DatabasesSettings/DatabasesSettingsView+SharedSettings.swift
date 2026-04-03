@@ -16,22 +16,11 @@ extension DatabasesSettingsView {
                 defaultValue: ResultStreamingDefaults.initialRows
             )
 
-            StreamingPresetPickerControl(
-                title: "Data Preview Batch Size",
-                value: previewBatchSizeBinding,
-                description: "Used when opening previews from the sidebar or object browser.",
-                presets: streamingRowPresets,
-                range: 100...100_000,
-                formatter: formatRowCount,
-                defaultValue: ResultStreamingDefaults.previewBatch
-            )
-
             HStack {
                 Spacer()
                 Button("Revert to Default") {
                     var updated = settings
                     updated.resultsInitialRowLimit = ResultStreamingDefaults.initialRows
-                    updated.resultsPreviewBatchSize = ResultStreamingDefaults.previewBatch
                     Task { try? await projectStore.updateGlobalSettings(updated) }
                 }
                 .buttonStyle(.bordered)
@@ -39,7 +28,6 @@ extension DatabasesSettingsView {
                 .disabled(sharedExecutionSettingsAreDefault)
             }
         } header: {
-
             Text("Execution & Ingestion")
         } footer: {
             Text("These defaults shape how Echo ingests large result sets before any engine-specific overrides are applied.")
@@ -47,7 +35,6 @@ extension DatabasesSettingsView {
     }
 
     var sharedExecutionSettingsAreDefault: Bool {
-        settings.resultsInitialRowLimit == ResultStreamingDefaults.initialRows &&
-        settings.resultsPreviewBatchSize == ResultStreamingDefaults.previewBatch
+        settings.resultsInitialRowLimit == ResultStreamingDefaults.initialRows
     }
 }

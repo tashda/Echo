@@ -89,15 +89,11 @@ struct JsonInspectorPanelView: View {
 
     // MARK: - Loading
     private var loadingContent: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            ProgressView()
-                .controlSize(.small)
-            Text("Parsing JSON\u{2026}")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.vertical, SpacingTokens.lg)
+        TabInitializingPlaceholder(
+            icon: "curlybraces",
+            title: "Parsing JSON",
+            subtitle: "Processing document..."
+        )
     }
 
     // MARK: - Raw Content

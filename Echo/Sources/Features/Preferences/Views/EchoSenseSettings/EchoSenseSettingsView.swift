@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import EchoSense
 
 struct EchoSenseSettingsView: View {
     @Environment(ProjectStore.self) internal var projectStore
@@ -20,6 +21,14 @@ struct EchoSenseSettingsView: View {
                     title: "Show system schemas",
                     isOn: showSystemSchemasBinding,
                     topic: .systemSchemas
+                )
+            }
+
+            Section("Validation") {
+                EchoSenseToggleRow(
+                    title: "Live query validation",
+                    isOn: liveValidationBinding,
+                    topic: .liveValidation
                 )
             }
 

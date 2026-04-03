@@ -105,10 +105,14 @@ struct QueryEditorContainer: View {
         }
         .task(id: tab.id) {
             wireToolbarActions()
+            await ensureCurrentDatabaseSchemaLoaded()
             await triggerAutoExecutionIfNeeded()
         }
         .task(id: connectionDatabaseName ?? tab.connection.database) {
-            ensureCurrentDatabaseStructureLoaded()
+            await ensureCurrentDatabaseSchemaLoaded()
+        }
+        .onChange(of: connectionSession?.structureLoadingState) {
+            Task { await ensureCurrentDatabaseSchemaLoaded() }
         }
         .onChange(of: query.shouldAutoExecuteOnAppear) { _, newValue in
             guard newValue else { return }
@@ -166,13 +170,45 @@ struct QueryEditorContainer: View {
         QueryPanelStatusBar(
             query: query,
             panelState: panelState,
-            connectionText: connectionChipText
+            serverName: connectionServerName ?? "Server",
+            databaseName: connectionDatabaseName,
+            availableDatabases: resolveDatabaseNames(),
+            onSwitchDatabase: tab.connection.databaseType == .sqlite ? nil : { dbName in
+                switchDatabase(dbName)
+            }
         )
     }
 
-    private var connectionChipText: String {
-        let server = connectionServerName ?? "Server"
-        guard let db = connectionDatabaseName else { return server }
-        return "\(server) • \(db)"
+    private func resolveDatabaseNames() -> [String] {
+        guard let session = environmentState.sessionGroup.activeSessions
+            .first(where: { $0.id == tab.connectionSessionID }) else { return [] }
+        let databases = session.databaseStructure?.databases ?? []
+        return databases.filter(\.isOnline).map(\.name).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private func switchDatabase(_ databaseName: String) {
+        Task {
+            do {
+                _ = try await tab.session.sessionForDatabase(databaseName)
+                tab.activeDatabaseName = databaseName
+                if let queryState = tab.query {
+                    queryState.updateClipboardContext(
+                        serverName: queryState.clipboardMetadata.serverName,
+                        databaseName: databaseName,
+                        connectionColorHex: queryState.clipboardMetadata.connectionColorHex
+                    )
+                }
+                environmentState.notificationEngine?.post(
+                    category: .databaseSwitched,
+                    message: "Switched to \(databaseName)"
+                )
+            } catch {
+                environmentState.notificationEngine?.post(
+                    category: .databaseSwitchFailed,
+                    message: "Failed to switch: \(error.localizedDescription)",
+                    duration: 5.0
+                )
+            }
+        }
     }
 }

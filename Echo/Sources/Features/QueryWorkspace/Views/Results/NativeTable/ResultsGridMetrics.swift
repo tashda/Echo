@@ -4,6 +4,8 @@ enum ResultsGridMetrics {
     static let contentHorizontalPadding: CGFloat = SpacingTokens.xs2
     static let rowNumberLeadingPadding: CGFloat = SpacingTokens.xxxs
     static let rowNumberTrailingPadding: CGFloat = SpacingTokens.xxs1
+    static let rowNumberFontSize: CGFloat = SpacingTokens.sm
+    static let cellFontSize: CGFloat = SpacingTokens.sm
     static let minimumRowNumberDigits = 6
     static let maxAutoWidthSampleCount = 200
     static let minimumColumnWidth: CGFloat = 56

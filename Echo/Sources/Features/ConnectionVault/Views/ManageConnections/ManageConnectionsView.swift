@@ -63,14 +63,20 @@ struct ManageConnectionsView: View {
     @State internal var navHistory = NavigationHistory<SidebarSelection>()
     @State internal var sidebarVisibility: NavigationSplitViewVisibility = .automatic
 
-    init(onClose: (() -> Void)? = nil, initialSection: ManageSection? = nil, initialProjectID: UUID? = nil) {
+    private let initialConnectionID: UUID?
+
+    init(onClose: (() -> Void)? = nil, initialSection: ManageSection? = nil, initialProjectID: UUID? = nil, initialConnectionID: UUID? = nil) {
         self.onClose = onClose
+        self.initialConnectionID = initialConnectionID
         if let initialProjectID {
             self._selectedSection = State(initialValue: .projects)
             self._sidebarSelection = State(initialValue: .project(initialProjectID))
         } else if let initialSection {
             self._selectedSection = State(initialValue: initialSection)
             self._sidebarSelection = State(initialValue: .section(initialSection))
+        }
+        if let initialConnectionID {
+            self._connectionSelection = State(initialValue: [initialConnectionID])
         }
     }
 
@@ -85,6 +91,10 @@ struct ManageConnectionsView: View {
                 }
                 if identitySortOrder.isEmpty {
                     identitySortOrder = [KeyPathComparator(\SavedIdentity.name, order: .forward)]
+                }
+                if let initialConnectionID,
+                   let connection = connectionStore.connections.first(where: { $0.id == initialConnectionID }) {
+                    editConnection(connection)
                 }
             }
     }

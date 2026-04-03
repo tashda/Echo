@@ -22,7 +22,7 @@ struct PostgresActivityPreparedTxns: View {
             set: { if !$0 { pendingCommitGID = nil } }
         )) {
             Button("Cancel", role: .cancel) { pendingCommitGID = nil }
-            Button("Commit") {
+            Button("Commit", role: .destructive) {
                 guard let gid = pendingCommitGID else { return }
                 pendingCommitGID = nil
                 Task { await commitPrepared(gid: gid) }

@@ -29,7 +29,7 @@ struct MySQLUserRoleMembershipSheet: View {
         SheetLayoutCustomFooter(title: "Role Membership") {
             Form {
                 Section("Account") {
-                    LabeledContent("User") {
+                    PropertyRow(title: "User") {
                         Text(accountName)
                             .textSelection(.enabled)
                     }
@@ -61,7 +61,7 @@ struct MySQLUserRoleMembershipSheet: View {
                 onApply(selectedRoleIDs)
                 onDismiss()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
         }
         .frame(minWidth: 520, minHeight: 420)

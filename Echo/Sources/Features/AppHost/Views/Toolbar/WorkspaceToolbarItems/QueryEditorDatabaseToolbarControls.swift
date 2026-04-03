@@ -40,6 +40,7 @@ private struct MSSQLQueryToolbarControls: View {
             Label("SQLCMD", systemImage: "terminal")
                 .symbolVariant(query.sqlcmdModeEnabled ? .fill : .none)
         }
+        .labelStyle(.iconOnly)
         .help(query.sqlcmdModeEnabled ? "Disable SQLCMD Mode" : "Enable SQLCMD Mode")
         .accessibilityLabel(query.sqlcmdModeEnabled ? "Disable SQLCMD Mode" : "Enable SQLCMD Mode")
     }
@@ -56,6 +57,7 @@ private struct MSSQLQueryToolbarControls: View {
                     .contentTransition(.identity)
             }
         }
+        .labelStyle(.iconOnly)
         .help(query.statisticsEnabled ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")
         .accessibilityLabel(query.statisticsEnabled ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")
     }

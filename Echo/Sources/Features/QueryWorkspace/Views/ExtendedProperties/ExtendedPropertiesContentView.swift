@@ -140,7 +140,7 @@ struct ExtendedPropertiesContentView: View {
     private func columnSection(name: String) -> some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             HStack {
-                Label(name, systemImage: "column")
+                Label(name, systemImage: "tablecells")
                     .font(TypographyTokens.standard.weight(.medium))
                     .foregroundStyle(ColorTokens.Text.primary)
 

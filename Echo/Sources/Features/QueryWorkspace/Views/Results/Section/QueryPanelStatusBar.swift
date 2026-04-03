@@ -4,7 +4,13 @@ import SwiftUI
 struct QueryPanelStatusBar: View {
     @Bindable var query: QueryEditorState
     @Bindable var panelState: BottomPanelState
-    let connectionText: String
+    let serverName: String
+    let databaseName: String?
+    let availableDatabases: [String]
+    let onSwitchDatabase: ((String) -> Void)?
+
+    @State private var showStatisticsPopover = false
+    @State private var showDatabasePicker = false
 
     var body: some View {
         BottomPanelStatusBar(configuration: configuration)
@@ -19,8 +25,8 @@ struct QueryPanelStatusBar: View {
             switch segment {
             case .executionPlan:
                 return query.executionPlan != nil
-            case .statistics:
-                return query.isExecuting || query.livePerformanceReport != nil || query.lastPerformanceReport != nil
+            case .spatial:
+                return query.displayedColumns.contains { SpatialExtractor.isSpatialColumn($0.dataType) }
             default:
                 return true
             }
@@ -33,7 +39,8 @@ struct QueryPanelStatusBar: View {
         )
 
         var config = BottomPanelStatusBarConfiguration(
-            connectionText: connectionText,
+            serverName: serverName,
+            databaseName: databaseName,
             availableSegments: visibleSegments,
             disabledSegments: disabledSegments,
             selectedSegment: panelState.selectedSegment,
@@ -58,7 +65,24 @@ struct QueryPanelStatusBar: View {
 
         config.modeIndicators = buildModeIndicators()
 
+        if hasPerformanceReport {
+            config.statisticsPopover = AnyView(
+                QueryPerformanceReportView(query: query)
+            )
+            config.showStatisticsPopover = $showStatisticsPopover
+        }
+
+        if !availableDatabases.isEmpty, onSwitchDatabase != nil {
+            config.availableDatabases = availableDatabases
+            config.onSwitchDatabase = onSwitchDatabase
+            config.showDatabasePicker = $showDatabasePicker
+        }
+
         return config
+    }
+
+    private var hasPerformanceReport: Bool {
+        query.isExecuting || query.livePerformanceReport != nil || query.lastPerformanceReport != nil
     }
 
     private func buildMetrics() -> BottomPanelStatusBarConfiguration.Metrics {
@@ -98,8 +122,11 @@ struct QueryPanelStatusBar: View {
             return .init(
                 label: isMaterializing ? "Loading rows" : "Completed",
                 tint: .green,
-                isPulsing: false
+                isPulsing: isMaterializing
             )
+        }
+        if query.isLoadingCrossDBSchema, let target = query.crossDBSchemaTarget {
+            return .init(label: "Loading \(target)…", tint: .secondary, isPulsing: true)
         }
         if query.isEstablishingConnection {
             return .init(label: "Connecting", tint: .secondary, isPulsing: true)

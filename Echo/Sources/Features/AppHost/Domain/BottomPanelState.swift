@@ -112,7 +112,7 @@ final class BottomPanelState {
             isOpen: false,
             splitRatio: 0.5,
             selectedSegment: .results,
-            availableSegments: [.results, .textResults, .verticalResults, .statistics, .messages, .spatial, .executionPlan, .tuning, .history]
+            availableSegments: [.results, .messages, .executionPlan, .spatial]
         )
     }
 

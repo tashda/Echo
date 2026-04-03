@@ -24,6 +24,7 @@ struct QueryEditorEnhanceToolbarControls: View {
         if let tab = tabStore.activeTab, tab.query != nil {
             HStack(spacing: SpacingTokens.none) {
                 QueryFormatToolbarButton(tabStore: tabStore)
+                QueryValidateToolbarButton(tabStore: tabStore)
                 QueryContextHelpToolbarButton(tabStore: tabStore)
                 if tab.session is ExecutionPlanProviding {
                     EstimatedPlanButton(tabStore: tabStore)
@@ -277,5 +278,31 @@ private struct EstimatedPlanButton: View {
                 category: "Execution Plan"
             )
         }
+    }
+}
+
+// MARK: - Validate Button
+
+private struct QueryValidateToolbarButton: View {
+    let tabStore: TabStore
+
+    private var query: QueryEditorState? { tabStore.activeTab?.query }
+
+    private var isDisabled: Bool {
+        guard let query else { return true }
+        return query.sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        Button {
+            query?.validationRequestGeneration += 1
+        } label: {
+            Label("Validate (⇧⌘V)", systemImage: "exclamationmark.triangle")
+        }
+        .keyboardShortcut("v", modifiers: [.command, .shift])
+        .disabled(isDisabled)
+        .help("Validate SQL (⇧⌘V)")
+        .labelStyle(.iconOnly)
+        .accessibilityLabel("Validate SQL")
     }
 }

@@ -181,7 +181,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     createMSSQLCredential(session: session)
                 } label: {
-                    Label("New Credential", systemImage: "key.badge.plus")
+                    Label("New Credential", systemImage: "key.fill")
                 }
             }
         }

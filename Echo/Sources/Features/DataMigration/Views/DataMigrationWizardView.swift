@@ -83,6 +83,7 @@ struct DataMigrationWizardView: View {
                             .tag(session.id as UUID?)
                     }
                 }
+                .pickerStyle(.menu)
                 .onChange(of: viewModel.sourceSessionID) { _, _ in
                     viewModel.loadSourceDatabases()
                 }
@@ -96,6 +97,7 @@ struct DataMigrationWizardView: View {
                             Text(db).tag(db)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
             }
 
@@ -106,6 +108,7 @@ struct DataMigrationWizardView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .padding(SpacingTokens.md)
     }
 
@@ -121,6 +124,7 @@ struct DataMigrationWizardView: View {
                             .tag(session.id as UUID?)
                     }
                 }
+                .pickerStyle(.menu)
                 .onChange(of: viewModel.targetSessionID) { _, _ in
                     viewModel.loadTargetDatabases()
                 }
@@ -134,6 +138,7 @@ struct DataMigrationWizardView: View {
                             Text(db).tag(db)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
             }
 
@@ -144,6 +149,7 @@ struct DataMigrationWizardView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .padding(SpacingTokens.md)
     }
 
@@ -182,6 +188,7 @@ struct DataMigrationWizardView: View {
                                     .foregroundStyle(ColorTokens.Text.tertiary)
                             }
                         }
+                        .toggleStyle(.switch)
                     }
                 }
             }
@@ -194,11 +201,14 @@ struct DataMigrationWizardView: View {
         Form {
             Section("Migration Scope") {
                 Toggle("Migrate schema (CREATE TABLE)", isOn: $viewModel.migrateSchema)
+                    .toggleStyle(.switch)
                 Toggle("Migrate data (INSERT rows)", isOn: $viewModel.migrateData)
+                    .toggleStyle(.switch)
             }
 
             Section("Schema Options") {
                 Toggle("Drop target tables if they exist", isOn: $viewModel.dropTargetIfExists)
+                    .toggleStyle(.switch)
             }
 
             Section("Data Options") {
@@ -208,7 +218,9 @@ struct DataMigrationWizardView: View {
                     Text("1,000 rows").tag(1000)
                     Text("5,000 rows").tag(5000)
                 }
+                .pickerStyle(.menu)
                 Toggle("Continue on error", isOn: $viewModel.continueOnError)
+                    .toggleStyle(.switch)
             }
 
             Section("Output") {
@@ -217,9 +229,11 @@ struct DataMigrationWizardView: View {
                         Text(dest.rawValue).tag(dest)
                     }
                 }
+                .pickerStyle(.menu)
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .padding(SpacingTokens.md)
     }
 

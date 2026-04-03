@@ -103,7 +103,7 @@ struct E2ERecoveryView: View {
             Spacer()
 
             Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: 48))
+                .font(TypographyTokens.iconHero)
                 .foregroundStyle(ColorTokens.Status.success)
 
             Text("Recovery Successful")

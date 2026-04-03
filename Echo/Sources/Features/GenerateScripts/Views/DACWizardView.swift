@@ -99,14 +99,15 @@ struct DACWizardView: View {
     private var setTargetStep: some View {
         Form {
             Section("Settings") {
-                TextField("Database Name", text: $viewModel.databaseName)
+                TextField("Database Name", text: $viewModel.databaseName, prompt: Text("e.g. MyDatabase"))
                 HStack {
-                    TextField("File Path", text: $viewModel.filePath)
-                    Button("Browse...") { /* File picker */ }
+                    TextField("File Path", text: $viewModel.filePath, prompt: Text("e.g. /path/to/file.bacpac"))
+                    Button("Browse") { /* File picker */ }
                 }
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
     
     private var progressStep: some View {

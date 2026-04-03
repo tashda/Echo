@@ -71,10 +71,15 @@ struct DatabaseObjectBrowserView: View {
 
         expandedObjectGroups.insert(.table)
         expandedObjectIDs.insert(target.id)
+        let sidebarObjectID = ExplorerSidebarIdentity.object(
+            connectionID: connection.id,
+            databaseName: database.name,
+            objectID: target.id
+        )
 
         Task {
             withAnimation(.easeInOut(duration: 0.28)) {
-                scrollTo(target.id, UnitPoint(x: 0.5, y: 0.2))
+                scrollTo(sidebarObjectID, UnitPoint(x: 0.5, y: 0.2))
             }
         }
     }

@@ -5,7 +5,7 @@ import SwiftUI
 /// view only needs to supply its section picker and section content.
 struct MaintenanceTabFrame<SectionPicker: View, Content: View>: View {
     @Bindable var panelState: BottomPanelState
-    let connectionText: String
+    let serverName: String
     let isInitialized: Bool
     var statusBubble: BottomPanelStatusBarConfiguration.StatusBubble?
     @ViewBuilder let sectionPicker: () -> SectionPicker
@@ -38,7 +38,8 @@ struct MaintenanceTabFrame<SectionPicker: View, Content: View>: View {
 
     private var statusBarConfig: BottomPanelStatusBarConfiguration {
         var config = BottomPanelStatusBarConfiguration(
-            connectionText: connectionText,
+            serverName: serverName,
+            databaseName: nil,
             availableSegments: panelState.availableSegments,
             selectedSegment: panelState.selectedSegment,
             onSelectSegment: { segment in

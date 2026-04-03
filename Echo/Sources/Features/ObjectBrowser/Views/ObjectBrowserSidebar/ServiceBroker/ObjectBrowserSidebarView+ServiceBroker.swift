@@ -96,7 +96,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     onCreate()
                 } label: {
-                    Label("New \(title.hasSuffix("s") ? String(title.dropLast()) : title)...", systemImage: "plus")
+                    Label("New \(title.hasSuffix("s") ? String(title.dropLast()) : title)", systemImage: "plus")
                 }
             }
         }

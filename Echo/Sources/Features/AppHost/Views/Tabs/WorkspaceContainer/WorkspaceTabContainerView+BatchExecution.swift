@@ -21,6 +21,7 @@ extension WorkspaceTabContainerView {
             connection: tab.connection
         )
 
+        let activityHandle = AppDirector.shared.activityEngine.begin("Executing batch query", connectionSessionID: tab.connectionSessionID)
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
@@ -71,6 +72,7 @@ extension WorkspaceTabContainerView {
 
                 try Task.checkCancellation()
                 await MainActor.run {
+                    activityHandle.succeed()
                     consumeBatchResults(batchResults, into: state, batchStartLines: batchStartLines)
                     state.finishExecution()
 
@@ -96,7 +98,10 @@ extension WorkspaceTabContainerView {
                 if let dedicatedSession = resolvedSession as? MSSQLDedicatedQuerySession {
                     await MainActor.run { dedicatedSession.reconnectAfterCancellation() }
                 }
-                await MainActor.run { state.markCancellationCompleted() }
+                await MainActor.run {
+                    activityHandle.cancel()
+                    state.markCancellationCompleted()
+                }
             } catch {
                 let shouldTreatAsCancellation = await MainActor.run { state.isCancellationRequested }
                 if shouldTreatAsCancellation,
@@ -105,8 +110,10 @@ extension WorkspaceTabContainerView {
                 }
                 await MainActor.run {
                     if shouldTreatAsCancellation {
+                        activityHandle.cancel()
                         state.markCancellationCompleted()
                     } else {
+                        activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
                         state.failExecution(with: "Batch execution failed: \(error.localizedDescription)")
                     }

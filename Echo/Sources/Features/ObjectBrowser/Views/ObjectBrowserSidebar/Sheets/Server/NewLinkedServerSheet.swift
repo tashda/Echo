@@ -59,12 +59,12 @@ struct NewLinkedServerSheet: View {
                 .font(TypographyTokens.standard.weight(.medium))
                 .foregroundStyle(ColorTokens.Text.primary)
 
-            LabeledContent("Name") {
+            PropertyRow(title: "Name") {
                 TextField("Linked server name", text: $serverName)
                     .textFieldStyle(.roundedBorder)
             }
 
-            LabeledContent("Provider") {
+            PropertyRow(title: "Provider") {
                 Picker("", selection: $provider) {
                     ForEach(knownProviders, id: \.self) { p in
                         Text(p).tag(p)
@@ -73,22 +73,22 @@ struct NewLinkedServerSheet: View {
                 .labelsHidden()
             }
 
-            LabeledContent("Data Source") {
+            PropertyRow(title: "Data Source") {
                 TextField("Server address or DSN", text: $dataSource)
                     .textFieldStyle(.roundedBorder)
             }
 
-            LabeledContent("Product") {
+            PropertyRow(title: "Product") {
                 TextField("Product name (optional)", text: $product)
                     .textFieldStyle(.roundedBorder)
             }
 
-            LabeledContent("Catalog") {
+            PropertyRow(title: "Catalog") {
                 TextField("Default catalog (optional)", text: $catalog)
                     .textFieldStyle(.roundedBorder)
             }
 
-            LabeledContent("Provider String") {
+            PropertyRow(title: "Provider String") {
                 TextField("Connection string (optional)", text: $providerString)
                     .textFieldStyle(.roundedBorder)
             }
@@ -104,12 +104,12 @@ struct NewLinkedServerSheet: View {
             Toggle("Use current security context", isOn: $usesSelfMapping)
 
             if !usesSelfMapping {
-                LabeledContent("Remote User") {
+                PropertyRow(title: "Remote User") {
                     TextField("Remote login", text: $remoteUser)
                         .textFieldStyle(.roundedBorder)
                 }
 
-                LabeledContent("Remote Password") {
+                PropertyRow(title: "Remote Password") {
                     SecureField("Password", text: $remotePassword)
                         .textFieldStyle(.roundedBorder)
                 }

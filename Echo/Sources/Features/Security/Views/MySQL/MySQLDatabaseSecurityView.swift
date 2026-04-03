@@ -12,7 +12,7 @@ struct MySQLDatabaseSecurityView: View {
     var body: some View {
         MaintenanceTabFrame(
             panelState: panelState,
-            connectionText: connectionText,
+            serverName: connectionText,
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
@@ -44,7 +44,7 @@ struct MySQLDatabaseSecurityView: View {
                     Button {
                         showGrantPrivilegesSheet = true
                     } label: {
-                        Label("Grant…", systemImage: "key.badge.plus")
+                        Label("Grant…", systemImage: "key.fill")
                     }
                     .buttonStyle(.borderless)
                 case .advancedObjects, .passwordPolicies, .dataMasking, .encryption, .audit, .firewall:

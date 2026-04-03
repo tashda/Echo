@@ -26,32 +26,26 @@ extension DatabaseObjectRow {
 
         // MARK: - Group 3: Open / View
         if object.type == .table || object.type == .view || object.type == .materializedView {
-            menu.addActionItem("Open Data", systemImage: "tablecells") { [self] in
+            menu.addActionItem("Data", systemImage: "tablecells") { [self] in
                 openDataPreview()
             }
         }
 
         if object.type == .table || object.type == .extension {
-            menu.addActionItem("View Structure", systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up") { [self] in
+            menu.addActionItem("Structure", systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up") { [self] in
                 openStructureTab()
             }
         }
 
-        if dbType == .microsoftSQL {
-            menu.addActionItem("View Dependencies", systemImage: "arrow.triangle.branch") { [self] in
-                openDependenciesQuery()
-            }
-        }
-
         if object.type == .table {
-            menu.addActionItem("Show Diagram", systemImage: "rectangle.connected.to.line.below") { [self] in
+            menu.addActionItem("Diagram", systemImage: "rectangle.connected.to.line.below") { [self] in
                 openRelationsDiagram()
             }
         }
 
         // MARK: - Group 4: Edit / Rename
         if (object.type == .procedure || object.type == .function) && !object.parameters.isEmpty {
-            menu.addActionItem("Execute\u{2026}", systemImage: "play.circle") { [self] in
+            menu.addActionItem("Execute", systemImage: "play.circle") { [self] in
                 showExecuteProcedureSheet = true
             }
         }
@@ -113,65 +107,64 @@ extension DatabaseObjectRow {
             }
         }
 
-        // MARK: - Group 7: Maintenance
-        var hasMaintenanceItems = false
-
-        if dbType == .microsoftSQL {
+        // MARK: - Group 7: Tasks
+        let hasTaskItems = dbType == .microsoftSQL
+            || object.type == .table
+            || object.type == .view
+        if hasTaskItems {
             menu.addDivider()
-            hasMaintenanceItems = true
-            menu.addActionItem("Generate Scripts...", systemImage: "script.badge.plus") { [self] in
-                showGenerateScriptsWizard = true
-            }
-        }
-
-        if object.type == .table {
-            if !hasMaintenanceItems { menu.addDivider(); hasMaintenanceItems = true }
-            menu.addActionItem("Import Data", systemImage: "square.and.arrow.down") { [self] in
-                showBulkImportSheet = true
-            }
-        }
-
-        if object.type == .table || object.type == .view {
-            if !hasMaintenanceItems { menu.addDivider(); hasMaintenanceItems = true }
-            menu.addActionItem("Export Data", systemImage: "square.and.arrow.up") { [self] in
-                showExportSheet = true
-            }
-        }
-
-        if object.type == .table && dbType == .postgresql {
-            if !hasMaintenanceItems { menu.addDivider(); hasMaintenanceItems = true }
-            menu.addActionItem("Cluster", systemImage: "arrow.triangle.2.circlepath") { [self] in
-                guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
-                Task {
-                    let handle = AppDirector.shared.activityEngine.begin("Clustering \(object.name)", connectionSessionID: session.id)
-                    do {
-                        guard let pg = session.session as? PostgresSession else { return }
-                        try await pg.client.admin.clusterTable(table: object.name, index: nil, schema: object.schema)
-                        handle.succeed()
-                    } catch {
-                        handle.fail(error.localizedDescription)
+            menu.addSubmenu("Tasks", systemImage: "checklist") { [self] sub in
+                if dbType == .microsoftSQL {
+                    sub.addActionItem("Generate Scripts", systemImage: "applescript") { [self] in
+                        showGenerateScriptsWizard = true
                     }
                 }
-            }
-        }
 
-        if object.type == .table && dbType == .microsoftSQL {
-            if object.isSystemVersioned == true {
-                if !hasMaintenanceItems { menu.addDivider(); hasMaintenanceItems = true }
-                menu.addActionItem("Query History...", systemImage: "clock.arrow.circlepath") { [self] in
-                    let qualified = "[\(object.schema)].[\(object.name)]"
-                    let sql = "SELECT * FROM \(qualified) FOR SYSTEM_TIME ALL ORDER BY ValidFrom DESC;"
-                    environmentState.openQueryTab(presetQuery: sql)
+                if object.type == .table {
+                    sub.addActionItem("Import Data", systemImage: "square.and.arrow.down") { [self] in
+                        showBulkImportSheet = true
+                    }
                 }
-            }
-            if object.isSystemVersioned != true && object.isHistoryTable != true {
-                if !hasMaintenanceItems { menu.addDivider(); hasMaintenanceItems = true }
-                menu.addActionItem("Enable System Versioning...", systemImage: "clock.badge.checkmark") { [self] in
-                    sheetState.enableVersioningConnectionID = connection.id
-                    sheetState.enableVersioningDatabaseName = databaseName
-                    sheetState.enableVersioningSchemaName = object.schema
-                    sheetState.enableVersioningTableName = object.name
-                    sheetState.showEnableVersioningSheet = true
+
+                if object.type == .table || object.type == .view {
+                    sub.addActionItem("Export Data", systemImage: "square.and.arrow.up") { [self] in
+                        showExportSheet = true
+                    }
+                }
+
+                if object.type == .table && dbType == .postgresql {
+                    sub.addActionItem("Cluster", systemImage: "arrow.triangle.2.circlepath") { [self] in
+                        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
+                        Task {
+                            let handle = AppDirector.shared.activityEngine.begin("Clustering \(object.name)", connectionSessionID: session.id)
+                            do {
+                                guard let pg = session.session as? PostgresSession else { return }
+                                try await pg.client.admin.clusterTable(table: object.name, index: nil, schema: object.schema)
+                                handle.succeed()
+                            } catch {
+                                handle.fail(error.localizedDescription)
+                            }
+                        }
+                    }
+                }
+
+                if object.type == .table && dbType == .microsoftSQL {
+                    if object.isSystemVersioned == true {
+                        sub.addActionItem("Query History", systemImage: "clock.arrow.circlepath") { [self] in
+                            let qualified = "[\(object.schema)].[\(object.name)]"
+                            let sql = "SELECT * FROM \(qualified) FOR SYSTEM_TIME ALL ORDER BY ValidFrom DESC;"
+                            environmentState.openQueryTab(presetQuery: sql)
+                        }
+                    }
+                    if object.isSystemVersioned != true && object.isHistoryTable != true {
+                        sub.addActionItem("Enable System Versioning", systemImage: "clock.badge.checkmark") { [self] in
+                            sheetState.enableVersioningConnectionID = connection.id
+                            sheetState.enableVersioningDatabaseName = databaseName
+                            sheetState.enableVersioningSchemaName = object.schema
+                            sheetState.enableVersioningTableName = object.name
+                            sheetState.showEnableVersioningSheet = true
+                        }
+                    }
                 }
             }
         }
@@ -186,7 +179,7 @@ extension DatabaseObjectRow {
             item.isEnabled = canModifySchema
         }
 
-        let dropItem = menu.addActionItem("Drop", systemImage: "trash") { [self] in
+        let dropItem = menu.addActionItem("Drop \(object.type.displayName)", systemImage: "trash") { [self] in
             initiateDrop(includeIfExists: false)
         }
         dropItem.isEnabled = canModifySchema

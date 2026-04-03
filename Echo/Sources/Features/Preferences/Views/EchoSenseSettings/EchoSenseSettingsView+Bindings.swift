@@ -24,4 +24,16 @@ extension EchoSenseSettingsView {
             }
         )
     }
+
+    var liveValidationBinding: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.editorEnableLiveValidation },
+            set: { newValue in
+                guard projectStore.globalSettings.editorEnableLiveValidation != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorEnableLiveValidation = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
 }

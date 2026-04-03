@@ -70,22 +70,15 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func refreshSelectionTransition(from old: SelectedRegion?, to new: SelectedRegion?, tableView: NSTableView) {
-        // Determine the rows that need visual updates (union of old and new regions).
-        let oldRows = old?.normalizedRowRange
-        let newRows = new?.normalizedRowRange
+        // Determine the rows that need visual updates (union of old, new, and additional regions).
+        var ranges: [ClosedRange<Int>] = []
+        if let o = old { ranges.append(o.normalizedRowRange) }
+        if let n = new { ranges.append(n.normalizedRowRange) }
+        for r in additionalRegions { ranges.append(r.normalizedRowRange) }
+        guard !ranges.isEmpty else { return }
 
-        let minRow: Int
-        let maxRow: Int
-        if let o = oldRows, let n = newRows {
-            minRow = min(o.lowerBound, n.lowerBound)
-            maxRow = max(o.upperBound, n.upperBound)
-        } else if let o = oldRows {
-            minRow = o.lowerBound; maxRow = o.upperBound
-        } else if let n = newRows {
-            minRow = n.lowerBound; maxRow = n.upperBound
-        } else {
-            return
-        }
+        let minRow = ranges.map(\.lowerBound).min()!
+        let maxRow = ranges.map(\.upperBound).max()!
 
         // Only touch visible rows to keep drag smooth.
         let visible = tableView.rows(in: tableView.visibleRect)
@@ -119,11 +112,25 @@ extension QueryResultsTableView.Coordinator {
         return lower <= upper ? lower...upper : nil
     }
 
-    func selectionRenderInfo(forRow row: Int, rowView: NSTableRowView, tableView: NSTableView) -> ResultTableRowView.SelectionRenderInfo? {
-        guard let region = selectionRegion, region.containsRow(row) else { return nil }
-        let maxColumn = tableView.tableColumns.count - 1
-        guard maxColumn >= 0 else { return nil }
+    func selectionRenderInfos(forRow row: Int, rowView: NSTableRowView, tableView: NSTableView) -> [ResultTableRowView.SelectionRenderInfo] {
+        var allRegions = additionalRegions
+        if let active = selectionRegion { allRegions.append(active) }
+        guard !allRegions.isEmpty else { return [] }
 
+        let maxColumn = tableView.tableColumns.count - 1
+        guard maxColumn >= 0 else { return [] }
+
+        var results: [ResultTableRowView.SelectionRenderInfo] = []
+        for region in allRegions {
+            guard region.containsRow(row) else { continue }
+            if let info = renderInfo(for: region, row: row, rowView: rowView, tableView: tableView, maxColumn: maxColumn) {
+                results.append(info)
+            }
+        }
+        return results
+    }
+
+    private func renderInfo(for region: SelectedRegion, row: Int, rowView: NSTableRowView, tableView: NSTableView, maxColumn: Int) -> ResultTableRowView.SelectionRenderInfo? {
         let lowerColumn = max(0, min(region.normalizedColumnRange.lowerBound, maxColumn))
         let upperColumn = max(0, min(region.normalizedColumnRange.upperBound, maxColumn))
         guard upperColumn >= lowerColumn else { return nil }
@@ -166,7 +173,7 @@ extension QueryResultsTableView.Coordinator {
         return ResultTableRowView.SelectionRenderInfo(rect: converted, topCornerRadius: topRadius, bottomCornerRadius: bottomRadius)
     }
 
-    var hasActiveCellSelection: Bool { selectionRegion != nil }
+    var hasActiveCellSelection: Bool { selectionRegion != nil || !additionalRegions.isEmpty }
 
     /// Selects the entire row (all columns) when the user clicks a row number.
     func beginRowSelection(at row: Int) {

@@ -59,7 +59,7 @@ struct MySQLServerConfigurationView: View {
                 Button("Save") {
                     Task { await viewModel.saveSelectedConfigFile() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .disabled(!canSave)
             }
 

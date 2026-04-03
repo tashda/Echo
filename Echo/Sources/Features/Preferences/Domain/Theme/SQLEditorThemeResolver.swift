@@ -61,7 +61,8 @@ enum SQLEditorThemeResolver {
             indentWrappedLines: max(0, globalSettings.editorIndentWrappedLines),
             autoCompletionEnabled: globalSettings.editorEnableAutocomplete,
             qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
-            showSystemSchemasInCompletion: globalSettings.editorShowSystemSchemas
+            showSystemSchemasInCompletion: globalSettings.editorShowSystemSchemas,
+            liveValidationEnabled: globalSettings.editorEnableLiveValidation
         )
     }
 

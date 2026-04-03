@@ -45,7 +45,7 @@ struct SignedInAccountCard: View {
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(TypographyTokens.labelBold)
                     .foregroundStyle(ColorTokens.Text.quaternary)
             }
             .padding(.vertical, SpacingTokens.xs)
@@ -123,7 +123,7 @@ struct SignedInAccountCard: View {
                 .frame(width: 48, height: 48)
 
             Text(avatarInitials)
-                .font(.system(size: 18, weight: .medium, design: .rounded))
+                .font(TypographyTokens.statNumber)
                 .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
@@ -197,7 +197,7 @@ private struct AccountDetailSheet: View {
                         .controlSize(.small)
                 }
             } else {
-                LabeledContent("Name") {
+                PropertyRow(title: "Name") {
                     HStack(spacing: SpacingTokens.xs) {
                         Text(authState.currentUser?.displayName ?? "Not set")
                             .foregroundStyle(authState.currentUser?.displayName != nil ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
@@ -206,7 +206,7 @@ private struct AccountDetailSheet: View {
                             isEditingName = true
                         } label: {
                             Image(systemName: "pencil")
-                                .font(.system(size: 11))
+                                .font(TypographyTokens.detail)
                                 .foregroundStyle(ColorTokens.Text.tertiary)
                         }
                         .buttonStyle(.plain)
@@ -216,12 +216,15 @@ private struct AccountDetailSheet: View {
 
             // Email
             if let email = authState.currentUser?.email {
-                LabeledContent("Email", value: email)
+                PropertyRow(title: "Email") {
+                    Text(email)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             }
 
             // Auth Method
             if let method = authState.currentUser?.authMethod {
-                LabeledContent("Sign-in method") {
+                PropertyRow(title: "Sign-in method") {
                     HStack(spacing: 4) {
                         authMethodIcon(method)
                         Text(method.displayName)
@@ -456,10 +459,10 @@ private struct AccountDetailSheet: View {
                 .frame(width: 13, height: 13)
         case .apple:
             Image(systemName: "apple.logo")
-                .font(.system(size: 11))
+                .font(TypographyTokens.detail)
         case .email:
             Image(systemName: "envelope.fill")
-                .font(.system(size: 11))
+                .font(TypographyTokens.detail)
         }
     }
 

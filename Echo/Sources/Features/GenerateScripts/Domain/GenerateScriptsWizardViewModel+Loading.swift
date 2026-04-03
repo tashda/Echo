@@ -14,7 +14,9 @@ extension GenerateScriptsWizardViewModel {
 
                 if let mssql = session as? MSSQLSession {
                     let metadata = mssql.metadata
-                    objects = try await metadata.listAllObjects(database: db).compactMap { sqlObject in
+                    let rawObjects = try await metadata.listAllObjects(database: db)
+                    logger.info("Generate Scripts: loaded \(rawObjects.count) raw objects from database '\(db)'")
+                    objects = rawObjects.compactMap { sqlObject in
                         guard let type = Self.objectType(forSQLServerTypeCode: sqlObject.type) else {
                             return nil
                         }
@@ -28,7 +30,9 @@ extension GenerateScriptsWizardViewModel {
                         loadedObjects.append(contentsOf: schemaInfo.objects.map(GenerateScriptsObject.init))
                     }
                     objects = loadedObjects
+                    logger.info("Generate Scripts: loaded \(objects.count) objects via metadata session for database '\(db)'")
                 } else {
+                    logger.warning("Generate Scripts: session type \(type(of: session)) does not conform to MSSQLSession or DatabaseMetadataSession")
                     objects = []
                 }
 
@@ -39,7 +43,7 @@ extension GenerateScriptsWizardViewModel {
                 )
                 self.isLoadingObjects = false
             } catch {
-                logger.error("Failed to load objects: \(error)")
+                logger.error("Failed to load objects for database '\(db)': \(error)")
                 self.isLoadingObjects = false
             }
         }

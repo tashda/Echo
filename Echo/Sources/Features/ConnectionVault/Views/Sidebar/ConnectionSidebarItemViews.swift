@@ -68,7 +68,7 @@ struct ConnectionFolderView: View {
             .contextMenu {
                 // Group 2: New
                 Button { onCreateConnection(group.folder) } label: {
-                    Label("New Connection", systemImage: "network.badge.plus")
+                    Label("New Connection", systemImage: "network")
                 }
                 Button { onCreateFolder(group.folder) } label: {
                     Label("New Folder", systemImage: "folder.badge.plus")

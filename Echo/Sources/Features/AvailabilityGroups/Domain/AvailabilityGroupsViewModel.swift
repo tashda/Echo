@@ -14,6 +14,7 @@ final class AvailabilityGroupsViewModel {
 
     @ObservationIgnored private let agClient: SQLServerAvailabilityGroupsClient
     @ObservationIgnored let connectionSessionID: UUID
+    @ObservationIgnored var activityEngine: ActivityEngine?
 
     var loadingState: LoadingState = .idle
     var isHadrEnabled = false
@@ -42,6 +43,7 @@ final class AvailabilityGroupsViewModel {
 
     func loadAll() async {
         loadingState = .loading
+        let handle = activityEngine?.begin("Loading availability groups", connectionSessionID: connectionSessionID)
         do {
             isHadrEnabled = try await agClient.isHadrEnabled()
             if isHadrEnabled {
@@ -52,8 +54,10 @@ final class AvailabilityGroupsViewModel {
                 }
             }
             loadingState = .loaded
+            handle?.succeed()
         } catch {
             loadingState = .error(error.localizedDescription)
+            handle?.fail(error.localizedDescription)
         }
     }
 

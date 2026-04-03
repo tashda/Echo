@@ -15,4 +15,11 @@ extension Logger {
     static let diagram = Logger(subsystem: subsystem, category: "diagram")
     static let fonts = Logger(subsystem: subsystem, category: "fonts")
     static let grid = Logger(subsystem: subsystem, category: "grid")
+    static let validation = Logger(subsystem: subsystem, category: "validation")
+}
+
+extension Notification.Name {
+    /// Posted when database schema loads complete and the completion context should refresh.
+    /// The `userInfo` contains `["context": SQLEditorCompletionContext]`.
+    static let completionContextDidUpdate = Notification.Name("dev.echodb.echo.completionContextDidUpdate")
 }

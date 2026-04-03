@@ -26,17 +26,21 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             print("[PERF] startStructureLoadTask: Task STARTED executing after \(String(format: "%.3f", CFAbsoluteTimeGetCurrent() - taskCreatedAt))s")
 
             ConnectionDebug.log("[SchemaDiscovery] Starting structure load for \(session.connection.connectionName)")
-            
+
+            let handle = AppDirector.shared.activityEngine.begin("Loading databases", connectionSessionID: session.id)
             do {
                 _ = try await self.loadDatabaseStructureForSession(session)
                 session.structureLoadingState = .ready
                 session.structureLoadingMessage = nil
+                handle.succeed()
                 await self.onEnqueuePrefetch?(session)
             } catch is CancellationError {
                 session.structureLoadingState = .idle
+                handle.cancel()
             } catch {
                 session.structureLoadingMessage = error.localizedDescription
                 session.structureLoadingState = .failed(message: error.localizedDescription)
+                handle.fail(error.localizedDescription)
                 ConnectionDebug.log("[SchemaDiscovery] Load failed: \(error.localizedDescription)")
             }
         }
@@ -249,7 +253,8 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
     private func applyStructureUpdate(_ structure: DatabaseStructure, to session: ConnectionSession, cacheResult: Bool) -> Bool {
         var updated = structure
         updated.id = session.databaseStructure?.id ?? structure.id
-        updated.incrementVersion()
+        let baseVersion = session.databaseStructure?.version ?? structure.version
+        updated.incrementVersion(from: baseVersion)
         session.databaseStructure = updated
         if cacheResult {
             schedulePersist(updated, for: session)

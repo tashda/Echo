@@ -32,7 +32,7 @@ struct MySQLUserLimitsSheet: View {
         SheetLayoutCustomFooter(title: "Edit Account Limits") {
             Form {
                 Section("Account") {
-                    LabeledContent("User") {
+                    PropertyRow(title: "User") {
                         Text(accountName)
                             .textSelection(.enabled)
                     }
@@ -62,7 +62,7 @@ struct MySQLUserLimitsSheet: View {
                 )
                 onDismiss()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
         }
         .frame(minWidth: 520, minHeight: 320)

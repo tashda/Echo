@@ -12,12 +12,6 @@ extension QueryResultsSection {
                 switch selectedTab {
                 case .results:
                     resultsView
-                case .textResults:
-                    textResultsView
-                case .verticalResults:
-                    verticalResultsView
-                case .statistics:
-                    statisticsView
                 case .messages:
                     messagesView
 #if os(macOS)
@@ -27,12 +21,8 @@ extension QueryResultsSection {
                     executionPlanView
                 case .spatial:
                     spatialView
-                case .tuning:
-                    tuningView
                 case .policyManagement:
                     EmptyView()
-                case .history:
-                    QueryHistoryPanelView(connectionID: connection.id)
 #endif
                 }
             }
@@ -46,8 +36,10 @@ extension QueryResultsSection {
             if hasRows || !query.additionalResults.isEmpty {
 #if os(macOS)
                 VStack(spacing: 0) {
-                    resultsToolbar
-                    Divider()
+                    if !query.additionalResults.isEmpty {
+                        resultsToolbar
+                        Divider()
+                    }
                     switch gridState.detailMode {
                     case .table:
                         if query.additionalResults.isEmpty {
@@ -305,13 +297,6 @@ extension QueryResultsSection {
         SpatialResultsView(query: query)
     }
 
-    var tuningView: some View {
-        ContentUnavailableView {
-            Label("Tuning Advisor", systemImage: "wand.and.stars")
-        } description: {
-            Text("Missing index recommendations will appear here.")
-        }
-    }
 #endif
 
     var platformBackground: Color { ColorTokens.Background.primary }

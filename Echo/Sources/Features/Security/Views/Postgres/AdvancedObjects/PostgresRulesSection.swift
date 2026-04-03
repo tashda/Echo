@@ -101,9 +101,9 @@ struct PostgresRulesSection: View {
             }
             Divider()
             if selection.count == 1, let name = selection.first {
-                Button("Rename\u{2026}") {
+                Button {
                     pendingEdit = PendingEdit(action: .rename, objectName: name, initialValue: name)
-                }
+                } label: { Label("Rename", systemImage: "character.cursor.ibeam") }
                 Divider()
                 Button(role: .destructive) { pendingDropName = name } label: {
                     Label("Drop Rule", systemImage: "trash")

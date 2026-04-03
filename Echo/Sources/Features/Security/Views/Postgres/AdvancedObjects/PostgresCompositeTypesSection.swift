@@ -89,15 +89,15 @@ struct PostgresCompositeTypesSection: View {
             Divider()
             if selection.count == 1, let name = selection.first {
                 let type = viewModel.compositeTypes.first { $0.name == name }
-                Button("Rename\u{2026}") {
+                Button {
                     pendingEdit = PendingEdit(action: .rename, objectName: name, initialValue: name)
-                }
-                Button("Change Owner\u{2026}") {
+                } label: { Label("Rename", systemImage: "character.cursor.ibeam") }
+                Button {
                     pendingEdit = PendingEdit(action: .changeOwner, objectName: name, initialValue: "")
-                }
-                Button("Change Schema\u{2026}") {
+                } label: { Label("Change Owner", systemImage: "person") }
+                Button {
                     pendingEdit = PendingEdit(action: .changeSchema, objectName: name, initialValue: type?.schema ?? "public")
-                }
+                } label: { Label("Change Schema", systemImage: "rectangle.stack") }
                 Divider()
                 Button(role: .destructive) { pendingDropName = name } label: {
                     Label("Drop Type", systemImage: "trash")

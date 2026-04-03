@@ -22,6 +22,7 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func clearColumnSelection(in tableView: NSTableView) {
+        additionalRegions.removeAll()
         setSelectionRegion(nil, tableView: tableView)
         tableView.highlightedTableColumn = nil
         notifyClearColumnHighlight()

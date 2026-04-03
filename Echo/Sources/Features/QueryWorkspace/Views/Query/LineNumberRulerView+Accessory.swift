@@ -111,9 +111,28 @@ struct GlowFrameView: View {
     var cornerRadius: CGFloat
     var baseLineWidth: CGFloat
     var isHovering: Bool
+    var palette: [Color]
+    /// Slower animation cycle for validation glows (seconds between gradient shifts)
+    var animationInterval: TimeInterval
+    /// Longer transition for a slow, pulsing feel on validation
+    var transitionDuration: TimeInterval
 
-    @State private var gradientStops: [Gradient.Stop] = GlowFrameView.generateGradientStops()
-    private let timer = Timer.publish(every: 0.45, on: .main, in: .common).autoconnect()
+    @State private var gradientStops: [Gradient.Stop] = []
+    @State private var timer: Publishers.Autoconnect<Timer.TimerPublisher>
+
+    init(cornerRadius: CGFloat, baseLineWidth: CGFloat, isHovering: Bool,
+         palette: [Color] = GlowFrameView.completionPalette,
+         animationInterval: TimeInterval = 0.45,
+         transitionDuration: TimeInterval = 0.6) {
+        self.cornerRadius = cornerRadius
+        self.baseLineWidth = baseLineWidth
+        self.isHovering = isHovering
+        self.palette = palette
+        self.animationInterval = animationInterval
+        self.transitionDuration = transitionDuration
+        self._gradientStops = State(initialValue: GlowFrameView.generateGradientStops(from: palette))
+        self._timer = State(initialValue: Timer.publish(every: animationInterval, on: .main, in: .common).autoconnect())
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -130,8 +149,8 @@ struct GlowFrameView: View {
         }
         .allowsHitTesting(false)
         .onReceive(timer) { _ in
-            withAnimation(.easeInOut(duration: 0.6)) {
-                gradientStops = GlowFrameView.generateGradientStops()
+            withAnimation(.easeInOut(duration: transitionDuration)) {
+                gradientStops = GlowFrameView.generateGradientStops(from: palette)
             }
         }
     }
@@ -146,17 +165,29 @@ struct GlowFrameView: View {
             .opacity(opacity)
     }
 
-    static func generateGradientStops() -> [Gradient.Stop] {
-        let palette = [
-            ColorTokens.Glow.violet,
-            ColorTokens.Glow.pink,
-            ColorTokens.Glow.periwinkle,
-            ColorTokens.Glow.coral,
-            ColorTokens.Glow.peach,
-            ColorTokens.Glow.lavender
-        ]
+    /// Default completion palette (violet/pink/periwinkle)
+    static let completionPalette: [Color] = [
+        ColorTokens.Glow.violet,
+        ColorTokens.Glow.pink,
+        ColorTokens.Glow.periwinkle,
+        ColorTokens.Glow.coral,
+        ColorTokens.Glow.peach,
+        ColorTokens.Glow.lavender
+    ]
 
-        return palette.map { color in
+    /// Validation error palette — deep reds and crimsons with warm accents.
+    /// Slow-pulsing gradient that reads as "error" without being harsh.
+    static let validationPalette: [Color] = [
+        Color(red: 0.90, green: 0.20, blue: 0.20),  // crimson
+        Color(red: 0.85, green: 0.15, blue: 0.25),  // deep red
+        Color(red: 1.00, green: 0.35, blue: 0.30),  // warm red
+        Color(red: 0.95, green: 0.25, blue: 0.20),  // scarlet
+        Color(red: 1.00, green: 0.45, blue: 0.35),  // coral accent
+        Color(red: 0.80, green: 0.18, blue: 0.22),  // dark crimson
+    ]
+
+    static func generateGradientStops(from palette: [Color] = completionPalette) -> [Gradient.Stop] {
+        palette.map { color in
             Gradient.Stop(color: color, location: Double.random(in: 0...1))
         }.sorted(by: { $0.location < $1.location })
     }

@@ -165,12 +165,12 @@ struct PostgresFDWSection: View {
             }
             Divider()
             if selection.count == 1, let name = selection.first {
-                Button("Rename\u{2026}") {
+                Button {
                     pendingFDWEdit = PendingEdit(action: .rename, objectName: name, initialValue: name)
-                }
-                Button("Change Owner\u{2026}") {
+                } label: { Label("Rename", systemImage: "character.cursor.ibeam") }
+                Button {
                     pendingFDWEdit = PendingEdit(action: .changeOwner, objectName: name, initialValue: "")
-                }
+                } label: { Label("Change Owner", systemImage: "person") }
                 Divider()
                 Button(role: .destructive) { pendingDropFDW = name } label: {
                     Label("Drop FDW", systemImage: "trash")
@@ -209,12 +209,12 @@ struct PostgresFDWSection: View {
             }
             Divider()
             if selection.count == 1, let name = selection.first {
-                Button("Rename\u{2026}") {
+                Button {
                     pendingServerEdit = PendingEdit(action: .rename, objectName: name, initialValue: name)
-                }
-                Button("Change Owner\u{2026}") {
+                } label: { Label("Rename", systemImage: "character.cursor.ibeam") }
+                Button {
                     pendingServerEdit = PendingEdit(action: .changeOwner, objectName: name, initialValue: "")
-                }
+                } label: { Label("Change Owner", systemImage: "person") }
                 Divider()
                 Button(role: .destructive) { pendingDropServer = name } label: {
                     Label("Drop Server", systemImage: "trash")

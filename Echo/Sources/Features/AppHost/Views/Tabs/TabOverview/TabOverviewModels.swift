@@ -42,7 +42,6 @@ extension WorkspaceTab.Kind {
         case .serverProperties: return "Server Properties"
         case .tuningAdvisor: return "Tuning Advisor"
         case .policyManagement: return "Policy Management"
-        case .tableData: return "Table Data"
         case .schemaDiff: return "Schema Diff"
         case .queryBuilder: return "Query Builder"
         }
@@ -69,7 +68,6 @@ extension WorkspaceTab.Kind {
         case .serverProperties: return "gearshape.2"
         case .tuningAdvisor: return "wand.and.stars"
         case .policyManagement: return "checkmark.seal"
-        case .tableData: return "tablecells.badge.ellipsis"
         case .schemaDiff: return "doc.on.doc"
         case .queryBuilder: return "hammer"
         }

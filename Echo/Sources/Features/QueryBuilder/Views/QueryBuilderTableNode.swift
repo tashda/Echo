@@ -77,10 +77,16 @@ struct QueryBuilderTableNode: View {
         )
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
         .contextMenu {
-            Button("Select All Columns") { onSelectAll() }
-            Button("Deselect All Columns") { onDeselectAll() }
+            Button { onSelectAll() } label: {
+                Label("Select All Columns", systemImage: "checkmark.circle")
+            }
+            Button { onDeselectAll() } label: {
+                Label("Deselect All Columns", systemImage: "circle")
+            }
             Divider()
-            Button("Remove from Query", role: .destructive) { onRemove() }
+            Button(role: .destructive) { onRemove() } label: {
+                Label("Remove from Query", systemImage: "xmark.circle")
+            }
         }
     }
 }

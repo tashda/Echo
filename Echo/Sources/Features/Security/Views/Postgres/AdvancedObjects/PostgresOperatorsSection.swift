@@ -108,12 +108,12 @@ struct PostgresOperatorsSection: View {
             Divider()
             if selection.count == 1, let id = selection.first {
                 let op = viewModel.operators.first { $0.id == id }
-                Button("Change Owner\u{2026}") {
+                Button {
                     pendingEdit = PendingEdit(action: .changeOwner, objectName: id, initialValue: "")
-                }
-                Button("Change Schema\u{2026}") {
+                } label: { Label("Change Owner", systemImage: "person") }
+                Button {
                     pendingEdit = PendingEdit(action: .changeSchema, objectName: id, initialValue: op?.schema ?? "public")
-                }
+                } label: { Label("Change Schema", systemImage: "rectangle.stack") }
                 Divider()
                 Button(role: .destructive) { pendingDropID = id } label: {
                     Label("Drop Operator", systemImage: "trash")

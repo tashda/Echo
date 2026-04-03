@@ -19,10 +19,15 @@ extension QueryResultsTableView.Coordinator {
 
         let velocity = computeAutoscrollVelocity(in: tableView)
 
-        if velocity == .zero {
+        var adjusted = velocity
+        if isDraggingRowSelection {
+            adjusted.x = 0
+        }
+
+        if adjusted == .zero {
             stopAutoscroll()
         } else {
-            autoscrollVelocity = velocity
+            autoscrollVelocity = adjusted
             startAutoscroll(for: tableView, scrollView: scrollView)
         }
     }
