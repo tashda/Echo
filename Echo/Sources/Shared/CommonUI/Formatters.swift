@@ -61,6 +61,8 @@ enum EchoFormatters {
     static func compactNumber(_ value: Int) -> String {
         if value >= 1_000_000 {
             return String(format: "%.1fM", Double(value) / 1_000_000)
+        } else if value >= 100_000 {
+            return "\(value / 1_000)K"
         } else {
             return decimalFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
         }
