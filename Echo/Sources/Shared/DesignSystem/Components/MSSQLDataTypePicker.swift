@@ -126,6 +126,11 @@ struct MSSQLDataTypePicker: View {
                     baseType = ""
                     selection = ""
                 } else {
+                    let currentSelection = Self.selectionState(for: selection)
+                    if currentSelection.baseType.caseInsensitiveCompare(newValue) == .orderedSame {
+                        sizeParam = currentSelection.sizeParam
+                        return
+                    }
                     sizeParam = Self.parameterInfo[newValue.lowercased()]?.defaultValue ?? ""
                     syncToSelection()
                 }
@@ -137,17 +142,10 @@ struct MSSQLDataTypePicker: View {
     private func syncFromSelection() {
         isSyncing = true
         defer { isSyncing = false }
-        let parsed = parseType(selection)
-        if Self.allFlat.contains(where: { $0.lowercased() == parsed.base.lowercased() }) {
-            baseType = Self.allFlat.first { $0.lowercased() == parsed.base.lowercased() } ?? parsed.base
-            sizeParam = parsed.param.isEmpty ? (Self.parameterInfo[baseType.lowercased()]?.defaultValue ?? "") : parsed.param
-        } else if selection.isEmpty {
-            baseType = "nvarchar"
-            sizeParam = "255"
-            syncToSelection()
-        } else {
-            isCustom = true
-        }
+        let resolvedState = Self.selectionState(for: selection)
+        baseType = resolvedState.baseType
+        sizeParam = resolvedState.sizeParam
+        isCustom = resolvedState.isCustom
     }
 
     private func syncToSelection() {
@@ -162,7 +160,23 @@ struct MSSQLDataTypePicker: View {
         selection = newValue
     }
 
-    private func parseType(_ type: String) -> (base: String, param: String) {
+    internal static func selectionState(for selection: String) -> (baseType: String, sizeParam: String, isCustom: Bool) {
+        let trimmedSelection = selection.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSelection.isEmpty else {
+            return ("", "", false)
+        }
+
+        let parsed = parseType(trimmedSelection)
+        guard let matchedType = allFlat.first(where: { $0.lowercased() == parsed.base.lowercased() }) else {
+            return ("", "", true)
+        }
+
+        // Preserve metadata-provided bare types such as `nvarchar` so opening the
+        // editor doesn't rewrite them to an arbitrary default like `nvarchar(255)`.
+        return (matchedType, parsed.param, false)
+    }
+
+    private static func parseType(_ type: String) -> (base: String, param: String) {
         guard let openParen = type.firstIndex(of: "("),
               let closeParen = type.lastIndex(of: ")") else {
             return (type, "")

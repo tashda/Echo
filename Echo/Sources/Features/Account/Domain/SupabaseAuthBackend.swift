@@ -120,9 +120,20 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
     // MARK: - Account Management
 
     func deleteAccount(accessToken: String) async throws {
-        // Supabase doesn't have a client-side delete — requires a server function or admin API
-        // For now, sign out. Full deletion requires a server-side Edge Function.
-        try await client.auth.signOut()
+        do {
+            let response: DeleteAccountResponse = try await client.functions.invoke(
+                "delete-account",
+                options: FunctionInvokeOptions(
+                    body: DeleteAccountRequest()
+                )
+            )
+
+            if response.success != true {
+                throw AuthError.unknown(response.error ?? "Delete account failed.")
+            }
+        } catch {
+            throw mapDeleteAccountError(error)
+        }
     }
 
     func linkAccount(method: AuthMethod, accessToken: String, payload: Data) async throws -> AuthUser {
@@ -194,4 +205,62 @@ nonisolated struct SupabaseAuthBackend: AuthBackend {
 
 private extension Auth.User {
     // Supabase SDK uses AnyJSON for metadata
+}
+
+private extension SupabaseAuthBackend {
+    struct DeleteAccountRequest: Encodable {}
+
+    struct DeleteAccountResponse: Decodable {
+        let success: Bool
+        let error: String?
+    }
+
+    func mapDeleteAccountError(_ error: any Error) -> AuthError {
+        if let functionsError = error as? FunctionsError {
+            switch functionsError {
+            case .relayError:
+                return .unknown(
+                    "Delete Account failed because the Supabase Edge Function relay could not reach 'delete-account'."
+                )
+            case .httpError(let code, let data):
+                let body = String(data: data, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if code == 404 || code == 503 {
+                    return .unknown(
+                        "Delete Account requires a deployed Supabase Edge Function named 'delete-account'."
+                    )
+                }
+
+                if let body, !body.isEmpty, let serverMessage = extractDeleteAccountMessage(from: body) {
+                    return .unknown(serverMessage)
+                }
+
+                return .unknown("Delete Account failed with HTTP \(code).")
+            }
+        }
+
+        let message = String(describing: error)
+        if message.localizedCaseInsensitiveContains("delete-account") {
+            return .unknown(
+                "Delete Account requires a deployed Supabase Edge Function named 'delete-account'."
+            )
+        }
+        return .unknown(message)
+    }
+
+    func extractDeleteAccountMessage(from body: String) -> String? {
+        if let data = body.data(using: .utf8),
+           let payload = try? JSONDecoder().decode(DeleteAccountResponse.self, from: data),
+           let error = payload.error,
+           !error.isEmpty {
+            return error
+        }
+
+        if body.isEmpty {
+            return nil
+        }
+
+        return body
+    }
 }

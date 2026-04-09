@@ -1,72 +1,105 @@
-# <img src=".github/assets/app_icon.png" width="64" align="left" style="margin-right: 15px;"> Echo
+<div align="center">
+  <img src=".github/assets/app_icon.png" width="128" height="128" alt="Echo App Icon">
+  <h1>Echo</h1>
+  <p><strong>The Definitive Database Client for macOS 26 Tahoe</strong></p>
 
-<br>
+  [![Website](https://img.shields.io/badge/website-echodb.dev-blue?style=for-the-badge)](https://echodb.dev)
+  [![macOS](https://img.shields.io/badge/macOS-26%2B-black?style=for-the-badge&logo=apple)](https://developer.apple.com/macos/)
+  [![Swift](https://img.shields.io/badge/Swift-6.2-orange?style=for-the-badge&logo=swift)](https://swift.org)
 
-**Echo** is a fast, lightweight, and truly native macOS database management client. Built from the ground up with SwiftUI and AppKit, it provides a seamless, Mac-first experience without the overhead of Electron or Java-based wrappers. 
-
-Connect to your favorite relational databases, execute complex queries, and manage your data with speed and elegance.
+  <p>
+    <a href="#-key-features">Features</a> •
+    <a href="#-the-engine-custom-built-native-drivers">Engine</a> •
+    <a href="#-supported-databases">Databases</a> •
+    <a href="#-installation">Installation</a>
+  </p>
+</div>
 
 ---
 
-## ✨ Features
+**Echo** is a high-performance, strictly native database management suite built exclusively for the modern macOS era. Eschewing the resource-heavy paradigms of Electron and Java, Echo leverages **Swift 6.2** and the **macOS 26 Tahoe** design language to deliver a tool that feels like a first-class citizen on your Mac.
 
-- **Truly Native:** Built with Swift and optimized for Apple Silicon and macOS 15+. Fast, responsive, and integrates deeply with native macOS features.
-- **Multi-Database Support:** 
-  - 🐘 PostgreSQL
-  - 🐬 MySQL
-  - 🪶 SQLite
-  - 🏢 Microsoft SQL Server (MSSQL)
-- **Advanced SQL Editor:** Syntax highlighting, smart autocomplete, and a responsive query editing experience.
-- **High-Performance Results Table:** Stream and navigate massive datasets instantly with native, hardware-accelerated grid rendering.
-- **Intuitive Object Browser:** Seamlessly explore schemas, tables, views, and routines.
-- **Security & Role Management:** Built-in tools for managing database logins, roles, parameters, and security labels.
-- **Dark Mode Support:** Beautifully adapts to your system theme.
+Designed for engineers who demand precision, Echo combines a minimalist aesthetic with deep, dialect-specific functionality for PostgreSQL, Microsoft SQL Server, and more.
+
+---
+
+## ✨ Key Features
+
+### 🧠 EchoSense™ Intelligence
+Stop fighting with syntax. EchoSense is our context-aware SQL autocomplete engine that understands your schema, foreign keys, and dialect-specific quirks. It doesn't just suggest keywords; it predicts your intent.
+- **Dialect-Aware:** Precise suggestions for T-SQL, PL/pgSQL, and SQLite.
+- **Schema Navigation:** Autocomplete tables, columns, and joins based on live metadata.
+
+### ⚙️ Activity Engine
+Long-running operations shouldn't be a black box. Our centralized **Activity Engine** tracks backups, restores, and maintenance tasks directly in the native toolbar.
+- **Real-time Progress:** Visual feedback for every background task.
+- **Detailed History:** Audit exactly what happened and when.
+
+### 🛠️ Professional Maintenance Suite
+Go beyond simple queries. Echo provides deep integration for database administration:
+- **MSSQL Power Tools:** Rebuild indexes, check integrity, and manage agent jobs with native UI.
+- **Postgres Management:** Vacuum, reindex, and security label management.
+- **Schema Browser:** A lightning-fast, hierarchical view of your entire database structure.
+
+### 📊 Streaming Query Workspace
+Experience zero-lag result sets. Echo streams data directly from the wire to a hardware-accelerated grid.
+- **Execution Plans:** Visualize how your queries run to find bottlenecks.
+- **Native Rendering:** Handles millions of rows with minimal memory footprint.
+
+---
+
+## 🏗️ The Engine: Custom-Built Native Drivers
+
+Unlike other database clients that rely on generic, multi-platform libraries, Echo is powered by a suite of **first-party, custom-built database drivers**. We maintain the entire stack to ensure absolute performance, memory efficiency, and seamless integration with Swift's modern concurrency model.
+
+- **[postgres-wire](https://github.com/tashda/postgres-wire):** A high-performance, pure Swift implementation of the PostgreSQL wire protocol. No C-dependencies, just raw speed.
+- **[sqlserver-nio](https://github.com/tashda/sqlserver-nio):** Built on SwiftNIO, this driver provides an asynchronous, non-blocking bridge to Microsoft SQL Server, supporting advanced T-SQL features.
+- **[mysql-wire](https://github.com/tashda/mysql-wire):** Our native MySQL implementation, currently in active development to bring the same performance standards to the MySQL ecosystem.
+
+### What this means for you:
+- **Zero Overhead:** No translation layers between the UI and the database socket.
+- **Data-Race Safety:** Built from the ground up for **Swift 6.2**, ensuring compile-time safety for your data.
+- **Native Efficiency:** Minimal memory footprint even when streaming millions of rows.
+
+---
+
+## 🗄️ Supported Databases
+
+| Database | Status | Features |
+| :--- | :--- | :--- |
+| **PostgreSQL** | 🟢 Stable | Streaming, Metadata, Security, Maintenance |
+| **Microsoft SQL Server** | 🟢 Stable | T-SQL, Agent Jobs, Maintenance, Indexing |
+| **SQLite** | 🟢 Stable | Local browser, Full Schema Support |
+| **MySQL** | 🟡 Beta | Query Execution, Table Exploration |
 
 ---
 
 ## 🚀 Installation
 
-### Via Homebrew (Recommended)
-The easiest way to install and keep Echo updated is via Homebrew. Using the `--no-quarantine` flag is recommended to bypass macOS Gatekeeper (as the open-source releases are currently ad-hoc signed):
+Echo is distributed as a standalone, signed macOS application. 
+
+1. **Download:** Grab the latest release from the [GitHub Releases](https://github.com/tashda/Echo/releases) page or visit [echodb.dev](https://echodb.dev).
+2. **Move to Applications:** Drag `Echo.app` into your `/Applications` folder.
+3. **Auto-Updates:** Echo includes a built-in update mechanism powered by **Sparkle**. You will be notified automatically when a new version is available.
+
+---
+
+## 🛠️ Developer Setup
 
 ```bash
-brew install --cask --no-quarantine tashda/tap/echo
+# Clone the repository
+git clone https://github.com/tashda/Echo.git
+
+# Open in Xcode 26+
+open Echo.xcodeproj
+
+# Build and Run
+# Ensure the 'Echo' scheme is selected (Cmd + R)
 ```
 
-### Manual Download
-You can download the latest compiled `.zip` from the [Releases](https://github.com/tashda/Echo/releases) page. 
-
-*Note: If you install manually without Homebrew, you may need to **Right-Click** the app and select **Open** the first time you launch it to bypass the macOS "unverified developer" warning.*
-
 ---
 
-## 🔄 Auto-Updates
-Echo uses the [Sparkle](https://sparkle-project.org) framework for secure automatic updates via EdDSA (Ed25519) cryptographic signatures. 
-
-You can manually check for updates at any time via the menu bar: **Echo > Check for Updates...** or simply wait for the app to notify you when a new version is released.
-
----
-
-## 🛠️ Developer Setup & CI/CD
-
-Interested in building Echo from source or contributing? Echo uses the Swift Package Manager (SPM) and is built strictly for modern macOS architectures.
-
-1. Clone the repository.
-2. Open `Echo.xcodeproj` in **Xcode 16+**.
-3. Let SPM resolve the required dependencies.
-4. Select the `Echo` scheme and hit `Cmd + R` to build and run.
-
-### Automated Releases
-This repository is configured with a fully automated GitHub Actions pipeline (`.github/workflows/build-release.yml`).
-
-- **Trigger:** Any push or pull-request merge to the `main` branch.
-- **Process:** The workflow builds the app (Release configuration), packages it into a ZIP, signs the update with Sparkle keys, and publishes a new GitHub Release.
-- **Appcast:** The Sparkle update feed (`appcast.xml`) is automatically generated and hosted alongside each release.
-
-*(Note for maintainers: To run the pipeline, ensure `SPARKLE_PRIVATE_KEY` is set in the repository's Actions Secrets).*
-
----
-
-## 📝 License
-
-*(License information to be added)*
+<div align="center">
+  <p>Built with ❤️ by the Echo Team.</p>
+  <p><a href="https://echodb.dev">echodb.dev</a></p>
+</div>

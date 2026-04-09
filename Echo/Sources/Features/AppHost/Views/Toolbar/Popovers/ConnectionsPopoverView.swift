@@ -121,15 +121,7 @@ struct ConnectionsPopoverView: View {
 
     @ViewBuilder
     private func connectionIcon(_ connection: SavedConnection) -> some View {
-        if let image = NSImage(named: connection.databaseType.iconName) {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-        } else {
-            Image(systemName: "server.rack")
-                .font(TypographyTokens.caption2)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
+        DatabaseTypeIcon(databaseType: connection.databaseType, presentation: .menu)
     }
 
     // MARK: - Data

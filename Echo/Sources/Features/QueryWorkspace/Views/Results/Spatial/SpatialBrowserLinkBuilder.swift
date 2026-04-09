@@ -61,7 +61,11 @@ enum SpatialBrowserLinkBuilder {
 
     private static func browserCoordinateString(_ value: Double) -> String {
         let roundedValue = (value * 1_000_000).rounded() / 1_000_000
-        return roundedValue.formatted(.number.precision(.fractionLength(0...6)))
+        return roundedValue.formatted(
+            .number
+            .precision(.fractionLength(0...6))
+            .locale(Locale(identifier: "en_US_POSIX"))
+        )
     }
 }
 

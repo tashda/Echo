@@ -99,7 +99,7 @@ struct ResultGridColorSettingsSection: View {
             }
             .padding(SpacingTokens.xs)
             .background(ColorTokens.Background.secondary.opacity(0.5))
-            .cornerRadius(6)
+            .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.small))
         }
     }
 }

@@ -369,6 +369,24 @@ extension EnvironmentState {
         }
     }
 
+    func openInPsql(for session: ConnectionSession? = nil, database: String? = nil) {
+        let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
+        guard let targetSession else { return }
+        let requestedDatabase = (database ?? targetSession.sidebarFocusedDatabase ?? targetSession.connection.database)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let effectiveDatabase = requestedDatabase.isEmpty ? "postgres" : requestedDatabase
+        let connection = targetSession.connection
+
+        Task {
+            await PostgresTerminalLauncher.openInTerminal(
+                host: connection.host,
+                port: connection.port,
+                username: connection.username,
+                database: effectiveDatabase
+            )
+        }
+    }
+
     func openJobQueueTab(for session: ConnectionSession, selectJobID: String? = nil) {
         // Reuse existing Jobs tab for this session if one exists
         if let existingTab = tabStore.tabs.first(where: { $0.kind == .jobQueue && $0.connectionSessionID == session.id }) {

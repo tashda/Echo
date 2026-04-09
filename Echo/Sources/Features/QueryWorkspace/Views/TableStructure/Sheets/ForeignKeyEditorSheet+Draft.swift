@@ -4,22 +4,30 @@ import Foundation
 extension ForeignKeyEditorSheet {
 
     func applyDraftToModel() {
-        foreignKey.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.columns = draft.mappings.map(\.localColumn)
-        foreignKey.referencedSchema = draft.referencedSchema.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.referencedTable = draft.referencedTable.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.referencedColumns = draft.mappings.map {
+        let referencedColumns = draft.mappings.map {
             $0.referencedColumn.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         let updateValue = draft.onUpdate.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.onUpdate = updateValue.isEmpty || updateValue == ForeignKeyAction.noAction.rawValue ? nil : updateValue
-
         let deleteValue = draft.onDelete.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.onDelete = deleteValue.isEmpty || deleteValue == ForeignKeyAction.noAction.rawValue ? nil : deleteValue
+        let updatedForeignKey = TableStructureEditorViewModel.ForeignKeyModel(
+            original: foreignKey.original,
+            name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
+            columns: draft.mappings.map(\.localColumn),
+            referencedSchema: draft.referencedSchema.trimmingCharacters(in: .whitespacesAndNewlines),
+            referencedTable: draft.referencedTable.trimmingCharacters(in: .whitespacesAndNewlines),
+            referencedColumns: referencedColumns,
+            onUpdate: updateValue.isEmpty || updateValue == ForeignKeyAction.noAction.rawValue ? nil : updateValue,
+            onDelete: deleteValue.isEmpty || deleteValue == ForeignKeyAction.noAction.rawValue ? nil : deleteValue,
+            isDeferrable: draft.isDeferrable,
+            isInitiallyDeferred: draft.isInitiallyDeferred
+        )
 
-        foreignKey.isDeferrable = draft.isDeferrable
-        foreignKey.isInitiallyDeferred = draft.isInitiallyDeferred
+        if draft.isEditingExisting {
+            foreignKey = updatedForeignKey
+        } else {
+            onSaveNew?(updatedForeignKey)
+        }
     }
 
     struct Draft {

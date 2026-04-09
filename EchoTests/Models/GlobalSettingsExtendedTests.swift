@@ -36,28 +36,6 @@ struct GlobalSettingsExtendedTests {
         }
     }
 
-    // MARK: - NativePsqlRuntimePreference
-
-    @Test func nativePsqlRuntimePreferenceAllCases() {
-        let cases = NativePsqlRuntimePreference.allCases
-        #expect(cases.count == 2)
-        #expect(cases.contains(.bundled))
-        #expect(cases.contains(.system))
-    }
-
-    @Test func nativePsqlRuntimePreferenceDisplayNames() {
-        #expect(NativePsqlRuntimePreference.bundled.displayName == "Bundled Binary")
-        #expect(NativePsqlRuntimePreference.system.displayName == "System Binary")
-    }
-
-    @Test func nativePsqlRuntimePreferenceCodableRoundTrip() throws {
-        for pref in NativePsqlRuntimePreference.allCases {
-            let data = try JSONEncoder().encode(pref)
-            let decoded = try JSONDecoder().decode(NativePsqlRuntimePreference.self, from: data)
-            #expect(decoded == pref)
-        }
-    }
-
     // MARK: - SidebarAutoExpandSection: displayName
 
     @Test func sidebarAutoExpandSectionDisplayNames() {
@@ -213,6 +191,57 @@ struct GlobalSettingsExtendedTests {
         #expect(overrides.textHex == nil)
     }
 
+    @Test func globalSettingsObjectBrowserCacheDefault() {
+        let settings = GlobalSettings()
+        #expect(settings.objectBrowserCacheMaxBytes == 512 * 1_024 * 1_024)
+    }
+
+    @Test func globalSettingsObjectBrowserCacheCodableRoundTrip() throws {
+        var settings = GlobalSettings()
+        settings.objectBrowserCacheMaxBytes = 256 * 1_024 * 1_024
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(GlobalSettings.self, from: data)
+
+        #expect(decoded.objectBrowserCacheMaxBytes == 256 * 1_024 * 1_024)
+    }
+
+    // MARK: - NotificationPreferences
+
+    @Test func notificationGroupRemainsEnabledWhenAnyCategoryIsEnabled() {
+        var preferences = NotificationPreferences()
+        preferences.enableAll()
+        preferences.setEnabled(false, for: .connectionConnected)
+
+        #expect(preferences.isGroupEnabled(.connection))
+        #expect(!preferences.isEnabled(.connectionConnected))
+        #expect(preferences.isEnabled(.connectionDisconnected))
+        #expect(preferences.isEnabled(.connectionFailed))
+    }
+
+    @Test func notificationGroupToggleDisablesAllCategoriesInGroup() {
+        var preferences = NotificationPreferences()
+        preferences.enableAll()
+        preferences.setGroupEnabled(false, for: .connection)
+
+        #expect(!preferences.isGroupEnabled(.connection))
+        #expect(!preferences.isEnabled(.connectionConnected))
+        #expect(!preferences.isEnabled(.connectionDisconnected))
+        #expect(!preferences.isEnabled(.connectionFailed))
+        #expect(preferences.isEnabled(.generalSuccess))
+    }
+
+    @Test func notificationExplicitPreferencesPreserveSingleCategoryChanges() {
+        var preferences = NotificationPreferences()
+        preferences.markExplicitPreferences()
+        preferences.setEnabled(true, for: .generalInfo)
+        preferences.setEnabled(false, for: .generalSuccess)
+
+        #expect(preferences.isGroupEnabled(.general))
+        #expect(preferences.isEnabled(.generalInfo))
+        #expect(!preferences.isEnabled(.generalSuccess))
+    }
+
     // MARK: - GlobalSettings: Codable round-trip
 
     @Test func globalSettingsCodableRoundTripPreservesAllFields() throws {
@@ -240,11 +269,6 @@ struct GlobalSettingsExtendedTests {
         settings.sidebarAutoExpandSections = [.databases, .tables]
         settings.sidebarAutoExpandPostgresql = [.databases, .materializedViews]
         settings.sidebarAutoExpandSQLServer = [.databases, .procedures]
-        settings.nativePsqlEnabled = true
-        settings.nativePsqlRuntimePreference = .system
-        settings.nativePsqlAllowSystemBinaryFallback = true
-        settings.nativePsqlAllowShellEscape = false
-        settings.nativePsqlAllowFileCommands = false
         settings.sidebarIconColorMode = .monochrome
         settings.managedPostgresConsoleEnabled = false
 
@@ -274,11 +298,6 @@ struct GlobalSettingsExtendedTests {
         #expect(decoded.sidebarAutoExpandSections == [.databases, .tables])
         #expect(decoded.sidebarAutoExpandPostgresql == [.databases, .materializedViews])
         #expect(decoded.sidebarAutoExpandSQLServer == [.databases, .procedures])
-        #expect(decoded.nativePsqlEnabled == true)
-        #expect(decoded.nativePsqlRuntimePreference == .system)
-        #expect(decoded.nativePsqlAllowSystemBinaryFallback == true)
-        #expect(decoded.nativePsqlAllowShellEscape == false)
-        #expect(decoded.nativePsqlAllowFileCommands == false)
         #expect(decoded.sidebarIconColorMode == .monochrome)
         #expect(decoded.managedPostgresConsoleEnabled == false)
     }

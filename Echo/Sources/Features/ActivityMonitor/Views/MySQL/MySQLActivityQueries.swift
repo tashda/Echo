@@ -154,6 +154,7 @@ struct MySQLActivityQueries: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        let handle = viewModel.activityEngine?.begin("Loading query analysis", connectionSessionID: viewModel.connectionSessionID)
         do {
             let result: MySQLPerformanceReport
             switch selectedReport {
@@ -165,8 +166,10 @@ struct MySQLActivityQueries: View {
                 result = try await viewModel.loadMySQLFullTableScans()
             }
             report = result
+            handle?.succeed()
         } catch {
             errorMessage = error.localizedDescription
+            handle?.fail(error.localizedDescription)
         }
         isLoading = false
     }

@@ -113,6 +113,9 @@ final class PostgresSession: DatabaseSession {
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        if QueryStatementClassifier.isLikelyMessageOnlyStatement(sql, databaseType: .postgresql) {
+            return try await executeSimpleQuery(sql)
+        }
         if let progressHandler {
             let sanitized = sanitizeSQL(sql)
             return try await streamQuery(sanitizedSQL: sanitized, progressHandler: progressHandler, modeOverride: nil)
@@ -122,6 +125,9 @@ final class PostgresSession: DatabaseSession {
     }
 
     func simpleQuery(_ sql: String, executionMode: ResultStreamingExecutionMode?, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        if QueryStatementClassifier.isLikelyMessageOnlyStatement(sql, databaseType: .postgresql) {
+            return try await executeSimpleQuery(sql)
+        }
         if let progressHandler {
             let sanitized = sanitizeSQL(sql)
             return try await streamQuery(sanitizedSQL: sanitized, progressHandler: progressHandler, modeOverride: executionMode)
@@ -132,7 +138,7 @@ final class PostgresSession: DatabaseSession {
 
     private func executeSimpleQuery(_ sql: String) async throws -> QueryResultSet {
         do {
-            let result = try await client.simpleQuery(sql)
+            let result = try await client.simpleQueryResult(sql)
 
             var columns: [ColumnInfo] = []
             var rows: [[String?]] = []
@@ -140,7 +146,7 @@ final class PostgresSession: DatabaseSession {
 
             let formatter = PostgresCellFormatter()
 
-            for try await row in result {
+            for row in result.rows {
                 if columns.isEmpty {
                     let wireColumns = PostgresRowExtractor.columns(from: row)
                     columns.reserveCapacity(wireColumns.count)
@@ -169,11 +175,23 @@ final class PostgresSession: DatabaseSession {
 
             return QueryResultSet(
                 columns: resolvedColumns,
-                rows: rows
+                rows: rows,
+                commandTag: rawCommandTag(from: result.metadata)
             )
         } catch {
             throw normalizeError(error, contextSQL: sql)
         }
+    }
+
+    private func rawCommandTag(from metadata: WireQueryMetadata) -> String {
+        var segments = [metadata.command]
+        if let oid = metadata.oid {
+            segments.append(String(oid))
+        }
+        if let rows = metadata.rows {
+            segments.append(String(rows))
+        }
+        return segments.joined(separator: " ")
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {

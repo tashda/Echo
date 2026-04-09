@@ -10,10 +10,7 @@ extension TableStructureEditorView {
                 } description: {
                     Text("Indexes improve query performance on frequently searched columns.")
                 } actions: {
-                    Button("Add Index") {
-                        let newIndex = viewModel.addIndex()
-                        activeSheet = .index(IndexEditorPresentation(indexID: newIndex.id))
-                    }
+                    Button("Add Index") { presentNewIndex() }
                 }
             } else {
                 indexesTable
@@ -74,14 +71,11 @@ extension TableStructureEditorView {
         }
         .contextMenu(forSelectionType: TableStructureEditorViewModel.IndexModel.ID.self) { selection in
             if selection.isEmpty {
-                Button("Add Index") {
-                    let newIndex = viewModel.addIndex()
-                    activeSheet = .index(IndexEditorPresentation(indexID: newIndex.id))
-                }
+                Button("Add Index") { presentNewIndex() }
             } else if let indexID = selection.first,
                let index = activeIndexes.first(where: { $0.id == indexID }) {
                 Button("Edit Index") {
-                    activeSheet = .index(IndexEditorPresentation(indexID: index.id))
+                    viewModel.sheetCoordinator.activeSheet = .index(IndexEditorPresentation(indexID: index.id))
                 }
 
                 if !index.isNew {
@@ -98,11 +92,19 @@ extension TableStructureEditorView {
             }
         } primaryAction: { selection in
             if let indexID = selection.first {
-                activeSheet = .index(IndexEditorPresentation(indexID: indexID))
+                viewModel.sheetCoordinator.activeSheet = .index(IndexEditorPresentation(indexID: indexID))
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
+        .onContinuousHover { phase in
+            switch phase {
+            case .active:
+                NSCursor.arrow.set()
+            case .ended:
+                break
+            }
+        }
     }
 
     private func rebuildIndex(_ index: TableStructureEditorViewModel.IndexModel) async {
@@ -123,5 +125,22 @@ extension TableStructureEditorView {
 
     private func indexIncludeColumns(_ index: TableStructureEditorViewModel.IndexModel) -> String {
         index.columns.filter { $0.isIncluded }.map(\.name).joined(separator: ", ")
+    }
+
+    internal func presentNewIndex() {
+        let availableColumns = viewModel.columns.filter { !$0.isDeleted }
+        let initialColumns = availableColumns.prefix(1).map {
+            TableStructureEditorViewModel.IndexModel.Column(name: $0.name, sortOrder: .ascending, isIncluded: false)
+        }
+        let defaultType = viewModel.databaseType == .microsoftSQL ? "nonclustered" : "btree"
+        viewModel.sheetCoordinator.pendingNewIndex = TableStructureEditorViewModel.IndexModel(
+            original: nil,
+            name: "new_index",
+            columns: Array(initialColumns),
+            isUnique: false,
+            filterCondition: "",
+            indexType: defaultType
+        )
+        viewModel.sheetCoordinator.activeSheet = .newIndex
     }
 }

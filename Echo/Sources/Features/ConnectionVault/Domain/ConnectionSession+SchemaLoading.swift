@@ -16,9 +16,12 @@ extension ConnectionSession {
     func hasLoadedSchema(forDatabase databaseName: String) -> Bool {
         let normalizedName = normalizedDatabaseName(databaseName)
         guard !normalizedName.isEmpty else { return false }
+        let key = schemaLoadKey(normalizedName)
+        if metadataFreshnessByDatabase[key] == .listOnly {
+            return false
+        }
         return databaseStructure?.databases
-            .first(where: { normalizedDatabaseName($0.name).caseInsensitiveCompare(normalizedName) == .orderedSame })?
-            .schemas.isEmpty == false
+            .first(where: { normalizedDatabaseName($0.name).caseInsensitiveCompare(normalizedName) == .orderedSame }) != nil
     }
 
     func beginSchemaLoad(forDatabase databaseName: String) -> Bool {

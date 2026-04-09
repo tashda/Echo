@@ -22,9 +22,11 @@ extension TabOverviewView {
                         Text(group.connection.connectionName)
                             .font(TypographyTokens.displayLarge.weight(.bold))
                     } icon: {
-                        Image(systemName: group.connection.databaseType.iconName)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(isActiveServer ? ColorTokens.accent : ColorTokens.Text.secondary)
+                        DatabaseTypeIcon(
+                            databaseType: group.connection.databaseType,
+                            tint: isActiveServer ? ColorTokens.accent : ColorTokens.Text.secondary
+                        )
+                        .frame(width: SpacingTokens.md, height: SpacingTokens.md)
                     }
 
                     if group.connection.databaseType.isBeta {

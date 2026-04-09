@@ -8,6 +8,8 @@ final class NavigationStore {
     // MARK: - State
     var navigationState = NavigationState()
     var pendingExplorerFocus: ExplorerFocus?
+    var pendingExplorerRevealConnectionID: UUID?
+    var pendingExplorerRevealRequestID = 0
     var isWorkspaceWindowKey = false
     var isManageConnectionsPresented = false
     var showNewProjectSheet = false
@@ -29,6 +31,11 @@ final class NavigationStore {
     
     func clearExplorerFocus() {
         self.pendingExplorerFocus = nil
+    }
+
+    func revealExplorerConnection(_ connectionID: UUID) {
+        pendingExplorerRevealConnectionID = connectionID
+        pendingExplorerRevealRequestID &+= 1
     }
     
     func updateInspectorWidth(_ width: CGFloat, min minWidth: CGFloat, max maxWidth: CGFloat) {

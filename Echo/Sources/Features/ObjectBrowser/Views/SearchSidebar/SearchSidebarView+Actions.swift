@@ -12,15 +12,10 @@ extension SearchSidebarView {
 
         switch payload {
         case .schemaObject(let schema, let name, let type):
-            switch type {
-            case .table:
-                if openInNewTab {
-                    openQueryPreview(forTable: name, schema: schema, session: session, database: databaseName)
-                } else {
-                    focusExplorer(on: session, database: databaseName, schema: schema, objectName: name, columnName: nil, objectType: .table)
-                }
-            case .view, .materializedView, .function, .procedure, .trigger, .extension, .sequence, .type, .synonym:
-                openDefinition(for: name, schema: schema, type: type, in: session, database: databaseName)
+            if openInNewTab, type == .table {
+                openQueryPreview(forTable: name, schema: schema, session: session, database: databaseName)
+            } else {
+                focusExplorer(on: session, database: databaseName, schema: schema, objectName: name, columnName: nil, objectType: type)
             }
 
         case .column(let schema, let table, let column):
@@ -45,12 +40,12 @@ extension SearchSidebarView {
             }
 
         case .function(let schema, let name):
-            openDefinition(for: name, schema: schema, type: .function, in: session, database: databaseName)
+            focusExplorer(on: session, database: databaseName, schema: schema, objectName: name, columnName: nil, objectType: .function)
         case .procedure(let schema, let name):
-            openDefinition(for: name, schema: schema, type: .procedure, in: session, database: databaseName)
+            focusExplorer(on: session, database: databaseName, schema: schema, objectName: name, columnName: nil, objectType: .procedure)
 
         case .trigger(let schema, _, let name):
-            openDefinition(for: name, schema: schema, type: .trigger, in: session, database: databaseName)
+            focusExplorer(on: session, database: databaseName, schema: schema, objectName: name, columnName: nil, objectType: .trigger)
 
         case .queryTab(let tabID, let connectionSessionID):
             environmentState.sessionGroup.setActiveSession(connectionSessionID)

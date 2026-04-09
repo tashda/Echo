@@ -67,4 +67,25 @@ extension ApplicationCacheSettingsView {
             await refreshDiagramCacheUsage()
         }
     }
+
+    func refreshObjectBrowserCacheUsage() async {
+        let shouldContinue = await MainActor.run { () -> Bool in
+            if isRefreshingObjectBrowserCache { return false }
+            isRefreshingObjectBrowserCache = true
+            return true
+        }
+        guard shouldContinue else { return }
+        let usage = await environmentState.objectBrowserCacheUsageBytes()
+        await MainActor.run {
+            objectBrowserCacheUsage = usage
+            isRefreshingObjectBrowserCache = false
+        }
+    }
+
+    func clearObjectBrowserCache() {
+        Task {
+            await environmentState.clearObjectBrowserCache()
+            await refreshObjectBrowserCacheUsage()
+        }
+    }
 }

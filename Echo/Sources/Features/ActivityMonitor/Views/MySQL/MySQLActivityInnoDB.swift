@@ -122,12 +122,15 @@ struct MySQLActivityInnoDB: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        let handle = viewModel.activityEngine?.begin("Loading InnoDB status", connectionSessionID: viewModel.connectionSessionID)
         do {
             let status = try await viewModel.loadMySQLInnoDBStatus()
             statusSections = parseInnoDBStatus(status.statusText)
             expandedSections = Set(statusSections.prefix(3).map(\.title))
+            handle?.succeed()
         } catch {
             errorMessage = error.localizedDescription
+            handle?.fail(error.localizedDescription)
         }
         isLoading = false
     }

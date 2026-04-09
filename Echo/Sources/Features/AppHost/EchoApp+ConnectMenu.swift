@@ -150,7 +150,7 @@ struct ConnectMenuCommands: Commands {
     }
 
     private func availableDatabases(for session: ConnectionSession) -> [DatabaseInfo] {
-        let source = session.databaseStructure?.databases ?? session.connection.cachedStructure?.databases ?? []
+        let source = session.databaseStructure?.databases ?? []
         var deduplicated: [DatabaseInfo] = []
         var seen: Set<String> = []
 
@@ -206,20 +206,7 @@ struct ConnectMenuCommands: Commands {
 
     @ViewBuilder
     private func connectionIcon(for connection: SavedConnection) -> some View {
-        if let logoData = connection.logo,
-           let nsImage = NSImage(data: logoData) {
-            Image(nsImage: nsImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 14, height: 14)
-                .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-        } else {
-            Image(connection.databaseType.iconName)
-                .resizable()
-                .renderingMode(.template)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 14, height: 14)
-        }
+        DatabaseTypeIcon(databaseType: connection.databaseType, presentation: .menu)
     }
 
     private func connectionMenuItems(parentID: UUID?, projectID: UUID?) -> AnyView {
@@ -241,20 +228,7 @@ struct ConnectMenuCommands: Commands {
                         Label {
                             Text(displayName(for: connection))
                         } icon: {
-                            if let logoData = connection.logo,
-                               let nsImage = NSImage(data: logoData) {
-                                Image(nsImage: nsImage)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 14, height: 14)
-                                    .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-                            } else {
-                                Image(connection.databaseType.iconName)
-                                    .resizable()
-                                    .renderingMode(.template)
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 14, height: 14)
-                            }
+                            DatabaseTypeIcon(databaseType: connection.databaseType, presentation: .menu)
                         }
                     }
                 }

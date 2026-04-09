@@ -30,7 +30,15 @@ nonisolated struct MySQLToolLocator {
     }
 
     private static func locateTool(name: String, customPath: String?) -> URL? {
-        for directory in searchDirectories(customPath: customPath) {
+        // When a custom path is explicitly provided, restrict the search to that
+        // directory only. The caller chose a specific tool location — do not fall
+        // through to system paths or `which`.
+        if let customPath, !customPath.isEmpty {
+            let tool = URL(fileURLWithPath: customPath).appendingPathComponent(name)
+            return FileManager.default.isExecutableFile(atPath: tool.path) ? tool : nil
+        }
+
+        for directory in searchDirectories() {
             let tool = URL(fileURLWithPath: directory).appendingPathComponent(name)
             if FileManager.default.isExecutableFile(atPath: tool.path) {
                 return tool
@@ -58,11 +66,8 @@ nonisolated struct MySQLToolLocator {
         }
     }
 
-    private static func searchDirectories(customPath: String?) -> [String] {
+    private static func searchDirectories() -> [String] {
         var directories: [String] = []
-        if let customPath, !customPath.isEmpty {
-            directories.append(customPath)
-        }
 
         let env = ProcessInfo.processInfo.environment
         if let envPath = env["ECHO_MYSQL_TOOL_PATH"], !envPath.isEmpty {

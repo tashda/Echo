@@ -65,11 +65,11 @@ struct ConnectionDashboardHeader: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(session.connection.color.opacity(0.1))
                 .frame(width: 48, height: 48)
-            Image(session.connection.databaseType.iconName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+            DatabaseTypeIcon(
+                databaseType: session.connection.databaseType,
+                tint: session.connection.color
+            )
                 .frame(width: 24, height: 24)
-                .foregroundStyle(session.connection.color)
         }
     }
 }

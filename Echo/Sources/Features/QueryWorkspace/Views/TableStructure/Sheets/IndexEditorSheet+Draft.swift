@@ -49,12 +49,21 @@ extension IndexEditorSheet {
     }
 
     func applyDraft() {
-        index.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        index.isUnique = draft.isUnique
-        index.filterCondition = draft.filterCondition.trimmingCharacters(in: .whitespacesAndNewlines)
-        index.indexType = draft.indexType
-        index.columns = draft.columns.map { column in
+        let updatedIndex = TableStructureEditorViewModel.IndexModel(
+            original: index.original,
+            name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
+            columns: draft.columns.map { column in
             TableStructureEditorViewModel.IndexModel.Column(name: column.name, sortOrder: column.sortOrder, isIncluded: column.isIncluded)
+            },
+            isUnique: draft.isUnique,
+            filterCondition: draft.filterCondition.trimmingCharacters(in: .whitespacesAndNewlines),
+            indexType: draft.indexType
+        )
+
+        if draft.isEditingExisting {
+            index = updatedIndex
+        } else {
+            onSaveNew?(updatedIndex)
         }
     }
 

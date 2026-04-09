@@ -3,6 +3,7 @@ import PostgresKit
 
 struct PostgresActivityBGWriter: View {
     let connectionID: UUID
+    var activityEngine: ActivityEngine?
     @Environment(EnvironmentState.self) private var environmentState
 
     @State private var stats: PostgresBGWriterStats?
@@ -110,11 +111,14 @@ struct PostgresActivityBGWriter: View {
         guard let session = environmentState.sessionGroup.sessionForConnection(connectionID),
               let pg = session.session as? PostgresSession else { return }
         isLoading = true
+        let handle = activityEngine?.begin("Loading BGWriter stats", connectionSessionID: connectionID)
         defer { isLoading = false }
         do {
             stats = try await pg.client.metadata.fetchBGWriterStats()
+            handle?.succeed()
         } catch {
             stats = nil
+            handle?.fail(error.localizedDescription)
         }
     }
 }

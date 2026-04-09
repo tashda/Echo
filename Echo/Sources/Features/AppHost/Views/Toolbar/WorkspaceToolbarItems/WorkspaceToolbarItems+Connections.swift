@@ -78,13 +78,10 @@ struct ConnectionsMenuButton: View {
         Button {
             environmentState.connectToNewSession(to: connection)
         } label: {
-            HStack {
-                if let image = NSImage(named: connection.databaseType.iconName) {
-                    Image(nsImage: image)
-                } else {
-                    Image(systemName: "server.rack")
-                }
+            Label {
                 Text(connection.connectionName.isEmpty ? connection.host : connection.connectionName)
+            } icon: {
+                DatabaseTypeIcon(databaseType: connection.databaseType, presentation: .menu)
             }
         }
     }
@@ -99,11 +96,7 @@ struct ConnectionsMenuButton: View {
             environmentState.sessionGroup.setActiveSession(session.id)
         } label: {
             HStack {
-                if let image = NSImage(named: conn.databaseType.iconName) {
-                    Image(nsImage: image)
-                } else {
-                    Image(systemName: "server.rack")
-                }
+                DatabaseTypeIcon(databaseType: conn.databaseType, presentation: .menu)
                 Text(session.displayName)
                 if isActive {
                     Spacer()
@@ -152,13 +145,10 @@ struct ToolbarFolderMenu: View {
                     Button {
                         onConnect(connection)
                     } label: {
-                        HStack {
-                            if let image = NSImage(named: connection.databaseType.iconName) {
-                                Image(nsImage: image)
-                            } else {
-                                Image(systemName: "server.rack")
-                            }
+                        Label {
                             Text(connection.connectionName.isEmpty ? connection.host : connection.connectionName)
+                        } icon: {
+                            DatabaseTypeIcon(databaseType: connection.databaseType, presentation: .menu)
                         }
                     }
                 }

@@ -1,8 +1,10 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Recovery flow: enter 24-word mnemonic + set a new master password.
 struct E2ERecoveryView: View {
     @Bindable var enrollmentManager: E2EEnrollmentManager
+    let onRecovered: () async -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var mnemonicText = ""
@@ -11,6 +13,7 @@ struct E2ERecoveryView: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var isRecovered = false
+    @State private var showRecoveryFileImporter = false
 
     var body: some View {
         if isRecovered {
@@ -43,6 +46,10 @@ struct E2ERecoveryView: View {
                 Text("Separate words with spaces")
                     .font(TypographyTokens.detail)
                     .foregroundStyle(ColorTokens.Text.tertiary)
+
+                Button("Import Recovery Key File…") {
+                    showRecoveryFileImporter = true
+                }
             }
 
             Section("New Master Password") {
@@ -74,6 +81,17 @@ struct E2ERecoveryView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .frame(width: 460, height: 420)
+        .fileImporter(
+            isPresented: $showRecoveryFileImporter,
+            allowedContentTypes: [.plainText]
+        ) { result in
+            switch result {
+            case .success(let url):
+                importRecoveryKey(from: url)
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     private var canRecover: Bool {
@@ -92,7 +110,37 @@ struct E2ERecoveryView: View {
 
         do {
             try await enrollmentManager.recover(mnemonic: words, newPassword: newPassword)
+            SyncPreferences.setCredentialSyncEnabled(true)
+            await onRecovered()
             isRecovered = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func importRecoveryKey(from url: URL) {
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        do {
+            let content = try String(contentsOf: url, encoding: .utf8)
+            let words = content
+                .lowercased()
+                .split(whereSeparator: { !$0.isLetter })
+                .map(String.init)
+                .filter { $0.count > 1 }
+
+            guard words.count >= 24 else {
+                errorMessage = "The selected file does not contain a valid 24-word recovery key."
+                return
+            }
+
+            mnemonicText = Array(words.suffix(24)).joined(separator: " ")
+            errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }

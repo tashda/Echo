@@ -100,12 +100,8 @@ enum ConnectionsMenuBuilder {
             item.state = .on
         }
 
-        if let image = NSImage(named: connection.databaseType.iconName) {
-            let sized = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
-                image.draw(in: rect)
-                return true
-            }
-            item.image = sized
+        if let image = connection.databaseType.menuIconImage() {
+            item.image = image
         } else {
             item.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: nil)?
                 .withSymbolConfiguration(.init(pointSize: 12, weight: .regular))

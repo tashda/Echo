@@ -123,6 +123,7 @@ extension WorkspaceTabContainerView {
 
         await MainActor.run {
             queryState.errorMessage = nil
+            queryState.prefersMessagesAfterExecution = batchResultsPreferMessages(batches, databaseType: tab.connection.databaseType)
             queryState.startExecution()
             queryState.setExecutingTask(task)
             environmentState.dataInspectorContent = nil
@@ -212,6 +213,12 @@ extension WorkspaceTabContainerView {
         // Store batch metadata for UI tab labels
         if batchResults.count > 1 {
             state.batchResultMetadata = batchLabels
+        }
+    }
+
+    private func batchResultsPreferMessages(_ batches: [String], databaseType: DatabaseType) -> Bool {
+        batches.allSatisfy {
+            QueryStatementClassifier.isLikelyMessageOnlyStatement($0, databaseType: databaseType)
         }
     }
 }

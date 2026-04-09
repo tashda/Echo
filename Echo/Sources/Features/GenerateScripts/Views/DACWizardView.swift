@@ -125,7 +125,7 @@ struct DACWizardView: View {
             if let error = viewModel.errorMessage {
                 Image(systemName: "xmark.circle.fill")
                     .font(TypographyTokens.iconHero)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(ColorTokens.Status.error)
                 Text("Operation Failed")
                     .font(TypographyTokens.title)
                 Text(error)
@@ -134,7 +134,7 @@ struct DACWizardView: View {
             } else {
                 Image(systemName: "checkmark.circle.fill")
                     .font(TypographyTokens.iconHero)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(ColorTokens.Status.success)
                 Text("Success")
                     .font(TypographyTokens.title)
                 Text("The operation completed successfully.")

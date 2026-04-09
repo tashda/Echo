@@ -31,6 +31,38 @@ struct WorkspaceContentView: View {
                 }
             }
         }
+        .sheet(
+            item: Binding(
+                get: { appState.activeSheet },
+                set: { newValue in
+                    if let newValue {
+                        appState.activeSheet = newValue
+                    } else {
+                        appState.dismissSheet()
+                    }
+                }
+            )
+        ) { sheet in
+            switch sheet {
+            case .structureScriptPreview:
+                if let data = appState.structureScriptData {
+                    StructureScriptPreviewSheet(
+                        context: SQLPopoutContext(
+                            sql: data.statements.joined(separator: "\n\n"),
+                            title: "Script Preview"
+                        )
+                    ) { sql, database in
+                        if let session = environmentState.sessionGroup.sessionForConnection(tab.connection.id) {
+                            environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
+                        } else {
+                            environmentState.openQueryTab(presetQuery: sql, database: database)
+                        }
+                    }
+                }
+            default:
+                EmptyView()
+            }
+        }
     }
 
     // MARK: - Content Resolution (switch-based to help type-checker)
@@ -40,7 +72,11 @@ struct WorkspaceContentView: View {
         switch tab.kind {
         case .structure:
             if let vm = tab.structureEditor {
-                TableStructureEditorView(tab: tab, viewModel: vm).background(ColorTokens.Background.primary)
+                ZStack {
+                    TableStructureEditorView(tab: tab, viewModel: vm)
+                        .background(ColorTokens.Background.primary)
+                    TableStructureSheetHost(tab: tab, viewModel: vm)
+                }
             }
         case .diagram:
             if let vm = tab.diagram {

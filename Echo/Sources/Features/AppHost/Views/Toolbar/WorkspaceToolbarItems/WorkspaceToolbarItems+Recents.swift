@@ -26,11 +26,7 @@ struct RecentConnectionsMenuButton: View {
                             }
                         } label: {
                             HStack {
-                                if let image = NSImage(named: record.databaseType.iconName) {
-                                    Image(nsImage: image)
-                                } else {
-                                    Image(systemName: "server.rack")
-                                }
+                                DatabaseTypeIcon(databaseType: record.databaseType, presentation: .menu)
 
                                 let baseName = record.connectionName.isEmpty ? record.host : record.connectionName
 

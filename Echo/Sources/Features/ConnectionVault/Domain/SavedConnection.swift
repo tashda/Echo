@@ -18,10 +18,17 @@ enum DatabaseType: String, Sendable, Codable, CaseIterable {
 
     nonisolated var iconName: String {
         switch self {
-        case .postgresql: return "postgresql"
-        case .mysql: return "mysql"
-        case .microsoftSQL: return "mssql"
-        case .sqlite: return "sqlite"
+        case .postgresql: return "PostgreSQL"
+        case .mysql: return "MySQL"
+        case .microsoftSQL: return "MicrosoftSQLServer"
+        case .sqlite: return "SQLite"
+        }
+    }
+
+    nonisolated var usesTemplateIcon: Bool {
+        switch self {
+        case .postgresql, .mysql, .microsoftSQL, .sqlite:
+            return false
         }
     }
 

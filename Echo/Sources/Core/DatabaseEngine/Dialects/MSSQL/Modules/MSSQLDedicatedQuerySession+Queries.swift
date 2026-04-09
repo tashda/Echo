@@ -20,21 +20,14 @@ extension MSSQLDedicatedQuerySession {
         if let raw = connection.decodeLastSensitivityClassification() {
             queryResult.dataClassification = extractClassification(from: raw, columnCount: queryResult.columns.count)
         }
-        queryResult.serverMessages = executionResult.messages
-            .filter { $0.kind == .info }
-            .map { message in
-                ServerMessage(
-                    kind: .info,
-                    number: message.number,
-                    message: message.message,
-                    state: message.state,
-                    severity: message.severity
-                )
-            }
+        queryResult.serverMessages = executionResult.echoServerMessages()
         return queryResult
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        if QueryStatementClassifier.isLikelyMessageOnlyStatement(sql, databaseType: .microsoftSQL) {
+            return try await simpleQuery(sql)
+        }
         guard let progressHandler else {
             return try await simpleQuery(sql)
         }
@@ -58,6 +51,17 @@ extension MSSQLDedicatedQuerySession {
     func executeUpdate(_ sql: String) async throws -> Int {
         let connection = try await readyConnection()
         return Int(try await connection.execute(sql).rowCount ?? 0)
+    }
+
+    func executeUpdatesAtomically(_ statements: [String]) async throws {
+        guard !statements.isEmpty else { return }
+
+        let connection = try await readyConnection()
+        try await connection.withTransaction { transactionConnection in
+            for statement in statements {
+                _ = try await transactionConnection.execute(statement)
+            }
+        }
     }
 
     private func streamQueryWithProgress(
@@ -247,7 +251,15 @@ extension MSSQLDedicatedQuerySession {
                     number: message.number,
                     message: message.message,
                     state: message.state,
-                    severity: message.severity
+                    severity: message.severity,
+                    serverName: message.serverName,
+                    procedureName: message.procedureName,
+                    lineNumber: message.lineNumber,
+                    category: "Server Response",
+                    metadata: [
+                        "source": "sqlserver-nio",
+                        "token": "INFO"
+                    ]
                 )
             }
         )

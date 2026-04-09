@@ -99,11 +99,11 @@ struct PostgresExtensionStructureView: View {
                             ProgressView().controlSize(.small)
                         } else {
                             Label("Update to v\(viewModel.latestVersion ?? "?")", systemImage: "arrow.up.circle.fill")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, SpacingTokens.xs)
                                 .padding(.vertical, SpacingTokens.xxs)
                                 .background(ColorTokens.Status.info)
-                                .cornerRadius(6)
+                                .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.small))
                         }
                     }
                     .buttonStyle(.plain)

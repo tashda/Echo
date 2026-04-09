@@ -4,11 +4,16 @@ import SwiftUI
 /// Centralized application state management
 
 @Observable final class AppState: @unchecked Sendable {
+    struct StructureScriptPreviewData {
+        let statements: [String]
+    }
+
     // MARK: - UI State
     var isLoading = false
     var currentError: DatabaseError?
     var showingError = false
     var activeSheet: ActiveSheet?
+    var structureScriptData: StructureScriptPreviewData?
     var showTabOverview = false
     var showInfoSidebar = false
     var workspaceSidebarVisibility: NavigationSplitViewVisibility = .automatic
@@ -90,7 +95,13 @@ import SwiftUI
         activeSheet = sheet
     }
 
+    func showStructureScriptPreview(statements: [String]) {
+        structureScriptData = StructureScriptPreviewData(statements: statements)
+        activeSheet = .structureScriptPreview
+    }
+
     func dismissSheet() {
+        structureScriptData = nil
         activeSheet = nil
     }
 
@@ -136,6 +147,7 @@ enum ActiveSheet: String, Identifiable {
     case preferences
     case about
     case exportData
+    case structureScriptPreview
 
     var id: String {
         rawValue

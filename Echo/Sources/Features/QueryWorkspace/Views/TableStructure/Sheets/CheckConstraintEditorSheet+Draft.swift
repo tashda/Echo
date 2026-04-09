@@ -3,8 +3,17 @@ import Foundation
 
 extension CheckConstraintEditorSheet {
     func applyDraftChanges() {
-        constraint.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        constraint.expression = draft.expression.trimmingCharacters(in: .whitespacesAndNewlines)
+        let updatedConstraint = TableStructureEditorViewModel.CheckConstraintModel(
+            original: constraint.original,
+            name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
+            expression: draft.expression.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+
+        if draft.isEditingExisting {
+            constraint = updatedConstraint
+        } else {
+            onSaveNew?(updatedConstraint)
+        }
     }
 
     func cancelIfNew() {

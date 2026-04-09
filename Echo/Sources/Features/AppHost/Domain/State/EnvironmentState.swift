@@ -93,6 +93,7 @@ final class EnvironmentState {
     @ObservationIgnored let resultSpoolManager: ResultSpooler
     @ObservationIgnored let diagramCacheStore: DiagramCacheStore
     @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
+    @ObservationIgnored let objectBrowserCacheStore: ObjectBrowserCacheStore
 
     @ObservationIgnored let dedicatedConnectionGate = AsyncSemaphore(limit: 3)
     @ObservationIgnored private var diagramRefreshTask: Task<Void, Never>?
@@ -114,7 +115,8 @@ final class EnvironmentState {
         historyRepository: HistoryRepository,
         resultSpoolManager: ResultSpooler,
         diagramCacheStore: DiagramCacheStore,
-        diagramKeyStore: DiagramEncryptionKeyStore
+        diagramKeyStore: DiagramEncryptionKeyStore,
+        objectBrowserCacheStore: ObjectBrowserCacheStore
     ) {
         self.projectStore = projectStore
         self.connectionStore = connectionStore
@@ -130,6 +132,7 @@ final class EnvironmentState {
         self.resultSpoolManager = resultSpoolManager
         self.diagramCacheStore = diagramCacheStore
         self.diagramKeyStore = diagramKeyStore
+        self.objectBrowserCacheStore = objectBrowserCacheStore
 
         self.tabStore.delegate = self
         setupBindings()
@@ -254,6 +257,17 @@ final class EnvironmentState {
                     session: session,
                     spoolManager: resultSpoolManager
                 )
+                if let cachedEntry = await objectBrowserCacheStore.entry(for: connection) {
+                    connectionSession.databaseStructure = cachedEntry.structure
+                    connectionSession.hydrateMetadataFreshnessFromCacheStructure()
+                    connectionSession.structureLoadingState = .loading(progress: 0)
+                    connectionSession.structureLoadingMessage = "Refreshing cached metadata…"
+                } else if let legacyStructure = connection.cachedStructure {
+                    connectionSession.databaseStructure = legacyStructure
+                    connectionSession.hydrateMetadataFreshnessFromCacheStructure()
+                    connectionSession.structureLoadingState = .loading(progress: 0)
+                    connectionSession.structureLoadingMessage = "Refreshing cached metadata…"
+                }
 
                 // Transition: pending → active session
                 pendingConnections.removeAll { $0.id == connection.id }
@@ -264,13 +278,10 @@ final class EnvironmentState {
                     detachedJobQueueViewModels.removeValue(forKey: oldSession.id)
                 }
 
-                // Start structure load BEFORE adding session to the sidebar.
-                // This way the load runs in parallel with the sidebar rendering the new session.
+                sessionGroup.addSession(connectionSession)
                 startStructureLoadTask(for: connectionSession)
                 Task { await connectionSession.refreshPermissions() }
                 connectionSession.startHealthCheck()
-
-                sessionGroup.addSession(connectionSession)
                 connectionStates[connection.id] = .connected
                 recordRecentConnection(for: connection, databaseName: connectionSession.sidebarFocusedDatabase)
                 notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")

@@ -15,6 +15,7 @@ final class ActivityMonitorViewModel {
     @ObservationIgnored private let monitor: any DatabaseActivityMonitoring
     @ObservationIgnored private let mysqlSession: MySQLSession?
     @ObservationIgnored private var streamTask: Task<Void, Never>?
+    @ObservationIgnored var activityEngine: ActivityEngine?
     let connectionSessionID: UUID
     let connectionID: UUID
     let databaseType: DatabaseType

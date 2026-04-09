@@ -21,12 +21,11 @@ func buildDatabaseNSMenu(
     // Group 1: Refresh
     menu.addActionItem("Refresh Schema", systemImage: "arrow.clockwise") {
         viewModel.ensureDatabaseExpanded(connectionID: connID, databaseName: database.name)
-        viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
         Task {
             let handle = AppDirector.shared.activityEngine.begin("Refreshing schema for \(database.name)", connectionSessionID: session.id)
+            session.markMetadataRefreshStarted(forDatabase: database.name)
             await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
             handle.succeed()
-            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
         }
     }
 
@@ -217,12 +216,11 @@ extension ObjectBrowserSidebarView {
         // Group 1: Refresh
         Button {
             viewModel.ensureDatabaseExpanded(connectionID: connID, databaseName: database.name)
-            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
             Task {
                 let handle = AppDirector.shared.activityEngine.begin("Refreshing schema for \(database.name)", connectionSessionID: session.id)
+                session.markMetadataRefreshStarted(forDatabase: database.name)
                 await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
                 handle.succeed()
-                viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
             }
         } label: {
             Label("Refresh Schema", systemImage: "arrow.clockwise")
@@ -245,12 +243,6 @@ extension ObjectBrowserSidebarView {
                 } label: {
                     Label("Postgres Console", systemImage: "terminal")
                 }
-            }
-            if projectStore.globalSettings.nativePsqlEnabled {
-                Button {} label: {
-                    Label("Native psql (Coming Soon)", systemImage: "chevron.left.forwardslash.chevron.right")
-                }
-                .disabled(true)
             }
         }
 

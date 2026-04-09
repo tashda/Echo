@@ -6,35 +6,46 @@ extension TableStructureEditorView {
 
     internal func presentPrimaryKeyEditor(isNew: Bool) {
         if isNew {
-            viewModel.primaryKey = TableStructureEditorViewModel.PrimaryKeyModel(
+            viewModel.sheetCoordinator.pendingNewPrimaryKey = TableStructureEditorViewModel.PrimaryKeyModel(
                 original: nil,
                 name: "pk_\(viewModel.tableName)",
                 columns: [],
                 isDeferrable: false,
                 isInitiallyDeferred: false
             )
-            viewModel.clearPrimaryKeyRemoval()
+            viewModel.sheetCoordinator.activeSheet = .newPrimaryKey
+            return
         }
 
         guard viewModel.primaryKey != nil else { return }
-        activeSheet = .primaryKey(PrimaryKeyEditorPresentation(isNew: isNew))
+        viewModel.sheetCoordinator.activeSheet = .primaryKey(PrimaryKeyEditorPresentation(isNew: isNew))
     }
 
     internal func presentNewUniqueConstraint() {
-        let model = viewModel.addUniqueConstraint()
-        activeSheet = .uniqueConstraint(UniqueConstraintEditorPresentation(constraintID: model.id, isNew: true))
+        viewModel.sheetCoordinator.pendingNewUniqueConstraint = TableStructureEditorViewModel.UniqueConstraintModel(
+            original: nil,
+            name: "uq_\(viewModel.tableName)_\(viewModel.uniqueConstraints.count + 1)",
+            columns: [],
+            isDeferrable: false,
+            isInitiallyDeferred: false
+        )
+        viewModel.sheetCoordinator.activeSheet = .newUniqueConstraint
     }
 
     internal func presentUniqueConstraintEditor(for constraint: TableStructureEditorViewModel.UniqueConstraintModel) {
-        activeSheet = .uniqueConstraint(UniqueConstraintEditorPresentation(constraintID: constraint.id, isNew: constraint.isNew))
+        viewModel.sheetCoordinator.activeSheet = .uniqueConstraint(UniqueConstraintEditorPresentation(constraintID: constraint.id, isNew: constraint.isNew))
     }
 
     internal func presentNewCheckConstraint() {
-        let model = viewModel.addCheckConstraint()
-        activeSheet = .checkConstraint(CheckConstraintEditorPresentation(constraintID: model.id, isNew: true))
+        viewModel.sheetCoordinator.pendingNewCheckConstraint = TableStructureEditorViewModel.CheckConstraintModel(
+            original: nil,
+            name: "ck_\(viewModel.tableName)_\(viewModel.checkConstraints.count + 1)",
+            expression: ""
+        )
+        viewModel.sheetCoordinator.activeSheet = .newCheckConstraint
     }
 
     internal func presentCheckConstraintEditor(for constraint: TableStructureEditorViewModel.CheckConstraintModel) {
-        activeSheet = .checkConstraint(CheckConstraintEditorPresentation(constraintID: constraint.id, isNew: constraint.isNew))
+        viewModel.sheetCoordinator.activeSheet = .checkConstraint(CheckConstraintEditorPresentation(constraintID: constraint.id, isNew: constraint.isNew))
     }
 }
