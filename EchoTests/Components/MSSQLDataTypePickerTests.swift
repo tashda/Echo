@@ -4,7 +4,7 @@ import Testing
 @Suite("MSSQLDataTypePicker")
 struct MSSQLDataTypePickerTests {
 
-    @Test func preservesBareUnicodeTypeWithoutInjectingDefaultLength() {
+    @Test @MainActor func preservesBareUnicodeTypeWithoutInjectingDefaultLength() {
         let state = MSSQLDataTypePicker.selectionState(for: "nvarchar")
 
         #expect(state.baseType == "nvarchar")
@@ -12,7 +12,7 @@ struct MSSQLDataTypePickerTests {
         #expect(state.isCustom == false)
     }
 
-    @Test func preservesExplicitLengthForParameterizedType() {
+    @Test @MainActor func preservesExplicitLengthForParameterizedType() {
         let state = MSSQLDataTypePicker.selectionState(for: "nvarchar(4000)")
 
         #expect(state.baseType == "nvarchar")
