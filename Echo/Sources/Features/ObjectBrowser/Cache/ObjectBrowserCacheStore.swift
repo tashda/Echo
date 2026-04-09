@@ -90,7 +90,7 @@ actor ObjectBrowserCacheStore {
     }
 
     func pruneToLimit(_ limitBytes: Int) async {
-        let normalizedLimit = max(limitBytes, 64 * 1_024 * 1_024)
+        let normalizedLimit = limitBytes
         var entries: [(url: URL, updatedAt: Date, size: Int)] = cacheFileURLs().compactMap { url in
             guard let data = try? Data(contentsOf: url),
                   let entry = try? decoder.decode(ObjectBrowserCacheEntry.self, from: data) else {
