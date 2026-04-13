@@ -133,7 +133,7 @@ extension ObjectBrowserSidebarView {
 
     func databaseHeaderRow(database: DatabaseInfo, session: ConnectionSession, isExpanded: Bool, isSelected: Bool, accentColor: Color) -> some View {
         let connID = session.connection.id
-        let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
+        let isLoading = session.isRefreshingMetadata(forDatabase: database.name)
         let isAvailable = database.isOnline && database.isAccessible
         let expandedBinding = Binding<Bool>(
             get: { isExpanded },

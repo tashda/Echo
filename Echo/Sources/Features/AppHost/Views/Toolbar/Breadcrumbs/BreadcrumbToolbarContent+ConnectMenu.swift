@@ -65,8 +65,7 @@ final class ConnectToolbarMenuDelegate: NSObject {
                 item.target = self
                 item.representedObject = session
                 item.state = isActive ? .on : .off
-                if let image = NSImage(named: conn.databaseType.iconName) {
-                    image.size = NSSize(width: 16, height: 16)
+                if let image = conn.databaseType.menuIconImage() {
                     item.image = image
                 } else {
                     item.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: nil)
@@ -89,8 +88,7 @@ final class ConnectToolbarMenuDelegate: NSObject {
                 item.target = self
                 item.representedObject = conn
                 item.state = .off
-                if let image = NSImage(named: conn.databaseType.iconName) {
-                    image.size = NSSize(width: 16, height: 16)
+                if let image = conn.databaseType.menuIconImage() {
                     item.image = image
                 } else {
                     item.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: nil)

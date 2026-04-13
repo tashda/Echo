@@ -122,6 +122,14 @@ extension TableStructureEditorView {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
+        .onContinuousHover { phase in
+            switch phase {
+            case .active:
+                NSCursor.arrow.set()
+            case .ended:
+                break
+            }
+        }
     }
 
     @ViewBuilder

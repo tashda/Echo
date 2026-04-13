@@ -3,6 +3,7 @@ import PostgresKit
 
 struct PostgresActivityWAL: View {
     let connectionID: UUID
+    var activityEngine: ActivityEngine?
     @Environment(EnvironmentState.self) private var environmentState
 
     @State private var stats: PostgresWALStats?
@@ -118,11 +119,14 @@ struct PostgresActivityWAL: View {
         guard let session = environmentState.sessionGroup.sessionForConnection(connectionID),
               let pg = session.session as? PostgresSession else { return }
         isLoading = true
+        let handle = activityEngine?.begin("Loading WAL stats", connectionSessionID: connectionID)
         defer { isLoading = false }
         do {
             stats = try await pg.client.metadata.fetchWALStats()
+            handle?.succeed()
         } catch {
             stats = nil
+            handle?.fail(error.localizedDescription)
         }
     }
 }

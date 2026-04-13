@@ -12,7 +12,7 @@ extension TableStructureEditorView {
 
     internal func presentBulkEditor(mode: BulkColumnEditorPresentation.Mode, columns: [TableStructureEditorViewModel.ColumnModel]) {
         guard !columns.isEmpty else { return }
-        activeSheet = .bulkColumn(BulkColumnEditorPresentation(mode: mode, columnIDs: columns.map(\.id)))
+        viewModel.sheetCoordinator.activeSheet = .bulkColumn(BulkColumnEditorPresentation(mode: mode, columnIDs: columns.map(\.id)))
     }
 
     internal func pruneSelectedColumns() {
@@ -21,12 +21,11 @@ extension TableStructureEditorView {
     }
 
     internal func presentNewColumn() {
-        let model = viewModel.addColumn()
-        activeSheet = .column(ColumnEditorPresentation(columnID: model.id, isNew: true))
+        viewModel.sheetCoordinator.activeSheet = .newColumn
     }
 
     internal func presentColumnEditor(for column: TableStructureEditorViewModel.ColumnModel) {
-        activeSheet = .column(ColumnEditorPresentation(columnID: column.id, isNew: column.isNew))
+        viewModel.sheetCoordinator.activeSheet = .column(ColumnEditorPresentation(columnID: column.id, isNew: column.isNew))
     }
 
     internal func columnChangeDescription(for column: TableStructureEditorViewModel.ColumnModel) -> String? {

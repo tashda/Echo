@@ -86,6 +86,11 @@ final class E2EEnrollmentManager {
 
         error = nil
 
+        await checkEnrollmentStatus()
+        if isEnrolled {
+            throw E2EError.enrollmentFailed("Credential sync is already set up for this account. Enter your existing master password to unlock it, or use recovery if you forgot it.")
+        }
+
         // 1. Generate salts
         let masterSalt = crypto.generateSalt()
         let recoverySalt = crypto.generateSalt()
@@ -130,7 +135,8 @@ final class E2EEnrollmentManager {
         let userID = try await client.auth.session.user.id
 
         // Update profile
-        struct ProfileUpdate: Encodable {
+        struct ProfileEnrollmentRow: Encodable {
+            let id: UUID
             let e2e_enrolled: Bool
             let e2e_salt: String        // base64
             let e2e_wrapped_master_key: String  // base64
@@ -138,14 +144,14 @@ final class E2EEnrollmentManager {
             let e2e_recovery_salt: String  // base64
         }
         try await client.from("profiles")
-            .update(ProfileUpdate(
+            .upsert(ProfileEnrollmentRow(
+                id: userID,
                 e2e_enrolled: true,
                 e2e_salt: masterSalt.base64EncodedString(),
                 e2e_wrapped_master_key: wrappedMasterKey.base64EncodedString(),
                 e2e_recovery_key_hash: recoveryHashHex,
                 e2e_recovery_salt: recoverySalt.base64EncodedString()
-            ))
-            .eq("id", value: userID)
+            ), onConflict: "id")
             .execute()
 
         // Upload wrapped project keys
@@ -165,7 +171,7 @@ final class E2EEnrollmentManager {
                     project_id: serverProjectID,
                     wrapped_key: wpk.wrappedKey.base64EncodedString(),
                     nonce: Data().base64EncodedString()
-                ))
+                ), onConflict: "user_id,project_id")
                 .execute()
         }
 
@@ -288,7 +294,7 @@ final class E2EEnrollmentManager {
                     project_id: serverProjectID,
                     wrapped_key: rewrapped.base64EncodedString(),
                     nonce: Data().base64EncodedString()
-                ))
+                ), onConflict: "user_id,project_id")
                 .execute()
         }
 
@@ -296,16 +302,17 @@ final class E2EEnrollmentManager {
         let newWrappedMasterKey = try crypto.wrapKey(newMasterKey, with: recoveryKEK)
 
         // 9. Update server
-        struct ProfileUpdate: Encodable {
+        struct ProfileRecoveryRow: Encodable {
+            let id: UUID
             let e2e_salt: String
             let e2e_wrapped_master_key: String
         }
         try await client.from("profiles")
-            .update(ProfileUpdate(
+            .upsert(ProfileRecoveryRow(
+                id: userID,
                 e2e_salt: newSalt.base64EncodedString(),
                 e2e_wrapped_master_key: newWrappedMasterKey.base64EncodedString()
-            ))
-            .eq("id", value: userID)
+            ), onConflict: "id")
             .execute()
 
         // 10. Store new Master Key locally

@@ -17,6 +17,7 @@ public protocol DatabaseSession: Sendable {
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo]
     func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType, database: String?) async throws -> String
     func executeUpdate(_ sql: String) async throws -> Int
+    func executeUpdatesAtomically(_ statements: [String]) async throws
     func renameTable(schema: String?, oldName: String, newName: String) async throws
     func dropTable(schema: String?, name: String, ifExists: Bool) async throws
     func truncateTable(schema: String?, name: String) async throws
@@ -157,6 +158,12 @@ public extension DatabaseSession {
 
     func simpleQuery(_ sql: String, executionMode: ResultStreamingExecutionMode?, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         try await simpleQuery(sql, progressHandler: progressHandler)
+    }
+
+    func executeUpdatesAtomically(_ statements: [String]) async throws {
+        for statement in statements {
+            _ = try await executeUpdate(statement)
+        }
     }
 
     func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {

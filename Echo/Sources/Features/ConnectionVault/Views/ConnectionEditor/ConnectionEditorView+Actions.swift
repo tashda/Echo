@@ -107,9 +107,10 @@ extension ConnectionEditorView {
 
             iconImage.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
 
-            // Tint the icon with the color
-            NSColor(color).setFill()
-            iconRect.fill(using: .sourceAtop)
+            if databaseType.usesTemplateIcon {
+                NSColor(color).setFill()
+                iconRect.fill(using: .sourceAtop)
+            }
         }
 
         // Convert to PNG

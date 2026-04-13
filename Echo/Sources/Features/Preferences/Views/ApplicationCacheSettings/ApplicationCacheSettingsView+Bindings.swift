@@ -26,6 +26,21 @@ extension ApplicationCacheSettingsView {
         )
     }
 
+    var objectBrowserCacheMaxBinding: Binding<Int> {
+        Binding(
+            get: { projectStore.globalSettings.objectBrowserCacheMaxBytes },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.objectBrowserCacheMaxBytes = max(64 * 1_024 * 1_024, newValue)
+                Task {
+                    try? await projectStore.updateGlobalSettings(settings)
+                    await environmentState.objectBrowserCacheStore.pruneToLimit(settings.objectBrowserCacheMaxBytes)
+                    await refreshObjectBrowserCacheUsage()
+                }
+            }
+        )
+    }
+
     var clipboardEnabledBinding: Binding<Bool> {
         Binding(
             get: { clipboardHistory.isEnabled },

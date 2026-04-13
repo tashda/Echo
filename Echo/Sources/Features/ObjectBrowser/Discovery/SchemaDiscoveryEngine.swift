@@ -5,13 +5,20 @@ import Observation
 final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked Sendable {
     private let identityRepository: IdentityRepository
     private let connectionStore: ConnectionStore
+    private let objectBrowserCacheStore: ObjectBrowserCacheStore
     
     var onPersistConnections: (@MainActor @Sendable () async -> Void)?
     var onEnqueuePrefetch: (@MainActor @Sendable (ConnectionSession) async -> Void)?
+    var cacheLimitProvider: (@MainActor @Sendable () -> Int)?
 
-    init(identityRepository: IdentityRepository, connectionStore: ConnectionStore) {
+    init(
+        identityRepository: IdentityRepository,
+        connectionStore: ConnectionStore,
+        objectBrowserCacheStore: ObjectBrowserCacheStore
+    ) {
         self.identityRepository = identityRepository
         self.connectionStore = connectionStore
+        self.objectBrowserCacheStore = objectBrowserCacheStore
     }
 
     // MARK: - Core Discovery
@@ -54,6 +61,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
         if connectionSession.databaseStructure == nil {
             connectionSession.databaseStructure = DatabaseStructure(serverVersion: nil, databases: [])
+            connectionSession.reconcileMetadataFreshnessFromLiveStructure()
         }
 
         guard let credentials = identityRepository.resolveAuthenticationConfiguration(for: connectionSession.connection, overridePassword: nil) else {
@@ -135,6 +143,12 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             let finalStructure = DatabaseStructure(serverVersion: interimServerVersion, databases: mergedDatabases)
             print("[PERF] initialLoad: applying final structure with \(mergedDatabases.count) databases (single UI update)")
             self.applyStructureUpdate(finalStructure, to: connectionSession, cacheResult: true)
+            let liveDatabases = Set(structure.databases.compactMap { database in
+                database.schemas.contains(where: { !$0.objects.isEmpty })
+                    ? connectionSession.schemaLoadKey(database.name)
+                    : nil
+            })
+            connectionSession.reconcileMetadataFreshnessFromLiveStructure(markingLive: liveDatabases)
             print("[PERF] initialLoad: done")
 
             connectionSession.structureLoadingState = .ready
@@ -199,11 +213,14 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             for db in structure.databases {
                 let mergeStart = CFAbsoluteTimeGetCurrent()
                 mergeSingleDatabase(db, into: session)
+                let hasSchemas = db.schemas.contains(where: { !$0.objects.isEmpty })
+                session.markMetadataRefreshCompleted(forDatabase: db.name, hasSchemas: hasSchemas)
                 print("[PERF] \(databaseName): final merge took \(String(format: "%.3f", CFAbsoluteTimeGetCurrent() - mergeStart))s")
             }
 
             print("[PERF] \(databaseName): total loadDatabaseSchemaOnly \(String(format: "%.3f", CFAbsoluteTimeGetCurrent() - t0))s")
         } catch {
+            session.markMetadataRefreshFailed(forDatabase: databaseName)
             ConnectionDebug.log("[SchemaDiscovery] loadDatabaseSchemaOnly failed for '\(databaseName)': \(error.localizedDescription)")
         }
     }
@@ -266,9 +283,15 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
     private func schedulePersist(_ structure: DatabaseStructure, for session: ConnectionSession) {
         persistTask?.cancel()
+        let connection = session.connection
+        let limitBytes = cacheLimitProvider?() ?? 512 * 1_024 * 1_024
         persistTask = Task {
-            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
+            try? await self.objectBrowserCacheStore.stashStructure(
+                structure,
+                for: connection,
+                limitBytes: limitBytes
+            )
             var conn = session.connection
             conn.cachedStructure = structure
             conn.cachedStructureUpdatedAt = Date()

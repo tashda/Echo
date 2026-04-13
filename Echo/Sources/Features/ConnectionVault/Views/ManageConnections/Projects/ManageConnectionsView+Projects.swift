@@ -252,7 +252,7 @@ extension ManageConnectionsView {
                 Task {
                     try? await projectStore.updateProject(updated)
                     if newValue, let syncEngine = AppDirector.shared.syncEngine {
-                        try? await syncEngine.performInitialUpload(for: updated)
+                        try? await syncEngine.performInitialUpload(for: updated, strategy: .merge)
                     }
                 }
             }

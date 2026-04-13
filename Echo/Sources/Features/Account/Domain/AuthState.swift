@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Supabase
 
 /// Observable auth state that drives the Account settings UI.
 /// Lives as a singleton on AppDirector and is injected into the environment.
@@ -46,11 +47,23 @@ final class AuthState {
         do {
             let user = try await tokenStore.loadUser()
             let tokens = try await tokenStore.loadTokens()
-            if let user, tokens != nil {
+            if let user, let tokens, await ensureSupabaseSession(using: tokens) {
                 currentUser = user
+            } else if user != nil || tokens != nil {
+                try? await tokenStore.clearAll()
             }
         } catch {
             // No saved session — stay signed out
+        }
+    }
+
+    @discardableResult
+    func ensureSupabaseSession() async -> Bool {
+        do {
+            guard let tokens = try await tokenStore.loadTokens() else { return false }
+            return await ensureSupabaseSession(using: tokens)
+        } catch {
+            return false
         }
     }
 
@@ -146,16 +159,26 @@ final class AuthState {
     // MARK: - Delete Account
 
     func deleteAccount() async throws {
+        error = nil
         isLoading = true
         defer { isLoading = false }
 
-        guard let tokens = try await tokenStore.loadTokens() else {
-            throw AuthError.notAuthenticated
-        }
+        do {
+            guard let tokens = try await tokenStore.loadTokens() else {
+                throw AuthError.notAuthenticated
+            }
 
-        try await backend.deleteAccount(accessToken: tokens.accessToken)
-        try await tokenStore.clearAll()
-        currentUser = nil
+            try await backend.deleteAccount(accessToken: tokens.accessToken)
+            try await tokenStore.clearAll()
+            currentUser = nil
+        } catch let authError as AuthError {
+            error = authError
+            throw authError
+        } catch {
+            let authError = AuthError.unknown(error.localizedDescription)
+            self.error = authError
+            throw authError
+        }
     }
 
     // MARK: - Update Profile
@@ -199,6 +222,28 @@ final class AuthState {
             error = authError
         } catch {
             self.error = .unknown(error.localizedDescription)
+        }
+    }
+
+    private func ensureSupabaseSession(using tokens: AuthTokens) async -> Bool {
+        guard let client = SupabaseConfig.sharedClient else { return true }
+
+        do {
+            _ = try await client.auth.session
+            return true
+        } catch Supabase.AuthError.sessionMissing {
+            do {
+                guard let refreshToken = tokens.refreshToken else { return false }
+                _ = try await client.auth.setSession(
+                    accessToken: tokens.accessToken,
+                    refreshToken: refreshToken
+                )
+                return true
+            } catch {
+                return false
+            }
+        } catch {
+            return true
         }
     }
 }

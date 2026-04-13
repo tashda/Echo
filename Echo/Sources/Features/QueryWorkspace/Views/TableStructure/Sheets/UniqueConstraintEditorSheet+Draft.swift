@@ -3,10 +3,19 @@ import Foundation
 
 extension UniqueConstraintEditorSheet {
     func applyDraftChanges() {
-        constraint.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        constraint.columns = draft.columns.map { $0.name }
-        constraint.isDeferrable = draft.isDeferrable
-        constraint.isInitiallyDeferred = draft.isInitiallyDeferred
+        let updatedConstraint = TableStructureEditorViewModel.UniqueConstraintModel(
+            original: constraint.original,
+            name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
+            columns: draft.columns.map { $0.name },
+            isDeferrable: draft.isDeferrable,
+            isInitiallyDeferred: draft.isInitiallyDeferred
+        )
+
+        if draft.isEditingExisting {
+            constraint = updatedConstraint
+        } else {
+            onSaveNew?(updatedConstraint)
+        }
     }
 
     func cancelIfNew() {

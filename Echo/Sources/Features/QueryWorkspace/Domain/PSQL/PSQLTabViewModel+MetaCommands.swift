@@ -320,9 +320,8 @@ extension PSQLTabViewModel {
           \\du          list roles
           \\x           toggle expanded output
 
-        Not supported in the managed console:
-          shell/file/client-local commands such as \\!, \\i, \\ir, \\o, \\w, \\copy, \\cd, \\set, \\watch
-          These belong to native psql, which is intended for exact CLI compatibility.
+        Not available in the managed console (use "Open in psql" for these):
+          \\!, \\i, \\ir, \\o, \\w, \\copy, \\cd, \\set, \\watch
 
         """
     }
@@ -334,7 +333,7 @@ extension PSQLTabViewModel {
     func unsupportedCommandMessage(for command: String) -> String {
         let nativeOnlyCommands: Set<String> = ["\\!", "\\i", "\\ir", "\\o", "\\w", "\\copy", "\\cd", "\\set", "\\watch", "\\prompt", "\\password"]
         if nativeOnlyCommands.contains(command) {
-            return "ERROR: \(command) is a native psql client command and is not supported in Echo's managed Postgres Console.\n"
+            return "ERROR: \(command) requires the native psql CLI. Use \"Open in psql\" from the database context menu.\n"
         }
         return "ERROR: Unsupported psql command: \(command)\n"
     }

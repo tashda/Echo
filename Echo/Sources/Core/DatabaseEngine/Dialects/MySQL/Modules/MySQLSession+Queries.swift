@@ -8,6 +8,10 @@ extension MySQLSession {
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        if QueryStatementClassifier.isLikelyMessageOnlyStatement(sql, databaseType: .mysql) {
+            return try await executeSimpleQuery(sql)
+        }
+
         guard let progressHandler else {
             return try await executeSimpleQuery(sql)
         }
@@ -110,7 +114,7 @@ extension MySQLSession {
     private func executeSimpleQuery(_ sql: String) async throws -> QueryResultSet {
         do {
             let result = try await client.query(sql)
-            return makeResultSet(from: result.rows)
+            return makeResultSet(from: result.rows, metadata: result.metadata)
         } catch {
             throw DatabaseError.queryError(error.localizedDescription)
         }
@@ -165,7 +169,7 @@ extension MySQLSession {
         }
     }
 
-    private func makeResultSet(from rows: [MySQLRow]) -> QueryResultSet {
+    private func makeResultSet(from rows: [MySQLRow], metadata: MySQLWireQueryMetadata? = nil) -> QueryResultSet {
         let columns = rows.first.map { makeColumnInfo(from: $0.columnDefinitions) } ?? []
         let previewRows = rows.map { row in
             row.values.indices.map { index in
@@ -174,9 +178,18 @@ extension MySQLSession {
         }
 
         return QueryResultSet(
-            columns: columns.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columns,
+            columns: columns,
             rows: previewRows,
-            totalRowCount: rows.count
+            totalRowCount: rows.count,
+            commandTag: metadata.map(commandResponse(from:))
         )
+    }
+
+    private func commandResponse(from metadata: MySQLWireQueryMetadata) -> String {
+        var segments = ["affectedRows=\(metadata.affectedRows)"]
+        if let lastInsertID = metadata.lastInsertID {
+            segments.append("lastInsertID=\(lastInsertID)")
+        }
+        return segments.joined(separator: ", ")
     }
 }

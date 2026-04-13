@@ -16,18 +16,6 @@ enum AccentColorSource: String, Codable, Hashable, CaseIterable {
     }
 }
 
-enum NativePsqlRuntimePreference: String, Codable, Hashable, CaseIterable {
-    case bundled
-    case system
-
-    var displayName: String {
-        switch self {
-        case .bundled: return "Bundled Binary"
-        case .system: return "System Binary"
-        }
-    }
-}
-
 enum SidebarAutoExpandSection: String, Codable, Hashable, CaseIterable, Identifiable {
     case databases
     case tables
@@ -148,6 +136,7 @@ struct GlobalSettings: Codable, Hashable {
     var resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024
     var resultSpoolRetentionHours: Int = 72
     var resultSpoolCustomLocation: String?
+    var objectBrowserCacheMaxBytes: Int = 512 * 1_024 * 1_024
     var autoOpenInspectorOnSelection: Bool = true
     var autoOpenBottomPanel: Bool = true
     var diagramPrefetchMode: DiagramPrefetchMode = .off
@@ -163,11 +152,6 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarAutoExpandSQLServer: Set<SidebarAutoExpandSection>?
     var sidebarAutoExpandMySQL: Set<SidebarAutoExpandSection>?
     var managedPostgresConsoleEnabled: Bool = true
-    var nativePsqlEnabled: Bool = false
-    var nativePsqlRuntimePreference: NativePsqlRuntimePreference = .bundled
-    var nativePsqlAllowSystemBinaryFallback: Bool = false
-    var nativePsqlAllowShellEscape: Bool = true
-    var nativePsqlAllowFileCommands: Bool = true
     var pgToolCustomPath: String?
     var mysqlToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
@@ -233,6 +217,7 @@ struct GlobalSettings: Codable, Hashable {
         case showForeignKeysInInspector, showJsonInInspector
         case resultsInitialRowLimit
         case resultSpoolMaxBytes, resultSpoolRetentionHours, resultSpoolCustomLocation
+        case objectBrowserCacheMaxBytes
         case autoOpenInspectorOnSelection, autoOpenBottomPanel
         case diagramPrefetchMode, diagramRefreshCadence, diagramCacheMaxBytes
         case diagramVerifyBeforeRefresh, diagramRenderRelationshipsForLargeDiagrams, diagramUseThemedAppearance
@@ -240,11 +225,6 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarAutoExpandSections, sidebarCustomizePerDatabaseType
         case sidebarAutoExpandPostgresql, sidebarAutoExpandSQLServer, sidebarAutoExpandMySQL
         case managedPostgresConsoleEnabled
-        case nativePsqlEnabled
-        case nativePsqlRuntimePreference
-        case nativePsqlAllowSystemBinaryFallback
-        case nativePsqlAllowShellEscape
-        case nativePsqlAllowFileCommands
         case pgToolCustomPath
         case mysqlToolCustomPath
         case sidebarIconColorMode
@@ -300,6 +280,7 @@ struct GlobalSettings: Codable, Hashable {
         resultSpoolMaxBytes = try container.decodeIfPresent(Int.self, forKey: .resultSpoolMaxBytes) ?? 5 * 1_024 * 1_024 * 1_024
         resultSpoolRetentionHours = try container.decodeIfPresent(Int.self, forKey: .resultSpoolRetentionHours) ?? 72
         resultSpoolCustomLocation = try container.decodeIfPresent(String.self, forKey: .resultSpoolCustomLocation)
+        objectBrowserCacheMaxBytes = max(64 * 1_024 * 1_024, try container.decodeIfPresent(Int.self, forKey: .objectBrowserCacheMaxBytes) ?? 512 * 1_024 * 1_024)
         autoOpenInspectorOnSelection = try container.decodeIfPresent(Bool.self, forKey: .autoOpenInspectorOnSelection) ?? true
         autoOpenBottomPanel = try container.decodeIfPresent(Bool.self, forKey: .autoOpenBottomPanel) ?? true
         diagramPrefetchMode = try container.decodeIfPresent(DiagramPrefetchMode.self, forKey: .diagramPrefetchMode) ?? .off
@@ -315,11 +296,6 @@ struct GlobalSettings: Codable, Hashable {
         sidebarAutoExpandSQLServer = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandSQLServer)
         sidebarAutoExpandMySQL = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandMySQL)
         managedPostgresConsoleEnabled = try container.decodeIfPresent(Bool.self, forKey: .managedPostgresConsoleEnabled) ?? true
-        nativePsqlEnabled = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlEnabled) ?? false
-        nativePsqlRuntimePreference = try container.decodeIfPresent(NativePsqlRuntimePreference.self, forKey: .nativePsqlRuntimePreference) ?? .bundled
-        nativePsqlAllowSystemBinaryFallback = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowSystemBinaryFallback) ?? false
-        nativePsqlAllowShellEscape = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowShellEscape) ?? true
-        nativePsqlAllowFileCommands = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowFileCommands) ?? true
         pgToolCustomPath = try container.decodeIfPresent(String.self, forKey: .pgToolCustomPath)
         mysqlToolCustomPath = try container.decodeIfPresent(String.self, forKey: .mysqlToolCustomPath)
 
@@ -381,6 +357,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(resultSpoolMaxBytes, forKey: .resultSpoolMaxBytes)
         try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)
+        try container.encode(objectBrowserCacheMaxBytes, forKey: .objectBrowserCacheMaxBytes)
         try container.encode(autoOpenInspectorOnSelection, forKey: .autoOpenInspectorOnSelection)
         try container.encode(autoOpenBottomPanel, forKey: .autoOpenBottomPanel)
         try container.encode(diagramPrefetchMode, forKey: .diagramPrefetchMode)
@@ -399,11 +376,6 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(sidebarAutoExpandSQLServer, forKey: .sidebarAutoExpandSQLServer)
         try container.encodeIfPresent(sidebarAutoExpandMySQL, forKey: .sidebarAutoExpandMySQL)
         try container.encode(managedPostgresConsoleEnabled, forKey: .managedPostgresConsoleEnabled)
-        try container.encode(nativePsqlEnabled, forKey: .nativePsqlEnabled)
-        try container.encode(nativePsqlRuntimePreference, forKey: .nativePsqlRuntimePreference)
-        try container.encode(nativePsqlAllowSystemBinaryFallback, forKey: .nativePsqlAllowSystemBinaryFallback)
-        try container.encode(nativePsqlAllowShellEscape, forKey: .nativePsqlAllowShellEscape)
-        try container.encode(nativePsqlAllowFileCommands, forKey: .nativePsqlAllowFileCommands)
         try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
         try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)

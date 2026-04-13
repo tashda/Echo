@@ -5,7 +5,7 @@ extension ObjectBrowserSidebarView {
     @ViewBuilder
     func databaseContent(database: DatabaseInfo, session: ConnectionSession, hasSchemas: Bool, proxy: ScrollViewProxy) -> some View {
         let connID = session.connection.id
-        let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
+        let isLoading = session.isRefreshingMetadata(forDatabase: database.name)
 
         Group {
             if hasSchemas {
@@ -88,30 +88,33 @@ extension ObjectBrowserSidebarView {
 
     private func loadSchemaIfNeeded(connID: UUID, database: DatabaseInfo, session: ConnectionSession) {
         let hasSchemas = !database.schemas.isEmpty && database.schemas.contains(where: { !$0.objects.isEmpty })
-        let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
-        let alreadyLoaded = viewModel.isDatabaseSchemaLoadedOnce(connectionID: connID, databaseName: database.name)
-        let needsLoad = !hasSchemas && !isLoading && !alreadyLoaded
+        let freshness = session.metadataFreshness(forDatabase: database.name)
+        let isLoading = session.isRefreshingMetadata(forDatabase: database.name)
+        let needsLoad = switch freshness {
+        case .cached:
+            !isLoading
+        case .listOnly:
+            !isLoading
+        case .refreshing, .live, .failed:
+            false
+        }
         guard needsLoad else { return }
 
         Task { @MainActor in
             let loadStart = CFAbsoluteTimeGetCurrent()
             let structureState = session.structureLoadingState
             print("[PERF] \(database.name): load started (structureState=\(structureState), existingDBCount=\(session.databaseStructure?.databases.count ?? 0))")
-            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
+            session.markMetadataRefreshStarted(forDatabase: database.name)
+            guard session.beginSchemaLoad(forDatabase: database.name) else { return }
             await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
+            session.finishSchemaLoad(forDatabase: database.name)
             let loadEnd = CFAbsoluteTimeGetCurrent()
             print("[PERF] \(database.name): load completed in \(String(format: "%.3f", loadEnd - loadStart))s, UI update pending")
 
-            // Only mark as "loaded once" if schemas actually arrived.
-            // If the load returned empty, don't set the flag — allow retry.
             let updatedDB = session.databaseStructure?.databases.first(where: { $0.name == database.name })
             let gotSchemas = updatedDB?.schemas.contains(where: { !$0.objects.isEmpty }) ?? false
-            if gotSchemas {
-                viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
-            } else {
-                // Clear loading state but DON'T mark as loaded-once — allow future retry
-                let key = viewModel.pinnedStorageKey(connectionID: connID, databaseName: database.name)
-                viewModel.databaseSchemaLoadingStates[key] = false
+            if !gotSchemas && freshness == .cached && hasSchemas {
+                session.markMetadataRefreshCompleted(forDatabase: database.name, hasSchemas: true)
             }
 
             if session.connection.databaseType == .postgresql {

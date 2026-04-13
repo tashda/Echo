@@ -18,6 +18,8 @@ struct ApplicationCacheSettingsView: View {
     @State var isRefreshingAutocompleteHistory = false
     @State var diagramCacheUsage: UInt64 = 0
     @State var isRefreshingDiagramCache = false
+    @State var objectBrowserCacheUsage: UInt64 = 0
+    @State var isRefreshingObjectBrowserCache = false
 
     var body: some View {
         Form {
@@ -32,6 +34,7 @@ struct ApplicationCacheSettingsView: View {
             await refreshResultCacheUsage()
             await refreshAutocompleteHistoryUsage()
             await refreshDiagramCacheUsage()
+            await refreshObjectBrowserCacheUsage()
         }
         .alert("Disable Clipboard History?", isPresented: $confirmDisableHistory) {
             Button("Disable", role: .destructive) {
@@ -77,6 +80,14 @@ struct ApplicationCacheSettingsView: View {
                 isRefreshing: isRefreshingResultCache,
                 onRefresh: { await refreshResultCacheUsage() },
                 onClear: { clearResultCache() }
+            )
+
+            storageUsageRow(
+                title: "Object Browser Cache",
+                usage: objectBrowserCacheUsage,
+                isRefreshing: isRefreshingObjectBrowserCache,
+                onRefresh: { await refreshObjectBrowserCacheUsage() },
+                onClear: { clearObjectBrowserCache() }
             )
 
             storageUsageRow(

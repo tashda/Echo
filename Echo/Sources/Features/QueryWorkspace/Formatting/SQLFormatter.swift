@@ -102,7 +102,15 @@ final class SQLFormatter: SQLFormatterProtocol, Sendable {
             throw SQLFormatterError.formattingFailed(message)
         }
 
+        if result?.isUndefined == true || result?.isNull == true {
+            return sql
+        }
+
         guard let formatted = result?.toString(), !formatted.isEmpty else {
+            return sql
+        }
+
+        if formatted == "undefined" || formatted == "null" {
             return sql
         }
 

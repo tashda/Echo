@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import os.log
 import Supabase
 
 /// HTTP client for the Supabase sync RPC endpoints.
@@ -9,6 +10,7 @@ import Supabase
 /// JWT injection and token refresh automatically.
 nonisolated final class SyncClient: Sendable {
     private let client: SupabaseClient
+    private let logger = Logger(subsystem: "dev.echodb.echo", category: "sync-client")
 
     init?() {
         guard let client = SupabaseConfig.sharedClient else { return nil }
@@ -60,15 +62,42 @@ nonisolated final class SyncClient: Sendable {
     // MARK: - Push
 
     /// Push local changes to the server.
-    func push(changes: [SyncDocument]) async throws -> SyncPushResponse {
+    func push(changes: [SyncDocument], projectID: UUID) async throws -> SyncPushResponse {
         let params = SyncPushParams(p_changes: changes)
 
-        let response: SyncPushResponse = try await client.rpc(
-            "sync_push",
-            params: params
-        ).execute().value
+        do {
+            let response: SyncPushResponse = try await client.rpc(
+                "sync_push",
+                params: params
+            ).execute().value
 
-        return response
+            return response
+        } catch let error as PostgrestError where shouldRecoverFromDuplicateDocument(error) {
+            let removedCount = try await removeStaleDocumentsConflicting(with: changes, currentProjectID: projectID)
+            guard removedCount > 0 else { throw error }
+
+            logger.warning("Removed \(removedCount) stale sync documents after duplicate-key conflict; retrying push")
+
+            let response: SyncPushResponse = try await client.rpc(
+                "sync_push",
+                params: params
+            ).execute().value
+
+            return response
+        }
+    }
+
+    // MARK: - Pre-flight Check
+
+    /// Check how many sync documents exist on the server for a given project.
+    /// Used to determine whether a merge strategy prompt is needed.
+    func cloudDocumentCount(projectID: UUID) async throws -> Int {
+        let response = try await client.from("sync_documents")
+            .select("*", head: true, count: .exact)
+            .eq("project_id", value: projectID)
+            .eq("is_deleted", value: false)
+            .execute()
+        return response.count ?? 0
     }
 
     // MARK: - Project Registration
@@ -92,6 +121,41 @@ nonisolated final class SyncClient: Sendable {
                 sort_order: sortOrder
             ))
             .execute()
+    }
+
+    private func shouldRecoverFromDuplicateDocument(_ error: PostgrestError) -> Bool {
+        error.message.contains("sync_documents_pkey")
+            || (error.detail?.contains("sync_documents_pkey") ?? false)
+    }
+
+    private func removeStaleDocumentsConflicting(with changes: [SyncDocument], currentProjectID: UUID) async throws -> Int {
+        let ids = Array(Set(changes.map(\.id)))
+        guard !ids.isEmpty else { return 0 }
+
+        struct ExistingDocumentRow: Decodable {
+            let id: UUID
+            let project_id: UUID
+            let is_deleted: Bool
+        }
+
+        let existingRows: [ExistingDocumentRow] = try await client.from("sync_documents")
+            .select("id, project_id, is_deleted")
+            .in("id", values: ids)
+            .execute()
+            .value
+
+        let staleIDs = Array(Set(existingRows.lazy
+            .filter { $0.project_id != currentProjectID || $0.is_deleted }
+            .map(\.id)))
+
+        guard !staleIDs.isEmpty else { return 0 }
+
+        _ = try await client.from("sync_documents")
+            .delete(returning: .minimal)
+            .in("id", values: staleIDs)
+            .execute()
+
+        return staleIDs.count
     }
 }
 

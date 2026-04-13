@@ -11,12 +11,11 @@ extension ObjectBrowserSidebarView {
 
         // Group 1: Refresh
         Button {
-            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
             Task {
                 let handle = AppDirector.shared.activityEngine.begin("Refreshing \(type.pluralDisplayName)", connectionSessionID: session.id)
+                session.markMetadataRefreshStarted(forDatabase: database.name)
                 await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
                 handle.succeed()
-                viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
             }
         } label: {
             Label("Refresh", systemImage: "arrow.clockwise")

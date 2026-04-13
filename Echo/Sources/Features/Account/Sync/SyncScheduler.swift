@@ -23,6 +23,7 @@ final class SyncScheduler {
 
     private var debounceTask: Task<Void, Never>?
     private var idleTimerTask: Task<Void, Never>?
+    private var triggerTask: Task<Void, Never>?
     private var isRunning = false
 
     // MARK: - Init
@@ -47,6 +48,8 @@ final class SyncScheduler {
     /// Stop the scheduler. Called on sign-out.
     func stop() {
         isRunning = false
+        triggerTask?.cancel()
+        triggerTask = nil
         debounceTask?.cancel()
         debounceTask = nil
         idleTimerTask?.cancel()
@@ -60,13 +63,12 @@ final class SyncScheduler {
     func scheduleSync() {
         guard isRunning else { return }
         debounceTask?.cancel()
-        let interval = changeDebounceInterval
-        let engineRef = syncEngine
-        debounceTask = Task.detached {
+        debounceTask = Task { [weak self] in
+            guard let self else { return }
             do {
-                try await Task.sleep(for: .seconds(interval))
-                guard !Task.isCancelled else { return }
-                await engineRef?.syncNow()
+                try await Task.sleep(for: .seconds(self.changeDebounceInterval))
+                guard !Task.isCancelled, self.isRunning else { return }
+                await self.syncEngine?.syncNow()
             } catch {
                 // Task was cancelled — another change came in
             }
@@ -83,22 +85,22 @@ final class SyncScheduler {
     // MARK: - Private
 
     private func triggerSync() {
-        let engineRef = syncEngine
-        Task.detached {
-            await engineRef?.syncNow()
+        triggerTask?.cancel()
+        triggerTask = Task { [weak self] in
+            guard let self, self.isRunning else { return }
+            await self.syncEngine?.syncNow()
         }
     }
 
     private func startIdleTimer() {
         idleTimerTask?.cancel()
-        let interval = idleSyncInterval
-        let engineRef = syncEngine
-        idleTimerTask = Task.detached {
+        idleTimerTask = Task { [weak self] in
+            guard let self else { return }
             while !Task.isCancelled {
                 do {
-                    try await Task.sleep(for: .seconds(interval))
-                    guard !Task.isCancelled else { break }
-                    await engineRef?.syncNow()
+                    try await Task.sleep(for: .seconds(self.idleSyncInterval))
+                    guard !Task.isCancelled, self.isRunning else { break }
+                    await self.syncEngine?.syncNow()
                 } catch {
                     break
                 }

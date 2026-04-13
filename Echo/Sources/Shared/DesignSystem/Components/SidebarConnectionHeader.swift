@@ -16,6 +16,12 @@ struct SidebarConnectionHeader: View {
     let connectionState: ConnectionState
     let onAction: () -> Void
     var trailingAccessory: TrailingAccessory = .chevron
+    var iconScale: CGFloat = 1
+    var iconFrameScale: CGFloat = 1
+    var iconGlyphScale: CGFloat = 1
+    var leadingPaddingAdjustment: CGFloat = 0
+    var statusPresentation: StatusPresentation = .overlayIcon
+    var labelFont: Font? = nil
 
     @Environment(\.sidebarDensity) private var density
 
@@ -23,6 +29,12 @@ struct SidebarConnectionHeader: View {
         case chevron
         case spinner
         case retryButton(() -> Void)
+        case none
+    }
+
+    enum StatusPresentation {
+        case overlayIcon
+        case inlineDot
         case none
     }
 
@@ -74,6 +86,9 @@ struct SidebarConnectionHeader: View {
     }
 
     private var densityLabelFont: Font {
+        if let labelFont {
+            return labelFont
+        }
         switch density {
         case .small: return SidebarRowConstants.labelFont // 11pt
         case .medium: return Font.system(size: 12, weight: .regular)
@@ -90,10 +105,6 @@ struct SidebarConnectionHeader: View {
     }
 
     // MARK: - Icon
-
-    private var iconColor: Color {
-        isColorful ? connectionColor : ColorTokens.Sidebar.symbol
-    }
 
     // MARK: - Highlight
 
@@ -114,27 +125,17 @@ struct SidebarConnectionHeader: View {
                 }
                 .frame(width: SidebarRowConstants.chevronWidth)
 
-                // Server icon with status dot
-                ZStack(alignment: .bottomTrailing) {
-                    Image(systemName: databaseType.symbolName)
-                        .font(densityIconFont)
-                        .imageScale(.medium)
-                        .symbolRenderingMode(.monochrome)
-                        .foregroundStyle(iconColor)
-                        .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
-
-                    Circle()
-                        .fill(statusInfo.color)
-                        .frame(width: densityStatusDotSize, height: densityStatusDotSize)
-                        .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 0.75))
-                        .offset(x: 1.5, y: 1.5)
-                }
+                serverIconView
 
                 // Connection name — single line, same font as SidebarRow
                 Text(connectionName)
                     .font(densityLabelFont)
                     .foregroundStyle(ColorTokens.Text.primary)
                     .lineLimit(1)
+
+                if statusPresentation == .inlineDot {
+                    inlineStatusIndicator
+                }
 
                 if isSecure {
                     Image(systemName: "lock.fill")
@@ -152,7 +153,7 @@ struct SidebarConnectionHeader: View {
 
                 trailingAccessoryView
             }
-            .padding(.leading, SidebarRowConstants.rowLeadingPadding)
+            .padding(.leading, SidebarRowConstants.rowLeadingPadding + leadingPaddingAdjustment)
             .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
             .padding(.vertical, densityVerticalPadding)
             .background(highlightFill)
@@ -163,6 +164,58 @@ struct SidebarConnectionHeader: View {
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .help(subtitle)
         .focusable(false)
+    }
+
+    @ViewBuilder
+    private var serverIconView: some View {
+        switch statusPresentation {
+        case .overlayIcon:
+            ZStack(alignment: .bottomTrailing) {
+                iconImage
+                statusDot
+                    .offset(x: 1.5, y: 1.5)
+            }
+        case .inlineDot, .none:
+            iconImage
+        }
+    }
+
+    private var iconImage: some View {
+        DatabaseTypeIcon(
+            databaseType: databaseType,
+            tint: connectionColor,
+            isColorful: isColorful,
+            presentation: .sidebar,
+            glyphScale: iconGlyphScale
+        )
+        .scaleEffect(iconScale)
+        .frame(
+            width: densityIconFrameWidth * iconFrameScale,
+            height: densityIconFrameHeight * iconFrameScale
+        )
+    }
+
+    private var statusDot: some View {
+        Circle()
+            .fill(statusInfo.color)
+            .frame(width: densityStatusDotSize, height: densityStatusDotSize)
+            .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 0.75))
+    }
+
+    @ViewBuilder
+    private var inlineStatusIndicator: some View {
+        switch connectionState {
+        case .connected, .disconnected, .error:
+            statusDot
+                .shadow(color: statusInfo.color.opacity(0.18), radius: 1.5, y: 0.5)
+                .padding(.leading, SpacingTokens.xxxs)
+                .padding(.trailing, SpacingTokens.xxxs)
+        case .connecting, .testing:
+            ProgressView()
+                .controlSize(.mini)
+                .padding(.leading, SpacingTokens.xxxs)
+                .padding(.trailing, SpacingTokens.xxxs)
+        }
     }
 
     // MARK: - Trailing Accessory

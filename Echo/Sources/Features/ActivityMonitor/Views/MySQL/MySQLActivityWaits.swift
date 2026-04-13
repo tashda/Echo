@@ -166,6 +166,7 @@ struct MySQLActivityWaits: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        let handle = viewModel.activityEngine?.begin("Loading wait stats", connectionSessionID: viewModel.connectionSessionID)
         do {
             switch selectedTab {
             case .global:
@@ -178,8 +179,10 @@ struct MySQLActivityWaits: View {
                     name: "innodb_lock_waits"
                 )
             }
+            handle?.succeed()
         } catch {
             errorMessage = error.localizedDescription
+            handle?.fail(error.localizedDescription)
         }
         isLoading = false
     }

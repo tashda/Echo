@@ -21,6 +21,7 @@ import OSLog
     var currentExecutionTime: TimeInterval = 0
     var rowProgress: RowProgress = RowProgress()
     var messages: [QueryExecutionMessage] = []
+    var prefersMessagesAfterExecution: Bool = false
     var hasExecutedAtLeastOnce: Bool = false
     var splitRatio: CGFloat = 0.5
     var wasCancelled: Bool = false

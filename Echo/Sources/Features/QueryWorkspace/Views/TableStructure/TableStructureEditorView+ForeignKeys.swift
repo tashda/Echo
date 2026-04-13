@@ -38,7 +38,7 @@ extension TableStructureEditorView {
             TableColumn("Kind") { _ in
                 Text("FK")
                     .font(TypographyTokens.Table.kindBadge)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(ColorTokens.Status.success)
             }
             .width(35)
 
@@ -106,6 +106,14 @@ extension TableStructureEditorView {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
+        .onContinuousHover { phase in
+            switch phase {
+            case .active:
+                NSCursor.arrow.set()
+            case .ended:
+                break
+            }
+        }
     }
 
     @ViewBuilder
@@ -208,11 +216,24 @@ extension TableStructureEditorView {
     }
 
     internal func presentNewForeignKey() {
-        let model = viewModel.addForeignKey()
-        activeSheet = .foreignKey(ForeignKeyEditorPresentation(foreignKeyID: model.id, isNew: true))
+        viewModel.sheetCoordinator.pendingNewForeignKey = TableStructureEditorViewModel.ForeignKeyModel(
+            original: nil,
+            name: "fk_\(viewModel.tableName)_\(viewModel.foreignKeys.count + 1)",
+            columns: [],
+            referencedSchema: viewModel.schemaName,
+            referencedTable: viewModel.tableName,
+            referencedColumns: [],
+            onUpdate: nil,
+            onDelete: nil,
+            isDeferrable: false,
+            isInitiallyDeferred: false
+        )
+        viewModel.sheetCoordinator.activeSheet = .newForeignKey
     }
 
     private func presentForeignKeyEditor(for foreignKey: TableStructureEditorViewModel.ForeignKeyModel) {
-        activeSheet = .foreignKey(ForeignKeyEditorPresentation(foreignKeyID: foreignKey.id, isNew: foreignKey.isNew))
+        viewModel.sheetCoordinator.activeSheet = .foreignKey(
+            ForeignKeyEditorPresentation(foreignKeyID: foreignKey.id, isNew: foreignKey.isNew)
+        )
     }
 }

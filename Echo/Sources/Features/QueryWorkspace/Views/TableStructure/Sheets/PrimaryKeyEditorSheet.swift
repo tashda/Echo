@@ -6,6 +6,7 @@ struct PrimaryKeyEditorSheet: View {
     let databaseType: DatabaseType
     let onDelete: () -> Void
     let onCancelNew: () -> Void
+    let onSaveNew: ((TableStructureEditorViewModel.PrimaryKeyModel) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State var draft: Draft
@@ -15,13 +16,15 @@ struct PrimaryKeyEditorSheet: View {
         availableColumns: [String],
         databaseType: DatabaseType,
         onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
+        onCancelNew: @escaping () -> Void,
+        onSaveNew: ((TableStructureEditorViewModel.PrimaryKeyModel) -> Void)? = nil
     ) {
         self._primaryKey = primaryKey
         self.availableColumns = availableColumns
         self.databaseType = databaseType
         self.onDelete = onDelete
         self.onCancelNew = onCancelNew
+        self.onSaveNew = onSaveNew
         _draft = State(initialValue: Draft(model: primaryKey.wrappedValue, availableColumns: availableColumns))
     }
 

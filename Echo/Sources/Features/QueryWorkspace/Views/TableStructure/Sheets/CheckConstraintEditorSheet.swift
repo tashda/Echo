@@ -4,6 +4,7 @@ struct CheckConstraintEditorSheet: View {
     @Binding var constraint: TableStructureEditorViewModel.CheckConstraintModel
     let onDelete: () -> Void
     let onCancelNew: () -> Void
+    let onSaveNew: ((TableStructureEditorViewModel.CheckConstraintModel) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State var draft: Draft
@@ -11,11 +12,13 @@ struct CheckConstraintEditorSheet: View {
     init(
         constraint: Binding<TableStructureEditorViewModel.CheckConstraintModel>,
         onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
+        onCancelNew: @escaping () -> Void,
+        onSaveNew: ((TableStructureEditorViewModel.CheckConstraintModel) -> Void)? = nil
     ) {
         self._constraint = constraint
         self.onDelete = onDelete
         self.onCancelNew = onCancelNew
+        self.onSaveNew = onSaveNew
         _draft = State(initialValue: Draft(model: constraint.wrappedValue))
     }
 

@@ -187,4 +187,38 @@ final class ConnectionSessionTests: XCTestCase {
         let tab = cs.addQueryTab(withQuery: "SELECT 1")
         XCTAssertNotNil(tab)
     }
+
+    func testHydrateMetadataFreshnessFromCacheStructureMarksCachedAndListOnly() async {
+        let cs = makeConnectionSession()
+        cs.databaseStructure = DatabaseStructure(
+            serverVersion: "16.0",
+            databases: [
+                DatabaseInfo(
+                    name: "loaded",
+                    schemas: [SchemaInfo(name: "public", objects: [TestFixtures.schemaObjectInfo(name: "users")])]
+                ),
+                DatabaseInfo(name: "list_only", schemas: [])
+            ]
+        )
+
+        cs.hydrateMetadataFreshnessFromCacheStructure()
+
+        XCTAssertEqual(cs.metadataFreshness(forDatabase: "loaded"), .cached)
+        XCTAssertEqual(cs.metadataFreshness(forDatabase: "list_only"), .listOnly)
+    }
+
+    func testClearMetadataCacheStateResetsStructureAndFreshness() async {
+        let cs = makeConnectionSession()
+        cs.databaseStructure = TestFixtures.databaseStructure()
+        cs.hydrateMetadataFreshnessFromCacheStructure()
+        cs.markMetadataRefreshStarted(forDatabase: "db_0")
+        _ = cs.beginSchemaLoad(forDatabase: "db_0")
+
+        cs.clearMetadataCacheState()
+
+        XCTAssertNil(cs.databaseStructure)
+        XCTAssertEqual(cs.metadataFreshness(forDatabase: "db_0"), .listOnly)
+        XCTAssertTrue(cs.schemaLoadsInFlight.isEmpty)
+        XCTAssertEqual(cs.structureLoadingState, .idle)
+    }
 }

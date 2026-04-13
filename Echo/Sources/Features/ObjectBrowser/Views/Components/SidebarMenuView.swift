@@ -17,6 +17,7 @@ struct SidebarMenu: View {
 
     enum NavSection: String, CaseIterable {
         case folder = "Explorer"
+        case experimentalFolder = "Explorer Lab"
         case bookmark = "Bookmarks"
         case search = "Search"
         case clipboard = "Clipboard"
@@ -27,6 +28,7 @@ struct SidebarMenu: View {
         var icon: String {
             switch self {
             case .folder: return "folder"
+            case .experimentalFolder: return "testtube.2"
             case .bookmark: return "bookmark"
             case .search: return "magnifyingglass"
             case .clipboard: return "clipboard"
@@ -39,6 +41,7 @@ struct SidebarMenu: View {
         var activeIcon: String {
             switch self {
             case .folder: return "folder.fill"
+            case .experimentalFolder: return "testtube.2"
             case .bookmark: return "bookmark.fill"
             case .search: return "magnifyingglass"
             case .clipboard: return "clipboard.fill"
@@ -85,6 +88,12 @@ struct SidebarMenu: View {
         }
         .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in
             guard focus != nil else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedNavSection = .folder
+            }
+        }
+        .onChange(of: navigationStore.pendingExplorerRevealRequestID) { _, _ in
+            guard navigationStore.pendingExplorerRevealConnectionID != nil else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedNavSection = .folder
             }

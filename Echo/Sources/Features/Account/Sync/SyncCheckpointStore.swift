@@ -25,6 +25,10 @@ actor SyncCheckpointStore {
         checkpoints[projectID]?.checkpoint ?? 0
     }
 
+    func hasCheckpoint(for projectID: UUID) -> Bool {
+        checkpoints[projectID] != nil
+    }
+
     func update(projectID: UUID, checkpoint: UInt64) throws {
         checkpoints[projectID] = SyncCheckpoint(
             projectID: projectID,

@@ -170,15 +170,15 @@ struct PostgresActivityMonitorView: View {
             case .replication:
                 PostgresActivityReplication(info: snap.replicationInfo, sortOrder: $replicationSortOrder)
             case .ioStats:
-                PostgresActivityIOStats(connectionID: viewModel.connectionID)
+                PostgresActivityIOStats(connectionID: viewModel.connectionID, activityEngine: viewModel.activityEngine)
             case .wal:
-                PostgresActivityWAL(connectionID: viewModel.connectionID)
+                PostgresActivityWAL(connectionID: viewModel.connectionID, activityEngine: viewModel.activityEngine)
             case .bgWriter:
-                PostgresActivityBGWriter(connectionID: viewModel.connectionID)
+                PostgresActivityBGWriter(connectionID: viewModel.connectionID, activityEngine: viewModel.activityEngine)
             case .preparedTxns:
-                PostgresActivityPreparedTxns(connectionID: viewModel.connectionID)
+                PostgresActivityPreparedTxns(connectionID: viewModel.connectionID, activityEngine: viewModel.activityEngine)
             case .configuration:
-                PostgresActivityConfiguration(connectionID: viewModel.connectionID)
+                PostgresActivityConfiguration(connectionID: viewModel.connectionID, activityEngine: viewModel.activityEngine)
             }
         } else {
             EmptyTablePlaceholder()

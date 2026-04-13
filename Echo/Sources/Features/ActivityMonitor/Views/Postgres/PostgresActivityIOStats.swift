@@ -3,6 +3,7 @@ import PostgresKit
 
 struct PostgresActivityIOStats: View {
     let connectionID: UUID
+    var activityEngine: ActivityEngine?
     @Environment(EnvironmentState.self) private var environmentState
 
     @State private var stats: [PostgresTableIOStats] = []
@@ -111,11 +112,14 @@ struct PostgresActivityIOStats: View {
         guard let session = environmentState.sessionGroup.sessionForConnection(connectionID),
               let pg = session.session as? PostgresSession else { return }
         isLoading = true
+        let handle = activityEngine?.begin("Loading IO stats", connectionSessionID: connectionID)
         defer { isLoading = false }
         do {
             stats = try await pg.client.metadata.listTableIOStats(schema: schemaFilter)
+            handle?.succeed()
         } catch {
             stats = []
+            handle?.fail(error.localizedDescription)
         }
     }
 }

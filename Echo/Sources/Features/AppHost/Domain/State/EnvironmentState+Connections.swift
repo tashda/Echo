@@ -6,6 +6,16 @@ extension EnvironmentState {
     // MARK: - Session Management
 
     func connect(to connection: SavedConnection) {
+        if let existingSession = sessionGroup.sessionForConnection(connection.id) {
+            sessionGroup.setActiveSession(existingSession.id)
+            connectionStore.selectedConnectionID = connection.id
+            navigationStore.navigationState.selectConnection(connection)
+            if let databaseName = existingSession.sidebarFocusedDatabase {
+                navigationStore.navigationState.selectDatabase(databaseName)
+            }
+            navigationStore.revealExplorerConnection(connection.id)
+            return
+        }
         connectToNewSession(to: connection)
     }
 
@@ -143,6 +153,34 @@ extension EnvironmentState {
 
     func preloadStructure(for connection: SavedConnection, overridePassword: String? = nil) async {
         await schemaDiscoveryEngine.preloadStructure(for: connection, overridePassword: overridePassword)
+    }
+
+    func objectBrowserCacheUsageBytes() async -> UInt64 {
+        await objectBrowserCacheStore.currentUsageBytes()
+    }
+
+    func clearObjectBrowserCache() async {
+        await objectBrowserCacheStore.removeAll()
+
+        for index in connectionStore.connections.indices {
+            connectionStore.connections[index].cachedStructure = nil
+            connectionStore.connections[index].cachedStructureUpdatedAt = nil
+        }
+        try? await connectionStore.saveConnections()
+
+        for session in sessionGroup.activeSessions {
+            session.clearMetadataCacheState()
+        }
+    }
+
+    func migrateLegacyObjectBrowserCachesIfNeeded() async {
+        let limitBytes = projectStore.globalSettings.objectBrowserCacheMaxBytes
+        for connection in connectionStore.connections {
+            await objectBrowserCacheStore.migrateLegacyCacheIfNeeded(
+                from: connection,
+                limitBytes: limitBytes
+            )
+        }
     }
 
     // MARK: - Bookmarks

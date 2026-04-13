@@ -75,7 +75,7 @@ struct ConnectionToolbarMenuItems: View {
     private func connectionIcon(for connection: SavedConnection) -> ToolbarIcon {
         let assetName = connection.databaseType.iconName
         if hasImage(named: assetName) {
-            return .asset(assetName, isTemplate: false)
+            return .asset(assetName, isTemplate: connection.databaseType.usesTemplateIcon)
         }
         return .system("externaldrive")
     }

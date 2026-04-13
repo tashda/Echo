@@ -9,6 +9,7 @@ struct ColumnEditorSheet: View {
     let databaseType: DatabaseType
     let onDelete: () -> Void
     let onCancelNew: () -> Void
+    let onSaveNew: ((TableStructureEditorViewModel.ColumnModel) -> Void)?
 
     @Environment(\.dismiss) internal var dismiss
     @State internal var draft: Draft
@@ -17,12 +18,14 @@ struct ColumnEditorSheet: View {
         column: Binding<TableStructureEditorViewModel.ColumnModel>,
         databaseType: DatabaseType,
         onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
+        onCancelNew: @escaping () -> Void,
+        onSaveNew: ((TableStructureEditorViewModel.ColumnModel) -> Void)? = nil
     ) {
         self._column = column
         self.databaseType = databaseType
         self.onDelete = onDelete
         self.onCancelNew = onCancelNew
+        self.onSaveNew = onSaveNew
         _draft = State(initialValue: Draft(model: column.wrappedValue, databaseType: databaseType))
     }
 

@@ -3,6 +3,7 @@ import PostgresKit
 
 struct PostgresActivityConfiguration: View {
     let connectionID: UUID
+    var activityEngine: ActivityEngine?
     @Environment(EnvironmentState.self) private var environmentState
 
     @State private var settings: [PostgresServerSetting] = []
@@ -130,11 +131,14 @@ struct PostgresActivityConfiguration: View {
         guard let session = environmentState.sessionGroup.sessionForConnection(connectionID),
               let pg = session.session as? PostgresSession else { return }
         isLoading = true
+        let handle = activityEngine?.begin("Loading server settings", connectionSessionID: connectionID)
         defer { isLoading = false }
         do {
             settings = try await pg.client.metadata.listServerSettings()
+            handle?.succeed()
         } catch {
             settings = []
+            handle?.fail(error.localizedDescription)
         }
     }
 }

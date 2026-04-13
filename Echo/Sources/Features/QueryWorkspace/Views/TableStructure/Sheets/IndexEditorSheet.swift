@@ -6,6 +6,7 @@ struct IndexEditorSheet: View {
     let databaseType: DatabaseType
     let onDelete: () -> Void
     let onCancelNew: () -> Void
+    let onSaveNew: ((TableStructureEditorViewModel.IndexModel) -> Void)?
 
     @Environment(\.dismiss) internal var dismiss
     @State internal var draft: Draft
@@ -17,13 +18,15 @@ struct IndexEditorSheet: View {
         availableColumns: [String],
         databaseType: DatabaseType,
         onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
+        onCancelNew: @escaping () -> Void,
+        onSaveNew: ((TableStructureEditorViewModel.IndexModel) -> Void)? = nil
     ) {
         self._index = index
         self.availableColumns = availableColumns
         self.databaseType = databaseType
         self.onDelete = onDelete
         self.onCancelNew = onCancelNew
+        self.onSaveNew = onSaveNew
         _draft = State(initialValue: Draft(model: index.wrappedValue, availableColumns: availableColumns))
     }
 

@@ -41,8 +41,8 @@ final class PSQLTabViewModel: Identifiable {
         
         let version = connection.serverVersion ?? "unknown"
         history = "Postgres Console (Echo), server \(version)\n"
-        history += "This is Echo's managed PostgreSQL console powered by a dedicated connection.\n"
-        history += "Native psql is a separate feature and is not wired into this build yet.\n\n"
+        history += "Type SQL or use backslash commands (\\? for help).\n"
+        history += "For the native psql CLI, right-click a database and choose \"Open in psql\".\n\n"
         prompt()
         Task {
             await resolveActiveDatabase()

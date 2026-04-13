@@ -208,6 +208,12 @@ struct TableStructureEditorModelsTests {
         #expect(idx.isDirty == false)
     }
 
+    @Test func indexModelUnchangedIsNotDirtyForMSSQLDefaultType() {
+        let snapshot = IndexModel.Snapshot(name: "idx_test", columns: [], isUnique: false, filterCondition: nil, indexType: "nonclustered")
+        let idx = IndexModel(original: snapshot, name: "idx_test", columns: [], isUnique: false, filterCondition: "", indexType: "nonclustered")
+        #expect(idx.isDirty == false)
+    }
+
     @Test func indexModelNameChangeIsDirty() {
         let snapshot = IndexModel.Snapshot(name: "idx_old", columns: [], isUnique: false, filterCondition: nil)
         let idx = IndexModel(original: snapshot, name: "idx_new", columns: [], isUnique: false, filterCondition: "")

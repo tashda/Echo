@@ -24,26 +24,6 @@ extension DatabasesSettingsView {
         binding(for: \.managedPostgresConsoleEnabled)
     }
 
-    var nativePsqlBinding: Binding<Bool> {
-        binding(for: \.nativePsqlEnabled)
-    }
-
-    var runtimePreferenceBinding: Binding<NativePsqlRuntimePreference> {
-        binding(for: \.nativePsqlRuntimePreference)
-    }
-
-    var systemFallbackBinding: Binding<Bool> {
-        binding(for: \.nativePsqlAllowSystemBinaryFallback)
-    }
-
-    var shellEscapeBinding: Binding<Bool> {
-        binding(for: \.nativePsqlAllowShellEscape)
-    }
-
-    var fileCommandsBinding: Binding<Bool> {
-        binding(for: \.nativePsqlAllowFileCommands)
-    }
-
     var pgToolCustomPathBinding: Binding<String> {
         Binding(
             get: { settings.pgToolCustomPath ?? "" },

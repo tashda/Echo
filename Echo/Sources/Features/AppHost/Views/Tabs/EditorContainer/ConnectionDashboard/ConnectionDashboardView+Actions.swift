@@ -46,6 +46,12 @@ struct ConnectionDashboardTools: View {
         } directAction: {
             environmentState.openPSQLTab(for: session)
         }
+
+        DashboardToolCard(icon: "apple.terminal", label: "psql", menuItems: databases.map(\.name)) { db in
+            environmentState.openInPsql(for: session, database: db)
+        } directAction: {
+            environmentState.openInPsql(for: session)
+        }
     }
 
     // MARK: - MySQL
