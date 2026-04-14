@@ -1,0 +1,24 @@
+{
+  "ui": {
+    "inlineThinkingMode": "full",
+    "showModelInfoInChat": true,
+    "showMemoryUsage": true
+  },
+  "general": {
+    "enableNotifications": true,
+    "defaultApprovalMode": "default"
+  },
+  "experimental": {
+    "topicUpdateNarration": true,
+    "directWebFetch": true
+  },
+  "tools": {
+    "shell": {
+      "showColor": true
+    }
+  },
+  "model": {
+    "disableLoopDetection": true,
+    "name": ""
+  }
+}

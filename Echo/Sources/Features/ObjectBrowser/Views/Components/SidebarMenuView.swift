@@ -1,0 +1,185 @@
+import SwiftUI
+
+struct SidebarMenu: View {
+    @Binding var selectedConnectionID: UUID?
+    @Binding var selectedIdentityID: UUID?
+    
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
+    let onAddConnection: () -> Void
+
+    @State var selectedNavSection: NavSection = .folder
+    @State var pendingDuplicateConnection: SavedConnection?
+
+    enum NavSection: String, CaseIterable {
+        case folder = "Explorer"
+        case experimentalFolder = "Explorer Lab"
+        case bookmark = "Bookmarks"
+        case search = "Search"
+        case clipboard = "Clipboard"
+        case snippets = "Snippets"
+        case history = "History"
+        case connections = "Connections"
+
+        var icon: String {
+            switch self {
+            case .folder: return "folder"
+            case .experimentalFolder: return "testtube.2"
+            case .bookmark: return "bookmark"
+            case .search: return "magnifyingglass"
+            case .clipboard: return "clipboard"
+            case .snippets: return "curlybraces"
+            case .history: return "clock"
+            case .connections: return "externaldrive"
+            }
+        }
+
+        var activeIcon: String {
+            switch self {
+            case .folder: return "folder.fill"
+            case .experimentalFolder: return "testtube.2"
+            case .bookmark: return "bookmark.fill"
+            case .search: return "magnifyingglass"
+            case .clipboard: return "clipboard.fill"
+            case .snippets: return "curlybraces"
+            case .history: return "clock.fill"
+            case .connections: return "externaldrive.fill"
+            }
+        }
+
+        var displayName: String { rawValue }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            navigationBar
+                .padding(.horizontal, SpacingTokens.xxs2)
+
+            contentView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
+        .confirmationDialog(
+            "Duplicate Connection",
+            isPresented: Binding(
+                get: { pendingDuplicateConnection != nil },
+                set: { isPresented in if !isPresented { pendingDuplicateConnection = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingDuplicateConnection
+        ) { connection in
+            Button("Duplicate with Bookmark History") {
+                duplicateConnection(connection, copyBookmarks: true)
+            }
+
+            Button("Duplicate Only Connection") {
+                duplicateConnection(connection, copyBookmarks: false)
+            }
+
+            Button("Cancel", role: .cancel) {
+                pendingDuplicateConnection = nil
+            }
+        } message: { _ in
+            Text("Do you want to copy the bookmark history into the duplicated connection?")
+        }
+        .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in
+            guard focus != nil else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedNavSection = .folder
+            }
+        }
+        .onChange(of: navigationStore.pendingExplorerRevealRequestID) { _, _ in
+            guard navigationStore.pendingExplorerRevealConnectionID != nil else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedNavSection = .folder
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .activateSidebarSearch)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedNavSection = .search
+            }
+        }
+    }
+
+    private var navigationBar: some View {
+        xcodeStyleSegmentedControl
+    }
+
+    @ViewBuilder
+    private var xcodeStyleSegmentedControl: some View {
+        let controlHeight: CGFloat = WorkspaceChromeMetrics.chromeBackgroundHeight
+        let controlCornerRadius: CGFloat = controlHeight / 2
+        let segmentCornerRadius: CGFloat = controlCornerRadius - 4
+
+        RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
+            .fill(.primary.opacity(0.04))
+            .overlay(
+                RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
+                    .stroke(.primary.opacity(0.08), lineWidth: 0.5)
+            )
+            .overlay(
+                HStack(spacing: 0) {
+                    ForEach(Array(NavSection.allCases.enumerated()), id: \.element.rawValue) { index, section in
+                        let isEdgeSegment = index == 0 || index == NavSection.allCases.count - 1
+                        let highlightCornerRadius = isEdgeSegment ? controlCornerRadius : segmentCornerRadius
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                selectedNavSection = section
+                            }
+                        } label: {
+                            ZStack {
+                                Rectangle()
+                                    .fill(.clear)
+                                    .contentShape(Rectangle())
+
+                                Image(systemName: selectedNavSection == section ? section.activeIcon : section.icon)
+                                    .font(TypographyTokens.prominent.weight(.medium))
+                                    .foregroundStyle(selectedNavSection == section ? .white : .secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .background(
+                            RoundedRectangle(cornerRadius: highlightCornerRadius, style: .continuous)
+                                .fill(.tint)
+                                .opacity(selectedNavSection == section ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.15), value: selectedNavSection)
+                        )
+                        .help(section.displayName)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        if index < NavSection.allCases.count - 1 {
+                            let shouldShowDivider = selectedNavSection != section &&
+                                selectedNavSection != NavSection.allCases[index + 1]
+                            Rectangle()
+                                .fill(.primary.opacity(0.15))
+                                .frame(width: 0.5)
+                                .opacity(shouldShowDivider ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.15), value: shouldShowDivider)
+                        }
+                    }
+                }
+                .padding(.horizontal, 0)
+                .padding(.vertical, 0)
+            )
+            .frame(height: controlHeight)
+    }
+
+    func connectAndNavigate(to connection: SavedConnection) {
+        selectedConnectionID = connection.id
+        selectedNavSection = .folder
+
+        environmentState.connect(to: connection)
+    }
+
+    private func duplicateConnection(_ connection: SavedConnection, copyBookmarks: Bool) {
+        Task {
+            pendingDuplicateConnection = nil
+            // await environmentState.duplicateConnection(connection, copyBookmarks: copyBookmarks)
+        }
+    }
+}

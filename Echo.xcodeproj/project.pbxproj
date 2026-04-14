@@ -1,0 +1,1023 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0A41EC802F7C0B8500AD776A /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC7F2F7C0B8500AD776A /* Auth */; };
+		0A41EC822F7C0B8500AD776A /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC812F7C0B8500AD776A /* Functions */; };
+		0A41EC842F7C0B8500AD776A /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC832F7C0B8500AD776A /* PostgREST */; };
+		0A41EC862F7C0B8500AD776A /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC852F7C0B8500AD776A /* Realtime */; };
+		0A41EC882F7C0B8500AD776A /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC872F7C0B8500AD776A /* Storage */; };
+		0A41EC8A2F7C0B8500AD776A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC892F7C0B8500AD776A /* Supabase */; };
+		0A41ECB02F7C856800AD776A /* Crypto in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41ECAF2F7C856800AD776A /* Crypto */; };
+		0A41ECB22F7C856800AD776A /* CryptoExtras in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41ECB12F7C856800AD776A /* CryptoExtras */; };
+		0A41ECB42F7C856800AD776A /* _CryptoExtras in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41ECB32F7C856800AD776A /* _CryptoExtras */; };
+		0A6970C22F5EEF090027641E /* SQLiteNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C12F5EEF090027641E /* SQLiteNIO */; };
+		0A6970C52F5EEF5E0027641E /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C42F5EEF5E0027641E /* PostgresKit */; };
+		0A6970C72F5EEF5E0027641E /* PostgresWire in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C62F5EEF5E0027641E /* PostgresWire */; };
+		0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C92F5EEFA40027641E /* SQLServerKit */; };
+		0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */ = {isa = PBXBuildFile; productRef = 0A697AED2F5EF8220027641E /* EchoSense */; };
+		0A698A422F5F88AA0027641E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 0A698A412F5F88AA0027641E /* Sparkle */; };
+		0A79557E2E8F10A9002279AE /* MySQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLKit */; };
+		0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557F2E8F10A9002279AE /* MySQLWire */; };
+		6030A29ABBCD58751DCA65AE /* SourceCodePro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */; };
+		8ECF63DBB3844802B62E76D4 /* UbuntuMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */; };
+		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
+		C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */; };
+		D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */; };
+		E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */; };
+		E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */; };
+		F17A0E1C2FC1C3BC007F5489 /* FiraCode-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */; };
+		F17A0E1D2FC1C3BC007F5489 /* IBMPlexMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */; };
+		F17A0E1E2FC1C3BC007F5489 /* JetBrainsMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */; };
+		F17A0E1F2FC1C3BC007F5489 /* RecursiveMonoLinear-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */; };
+		F17A0E202FC1C3BC007F5489 /* SplineSansMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */; };
+		PGT001000000000000000001 /* pg_dump in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000001 /* pg_dump */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000002 /* pg_restore in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000002 /* pg_restore */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000003 /* libpq.5.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000003 /* libpq.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000004 /* libssl.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000004 /* libssl.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000005 /* libcrypto.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000005 /* libcrypto.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000006 /* libintl.8.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000006 /* libintl.8.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000007 /* libzstd.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000007 /* libzstd.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000008 /* liblz4.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000008 /* liblz4.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT001000000000000000009 /* libgssapi_krb5.2.2.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000009 /* libgssapi_krb5.2.2.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000A /* libkrb5.3.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000A /* libkrb5.3.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000B /* libk5crypto.3.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000B /* libk5crypto.3.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000C /* libcom_err.3.0.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000C /* libcom_err.3.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000D /* libkrb5support.1.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000D /* libkrb5support.1.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0152D0D7AF344C4F90240CAB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0ADF948D2E78B95200E993F8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0ADF94942E78B95200E993F8;
+			remoteInfo = Echo;
+		};
+		279009266F8B45C8AC72014A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0ADF948D2E78B95200E993F8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0ADF94942E78B95200E993F8;
+			remoteInfo = Echo;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F17A0E1B2FC1C3BC007F5489 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Fonts;
+			dstSubfolderSpec = 7;
+			files = (
+				F17A0E1C2FC1C3BC007F5489 /* FiraCode-Regular.ttf in CopyFiles */,
+				F17A0E1D2FC1C3BC007F5489 /* IBMPlexMono-Regular.ttf in CopyFiles */,
+				F17A0E1E2FC1C3BC007F5489 /* JetBrainsMono-Regular.ttf in CopyFiles */,
+				F17A0E1F2FC1C3BC007F5489 /* RecursiveMonoLinear-Regular.ttf in CopyFiles */,
+				F17A0E202FC1C3BC007F5489 /* SplineSansMono-Regular.ttf in CopyFiles */,
+				6030A29ABBCD58751DCA65AE /* SourceCodePro-Regular.ttf in CopyFiles */,
+				B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */,
+				8ECF63DBB3844802B62E76D4 /* UbuntuMono-Regular.ttf in CopyFiles */,
+				C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */,
+				E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */,
+				D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */,
+				E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		PGT003000000000000000001 /* Copy PostgresTools */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = PostgresTools;
+			dstSubfolderSpec = 12;
+			files = (
+				PGT001000000000000000001 /* pg_dump in Copy PostgresTools */,
+				PGT001000000000000000002 /* pg_restore in Copy PostgresTools */,
+				PGT001000000000000000003 /* libpq.5.dylib in Copy PostgresTools */,
+				PGT001000000000000000004 /* libssl.3.dylib in Copy PostgresTools */,
+				PGT001000000000000000005 /* libcrypto.3.dylib in Copy PostgresTools */,
+				PGT001000000000000000006 /* libintl.8.dylib in Copy PostgresTools */,
+				PGT001000000000000000007 /* libzstd.1.dylib in Copy PostgresTools */,
+				PGT001000000000000000008 /* liblz4.1.dylib in Copy PostgresTools */,
+				PGT001000000000000000009 /* libgssapi_krb5.2.2.dylib in Copy PostgresTools */,
+				PGT00100000000000000000A /* libkrb5.3.3.dylib in Copy PostgresTools */,
+				PGT00100000000000000000B /* libk5crypto.3.1.dylib in Copy PostgresTools */,
+				PGT00100000000000000000C /* libcom_err.3.0.dylib in Copy PostgresTools */,
+				PGT00100000000000000000D /* libkrb5support.1.1.dylib in Copy PostgresTools */,
+			);
+			name = "Copy PostgresTools";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0A79556F2E8EB81C002279AE /* EchoUITests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = EchoUITests.xctestplan; sourceTree = "<group>"; };
+		0A7955702E8EF321002279AE /* EchoTests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = EchoTests.xctestplan; sourceTree = "<group>"; };
+		0ADF94952E78B95200E993F8 /* Echo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Echo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Inconsolata-Regular.ttf"; path = "Echo/Resources/Fonts/Inconsolata-Regular.ttf"; sourceTree = "<group>"; };
+		44D226344BD64F6B8A29593F /* EchoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "UbuntuMono-Regular.ttf"; path = "Echo/Resources/Fonts/UbuntuMono-Regular.ttf"; sourceTree = "<group>"; };
+		63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SourceCodePro-Regular.ttf"; path = "Echo/Resources/Fonts/SourceCodePro-Regular.ttf"; sourceTree = "<group>"; };
+		9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Iosevka-Regular.ttf"; path = "Echo/Resources/Fonts/Iosevka-Regular.ttf"; sourceTree = "<group>"; };
+		9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "MesloLGS-Regular.ttf"; path = "Echo/Resources/Fonts/MesloLGS-Regular.ttf"; sourceTree = "<group>"; };
+		B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Hack-Regular.ttf"; path = "Echo/Resources/Fonts/Hack-Regular.ttf"; sourceTree = "<group>"; };
+		C7719E187414448D93AD6120 /* EchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "AnonymousPro-Regular.ttf"; path = "Echo/Resources/Fonts/AnonymousPro-Regular.ttf"; sourceTree = "<group>"; };
+		F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "FiraCode-Regular.ttf"; path = "Echo/Resources/Fonts/FiraCode-Regular.ttf"; sourceTree = "<group>"; };
+		F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "IBMPlexMono-Regular.ttf"; path = "Echo/Resources/Fonts/IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
+		F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "JetBrainsMono-Regular.ttf"; path = "Echo/Resources/Fonts/JetBrainsMono-Regular.ttf"; sourceTree = "<group>"; };
+		F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "RecursiveMonoLinear-Regular.ttf"; path = "Echo/Resources/Fonts/RecursiveMonoLinear-Regular.ttf"; sourceTree = "<group>"; };
+		F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SplineSansMono-Regular.ttf"; path = "Echo/Resources/Fonts/SplineSansMono-Regular.ttf"; sourceTree = "<group>"; };
+		PGT002000000000000000001 /* pg_dump */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = pg_dump; path = Tools/PostgresTools/pg_dump; sourceTree = "<group>"; };
+		PGT002000000000000000002 /* pg_restore */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = pg_restore; path = Tools/PostgresTools/pg_restore; sourceTree = "<group>"; };
+		PGT002000000000000000003 /* libpq.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpq.5.dylib; path = Tools/PostgresTools/libpq.5.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000004 /* libssl.3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libssl.3.dylib; path = Tools/PostgresTools/libssl.3.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000005 /* libcrypto.3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcrypto.3.dylib; path = Tools/PostgresTools/libcrypto.3.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000006 /* libintl.8.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libintl.8.dylib; path = Tools/PostgresTools/libintl.8.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000007 /* libzstd.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libzstd.1.dylib; path = Tools/PostgresTools/libzstd.1.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000008 /* liblz4.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = liblz4.1.dylib; path = Tools/PostgresTools/liblz4.1.dylib; sourceTree = "<group>"; };
+		PGT002000000000000000009 /* libgssapi_krb5.2.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libgssapi_krb5.2.2.dylib; path = Tools/PostgresTools/libgssapi_krb5.2.2.dylib; sourceTree = "<group>"; };
+		PGT00200000000000000000A /* libkrb5.3.3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libkrb5.3.3.dylib; path = Tools/PostgresTools/libkrb5.3.3.dylib; sourceTree = "<group>"; };
+		PGT00200000000000000000B /* libk5crypto.3.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libk5crypto.3.1.dylib; path = Tools/PostgresTools/libk5crypto.3.1.dylib; sourceTree = "<group>"; };
+		PGT00200000000000000000C /* libcom_err.3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcom_err.3.0.dylib; path = Tools/PostgresTools/libcom_err.3.0.dylib; sourceTree = "<group>"; };
+		PGT00200000000000000000D /* libkrb5support.1.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libkrb5support.1.1.dylib; path = Tools/PostgresTools/libkrb5support.1.1.dylib; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0AD219FA2F7BF4D2007CC30F /* Exceptions for "Echo" folder in "Echo" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0ADF94942E78B95200E993F8 /* Echo */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		0ADF94972E78B95200E993F8 /* Echo */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0AD219FA2F7BF4D2007CC30F /* Exceptions for "Echo" folder in "Echo" target */,
+			);
+			path = Echo;
+			sourceTree = "<group>";
+		};
+		A136718CC82746DC8CBC84F8 /* EchoTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = EchoTests;
+			sourceTree = "<group>";
+		};
+		BE16104276AD4F81B99B7950 /* EchoUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = EchoUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0ADF94922E78B95200E993F8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0A41ECB02F7C856800AD776A /* Crypto in Frameworks */,
+				0A41EC8A2F7C0B8500AD776A /* Supabase in Frameworks */,
+				0A41EC822F7C0B8500AD776A /* Functions in Frameworks */,
+				0A6970C52F5EEF5E0027641E /* PostgresKit in Frameworks */,
+				0A41ECB22F7C856800AD776A /* CryptoExtras in Frameworks */,
+				0A6970C72F5EEF5E0027641E /* PostgresWire in Frameworks */,
+				0A41EC862F7C0B8500AD776A /* Realtime in Frameworks */,
+				0A41EC802F7C0B8500AD776A /* Auth in Frameworks */,
+				0A79557E2E8F10A9002279AE /* MySQLKit in Frameworks */,
+				0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */,
+				0A41EC842F7C0B8500AD776A /* PostgREST in Frameworks */,
+				0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */,
+				0A41EC882F7C0B8500AD776A /* Storage in Frameworks */,
+				0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */,
+				0A41ECB42F7C856800AD776A /* _CryptoExtras in Frameworks */,
+				0A698A422F5F88AA0027641E /* Sparkle in Frameworks */,
+				0A6970C22F5EEF090027641E /* SQLiteNIO in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DE04F48262B74FC9BC6625CF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F6F7A37EFD91485785DAD8E5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0A7967712E8FC887002279AE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		0A946E5E2F63124D009635C0 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */,
+				F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */,
+				F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */,
+				F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */,
+				F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */,
+				63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */,
+				B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */,
+				533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */,
+				23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */,
+				9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */,
+				CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */,
+				9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+		0ADF948C2E78B95200E993F8 = {
+			isa = PBXGroup;
+			children = (
+				0A7955702E8EF321002279AE /* EchoTests.xctestplan */,
+				0A79556F2E8EB81C002279AE /* EchoUITests.xctestplan */,
+				0ADF94972E78B95200E993F8 /* Echo */,
+				A136718CC82746DC8CBC84F8 /* EchoTests */,
+				BE16104276AD4F81B99B7950 /* EchoUITests */,
+				PGT004000000000000000001 /* PostgresTools */,
+				0A7967712E8FC887002279AE /* Frameworks */,
+				0ADF94962E78B95200E993F8 /* Products */,
+				0A946E5E2F63124D009635C0 /* Recovered References */,
+			);
+			sourceTree = "<group>";
+		};
+		0ADF94962E78B95200E993F8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0ADF94952E78B95200E993F8 /* Echo.app */,
+				C7719E187414448D93AD6120 /* EchoTests.xctest */,
+				44D226344BD64F6B8A29593F /* EchoUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		PGT004000000000000000001 /* PostgresTools */ = {
+			isa = PBXGroup;
+			children = (
+				PGT002000000000000000001 /* pg_dump */,
+				PGT002000000000000000002 /* pg_restore */,
+				PGT002000000000000000003 /* libpq.5.dylib */,
+				PGT002000000000000000004 /* libssl.3.dylib */,
+				PGT002000000000000000005 /* libcrypto.3.dylib */,
+				PGT002000000000000000006 /* libintl.8.dylib */,
+				PGT002000000000000000007 /* libzstd.1.dylib */,
+				PGT002000000000000000008 /* liblz4.1.dylib */,
+				PGT002000000000000000009 /* libgssapi_krb5.2.2.dylib */,
+				PGT00200000000000000000A /* libkrb5.3.3.dylib */,
+				PGT00200000000000000000B /* libk5crypto.3.1.dylib */,
+				PGT00200000000000000000C /* libcom_err.3.0.dylib */,
+				PGT00200000000000000000D /* libkrb5support.1.1.dylib */,
+			);
+			name = PostgresTools;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0ADF94942E78B95200E993F8 /* Echo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0ADF94A02E78B95300E993F8 /* Build configuration list for PBXNativeTarget "Echo" */;
+			buildPhases = (
+				0ADF94912E78B95200E993F8 /* Sources */,
+				0ADF94922E78B95200E993F8 /* Frameworks */,
+				F17A0E1B2FC1C3BC007F5489 /* CopyFiles */,
+				PGT003000000000000000001 /* Copy PostgresTools */,
+				0ADF94932E78B95200E993F8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0ADF94972E78B95200E993F8 /* Echo */,
+			);
+			name = Echo;
+			packageProductDependencies = (
+				0A79557D2E8F10A9002279AE /* MySQLKit */,
+				0A79557F2E8F10A9002279AE /* MySQLWire */,
+				0A6970C12F5EEF090027641E /* SQLiteNIO */,
+				0A6970C42F5EEF5E0027641E /* PostgresKit */,
+				0A6970C62F5EEF5E0027641E /* PostgresWire */,
+				0A6970C92F5EEFA40027641E /* SQLServerKit */,
+				0A697AED2F5EF8220027641E /* EchoSense */,
+				0A698A412F5F88AA0027641E /* Sparkle */,
+				0A41EC7F2F7C0B8500AD776A /* Auth */,
+				0A41EC812F7C0B8500AD776A /* Functions */,
+				0A41EC832F7C0B8500AD776A /* PostgREST */,
+				0A41EC852F7C0B8500AD776A /* Realtime */,
+				0A41EC872F7C0B8500AD776A /* Storage */,
+				0A41EC892F7C0B8500AD776A /* Supabase */,
+				0A41ECAF2F7C856800AD776A /* Crypto */,
+				0A41ECB12F7C856800AD776A /* CryptoExtras */,
+				0A41ECB32F7C856800AD776A /* _CryptoExtras */,
+			);
+			productName = Echo;
+			productReference = 0ADF94952E78B95200E993F8 /* Echo.app */;
+			productType = "com.apple.product-type.application";
+		};
+		19D47C73D0D3464ABF899392 /* EchoUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E3EA64053AF34068A3DB9DB6 /* Build configuration list for PBXNativeTarget "EchoUITests" */;
+			buildPhases = (
+				43ACEFFAAF3A4E2FBBE4DF9B /* Sources */,
+				DE04F48262B74FC9BC6625CF /* Frameworks */,
+				9FBBE71C12924DC48DD62C48 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C508E9DC087A4F4F8949D46E /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BE16104276AD4F81B99B7950 /* EchoUITests */,
+			);
+			name = EchoUITests;
+			productName = EchoUITests;
+			productReference = 44D226344BD64F6B8A29593F /* EchoUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		385E60BACCBA4F1A95FC14AF /* EchoTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 95F7A9BBC0144F06BDC223E4 /* Build configuration list for PBXNativeTarget "EchoTests" */;
+			buildPhases = (
+				2DB2876243AE4D29B3565EB8 /* Sources */,
+				F6F7A37EFD91485785DAD8E5 /* Frameworks */,
+				91683D911D894DDB8D098EE9 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EB0544CC6EA5424480E0E2FF /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A136718CC82746DC8CBC84F8 /* EchoTests */,
+			);
+			name = EchoTests;
+			productName = EchoTests;
+			productReference = C7719E187414448D93AD6120 /* EchoTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0ADF948D2E78B95200E993F8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = {
+					0ADF94942E78B95200E993F8 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					19D47C73D0D3464ABF899392 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 0ADF94942E78B95200E993F8;
+					};
+					385E60BACCBA4F1A95FC14AF = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 0ADF94942E78B95200E993F8;
+					};
+				};
+			};
+			buildConfigurationList = 0ADF94902E78B95200E993F8 /* Build configuration list for PBXProject "Echo" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 0ADF948C2E78B95200E993F8;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */,
+				0A6970C02F5EEF090027641E /* XCRemoteSwiftPackageReference "sqlite-nio" */,
+				0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */,
+				0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */,
+				0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */,
+				0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */,
+				0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0ADF94962E78B95200E993F8 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0ADF94942E78B95200E993F8 /* Echo */,
+				385E60BACCBA4F1A95FC14AF /* EchoTests */,
+				19D47C73D0D3464ABF899392 /* EchoUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0ADF94932E78B95200E993F8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		91683D911D894DDB8D098EE9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9FBBE71C12924DC48DD62C48 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0ADF94912E78B95200E993F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2DB2876243AE4D29B3565EB8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		43ACEFFAAF3A4E2FBBE4DF9B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C508E9DC087A4F4F8949D46E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0ADF94942E78B95200E993F8 /* Echo */;
+			targetProxy = 279009266F8B45C8AC72014A /* PBXContainerItemProxy */;
+		};
+		EB0544CC6EA5424480E0E2FF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0ADF94942E78B95200E993F8 /* Echo */;
+			targetProxy = 0152D0D7AF344C4F90240CAB /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0ADF949E2E78B95300E993F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 0ADF94972E78B95200E993F8 /* Echo */;
+			baseConfigurationReferenceRelativePath = Configuration/Secrets.xcconfig;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = JQU2HR44D8;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		0ADF949F2E78B95300E993F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 0ADF94972E78B95200E993F8 /* Echo */;
+			baseConfigurationReferenceRelativePath = Configuration/Secrets.xcconfig;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = JQU2HR44D8;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		0ADF94A12E78B95300E993F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 0ADF94972E78B95200E993F8 /* Echo */;
+			baseConfigurationReferenceRelativePath = Configuration/Secrets.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Echo/EchoDebug.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 2;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = JQU2HR44D8;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Echo/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUEnableInstallerLauncherService = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tashda/Echo/main/appcast.xml";
+				INFOPLIST_KEY_SUPublicEDKey = "hf49zQ5XeqfHyc6k9tMUci3nWSJGrBmkKMeXQ1F2vqk=";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.echodb.echo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		0ADF94A22E78B95300E993F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 0ADF94972E78B95200E993F8 /* Echo */;
+			baseConfigurationReferenceRelativePath = Configuration/Secrets.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Echo/EchoRelease.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 2;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = JQU2HR44D8;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Echo/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUEnableInstallerLauncherService = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tashda/Echo/main/appcast.xml";
+				INFOPLIST_KEY_SUPublicEDKey = "hf49zQ5XeqfHyc6k9tMUci3nWSJGrBmkKMeXQ1F2vqk=";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.echodb.echo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		1BC3C63337E74F2C8B7E582C /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 0ADF94972E78B95200E993F8 /* Echo */;
+			baseConfigurationReferenceRelativePath = Configuration/Secrets.xcconfig;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = JQU2HR44D8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.echodb.echoTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Echo.app/Contents/MacOS/Echo";
+			};
+			name = Release;
+		};
+		5D6CF13DFE6449D7811660D9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 0ADF94972E78B95200E993F8 /* Echo */;
+			baseConfigurationReferenceRelativePath = Configuration/Secrets.xcconfig;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = JQU2HR44D8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.echodb.echoUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Echo;
+			};
+			name = Release;
+		};
+		63DF32C187F24978BB339CF0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 0ADF94972E78B95200E993F8 /* Echo */;
+			baseConfigurationReferenceRelativePath = Configuration/Secrets.xcconfig;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = JQU2HR44D8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.echodb.echoUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = Echo;
+			};
+			name = Debug;
+		};
+		6454F57C52DB4B608A768E48 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 0ADF94972E78B95200E993F8 /* Echo */;
+			baseConfigurationReferenceRelativePath = Configuration/Secrets.xcconfig;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = JQU2HR44D8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.echodb.echoTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Echo.app/Contents/MacOS/Echo";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0ADF94902E78B95200E993F8 /* Build configuration list for PBXProject "Echo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0ADF949E2E78B95300E993F8 /* Debug */,
+				0ADF949F2E78B95300E993F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0ADF94A02E78B95300E993F8 /* Build configuration list for PBXNativeTarget "Echo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0ADF94A12E78B95300E993F8 /* Debug */,
+				0ADF94A22E78B95300E993F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		95F7A9BBC0144F06BDC223E4 /* Build configuration list for PBXNativeTarget "EchoTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6454F57C52DB4B608A768E48 /* Debug */,
+				1BC3C63337E74F2C8B7E582C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E3EA64053AF34068A3DB9DB6 /* Build configuration list for PBXNativeTarget "EchoUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				63DF32C187F24978BB339CF0 /* Debug */,
+				5D6CF13DFE6449D7811660D9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+		0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-crypto";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.3.0;
+			};
+		};
+		0A6970C02F5EEF090027641E /* XCRemoteSwiftPackageReference "sqlite-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/vapor/sqlite-nio";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.12.4;
+			};
+		};
+		0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tashda/postgres-wire";
+			requirement = {
+				branch = dev;
+				kind = branch;
+			};
+		};
+		0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tashda/sqlserver-nio";
+			requirement = {
+				branch = dev;
+				kind = branch;
+			};
+		};
+		0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tashda/EchoSense";
+			requirement = {
+				branch = dev;
+				kind = branch;
+			};
+		};
+		0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.0;
+			};
+		};
+		0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tashda/mysql-wire";
+			requirement = {
+				branch = dev;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0A41EC7F2F7C0B8500AD776A /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		0A41EC812F7C0B8500AD776A /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		0A41EC832F7C0B8500AD776A /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		0A41EC852F7C0B8500AD776A /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		0A41EC872F7C0B8500AD776A /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		0A41EC892F7C0B8500AD776A /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		0A41ECAF2F7C856800AD776A /* Crypto */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */;
+			productName = Crypto;
+		};
+		0A41ECB12F7C856800AD776A /* CryptoExtras */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */;
+			productName = CryptoExtras;
+		};
+		0A41ECB32F7C856800AD776A /* _CryptoExtras */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */;
+			productName = _CryptoExtras;
+		};
+		0A6970C12F5EEF090027641E /* SQLiteNIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A6970C02F5EEF090027641E /* XCRemoteSwiftPackageReference "sqlite-nio" */;
+			productName = SQLiteNIO;
+		};
+		0A6970C42F5EEF5E0027641E /* PostgresKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */;
+			productName = PostgresKit;
+		};
+		0A6970C62F5EEF5E0027641E /* PostgresWire */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */;
+			productName = PostgresWire;
+		};
+		0A6970C92F5EEFA40027641E /* SQLServerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */;
+			productName = SQLServerKit;
+		};
+		0A697AED2F5EF8220027641E /* EchoSense */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */;
+			productName = EchoSense;
+		};
+		0A698A412F5F88AA0027641E /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		0A79557D2E8F10A9002279AE /* MySQLKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */;
+			productName = MySQLKit;
+		};
+		0A79557F2E8F10A9002279AE /* MySQLWire */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */;
+			productName = MySQLWire;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 0ADF948D2E78B95200E993F8 /* Project object */;
+}

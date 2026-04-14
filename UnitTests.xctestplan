@@ -1,0 +1,98 @@
+{
+  "configurations" : [
+    {
+      "id" : "8F7AF6EC-B7AD-4184-B267-710C31F7126D",
+      "name" : "Unit Tests",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "skippedTests" : [
+        "EchoSenseIntegrationTests",
+        "FactoryConnectionTests",
+        "MSSQLActivityMonitorTests",
+        "MSSQLAgentManagementTests",
+        "MSSQLAgentTests",
+        "MSSQLColumnTests",
+        "MSSQLConnectionTests",
+        "MSSQLConstraintTests",
+        "MSSQLDataTypeBinaryTests",
+        "MSSQLDataTypeDateTimeTests",
+        "MSSQLDataTypeNumericTests",
+        "MSSQLDataTypeStringTests",
+        "MSSQLDatabaseAdminTests",
+        "MSSQLFunctionTests",
+        "MSSQLIndexTests",
+        "MSSQLBackupRestoreTests",
+        "MSSQLBulkImportTests",
+        "MSSQLIntegrationTests",
+        "MSSQLMaintenanceTests",
+        "MSSQLMetadataTests",
+        "MSSQLProcedureTests",
+        "MSSQLQueryTests",
+        "MSSQLQueryTabIsolationTests",
+        "MSSQLSchemaDiscoveryTests",
+        "MSSQLSecurityTests",
+        "MSSQLStreamingSpoolTests",
+        "MSSQLStreamingTests",
+        "MSSQLSynonymTests",
+        "MSSQLTableDesignerTests",
+        "MSSQLTableOperationsTests",
+        "MSSQLTransactionTests",
+        "MSSQLTriggerTests",
+        "MSSQLViewTests",
+        "MySQLIntegrationTests",
+        "PGBulkImportTests",
+        "PGActivityMonitorTests",
+        "PGColumnTests",
+        "PGConnectionTests",
+        "PGConstraintTests",
+        "PGDataTypeDateTimeTests",
+        "PGDataTypeNumericTests",
+        "PGDataTypeSpecialTests",
+        "PGDataTypeStringTests",
+        "PGExtensionTests",
+        "PGFunctionTests",
+        "PGIndexTests",
+        "PGMetadataTests",
+        "PGAdvancedObjectAlterTests",
+        "PGNewObjectTypesTests",
+        "PGQueryTests",
+        "PGSchemaDiscoveryTests",
+        "PGSecurityTests",
+        "PGSequenceTests",
+        "PGStreamingSpoolTests",
+        "PGStreamingTests",
+        "PGTableDesignerTests",
+        "PGTableOperationsTests",
+        "PGTransactionTests",
+        "PGTriggerTests",
+        "PGViewTests",
+        "PostgresBackupRestoreIntegrationTests",
+        "PostgresIntegrationTests",
+        "SQLiteBulkImportTests",
+        "SQLiteConnectionTests",
+        "SQLiteDataTypeTests",
+        "SQLiteIntegrationTests",
+        "SQLiteQueryTests",
+        "SQLiteSchemaTests",
+        "SQLiteTableOperationsTests",
+        "SQLiteTriggerDiscoveryTests",
+        "SessionProtocolComplianceTests"
+      ],
+      "target" : {
+        "containerPath" : "container:Echo.xcodeproj",
+        "identifier" : "385E60BACCBA4F1A95FC14AF",
+        "name" : "EchoTests"
+      }
+    }
+  ],
+  "version" : 1
+}
