@@ -1,0 +1,37 @@
+{
+  "configurations" : [
+    {
+      "id" : "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+      "name" : "SQLite Integration Tests",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "defaultTestExecutionTimeAllowance" : 180,
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "selectedTests" : [
+        "FactoryConnectionTests",
+        "SQLiteBulkImportTests",
+        "SQLiteConnectionTests",
+        "SQLiteDataTypeTests",
+        "SQLiteQueryTests",
+        "SQLiteSchemaTests",
+        "SQLiteTableOperationsTests",
+        "SQLiteTriggerDiscoveryTests",
+        "SessionProtocolComplianceTests"
+      ],
+      "target" : {
+        "containerPath" : "container:Echo.xcodeproj",
+        "identifier" : "385E60BACCBA4F1A95FC14AF",
+        "name" : "EchoTests"
+      }
+    }
+  ],
+  "version" : 1
+}

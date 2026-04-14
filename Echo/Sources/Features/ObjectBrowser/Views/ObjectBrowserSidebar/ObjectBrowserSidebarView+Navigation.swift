@@ -1,0 +1,59 @@
+import SwiftUI
+
+extension ObjectBrowserSidebarView {
+    internal func selectSession(_ session: ConnectionSession) {
+        selectedConnectionID = session.connection.id
+        environmentState.sessionGroup.setActiveSession(session.id)
+        viewModel.ensureServerExpanded(for: session.connection.id, sessions: sessions)
+    }
+
+    internal func handleDatabaseSelection(_ databaseName: String, in session: ConnectionSession) {
+        Task { @MainActor in
+            await environmentState.loadSchemaForDatabase(databaseName, connectionSession: session)
+            selectedConnectionID = session.connection.id
+            viewModel.ensureServerExpanded(for: session.connection.id, sessions: sessions)
+            viewModel.resetExpandedState(for: session, selectedSession: selectedSession)
+        }
+    }
+
+    internal func syncSelectionWithSessions(proxy: ScrollViewProxy? = nil) {
+        viewModel.expandedServerIDs = viewModel.expandedServerIDs.filter { id in sessions.contains { $0.connection.id == id } }
+        let currentIDs = Set(sessions.map { $0.connection.id })
+        let newIDs = currentIDs.subtracting(viewModel.knownSessionIDs)
+        let autoExpandableConnectionIDs = Set(
+            sessions.compactMap { session in
+                projectStore.globalSettings.sidebarExpandSections(for: session.connection.databaseType).isEmpty
+                    ? nil
+                    : session.connection.id
+            }
+        )
+
+        if !newIDs.isEmpty {
+            viewModel.expandedServerIDs.formUnion(newIDs.intersection(autoExpandableConnectionIDs))
+            if let newID = newIDs.first {
+                selectedConnectionID = newID
+                if let proxy {
+                    Task {
+                        try? await Task.sleep(for: .seconds(0.3))
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            proxy.scrollTo(newID, anchor: .top)
+                        }
+                    }
+                }
+            }
+        } else if viewModel.knownSessionIDs.isEmpty && !currentIDs.isEmpty {
+            viewModel.expandedServerIDs.formUnion(currentIDs.intersection(autoExpandableConnectionIDs))
+        }
+
+        viewModel.knownSessionIDs = currentIDs
+
+        if selectedConnectionID == nil || !sessions.contains(where: { $0.connection.id == selectedConnectionID }) {
+            selectedConnectionID = sessions.first?.connection.id
+        }
+    }
+
+    internal func refreshSelectedSessionStructure() async {
+        guard let session = selectedSession else { return }
+        await environmentState.refreshDatabaseStructure(for: session.id)
+    }
+}

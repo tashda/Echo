@@ -1,0 +1,275 @@
+name: "CI (Full)"
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-full-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: "Step 1: Build & Test"
+    runs-on: macos-26
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26'
+
+    - name: Install PostgreSQL tools
+      run: |
+        brew list libpq >/dev/null 2>&1 || brew install libpq
+        brew list krb5 >/dev/null 2>&1 || brew install krb5
+        brew list zstd >/dev/null 2>&1 || brew install zstd
+        brew list lz4 >/dev/null 2>&1 || brew install lz4
+        brew list gettext >/dev/null 2>&1 || brew install gettext
+        LIBPQ_PREFIX="$(brew --prefix libpq)"
+        mkdir -p Tools/PostgresTools
+        cp "$LIBPQ_PREFIX/bin/pg_dump" Tools/PostgresTools/
+        cp "$LIBPQ_PREFIX/bin/pg_restore" Tools/PostgresTools/
+        SEARCH_DIRS="$LIBPQ_PREFIX/lib $(brew --prefix krb5)/lib $(brew --prefix zstd)/lib $(brew --prefix lz4)/lib $(brew --prefix gettext)/lib $(brew --prefix openssl@3)/lib /opt/homebrew/lib /usr/local/lib"
+        for lib in libpq.5.dylib libzstd.1.dylib liblz4.1.dylib libssl.3.dylib libcrypto.3.dylib libintl.8.dylib libgssapi_krb5.2.2.dylib libkrb5.3.3.dylib libk5crypto.3.1.dylib libkrb5support.1.1.dylib libcom_err.3.0.dylib; do
+          for dir in $SEARCH_DIRS; do
+            if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
+          done
+        done
+
+    - name: Clear SPM cache
+      run: |
+        rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
+        rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
+
+    - name: Resolve packages
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
+
+    - name: Run Unit Tests
+      run: |
+        find . -maxdepth 1 -name "TestResults-unit*" -exec rm -rf {} + 2>/dev/null || true
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo -testPlan UnitTests \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-unit \
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+
+    - name: Run SQLite Integration Tests
+      run: |
+        find . -maxdepth 1 -name "TestResults-sqlite*" -exec rm -rf {} + 2>/dev/null || true
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo -testPlan SQLiteIntegrationTests \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-sqlite \
+          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+
+    - name: Upload Unit Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-unit
+        path: TestResults-unit.xcresult
+
+    - name: Upload SQLite Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-sqlite
+        path: TestResults-sqlite.xcresult
+
+  # ── Production Build & Release ──────────────────────────────────────────────
+
+  release:
+    name: "Step 2: Production Build & Release"
+    runs-on: macos-26
+    needs: [build-and-test]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26'
+    - name: Install PostgreSQL tools
+      run: |
+        brew list libpq >/dev/null 2>&1 || brew install libpq
+        brew list krb5 >/dev/null 2>&1 || brew install krb5
+        brew list zstd >/dev/null 2>&1 || brew install zstd
+        brew list lz4 >/dev/null 2>&1 || brew install lz4
+        brew list gettext >/dev/null 2>&1 || brew install gettext
+        LIBPQ_PREFIX="$(brew --prefix libpq)"
+        mkdir -p Tools/PostgresTools
+        cp "$LIBPQ_PREFIX/bin/pg_dump" Tools/PostgresTools/
+        cp "$LIBPQ_PREFIX/bin/pg_restore" Tools/PostgresTools/
+        SEARCH_DIRS="$LIBPQ_PREFIX/lib $(brew --prefix krb5)/lib $(brew --prefix zstd)/lib $(brew --prefix lz4)/lib $(brew --prefix gettext)/lib $(brew --prefix openssl@3)/lib /opt/homebrew/lib /usr/local/lib"
+        for lib in libpq.5.dylib libzstd.1.dylib liblz4.1.dylib libssl.3.dylib libcrypto.3.dylib libintl.8.dylib libgssapi_krb5.2.2.dylib libkrb5.3.3.dylib libk5crypto.3.1.dylib libkrb5support.1.1.dylib libcom_err.3.0.dylib; do
+          for dir in $SEARCH_DIRS; do
+            if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
+          done
+        done
+    - name: Import signing certificate
+      env:
+        DEVELOPER_ID_CERT_BASE64: ${{ secrets.DEVELOPER_ID_CERT_BASE64 }}
+        DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+      run: |
+        # Create a temporary keychain for CI
+        KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
+        KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+        # Import certificate
+        CERT_PATH=$RUNNER_TEMP/certificate.p12
+        echo "$DEVELOPER_ID_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+        security import "$CERT_PATH" -P "$DEVELOPER_ID_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+        rm "$CERT_PATH"
+
+        # Add to search list so codesign finds it
+        security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+    - name: Resolve packages
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
+
+    - name: Determine version
+      id: version
+      run: |
+        MARKETING_VERSION=$(xcodebuild -project Echo.xcodeproj -scheme Echo -showBuildSettings 2>/dev/null \
+          | grep 'MARKETING_VERSION' | head -1 | awk '{print $3}')
+        LATEST_TAG=$(git tag --list "v${MARKETING_VERSION}.*" --sort=-version:refname | head -1)
+        LATEST_PATCH=$(printf "%s" "$LATEST_TAG" | sed "s/v${MARKETING_VERSION}\.\([0-9]*\)/\1/")
+        PATCH=${LATEST_PATCH:+$((LATEST_PATCH + 1))}
+        PATCH=${PATCH:-0}
+        FULL_VERSION="${MARKETING_VERSION}.${PATCH}"
+        echo "full=$FULL_VERSION" >> $GITHUB_OUTPUT
+        echo "previous_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
+        echo "patch=$PATCH" >> $GITHUB_OUTPUT
+        echo "tag=v$FULL_VERSION" >> $GITHUB_OUTPUT
+
+    - name: Install App Store Connect API key
+      run: |
+        mkdir -p ~/private_keys
+        echo "${{ secrets.ASC_KEY_CONTENT }}" > ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+
+    - name: Build Release (signed)
+      run: |
+        xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
+          -allowProvisioningUpdates \
+          -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+          -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
+          -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
+          MARKETING_VERSION=${{ steps.version.outputs.full }} \
+          CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
+          CODE_SIGN_STYLE=Manual \
+          CODE_SIGN_IDENTITY="Developer ID Application" \
+          DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+          PROVISIONING_PROFILE_SPECIFIER="" \
+          ENABLE_HARDENED_RUNTIME=YES \
+          OTHER_CODE_SIGN_FLAGS='--options runtime --timestamp'
+
+    - name: Sign bundled tools and libraries
+      run: |
+        APP="build/Build/Products/Release/Echo.app"
+        # Sign all dylibs first (dependencies before executables)
+        find "$APP" -name '*.dylib' -exec \
+          codesign --force --sign "Developer ID Application" --timestamp --options runtime {} \;
+        # Sign pg_dump and pg_restore
+        for tool in pg_dump pg_restore; do
+          if [ -f "$APP/Contents/Resources/$tool" ]; then
+            codesign --force --sign "Developer ID Application" --timestamp --options runtime "$APP/Contents/Resources/$tool"
+          fi
+        done
+        # Re-sign the app bundle (picks up nested changes)
+        codesign --force --deep --sign "Developer ID Application" --timestamp --options runtime "$APP"
+        # Verify
+        codesign --verify --deep --strict "$APP"
+
+    - name: Package DMG
+      run: |
+        mkdir -p release dmg-staging
+        cp -R build/Build/Products/Release/Echo.app dmg-staging/
+        ln -s /Applications dmg-staging/Applications
+        hdiutil create -volname "Echo" -srcfolder dmg-staging -ov -format UDZO release/Echo.dmg
+        codesign --force --sign "Developer ID Application" --timestamp release/Echo.dmg
+
+    - name: Notarize
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      run: |
+        # Submit for notarization
+        xcrun notarytool submit release/Echo.dmg \
+          --apple-id "$APPLE_ID" \
+          --password "$APPLE_ID_PASSWORD" \
+          --team-id "$APPLE_TEAM_ID" \
+          --wait --timeout 600 2>&1 | tee notarize-output.txt
+
+        # If notarization failed, fetch the log
+        SUBMISSION_ID=$(grep 'id:' notarize-output.txt | head -1 | awk '{print $2}')
+        if grep -q 'Invalid' notarize-output.txt; then
+          echo "::group::Notarization Log"
+          xcrun notarytool log "$SUBMISSION_ID" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID"
+          echo "::endgroup::"
+          exit 1
+        fi
+
+        # Staple the notarization ticket
+        xcrun stapler staple release/Echo.dmg
+
+    - name: Create ZIP for Sparkle
+      run: |
+        cd dmg-staging && ditto -c -k --sequesterRsrc --keepParent Echo.app ../release/Echo.zip
+
+    - name: Sparkle & Appcast
+      env:
+        SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      run: |
+        curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz -o sparkle.tar.xz
+        tar -xf sparkle.tar.xz
+        DOWNLOAD_PREFIX="https://github.com/tashda/Echo/releases/download/${{ steps.version.outputs.tag }}/"
+        # Move DMG out so generate_appcast only sees the ZIP
+        mv release/Echo.dmg .
+        if [ -n "$SPARKLE_PRIVATE_KEY" ]; then
+          echo "$SPARKLE_PRIVATE_KEY" | ./bin/generate_appcast --ed-key-file - --download-url-prefix "$DOWNLOAD_PREFIX" release/
+        else
+          ./bin/generate_appcast --download-url-prefix "$DOWNLOAD_PREFIX" release/
+        fi
+        cp release/appcast.xml .
+        # Move DMG back for GitHub release
+        mv Echo.dmg release/
+
+    - name: Release Notes
+      run: |
+        python3 .github/scripts/generate_release_notes.py \
+          --repo-key echo --repo-name Echo \
+          --new-tag "${{ steps.version.outputs.tag }}" \
+          --previous-tag "${{ steps.version.outputs.previous_tag }}" \
+          --output release-notes.md
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        name: Echo ${{ steps.version.outputs.full }}
+        files: |
+          release/Echo.dmg
+          release/Echo.zip
+          appcast.xml
+        body_path: release-notes.md
+
+    - name: Cleanup keychain
+      if: always()
+      run: security delete-keychain $RUNNER_TEMP/build.keychain-db 2>/dev/null || true

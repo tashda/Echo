@@ -1,0 +1,25 @@
+{
+  "configurations" : [
+    {
+      "id" : "4BB9F026-F51A-45E6-8221-DDF612753CB1",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Echo.xcodeproj",
+        "identifier" : "19D47C73D0D3464ABF899392",
+        "name" : "EchoUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

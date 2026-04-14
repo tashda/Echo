@@ -1,0 +1,103 @@
+# Credentials and secrets
+*.env
+!*.env.example
+*.p12
+*.cer
+*.cert
+sparkle_priv.key
+Echo/Configuration/Secrets.xcconfig
+
+# Xcode
+Echo.xcodeproj/xcuserdata/
+*.xcuserstate
+build/
+DerivedData/
+.deriveddata-mssql/
+.deriveddata-agent-*/
+
+# IDE and editor configs
+.idea/
+.vscode/
+__pycache__/
+*.xcworkspace/xcuserdata/
+
+# AI agent configs and caches
+.claude/
+.codex_cache/
+GEMINI.md
+CLAUDE.md
+AGENT.md
+AGENTS.md
+agent.md
+agents.md
+gemini.md
+claude.md
+
+# AI agent outputs — analysis, planning, task specs, reports
+# These files are useful locally but must never be pushed
+*_ANALYSIS.md
+*_PLAN.md
+*_PLAN.txt
+*_GAP.md
+*_REPORT.md
+*_STATUS.md
+*_INVESTIGATION.md
+*_INVENTORY.md
+*_SPEC.md
+*_TODO.md
+*_VIOLATIONS.md
+*_FIXTURES.md
+VISUAL_GUIDELINES.md
+ROADMAP.md
+analysis_report*.txt
+analyze_echo.py
+check_syntax.py
+format_reports.py
+menu_items.txt
+
+# Agent planning and task directories
+.planning/
+TASKS/
+
+# OS-specific
+.DS_Store
+
+# XcodeBuildMCP
+.xcodebuildmcp/
+
+# Development artifacts
+Instruments/
+Archive/
+Docs/
+traces/
+*.trace/
+tmp_trace_export/
+!.github/scripts/
+!.github/scripts/**
+.github/scripts/__pycache__/
+bin/
+build-release/
+build_output*.txt
+screenshot*.png
+parse_menus.py
+Tools/
+
+# Network captures and archives
+*.cap
+*.pcap
+*.tar.xz
+
+# Swift Package Manager
+.build/
+.swiftpm/xcode/
+
+# Test Plans & Coverage
+*.xcresult
+*.profdata
+*.profraw
+
+# Crash Logs
+*.crash
+*.ips
+.ci-fixtures/adventureworks/
+.planning/

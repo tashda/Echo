@@ -1,0 +1,66 @@
+name: "Runner Health Check"
+
+on:
+  workflow_dispatch:  # Manual only — requires self-hosted runner
+
+jobs:
+  health:
+    name: "Self-Hosted Runner Health"
+    runs-on: [self-hosted, echo-test-server]
+    timeout-minutes: 10
+    steps:
+    - name: Verify Colima is running
+      run: |
+        export PATH="/usr/local/bin:$PATH"
+        if colima status > /dev/null 2>&1; then
+          echo "✅ Colima is running"
+        else
+          echo "⚠️ Colima not running — starting..."
+          colima start --cpu 4 --memory 8 --arch x86_64
+          echo "✅ Colima started"
+        fi
+
+    - name: Verify Docker is reachable
+      env:
+        DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
+      run: |
+        docker info --format '{{.ServerVersion}}' > /dev/null 2>&1
+        echo "✅ Docker daemon reachable ($(docker info --format '{{.ServerVersion}}'))"
+
+    - name: Verify runner capacity
+      env:
+        DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
+      run: |
+        df -h /
+        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        if lsof -nP -iTCP:14332 -sTCP:LISTEN >/dev/null 2>&1; then
+          echo "::warning::Port 14332 already has a listener; fixture bootstrap will need to reconcile it."
+        fi
+        if lsof -nP -iTCP:54322 -sTCP:LISTEN >/dev/null 2>&1; then
+          echo "::warning::Port 54322 already has a listener; fixture bootstrap will need to reconcile it."
+        fi
+
+    - name: Summary
+      env:
+        DOCKER_HOST: "unix:///Users/k/.colima/default/docker.sock"
+      run: |
+        echo "## Runner Health Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+
+        colima status > /dev/null 2>&1 \
+          && echo "| Colima | ✅ Running |" >> $GITHUB_STEP_SUMMARY \
+          || echo "| Colima | ❌ Down |" >> $GITHUB_STEP_SUMMARY
+
+        docker info > /dev/null 2>&1 \
+          && echo "| Docker | ✅ Reachable |" >> $GITHUB_STEP_SUMMARY \
+          || echo "| Docker | ❌ Unreachable |" >> $GITHUB_STEP_SUMMARY
+
+        echo "| DB Fixtures | ℹ️ Validated in repo workflows, not here |" >> $GITHUB_STEP_SUMMARY
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Container inventory:" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,38 @@
+import SwiftUI
+
+extension DatabaseObjectRow {
+    var columnsList: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+            ForEach(object.columns, id: \.name) { (column: ColumnInfo) in
+                DatabaseObjectColumnRow(
+                    column: column,
+                    isHovered: false,
+                    onCopyName: { copyColumnName(column) },
+                    onRename: { openStructureEditor(for: column) },
+                    onDrop: { openStructureEditor(for: column, preferDrop: true) }
+                )
+            }
+        }
+        .onDisappear {
+            hoveredColumnID = nil
+        }
+    }
+
+    internal func copyColumnName(_ column: ColumnInfo) {
+        let name = column.name
+#if os(macOS)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(name, forType: .string)
+#else
+        UIPasteboard.general.string = name
+#endif
+    }
+
+    internal func openStructureEditor(for column: ColumnInfo, preferDrop: Bool = false) {
+        Task { @MainActor in
+            guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
+            environmentState.openStructureTab(for: session, object: object, focus: .columns)
+        }
+    }
+}

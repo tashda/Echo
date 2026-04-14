@@ -1,0 +1,98 @@
+import SwiftUI
+
+extension BulkColumnEditorSheet {
+    var dataTypeFields: some View {
+        TableStructureSheetComponents.labeledRow(title: "Data Type") {
+            dataTypePicker
+        }
+    }
+
+    var defaultValueField: some View {
+        TableStructureSheetComponents.labeledRow(title: "Default Value") {
+            inlineField(text: $defaultValue, alignment: .trailing)
+        }
+    }
+
+    var generatedExpressionField: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+            Text("Generated Expression")
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.secondary)
+
+            TextEditor(text: $generatedExpression)
+                .font(TypographyTokens.standard)
+                .frame(minHeight: 120)
+                .padding(.vertical, SpacingTokens.xxs2)
+                .padding(.horizontal, SpacingTokens.xs)
+                .background(
+                    RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
+                        .fill(fieldBackgroundColor)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
+                        .stroke(fieldStrokeColor, lineWidth: 1)
+                )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    var sectionHeader: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+            Text(columnSummaryTitle)
+                .font(TypographyTokens.caption2.weight(.semibold))
+            if columnNames.isEmpty {
+                Text("No columns selected")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            } else {
+                ForEach(Array(columnNames.prefix(10).enumerated()), id: \.offset) { _, name in
+                    Text("-- \(name)")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
+                if columnNames.count > 10 {
+                    Text("...and \(columnNames.count - 10) more")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
+            }
+
+            Text(sectionTitle)
+                .font(TypographyTokens.detail.weight(.medium))
+                .foregroundStyle(ColorTokens.Text.secondary)
+                .padding(.top, SpacingTokens.xxs2)
+        }
+    }
+
+    @ViewBuilder
+    var sectionFooter: some View {
+        switch mode {
+        case .dataType:
+            EmptyView()
+        case .defaultValue, .generatedExpression:
+            Text("Leave empty to clear the value on all selected columns.")
+        }
+    }
+
+
+    func applyChanges() {
+        switch mode {
+        case .dataType:
+            let resolved: String
+            if let preset = selectedPresetType {
+                resolved = preset
+            } else {
+                let trimmed = dataType.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { onCancel(); return }
+                resolved = trimmed
+            }
+            onApply(.dataType(resolved))
+        case .defaultValue:
+            let trimmed = defaultValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            onApply(.defaultValue(trimmed.isEmpty ? nil : trimmed))
+        case .generatedExpression:
+            let trimmed = generatedExpression.trimmingCharacters(in: .whitespacesAndNewlines)
+            onApply(.generatedExpression(trimmed.isEmpty ? nil : trimmed))
+        }
+    }
+}
