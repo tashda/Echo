@@ -57,6 +57,10 @@ extension EnvironmentState {
 
             Task {
                 let t0 = CFAbsoluteTimeGetCurrent()
+                let handle = AppDirector.shared.activityEngine.begin(
+                    "Connecting to \(targetDatabase)",
+                    connectionSessionID: targetSession.id
+                )
                 do {
                     let dedicatedSession = try await makeDedicatedQuerySession(
                         for: connection,
@@ -65,9 +69,11 @@ extension EnvironmentState {
                     )
                     let elapsed = String(format: "%.3f", CFAbsoluteTimeGetCurrent() - t0)
                     Logger.connection.info("[DedicatedSession] ready in \(elapsed)s for \(targetDatabase)")
+                    handle.succeed()
                     tab.upgradeToDedicatedSession(dedicatedSession)
                     tab.query?.isEstablishingConnection = false
                 } catch {
+                    handle.fail(error.localizedDescription)
                     tab.markDedicatedSessionFailed(error.localizedDescription)
                     tab.query?.isEstablishingConnection = false
                     notificationEngine?.post(
@@ -95,6 +101,10 @@ extension EnvironmentState {
 
         Task {
             await gate.wait()
+            let handle = AppDirector.shared.activityEngine.begin(
+                "Connecting to \(targetDatabase)",
+                connectionSessionID: targetSession.id
+            )
             do {
                 let dedicatedSession = try await makeDedicatedQuerySession(
                     for: connection,
@@ -102,10 +112,12 @@ extension EnvironmentState {
                     database: targetDatabase
                 )
                 await gate.signal()
+                handle.succeed()
                 tab.upgradeToDedicatedSession(dedicatedSession)
                 tab.query?.isEstablishingConnection = false
             } catch {
                 await gate.signal()
+                handle.fail(error.localizedDescription)
                 tab.markDedicatedSessionFailed(error.localizedDescription)
                 tab.query?.isEstablishingConnection = false
                 notificationEngine?.post(
@@ -128,15 +140,21 @@ extension EnvironmentState {
         let targetDatabase = tab.activeDatabaseName ?? connection.database
 
         Task {
+            let handle = AppDirector.shared.activityEngine.begin(
+                "Reconnecting to \(targetDatabase)",
+                connectionSessionID: session.id
+            )
             do {
                 let dedicatedSession = try await makeDedicatedQuerySession(
                     for: connection,
                     metadataSession: session.session,
                     database: targetDatabase
                 )
+                handle.succeed()
                 tab.upgradeToDedicatedSession(dedicatedSession)
                 tab.query?.isEstablishingConnection = false
             } catch {
+                handle.fail(error.localizedDescription)
                 tab.markDedicatedSessionFailed(error.localizedDescription)
                 tab.query?.isEstablishingConnection = false
                 notificationEngine?.post(
@@ -351,6 +369,24 @@ extension EnvironmentState {
         }
     }
 
+    func openInPsql(for session: ConnectionSession? = nil, database: String? = nil) {
+        let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
+        guard let targetSession else { return }
+        let requestedDatabase = (database ?? targetSession.sidebarFocusedDatabase ?? targetSession.connection.database)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let effectiveDatabase = requestedDatabase.isEmpty ? "postgres" : requestedDatabase
+        let connection = targetSession.connection
+
+        Task {
+            await PostgresTerminalLauncher.openInTerminal(
+                host: connection.host,
+                port: connection.port,
+                username: connection.username,
+                database: effectiveDatabase
+            )
+        }
+    }
+
     func openJobQueueTab(for session: ConnectionSession, selectJobID: String? = nil) {
         // Reuse existing Jobs tab for this session if one exists
         if let existingTab = tabStore.tabs.first(where: { $0.kind == .jobQueue && $0.connectionSessionID == session.id }) {
@@ -392,11 +428,6 @@ extension EnvironmentState {
     func openQueryBuilderTab(connectionID: UUID) {
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
         let tab = session.addQueryBuilderTab()
-        registerTab(tab)
-    }
-
-    func openTableDataTab(for session: ConnectionSession, schema: String, table: String, databaseName: String? = nil) {
-        let tab = session.addTableDataTab(schema: schema, table: table, databaseName: databaseName)
         registerTab(tab)
     }
 

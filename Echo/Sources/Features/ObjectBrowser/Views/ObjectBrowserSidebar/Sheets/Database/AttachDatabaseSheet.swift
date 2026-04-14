@@ -36,7 +36,7 @@ struct AttachDatabaseSheet: View {
                         TextField("", text: $filePath, prompt: Text("Path to .mdf file"))
                             .textFieldStyle(.roundedBorder)
 
-                        Button("Browse...") {
+                        Button("Browse") {
                             browseForFile()
                         }
                     }

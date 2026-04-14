@@ -17,7 +17,6 @@ struct PulsingStatusDot: View {
             Circle()
                 .fill(tint)
                 .frame(width: 6, height: 6)
-                .opacity(isPulsing ? (isAnimating ? 1.0 : 0.4) : 1.0)
         }
         .frame(width: 10, height: 10)
         .animation(

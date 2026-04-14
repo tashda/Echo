@@ -117,22 +117,40 @@ extension QueryResultsTableView.Coordinator {
         let totalRows = queryState.totalAvailableRowCount
         guard totalRows > 0 else { return nil }
 
+        // Collect all regions (additional + active)
+        var allRegions = additionalRegions
+        if let selectionRegion { allRegions.append(selectionRegion) }
+
         let columnIndices: [Int]
         let visibleRows: [Int]
 
-        if let selectionRegion {
+        if !allRegions.isEmpty {
             let maxColumnIndex = columns.count - 1
-            let lowerColumn = max(selectionRegion.normalizedColumnRange.lowerBound, 0)
-            let upperColumn = min(selectionRegion.normalizedColumnRange.upperBound, maxColumnIndex)
-            guard upperColumn >= lowerColumn else { return nil }
-            columnIndices = Array(lowerColumn...upperColumn)
-
             let maxVisibleRow = tableView.numberOfRows - 1
             guard maxVisibleRow >= 0 else { return nil }
-            let lowerRow = max(selectionRegion.normalizedRowRange.lowerBound, 0)
-            let upperRow = min(selectionRegion.normalizedRowRange.upperBound, maxVisibleRow)
-            guard upperRow >= lowerRow else { return nil }
-            visibleRows = Array(lowerRow...upperRow)
+
+            // Collect unique cells from all regions
+            var cellSet = Set<Int>() // encoded as row * (maxCol+1) + col
+            let stride = maxColumnIndex + 1
+            for region in allRegions {
+                let lowerColumn = max(region.normalizedColumnRange.lowerBound, 0)
+                let upperColumn = min(region.normalizedColumnRange.upperBound, maxColumnIndex)
+                let lowerRow = max(region.normalizedRowRange.lowerBound, 0)
+                let upperRow = min(region.normalizedRowRange.upperBound, maxVisibleRow)
+                guard upperColumn >= lowerColumn, upperRow >= lowerRow else { continue }
+                for r in lowerRow...upperRow {
+                    for c in lowerColumn...upperColumn {
+                        cellSet.insert(r * stride + c)
+                    }
+                }
+            }
+            guard !cellSet.isEmpty else { return nil }
+
+            // Extract unique sorted rows and columns
+            let uniqueRows = Set(cellSet.map { $0 / stride }).sorted()
+            let uniqueColumns = Set(cellSet.map { $0 % stride }).sorted()
+            visibleRows = uniqueRows
+            columnIndices = uniqueColumns
         } else {
             let selectedIndexes = tableView.selectedRowIndexes
             guard !selectedIndexes.isEmpty else { return nil }

@@ -53,21 +53,25 @@ extension DatabaseObjectRow {
             }
         }
 
-        // Divider between Script as and Maintenance
-        let maintenanceItems = computeMaintenanceItems()
-        if !scriptActions.isEmpty && !maintenanceItems.isEmpty {
+        // Divider between Script as and Tasks
+        let taskItems = computeTaskItems()
+        if !scriptActions.isEmpty && !taskItems.isEmpty {
             Divider()
         }
 
-        // Group 7: Maintenance
-        ForEach(maintenanceItems) { item in
-            contextMenuButton(item)
+        // Group 7: Tasks
+        if !taskItems.isEmpty {
+            Menu("Tasks", systemImage: "checklist") {
+                ForEach(taskItems) { item in
+                    contextMenuButton(item)
+                }
+            }
         }
 
         // Divider before Destructive
         let destructiveItems = computeDestructiveItems()
         let propertiesItems = computePropertiesItems()
-        let previousBeforeDestructive = !scriptActions.isEmpty || !maintenanceItems.isEmpty
+        let previousBeforeDestructive = !scriptActions.isEmpty || !taskItems.isEmpty
             || !openItems.isEmpty || !editItems.isEmpty || !copyItems.isEmpty || !newItems.isEmpty
         if previousBeforeDestructive && !destructiveItems.isEmpty {
             Divider()
@@ -192,7 +196,7 @@ extension DatabaseObjectRow {
             items.append(
                 ContextMenuActionItem(
                     id: "openData",
-                    title: "Open Data",
+                    title: "Data",
                     systemImage: "tablecells",
                     role: nil,
                     action: { openDataPreview() }
@@ -204,22 +208,10 @@ extension DatabaseObjectRow {
             items.append(
                 ContextMenuActionItem(
                     id: "viewStructure",
-                    title: "View Structure",
+                    title: "Structure",
                     systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up",
                     role: nil,
                     action: { openStructureTab() }
-                )
-            )
-        }
-
-        if connection.databaseType == .microsoftSQL {
-            items.append(
-                ContextMenuActionItem(
-                    id: "viewDependencies",
-                    title: "View Dependencies",
-                    systemImage: "arrow.triangle.branch",
-                    role: nil,
-                    action: { openDependenciesQuery() }
                 )
             )
         }
@@ -228,7 +220,7 @@ extension DatabaseObjectRow {
             items.append(
                 ContextMenuActionItem(
                     id: "showDiagram",
-                    title: "Show Diagram",
+                    title: "Diagram",
                     systemImage: "rectangle.connected.to.line.below",
                     role: nil,
                     action: { openRelationsDiagram() }
@@ -247,7 +239,7 @@ extension DatabaseObjectRow {
             items.append(
                 ContextMenuActionItem(
                     id: "executeWithParams",
-                    title: "Execute\u{2026}",
+                    title: "Execute",
                     systemImage: "play.circle",
                     role: nil,
                     action: { showExecuteProcedureSheet = true }
@@ -306,16 +298,16 @@ extension DatabaseObjectRow {
         ]
     }
 
-    /// Group 7: Maintenance
-    private func computeMaintenanceItems() -> [ContextMenuActionItem] {
+    /// Group 7: Tasks
+    private func computeTaskItems() -> [ContextMenuActionItem] {
         var items: [ContextMenuActionItem] = []
 
         if connection.databaseType == .microsoftSQL {
             items.append(
                 ContextMenuActionItem(
                     id: "generateScripts",
-                    title: "Generate Scripts...",
-                    systemImage: "script.badge.plus",
+                    title: "Generate Scripts",
+                    systemImage: "applescript",
                     role: nil,
                     action: { showGenerateScriptsWizard = true }
                 )
@@ -365,7 +357,7 @@ extension DatabaseObjectRow {
                 items.append(
                     ContextMenuActionItem(
                         id: "queryHistory",
-                        title: "Query History...",
+                        title: "Query History",
                         systemImage: "clock.arrow.circlepath",
                         role: nil,
                         action: { openTemporalHistoryQuery() }
@@ -376,7 +368,7 @@ extension DatabaseObjectRow {
                 items.append(
                     ContextMenuActionItem(
                         id: "enableVersioning",
-                        title: "Enable System Versioning...",
+                        title: "Enable System Versioning",
                         systemImage: "clock.badge.checkmark",
                         role: nil,
                         action: {
@@ -465,7 +457,7 @@ extension DatabaseObjectRow {
         items.append(
             ContextMenuActionItem(
                 id: "dropObject",
-                title: "Drop",
+                title: "Drop \(object.type.displayName)",
                 systemImage: "trash",
                 role: .destructive,
                 isDisabled: !canModifySchema,

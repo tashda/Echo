@@ -62,6 +62,7 @@ struct JobQueuePopOutToolbarItem: View {
             } label: {
                 Label("Open in Window", systemImage: "rectangle.portrait.and.arrow.right")
             }
+            .labelStyle(.iconOnly)
             .help("Open in separate window")
             .accessibilityLabel("Open in separate window")
             .glassEffect(.regular.interactive())

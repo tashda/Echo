@@ -136,9 +136,9 @@ struct SectionContainer<Content: View>: View {
             .padding(.leading, SpacingTokens.xxxs)
             content()
                 .background(ColorTokens.Background.secondary.opacity(0.3))
-                .cornerRadius(8)
+                .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium)
                         .stroke(ColorTokens.Text.primary.opacity(0.05), lineWidth: 1)
                 )
         }

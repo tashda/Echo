@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Converts between Echo domain models and SyncDocument format.
@@ -284,19 +285,15 @@ struct SyncAdapter: Sendable {
 
     /// Deterministic ID for a project's settings document.
     func settingsDocumentID(for projectID: UUID) -> UUID {
-        // Use a namespace UUID derived from the project ID so it's stable
         let input = "settings:\(projectID.uuidString)"
-        let hash = Array(input.utf8).withUnsafeBufferPointer { buffer -> [UInt8] in
-            var result = [UInt8](repeating: 0, count: 16)
-            for (i, byte) in buffer.enumerated() {
-                result[i % 16] ^= byte
-            }
-            return result
-        }
-        return UUID(uuid: (hash[0], hash[1], hash[2], hash[3],
-                           hash[4], hash[5], hash[6], hash[7],
-                           hash[8], hash[9], hash[10], hash[11],
-                           hash[12], hash[13], hash[14], hash[15]))
+        let digest = SHA256.hash(data: Data(input.utf8))
+        var bytes = Array(digest.prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x50
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3],
+                           bytes[4], bytes[5], bytes[6], bytes[7],
+                           bytes[8], bytes[9], bytes[10], bytes[11],
+                           bytes[12], bytes[13], bytes[14], bytes[15]))
     }
 
     // MARK: - Field Helpers

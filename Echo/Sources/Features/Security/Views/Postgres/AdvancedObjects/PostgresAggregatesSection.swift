@@ -98,15 +98,15 @@ struct PostgresAggregatesSection: View {
             Divider()
             if selection.count == 1, let id = selection.first {
                 let agg = viewModel.aggregates.first { $0.id == id }
-                Button("Rename\u{2026}") {
+                Button {
                     pendingEdit = PendingEdit(action: .rename, objectName: id, initialValue: agg?.name ?? "")
-                }
-                Button("Change Owner\u{2026}") {
+                } label: { Label("Rename", systemImage: "character.cursor.ibeam") }
+                Button {
                     pendingEdit = PendingEdit(action: .changeOwner, objectName: id, initialValue: "")
-                }
-                Button("Change Schema\u{2026}") {
+                } label: { Label("Change Owner", systemImage: "person") }
+                Button {
                     pendingEdit = PendingEdit(action: .changeSchema, objectName: id, initialValue: agg?.schema ?? "public")
-                }
+                } label: { Label("Change Schema", systemImage: "rectangle.stack") }
                 Divider()
                 Button(role: .destructive) { pendingDropName = id } label: {
                     Label("Drop Aggregate", systemImage: "trash")

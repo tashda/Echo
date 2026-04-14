@@ -19,7 +19,7 @@ struct ConnectionsPopoverContent: View {
                         PopoverConnectionRow(
                             connection: conn,
                             isSelected: conn.id == connectionStore.selectedConnectionID,
-                            icon: iconImage(for: conn),
+                            databaseType: conn.databaseType,
                             displayName: displayName(for: conn)
                         ) {
                             environmentState.connect(to: conn)
@@ -35,7 +35,7 @@ struct ConnectionsPopoverContent: View {
                         PopoverConnectionRow(
                             connection: conn,
                             isSelected: conn.id == connectionStore.selectedConnectionID,
-                            icon: iconImage(for: conn),
+                            databaseType: conn.databaseType,
                             displayName: displayName(for: conn)
                         ) {
                             environmentState.connect(to: conn)
@@ -52,7 +52,7 @@ struct ConnectionsPopoverContent: View {
                         PopoverConnectionRow(
                             connection: conn,
                             isSelected: conn.id == connectionStore.selectedConnectionID,
-                            icon: iconImage(for: conn),
+                            databaseType: conn.databaseType,
                             displayName: displayName(for: conn)
                         ) {
                             environmentState.connect(to: conn)
@@ -127,10 +127,6 @@ struct ConnectionsPopoverContent: View {
             .padding(.vertical, SpacingTokens.xxs2)
     }
 
-    private func iconImage(for connection: SavedConnection) -> NSImage? {
-        NSImage(named: connection.databaseType.iconName)
-    }
-
     private func displayName(for connection: SavedConnection) -> String {
         let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? connection.host : trimmed
@@ -142,7 +138,7 @@ struct ConnectionsPopoverContent: View {
 private struct PopoverConnectionRow: View {
     let connection: SavedConnection
     let isSelected: Bool
-    let icon: NSImage?
+    let databaseType: DatabaseType
     let displayName: String
     let action: () -> Void
 
@@ -156,17 +152,7 @@ private struct PopoverConnectionRow: View {
                     .frame(width: 14)
                     .opacity(isSelected ? 1 : 0)
 
-                if let icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 16, height: 16)
-                } else {
-                    Image(systemName: "server.rack")
-                        .font(TypographyTokens.caption2)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                        .frame(width: 16, height: 16)
-                }
+                DatabaseTypeIcon(databaseType: databaseType, presentation: .menu)
 
                 Text(displayName)
                     .font(TypographyTokens.standard)

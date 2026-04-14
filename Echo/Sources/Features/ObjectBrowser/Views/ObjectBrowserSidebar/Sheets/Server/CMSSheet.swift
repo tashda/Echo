@@ -12,89 +12,105 @@ struct CMSSheet: View {
     @State var servers: [SQLServerCMSServer] = []
 
     var body: some View {
-        VStack(spacing: 0) {
-            headerBar
-            Divider()
-
-            if isLoading {
-                VStack { Spacer(); ProgressView("Loading CMS data\u{2026}"); Spacer() }
-            } else if let error = errorMessage {
-                VStack {
-                    Spacer()
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                    Spacer()
+        SheetLayout(
+            title: "Central Management Servers",
+            icon: "server.rack",
+            primaryAction: "Done",
+            canSubmit: true,
+            isSubmitting: false,
+            errorMessage: errorMessage,
+            onSubmit: { onDismiss() },
+            onCancel: { onDismiss() }
+        ) {
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if groups.isEmpty && servers.isEmpty {
+                    ContentUnavailableView(
+                        "No Registered Servers",
+                        systemImage: "server.rack",
+                        description: Text("No CMS groups or servers are registered on this instance.")
+                    )
+                } else {
+                    treeList
                 }
-                .padding()
-            } else {
-                contentView
             }
-
-            Divider()
-            footerBar
         }
-        .frame(minWidth: 480, minHeight: 340)
-        .frame(idealWidth: 540, idealHeight: 400)
+        .frame(minWidth: 520, idealWidth: 600, minHeight: 380, idealHeight: 460)
         .task { await loadData() }
     }
 
-    private var headerBar: some View {
-        HStack {
-            Image(systemName: "server.rack")
-                .foregroundStyle(ColorTokens.accent)
-            Text("Central Management Servers")
-                .font(TypographyTokens.prominent.weight(.semibold))
-            Spacer()
-        }
-        .padding(SpacingTokens.md)
-    }
+    // MARK: - Tree List
 
-    private var footerBar: some View {
-        HStack {
-            Spacer()
-            Button("Done") { onDismiss() }
-                .buttonStyle(.bordered)
-                .keyboardShortcut(.cancelAction)
-        }
-        .padding(SpacingTokens.md)
-    }
-
-    @ViewBuilder
-    private var contentView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SpacingTokens.lg) {
-                if groups.isEmpty && servers.isEmpty {
-                    emptyState
-                } else {
-                    treeContent
+    private var treeList: some View {
+        List {
+            let flatItems = buildFlatTree()
+            ForEach(flatItems, id: \.id) { item in
+                switch item.kind {
+                case .group(let group):
+                    groupRow(group)
+                        .padding(.leading, CGFloat(item.depth) * SpacingTokens.md)
+                        .listRowSeparator(.hidden)
+                case .server(let server):
+                    serverRow(server)
+                        .padding(.leading, CGFloat(item.depth) * SpacingTokens.md)
+                        .listRowSeparator(.hidden)
                 }
             }
-            .padding(SpacingTokens.md)
+        }
+        .listStyle(.plain)
+    }
+
+    // MARK: - Rows
+
+    private func groupRow(_ group: SQLServerCMSGroup) -> some View {
+        HStack(spacing: SpacingTokens.sm) {
+            Image(systemName: "folder")
+                .foregroundStyle(ColorTokens.accent)
+                .frame(width: 16)
+            Text(group.name)
+                .font(TypographyTokens.standard.weight(.medium))
+                .lineLimit(1)
+            if !group.description.isEmpty {
+                Text(group.description)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            Spacer(minLength: 0)
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "server.rack").font(.largeTitle).foregroundStyle(ColorTokens.Text.quaternary)
-            Text("No CMS groups or servers registered.").font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.tertiary)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, SpacingTokens.xl)
-    }
-
-    @ViewBuilder
-    private var treeContent: some View {
-        let flatItems = buildFlatTree()
-        ForEach(flatItems, id: \.id) { item in
-            switch item.kind {
-            case .group(let group):
-                groupRow(group)
-                    .padding(.leading, CGFloat(item.depth) * SpacingTokens.md)
-            case .server(let server):
-                serverRow(server)
-                    .padding(.leading, CGFloat(item.depth) * SpacingTokens.md)
+    private func serverRow(_ server: SQLServerCMSServer) -> some View {
+        HStack(spacing: SpacingTokens.sm) {
+            Image(systemName: "desktopcomputer")
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(server.name)
+                    .font(TypographyTokens.standard)
+                    .lineLimit(1)
+                if server.serverName != server.name {
+                    Text(server.serverName)
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+            if !server.description.isEmpty {
+                Text(server.description)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
     }
+
+    // MARK: - Tree Structure
 
     private struct FlatTreeItem {
         let id: String
@@ -113,7 +129,6 @@ struct CMSSheet: View {
         for group in rootGroups {
             appendGroup(group, depth: 0, to: &result)
         }
-        // Ungrouped servers
         let groupIDs = Set(groups.map(\.groupId))
         for server in servers where !groupIDs.contains(server.groupId) {
             result.append(FlatTreeItem(id: "srv-\(server.serverId)", depth: 0, kind: .server(server)))
@@ -131,54 +146,7 @@ struct CMSSheet: View {
         }
     }
 
-    private func groupRow(_ group: SQLServerCMSGroup) -> some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "folder")
-                .foregroundStyle(ColorTokens.accent)
-            Text(group.name)
-                .font(TypographyTokens.standard.weight(.medium))
-            if !group.description.isEmpty {
-                Text(group.description)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .lineLimit(1)
-            }
-            Spacer()
-        }
-        .padding(SpacingTokens.xs)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(ColorTokens.Background.secondary)
-        )
-    }
-
-    private func serverRow(_ server: SQLServerCMSServer) -> some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "desktopcomputer")
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(server.name)
-                    .font(TypographyTokens.standard)
-                if server.serverName != server.name {
-                    Text(server.serverName)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
-            }
-            Spacer()
-            if !server.description.isEmpty {
-                Text(server.description)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(SpacingTokens.xs)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(ColorTokens.Background.secondary)
-        )
-    }
+    // MARK: - Data Loading
 
     func loadData() async {
         guard let mssql = session.session as? MSSQLSession else {

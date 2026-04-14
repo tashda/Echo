@@ -36,7 +36,7 @@ struct ConnectMenuCommands: Commands {
             if hasConnections {
                 connectionMenuItems(parentID: nil, projectID: projectID)
             } else if !hasActiveSessions {
-                Text("No Connections Available")
+                Label("No Connections Available", systemImage: "cable.connector.slash")
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
 
@@ -44,8 +44,10 @@ struct ConnectMenuCommands: Commands {
                 Divider()
             }
 
-            Button("Manage Connections") {
+            Button {
                 ManageConnectionsWindowController.shared.present()
+            } label: {
+                Label("Manage Connections", systemImage: "server.rack")
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
 
@@ -94,7 +96,7 @@ struct ConnectMenuCommands: Commands {
         Menu {
             let databases = availableDatabases(for: session)
             if databases.isEmpty {
-                Text("No Databases Available")
+                Label("No Databases Available", systemImage: "internaldrive")
                     .foregroundStyle(ColorTokens.Text.secondary)
             } else {
                 ForEach(databases, id: \.name) { database in
@@ -134,8 +136,9 @@ struct ConnectMenuCommands: Commands {
                 Image(systemName: "checkmark")
                     .frame(width: 12)
             } else {
-                Color.clear
-                    .frame(width: 12, height: 12)
+                Image(systemName: "cylinder.split.1x2")
+                    .frame(width: 12)
+                    .opacity(0.45)
             }
             Text(name)
                 .lineLimit(1)
@@ -147,7 +150,7 @@ struct ConnectMenuCommands: Commands {
     }
 
     private func availableDatabases(for session: ConnectionSession) -> [DatabaseInfo] {
-        let source = session.databaseStructure?.databases ?? session.connection.cachedStructure?.databases ?? []
+        let source = session.databaseStructure?.databases ?? []
         var deduplicated: [DatabaseInfo] = []
         var seen: Set<String> = []
 
@@ -203,20 +206,7 @@ struct ConnectMenuCommands: Commands {
 
     @ViewBuilder
     private func connectionIcon(for connection: SavedConnection) -> some View {
-        if let logoData = connection.logo,
-           let nsImage = NSImage(data: logoData) {
-            Image(nsImage: nsImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 14, height: 14)
-                .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-        } else {
-            Image(connection.databaseType.iconName)
-                .resizable()
-                .renderingMode(.template)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 14, height: 14)
-        }
+        DatabaseTypeIcon(databaseType: connection.databaseType, presentation: .menu)
     }
 
     private func connectionMenuItems(parentID: UUID?, projectID: UUID?) -> AnyView {
@@ -238,20 +228,7 @@ struct ConnectMenuCommands: Commands {
                         Label {
                             Text(displayName(for: connection))
                         } icon: {
-                            if let logoData = connection.logo,
-                               let nsImage = NSImage(data: logoData) {
-                                Image(nsImage: nsImage)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 14, height: 14)
-                                    .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-                            } else {
-                                Image(connection.databaseType.iconName)
-                                    .resizable()
-                                    .renderingMode(.template)
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 14, height: 14)
-                            }
+                            DatabaseTypeIcon(databaseType: connection.databaseType, presentation: .menu)
                         }
                     }
                 }

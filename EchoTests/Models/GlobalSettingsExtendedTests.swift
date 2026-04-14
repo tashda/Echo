@@ -36,28 +36,6 @@ struct GlobalSettingsExtendedTests {
         }
     }
 
-    // MARK: - NativePsqlRuntimePreference
-
-    @Test func nativePsqlRuntimePreferenceAllCases() {
-        let cases = NativePsqlRuntimePreference.allCases
-        #expect(cases.count == 2)
-        #expect(cases.contains(.bundled))
-        #expect(cases.contains(.system))
-    }
-
-    @Test func nativePsqlRuntimePreferenceDisplayNames() {
-        #expect(NativePsqlRuntimePreference.bundled.displayName == "Bundled Binary")
-        #expect(NativePsqlRuntimePreference.system.displayName == "System Binary")
-    }
-
-    @Test func nativePsqlRuntimePreferenceCodableRoundTrip() throws {
-        for pref in NativePsqlRuntimePreference.allCases {
-            let data = try JSONEncoder().encode(pref)
-            let decoded = try JSONDecoder().decode(NativePsqlRuntimePreference.self, from: data)
-            #expect(decoded == pref)
-        }
-    }
-
     // MARK: - SidebarAutoExpandSection: displayName
 
     @Test func sidebarAutoExpandSectionDisplayNames() {
@@ -213,6 +191,57 @@ struct GlobalSettingsExtendedTests {
         #expect(overrides.textHex == nil)
     }
 
+    @Test func globalSettingsObjectBrowserCacheDefault() {
+        let settings = GlobalSettings()
+        #expect(settings.objectBrowserCacheMaxBytes == 512 * 1_024 * 1_024)
+    }
+
+    @Test func globalSettingsObjectBrowserCacheCodableRoundTrip() throws {
+        var settings = GlobalSettings()
+        settings.objectBrowserCacheMaxBytes = 256 * 1_024 * 1_024
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(GlobalSettings.self, from: data)
+
+        #expect(decoded.objectBrowserCacheMaxBytes == 256 * 1_024 * 1_024)
+    }
+
+    // MARK: - NotificationPreferences
+
+    @Test func notificationGroupRemainsEnabledWhenAnyCategoryIsEnabled() {
+        var preferences = NotificationPreferences()
+        preferences.enableAll()
+        preferences.setEnabled(false, for: .connectionConnected)
+
+        #expect(preferences.isGroupEnabled(.connection))
+        #expect(!preferences.isEnabled(.connectionConnected))
+        #expect(preferences.isEnabled(.connectionDisconnected))
+        #expect(preferences.isEnabled(.connectionFailed))
+    }
+
+    @Test func notificationGroupToggleDisablesAllCategoriesInGroup() {
+        var preferences = NotificationPreferences()
+        preferences.enableAll()
+        preferences.setGroupEnabled(false, for: .connection)
+
+        #expect(!preferences.isGroupEnabled(.connection))
+        #expect(!preferences.isEnabled(.connectionConnected))
+        #expect(!preferences.isEnabled(.connectionDisconnected))
+        #expect(!preferences.isEnabled(.connectionFailed))
+        #expect(preferences.isEnabled(.generalSuccess))
+    }
+
+    @Test func notificationExplicitPreferencesPreserveSingleCategoryChanges() {
+        var preferences = NotificationPreferences()
+        preferences.markExplicitPreferences()
+        preferences.setEnabled(true, for: .generalInfo)
+        preferences.setEnabled(false, for: .generalSuccess)
+
+        #expect(preferences.isGroupEnabled(.general))
+        #expect(preferences.isEnabled(.generalInfo))
+        #expect(!preferences.isEnabled(.generalSuccess))
+    }
+
     // MARK: - GlobalSettings: Codable round-trip
 
     @Test func globalSettingsCodableRoundTripPreservesAllFields() throws {
@@ -227,36 +256,19 @@ struct GlobalSettingsExtendedTests {
         settings.editorIndentWrappedLines = 8
         settings.editorEnableAutocomplete = false
         settings.editorQualifyTableCompletions = true
-        settings.editorSuggestKeywords = false
-        settings.editorEnableInlineSuggestions = false
-        settings.editorSuggestFunctions = false
-        settings.editorSuggestSnippets = false
-        settings.editorSuggestHistory = false
-        settings.editorSuggestJoins = false
         settings.editorShowSystemSchemas = true
-        settings.editorAllowCommandPeriodTrigger = false
-        settings.editorAllowControlSpaceTrigger = false
         settings.accentColorSource = .custom
         settings.customAccentColorHex = "FF5500"
         settings.resultsAlternateRowShading = true
         settings.resultsShowRowNumbers = false
-        settings.resultsEnableTypeFormatting = false
         settings.showForeignKeysInInspector = false
         settings.showJsonInInspector = false
         settings.resultsInitialRowLimit = 1000
-        settings.resultsPreviewBatchSize = 1000
         settings.autoOpenInspectorOnSelection = false
-        settings.keepTabsInMemory = true
-        settings.showSavedConnectionsInExplorer = true
         settings.sidebarCustomizePerDatabaseType = true
         settings.sidebarAutoExpandSections = [.databases, .tables]
         settings.sidebarAutoExpandPostgresql = [.databases, .materializedViews]
         settings.sidebarAutoExpandSQLServer = [.databases, .procedures]
-        settings.nativePsqlEnabled = true
-        settings.nativePsqlRuntimePreference = .system
-        settings.nativePsqlAllowSystemBinaryFallback = true
-        settings.nativePsqlAllowShellEscape = false
-        settings.nativePsqlAllowFileCommands = false
         settings.sidebarIconColorMode = .monochrome
         settings.managedPostgresConsoleEnabled = false
 
@@ -273,36 +285,19 @@ struct GlobalSettingsExtendedTests {
         #expect(decoded.editorIndentWrappedLines == 8)
         #expect(decoded.editorEnableAutocomplete == false)
         #expect(decoded.editorQualifyTableCompletions == true)
-        #expect(decoded.editorSuggestKeywords == false)
-        #expect(decoded.editorEnableInlineSuggestions == false)
-        #expect(decoded.editorSuggestFunctions == false)
-        #expect(decoded.editorSuggestSnippets == false)
-        #expect(decoded.editorSuggestHistory == false)
-        #expect(decoded.editorSuggestJoins == false)
         #expect(decoded.editorShowSystemSchemas == true)
-        #expect(decoded.editorAllowCommandPeriodTrigger == false)
-        #expect(decoded.editorAllowControlSpaceTrigger == false)
         #expect(decoded.accentColorSource == .custom)
         #expect(decoded.customAccentColorHex == "FF5500")
         #expect(decoded.resultsAlternateRowShading == true)
         #expect(decoded.resultsShowRowNumbers == false)
-        #expect(decoded.resultsEnableTypeFormatting == false)
         #expect(decoded.showForeignKeysInInspector == false)
         #expect(decoded.showJsonInInspector == false)
         #expect(decoded.resultsInitialRowLimit == 1000)
-        #expect(decoded.resultsPreviewBatchSize == 1000)
         #expect(decoded.autoOpenInspectorOnSelection == false)
-        #expect(decoded.keepTabsInMemory == true)
-        #expect(decoded.showSavedConnectionsInExplorer == true)
         #expect(decoded.sidebarCustomizePerDatabaseType == true)
         #expect(decoded.sidebarAutoExpandSections == [.databases, .tables])
         #expect(decoded.sidebarAutoExpandPostgresql == [.databases, .materializedViews])
         #expect(decoded.sidebarAutoExpandSQLServer == [.databases, .procedures])
-        #expect(decoded.nativePsqlEnabled == true)
-        #expect(decoded.nativePsqlRuntimePreference == .system)
-        #expect(decoded.nativePsqlAllowSystemBinaryFallback == true)
-        #expect(decoded.nativePsqlAllowShellEscape == false)
-        #expect(decoded.nativePsqlAllowFileCommands == false)
         #expect(decoded.sidebarIconColorMode == .monochrome)
         #expect(decoded.managedPostgresConsoleEnabled == false)
     }

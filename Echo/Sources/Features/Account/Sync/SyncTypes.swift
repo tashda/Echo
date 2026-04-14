@@ -28,7 +28,7 @@ enum SyncCollection: String, Codable, Sendable, CaseIterable {
         switch self {
         case .connections: "Server addresses, ports, and connection options"
         case .folders: "Folder structure for organizing connections"
-        case .identities: "Saved login names (passwords stay in Keychain)"
+        case .identities: "Saved login names and identity metadata"
         case .projects: "Project names and configuration"
         case .settings: "App preferences and editor settings"
         case .bookmarks: "Saved queries and snippets"
@@ -88,6 +88,81 @@ enum SyncPreferences {
         }
         return Set(stored.compactMap { SyncCollection(rawValue: $0) }).union(alwaysEnabled)
     }
+
+    // MARK: - Credential Sync Toggle
+
+    private static let credentialSyncKey = "sync.credentialSyncEnabled"
+
+    static var isCredentialSyncEnabled: Bool {
+        // Default: true (enabled once E2E is enrolled)
+        UserDefaults.standard.object(forKey: credentialSyncKey) as? Bool ?? true
+    }
+
+    static func setCredentialSyncEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: credentialSyncKey)
+    }
+}
+
+// MARK: - Sync Merge Strategy
+
+/// How to handle the first sync when both local and cloud data exist for a project.
+enum SyncMergeStrategy: Sendable {
+    /// Combine local and cloud data. Conflicts resolved by most recent change (LWW).
+    case merge
+    /// Replace local data with what's in the cloud. Local-only items are deleted.
+    case useCloud
+    /// Push local data to cloud, overwriting cloud versions where they conflict.
+    case uploadLocal
+}
+
+enum SyncStartupAction: Sendable, Equatable {
+    case none
+    case promptForMerge
+    case pullCloud
+    case uploadLocal
+}
+
+/// Summary of data counts for a project, used to inform the merge strategy prompt.
+struct SyncDataSummary: Sendable {
+    let localConnections: Int
+    let localIdentities: Int
+    let localFolders: Int
+    let localBookmarks: Int
+    let cloudDocuments: Int
+
+    var hasLocalData: Bool {
+        localConnections + localIdentities + localFolders + localBookmarks > 0
+    }
+
+    var hasCloudData: Bool {
+        cloudDocuments > 0
+    }
+
+    var needsMergeDecision: Bool {
+        hasLocalData && hasCloudData
+    }
+
+    var localTotal: Int {
+        localConnections + localIdentities + localFolders + localBookmarks
+    }
+
+    func startupAction(hasCheckpoint: Bool) -> SyncStartupAction {
+        guard !hasCheckpoint else { return .none }
+        if needsMergeDecision { return .promptForMerge }
+        if hasCloudData { return .pullCloud }
+        if hasLocalData { return .uploadLocal }
+        return .none
+    }
+}
+
+/// A credential conflict detected during pull — local Keychain has a different
+/// password than what the cloud has for the same connection/identity.
+struct CredentialConflict: Identifiable, Sendable, Equatable {
+    let id: UUID
+    let collection: SyncCollection
+    let displayName: String
+    let localPassword: String
+    let cloudPassword: String
 }
 
 // MARK: - Sync Field

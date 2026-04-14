@@ -1,7 +1,7 @@
 import Foundation
 
 extension TableStructureEditorViewModel {
-    
+
     func reset(to details: TableStructureDetails) {
         apply(details: details)
     }
@@ -48,19 +48,20 @@ extension TableStructureEditorViewModel {
             let columns = index.columns.map { column in
                 IndexModel.Column(name: column.name, sortOrder: column.sortOrder == .descending ? .descending : .ascending, isIncluded: column.isIncluded)
             }
+            let resolvedIndexType = resolvedIndexType(for: index.indexType)
             return IndexModel(
                 original: IndexModel.Snapshot(
                     name: index.name,
                     columns: columns.map { $0.snapshot },
                     isUnique: index.isUnique,
                     filterCondition: index.filterCondition,
-                    indexType: index.indexType
+                    indexType: resolvedIndexType
                 ),
                 name: index.name,
                 columns: columns,
                 isUnique: index.isUnique,
                 filterCondition: index.filterCondition ?? "",
-                indexType: index.indexType ?? (databaseType == .microsoftSQL ? "nonclustered" : "btree")
+                indexType: resolvedIndexType
             )
         }
 
@@ -135,6 +136,14 @@ extension TableStructureEditorViewModel {
         }
 
         tableProperties = details.tableProperties
+    }
+
+    private func resolvedIndexType(for indexType: String?) -> String {
+        if let trimmed = indexType?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty {
+            return trimmed
+        }
+
+        return databaseType == .microsoftSQL ? "nonclustered" : "btree"
     }
 
     internal func generateStatements() -> [String] {

@@ -1,3 +1,10 @@
+# Internal analysis and logs
+*.log
+*.md
+!README.md
+proxmox_mcp.log
+ci_log.txt
+
 # Credentials and secrets
 *.env
 !*.env.example
@@ -14,27 +21,24 @@ build/
 DerivedData/
 .deriveddata-mssql/
 .deriveddata-agent-*/
+.xcodebuildmcp/
 
 # IDE and editor configs
 .idea/
 .vscode/
 __pycache__/
 *.xcworkspace/xcuserdata/
+Echo.xcodeproj/project.xcworkspace/xcuserdata/
 
-# AI agent configs and caches
+# AI agent configs, plans, and caches
 .claude/
-.codex_cache/
+.gemini/
+.mcp.json
+.planning/
+TASKS/
 GEMINI.md
 CLAUDE.md
-AGENT.md
 AGENTS.md
-agent.md
-agents.md
-gemini.md
-claude.md
-
-# AI agent outputs — analysis, planning, task specs, reports
-# These files are useful locally but must never be pushed
 *_ANALYSIS.md
 *_PLAN.md
 *_PLAN.txt
@@ -54,16 +58,11 @@ analyze_echo.py
 check_syntax.py
 format_reports.py
 menu_items.txt
-
-# Agent planning and task directories
-.planning/
-TASKS/
+ci_log.txt
+proxmox_mcp.log
 
 # OS-specific
 .DS_Store
-
-# XcodeBuildMCP
-.xcodebuildmcp/
 
 # Development artifacts
 Instruments/
@@ -100,4 +99,3 @@ Tools/
 *.crash
 *.ips
 .ci-fixtures/adventureworks/
-.planning/

@@ -50,10 +50,7 @@ extension ConnectionEditorView {
                         Label {
                             Text(type.displayName)
                         } icon: {
-                            Image(type.iconName)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: SpacingTokens.md, height: SpacingTokens.md)
+                            DatabaseTypeIcon(databaseType: type, presentation: .formControl)
                         }
                         .tag(type)
                     }

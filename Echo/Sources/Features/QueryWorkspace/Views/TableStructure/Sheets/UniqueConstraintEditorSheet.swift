@@ -6,6 +6,7 @@ struct UniqueConstraintEditorSheet: View {
     let databaseType: DatabaseType
     let onDelete: () -> Void
     let onCancelNew: () -> Void
+    let onSaveNew: ((TableStructureEditorViewModel.UniqueConstraintModel) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State var draft: Draft
@@ -15,13 +16,15 @@ struct UniqueConstraintEditorSheet: View {
         availableColumns: [String],
         databaseType: DatabaseType,
         onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
+        onCancelNew: @escaping () -> Void,
+        onSaveNew: ((TableStructureEditorViewModel.UniqueConstraintModel) -> Void)? = nil
     ) {
         self._constraint = constraint
         self.availableColumns = availableColumns
         self.databaseType = databaseType
         self.onDelete = onDelete
         self.onCancelNew = onCancelNew
+        self.onSaveNew = onSaveNew
         _draft = State(initialValue: Draft(model: constraint.wrappedValue, availableColumns: availableColumns))
     }
 

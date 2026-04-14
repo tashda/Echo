@@ -54,12 +54,12 @@ struct EnableSystemVersioningSheet: View {
         ) {
             Form {
                 Section("Table") {
-                    LabeledContent("Schema") {
+                    PropertyRow(title: "Schema") {
                         Text(schemaName)
                             .foregroundStyle(ColorTokens.Text.primary)
                             .fontWeight(.medium)
                     }
-                    LabeledContent("Table") {
+                    PropertyRow(title: "Table") {
                         Text(tableName)
                             .foregroundStyle(ColorTokens.Text.primary)
                             .fontWeight(.medium)

@@ -1,6 +1,10 @@
 import SwiftUI
 
 extension QueryResultsSection {
+    private var prefersMessagesAfterExecution: Bool {
+        guard query.errorMessage == nil, !query.isExecuting else { return false }
+        return query.prefersMessagesAfterExecution
+    }
     
     internal func handleResultTokenChange() {
         let newIDs = tableColumns.map(\.id)
@@ -9,8 +13,10 @@ extension QueryResultsSection {
             sortCriteria = nil
             highlightedColumnIndex = nil
         }
-        if panelState.selectedSegment == .messages, query.errorMessage == nil,
-           !(connection.databaseType == .microsoftSQL && query.statisticsEnabled) {
+        if prefersMessagesAfterExecution {
+            panelState.selectedSegment = .messages
+            if !panelState.isOpen { panelState.isOpen = true }
+        } else if panelState.selectedSegment == .messages, query.errorMessage == nil {
             panelState.selectedSegment = .results
         }
         rebuildRowOrder()
@@ -25,11 +31,7 @@ extension QueryResultsSection {
                 panelState.selectedSegment = .results
             }
         } else {
-            // When statistics mode is on, auto-switch to Messages so the user
-            // sees the IO/TIME output without having to click manually.
-            if connection.databaseType == .microsoftSQL,
-               query.statisticsEnabled,
-               query.errorMessage == nil {
+            if prefersMessagesAfterExecution {
                 panelState.selectedSegment = .messages
                 if !panelState.isOpen { panelState.isOpen = true }
             }

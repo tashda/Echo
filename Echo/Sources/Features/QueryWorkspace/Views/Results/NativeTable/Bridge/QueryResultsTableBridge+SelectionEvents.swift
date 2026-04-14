@@ -25,6 +25,7 @@ extension QueryResultsTableView.Coordinator {
 
         let clickCount = event.clickCount
         let extendSelection = event.modifierFlags.contains(.shift)
+        let addToSelection = event.modifierFlags.contains(.command)
         let currentRegion = selectionRegion
         let anchorCell: QueryResultsTableView.SelectedCell
 
@@ -53,10 +54,18 @@ extension QueryResultsTableView.Coordinator {
             }
         }
 
-        if extendSelection {
+        if addToSelection, !extendSelection {
+            if let existing = selectionRegion {
+                additionalRegions.append(existing)
+            }
+            setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
+            selectionAnchor = cell
+            notifyClearColumnHighlight()
+        } else if extendSelection {
             setSelectionRegion(SelectedRegion(start: anchorCell, end: cell), tableView: tableView)
             selectionAnchor = anchorCell
         } else {
+            additionalRegions.removeAll()
             setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
             selectionAnchor = cell
             notifyClearColumnHighlight()

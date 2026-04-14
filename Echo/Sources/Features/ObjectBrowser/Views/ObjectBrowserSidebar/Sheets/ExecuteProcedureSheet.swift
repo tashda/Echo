@@ -24,7 +24,7 @@ struct ExecuteProcedureSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: "Execute \(objectKeyword)") {
             Form {
                 Section("Parameters") {
                     if drafts.isEmpty {
@@ -55,28 +55,22 @@ struct ExecuteProcedureSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                Button("Cancel") { onDismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Open in Query Tab") {
-                    openInQueryTab()
-                    onDismiss()
-                }
-                Button("Execute") {
-                    executeDirectly()
-                    onDismiss()
-                }
-                .keyboardShortcut(.defaultAction)
+        } footer: {
+            Button("Cancel") { onDismiss() }
+                .keyboardShortcut(.cancelAction)
+            Spacer()
+            Button("Open in Query Tab") {
+                openInQueryTab()
+                onDismiss()
             }
-            .padding(SpacingTokens.md)
+            Button("Execute") {
+                executeDirectly()
+                onDismiss()
+            }
+            .buttonStyle(.bordered)
+            .keyboardShortcut(.defaultAction)
         }
         .frame(minWidth: 500, minHeight: 400)
-        .navigationTitle("Execute \(objectKeyword)")
-        .navigationSubtitle(object.name)
         .onAppear { buildDrafts() }
     }
 

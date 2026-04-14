@@ -22,7 +22,7 @@ struct MySQLServerVariableEditorSheet: View {
         SheetLayoutCustomFooter(title: "Edit Global Variable") {
             Form {
                 Section("Variable") {
-                    LabeledContent("Name") {
+                    PropertyRow(title: "Name") {
                         Text(variable.name)
                             .textSelection(.enabled)
                     }
@@ -46,7 +46,8 @@ struct MySQLServerVariableEditorSheet: View {
                     onSave(value)
                     onDismiss()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.defaultAction)
                 .disabled(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }

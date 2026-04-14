@@ -48,11 +48,13 @@ struct AgentJobScheduleEditorSheet: View {
                 Section(title) {
                     TextField("Name", text: $name, prompt: Text("e.g. Daily 9 AM"))
                     Toggle("Enabled", isOn: $enabled)
+                        .toggleStyle(.switch)
                     Picker("Frequency", selection: $frequency) {
                         ForEach(ScheduleFrequency.allCases) { freq in
                             Text(freq.displayName).tag(freq)
                         }
                     }
+                    .pickerStyle(.menu)
                 }
 
                 Section("Recurrence") {
@@ -127,6 +129,7 @@ struct AgentJobScheduleEditorSheet: View {
             Picker("Hour", selection: $startHour) {
                 ForEach(0..<24, id: \.self) { h in Text(String(format: "%02d", h)).tag(h) }
             }
+            .pickerStyle(.menu)
             .frame(width: 70)
             .labelsHidden()
             Text(":")
@@ -135,6 +138,7 @@ struct AgentJobScheduleEditorSheet: View {
                     Text(String(format: "%02d", m)).tag(m)
                 }
             }
+            .pickerStyle(.menu)
             .frame(width: 70)
             .labelsHidden()
         }
@@ -147,6 +151,7 @@ struct AgentJobScheduleEditorSheet: View {
             Picker("Hour", selection: hour) {
                 ForEach(0..<24, id: \.self) { h in Text(String(format: "%02d", h)).tag(h) }
             }
+            .pickerStyle(.menu)
             .frame(width: 70)
             .labelsHidden()
             Text(":")
@@ -155,6 +160,7 @@ struct AgentJobScheduleEditorSheet: View {
                     Text(String(format: "%02d", m)).tag(m)
                 }
             }
+            .pickerStyle(.menu)
             .frame(width: 70)
             .labelsHidden()
         }

@@ -12,7 +12,7 @@ struct MySQLUserPasswordSheet: View {
         SheetLayoutCustomFooter(title: "Change Password") {
             Form {
                 Section("Account") {
-                    LabeledContent("User") {
+                    PropertyRow(title: "User") {
                         Text(accountName)
                             .textSelection(.enabled)
                     }
@@ -47,7 +47,7 @@ struct MySQLUserPasswordSheet: View {
                 onApply(password)
                 onDismiss()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
             .disabled(password.isEmpty || !passwordsMatch)
         }

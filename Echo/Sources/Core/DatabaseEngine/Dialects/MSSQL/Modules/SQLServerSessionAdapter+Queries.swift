@@ -13,21 +13,14 @@ extension SQLServerSessionAdapter {
         if let raw = result.classification {
             queryResult.dataClassification = extractClassification(from: raw, columnCount: queryResult.columns.count)
         }
-        queryResult.serverMessages = result.execResult.messages
-            .filter { $0.kind == .info }
-            .map { msg in
-                ServerMessage(
-                    kind: .info,
-                    number: msg.number,
-                    message: msg.message,
-                    state: msg.state,
-                    severity: msg.severity
-                )
-            }
+        queryResult.serverMessages = result.execResult.echoServerMessages()
         return queryResult
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        if QueryStatementClassifier.isLikelyMessageOnlyStatement(sql, databaseType: .microsoftSQL) {
+            return try await simpleQuery(sql)
+        }
         guard let progressHandler else {
             return try await simpleQuery(sql)
         }
@@ -46,6 +39,16 @@ extension SQLServerSessionAdapter {
     func executeUpdate(_ sql: String) async throws -> Int {
         let result = try await client.execute(sql)
         return Int(result.rowCount ?? 0)
+    }
+
+    func executeUpdatesAtomically(_ statements: [String]) async throws {
+        guard !statements.isEmpty else { return }
+
+        try await client.transactions.executeInTransaction {
+            for statement in statements {
+                _ = try await self.client.execute(statement)
+            }
+        }
     }
 
     func renameTable(schema: String?, oldName: String, newName: String) async throws {
@@ -258,7 +261,15 @@ extension SQLServerSessionAdapter {
                     number: msg.number,
                     message: msg.message,
                     state: msg.state,
-                    severity: msg.severity
+                    severity: msg.severity,
+                    serverName: msg.serverName,
+                    procedureName: msg.procedureName,
+                    lineNumber: msg.lineNumber,
+                    category: "Server Response",
+                    metadata: [
+                        "source": "sqlserver-nio",
+                        "token": "INFO"
+                    ]
                 )
             }
 

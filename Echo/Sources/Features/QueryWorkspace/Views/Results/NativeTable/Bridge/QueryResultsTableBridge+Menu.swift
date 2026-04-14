@@ -122,6 +122,18 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(buildCopyAsSubmenuItem())
         menu.addItem(buildSaveAsSubmenuItem())
+
+        menu.addItem(.separator())
+        let selectAllItem = NSMenuItem(title: "Select All", action: #selector(menuSelectAll), keyEquivalent: "a")
+        selectAllItem.target = self
+        selectAllItem.image = NSImage(systemSymbolName: "selection.pin.in.out", accessibilityDescription: nil)
+        selectAllItem.keyEquivalentModifierMask = [.command]
+        menu.addItem(selectAllItem)
+    }
+
+    @objc func menuSelectAll() {
+        guard let tableView else { return }
+        selectAllCells(in: tableView)
     }
 
     func prepareHeaderContextMenu(at column: Int?) {

@@ -111,6 +111,7 @@ struct PgRoleEditorMembershipPage: View {
             }
             .width(min: 40, ideal: 56)
         }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
         .environment(\.defaultMinListRowHeight, SpacingTokens.lg)
         .frame(minHeight: 60, maxHeight: 200)
 

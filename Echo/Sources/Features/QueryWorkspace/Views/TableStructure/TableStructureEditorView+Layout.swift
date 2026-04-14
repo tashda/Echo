@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension TableStructureEditorView {
-
+    
     internal func isSectionEnabled(_ section: TableStructureSection) -> Bool {
         switch section {
         case .partitions:
@@ -12,17 +12,15 @@ extension TableStructureEditorView {
             return true
         }
     }
-
+    
     internal var header: some View {
         TabSectionToolbar {
             structureSectionPicker
         } controls: {
-            sectionAddButton
-                .frame(minWidth: 70, alignment: .trailing)
-            actionButtons
+            EmptyView()
         }
     }
-
+    
     private var structureSectionPicker: some View {
         Picker(selection: $selectedSection) {
             ForEach(TableStructureSection.sections(for: viewModel.databaseType)) { section in
@@ -34,7 +32,7 @@ extension TableStructureEditorView {
         .pickerStyle(.segmented)
         .fixedSize()
     }
-
+    
     @ViewBuilder
     private var sectionAddButton: some View {
         switch selectedSection {
@@ -44,17 +42,14 @@ extension TableStructureEditorView {
             }
             .controlSize(.small)
             .buttonStyle(.bordered)
-
+            
         case .indexes:
-            Button {
-                let newIndex = viewModel.addIndex()
-                activeSheet = .index(IndexEditorPresentation(indexID: newIndex.id))
-            } label: {
+            Button { presentNewIndex() } label: {
                 Label("Add", systemImage: "plus")
             }
             .controlSize(.small)
             .buttonStyle(.bordered)
-
+            
         case .constraints:
             Menu {
                 if viewModel.primaryKey == nil {
@@ -67,19 +62,19 @@ extension TableStructureEditorView {
             }
             .controlSize(.small)
             .buttonStyle(.bordered)
-
+            
         case .relations:
             Button { presentNewForeignKey() } label: {
                 Label("Add", systemImage: "plus")
             }
             .controlSize(.small)
             .buttonStyle(.bordered)
-
+            
         case .partitions, .inheritance:
             EmptyView()
         }
     }
-
+    
     internal var content: some View {
         VStack(spacing: 0) {
             if viewModel.isLoading && viewModel.columns.isEmpty {
@@ -93,16 +88,16 @@ extension TableStructureEditorView {
                     switch selectedSection {
                     case .columns:
                         columnsContent
-
+                        
                     case .indexes:
                         indexesContent
-
+                        
                     case .constraints:
                         constraintsContent
-
+                        
                     case .relations:
                         relationsContent
-
+                        
                     case .partitions:
                         if isSectionEnabled(.partitions) {
                             TableStructurePartitionsView(viewModel: viewModel)
@@ -113,7 +108,7 @@ extension TableStructureEditorView {
                                 Text("This table is not partitioned.")
                             }
                         }
-
+                        
                     case .inheritance:
                         if isSectionEnabled(.inheritance) {
                             TableStructureInheritanceView(viewModel: viewModel)
@@ -128,34 +123,6 @@ extension TableStructureEditorView {
                 }
                 .frame(maxHeight: .infinity)
             }
-        }
-    }
-
-    @ViewBuilder
-    private var actionButtons: some View {
-        Button {
-            scriptPreviewStatements = viewModel.generateStatements()
-            activeSheet = .scriptPreview
-        } label: {
-            Label("Script", systemImage: "doc.text")
-        }
-        .controlSize(.small)
-        .buttonStyle(.bordered)
-        .disabled(!viewModel.hasPendingChanges || viewModel.isApplying)
-
-        if viewModel.isApplying {
-            ProgressView()
-                .controlSize(.small)
-        } else {
-            Button {
-                applyChanges()
-            } label: {
-                Label("Apply", systemImage: "checkmark.circle")
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            .disabled(!viewModel.hasPendingChanges)
-            .keyboardShortcut(.return, modifiers: [.command, .shift])
         }
     }
 }

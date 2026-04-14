@@ -42,9 +42,11 @@ extension SQLTextView {
                                                          query: query,
                                                          insertion: insertionText)
 
-        if insertionResult != nil, suggestion.kind == .schema {
+        if insertionResult != nil, suggestion.kind == .schema || suggestion.kind == .database {
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                let caretLocation = self.selectedRange().location
+                self.notifySchemaLoadIfNeeded(text: self.string, caretLocation: caretLocation)
                 _ = self.forcePresentImmediateCompletions()
             }
         }
@@ -93,9 +95,11 @@ extension SQLTextView {
         hideCompletions()
         completionEngine.recordSelection(suggestion, from: response)
 
-        if insertionResult != nil, suggestion.kind == .schema {
+        if insertionResult != nil, suggestion.kind == .schema || suggestion.kind == .database {
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                let caretLocation = self.selectedRange().location
+                self.notifySchemaLoadIfNeeded(text: self.string, caretLocation: caretLocation)
                 self.refreshCompletions(immediate: true, manual: true)
             }
         }

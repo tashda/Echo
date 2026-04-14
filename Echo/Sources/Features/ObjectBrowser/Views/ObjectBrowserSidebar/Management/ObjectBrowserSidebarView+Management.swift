@@ -36,8 +36,10 @@ extension ObjectBrowserSidebarView {
                 .buttonStyle(.plain)
 
                 Button {
-                    sheetState.databaseMailConnectionID = connID
-                    sheetState.showDatabaseMailSheet = true
+                    let value = environmentState.prepareDatabaseMailEditorWindow(
+                        connectionSessionID: connID
+                    )
+                    openWindow(id: DatabaseMailEditorWindow.sceneID, value: value)
                 } label: {
                     SidebarRow(depth: 1, icon: .system("envelope"), label: "Database Mail",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Database Mail", colored: colored))

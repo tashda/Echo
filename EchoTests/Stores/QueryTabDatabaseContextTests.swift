@@ -35,7 +35,7 @@ struct QueryTabDatabaseContextTests {
         #expect(databaseName == "analytics")
     }
 
-    @Test func completionStructureFiltersToSelectedDatabase() {
+    @Test func completionStructureReturnsAllDatabases() {
         let structure = DatabaseStructure(
             serverVersion: "16.0",
             databases: [
@@ -44,13 +44,15 @@ struct QueryTabDatabaseContextTests {
             ]
         )
 
-        let filtered = QueryEditorConnectionContextResolver.completionStructure(
+        let result = QueryEditorConnectionContextResolver.completionStructure(
             from: structure,
             selectedDatabase: "analytics"
         )
 
-        #expect(filtered?.databases.count == 1)
-        #expect(filtered?.databases.first?.name == "analytics")
+        // All databases should be returned for cross-database completion.
+        // selectedDatabase only sets the default catalog in EchoSense.
+        #expect(result?.databases.count == 2)
+        #expect(result?.databases.map(\.name).sorted() == ["analytics", "master"])
     }
 
     @Test func sessionActiveDatabaseFollowsActiveTab() {

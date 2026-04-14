@@ -45,7 +45,6 @@ final class WorkspaceTab: Identifiable {
         case serverProperties
         case tuningAdvisor
         case policyManagement
-        case tableData
         case postgresAdvancedObjects
         case mssqlAdvancedObjects
         case schemaDiff
@@ -75,7 +74,6 @@ final class WorkspaceTab: Identifiable {
         case serverProperties(ServerPropertiesViewModel)
         case tuningAdvisor(TuningAdvisorViewModel)
         case policyManagement(PolicyManagementViewModel)
-        case tableData(TableDataViewModel)
         case postgresAdvancedObjects(PostgresAdvancedObjectsViewModel)
         case mssqlAdvancedObjects(MSSQLAdvancedObjectsViewModel)
         case schemaDiff(SchemaDiffViewModel)
@@ -231,7 +229,6 @@ final class WorkspaceTab: Identifiable {
         case .serverProperties: return .serverProperties
         case .tuningAdvisor: return .tuningAdvisor
         case .policyManagement: return .policyManagement
-        case .tableData: return .tableData
         case .postgresAdvancedObjects: return .postgresAdvancedObjects
         case .mssqlAdvancedObjects: return .mssqlAdvancedObjects
         case .schemaDiff: return .schemaDiff
@@ -349,11 +346,6 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
-    var tableDataVM: TableDataViewModel? {
-        if case .tableData(let vm) = content { return vm }
-        return nil
-    }
-
     var postgresAdvancedObjectsVM: PostgresAdvancedObjectsViewModel? {
         if case .postgresAdvancedObjects(let vm) = content { return vm }
         return nil
@@ -420,8 +412,6 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + 1024 * 1024
         case .policyManagement:
             return baseOverhead + 1024 * 1024
-        case .tableData(let vm):
-            return baseOverhead + vm.estimatedMemoryUsageBytes()
         }
     }
 
@@ -429,7 +419,7 @@ final class WorkspaceTab: Identifiable {
         switch content {
         case .query:
             return .forQueryTab()
-        case .maintenance, .mssqlMaintenance, .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .errorLog, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement, .tableData, .postgresAdvancedObjects, .mssqlAdvancedObjects, .schemaDiff:
+        case .maintenance, .mssqlMaintenance, .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .errorLog, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement, .postgresAdvancedObjects, .mssqlAdvancedObjects, .schemaDiff:
             return .forMaintenanceTab()
         case .extendedEvents, .profiler:
             return .forExtendedEventsTab()

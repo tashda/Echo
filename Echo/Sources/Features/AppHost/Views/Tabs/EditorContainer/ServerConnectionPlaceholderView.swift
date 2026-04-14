@@ -136,15 +136,10 @@ private struct RecentConnectionRow: View {
     }
 
     private var icon: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
-                .fill(iconColor.opacity(0.12))
-                .frame(width: 32, height: 32)
-            Image(connection.databaseType.iconName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: SpacingTokens.md, height: SpacingTokens.md)
-                .foregroundStyle(iconColor)
-        }
+        DatabaseTypeIcon(
+            databaseType: connection.databaseType,
+            tint: iconColor,
+            presentation: .landingRecent
+        )
     }
 }

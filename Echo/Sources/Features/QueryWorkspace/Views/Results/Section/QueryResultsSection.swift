@@ -37,33 +37,26 @@ struct QueryResultsSection: View {
     internal var selectedTab: ResultTab {
         switch panelState.selectedSegment {
         case .results: return .results
-        case .textResults: return .textResults
-        case .verticalResults: return .verticalResults
-        case .statistics: return .statistics
         case .messages: return .messages
         case .executionPlan: return .executionPlan
         case .jsonInspector: return .jsonInspector
         case .liveData: return .results
         case .spatial: return .spatial
-        case .tuning: return .tuning
         case .policyManagement: return .policyManagement
-        case .history: return .history
+        // Legacy segments that are no longer shown in query tabs — fall back to results
+        case .textResults, .verticalResults, .statistics, .tuning, .history:
+            return .results
         }
     }
 
     enum ResultTab: Hashable {
         case results
-        case textResults
-        case verticalResults
-        case statistics
         case messages
 #if os(macOS)
         case jsonInspector
         case executionPlan
         case spatial
-        case tuning
         case policyManagement
-        case history
 #endif
     }
 

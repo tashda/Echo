@@ -6,25 +6,6 @@
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES"
       buildArchitectures = "Automatic">
-      <PreActions>
-         <ExecutionAction
-            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
-            <ActionContent
-               title = "Update SPM Packages"
-               scriptText = "export SRCROOT=&quot;${SRCROOT}&quot;&#10;&quot;${SRCROOT}/scripts/update-packages.sh&quot; 2&gt;&amp;1 || true"
-               shellToInvoke = "/bin/bash">
-               <EnvironmentBuildable>
-                  <BuildableReference
-                     BuildableIdentifier = "primary"
-                     BlueprintIdentifier = "0ADF94942E78B95200E993F8"
-                     BuildableName = "Echo.app"
-                     BlueprintName = "Echo"
-                     ReferencedContainer = "container:Echo.xcodeproj">
-                  </BuildableReference>
-               </EnvironmentBuildable>
-            </ActionContent>
-         </ExecutionAction>
-      </PreActions>
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"
@@ -46,34 +27,8 @@
       buildConfiguration = "Release"
       selectedDebuggerIdentifier = ""
       selectedLauncherIdentifier = "Xcode.IDEFoundation.Launcher.PosixSpawn"
-      shouldUseLaunchSchemeArgsEnv = "YES">
-      <TestPlans>
-         <TestPlanReference
-            reference = "container:EchoTests.xctestplan"
-            default = "YES">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:UnitTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:IntegrationTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:DatabaseIntegrationTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:ExtendedIntegrationTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:MSSQLCompatibilityTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:PostgresCompatibilityTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:EchoUITests.xctestplan">
-         </TestPlanReference>
-      </TestPlans>
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      shouldAutocreateTestPlan = "YES">
    </TestAction>
    <LaunchAction
       buildConfiguration = "Release"
@@ -85,6 +40,7 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
+      enableGPUValidationMode = "1"
       allowLocationSimulation = "YES"
       disablePerformanceAntipatternChecker = "YES">
       <BuildableProductRunnable
@@ -101,7 +57,7 @@
    <ProfileAction
       buildConfiguration = "Release"
       shouldUseLaunchSchemeArgsEnv = "YES"
-      savedToolIdentifier = "Time Profiler"
+      savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "NO"
       enableTestabilityWhenProfilingTests = "No">

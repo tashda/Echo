@@ -65,14 +65,14 @@ struct MySQLServerStatusVariablesSection: View {
                         Text(selectedStatusVariable.name)
                             .font(TypographyTokens.prominent.weight(.semibold))
 
-                        LabeledContent("Current Value") {
+                        PropertyRow(title: "Current Value") {
                             Text(selectedStatusVariable.value)
                                 .font(TypographyTokens.monospaced)
                                 .foregroundStyle(ColorTokens.Text.secondary)
                                 .textSelection(.enabled)
                         }
 
-                        LabeledContent("Category") {
+                        PropertyRow(title: "Category") {
                             Text(selectedStatusVariable.category ?? "GENERAL")
                                 .foregroundStyle(ColorTokens.Text.secondary)
                         }

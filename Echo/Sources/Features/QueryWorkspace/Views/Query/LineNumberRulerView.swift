@@ -21,7 +21,7 @@ final class LineNumberRulerView: NSRulerView {
         super.init(scrollView: textView.enclosingScrollView, orientation: .verticalRuler)
         self.sqlTextView = textView
         self.clientView = textView
-        self.ruleThickness = 40
+        self.ruleThickness = SpacingTokens.xl
         translatesAutoresizingMaskIntoConstraints = true
         autoresizingMask = [.height]
         setFrameSize(NSSize(width: ruleThickness, height: frame.size.height))
@@ -166,7 +166,7 @@ final class LineNumberRulerView: NSRulerView {
 
         let baselineY = lineFragmentMinY + baselineOffset + containerOriginY - scrollOffsetY
         let labelY = baselineY - rulerFont.ascender
-        let labelRect = NSRect(x: 0, y: labelY, width: gutterWidth - 8, height: rulerLabelHeight)
+        let labelRect = NSRect(x: 0, y: labelY, width: gutterWidth - SpacingTokens.xxs1, height: rulerLabelHeight)
         ("\(lineNumber)" as NSString).draw(in: labelRect, withAttributes: attributes)
     }
 
@@ -175,16 +175,31 @@ final class LineNumberRulerView: NSRulerView {
         return super.hitTest(point)
     }
 
-    override func mouseDown(with event: NSEvent) { selectLine(event) }
-    override func mouseDragged(with event: NSEvent) { selectLine(event) }
+    private var anchorLine: Int?
 
-    private func selectLine(_ event: NSEvent) {
+    override func mouseDown(with event: NSEvent) {
+        guard let line = lineAtEvent(event) else { return }
+        anchorLine = line
+        sqlTextView?.selectLineRange(line...line)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let anchor = anchorLine, let line = lineAtEvent(event) else { return }
+        let range = min(anchor, line)...max(anchor, line)
+        sqlTextView?.selectLineRange(range)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        anchorLine = nil
+    }
+
+    private func lineAtEvent(_ event: NSEvent) -> Int? {
         guard let textView = sqlTextView,
               let layoutManager = textView.layoutManager,
-              let textContainer = textView.textContainer else { return }
+              let textContainer = textView.textContainer else { return nil }
 
         let glyphCount = layoutManager.numberOfGlyphs
-        guard glyphCount > 0 else { return }
+        guard glyphCount > 0 else { return nil }
 
         let location = convert(event.locationInWindow, from: nil)
         let pointInTextView = convert(location, to: textView)
@@ -192,8 +207,7 @@ final class LineNumberRulerView: NSRulerView {
         var glyphIndex = layoutManager.glyphIndex(for: pointInTextView, in: textContainer, fractionOfDistanceThroughGlyph: &fraction)
         glyphIndex = min(max(glyphIndex, 0), glyphCount - 1)
         let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
-        let line = (textView.string as NSString).lineNumber(at: charIndex)
-        textView.selectLineRange(line...line)
+        return (textView.string as NSString).lineNumber(at: charIndex)
     }
 }
 

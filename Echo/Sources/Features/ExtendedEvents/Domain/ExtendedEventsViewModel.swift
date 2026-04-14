@@ -14,6 +14,7 @@ final class ExtendedEventsViewModel {
 
     @ObservationIgnored let xeClient: SQLServerExtendedEventsClient
     @ObservationIgnored let connectionSessionID: UUID
+    @ObservationIgnored var activityEngine: ActivityEngine?
 
     var loadingState: LoadingState = .idle
     var sessions: [SQLServerXESession] = []
@@ -83,11 +84,14 @@ final class ExtendedEventsViewModel {
 
     func loadSessions() async {
         loadingState = .loading
+        let handle = activityEngine?.begin("Loading XE sessions", connectionSessionID: connectionSessionID)
         do {
             sessions = try await xeClient.listSessions()
             loadingState = .loaded
+            handle?.succeed()
         } catch {
             loadingState = .error(error.localizedDescription)
+            handle?.fail(error.localizedDescription)
         }
     }
 
@@ -120,12 +124,15 @@ final class ExtendedEventsViewModel {
     func loadEventData() async {
         guard let name = selectedSessionName else { return }
         eventDataLoadingState = .loading
+        let handle = activityEngine?.begin("Loading XE event data", connectionSessionID: connectionSessionID)
         do {
             let data = try await xeClient.readRingBufferData(sessionName: name, maxEvents: 200)
             eventData = data.sorted(by: { ($0.timestamp ?? Date.distantPast) > ($1.timestamp ?? Date.distantPast) })
             eventDataLoadingState = .loaded
+            handle?.succeed()
         } catch {
             eventDataLoadingState = .error(error.localizedDescription)
+            handle?.fail(error.localizedDescription)
         }
     }
 

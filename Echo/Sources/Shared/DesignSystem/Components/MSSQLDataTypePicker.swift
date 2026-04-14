@@ -13,6 +13,7 @@ struct MSSQLDataTypePicker: View {
     @State private var baseType = ""
     @State private var sizeParam = ""
     @State private var isCustom = false
+    @State private var isSyncing = false
     @FocusState private var textFieldFocused: Bool
 
     static let commonTypes: [(category: String, types: [String])] = [
@@ -51,7 +52,7 @@ struct MSSQLDataTypePicker: View {
 
     private static let customSentinel = "__custom__"
 
-    private var allFlat: [String] { Self.commonTypes.flatMap(\.types) }
+    private static let allFlat: [String] = commonTypes.flatMap(\.types)
 
     private var currentParamInfo: (hint: String, defaultValue: String)? {
         Self.parameterInfo[baseType.lowercased()]
@@ -110,17 +111,26 @@ struct MSSQLDataTypePicker: View {
                         .textFieldStyle(.plain)
                         .frame(width: 60)
                         .multilineTextAlignment(.center)
-                        .onChange(of: sizeParam) { _, _ in syncToSelection() }
+                        .onChange(of: sizeParam) { _, _ in
+                            guard !isSyncing else { return }
+                            syncToSelection()
+                        }
                     Text(")")
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
             .onChange(of: baseType) { _, newValue in
+                guard !isSyncing else { return }
                 if newValue == Self.customSentinel {
                     isCustom = true
                     baseType = ""
                     selection = ""
                 } else {
+                    let currentSelection = Self.selectionState(for: selection)
+                    if currentSelection.baseType.caseInsensitiveCompare(newValue) == .orderedSame {
+                        sizeParam = currentSelection.sizeParam
+                        return
+                    }
                     sizeParam = Self.parameterInfo[newValue.lowercased()]?.defaultValue ?? ""
                     syncToSelection()
                 }
@@ -129,51 +139,44 @@ struct MSSQLDataTypePicker: View {
         }
     }
 
-    private var typeMenu: some View {
-        Menu {
-            ForEach(Self.commonTypes, id: \.category) { group in
-                Section(group.category) {
-                    ForEach(group.types, id: \.self) { type in
-                        Button(type) { baseType = type }
-                    }
-                }
-            }
-            Divider()
-            Button("Custom\u{2026}") {
-                baseType = Self.customSentinel
-            }
-        } label: {
-            Text(baseType.isEmpty ? prompt : baseType)
-                .font(TypographyTokens.Table.category)
-                .foregroundStyle(baseType.isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.secondary)
-        }
-        .menuStyle(.borderlessButton)
-    }
-
     private func syncFromSelection() {
-        let parsed = parseType(selection)
-        if allFlat.contains(where: { $0.lowercased() == parsed.base.lowercased() }) {
-            baseType = allFlat.first { $0.lowercased() == parsed.base.lowercased() } ?? parsed.base
-            sizeParam = parsed.param.isEmpty ? (Self.parameterInfo[baseType.lowercased()]?.defaultValue ?? "") : parsed.param
-        } else if selection.isEmpty {
-            baseType = "nvarchar"
-            sizeParam = "255"
-            syncToSelection()
-        } else {
-            isCustom = true
-        }
+        isSyncing = true
+        defer { isSyncing = false }
+        let resolvedState = Self.selectionState(for: selection)
+        baseType = resolvedState.baseType
+        sizeParam = resolvedState.sizeParam
+        isCustom = resolvedState.isCustom
     }
 
     private func syncToSelection() {
         let trimmedParam = sizeParam.trimmingCharacters(in: .whitespaces)
+        let newValue: String
         if needsSizeField && !trimmedParam.isEmpty {
-            selection = "\(baseType)(\(trimmedParam))"
+            newValue = "\(baseType)(\(trimmedParam))"
         } else {
-            selection = baseType
+            newValue = baseType
         }
+        guard newValue != selection else { return }
+        selection = newValue
     }
 
-    private func parseType(_ type: String) -> (base: String, param: String) {
+    internal static func selectionState(for selection: String) -> (baseType: String, sizeParam: String, isCustom: Bool) {
+        let trimmedSelection = selection.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSelection.isEmpty else {
+            return ("", "", false)
+        }
+
+        let parsed = parseType(trimmedSelection)
+        guard let matchedType = allFlat.first(where: { $0.lowercased() == parsed.base.lowercased() }) else {
+            return ("", "", true)
+        }
+
+        // Preserve metadata-provided bare types such as `nvarchar` so opening the
+        // editor doesn't rewrite them to an arbitrary default like `nvarchar(255)`.
+        return (matchedType, parsed.param, false)
+    }
+
+    private static func parseType(_ type: String) -> (base: String, param: String) {
         guard let openParen = type.firstIndex(of: "("),
               let closeParen = type.lastIndex(of: ")") else {
             return (type, "")

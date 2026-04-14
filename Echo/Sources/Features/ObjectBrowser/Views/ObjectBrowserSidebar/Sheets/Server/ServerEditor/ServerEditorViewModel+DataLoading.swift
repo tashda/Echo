@@ -19,17 +19,25 @@ extension ServerEditorViewModel {
             async let systemTask = serverConfig.fetchSystemInfo()
             async let securityTask = serverConfig.fetchSecuritySettings()
             async let configsTask = serverConfig.listConfigurations(showAdvanced: true)
-            async let startupTask = serverConfig.fetchStartupParameters()
 
-            let (info, system, security, configs, startup) = try await (
-                infoTask, systemTask, securityTask, configsTask, startupTask
+            let (info, system, security, configs) = try await (
+                infoTask, systemTask, securityTask, configsTask
             )
 
             serverInfo = info
             systemInfo = system
             securitySettings = security
             configurations = configs
-            startupParameters = startup
+
+            // Startup parameters use sys.dm_server_registry which may not be
+            // available on all editions (e.g. Azure SQL). Load separately so
+            // a failure here does not block the rest of the properties.
+            do {
+                startupParameters = try await serverConfig.fetchStartupParameters()
+            } catch {
+                startupParameters = []
+            }
+
             isLoading = false
         } catch {
             let raw = error.localizedDescription

@@ -56,13 +56,14 @@ extension SQLTextView {
         let wrappedComponents: [String]
         if originalComponents.count == proposedComponents.count {
             wrappedComponents = zip(originalComponents, proposedComponents).map { wrapComponent($1, using: $0) }
+        } else if originalComponents.count == 1, proposedComponents.count > 1 {
+            // Original is a partial name (e.g. "sh"), proposed has schema prefix (e.g. "HumanResources.Shift").
+            // Preserve the full proposed path — only wrap the matching (last) component with the original's quoting.
+            var result = proposedComponents
+            result[result.count - 1] = wrapComponent(result[result.count - 1], using: originalComponents[0])
+            wrappedComponents = result
         } else if originalComponents.count == 1 {
-            if proposedComponents.count > 1 {
-                let lastComponent = String(proposedComponents.last!)
-                wrappedComponents = [wrapComponent(lastComponent, using: originalComponents[0])]
-            } else {
-                wrappedComponents = [wrapComponent(core, using: originalComponents[0])]
-            }
+            wrappedComponents = [wrapComponent(core, using: originalComponents[0])]
         } else {
             return proposedInsertion
         }

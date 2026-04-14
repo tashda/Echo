@@ -18,17 +18,8 @@ struct ApplicationCacheSettingsView: View {
     @State var isRefreshingAutocompleteHistory = false
     @State var diagramCacheUsage: UInt64 = 0
     @State var isRefreshingDiagramCache = false
-
-    var usePerTypeStorageLimits: Binding<Bool> {
-        Binding(
-            get: { projectStore.globalSettings.usePerTypeStorageLimits },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.usePerTypeStorageLimits = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
+    @State var objectBrowserCacheUsage: UInt64 = 0
+    @State var isRefreshingObjectBrowserCache = false
 
     var body: some View {
         Form {
@@ -43,6 +34,7 @@ struct ApplicationCacheSettingsView: View {
             await refreshResultCacheUsage()
             await refreshAutocompleteHistoryUsage()
             await refreshDiagramCacheUsage()
+            await refreshObjectBrowserCacheUsage()
         }
         .alert("Disable Clipboard History?", isPresented: $confirmDisableHistory) {
             Button("Disable", role: .destructive) {
@@ -59,15 +51,6 @@ struct ApplicationCacheSettingsView: View {
 
     private var cacheManagementSection: some View {
         Section("Cache Management") {
-            PropertyRow(
-                title: "Keep tabs in memory",
-                info: "Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage."
-            ) {
-                Toggle("", isOn: keepTabsBinding)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-            }
-
             PropertyRow(title: "Query result retention") {
                 Picker("", selection: resultCacheRetentionBinding) {
                     ForEach(Self.retentionOptions, id: \.hours) { option in
@@ -97,6 +80,14 @@ struct ApplicationCacheSettingsView: View {
                 isRefreshing: isRefreshingResultCache,
                 onRefresh: { await refreshResultCacheUsage() },
                 onClear: { clearResultCache() }
+            )
+
+            storageUsageRow(
+                title: "Object Browser Cache",
+                usage: objectBrowserCacheUsage,
+                isRefreshing: isRefreshingObjectBrowserCache,
+                onRefresh: { await refreshObjectBrowserCacheUsage() },
+                onClear: { clearObjectBrowserCache() }
             )
 
             storageUsageRow(

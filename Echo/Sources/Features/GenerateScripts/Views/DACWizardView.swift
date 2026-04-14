@@ -99,14 +99,15 @@ struct DACWizardView: View {
     private var setTargetStep: some View {
         Form {
             Section("Settings") {
-                TextField("Database Name", text: $viewModel.databaseName)
+                TextField("Database Name", text: $viewModel.databaseName, prompt: Text("e.g. MyDatabase"))
                 HStack {
-                    TextField("File Path", text: $viewModel.filePath)
-                    Button("Browse...") { /* File picker */ }
+                    TextField("File Path", text: $viewModel.filePath, prompt: Text("e.g. /path/to/file.bacpac"))
+                    Button("Browse") { /* File picker */ }
                 }
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
     
     private var progressStep: some View {
@@ -124,7 +125,7 @@ struct DACWizardView: View {
             if let error = viewModel.errorMessage {
                 Image(systemName: "xmark.circle.fill")
                     .font(TypographyTokens.iconHero)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(ColorTokens.Status.error)
                 Text("Operation Failed")
                     .font(TypographyTokens.title)
                 Text(error)
@@ -133,7 +134,7 @@ struct DACWizardView: View {
             } else {
                 Image(systemName: "checkmark.circle.fill")
                     .font(TypographyTokens.iconHero)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(ColorTokens.Status.success)
                 Text("Success")
                     .font(TypographyTokens.title)
                 Text("The operation completed successfully.")

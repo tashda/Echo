@@ -5,6 +5,8 @@ extension SidebarMenu {
     var contentView: some View {
         switch selectedNavSection {
         case .folder:
+            ExperimentalObjectBrowserSidebarView(selectedConnectionID: $selectedConnectionID)
+        case .experimentalFolder:
             ObjectBrowserSidebarView(selectedConnectionID: $selectedConnectionID)
         case .bookmark:
             BookmarksSidebarView()

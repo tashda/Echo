@@ -23,7 +23,7 @@ struct SQLiteDetachDatabaseSheet: View {
         ) {
             Form {
                 Section {
-                    LabeledContent("Database") {
+                    PropertyRow(title: "Database") {
                         Text(databaseName)
                             .foregroundStyle(ColorTokens.Text.primary)
                             .fontWeight(.medium)

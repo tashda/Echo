@@ -3,6 +3,7 @@ import PostgresKit
 
 struct PostgresActivityPreparedTxns: View {
     let connectionID: UUID
+    var activityEngine: ActivityEngine?
     @Environment(EnvironmentState.self) private var environmentState
 
     @State private var transactions: [PostgresPreparedTransaction] = []
@@ -22,7 +23,7 @@ struct PostgresActivityPreparedTxns: View {
             set: { if !$0 { pendingCommitGID = nil } }
         )) {
             Button("Cancel", role: .cancel) { pendingCommitGID = nil }
-            Button("Commit") {
+            Button("Commit", role: .destructive) {
                 guard let gid = pendingCommitGID else { return }
                 pendingCommitGID = nil
                 Task { await commitPrepared(gid: gid) }
@@ -118,11 +119,14 @@ struct PostgresActivityPreparedTxns: View {
         guard let session = environmentState.sessionGroup.sessionForConnection(connectionID),
               let pg = session.session as? PostgresSession else { return }
         isLoading = true
+        let handle = activityEngine?.begin("Loading prepared transactions", connectionSessionID: connectionID)
         defer { isLoading = false }
         do {
             transactions = try await pg.client.metadata.listPreparedTransactions()
+            handle?.succeed()
         } catch {
             transactions = []
+            handle?.fail(error.localizedDescription)
         }
     }
 

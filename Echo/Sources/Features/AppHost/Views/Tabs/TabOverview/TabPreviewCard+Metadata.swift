@@ -94,17 +94,6 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
         return ("wand.and.stars", "Ready", ColorTokens.Text.secondary)
     case .policyManagement:
         return ("checkmark.seal", "Ready", ColorTokens.Text.secondary)
-    case .tableData:
-        if let vm = tab.tableDataVM {
-            if vm.isLoading {
-                return ("progress.indicator", "Loading", .orange)
-            }
-            if let error = vm.errorMessage, !error.isEmpty {
-                return ("exclamationmark.triangle.fill", "Error", .red)
-            }
-            return ("tablecells.badge.ellipsis", "Ready", ColorTokens.Text.secondary)
-        }
-        return ("tablecells.badge.ellipsis", "Ready", ColorTokens.Text.secondary)
     case .queryBuilder:
         return ("hammer", "Ready", ColorTokens.Text.secondary)
     }
@@ -147,21 +136,7 @@ extension TabPreviewCard {
             return []
         case .profiler, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
             return []
-        case .tableData:
-            return tableDataMetrics
         }
-    }
-
-    private var tableDataMetrics: [Metric] {
-        guard let vm = tab.tableDataVM else { return [] }
-        var items: [Metric] = []
-        if vm.totalLoadedRows > 0 {
-            items.append(Metric(icon: "tablecells", text: "\(EchoFormatters.compactNumber(vm.totalLoadedRows)) rows", color: ColorTokens.Text.secondary))
-        }
-        if vm.hasPendingEdits {
-            items.append(Metric(icon: "pencil", text: "\(vm.pendingEdits.count) edits", color: .orange))
-        }
-        return items
     }
 
     private var activityMonitorMetrics: [Metric] {
@@ -276,8 +251,6 @@ extension TabPreviewCard {
             return "Tuning Advisor"
         case .policyManagement:
             return "Policy Management"
-        case .tableData:
-            return "Table Data"
         case .postgresAdvancedObjects, .mssqlAdvancedObjects:
             return "Advanced Objects"
         case .schemaDiff:

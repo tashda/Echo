@@ -18,7 +18,7 @@ extension TabOverviewView {
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(width: 12)
 
-                    Label(group.databaseName, systemImage: "database.outlined")
+                    Label(group.databaseName, systemImage: "cylinder")
                         .font(TypographyTokens.prominent.weight(.semibold))
                         .foregroundStyle(isActiveDatabase ? ColorTokens.accent : ColorTokens.Text.primary)
 

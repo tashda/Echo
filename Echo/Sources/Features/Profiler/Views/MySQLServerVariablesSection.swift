@@ -106,7 +106,7 @@ struct MySQLServerVariablesSection: View {
                     }
                 }
 
-                LabeledContent("Current Value") {
+                PropertyRow(title: "Current Value") {
                     Text(variable.value)
                         .font(TypographyTokens.monospaced)
                         .foregroundStyle(ColorTokens.Text.secondary)

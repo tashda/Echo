@@ -130,7 +130,7 @@ struct JobListView: View {
                     let jobIsRunning = viewModel.jobs.first(where: { $0.id == id }).map { viewModel.runningJobNames.contains($0.name) } ?? false
 
                     if !jobIsRunning {
-                        Button("Start Job") {
+                        Button {
                             Task {
                                 viewModel.selectedJobID = id
                                 let jobName = viewModel.jobs.first(where: { $0.id == id })?.name ?? "Job"
@@ -139,11 +139,13 @@ struct JobListView: View {
                                     notificationEngine?.post(.jobStarted(name: jobName))
                                 }
                             }
+                        } label: {
+                            Label("Start Job", systemImage: "play.fill")
                         }
                         .disabled(!(permissions?.canManageAgent ?? true))
                     }
                     if jobIsRunning {
-                        Button("Stop Job") {
+                        Button {
                             Task {
                                 viewModel.selectedJobID = id
                                 let jobName = viewModel.jobs.first(where: { $0.id == id })?.name ?? "Job"
@@ -152,19 +154,21 @@ struct JobListView: View {
                                     notificationEngine?.post(.jobStopped(name: jobName))
                                 }
                             }
+                        } label: {
+                            Label("Stop Job", systemImage: "stop.fill")
                         }
                         .disabled(!(permissions?.canManageAgent ?? true))
                     }
                     Divider()
-                    Button("Enable Job") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(true) } }
+                    Button { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(true) } } label: { Label("Enable Job", systemImage: "checkmark.circle") }
                         .disabled(!(permissions?.canManageAgent ?? true))
-                    Button("Disable Job") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(false) } }
+                    Button { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(false) } } label: { Label("Disable Job", systemImage: "nosign") }
                         .disabled(!(permissions?.canManageAgent ?? true))
                 } else {
                     // Empty space context menu
-                    Button("New Job") { onNewJob?() }
+                    Button { onNewJob?() } label: { Label("New Job", systemImage: "briefcase") }
                         .disabled(!(permissions?.canManageAgent ?? true))
-                    Button("Refresh Jobs") { Task { await viewModel.reloadJobs() } }
+                    Button { Task { await viewModel.reloadJobs() } } label: { Label("Refresh Jobs", systemImage: "arrow.clockwise") }
                 }
             }
             .onChange(of: tableSelection) { _, newValue in

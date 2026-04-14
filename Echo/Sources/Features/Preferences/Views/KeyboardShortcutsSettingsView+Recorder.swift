@@ -20,6 +20,10 @@ struct ShortcutRowView: View {
     var body: some View {
         PropertyRow(title: item.title) {
             HStack(spacing: SpacingTokens.xs) {
+                if item.isDead {
+                    SettingsDeadIndicator()
+                }
+                
                 if isRecording {
                     ShortcutRecorderField(
                         keys: displayKeys,

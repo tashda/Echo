@@ -11,6 +11,7 @@ struct ForeignKeyEditorSheet: View {
     let session: DatabaseSession
     let onDelete: () -> Void
     let onCancelNew: () -> Void
+    let onSaveNew: ((TableStructureEditorViewModel.ForeignKeyModel) -> Void)?
 
     @Environment(\.dismiss) var dismiss
     @State var draft: Draft
@@ -24,7 +25,8 @@ struct ForeignKeyEditorSheet: View {
         databaseType: DatabaseType,
         session: DatabaseSession,
         onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
+        onCancelNew: @escaping () -> Void,
+        onSaveNew: ((TableStructureEditorViewModel.ForeignKeyModel) -> Void)? = nil
     ) {
         self._foreignKey = foreignKey
         self.availableColumns = availableColumns
@@ -32,6 +34,7 @@ struct ForeignKeyEditorSheet: View {
         self.session = session
         self.onDelete = onDelete
         self.onCancelNew = onCancelNew
+        self.onSaveNew = onSaveNew
         _draft = State(initialValue: Draft(model: foreignKey.wrappedValue, availableColumns: availableColumns))
     }
 

@@ -28,8 +28,14 @@ extension DatabaseObjectBrowserView {
         if isPinnedSectionExpanded {
             let resolvedAccentColor = projectStore.globalSettings.accentColorSource == .connection ? connection.color : ColorTokens.accent
             let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+            let connectionID = connection.id
 
             ForEach(pinnedList, id: \.id) { object in
+                let sidebarObjectID = ExplorerSidebarIdentity.object(
+                    connectionID: connectionID,
+                    databaseName: database.name,
+                    objectID: object.id
+                )
                 DatabaseObjectRow(
                     object: object,
                     displayName: displayName(for: object),
@@ -38,14 +44,18 @@ extension DatabaseObjectBrowserView {
                     showColumns: shouldShowColumns(for: object),
                     isExpanded: expansionBinding(for: object.id),
                     isPinned: true,
-                    isSelected: viewModel.selectedObjectID == object.id,
+                    isSelected: viewModel.selectedObjectID == sidebarObjectID,
                     accentColor: resolvedAccentColor,
                     iconColor: ExplorerSidebarPalette.objectGroupIconColor(for: object.type, colored: colored),
                     onTogglePin: { togglePin(for: object) },
                     onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
                 )
                 .equatable()
-                .id("pinned-\(object.id)")
+                .id(ExplorerSidebarIdentity.pinnedObject(
+                    connectionID: connectionID,
+                    databaseName: database.name,
+                    objectID: object.id
+                ))
             }
         }
     }
@@ -96,8 +106,14 @@ extension DatabaseObjectBrowserView {
             } else {
                 let resolvedAccentColor = projectStore.globalSettings.accentColorSource == .connection ? connection.color : ColorTokens.accent
                 let typeIconColor = ExplorerSidebarPalette.objectGroupIconColor(for: type, colored: colored)
+                let connectionID = connection.id
 
                 ForEach(objects, id: \.id) { object in
+                    let sidebarObjectID = ExplorerSidebarIdentity.object(
+                        connectionID: connectionID,
+                        databaseName: database.name,
+                        objectID: object.id
+                    )
                     DatabaseObjectRow(
                         object: object,
                         displayName: displayName(for: object),
@@ -106,14 +122,14 @@ extension DatabaseObjectBrowserView {
                         showColumns: shouldShowColumns(for: object),
                         isExpanded: expansionBinding(for: object.id),
                         isPinned: pinnedObjectIDs.contains(object.id),
-                        isSelected: viewModel.selectedObjectID == object.id,
+                        isSelected: viewModel.selectedObjectID == sidebarObjectID,
                         accentColor: resolvedAccentColor,
                         iconColor: typeIconColor,
                         onTogglePin: { togglePin(for: object) },
                         onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
                     )
                     .equatable()
-                    .id(object.id)
+                    .id(sidebarObjectID)
                 }
             }
         }

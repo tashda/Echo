@@ -84,31 +84,39 @@ extension ColumnEditorSheet {
     }
 
     func applyDraft() {
-        column.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.dataType = draft.dataType.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.isNullable = draft.isNullable
-
         let defaultTrimmed = draft.defaultValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.defaultValue = defaultTrimmed.isEmpty ? nil : defaultTrimmed
-
         let expressionTrimmed = draft.generatedExpression.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.generatedExpression = expressionTrimmed.isEmpty ? nil : expressionTrimmed
-
-        column.isIdentity = draft.isIdentity
-        column.identitySeed = draft.isIdentity ? Int(draft.identitySeed) : nil
-        column.identityIncrement = draft.isIdentity ? Int(draft.identityIncrement) : nil
-        column.identityGeneration = draft.isIdentity ? draft.identityGeneration : nil
-
         let collationTrimmed = draft.collation.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.collation = collationTrimmed.isEmpty ? nil : collationTrimmed
         let characterSetTrimmed = draft.characterSet.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.characterSet = characterSetTrimmed.isEmpty ? nil : characterSetTrimmed
         let commentTrimmed = draft.comment.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.comment = commentTrimmed.isEmpty ? nil : commentTrimmed
-        column.isUnsigned = draft.isUnsigned
-        column.isZerofill = draft.isZerofill
+        let updatedColumn = TableStructureEditorViewModel.ColumnModel(
+            original: column.original,
+            name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
+            dataType: draft.dataType.trimmingCharacters(in: .whitespacesAndNewlines),
+            isNullable: draft.isNullable,
+            defaultValue: defaultTrimmed.isEmpty ? nil : defaultTrimmed,
+            generatedExpression: expressionTrimmed.isEmpty ? nil : expressionTrimmed,
+            isIdentity: draft.isIdentity,
+            identitySeed: draft.isIdentity ? Int(draft.identitySeed) : nil,
+            identityIncrement: draft.isIdentity ? Int(draft.identityIncrement) : nil,
+            identityGeneration: draft.isIdentity ? draft.identityGeneration : nil,
+            collation: collationTrimmed.isEmpty ? nil : collationTrimmed,
+            characterSet: characterSetTrimmed.isEmpty ? nil : characterSetTrimmed,
+            comment: commentTrimmed.isEmpty ? nil : commentTrimmed,
+            isUnsigned: draft.isUnsigned,
+            isZerofill: draft.isZerofill,
+            ordinalPosition: column.ordinalPosition
+        )
 
-        dismiss()
+        if draft.isEditingExisting {
+            column = updatedColumn
+            dismiss()
+        } else {
+            dismiss()
+            Task { @MainActor in
+                onSaveNew?(updatedColumn)
+            }
+        }
     }
 
     func cancelEditing() {

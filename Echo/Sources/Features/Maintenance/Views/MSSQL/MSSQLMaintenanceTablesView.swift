@@ -16,14 +16,17 @@ struct MSSQLMaintenanceTablesView: View {
         VStack(spacing: 0) {
             if viewModel.isRefreshingTables && viewModel.tableStats.isEmpty {
                 loadingView
-            } else if viewModel.tableStats.isEmpty {
-                ContentUnavailableView {
-                    Label("No Table Statistics", systemImage: "tablecells")
-                } description: {
-                    Text("No user tables found in the selected database.")
-                }
             } else {
                 tableView
+                    .overlay {
+                        if viewModel.tableStats.isEmpty {
+                            ContentUnavailableView {
+                                Label("No Table Statistics", systemImage: "tablecells")
+                            } description: {
+                                Text("No user tables found in the selected database.")
+                            }
+                        }
+                    }
             }
         }
     }

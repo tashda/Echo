@@ -1,5 +1,5 @@
 {
-  "originHash" : "570606b25de80f0c8947194f91133592a8cc19829a7d235fb27caf581dd16016",
+  "originHash" : "adb4aedde47ef758fdd0c8d0d6a4fb1b4e5ef1abfecf0141b9b1a86d5e311ee5",
   "pins" : [
     {
       "identity" : "echosense",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/tashda/EchoSense",
       "state" : {
         "branch" : "dev",
-        "revision" : "c03fa5dba44d34c89a14b64f6213da263959b056"
+        "revision" : "2cd0783fc40ce4f86dc36a5b5a57d1749e7d72d9"
       }
     },
     {
@@ -43,7 +43,7 @@
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "07840f432d33964c6330448ab1562f026d103cd1"
+        "revision" : "b4375fee0985ce8c60e40245cfcf09af4bed572d"
       }
     },
     {
@@ -70,7 +70,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "29e61de227c2c8aa5b4c627ece5c6e824810e0d2"
+        "revision" : "cd1cf5e220a49e7e1561bbab8e0851342c7c51fd"
       }
     },
     {
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/supabase/supabase-swift",
       "state" : {
-        "revision" : "ed9042e60b57257e531331da365955a5c0568b12",
-        "version" : "2.43.0"
+        "revision" : "17261e93c60aa721e3c17312bfeb2ae6de3d6f8a",
+        "version" : "2.43.1"
       }
     },
     {
@@ -148,10 +148,10 @@
     {
       "identity" : "swift-crypto",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-crypto.git",
+      "location" : "https://github.com/apple/swift-crypto",
       "state" : {
-        "revision" : "fa308c07a6fa04a727212d793e761460e41049c3",
-        "version" : "4.3.0"
+        "revision" : "bb4ba815dab96d4edc1e0b86d7b9acf9ff973a84",
+        "version" : "4.3.1"
       }
     },
     {

@@ -41,6 +41,14 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
 
 @MainActor @Observable
 final class TableStructureEditorViewModel {
+    enum PendingAddAction: Equatable {
+        case column
+        case index
+        case foreignKey
+        case uniqueConstraint
+        case checkConstraint
+    }
+
     var columns: [ColumnModel] = []
     var indexes: [IndexModel] = []
     var uniqueConstraints: [UniqueConstraintModel] = []
@@ -50,11 +58,13 @@ final class TableStructureEditorViewModel {
     var primaryKey: PrimaryKeyModel?
     var tableProperties: TableStructureDetails.TableProperties?
     var requestedSection: TableStructureSection?
+    var pendingAddAction: PendingAddAction?
 
     var isLoading: Bool = false
     var isApplying: Bool = false
     var lastError: String?
     var lastSuccessMessage: String?
+    private var isInitialized: Bool = false
 
     /// nil = not yet checked, true = has data, false = no data
     var partitionsAvailable: Bool?
@@ -69,6 +79,7 @@ final class TableStructureEditorViewModel {
     internal var removedPrimaryKeyName: String?
     @ObservationIgnored var activityEngine: ActivityEngine?
     @ObservationIgnored var connectionSessionID: UUID?
+    @ObservationIgnored let sheetCoordinator = TableStructureSheetCoordinator()
 
     /// Update the session to point at a different database connection.
     /// Always triggers a reload since the previous session may have returned empty results.
@@ -98,11 +109,18 @@ final class TableStructureEditorViewModel {
         // so the view shows a spinner immediately instead of an empty state flash.
         if details.columns.isEmpty {
             isLoading = true
+        } else {
+            isInitialized = true
         }
     }
 
     func focusSection(_ section: TableStructureSection) {
         requestedSection = section
+    }
+
+    func requestAddAction(_ action: PendingAddAction, section: TableStructureSection) {
+        requestedSection = section
+        pendingAddAction = action
     }
 
     func reload() async {
@@ -111,6 +129,7 @@ final class TableStructureEditorViewModel {
         do {
             let details = try await session.getTableStructureDetails(schema: schemaName, table: tableName)
             apply(details: details)
+            isInitialized = true
         } catch {
             lastError = error.localizedDescription
         }
@@ -124,23 +143,22 @@ final class TableStructureEditorViewModel {
         isApplying = true
         defer { isApplying = false }
         let handle = activityEngine?.begin("Alter \(tableName)", connectionSessionID: connectionSessionID)
-        let dialect = dialectGenerator
         do {
-            for statement in [dialect.beginTransaction()] + statements + [dialect.commitTransaction()] {
-                _ = try await session.executeUpdate(statement)
-            }
+            try await session.executeUpdatesAtomically(statements)
             let refreshed = try await session.getTableStructureDetails(schema: schemaName, table: tableName)
             apply(details: refreshed)
             lastSuccessMessage = "Structure updated"
             handle?.succeed()
         } catch {
-            _ = try? await session.executeUpdate(dialect.rollbackTransaction())
             lastError = error.localizedDescription
             handle?.fail(error.localizedDescription)
         }
     }
 
     var hasPendingChanges: Bool {
+        // Don't report pending changes during initial load or reload
+        guard !isLoading && isInitialized else { return false }
+
         if columns.contains(where: { $0.isDirty }) { return true }
         if indexes.contains(where: { $0.isDirty }) { return true }
         if uniqueConstraints.contains(where: { $0.isDirty }) { return true }

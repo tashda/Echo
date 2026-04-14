@@ -80,27 +80,23 @@ struct ConnectionsTableView: View {
         .contextMenu(forSelectionType: SavedConnection.ID.self) { items in
             if let selectionID = items.first,
                let connection = connections.first(where: { $0.id == selectionID }) {
-                Button("Connect") { onConnect(connection) }
-                Button("Edit") { onEdit(connection) }
-                Button("Duplicate") { onDuplicate(connection) }
+                Button { onConnect(connection) } label: { Label("Connect", systemImage: "bolt.fill") }
+                Button { onEdit(connection) } label: { Label("Edit", systemImage: "pencil") }
+                Button { onDuplicate(connection) } label: { Label("Duplicate", systemImage: "doc.on.doc") }
 
                 Menu("Move to Folder") {
                     ForEach(Array(folderLookup.values).sorted(by: { $0.name < $1.name }), id: \.id) { folder in
-                        Button(folder.displayName) {
-                            moveConnectionToFolder(connection, folder)
-                        }
+                        Button { moveConnectionToFolder(connection, folder) } label: { Label(folder.displayName, systemImage: "folder") }
                     }
                     Divider()
-                    Button("Create New Folder") {
-                        createFolderAndMoveConnection(connection)
-                    }
+                    Button { createFolderAndMoveConnection(connection) } label: { Label("Create New Folder", systemImage: "folder.badge.plus") }
                 }
 
                 Divider()
-                Button("Delete", role: .destructive) { onDelete(connection) }
+                Button(role: .destructive) { onDelete(connection) } label: { Label("Delete", systemImage: "trash") }
             } else {
-                Button("New Connection") { onNewConnection() }
-                Button("New Folder") { onNewFolder() }
+                Button { onNewConnection() } label: { Label("New Connection", systemImage: "plus.circle") }
+                Button { onNewFolder() } label: { Label("New Folder", systemImage: "folder.badge.plus") }
             }
         } primaryAction: { items in
             if let selectionID = items.first,

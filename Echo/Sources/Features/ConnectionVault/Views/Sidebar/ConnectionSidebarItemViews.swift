@@ -68,7 +68,7 @@ struct ConnectionFolderView: View {
             .contextMenu {
                 // Group 2: New
                 Button { onCreateConnection(group.folder) } label: {
-                    Label("New Connection", systemImage: "network.badge.plus")
+                    Label("New Connection", systemImage: "network")
                 }
                 Button { onCreateFolder(group.folder) } label: {
                     Label("New Folder", systemImage: "folder.badge.plus")
@@ -148,12 +148,7 @@ struct ConnectionListRow: View {
 
     @ViewBuilder
     private var connectionIcon: some View {
-#if os(macOS)
-        if let data = connection.logo, let img = NSImage(data: data) { Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) }
-        else { Image(connection.databaseType.iconName).resizable().renderingMode(.template).aspectRatio(contentMode: .fit).foregroundStyle(accentColor) }
-#else
-        Image(connection.databaseType.iconName).resizable().renderingMode(.template).aspectRatio(contentMode: .fit).foregroundStyle(accentColor)
-#endif
+        DatabaseTypeIcon(databaseType: connection.databaseType, tint: accentColor)
     }
 
     @ViewBuilder

@@ -26,14 +26,17 @@ extension ApplicationCacheSettingsView {
         )
     }
 
-    var keepTabsBinding: Binding<Bool> {
+    var objectBrowserCacheMaxBinding: Binding<Int> {
         Binding(
-            get: { projectStore.globalSettings.keepTabsInMemory },
+            get: { projectStore.globalSettings.objectBrowserCacheMaxBytes },
             set: { newValue in
-                guard projectStore.globalSettings.keepTabsInMemory != newValue else { return }
                 var settings = projectStore.globalSettings
-                settings.keepTabsInMemory = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
+                settings.objectBrowserCacheMaxBytes = max(64 * 1_024 * 1_024, newValue)
+                Task {
+                    try? await projectStore.updateGlobalSettings(settings)
+                    await environmentState.objectBrowserCacheStore.pruneToLimit(settings.objectBrowserCacheMaxBytes)
+                    await refreshObjectBrowserCacheUsage()
+                }
             }
         )
     }
@@ -55,28 +58,6 @@ extension ApplicationCacheSettingsView {
         Binding(
             get: { clipboardHistory.storageLimit },
             set: { clipboardHistory.updateStorageLimit($0) }
-        )
-    }
-
-    var echoSenseStorageLimitBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.echoSenseStorageMaxBytes },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.echoSenseStorageMaxBytes = max(64 * 1_024 * 1_024, newValue)
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    var diagramCacheLimitBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.diagramCacheMaxBytes },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.diagramCacheMaxBytes = max(64 * 1_024 * 1_024, newValue)
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
         )
     }
 }

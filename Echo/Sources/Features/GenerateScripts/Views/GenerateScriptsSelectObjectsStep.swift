@@ -13,6 +13,13 @@ struct GenerateScriptsSelectObjectsStep: View {
             if viewModel.isLoadingObjects {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.objectsByCategory.isEmpty {
+                ContentUnavailableView(
+                    "No Objects Found",
+                    systemImage: "doc.text",
+                    description: Text("No scriptable objects were found in this database.")
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 objectTree
             }

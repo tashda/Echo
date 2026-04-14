@@ -38,6 +38,7 @@ final class AppDirector {
     @ObservationIgnored let resultSpoolManager: ResultSpooler
     @ObservationIgnored let diagramCacheStore: DiagramCacheStore
     @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
+    @ObservationIgnored let objectBrowserCacheStore: ObjectBrowserCacheStore
     @ObservationIgnored let activityEngine: ActivityEngine
     @ObservationIgnored let authState: AuthState
     @ObservationIgnored let syncEngine: SyncEngine?
@@ -64,8 +65,12 @@ final class AppDirector {
         let diagramConfig = DiagramCacheStore.Configuration(rootDirectory: cacheRoot)
         let keyStore = DiagramEncryptionKeyStore()
         let cacheManager = DiagramCacheStore(configuration: diagramConfig)
+        let objectBrowserCacheStore = ObjectBrowserCacheStore(
+            configuration: .init(rootDirectory: ObjectBrowserCacheStore.defaultRootDirectory())
+        )
         self.diagramCacheStore = cacheManager
         self.diagramKeyStore = keyStore
+        self.objectBrowserCacheStore = objectBrowserCacheStore
 
         // Initialize modular stores
         let projectRepository = ProjectRepository(diskStore: ProjectDiskStore())
@@ -78,7 +83,11 @@ final class AppDirector {
         )
         self.connectionStore = ConnectionStore(repository: connectionRepository)
         self.identityRepository = IdentityRepository(connectionStore: connectionStore)
-        self.schemaDiscoveryEngine = MetadataDiscoveryEngine(identityRepository: identityRepository, connectionStore: connectionStore)
+        self.schemaDiscoveryEngine = MetadataDiscoveryEngine(
+            identityRepository: identityRepository,
+            connectionStore: connectionStore,
+            objectBrowserCacheStore: objectBrowserCacheStore
+        )
         self.bookmarkRepository = BookmarkRepository()
         self.historyRepository = HistoryRepository()
 
@@ -137,7 +146,8 @@ final class AppDirector {
             historyRepository: historyRepository,
             resultSpoolManager: resultSpoolManager,
             diagramCacheStore: cacheManager,
-            diagramKeyStore: keyStore
+            diagramKeyStore: keyStore,
+            objectBrowserCacheStore: objectBrowserCacheStore
         )
 
         let projectStoreRef = self.projectStore
@@ -154,6 +164,9 @@ final class AppDirector {
         }
         schemaDiscoveryEngine.onEnqueuePrefetch = { @MainActor [weak self] session in
             await self?.environmentState.enqueuePrefetchForSessionIfNeeded(session)
+        }
+        schemaDiscoveryEngine.cacheLimitProvider = { @MainActor [weak self] in
+            self?.projectStore.globalSettings.objectBrowserCacheMaxBytes ?? 512 * 1_024 * 1_024
         }
 
         // Setup cross-domain providers for DiagramBuilder after EnvironmentState is initialized
@@ -191,6 +204,8 @@ final class AppDirector {
         } catch {
             print("Failed to load modular stores: \(error)")
         }
+
+        await environmentState.migrateLegacyObjectBrowserCachesIfNeeded()
 
         await environmentState.load()
         await authState.restoreSession()
@@ -260,7 +275,6 @@ final class AppDirector {
         AppearanceStore.shared.applyAppearanceMode(global.appearanceMode)
         appState.sqlEditorDisplay = SQLEditorThemeResolver.resolveDisplayOptions(globalSettings: global, project: project)
         appState.workspaceTabBarStyle = global.workspaceTabBarStyle
-        appState.keepTabsInMemory = global.keepTabsInMemory
         applyEditorTheme(project: project, global: global)
     }
 
@@ -354,6 +368,7 @@ final class AppDirector {
 
     private func startSync() async {
         guard let syncEngine else { return }
+        guard await authState.ensureSupabaseSession() else { return }
 
         // If the user changed since last sign-in, reset sync state
         let currentUserID = authState.currentUser?.userID

@@ -16,19 +16,6 @@ extension AppearanceSettingsView {
         )
     }
 
-    var sidebarIconSizeBinding: Binding<SidebarIconSize> {
-        Binding(
-            get: { projectStore.globalSettings.sidebarIconSize },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.sidebarIconSize = newValue
-                Task {
-                    try? await projectStore.updateGlobalSettings(settings)
-                }
-            }
-        )
-    }
-
     var sidebarDensityBinding: Binding<SidebarDensity> {
         Binding(
             get: { projectStore.globalSettings.sidebarDensity },

@@ -24,6 +24,7 @@ extension QueryResultsTableView {
         var lastResultTokenSnapshot: UInt64 = 0
         var persistedState: QueryResultsGridState?
         var selectionRegion: SelectedRegion?
+        var additionalRegions: [SelectedRegion] = []
         var selectionAnchor: QueryResultsTableView.SelectedCell?
         var isDraggingCellSelection = false
         var isDraggingRowSelection = false
@@ -125,6 +126,7 @@ extension QueryResultsTableView {
 
             // Clear selection
             selectionRegion = nil
+            additionalRegions.removeAll()
             selectionAnchor = nil
             selectionFocus = nil
             columnSelectionAnchor = nil
@@ -189,7 +191,7 @@ extension QueryResultsTableView {
             tableView.dataSource = self
             tableView.menu = cellMenu
             tableView.headerView?.menu = headerMenu
-            tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
+            tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, SpacingTokens.lg)
             tableView.headerView?.isHidden = false
             tableView.selectionHighlightStyle = .regular
             tableView.usesAlternatingRowBackgroundColors = parent.alternateRowShading

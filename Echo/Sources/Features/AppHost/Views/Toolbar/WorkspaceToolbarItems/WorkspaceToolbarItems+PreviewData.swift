@@ -39,6 +39,12 @@ struct WorkspaceToolbarPreviewData {
         ))
         let navigationStore = NavigationStore()
         let tabStore = TabStore()
+        let objectBrowserCacheStore = ObjectBrowserCacheStore(
+            configuration: .init(
+                rootDirectory: FileManager.default.temporaryDirectory
+                    .appendingPathComponent("EchoPreviewObjectBrowserCache", isDirectory: true)
+            )
+        )
 
         let environmentState = EnvironmentState(
             projectStore: projectStore,
@@ -49,12 +55,17 @@ struct WorkspaceToolbarPreviewData {
             resultSpoolConfigCoordinator: ResultSpoolConfig(spoolManager: spoolManager),
             diagramBuilder: DiagramBuilder(cacheManager: diagramManager, keyStore: diagramKeyStore),
             identityRepository: IdentityRepository(connectionStore: connectionStore),
-            schemaDiscoveryEngine: MetadataDiscoveryEngine(identityRepository: IdentityRepository(connectionStore: connectionStore), connectionStore: connectionStore),
+            schemaDiscoveryEngine: MetadataDiscoveryEngine(
+                identityRepository: IdentityRepository(connectionStore: connectionStore),
+                connectionStore: connectionStore,
+                objectBrowserCacheStore: objectBrowserCacheStore
+            ),
             bookmarkRepository: BookmarkRepository(),
             historyRepository: HistoryRepository(),
             resultSpoolManager: spoolManager,
             diagramCacheStore: diagramManager,
-            diagramKeyStore: diagramKeyStore
+            diagramKeyStore: diagramKeyStore,
+            objectBrowserCacheStore: objectBrowserCacheStore
         )
         let appState = AppState()
         let appearanceStore = AppearanceStore.shared

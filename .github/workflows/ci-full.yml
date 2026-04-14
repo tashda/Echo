@@ -149,8 +149,10 @@ jobs:
         LATEST_PATCH=$(printf "%s" "$LATEST_TAG" | sed "s/v${MARKETING_VERSION}\.\([0-9]*\)/\1/")
         PATCH=${LATEST_PATCH:+$((LATEST_PATCH + 1))}
         PATCH=${PATCH:-0}
+        BUILD_NUMBER=$(git rev-list --count HEAD | tr -d '[:space:]')
         FULL_VERSION="${MARKETING_VERSION}.${PATCH}"
         echo "full=$FULL_VERSION" >> $GITHUB_OUTPUT
+        echo "build=$BUILD_NUMBER" >> $GITHUB_OUTPUT
         echo "previous_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
         echo "patch=$PATCH" >> $GITHUB_OUTPUT
         echo "tag=v$FULL_VERSION" >> $GITHUB_OUTPUT
@@ -168,13 +170,16 @@ jobs:
           -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
           -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
           MARKETING_VERSION=${{ steps.version.outputs.full }} \
-          CURRENT_PROJECT_VERSION=${{ steps.version.outputs.patch }} \
+          CURRENT_PROJECT_VERSION=${{ steps.version.outputs.build }} \
           CODE_SIGN_STYLE=Manual \
-          CODE_SIGN_IDENTITY="Developer ID Application" \
+          "CODE_SIGN_IDENTITY=Developer ID Application" \
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
           PROVISIONING_PROFILE_SPECIFIER="" \
           ENABLE_HARDENED_RUNTIME=YES \
           OTHER_CODE_SIGN_FLAGS='--options runtime --timestamp'
+
+    - name: Install DMG tooling
+      run: brew install create-dmg
 
     - name: Sign bundled tools and libraries
       run: |
@@ -197,8 +202,17 @@ jobs:
       run: |
         mkdir -p release dmg-staging
         cp -R build/Build/Products/Release/Echo.app dmg-staging/
-        ln -s /Applications dmg-staging/Applications
-        hdiutil create -volname "Echo" -srcfolder dmg-staging -ov -format UDZO release/Echo.dmg
+        create-dmg \
+          --volname "Echo" \
+          --window-size 720 420 \
+          --icon-size 128 \
+          --text-size 16 \
+          --icon "Echo.app" 180 190 \
+          --hide-extension "Echo.app" \
+          --app-drop-link 540 190 \
+          --format UDZO \
+          release/Echo.dmg \
+          dmg-staging
         codesign --force --sign "Developer ID Application" --timestamp release/Echo.dmg
 
     - name: Notarize

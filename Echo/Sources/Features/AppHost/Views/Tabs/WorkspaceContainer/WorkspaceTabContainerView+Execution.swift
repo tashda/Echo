@@ -132,11 +132,18 @@ extension WorkspaceTabContainerView {
         }
 
         let inferredObject = inferPrimaryObjectName(from: effectiveSQL)
+        let prefersMessagesAfterExecution =
+            (tab.connection.databaseType == .microsoftSQL && queryState.statisticsEnabled) ||
+            QueryStatementClassifier.isLikelyMessageOnlyStatement(
+                trimmedSQL,
+                databaseType: tab.connection.databaseType
+            )
         await MainActor.run {
             queryState.updateClipboardObjectName(inferredObject)
         }
         let foreignKeySource = resolveSchemaAndTable(for: inferredObject, connection: tab.connection)
 
+        let activityHandle = AppDirector.shared.activityEngine.begin("Executing query", connectionSessionID: tab.connectionSessionID)
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
@@ -172,6 +179,7 @@ extension WorkspaceTabContainerView {
                 }
                 try Task.checkCancellation()
                 await MainActor.run {
+                    activityHandle.succeed()
                     state.consumeFinalResult(result)
                     state.finishExecution()
 
@@ -202,31 +210,11 @@ extension WorkspaceTabContainerView {
                 }
 
                 await MainActor.run {
-                    // Surface server info messages (statistics, warnings, etc.)
-                    for serverMsg in result.serverMessages {
-                        let severity: QueryExecutionMessage.Severity = serverMsg.kind == .error ? .error : .info
-                        state.appendMessage(
-                            message: serverMsg.message,
-                            severity: severity,
-                            metadata: serverMsg.number != 0 ? ["msgNumber": "\(serverMsg.number)"] : [:]
-                        )
-                    }
-
-                    var metadata: [String: String] = [
-                        "rows": "\(result.rows.count)"
-                    ]
-                    let columnNames = result.columns.map(\.name).joined(separator: ", ")
-                    if !columnNames.isEmpty {
-                        metadata["columns"] = columnNames
-                    }
-                    if let commandTag = result.commandTag, !commandTag.isEmpty {
-                        metadata["commandTag"] = commandTag
-                    }
-
-                    state.appendMessage(
-                        message: "Returned \(result.rows.count) row\(result.rows.count == 1 ? "" : "s")",
-                        severity: .info,
-                        metadata: metadata
+                    appendResultMessages(
+                        for: result,
+                        originalSQL: trimmedSQL,
+                        databaseType: tab.connection.databaseType,
+                        state: state
                     )
                     appState.addToQueryHistory(
                         effectiveSQL,
@@ -255,6 +243,7 @@ extension WorkspaceTabContainerView {
                     }
                 }
                 await MainActor.run {
+                    activityHandle.cancel()
                     state.markCancellationCompleted()
                 }
             } catch {
@@ -269,8 +258,10 @@ extension WorkspaceTabContainerView {
                 }
                 await MainActor.run {
                     if shouldTreatAsCancellation {
+                        activityHandle.cancel()
                         state.markCancellationCompleted()
                     } else {
+                        activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
                         state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
                     }
@@ -280,6 +271,7 @@ extension WorkspaceTabContainerView {
 
         await MainActor.run {
             queryState.errorMessage = nil
+            queryState.prefersMessagesAfterExecution = prefersMessagesAfterExecution
             queryState.startExecution()
             queryState.setExecutingTask(task)
             environmentState.dataInspectorContent = nil
@@ -306,5 +298,79 @@ extension WorkspaceTabContainerView {
         } catch {
             return [:]
         }
+    }
+
+    @MainActor
+    private func appendResultMessages(
+        for result: QueryResultSet,
+        originalSQL: String,
+        databaseType: DatabaseType,
+        state: QueryEditorState
+    ) {
+        let isMessageOnlyStatement = QueryStatementClassifier.isLikelyMessageOnlyStatement(
+            originalSQL,
+            databaseType: databaseType
+        )
+
+        var emittedServerResponse = false
+        for serverMsg in result.serverMessages {
+            emittedServerResponse = true
+            let severity: QueryExecutionMessage.Severity = serverMsg.kind == .error ? .error : .info
+            var metadata = serverMsg.metadata
+            if serverMsg.number != 0 {
+                metadata["messageNumber"] = "\(serverMsg.number)"
+            }
+            if let serverName = serverMsg.serverName, !serverName.isEmpty {
+                metadata["server"] = serverName
+            }
+            state.appendMessage(
+                message: serverMsg.message,
+                severity: severity,
+                category: serverMsg.category ?? "Server Response",
+                procedure: serverMsg.procedureName,
+                line: serverMsg.lineNumber.map(Int.init),
+                metadata: metadata
+            )
+        }
+
+        if isMessageOnlyStatement,
+           let commandTag = result.commandTag?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !commandTag.isEmpty {
+            emittedServerResponse = true
+            state.appendMessage(
+                message: commandTag,
+                severity: .info,
+                category: "Server Response",
+                metadata: ["commandTag": commandTag]
+            )
+        }
+
+        if isMessageOnlyStatement {
+            if !emittedServerResponse {
+                state.appendMessage(
+                    message: "No additional server details were returned",
+                    severity: .info,
+                    category: "Server Response"
+                )
+            }
+            return
+        }
+
+        var metadata: [String: String] = [
+            "rows": "\(result.rows.count)"
+        ]
+        let columnNames = result.columns.map(\.name).joined(separator: ", ")
+        if !columnNames.isEmpty {
+            metadata["columns"] = columnNames
+        }
+        if let commandTag = result.commandTag, !commandTag.isEmpty {
+            metadata["commandTag"] = commandTag
+        }
+
+        state.appendMessage(
+            message: "Returned \(result.rows.count) row\(result.rows.count == 1 ? "" : "s")",
+            severity: .info,
+            metadata: metadata
+        )
     }
 }

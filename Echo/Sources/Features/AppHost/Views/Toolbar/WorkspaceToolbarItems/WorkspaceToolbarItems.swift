@@ -57,6 +57,12 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
 
     @ToolbarContentBuilder
     private var contextActionItems: some CustomizableToolbarContent {
+        // Structure tab — Add/Script/Apply buttons
+        ToolbarItem(id: "workspace.primary.structure", placement: .primaryAction) {
+            TableStructureToolbarItem()
+        }
+        .sharedBackgroundVisibility(.hidden)
+
         // Activity Monitor, Job Queue, Maintenance — tab-specific controls
         ToolbarItem(id: "workspace.primary.activitymonitor", placement: .primaryAction) {
             ActivityMonitorToolbarItem()

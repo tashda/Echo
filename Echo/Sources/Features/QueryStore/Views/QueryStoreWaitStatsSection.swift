@@ -5,14 +5,7 @@ struct QueryStoreWaitStatsSection: View {
     let waitStats: [SQLServerQueryStoreClient.SQLServerQueryStoreWaitStat]
 
     var body: some View {
-        if waitStats.isEmpty {
-            ContentUnavailableView {
-                Label("No Wait Statistics", systemImage: "clock")
-            } description: {
-                Text("No wait stats recorded for the selected query plan.")
-            }
-        } else {
-            Table(waitStats) {
+        Table(waitStats) {
                 TableColumn("Wait Category") { stat in
                     Text(stat.waitCategory)
                         .font(TypographyTokens.Table.name)
@@ -42,7 +35,15 @@ struct QueryStoreWaitStatsSection: View {
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
             .tableColumnAutoResize()
-        }
+            .overlay {
+                if waitStats.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Wait Statistics", systemImage: "clock")
+                    } description: {
+                        Text("No wait stats recorded for the selected query plan.")
+                    }
+                }
+            }
     }
 
     private var maxTotal: Double {

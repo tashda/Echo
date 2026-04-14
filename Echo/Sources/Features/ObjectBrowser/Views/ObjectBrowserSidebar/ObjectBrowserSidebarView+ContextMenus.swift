@@ -11,12 +11,11 @@ extension ObjectBrowserSidebarView {
 
         // Group 1: Refresh
         Button {
-            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
             Task {
                 let handle = AppDirector.shared.activityEngine.begin("Refreshing \(type.pluralDisplayName)", connectionSessionID: session.id)
+                session.markMetadataRefreshStarted(forDatabase: database.name)
                 await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
                 handle.succeed()
-                viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
             }
         } label: {
             Label("Refresh", systemImage: "arrow.clockwise")
@@ -30,7 +29,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     openNewObjectInDesigner(type: type, session: session, database: database)
                 } label: {
-                    Label(title + "\u{2026}", systemImage: objectGroupCreationIcon(for: type))
+                    Label(title, systemImage: objectGroupCreationIcon(for: type))
                 }
                 Button {
                     let schemaName = session.connection.databaseType == .microsoftSQL ? "dbo" : "public"
@@ -221,7 +220,7 @@ extension ObjectBrowserSidebarView {
                 sheetState.attachConnectionID = session.connection.id
                 sheetState.showAttachSheet = true
             } label: {
-                Label("Attach Database...", systemImage: "externaldrive.badge.plus")
+                Label("Attach Database", systemImage: "externaldrive.badge.plus")
             }
         }
     }
@@ -268,8 +267,10 @@ extension ObjectBrowserSidebarView {
 
         if session.connection.databaseType == .microsoftSQL {
             Button {
-                sheetState.databaseMailConnectionID = session.connection.id
-                sheetState.showDatabaseMailSheet = true
+                let value = environmentState.prepareDatabaseMailEditorWindow(
+                    connectionSessionID: session.connection.id
+                )
+                openWindow(id: DatabaseMailEditorWindow.sceneID, value: value)
             } label: {
                 Label("Database Mail", systemImage: "envelope")
             }
@@ -282,7 +283,7 @@ extension ObjectBrowserSidebarView {
             }
 
             Button {
-                environmentState.openExtendedEventsTab(connectionID: session.connection.id)
+                environmentState.openActivityMonitorTab(connectionID: session.connection.id, section: "XEvents")
             } label: {
                 Label("Extended Events", systemImage: "waveform.path.ecg")
             }
@@ -291,26 +292,6 @@ extension ObjectBrowserSidebarView {
                 environmentState.openAvailabilityGroupsTab(connectionID: session.connection.id)
             } label: {
                 Label("Availability Groups", systemImage: "server.rack")
-            }
-        }
-
-        Divider()
-
-        // Group 9: Properties
-        if session.connection.databaseType == .microsoftSQL {
-            Button {
-                let value = environmentState.prepareServerEditorWindow(
-                    connectionSessionID: session.connection.id
-                )
-                openWindow(id: ServerEditorWindow.sceneID, value: value)
-            } label: {
-                Label("Properties", systemImage: "info.circle")
-            }
-        } else if session.connection.databaseType == .mysql {
-            Button {
-                environmentState.openServerPropertiesTab(connectionID: session.connection.id)
-            } label: {
-                Label("Server Properties", systemImage: "info.circle")
             }
         }
 
@@ -324,13 +305,23 @@ extension ObjectBrowserSidebarView {
                 get: { hideOffline },
                 set: { viewModel.hideOfflineDatabasesBySession[connID] = $0 }
             )) {
-                Text("Hide Offline Databases")
+                Label("Hide Offline Databases", systemImage: "eye.slash")
             }
         }
 
         Divider()
 
-        // Group 10: Destructive
+        // Group 8: Connection Management
+        Button {
+            ManageConnectionsWindowController.shared.present(
+                initialSection: .connections,
+                selectedConnectionID: session.connection.id
+            )
+        } label: {
+            Label("Manage Connection", systemImage: "slider.horizontal.3")
+        }
+
+        // Group 9: Destructive
         Button(role: .destructive) {
             Task {
                 await environmentState.disconnectSession(withID: session.id)
@@ -338,6 +329,39 @@ extension ObjectBrowserSidebarView {
         } label: {
             Label("Disconnect", systemImage: "xmark.circle")
         }
+
+        Divider()
+
+        // Group 10: Properties — ALWAYS last
+        if session.connection.databaseType == .microsoftSQL {
+            Button {
+                let value = environmentState.prepareServerEditorWindow(
+                    connectionSessionID: session.connection.id
+                )
+                openWindow(id: ServerEditorWindow.sceneID, value: value)
+                Task {
+                    activatePropertiesWindow(titled: "Server Properties")
+                }
+            } label: {
+                Label("Properties", systemImage: "info.circle")
+            }
+        } else if session.connection.databaseType == .mysql {
+            Button {
+                environmentState.openServerPropertiesTab(connectionID: session.connection.id)
+            } label: {
+                Label("Server Properties", systemImage: "info.circle")
+            }
+        }
     }
 
+    // MARK: - Window Activation
+
+    /// Brings an already-open properties window to the front.
+    private func activatePropertiesWindow(titled title: String) {
+        for window in NSApp.windows where window.title == title {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate()
+            return
+        }
+    }
 }

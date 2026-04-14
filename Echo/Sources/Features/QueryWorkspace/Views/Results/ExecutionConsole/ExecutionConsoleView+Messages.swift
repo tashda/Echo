@@ -68,7 +68,7 @@ struct ConsoleMessageRow: View {
     private var rowBackground: Color {
         switch message.severity {
         case .error: ColorTokens.Status.error.opacity(0.06)
-        case .warning: Color.orange.opacity(0.04)
+        case .warning: ColorTokens.Status.warning.opacity(0.04)
         default: .clear
         }
     }

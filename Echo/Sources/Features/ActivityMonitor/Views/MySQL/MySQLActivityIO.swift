@@ -132,10 +132,13 @@ struct MySQLActivityIO: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        let handle = viewModel.activityEngine?.begin("Loading file IO stats", connectionSessionID: viewModel.connectionSessionID)
         do {
             report = try await viewModel.loadMySQLFileIO()
+            handle?.succeed()
         } catch {
             errorMessage = error.localizedDescription
+            handle?.fail(error.localizedDescription)
         }
         isLoading = false
     }

@@ -42,8 +42,9 @@ struct QueryBuilderTableNode: View {
 
                         if column.isPrimaryKey {
                             Image(systemName: "key.fill")
-                                .font(.system(size: 8))
-                                .foregroundStyle(.yellow)
+                                .font(TypographyTokens.compact)
+                                .imageScale(.small)
+                                .foregroundStyle(ColorTokens.Status.warning)
                         }
 
                         Text(column.name)
@@ -63,24 +64,30 @@ struct QueryBuilderTableNode: View {
                             .lineLimit(1)
                     }
                     .padding(.horizontal, SpacingTokens.xs)
-                    .padding(.vertical, 2)
+                    .padding(.vertical, SpacingTokens.xxs2)
                 }
             }
             .padding(.vertical, SpacingTokens.xxs2)
         }
         .frame(width: 220)
         .background(ColorTokens.Background.primary)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.small))
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.small)
                 .stroke(ColorTokens.Separator.secondary, lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
         .contextMenu {
-            Button("Select All Columns") { onSelectAll() }
-            Button("Deselect All Columns") { onDeselectAll() }
+            Button { onSelectAll() } label: {
+                Label("Select All Columns", systemImage: "checkmark.circle")
+            }
+            Button { onDeselectAll() } label: {
+                Label("Deselect All Columns", systemImage: "circle")
+            }
             Divider()
-            Button("Remove from Query", role: .destructive) { onRemove() }
+            Button(role: .destructive) { onRemove() } label: {
+                Label("Remove from Query", systemImage: "xmark.circle")
+            }
         }
     }
 }

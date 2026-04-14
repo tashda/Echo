@@ -5,12 +5,23 @@ public enum ResultGridValueKind: Sendable, Equatable {
 }
 
 public enum ResultGridValueClassifier {
-    private static let numericTypeTokens: Set<String> = ["int", "integer", "smallint", "bigint", "tinyint", "mediumint", "int2", "int4", "int8", "serial", "bigserial", "smallserial", "decimal", "numeric", "real", "float", "float4", "float8", "double", "doubleprecision", "money", "number"]
-    private static let booleanTypeTokens: Set<String> = ["bool", "boolean"]
-    private static let temporalTypeTokens: Set<String> = ["date", "time", "timestamp", "datetime", "timestamptz", "timetz", "interval", "year"]
+    private static let numericTypeTokens: Set<String> = [
+        "int", "integer", "smallint", "bigint", "tinyint", "mediumint",
+        "int2", "int4", "int8", "serial", "bigserial", "smallserial",
+        "decimal", "numeric", "real", "float", "float4", "float8",
+        "double", "doubleprecision", "money", "number",
+        // MSSQL nullable/variant wire types
+        "intn", "floatn", "moneyn", "smallmoney"
+    ]
+    private static let booleanTypeTokens: Set<String> = ["bool", "boolean", "bitn"]
+    private static let temporalTypeTokens: Set<String> = [
+        "date", "time", "timestamp", "datetime", "timestamptz", "timetz", "interval", "year",
+        // MSSQL-specific temporal types
+        "smalldatetime", "datetime2", "datetimeoffset", "datetimen"
+    ]
     private static let binaryTypeTokens: Set<String> = ["bytea", "blob", "binary", "varbinary", "image", "bfile", "raw"]
     private static let jsonTypeTokens: Set<String> = ["json", "jsonb"]
-    private static let identifierTypeTokens: Set<String> = ["uuid", "uniqueidentifier"]
+    private static let identifierTypeTokens: Set<String> = ["uuid", "uniqueidentifier", "guid"]
     private static let bitBooleanExclusionTokens: Set<String> = ["varying", "var", "binary"]
 
     public static func kind(for column: ColumnInfo?, value: String?) -> ResultGridValueKind {

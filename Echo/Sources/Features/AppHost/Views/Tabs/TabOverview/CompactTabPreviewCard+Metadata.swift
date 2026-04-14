@@ -42,12 +42,6 @@ extension CompactTabPreviewCard {
             return []
         case .profiler, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
             return []
-        case .tableData:
-            guard let vm = tab.tableDataVM else { return [] }
-            if vm.totalLoadedRows > 0 {
-                return [("tablecells", "\(EchoFormatters.compactNumber(vm.totalLoadedRows))", ColorTokens.Text.secondary)]
-            }
-            return []
         }
         }
 
@@ -100,8 +94,6 @@ extension CompactTabPreviewCard {
             return "Tuning Advisor"
         case .policyManagement:
             return "Policy Management"
-        case .tableData:
-            return "Table Data"
         case .queryBuilder:
             return "Query Builder"
         }
@@ -159,11 +151,6 @@ extension CompactTabPreviewCard {
             return "Database Engine Tuning Advisor recommendations"
         case .policyManagement:
             return "Manage database policies and compliance"
-        case .tableData:
-            if let vm = tab.tableDataVM {
-                return "\(vm.schemaName).\(vm.tableName)"
-            }
-            return "Table data viewer"
         case .queryBuilder:
             return "Visual query construction"
         }

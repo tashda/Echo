@@ -32,7 +32,7 @@ struct NewProjectSheet: View {
             Form {
                 Section {
                     TextField("Name", text: $projectName, prompt: Text("Project name"))
-                    LabeledContent("Icon") { iconPaletteView }
+                    PropertyRow(title: "Icon") { iconPaletteView }
                 }
             }
             .formStyle(.grouped)

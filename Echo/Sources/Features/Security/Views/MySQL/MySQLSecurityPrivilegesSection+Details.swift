@@ -119,7 +119,7 @@ extension MySQLSecurityPrivilegesSection {
     }
 
     func privilegeDetailRow(title: String, value: String) -> some View {
-        LabeledContent(title) {
+        PropertyRow(title: title) {
             Text(value)
                 .font(TypographyTokens.detail)
                 .foregroundStyle(ColorTokens.Text.secondary)

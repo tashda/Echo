@@ -42,13 +42,11 @@ struct AvailabilityGroupsView: View {
     }
 
     private var loadingPlaceholder: some View {
-        VStack(spacing: SpacingTokens.md) {
-            ProgressView()
-            Text("Loading Availability Groups...")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabInitializingPlaceholder(
+            icon: "server.rack",
+            title: "Loading Availability Groups",
+            subtitle: "Fetching availability group data..."
+        )
     }
 
     private func errorPlaceholder(_ message: String) -> some View {

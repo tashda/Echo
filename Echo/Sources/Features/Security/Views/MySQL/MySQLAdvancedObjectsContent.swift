@@ -141,7 +141,7 @@ struct MySQLAdvancedObjectsContent: View {
                             Button("Open Definition") {
                                 openScriptTab(definition.definition)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.bordered)
                         }
                     }
 

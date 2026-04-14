@@ -123,7 +123,7 @@ struct MySQLActivityReplication: View {
                     HStack(spacing: SpacingTokens.xs) {
                         if isThreadStatusKey(key) {
                             Circle()
-                                .fill(value == "Yes" ? Color.green : Color.red)
+                                .fill(value == "Yes" ? ColorTokens.Status.success : ColorTokens.Status.error)
                                 .frame(width: 8, height: 8)
                         }
                         Text(value)
@@ -178,13 +178,16 @@ struct MySQLActivityReplication: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        let handle = viewModel.activityEngine?.begin("Loading replication status", connectionSessionID: viewModel.connectionSessionID)
         do {
             async let replica = viewModel.loadMySQLReplicaStatus()
             async let primary = viewModel.loadMySQLPrimaryStatus()
             replicaStatus = try await replica
             primaryStatus = try await primary
+            handle?.succeed()
         } catch {
             errorMessage = error.localizedDescription
+            handle?.fail(error.localizedDescription)
         }
         isLoading = false
     }

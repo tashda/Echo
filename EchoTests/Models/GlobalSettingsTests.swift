@@ -59,16 +59,6 @@ final class GlobalSettingsTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(decoded.resultsInitialRowLimit, 100)
     }
 
-    func testResultsPreviewBatchSizeClampsToMinimum() throws {
-        let json: [String: Any] = [
-            "resultsPreviewBatchSize": 5
-        ]
-        let data = try JSONSerialization.data(withJSONObject: json)
-        let decoded = try JSONDecoder().decode(GlobalSettings.self, from: data)
-
-        XCTAssertGreaterThanOrEqual(decoded.resultsPreviewBatchSize, 100)
-    }
-
     func testDiagramCacheMaxBytesClampsToMinimum() throws {
         let json: [String: Any] = [
             "diagramCacheMaxBytes": 1024
@@ -93,7 +83,6 @@ final class GlobalSettingsTests: XCTestCase {
         XCTAssertEqual(settings.resultSpoolRetentionHours, 72)
         XCTAssertEqual(settings.diagramPrefetchMode, .off)
         XCTAssertEqual(settings.diagramRefreshCadence, .never)
-        XCTAssertEqual(settings.keepTabsInMemory, false)
         XCTAssertEqual(settings.accentColorSource, .connection)
     }
 }

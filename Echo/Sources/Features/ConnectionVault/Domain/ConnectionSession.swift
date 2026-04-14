@@ -45,6 +45,7 @@ final class ConnectionSession: Identifiable {
     @ObservationIgnored var defaultBackgroundStreamingThreshold: Int
     @ObservationIgnored var defaultBackgroundFetchSize: Int
     @ObservationIgnored var schemaLoadsInFlight: Set<String> = []
+    @ObservationIgnored var metadataFreshnessByDatabase: [String: DatabaseMetadataFreshness] = [:]
 
     // Query tabs specific to this connection
     var queryTabs: [WorkspaceTab] = []

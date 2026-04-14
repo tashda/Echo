@@ -23,7 +23,7 @@ struct DiagramAnnotationView: View {
                         isEditing = false
                     }
                     .controlSize(.small)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
 
                     Button("Cancel") {
                         isEditing = false
@@ -41,18 +41,22 @@ struct DiagramAnnotationView: View {
         }
         .padding(SpacingTokens.xs)
         .background {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.yellow.opacity(0.15))
-                .stroke(Color.yellow.opacity(0.4), lineWidth: 1)
+            RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.small)
+                .fill(ColorTokens.Status.warning.opacity(0.15))
+                .stroke(ColorTokens.Status.warning.opacity(0.4), lineWidth: 1)
         }
         .contextMenu {
-            Button("Edit Note") {
+            Button {
                 editText = annotation.text
                 isEditing = true
+            } label: {
+                Label("Edit Note", systemImage: "pencil")
             }
             Divider()
-            Button("Delete Note", role: .destructive) {
+            Button(role: .destructive) {
                 onDelete()
+            } label: {
+                Label("Delete Note", systemImage: "trash")
             }
         }
         .onTapGesture(count: 2) {

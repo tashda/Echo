@@ -29,7 +29,7 @@ struct DiagramCreateTableSheet: View {
             Form {
                 Section("Table") {
                     TextField("Table Name", text: $tableName, prompt: Text("e.g. users"))
-                    LabeledContent("Schema") {
+                    PropertyRow(title: "Schema") {
                         Text(schemaName)
                             .foregroundStyle(ColorTokens.Text.secondary)
                     }
@@ -73,6 +73,7 @@ struct DiagramCreateTableSheet: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
         } footer: {
             Spacer()
             Button("Cancel") { dismiss() }
@@ -80,7 +81,7 @@ struct DiagramCreateTableSheet: View {
             Button("Create Table") {
                 createTable()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .keyboardShortcut(.defaultAction)
             .disabled(tableName.isEmpty || columns.allSatisfy { $0.name.isEmpty } || isCreating)
         }

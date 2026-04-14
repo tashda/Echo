@@ -60,10 +60,8 @@ struct EchoApp: App {
                 tabStore: coordinator.tabStore,
                 projectStore: coordinator.projectStore
             )
+            AboutCommands()
             AppSettingsCommands()
-            AutocompleteInspectorCommands()
-            PerformanceMonitorCommands()
-            StreamingTestHarnessCommands()
             SparkleCommands()
 #if os(macOS)
             ConnectMenuCommands(
@@ -77,6 +75,11 @@ struct EchoApp: App {
                 navigationStore: coordinator.navigationStore,
                 tabStore: coordinator.tabStore
             )
+#endif
+#if DEBUG
+            AutocompleteInspectorCommands()
+            PerformanceMonitorCommands()
+            StreamingTestHarnessCommands()
 #endif
         }
         JobQueueWindow()
@@ -95,10 +98,14 @@ struct EchoApp: App {
         ViewEditorWindow()
         SequenceEditorWindow()
         TypeEditorWindow()
+        DatabaseMailEditorWindow()
+        SettingsWindowScene()
+        AboutWindowScene()
+#if DEBUG
         AutocompleteInspectorWindow()
         PerformanceMonitorWindow()
         StreamingTestHarnessWindow()
-        SettingsWindowScene()
+#endif
     }
 
     /// Raises the per-process file descriptor limit so NIO's kqueue and the many
@@ -134,8 +141,10 @@ struct QueryCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            Button("New Query Tab") {
+            Button {
                 environmentState.openQueryTab()
+            } label: {
+                Label("New Query Tab", systemImage: "plus.square.on.square")
             }
             .keyboardShortcut(key(for: "New Query Tab", default: "t"), modifiers: mods(for: "New Query Tab", default: [.command]))
 
@@ -146,7 +155,7 @@ struct QueryCommands: Commands {
                     appState.showTabOverview = false
                 }
             }) {
-                Text("Next Tab")
+                Label("Next Tab", systemImage: "chevron.right.square")
             }
             .keyboardShortcut(key(for: "Next Tab", default: .tab), modifiers: mods(for: "Next Tab", default: [.control]))
 
@@ -157,7 +166,7 @@ struct QueryCommands: Commands {
                     appState.showTabOverview = false
                 }
             }) {
-                Text("Previous Tab")
+                Label("Previous Tab", systemImage: "chevron.left.square")
             }
             .keyboardShortcut(key(for: "Previous Tab", default: .tab), modifiers: mods(for: "Previous Tab", default: [.control, .shift]))
 
@@ -169,11 +178,11 @@ struct QueryCommands: Commands {
                     }
                 }
             }) {
-                Text("Reopen Closed Tab")
+                Label("Reopen Closed Tab", systemImage: "arrow.uturn.backward.square")
             }
             .keyboardShortcut(key(for: "Reopen Closed Tab", default: "t"), modifiers: mods(for: "Reopen Closed Tab", default: [.command, .shift]))
 
-            Button("Close Query Tab") {
+            Button {
                 if navigationStore.isWorkspaceWindowKey {
                     if let active = tabStore.activeTab {
                         tabStore.closeTab(id: active.id)
@@ -181,8 +190,24 @@ struct QueryCommands: Commands {
                 } else if let keyWindow = NSApplication.shared.keyWindow {
                     keyWindow.performClose(nil)
                 }
+            } label: {
+                Label("Close Query Tab", systemImage: "xmark.square")
             }
             .keyboardShortcut(key(for: "Close Query Tab", default: "w"), modifiers: mods(for: "Close Query Tab", default: [.command]))
+        }
+    }
+}
+
+struct AboutCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button {
+                openWindow(id: AboutWindowScene.sceneID)
+            } label: {
+                Label("About Echo", systemImage: "info.circle")
+            }
         }
     }
 }
@@ -192,8 +217,10 @@ struct AutocompleteInspectorCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .help) {
-            Button("Autocomplete Management") {
+            Button {
                 openWindow(id: AutocompleteInspectorWindow.sceneID)
+            } label: {
+                Label("Autocomplete Management", systemImage: "text.magnifyingglass")
             }
             .keyboardShortcut("m", modifiers: [.command, .option])
         }
@@ -205,8 +232,10 @@ struct PerformanceMonitorCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .help) {
-            Button("Performance Monitor") {
+            Button {
                 openWindow(id: PerformanceMonitorWindow.sceneID)
+            } label: {
+                Label("Performance Monitor", systemImage: "waveform.path.ecg")
             }
             .keyboardShortcut("p", modifiers: [.command, .option])
         }
@@ -218,8 +247,10 @@ struct StreamingTestHarnessCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .help) {
-            Button("Streaming Test Harness") {
+            Button {
                 openWindow(id: StreamingTestHarnessWindow.sceneID)
+            } label: {
+                Label("Streaming Test Harness", systemImage: "dot.radiowaves.left.and.right")
             }
             .keyboardShortcut("t", modifiers: [.command, .option, .shift])
         }
@@ -231,8 +262,10 @@ struct AppSettingsCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
-            Button("Settings") {
+            Button {
                 openWindow(id: SettingsWindowScene.sceneID)
+            } label: {
+                Label("Settings", systemImage: "gearshape")
             }
             .keyboardShortcut(",", modifiers: [.command])
         }

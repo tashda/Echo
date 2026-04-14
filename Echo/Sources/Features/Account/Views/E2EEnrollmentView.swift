@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 /// Step 1: Master password → Step 2: Recovery key display → Step 3: Confirmation.
 struct E2EEnrollmentView: View {
     @Bindable var enrollmentManager: E2EEnrollmentManager
+    let onComplete: () async -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var step: EnrollmentStep = .password
@@ -32,56 +33,58 @@ struct E2EEnrollmentView: View {
                 doneStep
             }
         }
-        .frame(width: 460, height: 400)
+        .frame(width: 520, height: sheetHeight)
     }
 
     // MARK: - Step 1: Master Password
 
     private var passwordStep: some View {
-        Form {
-            Section {
-                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    Label("Create Master Password", systemImage: "lock.shield")
-                        .font(TypographyTokens.headline)
-
-                    Text("This password encrypts your database credentials before they leave this device. Echo cannot reset it.")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-                .padding(.bottom, SpacingTokens.xs)
-
-                SecureField("", text: $password, prompt: Text("Master password"))
-
-                SecureField("", text: $confirmPassword, prompt: Text("Confirm master password"))
-
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Status.error)
-                }
-            }
-
-            Section {
-                HStack {
-                    Button("Cancel") { dismiss() }
-
-                    Spacer()
-
-                    Button("Continue") {
-                        Task { await beginEnrollment() }
+        SheetLayout(
+            title: "Create Master Password",
+            icon: "lock.shield",
+            subtitle: "This password encrypts your database credentials before they leave this device. Echo cannot reset it.",
+            primaryAction: "Continue",
+            canSubmit: canContinue,
+            isSubmitting: isProcessing,
+            errorMessage: errorMessage,
+            onSubmit: { await beginEnrollment() },
+            onCancel: { dismiss() }
+        ) {
+            Form {
+                Section {
+                    PropertyRow(title: "Master Password") {
+                        SecureField("", text: $password, prompt: Text("At least 8 characters"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
                     }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!canContinue || isProcessing)
+
+                    PropertyRow(title: "Confirm Password") {
+                        SecureField("", text: $confirmPassword, prompt: Text("Re-enter password"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
+                } footer: {
+                    Text("Use a password you can remember. If you forget it, only your recovery key can restore access.")
                 }
             }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
     }
 
     private var canContinue: Bool {
         password.count >= 8 && password == confirmPassword
+    }
+
+    private var sheetHeight: CGFloat {
+        switch step {
+        case .password:
+            320
+        case .recoveryKey:
+            520
+        case .done:
+            320
+        }
     }
 
     private func saveRecoveryKeyToFile() {
@@ -115,6 +118,7 @@ struct E2EEnrollmentView: View {
 
         do {
             recoveryWords = try await enrollmentManager.enroll(password: password)
+            SyncPreferences.setCredentialSyncEnabled(true)
             step = .recoveryKey
         } catch {
             errorMessage = error.localizedDescription
@@ -124,69 +128,84 @@ struct E2EEnrollmentView: View {
     // MARK: - Step 2: Recovery Key
 
     private var recoveryKeyStep: some View {
-        Form {
-            Section {
-                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    Label("Save Your Recovery Key", systemImage: "key")
-                        .font(TypographyTokens.headline)
+        SheetLayoutCustomFooter(title: "Save Your Recovery Key") {
+            VStack(alignment: .leading, spacing: SpacingTokens.md) {
+                HStack(spacing: SpacingTokens.sm) {
+                    Image(systemName: "key")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(Color.accentColor, in: .rect(cornerRadius: ShapeTokens.CornerRadius.medium))
 
-                    Text("If you forget your master password, this is the **only way** to recover your encrypted credentials. Write it down and store it somewhere safe.")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.secondary)
+                    VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+                        Text("Save Your Recovery Key")
+                            .font(TypographyTokens.prominent.weight(.semibold))
+
+                        Text("If you forget your master password, this is the only way to recover your encrypted credentials. Write it down and store it somewhere safe.")
+                            .font(TypographyTokens.formDescription)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
+
+                    Spacer()
                 }
+                .padding(.horizontal, SpacingTokens.lg)
+                .padding(.top, SpacingTokens.md)
                 .padding(.bottom, SpacingTokens.xs)
 
-                // 3 columns × 8 rows grid
-                Grid(alignment: .leading, horizontalSpacing: SpacingTokens.lg, verticalSpacing: SpacingTokens.xs) {
-                    ForEach(0..<8, id: \.self) { row in
-                        GridRow {
-                            ForEach(0..<3, id: \.self) { col in
-                                let idx = row * 3 + col
-                                HStack(spacing: 4) {
-                                    Text("\(idx + 1).")
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .foregroundStyle(ColorTokens.Text.tertiary)
-                                        .frame(width: 22, alignment: .trailing)
-                                    Text(recoveryWords[idx])
-                                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                Divider()
+
+                VStack(alignment: .leading, spacing: SpacingTokens.md) {
+                    Grid(alignment: .leading, horizontalSpacing: SpacingTokens.lg, verticalSpacing: SpacingTokens.xs) {
+                        ForEach(0..<8, id: \.self) { row in
+                            GridRow {
+                                ForEach(0..<3, id: \.self) { col in
+                                    let idx = row * 3 + col
+                                    HStack(spacing: 4) {
+                                        Text("\(idx + 1).")
+                                            .font(TypographyTokens.detailMono)
+                                            .foregroundStyle(ColorTokens.Text.tertiary)
+                                            .frame(width: 22, alignment: .trailing)
+                                        Text(recoveryWords[idx])
+                                            .font(TypographyTokens.codeMedium)
+                                    }
+                                    .frame(minWidth: 118, alignment: .leading)
                                 }
-                                .frame(minWidth: 110, alignment: .leading)
                             }
                         }
                     }
-                }
-                .padding(SpacingTokens.md)
-                .background(ColorTokens.Background.secondary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                    .padding(SpacingTokens.md)
+                    .background(ColorTokens.Background.secondary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
 
-                HStack(spacing: SpacingTokens.sm) {
-                    Button("Copy to Clipboard") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(recoveryWords.joined(separator: " "), forType: .string)
+                    HStack(spacing: SpacingTokens.sm) {
+                        Button("Copy to Clipboard") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(recoveryWords.joined(separator: " "), forType: .string)
+                        }
+
+                        Button("Save to File…") {
+                            saveRecoveryKeyToFile()
+                        }
                     }
+                    .font(TypographyTokens.formDescription)
 
-                    Button("Save to File…") {
-                        saveRecoveryKeyToFile()
-                    }
+                    Toggle("I have saved this recovery key in a safe place", isOn: $savedRecoveryKey)
+                        .toggleStyle(.checkbox)
+                        .font(TypographyTokens.formLabel)
                 }
-                .font(TypographyTokens.formDescription)
+                .padding(.horizontal, SpacingTokens.lg)
+                .padding(.bottom, SpacingTokens.lg)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } footer: {
+            Button("Back") { step = .password }
 
-            Section {
-                Toggle("I have saved this recovery key in a safe place", isOn: $savedRecoveryKey)
-                    .toggleStyle(.checkbox)
+            Spacer()
 
-                HStack {
-                    Button("Back") { step = .password }
-                    Spacer()
-                    Button("Finish") { step = .done }
-                        .buttonStyle(.bordered)
-                    .keyboardShortcut(.defaultAction)
-                        .disabled(!savedRecoveryKey)
-                }
-            }
+            Button("Finish") { step = .done }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.defaultAction)
+                .disabled(!savedRecoveryKey)
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
     }
 
     // MARK: - Step 3: Done
@@ -196,7 +215,7 @@ struct E2EEnrollmentView: View {
             Spacer()
 
             Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: 48))
+                .font(TypographyTokens.iconHero)
                 .foregroundStyle(ColorTokens.Status.success)
 
             Text("Credential Sync Active")
@@ -210,7 +229,10 @@ struct E2EEnrollmentView: View {
 
             Spacer()
 
-            Button("Done") { dismiss() }
+            Button("Done") {
+                Task { await onComplete() }
+                dismiss()
+            }
                 .buttonStyle(.bordered)
                     .keyboardShortcut(.defaultAction)
                 .padding(.bottom, SpacingTokens.lg)

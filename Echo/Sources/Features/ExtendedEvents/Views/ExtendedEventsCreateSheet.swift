@@ -110,6 +110,7 @@ struct ExtendedEventsCreateSheet: View {
                     Text(choice.rawValue).tag(choice)
                 }
             }
+            .pickerStyle(.menu)
 
             switch viewModel.createTargetType {
             case .ringBuffer:
@@ -129,6 +130,7 @@ struct ExtendedEventsCreateSheet: View {
         Section {
             TextField("Session Memory (KB)", value: $viewModel.createMaxMemoryKB, format: .number, prompt: Text("4096"))
             Toggle("Start with Server", isOn: $viewModel.createStartupState)
+                .toggleStyle(.switch)
         } header: {
             Text("Options")
         }

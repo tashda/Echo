@@ -21,12 +21,11 @@ func buildDatabaseNSMenu(
     // Group 1: Refresh
     menu.addActionItem("Refresh Schema", systemImage: "arrow.clockwise") {
         viewModel.ensureDatabaseExpanded(connectionID: connID, databaseName: database.name)
-        viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
         Task {
             let handle = AppDirector.shared.activityEngine.begin("Refreshing schema for \(database.name)", connectionSessionID: session.id)
+            session.markMetadataRefreshStarted(forDatabase: database.name)
             await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
             handle.succeed()
-            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
         }
     }
 
@@ -85,7 +84,7 @@ func buildDatabaseNSMenu(
 
     if dbType == .sqlite && database.name.lowercased() != "main" && database.name.lowercased() != "temp" {
         menu.addDivider()
-        menu.addActionItem("Detach Database...", systemImage: "externaldrive.badge.minus") {
+        menu.addActionItem("Detach Database", systemImage: "externaldrive.badge.minus") {
             sheetState.detachDatabaseName = database.name
             sheetState.detachConnectionID = connID
             sheetState.showDetachSheet = true
@@ -125,23 +124,23 @@ func buildDatabaseNSMenu(
                     runMSSQLTask(session, database.name, "takeOffline")
                 }
                 sub.addDivider()
-                sub.addActionItem("Detach Database...", systemImage: "externaldrive.badge.minus") {
+                sub.addActionItem("Detach Database", systemImage: "externaldrive.badge.minus") {
                     sheetState.detachDatabaseName = database.name
                     sheetState.detachConnectionID = connID
                     sheetState.showDetachSheet = true
                 }
                 sub.addDivider()
-                sub.addActionItem("Generate Scripts...", systemImage: "script.badge.plus") {
+                sub.addActionItem("Generate Scripts", systemImage: "scroll") {
                     sheetState.generateScriptsDatabaseName = database.name
                     sheetState.generateScriptsConnectionID = connID
                     sheetState.showGenerateScriptsWizard = true
                 }
-                sub.addActionItem("Import Flat File...", systemImage: "square.and.arrow.down.on.square") {
+                sub.addActionItem("Import Flat File", systemImage: "square.and.arrow.down.on.square") {
                     sheetState.quickImportDatabaseName = database.name
                     sheetState.quickImportConnectionID = connID
                     sheetState.showQuickImportSheet = true
                 }
-                sub.addActionItem("Migrate Data...", systemImage: "arrow.right.arrow.left") {
+                sub.addActionItem("Migrate Data", systemImage: "arrow.right.arrow.left") {
                     sheetState.dataMigrationConnectionID = connID
                     sheetState.showDataMigrationWizard = true
                 }
@@ -149,7 +148,7 @@ func buildDatabaseNSMenu(
                     environmentState.openQueryBuilderTab(connectionID: connID)
                 }
                 sub.addDivider()
-                sub.addActionItem("Data-tier Application Tasks...", systemImage: "archivebox") {
+                sub.addActionItem("Data-tier Application Tasks", systemImage: "archivebox") {
                     sheetState.dacWizardDatabaseName = database.name
                     sheetState.dacWizardConnectionID = connID
                     sheetState.showDACWizard = true
@@ -170,15 +169,15 @@ func buildDatabaseNSMenu(
     // Group 9: Destructive
     if dbType == .postgresql {
         menu.addSubmenu("Drop Database", systemImage: "trash") { sub in
-            sub.addActionItem("Drop") {
+            sub.addActionItem("Drop", systemImage: "trash") {
                 sheetState.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .standard)
                 sheetState.showDropDatabaseAlert = true
             }
-            sub.addActionItem("Drop (Cascade)") {
+            sub.addActionItem("Drop (Cascade)", systemImage: "trash") {
                 sheetState.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .cascade)
                 sheetState.showDropDatabaseAlert = true
             }
-            sub.addActionItem("Drop (Force)") {
+            sub.addActionItem("Drop (Force)", systemImage: "trash") {
                 sheetState.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .force)
                 sheetState.showDropDatabaseAlert = true
             }
@@ -217,12 +216,11 @@ extension ObjectBrowserSidebarView {
         // Group 1: Refresh
         Button {
             viewModel.ensureDatabaseExpanded(connectionID: connID, databaseName: database.name)
-            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
             Task {
                 let handle = AppDirector.shared.activityEngine.begin("Refreshing schema for \(database.name)", connectionSessionID: session.id)
+                session.markMetadataRefreshStarted(forDatabase: database.name)
                 await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
                 handle.succeed()
-                viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
             }
         } label: {
             Label("Refresh Schema", systemImage: "arrow.clockwise")
@@ -245,12 +243,6 @@ extension ObjectBrowserSidebarView {
                 } label: {
                     Label("Postgres Console", systemImage: "terminal")
                 }
-            }
-            if projectStore.globalSettings.nativePsqlEnabled {
-                Button {} label: {
-                    Label("Native psql (Coming Soon)", systemImage: "chevron.left.forwardslash.chevron.right")
-                }
-                .disabled(true)
             }
         }
 
@@ -310,7 +302,7 @@ extension ObjectBrowserSidebarView {
                 sheetState.detachConnectionID = connID
                 sheetState.showDetachSheet = true
             } label: {
-                Label("Detach Database...", systemImage: "externaldrive.badge.minus")
+                Label("Detach Database", systemImage: "externaldrive.badge.minus")
             }
         }
 
@@ -379,7 +371,7 @@ extension ObjectBrowserSidebarView {
                         sheetState.detachConnectionID = connID
                         sheetState.showDetachSheet = true
                     } label: {
-                        Label("Detach Database...", systemImage: "externaldrive.badge.minus")
+                        Label("Detach Database", systemImage: "externaldrive.badge.minus")
                     }
 
                     Divider()
@@ -389,7 +381,7 @@ extension ObjectBrowserSidebarView {
                         sheetState.generateScriptsConnectionID = connID
                         sheetState.showGenerateScriptsWizard = true
                     } label: {
-                        Label("Generate Scripts...", systemImage: "script.badge.plus")
+                        Label("Generate Scripts", systemImage: "scroll")
                     }
 
                     Button {
@@ -397,14 +389,14 @@ extension ObjectBrowserSidebarView {
                         sheetState.quickImportConnectionID = connID
                         sheetState.showQuickImportSheet = true
                     } label: {
-                        Label("Import Flat File...", systemImage: "square.and.arrow.down.on.square")
+                        Label("Import Flat File", systemImage: "square.and.arrow.down.on.square")
                     }
 
                     Button {
                         sheetState.dataMigrationConnectionID = connID
                         sheetState.showDataMigrationWizard = true
                     } label: {
-                        Label("Migrate Data...", systemImage: "arrow.right.arrow.left")
+                        Label("Migrate Data", systemImage: "arrow.right.arrow.left")
                     }
 
                     Button {
@@ -420,7 +412,7 @@ extension ObjectBrowserSidebarView {
                         sheetState.dacWizardConnectionID = connID
                         sheetState.showDACWizard = true
                     } label: {
-                        Label("Data-tier Application Tasks...", systemImage: "archivebox")
+                        Label("Data-tier Application Tasks", systemImage: "archivebox")
                     }
                 } else {
                     Button {

@@ -15,7 +15,7 @@ extension ConnectionSession {
     ) -> WorkspaceTab {
         let previewLimit = max(defaultBackgroundStreamingThreshold, defaultInitialBatchSize)
         let queryState = QueryEditorState(
-            sql: query.isEmpty ? "SELECT current_timestamp;" : query,
+            sql: query,
             initialVisibleRowBatch: defaultInitialBatchSize,
             previewRowLimit: previewLimit,
             spoolManager: spoolManager,
@@ -185,44 +185,6 @@ extension ConnectionSession {
             connectionSessionID: id,
             title: "Extensions (\(databaseName))",
             content: .extensionsManager(viewModel)
-        )
-        queryTabs.append(tab)
-        activeQueryTabID = tab.id
-        lastActivity = Date()
-        return tab
-    }
-
-    @discardableResult
-    func addTableDataTab(schema: String, table: String, databaseName: String? = nil) -> WorkspaceTab {
-        let viewModel = TableDataViewModel(
-            schemaName: schema,
-            tableName: table,
-            databaseType: connection.databaseType,
-            session: session
-        )
-        viewModel.activityEngine = AppDirector.shared.activityEngine
-        viewModel.connectionSessionID = id
-
-        // Resolve a database-specific session if a database name is provided
-        if let databaseName {
-            Task { @MainActor [weak viewModel, session = self.session] in
-                guard let viewModel else { return }
-                do {
-                    let dbSession = try await session.sessionForDatabase(databaseName)
-                    viewModel.updateSession(dbSession)
-                } catch {
-                    // Fall back to the primary session
-                }
-            }
-        }
-
-        let tab = WorkspaceTab(
-            connection: connection,
-            session: session,
-            connectionSessionID: id,
-            title: "\(table) (Data)",
-            content: .tableData(viewModel),
-            activeDatabaseName: databaseName ?? sidebarFocusedDatabase
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id

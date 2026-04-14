@@ -47,25 +47,25 @@ extension SearchSidebarView {
                 )
 
             case .index(let schema, let table, _):
-                Button("Show in Explorer") { handleResultTap(result) }
-                Button("Open Table Structure") {
+                Button { handleResultTap(result) } label: { Label("Show in Explorer", systemImage: "sidebar.left") }
+                Button {
                     guard let session else { return }
                     let object = SchemaObjectInfo(name: table, schema: schema, type: .table)
                     environmentState.openStructureTab(for: session, object: object, focus: .indexes)
-                }
+                } label: { Label("Structure", systemImage: "list.bullet.rectangle") }
                 copyNameButton(name: "\(schema).\(table)")
 
             case .foreignKey(let schema, let table, _):
-                Button("Show in Explorer") { handleResultTap(result) }
-                Button("Open Table Structure") {
+                Button { handleResultTap(result) } label: { Label("Show in Explorer", systemImage: "sidebar.left") }
+                Button {
                     guard let session else { return }
                     let object = SchemaObjectInfo(name: table, schema: schema, type: .table)
                     environmentState.openStructureTab(for: session, object: object, focus: .relations)
-                }
+                } label: { Label("Structure", systemImage: "list.bullet.rectangle") }
                 copyNameButton(name: "\(schema).\(table)")
 
             case .queryTab:
-                Button("Switch to Tab") { handleResultTap(result) }
+                Button { handleResultTap(result) } label: { Label("Switch to Tab", systemImage: "arrow.right.arrow.left") }
             }
         }
     }
@@ -78,20 +78,28 @@ extension SearchSidebarView {
         result: GlobalSearchResult, session: ConnectionSession?,
         databaseType: DatabaseType, database: String
     ) -> some View {
-        Button("Show in Explorer") { handleResultTap(result) }
+        Button { handleResultTap(result) } label: { Label("Show in Explorer", systemImage: "sidebar.left") }
 
         if type == .table || type == .view || type == .materializedView {
-            Button("Open Data") {
+            Button {
                 guard let session else { return }
-                environmentState.openTableDataTab(for: session, schema: schema, table: name, databaseName: database)
-            }
+                let qualified = qualifiedName(schema: schema, name: name, databaseType: databaseType)
+                let sql: String
+                switch databaseType {
+                case .microsoftSQL:
+                    sql = "SELECT TOP 1000 * FROM \(qualified);"
+                default:
+                    sql = "SELECT * FROM \(qualified) LIMIT 1000;"
+                }
+                environmentState.openQueryTab(for: session, presetQuery: sql, autoExecute: true, database: database)
+            } label: { Label("Data", systemImage: "tablecells") }
         }
 
         if type == .view || type == .materializedView || type == .function || type == .procedure || type == .trigger {
-            Button("View Definition") {
+            Button {
                 guard let session else { return }
                 openDefinition(objectName: name, schema: schema, type: type, session: session, database: database)
-            }
+            } label: { Label("Definition", systemImage: "doc.text") }
         }
 
         Divider()
@@ -122,16 +130,24 @@ extension SearchSidebarView {
         result: GlobalSearchResult, session: ConnectionSession?,
         databaseType: DatabaseType, database: String
     ) -> some View {
-        Button("Show in Explorer") { handleResultTap(result) }
+        Button { handleResultTap(result) } label: { Label("Show in Explorer", systemImage: "sidebar.left") }
 
-        Button("Open Table Data") {
+        Button {
             guard let session else { return }
-            environmentState.openTableDataTab(for: session, schema: schema, table: table, databaseName: database)
-        }
+            let qualified = qualifiedName(schema: schema, name: table, databaseType: databaseType)
+            let sql: String
+            switch databaseType {
+            case .microsoftSQL:
+                sql = "SELECT TOP 1000 * FROM \(qualified);"
+            default:
+                sql = "SELECT * FROM \(qualified) LIMIT 1000;"
+            }
+            environmentState.openQueryTab(for: session, presetQuery: sql, autoExecute: true, database: database)
+        } label: { Label("Data", systemImage: "tablecells") }
 
         Divider()
 
-        Button("Script SELECT Column") {
+        Button {
             guard let session else { return }
             let qTable = qualifiedName(schema: schema, name: table, databaseType: databaseType)
             let qCol = quoteIdentifier(column, databaseType: databaseType)
@@ -139,7 +155,7 @@ extension SearchSidebarView {
                 ? "SELECT TOP 200 \(qCol)\nFROM \(qTable);"
                 : "SELECT \(qCol)\nFROM \(qTable)\nLIMIT 200;"
             environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
-        }
+        } label: { Label("Script SELECT Column", systemImage: "scroll") }
 
         Divider()
 
@@ -296,9 +312,11 @@ extension SearchSidebarView {
     // MARK: - Shared Helpers
 
     private func copyNameButton(name: String) -> some View {
-        Button("Copy Name") {
+        Button {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(name, forType: .string)
+        } label: {
+            Label("Copy Name", systemImage: "doc.on.doc")
         }
     }
 

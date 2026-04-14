@@ -58,6 +58,30 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
 
     var id: String { rawValue }
 
+    // MARK: - Critical Default
+
+    /// Whether this category is enabled by default on first launch.
+    /// Only error and failure notifications are considered critical.
+    var isCriticalDefault: Bool {
+        switch self {
+        case .connectionFailed,
+             .extensionFailed,
+             .maintenanceFailed,
+             .securityToggleFailed,
+             .indexRebuildFailed,
+             .databaseCreationFailed,
+             .databaseSwitchFailed,
+             .databasePropertiesError,
+             .jobError,
+             .generalError:
+            return true
+        default:
+            return false
+        }
+    }
+
+    // MARK: - Group
+
     var group: NotificationGroup {
         switch self {
         case .connectionConnected, .connectionDisconnected, .connectionFailed:
@@ -78,6 +102,8 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
             return .general
         }
     }
+
+    // MARK: - Display
 
     var displayName: String {
         switch self {
@@ -116,6 +142,46 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
         case .generalInfo: return "Info"
         }
     }
+
+    var displayDescription: String {
+        switch self {
+        case .connectionConnected: return "When a database connection is established"
+        case .connectionDisconnected: return "When a connection is closed or drops"
+        case .connectionFailed: return "When a connection attempt fails"
+        case .objectDropped: return "When a database object is deleted"
+        case .objectRenamed: return "When a database object is renamed"
+        case .objectCreated: return "When a new database object is created"
+        case .objectTruncated: return "When a table is truncated"
+        case .extensionInstalled: return "When a PostgreSQL extension is installed"
+        case .extensionFailed: return "When an extension operation fails"
+        case .maintenanceCompleted: return "When a maintenance task finishes"
+        case .maintenanceFailed: return "When a maintenance task fails"
+        case .securityDropped: return "When a security object is removed"
+        case .securityToggleFailed: return "When a security setting change fails"
+        case .tableStructureUpdated: return "When a table structure change is applied"
+        case .indexCreated: return "When a new index is created"
+        case .indexDropped: return "When an index is removed"
+        case .indexRebuilt: return "When an index rebuild completes"
+        case .indexRebuildFailed: return "When an index rebuild fails"
+        case .databaseCreated: return "When a new database is created"
+        case .databaseCreationFailed: return "When database creation fails"
+        case .databaseSwitched: return "When the active database changes"
+        case .databaseSwitchFailed: return "When a database switch fails"
+        case .databasePropertiesError: return "When database property changes fail"
+        case .databasePropertiesSaved: return "When database properties are saved"
+        case .jobStarted: return "When a SQL Agent job starts running"
+        case .jobStopped: return "When a SQL Agent job is stopped"
+        case .jobError: return "When a SQL Agent job encounters an error"
+        case .jobScheduleCreated: return "When a new job schedule is created"
+        case .jobNotificationSaved: return "When job notification settings are saved"
+        case .jobPropertiesSaved: return "When job properties are saved"
+        case .generalSuccess: return "When an operation succeeds"
+        case .generalError: return "When an unexpected error occurs"
+        case .generalInfo: return "General informational alerts"
+        }
+    }
+
+    // MARK: - Visuals
 
     var defaultIcon: String {
         switch self {
@@ -195,6 +261,17 @@ enum NotificationGroup: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    var displayDescription: String {
+        switch self {
+        case .connection: return "Connection status and errors"
+        case .objectBrowser: return "Object lifecycle, extensions, and maintenance"
+        case .tableStructure: return "Schema changes and index operations"
+        case .database: return "Database creation, switching, and properties"
+        case .jobs: return "SQL Agent job activity"
+        case .general: return "App-wide success, error, and info alerts"
+        }
+    }
+
     var systemImage: String {
         switch self {
         case .connection: return "bolt.horizontal.circle"
@@ -208,5 +285,15 @@ enum NotificationGroup: String, CaseIterable, Identifiable, Sendable {
 
     var categories: [NotificationCategory] {
         NotificationCategory.allCases.filter { $0.group == self }
+    }
+
+    /// Whether all categories in this group are critical defaults.
+    var isAllCritical: Bool {
+        categories.allSatisfy(\.isCriticalDefault)
+    }
+
+    /// Whether any categories in this group are critical defaults.
+    var hasCriticalCategories: Bool {
+        categories.contains(where: \.isCriticalDefault)
     }
 }

@@ -15,8 +15,21 @@ public struct ServerMessage: Sendable {
     public let serverName: String?
     public let procedureName: String?
     public let lineNumber: Int32?
+    public let category: String?
+    public let metadata: [String: String]
 
-    public nonisolated init(kind: Kind, number: Int32, message: String, state: UInt8, severity: UInt8, serverName: String? = nil, procedureName: String? = nil, lineNumber: Int32? = nil) {
+    public nonisolated init(
+        kind: Kind,
+        number: Int32,
+        message: String,
+        state: UInt8,
+        severity: UInt8,
+        serverName: String? = nil,
+        procedureName: String? = nil,
+        lineNumber: Int32? = nil,
+        category: String? = nil,
+        metadata: [String: String] = [:]
+    ) {
         self.kind = kind
         self.number = number
         self.message = message
@@ -25,6 +38,8 @@ public struct ServerMessage: Sendable {
         self.serverName = serverName
         self.procedureName = procedureName
         self.lineNumber = lineNumber
+        self.category = category
+        self.metadata = metadata
     }
 }
 

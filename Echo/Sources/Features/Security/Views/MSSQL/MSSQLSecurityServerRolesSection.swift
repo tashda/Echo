@@ -70,7 +70,7 @@ struct MSSQLSecurityServerRolesSection: View {
                 }
 
                 Button { onNewRole() } label: {
-                    Label("New Server Role", systemImage: "shield.badge.plus")
+                    Label("New Server Role", systemImage: "shield")
                 }
             }
         } primaryAction: { selection in

@@ -33,7 +33,7 @@ extension NewAgentJobSheet {
                         }
                     }
 
-                    LabeledContent("Command") {
+                    PropertyRow(title: "Command") {
                         TextEditor(text: $steps[index].command)
                             .font(TypographyTokens.body.monospaced())
                             .frame(minHeight: 60, maxHeight: 120)
