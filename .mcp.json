@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "supabase-self-hosted": {
-      "url": "http://localhost:8080/mcp"
-    }
-  }
-}
