@@ -2,7 +2,7 @@ import SwiftUI
 import PostgresKit
 import SQLServerKit
 
-extension ExperimentalObjectBrowserSidebarView {
+extension ObjectBrowserSidebarView {
     enum ExperimentalMSSQLDatabaseTask {
         case shrink
         case takeOffline

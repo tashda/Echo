@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ExperimentalObjectBrowserSidebarView: View {
+struct ObjectBrowserSidebarView: View {
     @Binding var selectedConnectionID: UUID?
 
     @Environment(ProjectStore.self) var projectStore
@@ -8,7 +8,7 @@ struct ExperimentalObjectBrowserSidebarView: View {
     @Environment(NavigationStore.self) var navigationStore
     @Environment(\.openWindow) var openWindow
 
-    @State var viewModel = ExperimentalObjectBrowserSidebarViewModel()
+    @State var viewModel = ObjectBrowserSidebarViewModel()
     @State var sheetState = SidebarSheetState()
 
     private var sessions: [ConnectionSession] {
@@ -20,7 +20,7 @@ struct ExperimentalObjectBrowserSidebarView: View {
     }
 
     var body: some View {
-        let roots = ExperimentalObjectBrowserSnapshotBuilder.buildRoots(
+        let roots = ObjectBrowserSnapshotBuilder.buildRoots(
             pendingConnections: pendingConnections,
             sessions: sessions,
             settings: projectStore.globalSettings,
@@ -40,13 +40,13 @@ struct ExperimentalObjectBrowserSidebarView: View {
                 .padding(.vertical, SpacingTokens.xl2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
-                ExperimentalObjectBrowserOutlineView(
+                ObjectBrowserOutlineView(
                     roots: roots,
                     expandedNodeIDs: viewModel.expandedNodeIDs,
                     selectedNodeID: viewModel.selectedNodeID,
                     rowContent: { node, isExpanded, outlineLevel, outlineOffset, onActivate in
                         AnyView(
-                            ExperimentalObjectBrowserRowView(
+                            ObjectBrowserRowView(
                                 node: node,
                                 isExpanded: isExpanded,
                                 isSelected: viewModel.selectedNodeID == node.id,
@@ -120,7 +120,7 @@ struct ExperimentalObjectBrowserSidebarView: View {
         }
 
         for session in sessions {
-            let securityNodeID = ExperimentalObjectBrowserSidebarViewModel.serverFolderNodeID(
+            let securityNodeID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
                 connectionID: session.connection.id,
                 kind: .security
             )
@@ -153,12 +153,12 @@ struct ExperimentalObjectBrowserSidebarView: View {
     }
 
     private func focusNewSession(_ session: ConnectionSession) {
-        let serverNodeID = ExperimentalObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
+        let serverNodeID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
         selectedConnectionID = session.connection.id
         environmentState.sessionGroup.setActiveSession(session.id)
         viewModel.selectedNodeID = serverNodeID
         viewModel.setExpanded(true, nodeID: serverNodeID)
-        viewModel.setExpanded(true, nodeID: ExperimentalObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: session.connection.id))
+        viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: session.connection.id))
         viewModel.revealAndPulse(nodeID: serverNodeID)
 
         Task { @MainActor in
@@ -173,7 +173,7 @@ struct ExperimentalObjectBrowserSidebarView: View {
     }
 
     private func revealConnection(_ connectionID: UUID) {
-        let serverNodeID = ExperimentalObjectBrowserSidebarViewModel.serverNodeID(connectionID: connectionID)
+        let serverNodeID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: connectionID)
         selectedConnectionID = connectionID
         viewModel.selectedNodeID = serverNodeID
         viewModel.setExpanded(true, nodeID: serverNodeID)
@@ -181,7 +181,7 @@ struct ExperimentalObjectBrowserSidebarView: View {
         navigationStore.pendingExplorerRevealConnectionID = nil
     }
 
-    private func handleSelectionChange(_ node: ExperimentalObjectBrowserNode?) {
+    private func handleSelectionChange(_ node: ObjectBrowserNode?) {
         guard let node else { return }
         viewModel.selectedNodeID = node.id
 
@@ -211,12 +211,14 @@ struct ExperimentalObjectBrowserSidebarView: View {
              .action(let session, _, _):
             selectedConnectionID = session.connection.id
             environmentState.sessionGroup.setActiveSession(session.id)
+        case .column:
+            break
         case .infoLeaf(_, _, _, _), .loading(_, _), .message(_, _, _):
             break
         }
     }
 
-    private func handleActivation(of node: ExperimentalObjectBrowserNode) {
+    private func handleActivation(of node: ObjectBrowserNode) {
         viewModel.selectedNodeID = node.id
 
         switch node.row {
@@ -277,12 +279,14 @@ struct ExperimentalObjectBrowserSidebarView: View {
             selectedConnectionID = session.connection.id
             environmentState.sessionGroup.setActiveSession(session.id)
             perform(action: action, session: session)
+        case .column:
+            break
         case .infoLeaf(_, _, _, _), .loading(_, _), .message(_, _, _):
             break
         }
     }
 
-    private func handleExpansionChange(of node: ExperimentalObjectBrowserNode, isExpanded: Bool) {
+    private func handleExpansionChange(of node: ObjectBrowserNode, isExpanded: Bool) {
         withAnimation(.snappy(duration: 0.18, extraBounce: 0)) {
             viewModel.setExpanded(isExpanded, nodeID: node.id)
         }
@@ -354,7 +358,7 @@ struct ExperimentalObjectBrowserSidebarView: View {
         }
     }
 
-    private func perform(action: ExperimentalObjectBrowserActionKind, session: ConnectionSession) {
+    private func perform(action: ObjectBrowserActionKind, session: ConnectionSession) {
         let connectionID = session.connection.id
 
         switch action {

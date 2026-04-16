@@ -1,6 +1,6 @@
 import Foundation
 
-extension ExperimentalObjectBrowserSnapshotBuilder {
+extension ObjectBrowserSnapshotBuilder {
     static func visibleDatabases(
         for session: ConnectionSession,
         structure: DatabaseStructure?,

@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 import SQLServerKit
 
-extension ExperimentalObjectBrowserSidebarView {
-    func contextMenu(for node: ExperimentalObjectBrowserNode) -> NSMenu? {
+extension ObjectBrowserSidebarView {
+    func contextMenu(for node: ObjectBrowserNode) -> NSMenu? {
         switch node.row {
         case .topSpacer:
             nil
@@ -43,7 +43,7 @@ extension ExperimentalObjectBrowserSidebarView {
             serverTriggerMenu(trigger: trigger, session: session)
         case .agentJob(let session, _):
             agentJobMenu(for: session)
-        case .ssisFolder, .action, .infoLeaf, .loading, .message:
+        case .ssisFolder, .action, .infoLeaf, .loading, .message, .column:
             nil
         }
     }
@@ -76,7 +76,7 @@ extension ExperimentalObjectBrowserSidebarView {
     }
 
     private func serverFolderMenu(
-        kind: ExperimentalObjectBrowserServerFolderKind,
+        kind: ObjectBrowserServerFolderKind,
         session: ConnectionSession
     ) -> NSMenu? {
         let menu = NSMenu()
@@ -167,7 +167,7 @@ extension ExperimentalObjectBrowserSidebarView {
     }
 
     private func securitySectionMenu(
-        kind: ExperimentalObjectBrowserSecuritySectionKind,
+        kind: ObjectBrowserSecuritySectionKind,
         session: ConnectionSession
     ) -> NSMenu {
         let menu = NSMenu()
@@ -216,7 +216,7 @@ extension ExperimentalObjectBrowserSidebarView {
     }
 
     private func securityLoginMenu(
-        login: ExperimentalObjectBrowserSidebarViewModel.SecurityLoginItem,
+        login: ObjectBrowserSidebarViewModel.SecurityLoginItem,
         session: ConnectionSession
     ) -> NSMenu {
         let menu = NSMenu()
@@ -303,7 +303,7 @@ extension ExperimentalObjectBrowserSidebarView {
     }
 
     private func securityServerRoleMenu(
-        role: ExperimentalObjectBrowserSidebarViewModel.SecurityServerRoleItem,
+        role: ObjectBrowserSidebarViewModel.SecurityServerRoleItem,
         session: ConnectionSession
     ) -> NSMenu {
         let menu = NSMenu()
@@ -348,7 +348,7 @@ extension ExperimentalObjectBrowserSidebarView {
     }
 
     private func securityCredentialMenu(
-        credential: ExperimentalObjectBrowserSidebarViewModel.SecurityCredentialItem,
+        credential: ObjectBrowserSidebarViewModel.SecurityCredentialItem,
         session: ConnectionSession
     ) -> NSMenu {
         let menu = NSMenu()
@@ -470,7 +470,7 @@ extension ExperimentalObjectBrowserSidebarView {
         let dbType = session.connection.databaseType
 
         menu.addActionItem("Refresh Schema", systemImage: "arrow.clockwise") {
-            viewModel.setExpanded(true, nodeID: ExperimentalObjectBrowserSidebarViewModel.databaseNodeID(connectionID: connID, databaseName: database.name))
+            viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: connID, databaseName: database.name))
             Task {
                 let handle = AppDirector.shared.activityEngine.begin("Refreshing schema for \(database.name)", connectionSessionID: session.id)
                 await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
@@ -643,7 +643,7 @@ extension ExperimentalObjectBrowserSidebarView {
     }
 
     private func databaseFolderMenu(
-        kind: ExperimentalObjectBrowserDatabaseFolderKind,
+        kind: ObjectBrowserDatabaseFolderKind,
         databaseName: String,
         session: ConnectionSession
     ) -> NSMenu {
@@ -952,7 +952,7 @@ extension ExperimentalObjectBrowserSidebarView {
     }
 
     private func linkedServerMenu(
-        server: ExperimentalObjectBrowserSidebarViewModel.LinkedServerItem,
+        server: ObjectBrowserSidebarViewModel.LinkedServerItem,
         session: ConnectionSession
     ) -> NSMenu {
         let menu = NSMenu()
@@ -972,7 +972,7 @@ extension ExperimentalObjectBrowserSidebarView {
     }
 
     private func serverTriggerMenu(
-        trigger: ExperimentalObjectBrowserSidebarViewModel.ServerTriggerItem,
+        trigger: ObjectBrowserSidebarViewModel.ServerTriggerItem,
         session: ConnectionSession
     ) -> NSMenu {
         let menu = NSMenu()
@@ -1023,7 +1023,7 @@ extension ExperimentalObjectBrowserSidebarView {
     }
 }
 
-private extension ExperimentalObjectBrowserSidebarView {
+private extension ObjectBrowserSidebarView {
     func openNewObjectInDesigner(type: SchemaObjectInfo.ObjectType, session: ConnectionSession) {
         let connID = session.connection.id
         let schema = session.connection.databaseType == .microsoftSQL ? "dbo" : "public"

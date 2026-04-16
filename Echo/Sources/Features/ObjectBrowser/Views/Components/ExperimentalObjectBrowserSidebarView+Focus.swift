@@ -1,7 +1,7 @@
 import EchoSense
 import SwiftUI
 
-extension ExperimentalObjectBrowserSidebarView {
+extension ObjectBrowserSidebarView {
     func handleExplorerFocus(_ focus: ExplorerFocus) {
         Task {
             await processExplorerFocus(focus)
@@ -21,10 +21,10 @@ extension ExperimentalObjectBrowserSidebarView {
         await MainActor.run {
             selectedConnectionID = focus.connectionID
             environmentState.sessionGroup.setActiveSession(session.id)
-            viewModel.setExpanded(true, nodeID: ExperimentalObjectBrowserSidebarViewModel.serverNodeID(connectionID: focus.connectionID))
-            viewModel.setExpanded(true, nodeID: ExperimentalObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: focus.connectionID))
-            viewModel.setExpanded(true, nodeID: ExperimentalObjectBrowserSidebarViewModel.databaseNodeID(connectionID: focus.connectionID, databaseName: focus.databaseName))
-            let groupNodeID = ExperimentalObjectBrowserSidebarViewModel.objectGroupNodeID(
+            viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.serverNodeID(connectionID: focus.connectionID))
+            viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: focus.connectionID))
+            viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: focus.connectionID, databaseName: focus.databaseName))
+            let groupNodeID = ObjectBrowserSidebarViewModel.objectGroupNodeID(
                 connectionID: focus.connectionID,
                 databaseName: focus.databaseName,
                 objectType: focus.objectType
@@ -99,7 +99,7 @@ extension ExperimentalObjectBrowserSidebarView {
             return
         }
 
-        let objectGroupID = ExperimentalObjectBrowserSidebarViewModel.objectGroupNodeID(
+        let objectGroupID = ObjectBrowserSidebarViewModel.objectGroupNodeID(
             connectionID: focus.connectionID,
             databaseName: database.name,
             objectType: object.type
@@ -112,9 +112,9 @@ extension ExperimentalObjectBrowserSidebarView {
 
         session.sidebarFocusedDatabase = database.name
         viewModel.selectedNodeID = objectNodeID
-        viewModel.setExpanded(true, nodeID: ExperimentalObjectBrowserSidebarViewModel.serverNodeID(connectionID: focus.connectionID))
-        viewModel.setExpanded(true, nodeID: ExperimentalObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: focus.connectionID))
-        viewModel.setExpanded(true, nodeID: ExperimentalObjectBrowserSidebarViewModel.databaseNodeID(connectionID: focus.connectionID, databaseName: database.name))
+        viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.serverNodeID(connectionID: focus.connectionID))
+        viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: focus.connectionID))
+        viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: focus.connectionID, databaseName: database.name))
         viewModel.setExpanded(true, nodeID: objectGroupID)
         viewModel.revealAndPulse(nodeID: objectNodeID)
     }

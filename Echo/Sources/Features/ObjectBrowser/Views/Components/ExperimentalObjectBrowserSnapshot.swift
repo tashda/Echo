@@ -1,23 +1,23 @@
 import Foundation
 
 @MainActor
-enum ExperimentalObjectBrowserSnapshotBuilder {
+enum ObjectBrowserSnapshotBuilder {
     static func buildRoots(
         pendingConnections: [PendingConnection],
         sessions: [ConnectionSession],
         settings: GlobalSettings,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
-        let topSpacer = ExperimentalObjectBrowserNode(
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
+        let topSpacer = ObjectBrowserNode(
             id: "explorer-lab#top-spacer",
             row: .topSpacer(SpacingTokens.xs)
         )
 
-        var rows: [ExperimentalObjectBrowserNode] = [topSpacer]
+        var rows: [ObjectBrowserNode] = [topSpacer]
 
         for pending in pendingConnections {
             rows.append(
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: "\(pending.id.uuidString)#pending",
                     row: .pendingConnection(pending)
                 )
@@ -26,7 +26,7 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
 
         if !pendingConnections.isEmpty && !sessions.isEmpty {
             rows.append(
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: "explorer-lab#pending-gap",
                     row: .topSpacer(SpacingTokens.xs)
                 )
@@ -36,16 +36,16 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
         for (index, session) in sessions.enumerated() {
             if index > 0 {
                 rows.append(
-                    ExperimentalObjectBrowserNode(
+                    ObjectBrowserNode(
                         id: "explorer-lab#server-gap#\(session.connection.id.uuidString)",
                         row: .topSpacer(SpacingTokens.xs)
                     )
                 )
             }
 
-            let serverID = ExperimentalObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
+            let serverID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
             rows.append(
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: serverID,
                     row: .server(session),
                     children: serverChildren(
@@ -63,26 +63,26 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
     static func serverChildren(
         for session: ConnectionSession,
         settings: GlobalSettings,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
         switch session.structureLoadingState {
         case .failed(let message):
             return [
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: "\(session.connection.id.uuidString)#failed",
                     row: .message(message ?? "Failed to load", systemImage: "exclamationmark.triangle.fill", depth: 1)
                 )
             ]
         case .idle:
             return [
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: "\(session.connection.id.uuidString)#server-loading",
                     row: .loading("Loading server…", depth: 1)
                 )
             ]
         case .loading where session.databaseStructure == nil:
             return [
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: "\(session.connection.id.uuidString)#server-loading",
                     row: .loading("Loading server…", depth: 1)
                 )
@@ -95,7 +95,7 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
                 settings: settings,
                 hideOffline: viewModel.hideOfflineDatabasesBySession[session.connection.id] ?? false
             )
-            let folderID = ExperimentalObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: session.connection.id)
+            let folderID = ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: session.connection.id)
             let folderChildren = visibleDatabases.map {
                 databaseNode(
                     for: session,
@@ -107,7 +107,7 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
             }
 
             var children = [
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: folderID,
                     row: .databasesFolder(session, count: visibleDatabases.count),
                     children: folderChildren
@@ -123,9 +123,9 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
         database: DatabaseInfo,
         settings: GlobalSettings,
         expandedNodeIDs: Set<String>,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> ExperimentalObjectBrowserNode {
-        let databaseID = ExperimentalObjectBrowserSidebarViewModel.databaseNodeID(
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> ObjectBrowserNode {
+        let databaseID = ObjectBrowserSidebarViewModel.databaseNodeID(
             connectionID: session.connection.id,
             databaseName: database.name
         )
@@ -140,7 +140,7 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
             viewModel: viewModel
         )
 
-        return ExperimentalObjectBrowserNode(
+        return ObjectBrowserNode(
             id: databaseID,
             row: .database(session, database, isLoading: isLoading),
             children: children
@@ -153,13 +153,13 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
         settings: GlobalSettings,
         expandedNodeIDs: Set<String>,
         isLoading: Bool,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
         if isLoading {
             return [
-                ExperimentalObjectBrowserNode(
-                    id: ExperimentalObjectBrowserSidebarViewModel.loadingNodeID(
-                        parentID: ExperimentalObjectBrowserSidebarViewModel.databaseNodeID(
+                ObjectBrowserNode(
+                    id: ObjectBrowserSidebarViewModel.loadingNodeID(
+                        parentID: ObjectBrowserSidebarViewModel.databaseNodeID(
                             connectionID: session.connection.id,
                             databaseName: database.name
                         )
@@ -171,9 +171,9 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
 
         guard session.hasLoadedSchema(forDatabase: database.name) else {
             return [
-                ExperimentalObjectBrowserNode(
-                    id: ExperimentalObjectBrowserSidebarViewModel.loadingNodeID(
-                        parentID: ExperimentalObjectBrowserSidebarViewModel.databaseNodeID(
+                ObjectBrowserNode(
+                    id: ObjectBrowserSidebarViewModel.loadingNodeID(
+                        parentID: ObjectBrowserSidebarViewModel.databaseNodeID(
                             connectionID: session.connection.id,
                             databaseName: database.name
                         )
@@ -188,23 +188,34 @@ enum ExperimentalObjectBrowserSnapshotBuilder {
 
         let objectGroupNodes = supportedTypes.map { type in
             let objects = snapshot[type] ?? []
-            let groupID = ExperimentalObjectBrowserSidebarViewModel.objectGroupNodeID(
+            let groupID = ObjectBrowserSidebarViewModel.objectGroupNodeID(
                 connectionID: session.connection.id,
                 databaseName: database.name,
                 objectType: type
             )
-            let groupChildren = objects.map {
-                ExperimentalObjectBrowserNode(
-                    id: ExplorerSidebarIdentity.object(
-                        connectionID: session.connection.id,
-                        databaseName: database.name,
-                        objectID: $0.id
-                    ),
-                    row: .object(session, database.name, $0)
+            let showsColumns = type == .table || type == .view || type == .materializedView
+            let groupChildren = objects.map { object -> ObjectBrowserNode in
+                let objectID = ExplorerSidebarIdentity.object(
+                    connectionID: session.connection.id,
+                    databaseName: database.name,
+                    objectID: object.id
+                )
+                let columnChildren: [ObjectBrowserNode] = showsColumns && !object.columns.isEmpty
+                    ? object.columns.map { col in
+                        ObjectBrowserNode(
+                            id: "\(objectID)#col#\(col.name)",
+                            row: .column(col, objectType: type, depth: 4)
+                        )
+                    }
+                    : []
+                return ObjectBrowserNode(
+                    id: objectID,
+                    row: .object(session, database.name, object),
+                    children: columnChildren
                 )
             }
 
-            return ExperimentalObjectBrowserNode(
+            return ObjectBrowserNode(
                 id: groupID,
                 row: .objectGroup(session, database.name, type, count: objects.count),
                 children: groupChildren

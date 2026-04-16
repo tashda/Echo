@@ -2,7 +2,7 @@ import Foundation
 import SQLServerKit
 
 @MainActor @Observable
-final class ExperimentalObjectBrowserSidebarViewModel {
+final class ObjectBrowserSidebarViewModel {
     var expandedNodeIDs: Set<String> = []
     var selectedNodeID: String?
     var hideOfflineDatabasesBySession: [UUID: Bool] = [:]
@@ -188,7 +188,7 @@ final class ExperimentalObjectBrowserSidebarViewModel {
     }
 }
 
-extension ExperimentalObjectBrowserSidebarViewModel {
+extension ObjectBrowserSidebarViewModel {
     static func serverNodeID(connectionID: UUID) -> String {
         "\(connectionID.uuidString)#server"
     }
@@ -211,14 +211,14 @@ extension ExperimentalObjectBrowserSidebarViewModel {
 
     static func serverFolderNodeID(
         connectionID: UUID,
-        kind: ExperimentalObjectBrowserServerFolderKind
+        kind: ObjectBrowserServerFolderKind
     ) -> String {
         "\(connectionID.uuidString)#server-folder#\(kind.rawValue)"
     }
 
     static func securitySectionNodeID(
         connectionID: UUID,
-        kind: ExperimentalObjectBrowserSecuritySectionKind,
+        kind: ObjectBrowserSecuritySectionKind,
         parentID: String
     ) -> String {
         "\(parentID)#security-section#\(connectionID.uuidString)#\(kind.rawValue)"
@@ -227,7 +227,7 @@ extension ExperimentalObjectBrowserSidebarViewModel {
     static func securityLeafNodeID(
         connectionID: UUID,
         parentID: String,
-        kind: ExperimentalObjectBrowserSecuritySectionKind,
+        kind: ObjectBrowserSecuritySectionKind,
         name: String
     ) -> String {
         "\(parentID)#security-leaf#\(connectionID.uuidString)#\(kind.rawValue)#\(name)"
@@ -236,7 +236,7 @@ extension ExperimentalObjectBrowserSidebarViewModel {
     static func actionNodeID(
         connectionID: UUID,
         parentID: String?,
-        kind: ExperimentalObjectBrowserActionKind
+        kind: ObjectBrowserActionKind
     ) -> String {
         "\(parentID ?? connectionID.uuidString)#action#\(kind.rawValue)"
     }
@@ -244,7 +244,7 @@ extension ExperimentalObjectBrowserSidebarViewModel {
     static func databaseFolderNodeID(
         connectionID: UUID,
         databaseName: String,
-        kind: ExperimentalObjectBrowserDatabaseFolderKind
+        kind: ObjectBrowserDatabaseFolderKind
     ) -> String {
         "\(connectionID.uuidString)#db#\(databaseName)#folder#\(kind.rawValue)"
     }
