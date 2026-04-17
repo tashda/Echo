@@ -195,7 +195,9 @@ final class ConnectionSessionTests: XCTestCase {
             databases: [
                 DatabaseInfo(
                     name: "loaded",
-                    schemas: [SchemaInfo(name: "public", objects: [TestFixtures.schemaObjectInfo(name: "users")])]
+                    schemas: [SchemaInfo(name: "public", objects: [
+                        TestFixtures.schemaObjectInfo(name: "users", columns: [TestFixtures.columnInfo()])
+                    ])]
                 ),
                 DatabaseInfo(name: "list_only", schemas: [])
             ]
