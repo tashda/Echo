@@ -99,23 +99,61 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
         ])
         cleanupSQL("DROP TABLE [\(tableName)]")
 
+        let uuids = [UUID(), UUID(), UUID()]
         _ = try await sqlserverClient.admin.insertRows(
             into: tableName,
             columns: ["id", "guid"],
             values: [
-                [.int(1), .uuid(UUID())],
-                [.int(2), .uuid(UUID())],
-                [.int(3), .uuid(UUID())]
+                [.int(1), .uuid(uuids[0])],
+                [.int(2), .uuid(uuids[1])],
+                [.int(3), .uuid(uuids[2])]
             ]
         )
 
         let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
         IntegrationTestHelpers.assertRowCount(result, expected: 3)
 
-        // All GUIDs should be unique
         let guids = result.rows.compactMap { $0[1] }
         XCTAssertEqual(guids.count, 3, "All GUIDs should be non-null")
         XCTAssertEqual(Set(guids).count, 3, "All GUIDs should be unique")
+
+        // Verify byte-order correctness: displayed GUID must match what was inserted.
+        // SQL Server uses mixed-endian storage; incorrect byte swapping produces a
+        // different string that SQL Server cannot find via WHERE pk = 'displayed-guid'.
+        for (index, uuid) in uuids.enumerated() {
+            let expected = uuid.uuidString.uppercased()
+            let actual = guids[index].uppercased()
+            XCTAssertEqual(actual, expected, "GUID at row \(index + 1) must round-trip correctly through SQL Server's mixed-endian encoding")
+        }
+    }
+
+    func testUniqueidentifierWhereClause() async throws {
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .uniqueidentifier, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "val", definition: .standard(.init(dataType: .nvarchar, length: 50)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
+
+        let knownGuid = UUID()
+        _ = try await sqlserverClient.admin.insertRow(
+            into: tableName,
+            values: ["id": .uuid(knownGuid), "val": .nString("hello")]
+        )
+
+        // Read the row back first to get what Echo displays.
+        let allRows = try await query("SELECT * FROM [\(tableName)]")
+        IntegrationTestHelpers.assertRowCount(allRows, expected: 1)
+        let displayedGuid = allRows.rows[0][0] ?? ""
+        XCTAssertFalse(displayedGuid.isEmpty, "Displayed GUID must not be empty")
+
+        // The displayed GUID must equal the original UUID (case-insensitive).
+        XCTAssertEqual(displayedGuid.uppercased(), knownGuid.uuidString.uppercased(),
+            "Displayed GUID must match the inserted UUID; incorrect byte-swap causes WHERE clause lookups to fail")
+
+        // Query by the displayed GUID — this must return exactly one row.
+        let filtered = try await query("SELECT * FROM [\(tableName)] WHERE [id] = '\(displayedGuid)'")
+        IntegrationTestHelpers.assertRowCount(filtered, expected: 1)
     }
 
     // MARK: - XML
