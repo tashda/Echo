@@ -131,7 +131,7 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName()
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .uniqueidentifier, isPrimaryKey: true))),
-            SQLServerColumnDefinition(name: "val", definition: .standard(.init(dataType: .nvarchar, length: 50)))
+            SQLServerColumnDefinition(name: "val", definition: .standard(.init(dataType: .nvarchar(length: .length(50)))))
         ])
         cleanupSQL("DROP TABLE [\(tableName)]")
 
