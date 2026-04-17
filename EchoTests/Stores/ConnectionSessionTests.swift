@@ -205,7 +205,9 @@ final class ConnectionSessionTests: XCTestCase {
 
         cs.hydrateMetadataFreshnessFromCacheStructure()
 
-        XCTAssertEqual(cs.metadataFreshness(forDatabase: "loaded"), .cached)
+        // hydrateMetadataFreshnessFromCacheStructure marks databases with columns as .live
+        // (not .cached) so the first sidebar expand is instant without a background fetch.
+        XCTAssertEqual(cs.metadataFreshness(forDatabase: "loaded"), .live)
         XCTAssertEqual(cs.metadataFreshness(forDatabase: "list_only"), .listOnly)
     }
 
