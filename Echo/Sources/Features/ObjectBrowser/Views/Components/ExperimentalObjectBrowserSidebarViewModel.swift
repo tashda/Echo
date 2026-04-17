@@ -18,6 +18,7 @@ final class ObjectBrowserSidebarViewModel {
     var ssisLoadingBySession: [UUID: Bool] = [:]
     var databaseSnapshotsBySession: [UUID: [SQLServerDatabaseSnapshot]] = [:]
     var databaseSnapshotsLoadingBySession: [UUID: Bool] = [:]
+    var databaseSnapshotsExpandedBySession: [UUID: Bool] = [:]
     var serverTriggersBySession: [UUID: [ServerTriggerItem]] = [:]
     var serverTriggersLoadingBySession: [UUID: Bool] = [:]
     var securityLoginsBySession: [UUID: [SecurityLoginItem]] = [:]
@@ -45,9 +46,19 @@ final class ObjectBrowserSidebarViewModel {
 
     @ObservationIgnored var initializedConnectionIDs: Set<UUID> = []
 
+    private static func hideOfflineKey(for connectionID: UUID) -> String {
+        "echo.sidebar.hideOffline.\(connectionID.uuidString)"
+    }
+
+    func setHideOffline(_ hidden: Bool, for connectionID: UUID) {
+        hideOfflineDatabasesBySession[connectionID] = hidden
+        UserDefaults.standard.set(hidden, forKey: Self.hideOfflineKey(for: connectionID))
+    }
+
     func synchronizeDefaults(
         sessions: [ConnectionSession],
-        autoExpandSectionsForDatabaseType: (DatabaseType) -> Set<SidebarAutoExpandSection>
+        autoExpandSectionsForDatabaseType: (DatabaseType) -> Set<SidebarAutoExpandSection>,
+        hideOfflineDefault: Bool = false
     ) {
         let validConnectionIDs = Set(sessions.map(\.connection.id))
         initializedConnectionIDs = initializedConnectionIDs.intersection(validConnectionIDs)
@@ -55,6 +66,14 @@ final class ObjectBrowserSidebarViewModel {
 
         for session in sessions where !initializedConnectionIDs.contains(session.connection.id) {
             initializedConnectionIDs.insert(session.connection.id)
+
+            // Load per-connection hide offline state from UserDefaults, falling back to global default
+            let key = Self.hideOfflineKey(for: session.connection.id)
+            if let saved = UserDefaults.standard.object(forKey: key) as? Bool {
+                hideOfflineDatabasesBySession[session.connection.id] = saved
+            } else {
+                hideOfflineDatabasesBySession[session.connection.id] = hideOfflineDefault
+            }
 
             expanded.insert(Self.serverNodeID(connectionID: session.connection.id))
 
