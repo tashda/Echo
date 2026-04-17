@@ -1,11 +1,11 @@
 import Foundation
 
-extension ExperimentalObjectBrowserSnapshotBuilder {
+extension ObjectBrowserSnapshotBuilder {
     static func databaseSupplementaryChildren(
         for session: ConnectionSession,
         database: DatabaseInfo,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
         switch session.connection.databaseType {
         case .microsoftSQL:
             guard database.isOnline else { return [] }
@@ -23,10 +23,10 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     private static func databaseSecurityFolderNode(
         for session: ConnectionSession,
         database: DatabaseInfo,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> ExperimentalObjectBrowserNode {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> ObjectBrowserNode {
         let dbKey = viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: database.name)
-        let nodeID = ExperimentalObjectBrowserSidebarViewModel.databaseFolderNodeID(
+        let nodeID = ObjectBrowserSidebarViewModel.databaseFolderNodeID(
             connectionID: session.connection.id,
             databaseName: database.name,
             kind: .security
@@ -37,7 +37,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         let appRoles = viewModel.dbSecurityAppRolesByDB[dbKey] ?? []
         let schemas = viewModel.dbSecuritySchemasByDB[dbKey] ?? []
 
-        let children: [ExperimentalObjectBrowserNode] = [
+        let children: [ObjectBrowserNode] = [
             databaseSubfolderNode(
                 session: session,
                 databaseName: database.name,
@@ -80,7 +80,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
             )
         ]
 
-        return ExperimentalObjectBrowserNode(
+        return ObjectBrowserNode(
             id: nodeID,
             row: .databaseFolder(session, database.name, .security, count: nil, isLoading: isLoading),
             children: children
@@ -90,32 +90,32 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     private static func databaseDDLTriggersFolderNode(
         for session: ConnectionSession,
         database: DatabaseInfo,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> ExperimentalObjectBrowserNode {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> ObjectBrowserNode {
         let dbKey = viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: database.name)
-        let nodeID = ExperimentalObjectBrowserSidebarViewModel.databaseFolderNodeID(
+        let nodeID = ObjectBrowserSidebarViewModel.databaseFolderNodeID(
             connectionID: session.connection.id,
             databaseName: database.name,
             kind: .databaseTriggers
         )
         let items = viewModel.dbDDLTriggersByDB[dbKey] ?? []
         let isLoading = viewModel.dbDDLTriggersLoadingByDB[dbKey] ?? false
-        let children: [ExperimentalObjectBrowserNode]
+        let children: [ObjectBrowserNode]
 
         if isLoading && items.isEmpty {
-            children = [ExperimentalObjectBrowserNode(id: "\(nodeID)#loading", row: .loading("Loading database triggers…", depth: 3))]
+            children = [ObjectBrowserNode(id: "\(nodeID)#loading", row: .loading("Loading database triggers…", depth: 3))]
         } else if items.isEmpty {
-            children = [ExperimentalObjectBrowserNode(id: "\(nodeID)#empty", row: .infoLeaf("No database triggers", systemImage: "bolt", paletteTitle: "Database Triggers", depth: 3))]
+            children = [ObjectBrowserNode(id: "\(nodeID)#empty", row: .infoLeaf("No database triggers", systemImage: "bolt", paletteTitle: "Database Triggers", depth: 3))]
         } else {
             children = items.map {
-                ExperimentalObjectBrowserNode(
-                    id: ExperimentalObjectBrowserSidebarViewModel.databaseItemNodeID(parentID: nodeID, title: $0.name),
+                ObjectBrowserNode(
+                    id: ObjectBrowserSidebarViewModel.databaseItemNodeID(parentID: nodeID, title: $0.name),
                     row: .databaseNamedItem(session, database.name, title: $0.name, systemImage: "bolt", paletteTitle: "Database Triggers", detail: $0.isDisabled ? "Disabled" : nil)
                 )
             }
         }
 
-        return ExperimentalObjectBrowserNode(
+        return ObjectBrowserNode(
             id: nodeID,
             row: .databaseFolder(session, database.name, .databaseTriggers, count: items.isEmpty ? nil : items.count, isLoading: isLoading),
             children: children
@@ -125,10 +125,10 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     private static func serviceBrokerFolderNode(
         for session: ConnectionSession,
         database: DatabaseInfo,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> ExperimentalObjectBrowserNode {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> ObjectBrowserNode {
         let dbKey = viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: database.name)
-        let nodeID = ExperimentalObjectBrowserSidebarViewModel.databaseFolderNodeID(
+        let nodeID = ObjectBrowserSidebarViewModel.databaseFolderNodeID(
             connectionID: session.connection.id,
             databaseName: database.name,
             kind: .serviceBroker
@@ -143,7 +143,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
             databaseSubfolderNode(session: session, databaseName: database.name, parentID: nodeID, title: "Remote Service Bindings", systemImage: "tray", paletteTitle: "Service Broker", items: (viewModel.serviceBrokerBindingsByDB[dbKey] ?? []).map { ($0, "doc", "Service Broker", nil) }, emptyTitle: "None")
         ]
 
-        return ExperimentalObjectBrowserNode(
+        return ObjectBrowserNode(
             id: nodeID,
             row: .databaseFolder(session, database.name, .serviceBroker, count: nil, isLoading: isLoading),
             children: children
@@ -153,10 +153,10 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     private static func externalResourcesFolderNode(
         for session: ConnectionSession,
         database: DatabaseInfo,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> ExperimentalObjectBrowserNode {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> ObjectBrowserNode {
         let dbKey = viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: database.name)
-        let nodeID = ExperimentalObjectBrowserSidebarViewModel.databaseFolderNodeID(
+        let nodeID = ObjectBrowserSidebarViewModel.databaseFolderNodeID(
             connectionID: session.connection.id,
             databaseName: database.name,
             kind: .externalResources
@@ -168,7 +168,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
             databaseSubfolderNode(session: session, databaseName: database.name, parentID: nodeID, title: "External File Formats", systemImage: "externaldrive", paletteTitle: "External Resources", items: (viewModel.externalFileFormatsByDB[dbKey] ?? []).map { ($0, "doc", "External Resources", nil) }, emptyTitle: "None")
         ]
 
-        return ExperimentalObjectBrowserNode(
+        return ObjectBrowserNode(
             id: nodeID,
             row: .databaseFolder(session, database.name, .externalResources, count: nil, isLoading: isLoading),
             children: children
@@ -184,20 +184,20 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         paletteTitle: String,
         items: [(title: String, systemImage: String, paletteTitle: String, detail: String?)],
         emptyTitle: String
-    ) -> ExperimentalObjectBrowserNode {
-        let nodeID = ExperimentalObjectBrowserSidebarViewModel.databaseSubfolderNodeID(parentID: parentID, title: title)
-        let children: [ExperimentalObjectBrowserNode]
+    ) -> ObjectBrowserNode {
+        let nodeID = ObjectBrowserSidebarViewModel.databaseSubfolderNodeID(parentID: parentID, title: title)
+        let children: [ObjectBrowserNode]
         if items.isEmpty {
             children = [
-                ExperimentalObjectBrowserNode(
-                    id: ExperimentalObjectBrowserSidebarViewModel.databaseItemNodeID(parentID: nodeID, title: emptyTitle),
+                ObjectBrowserNode(
+                    id: ObjectBrowserSidebarViewModel.databaseItemNodeID(parentID: nodeID, title: emptyTitle),
                     row: .infoLeaf(emptyTitle, systemImage: systemImage, paletteTitle: paletteTitle, depth: 4)
                 )
             ]
         } else {
             children = items.map {
-                ExperimentalObjectBrowserNode(
-                    id: ExperimentalObjectBrowserSidebarViewModel.databaseItemNodeID(parentID: nodeID, title: $0.title),
+                ObjectBrowserNode(
+                    id: ObjectBrowserSidebarViewModel.databaseItemNodeID(parentID: nodeID, title: $0.title),
                     row: .databaseNamedItem(
                         session,
                         databaseName,
@@ -210,7 +210,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
             }
         }
 
-        return ExperimentalObjectBrowserNode(
+        return ObjectBrowserNode(
             id: nodeID,
             row: .databaseSubfolder(session, databaseName, title: title, systemImage: systemImage, paletteTitle: paletteTitle, count: items.isEmpty ? nil : items.count),
             children: children

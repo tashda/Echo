@@ -1,7 +1,7 @@
 import SwiftUI
 import SQLServerKit
 
-extension ExperimentalObjectBrowserSidebarView {
+extension ObjectBrowserSidebarView {
     func loadDatabaseSecurityIfNeeded(database: DatabaseInfo, session: ConnectionSession) {
         let dbKey = viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: database.name)
         let hasData = !(viewModel.dbSecurityUsersByDB[dbKey] ?? []).isEmpty

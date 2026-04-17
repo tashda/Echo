@@ -2,8 +2,8 @@ import SwiftUI
 import AppKit
 import SQLServerKit
 
-struct ExperimentalObjectBrowserRowView: View {
-    let node: ExperimentalObjectBrowserNode
+struct ObjectBrowserRowView: View {
+    let node: ObjectBrowserNode
     let isExpanded: Bool
     let isSelected: Bool
     let outlineLevel: Int
@@ -139,6 +139,7 @@ struct ExperimentalObjectBrowserRowView: View {
                     icon: .system(objectIconName(object.type)),
                     label: object.fullName,
                     subtitle: objectSubtitle(object),
+                    isExpanded: object.columns.isEmpty ? nil : Binding(get: { isExpanded }, set: { _ in onActivate() }),
                     isSelected: isSelected,
                     iconColor: ExplorerSidebarPalette.objectGroupIconColor(
                         for: object.type,
@@ -147,6 +148,19 @@ struct ExperimentalObjectBrowserRowView: View {
                     accentColor: resolvedAccentColor(for: session.connection)
                 )
             }
+        case .column(let column, _, _):
+            DatabaseObjectColumnRow(
+                column: column,
+                isHovered: false,
+                onCopyName: {
+#if os(macOS)
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(column.name, forType: .string)
+#endif
+                },
+                onRename: {},
+                onDrop: {}
+            )
         case .serverFolder(_, let kind, let count):
             buttonRow {
                 SidebarRow(
@@ -532,7 +546,7 @@ struct ExperimentalObjectBrowserRowView: View {
     }
 
     private func securityLoginIconName(
-        _ login: ExperimentalObjectBrowserSidebarViewModel.SecurityLoginItem
+        _ login: ObjectBrowserSidebarViewModel.SecurityLoginItem
     ) -> String {
         if login.loginType == "Group Role" {
             return "person.2.circle"
@@ -541,7 +555,7 @@ struct ExperimentalObjectBrowserRowView: View {
     }
 
     private func securityLoginIconColor(
-        _ login: ExperimentalObjectBrowserSidebarViewModel.SecurityLoginItem
+        _ login: ObjectBrowserSidebarViewModel.SecurityLoginItem
     ) -> Color {
         if login.isDisabled {
             return ColorTokens.Text.quaternary

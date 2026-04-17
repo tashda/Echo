@@ -25,7 +25,7 @@
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "08602c701c2e761753d4123eb76cd5b163cd53c2"
+        "revision" : "5c060b5907ce6ddb8f3deadf3ae014118b94e241"
       }
     },
     {
@@ -43,7 +43,7 @@
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "b4375fee0985ce8c60e40245cfcf09af4bed572d"
+        "revision" : "3b9f60b7a28948a991c91eafcba8af08458bd9c5"
       }
     },
     {
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/vapor/sqlite-nio",
       "state" : {
-        "revision" : "f768ac53297df50c5a012eadc879cf8e7b7a2cf5",
-        "version" : "1.12.6"
+        "revision" : "f08ed5a6c8ea205121cb698465f9af0ffc955995",
+        "version" : "1.12.7"
       }
     },
     {
@@ -70,7 +70,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "cd1cf5e220a49e7e1561bbab8e0851342c7c51fd"
+        "revision" : "cf7d65bd8a4cc8df915d23cda1b2ae78d677cd2c"
       }
     },
     {
@@ -168,8 +168,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
       "state" : {
-        "revision" : "8c0f217f01000dd30f60d6e536569ad4e74291f9",
-        "version" : "1.11.0"
+        "revision" : "5073617dac96330a486245e4c0179cb0a6fd2256",
+        "version" : "1.12.0"
       }
     },
     {
@@ -177,8 +177,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-metrics.git",
       "state" : {
-        "revision" : "f17c111cec972c2a4922cef38cf64f76f7e87886",
-        "version" : "2.8.0"
+        "revision" : "c6593dac9d65f2517280d88c430dadffdf259737",
+        "version" : "2.10.0"
       }
     },
     {

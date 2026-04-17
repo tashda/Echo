@@ -1,7 +1,7 @@
 import SwiftUI
 import SQLServerKit
 
-extension ExperimentalObjectBrowserSidebarView {
+extension ObjectBrowserSidebarView {
     func applySheets<V: View>(to content: V) -> some View {
         content
             .sheet(isPresented: $sheetState.showNewJobSheet) {

@@ -1,11 +1,11 @@
 import Foundation
 import SQLServerKit
 
-extension ExperimentalObjectBrowserSnapshotBuilder {
+extension ObjectBrowserSnapshotBuilder {
     static func serverSupplementaryChildren(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
         switch session.connection.databaseType {
         case .microsoftSQL:
             return [
@@ -35,24 +35,24 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     }
 
     private static func serverFolderNode(
-        _ kind: ExperimentalObjectBrowserServerFolderKind,
+        _ kind: ObjectBrowserServerFolderKind,
         session: ConnectionSession,
         count: Int?,
-        children: [ExperimentalObjectBrowserNode]
-    ) -> ExperimentalObjectBrowserNode {
-        let nodeID = ExperimentalObjectBrowserSidebarViewModel.serverFolderNodeID(
+        children: [ObjectBrowserNode]
+    ) -> ObjectBrowserNode {
+        let nodeID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
             connectionID: session.connection.id,
             kind: kind
         )
-        return ExperimentalObjectBrowserNode(
+        return ObjectBrowserNode(
             id: nodeID,
             row: .serverFolder(session, kind, count: count),
             children: children
         )
     }
 
-    private static func managementChildren(for session: ConnectionSession) -> [ExperimentalObjectBrowserNode] {
-        let parentID = ExperimentalObjectBrowserSidebarViewModel.serverFolderNodeID(
+    private static func managementChildren(for session: ConnectionSession) -> [ObjectBrowserNode] {
+        let parentID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
             connectionID: session.connection.id,
             kind: .management
         )
@@ -71,7 +71,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func snapshotCount(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
+        viewModel: ObjectBrowserSidebarViewModel
     ) -> Int? {
         let items = viewModel.databaseSnapshotsBySession[session.connection.id] ?? []
         return items.isEmpty ? nil : items.count
@@ -79,9 +79,9 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func snapshotChildren(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
-        let parentID = ExperimentalObjectBrowserSidebarViewModel.serverFolderNodeID(
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
+        let parentID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
             connectionID: session.connection.id,
             kind: .databaseSnapshots
         )
@@ -89,13 +89,13 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         let isLoading = viewModel.databaseSnapshotsLoadingBySession[session.connection.id] ?? false
 
         if isLoading {
-            return [ExperimentalObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading snapshots…", depth: 1))]
+            return [ObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading snapshots…", depth: 1))]
         }
         if items.isEmpty {
             return [infoNode(title: "No snapshots", systemImage: "camera", paletteTitle: "Database Snapshots", depth: 1, parentID: parentID)]
         }
         return items.map {
-            ExperimentalObjectBrowserNode(
+            ObjectBrowserNode(
                 id: "\(parentID)#snapshot#\($0.name)",
                 row: .databaseSnapshot(session, $0)
             )
@@ -104,7 +104,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func agentJobCount(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
+        viewModel: ObjectBrowserSidebarViewModel
     ) -> Int? {
         let items = viewModel.agentJobsBySession[session.connection.id] ?? []
         return items.isEmpty ? nil : items.count
@@ -112,20 +112,20 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func agentJobChildren(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
-        let parentID = ExperimentalObjectBrowserSidebarViewModel.serverFolderNodeID(
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
+        let parentID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
             connectionID: session.connection.id,
             kind: .agentJobs
         )
         let items = viewModel.agentJobsBySession[session.connection.id] ?? []
         let isLoading = viewModel.agentJobsLoadingBySession[session.connection.id] ?? false
-        var children: [ExperimentalObjectBrowserNode] = [
+        var children: [ObjectBrowserNode] = [
             actionNode(.openJobQueue, session: session, depth: 1, parentID: parentID)
         ]
 
         if isLoading {
-            children.append(ExperimentalObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading jobs…", depth: 1)))
+            children.append(ObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading jobs…", depth: 1)))
             return children
         }
         if items.isEmpty {
@@ -133,7 +133,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
             return children
         }
         children.append(contentsOf: items.map {
-            ExperimentalObjectBrowserNode(
+            ObjectBrowserNode(
                 id: "\(parentID)#job#\($0.id)",
                 row: .agentJob(session, $0)
             )
@@ -143,7 +143,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func ssisCount(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
+        viewModel: ObjectBrowserSidebarViewModel
     ) -> Int? {
         let items = viewModel.ssisFoldersBySession[session.connection.id] ?? []
         return items.isEmpty ? nil : items.count
@@ -151,9 +151,9 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func ssisChildren(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
-        let parentID = ExperimentalObjectBrowserSidebarViewModel.serverFolderNodeID(
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
+        let parentID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
             connectionID: session.connection.id,
             kind: .ssis
         )
@@ -161,13 +161,13 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         let isLoading = viewModel.ssisLoadingBySession[session.connection.id] ?? false
 
         if isLoading {
-            return [ExperimentalObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading catalogs…", depth: 1))]
+            return [ObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading catalogs…", depth: 1))]
         }
         if items.isEmpty {
             return [infoNode(title: "No catalogs found", systemImage: "shippingbox", paletteTitle: "Integration Services Catalogs", depth: 1, parentID: parentID)]
         }
         return items.map {
-            ExperimentalObjectBrowserNode(
+            ObjectBrowserNode(
                 id: "\(parentID)#ssis#\($0.name)",
                 row: .ssisFolder(session, $0)
             )
@@ -176,7 +176,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func linkedServerCount(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
+        viewModel: ObjectBrowserSidebarViewModel
     ) -> Int? {
         let items = viewModel.linkedServersBySession[session.connection.id] ?? []
         return items.isEmpty ? nil : items.count
@@ -184,9 +184,9 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func linkedServerChildren(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
-        let parentID = ExperimentalObjectBrowserSidebarViewModel.serverFolderNodeID(
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
+        let parentID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
             connectionID: session.connection.id,
             kind: .linkedServers
         )
@@ -194,13 +194,13 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         let isLoading = viewModel.linkedServersLoadingBySession[session.connection.id] ?? false
 
         if isLoading {
-            return [ExperimentalObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading linked servers…", depth: 1))]
+            return [ObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading linked servers…", depth: 1))]
         }
         if items.isEmpty {
             return [infoNode(title: "No linked servers", systemImage: "link", paletteTitle: "Linked Servers", depth: 1, parentID: parentID)]
         }
         return items.map {
-            ExperimentalObjectBrowserNode(
+            ObjectBrowserNode(
                 id: "\(parentID)#linked#\($0.id)",
                 row: .linkedServer(session, $0)
             )
@@ -209,7 +209,7 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func serverTriggerCount(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
+        viewModel: ObjectBrowserSidebarViewModel
     ) -> Int? {
         let items = viewModel.serverTriggersBySession[session.connection.id] ?? []
         return items.isEmpty ? nil : items.count
@@ -217,9 +217,9 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
 
     private static func serverTriggerChildren(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
-        let parentID = ExperimentalObjectBrowserSidebarViewModel.serverFolderNodeID(
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
+        let parentID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
             connectionID: session.connection.id,
             kind: .serverTriggers
         )
@@ -227,13 +227,13 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         let isLoading = viewModel.serverTriggersLoadingBySession[session.connection.id] ?? false
 
         if isLoading {
-            return [ExperimentalObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading server triggers…", depth: 1))]
+            return [ObjectBrowserNode(id: "\(parentID)#loading", row: .loading("Loading server triggers…", depth: 1))]
         }
         if items.isEmpty {
             return [infoNode(title: "No server triggers", systemImage: "bolt", paletteTitle: "Server Triggers", depth: 1, parentID: parentID)]
         }
         return items.map {
-            ExperimentalObjectBrowserNode(
+            ObjectBrowserNode(
                 id: "\(parentID)#trigger#\($0.id)",
                 row: .serverTrigger(session, $0)
             )
@@ -241,17 +241,17 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     }
 
     private static func actionNode(
-        _ kind: ExperimentalObjectBrowserActionKind,
+        _ kind: ObjectBrowserActionKind,
         session: ConnectionSession,
         depth: Int,
         parentID: String? = nil
-    ) -> ExperimentalObjectBrowserNode {
-        let nodeID = ExperimentalObjectBrowserSidebarViewModel.actionNodeID(
+    ) -> ObjectBrowserNode {
+        let nodeID = ObjectBrowserSidebarViewModel.actionNodeID(
             connectionID: session.connection.id,
             parentID: parentID,
             kind: kind
         )
-        return ExperimentalObjectBrowserNode(
+        return ObjectBrowserNode(
             id: nodeID,
             row: .action(session, kind, depth: depth)
         )
@@ -263,9 +263,9 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         paletteTitle: String,
         depth: Int,
         parentID: String
-    ) -> ExperimentalObjectBrowserNode {
-        ExperimentalObjectBrowserNode(
-            id: ExperimentalObjectBrowserSidebarViewModel.infoNodeID(parentID: parentID, title: title),
+    ) -> ObjectBrowserNode {
+        ObjectBrowserNode(
+            id: ObjectBrowserSidebarViewModel.infoNodeID(parentID: parentID, title: title),
             row: .infoLeaf(title, systemImage: systemImage, paletteTitle: paletteTitle, depth: depth)
         )
     }

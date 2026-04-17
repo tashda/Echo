@@ -1,6 +1,6 @@
 import Foundation
 
-extension ExperimentalObjectBrowserSidebarViewModel {
+extension ObjectBrowserSidebarViewModel {
     private static let sidebarStateDefaultsKey = "experimentalObjectBrowser.sidebarStateByProject"
 
     struct PersistedSidebarState: Codable {

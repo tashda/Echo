@@ -1,7 +1,7 @@
 import Foundation
 import SQLServerKit
 
-enum ExperimentalObjectBrowserServerFolderKind: String {
+enum ObjectBrowserServerFolderKind: String {
     case security
     case databaseSnapshots
     case agentJobs
@@ -35,7 +35,7 @@ enum ExperimentalObjectBrowserServerFolderKind: String {
     }
 }
 
-enum ExperimentalObjectBrowserSecuritySectionKind: String {
+enum ObjectBrowserSecuritySectionKind: String {
     case logins
     case certificateLogins
     case serverRoles
@@ -66,7 +66,7 @@ enum ExperimentalObjectBrowserSecuritySectionKind: String {
     }
 }
 
-enum ExperimentalObjectBrowserActionKind: String {
+enum ObjectBrowserActionKind: String {
     case maintenance
     case serverProperties
     case activityMonitor
@@ -112,7 +112,7 @@ enum ExperimentalObjectBrowserActionKind: String {
     }
 }
 
-enum ExperimentalObjectBrowserDatabaseFolderKind: String {
+enum ObjectBrowserDatabaseFolderKind: String {
     case security
     case databaseTriggers
     case serviceBroker
@@ -138,7 +138,7 @@ enum ExperimentalObjectBrowserDatabaseFolderKind: String {
 }
 
 @MainActor
-final class ExperimentalObjectBrowserNode: NSObject {
+final class ObjectBrowserNode: NSObject {
     enum Row {
         case topSpacer(CGFloat)
         case pendingConnection(PendingConnection)
@@ -147,20 +147,21 @@ final class ExperimentalObjectBrowserNode: NSObject {
         case database(ConnectionSession, DatabaseInfo, isLoading: Bool)
         case objectGroup(ConnectionSession, String, SchemaObjectInfo.ObjectType, count: Int)
         case object(ConnectionSession, String, SchemaObjectInfo)
-        case serverFolder(ConnectionSession, ExperimentalObjectBrowserServerFolderKind, count: Int?)
-        case databaseFolder(ConnectionSession, String, ExperimentalObjectBrowserDatabaseFolderKind, count: Int?, isLoading: Bool)
+        case column(ColumnInfo, objectType: SchemaObjectInfo.ObjectType, depth: Int)
+        case serverFolder(ConnectionSession, ObjectBrowserServerFolderKind, count: Int?)
+        case databaseFolder(ConnectionSession, String, ObjectBrowserDatabaseFolderKind, count: Int?, isLoading: Bool)
         case databaseSubfolder(ConnectionSession, String, title: String, systemImage: String, paletteTitle: String, count: Int?)
         case databaseNamedItem(ConnectionSession, String, title: String, systemImage: String, paletteTitle: String, detail: String?)
-        case securitySection(ConnectionSession, ExperimentalObjectBrowserSecuritySectionKind, count: Int, isLoading: Bool)
-        case securityLogin(ConnectionSession, ExperimentalObjectBrowserSidebarViewModel.SecurityLoginItem)
-        case securityServerRole(ConnectionSession, ExperimentalObjectBrowserSidebarViewModel.SecurityServerRoleItem)
-        case securityCredential(ConnectionSession, ExperimentalObjectBrowserSidebarViewModel.SecurityCredentialItem)
-        case agentJob(ConnectionSession, ExperimentalObjectBrowserSidebarViewModel.AgentJobItem)
+        case securitySection(ConnectionSession, ObjectBrowserSecuritySectionKind, count: Int, isLoading: Bool)
+        case securityLogin(ConnectionSession, ObjectBrowserSidebarViewModel.SecurityLoginItem)
+        case securityServerRole(ConnectionSession, ObjectBrowserSidebarViewModel.SecurityServerRoleItem)
+        case securityCredential(ConnectionSession, ObjectBrowserSidebarViewModel.SecurityCredentialItem)
+        case agentJob(ConnectionSession, ObjectBrowserSidebarViewModel.AgentJobItem)
         case databaseSnapshot(ConnectionSession, SQLServerDatabaseSnapshot)
-        case linkedServer(ConnectionSession, ExperimentalObjectBrowserSidebarViewModel.LinkedServerItem)
+        case linkedServer(ConnectionSession, ObjectBrowserSidebarViewModel.LinkedServerItem)
         case ssisFolder(ConnectionSession, SQLServerSSISFolder)
-        case serverTrigger(ConnectionSession, ExperimentalObjectBrowserSidebarViewModel.ServerTriggerItem)
-        case action(ConnectionSession, ExperimentalObjectBrowserActionKind, depth: Int)
+        case serverTrigger(ConnectionSession, ObjectBrowserSidebarViewModel.ServerTriggerItem)
+        case action(ConnectionSession, ObjectBrowserActionKind, depth: Int)
         case infoLeaf(String, systemImage: String, paletteTitle: String, depth: Int)
         case loading(String, depth: Int)
         case message(String, systemImage: String, depth: Int)
@@ -168,9 +169,9 @@ final class ExperimentalObjectBrowserNode: NSObject {
 
     let id: String
     var row: Row
-    var children: [ExperimentalObjectBrowserNode]
+    var children: [ObjectBrowserNode]
 
-    init(id: String, row: Row, children: [ExperimentalObjectBrowserNode] = []) {
+    init(id: String, row: Row, children: [ObjectBrowserNode] = []) {
         self.id = id
         self.row = row
         self.children = children

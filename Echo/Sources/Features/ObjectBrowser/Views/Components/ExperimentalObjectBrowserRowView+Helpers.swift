@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension ExperimentalObjectBrowserRowView {
+extension ObjectBrowserRowView {
     func serverDisplayName(_ connection: SavedConnection) -> String {
         let name = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         return name.isEmpty ? connection.host : name

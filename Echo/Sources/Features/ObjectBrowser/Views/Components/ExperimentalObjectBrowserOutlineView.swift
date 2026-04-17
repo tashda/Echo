@@ -1,14 +1,14 @@
 import AppKit
 import SwiftUI
 
-struct ExperimentalObjectBrowserOutlineView: NSViewRepresentable {
-    let roots: [ExperimentalObjectBrowserNode]
+struct ObjectBrowserOutlineView: NSViewRepresentable {
+    let roots: [ObjectBrowserNode]
     let expandedNodeIDs: Set<String>
     let selectedNodeID: String?
-    let rowContent: (ExperimentalObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView
-    let onExpansionChanged: (ExperimentalObjectBrowserNode, Bool) -> Void
-    let onActivation: (ExperimentalObjectBrowserNode) -> Void
-    let onSelectionChanged: (ExperimentalObjectBrowserNode?) -> Void
+    let rowContent: (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView
+    let onExpansionChanged: (ObjectBrowserNode, Bool) -> Void
+    let onActivation: (ObjectBrowserNode) -> Void
+    let onSelectionChanged: (ObjectBrowserNode?) -> Void
     let revealNodeID: String?
     let revealRequestID: Int
 
@@ -57,17 +57,17 @@ struct ExperimentalObjectBrowserOutlineView: NSViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         struct VisibleRow {
-            let node: ExperimentalObjectBrowserNode
+            let node: ObjectBrowserNode
             let depth: Int
         }
 
         let tableView: NSTableView
-        var rowContent: (ExperimentalObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView
-        var onExpansionChanged: (ExperimentalObjectBrowserNode, Bool) -> Void
-        var onActivation: (ExperimentalObjectBrowserNode) -> Void
-        var onSelectionChanged: (ExperimentalObjectBrowserNode?) -> Void
+        var rowContent: (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView
+        var onExpansionChanged: (ObjectBrowserNode, Bool) -> Void
+        var onActivation: (ObjectBrowserNode) -> Void
+        var onSelectionChanged: (ObjectBrowserNode?) -> Void
 
-        private var roots: [ExperimentalObjectBrowserNode] = []
+        private var roots: [ObjectBrowserNode] = []
         private var expandedNodeIDs: Set<String> = []
         private var selectedNodeID: String?
         private var visibleRows: [VisibleRow] = []
@@ -75,10 +75,10 @@ struct ExperimentalObjectBrowserOutlineView: NSViewRepresentable {
         private var lastRevealRequestID = 0
 
         init(
-            rowContent: @escaping (ExperimentalObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView,
-            onExpansionChanged: @escaping (ExperimentalObjectBrowserNode, Bool) -> Void,
-            onActivation: @escaping (ExperimentalObjectBrowserNode) -> Void,
-            onSelectionChanged: @escaping (ExperimentalObjectBrowserNode?) -> Void
+            rowContent: @escaping (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView,
+            onExpansionChanged: @escaping (ObjectBrowserNode, Bool) -> Void,
+            onActivation: @escaping (ObjectBrowserNode) -> Void,
+            onSelectionChanged: @escaping (ObjectBrowserNode?) -> Void
         ) {
             self.rowContent = rowContent
             self.onExpansionChanged = onExpansionChanged
@@ -108,7 +108,7 @@ struct ExperimentalObjectBrowserOutlineView: NSViewRepresentable {
         }
 
         func update(
-            roots: [ExperimentalObjectBrowserNode],
+            roots: [ObjectBrowserNode],
             expandedNodeIDs: Set<String>,
             selectedNodeID: String?,
             revealNodeID: String?,
@@ -261,12 +261,12 @@ struct ExperimentalObjectBrowserOutlineView: NSViewRepresentable {
         }
 
         private func flattenVisibleRows(
-            from roots: [ExperimentalObjectBrowserNode],
+            from roots: [ObjectBrowserNode],
             expandedNodeIDs: Set<String>
         ) -> [VisibleRow] {
             var rows: [VisibleRow] = []
 
-            func append(nodes: [ExperimentalObjectBrowserNode], depth: Int) {
+            func append(nodes: [ObjectBrowserNode], depth: Int) {
                 for node in nodes {
                     rows.append(VisibleRow(node: node, depth: depth))
                     guard expandedNodeIDs.contains(node.id) else { continue }
@@ -278,7 +278,7 @@ struct ExperimentalObjectBrowserOutlineView: NSViewRepresentable {
             return rows
         }
 
-        private func childDepth(for node: ExperimentalObjectBrowserNode, currentDepth: Int) -> Int {
+        private func childDepth(for node: ObjectBrowserNode, currentDepth: Int) -> Int {
             switch node.row {
             case .topSpacer:
                 currentDepth
@@ -290,15 +290,16 @@ struct ExperimentalObjectBrowserOutlineView: NSViewRepresentable {
                 currentDepth + 1
             case .database, .objectGroup, .action, .infoLeaf, .loading, .message, .object,
                     .agentJob, .databaseSnapshot, .linkedServer, .ssisFolder, .serverTrigger,
-                    .securityLogin, .securityServerRole, .securityCredential, .databaseNamedItem:
+                    .securityLogin, .securityServerRole, .securityCredential, .databaseNamedItem,
+                    .column:
                 currentDepth + 1
             }
         }
 
         private func findNode(
             id: String,
-            in nodes: [ExperimentalObjectBrowserNode]
-        ) -> ExperimentalObjectBrowserNode? {
+            in nodes: [ObjectBrowserNode]
+        ) -> ObjectBrowserNode? {
             for node in nodes {
                 if node.id == id {
                     return node

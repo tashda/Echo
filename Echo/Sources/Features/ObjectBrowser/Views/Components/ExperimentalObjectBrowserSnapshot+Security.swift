@@ -1,12 +1,12 @@
 import Foundation
 
-extension ExperimentalObjectBrowserSnapshotBuilder {
+extension ObjectBrowserSnapshotBuilder {
     static func securityChildren(
         for session: ConnectionSession,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
         let connectionID = session.connection.id
-        let parentID = ExperimentalObjectBrowserSidebarViewModel.serverFolderNodeID(
+        let parentID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
             connectionID: connectionID,
             kind: .security
         )
@@ -36,20 +36,20 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         for session: ConnectionSession,
         parentID: String,
         isLoading: Bool,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
         let connectionID = session.connection.id
-        let loginsSectionID = ExperimentalObjectBrowserSidebarViewModel.securitySectionNodeID(
+        let loginsSectionID = ObjectBrowserSidebarViewModel.securitySectionNodeID(
             connectionID: connectionID,
             kind: .logins,
             parentID: parentID
         )
-        let serverRolesSectionID = ExperimentalObjectBrowserSidebarViewModel.securitySectionNodeID(
+        let serverRolesSectionID = ObjectBrowserSidebarViewModel.securitySectionNodeID(
             connectionID: connectionID,
             kind: .serverRoles,
             parentID: parentID
         )
-        let credentialsSectionID = ExperimentalObjectBrowserSidebarViewModel.securitySectionNodeID(
+        let credentialsSectionID = ObjectBrowserSidebarViewModel.securitySectionNodeID(
             connectionID: connectionID,
             kind: .credentials,
             parentID: parentID
@@ -98,15 +98,15 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         for session: ConnectionSession,
         parentID: String,
         isLoading: Bool,
-        viewModel: ExperimentalObjectBrowserSidebarViewModel
-    ) -> [ExperimentalObjectBrowserNode] {
+        viewModel: ObjectBrowserSidebarViewModel
+    ) -> [ObjectBrowserNode] {
         let connectionID = session.connection.id
-        let loginRolesSectionID = ExperimentalObjectBrowserSidebarViewModel.securitySectionNodeID(
+        let loginRolesSectionID = ObjectBrowserSidebarViewModel.securitySectionNodeID(
             connectionID: connectionID,
             kind: .pgLoginRoles,
             parentID: parentID
         )
-        let groupRolesSectionID = ExperimentalObjectBrowserSidebarViewModel.securitySectionNodeID(
+        let groupRolesSectionID = ObjectBrowserSidebarViewModel.securitySectionNodeID(
             connectionID: connectionID,
             kind: .pgGroupRoles,
             parentID: parentID
@@ -152,12 +152,12 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     private static func standardLoginChildren(
         for session: ConnectionSession,
         parentID: String,
-        items: [ExperimentalObjectBrowserSidebarViewModel.SecurityLoginItem],
-        certificateLogins: [ExperimentalObjectBrowserSidebarViewModel.SecurityLoginItem],
+        items: [ObjectBrowserSidebarViewModel.SecurityLoginItem],
+        certificateLogins: [ObjectBrowserSidebarViewModel.SecurityLoginItem],
         isLoading: Bool
-    ) -> [ExperimentalObjectBrowserNode] {
+    ) -> [ObjectBrowserNode] {
         let connectionID = session.connection.id
-        let loginsParentID = ExperimentalObjectBrowserSidebarViewModel.securitySectionNodeID(
+        let loginsParentID = ObjectBrowserSidebarViewModel.securitySectionNodeID(
             connectionID: connectionID,
             kind: .logins,
             parentID: parentID
@@ -197,14 +197,14 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     private static func securityLoginChildren(
         for session: ConnectionSession,
         parentID: String,
-        sectionKind: ExperimentalObjectBrowserSecuritySectionKind,
-        items: [ExperimentalObjectBrowserSidebarViewModel.SecurityLoginItem],
+        sectionKind: ObjectBrowserSecuritySectionKind,
+        items: [ObjectBrowserSidebarViewModel.SecurityLoginItem],
         emptyTitle: String,
         isLoading: Bool
-    ) -> [ExperimentalObjectBrowserNode] {
+    ) -> [ObjectBrowserNode] {
         if isLoading && items.isEmpty {
             return [
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: "\(parentID)#loading",
                     row: .loading("Loading \(sectionKind.title.lowercased())…", depth: 2)
                 )
@@ -212,16 +212,16 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         }
         if items.isEmpty {
             return [
-                ExperimentalObjectBrowserNode(
-                    id: ExperimentalObjectBrowserSidebarViewModel.infoNodeID(parentID: parentID, title: emptyTitle),
+                ObjectBrowserNode(
+                    id: ObjectBrowserSidebarViewModel.infoNodeID(parentID: parentID, title: emptyTitle),
                     row: .infoLeaf(emptyTitle, systemImage: sectionKind.systemImage, paletteTitle: sectionKind.title, depth: 2)
                 )
             ]
         }
 
         return items.map {
-            ExperimentalObjectBrowserNode(
-                id: ExperimentalObjectBrowserSidebarViewModel.securityLeafNodeID(
+            ObjectBrowserNode(
+                id: ObjectBrowserSidebarViewModel.securityLeafNodeID(
                     connectionID: session.connection.id,
                     parentID: parentID,
                     kind: sectionKind,
@@ -235,12 +235,12 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     private static func serverRoleChildren(
         for session: ConnectionSession,
         parentID: String,
-        items: [ExperimentalObjectBrowserSidebarViewModel.SecurityServerRoleItem],
+        items: [ObjectBrowserSidebarViewModel.SecurityServerRoleItem],
         isLoading: Bool
-    ) -> [ExperimentalObjectBrowserNode] {
+    ) -> [ObjectBrowserNode] {
         if isLoading && items.isEmpty {
             return [
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: "\(parentID)#loading",
                     row: .loading("Loading server roles…", depth: 2)
                 )
@@ -248,16 +248,16 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         }
         if items.isEmpty {
             return [
-                ExperimentalObjectBrowserNode(
-                    id: ExperimentalObjectBrowserSidebarViewModel.infoNodeID(parentID: parentID, title: "No server roles found"),
+                ObjectBrowserNode(
+                    id: ObjectBrowserSidebarViewModel.infoNodeID(parentID: parentID, title: "No server roles found"),
                     row: .infoLeaf("No server roles found", systemImage: "shield", paletteTitle: "Server Roles", depth: 2)
                 )
             ]
         }
 
         return items.map {
-            ExperimentalObjectBrowserNode(
-                id: ExperimentalObjectBrowserSidebarViewModel.securityLeafNodeID(
+            ObjectBrowserNode(
+                id: ObjectBrowserSidebarViewModel.securityLeafNodeID(
                     connectionID: session.connection.id,
                     parentID: parentID,
                     kind: .serverRoles,
@@ -271,12 +271,12 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     private static func credentialChildren(
         for session: ConnectionSession,
         parentID: String,
-        items: [ExperimentalObjectBrowserSidebarViewModel.SecurityCredentialItem],
+        items: [ObjectBrowserSidebarViewModel.SecurityCredentialItem],
         isLoading: Bool
-    ) -> [ExperimentalObjectBrowserNode] {
+    ) -> [ObjectBrowserNode] {
         if isLoading && items.isEmpty {
             return [
-                ExperimentalObjectBrowserNode(
+                ObjectBrowserNode(
                     id: "\(parentID)#loading",
                     row: .loading("Loading credentials…", depth: 2)
                 )
@@ -284,16 +284,16 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
         }
         if items.isEmpty {
             return [
-                ExperimentalObjectBrowserNode(
-                    id: ExperimentalObjectBrowserSidebarViewModel.infoNodeID(parentID: parentID, title: "No credentials found"),
+                ObjectBrowserNode(
+                    id: ObjectBrowserSidebarViewModel.infoNodeID(parentID: parentID, title: "No credentials found"),
                     row: .infoLeaf("No credentials found", systemImage: "key", paletteTitle: "Credentials", depth: 2)
                 )
             ]
         }
 
         return items.map {
-            ExperimentalObjectBrowserNode(
-                id: ExperimentalObjectBrowserSidebarViewModel.securityLeafNodeID(
+            ObjectBrowserNode(
+                id: ObjectBrowserSidebarViewModel.securityLeafNodeID(
                     connectionID: session.connection.id,
                     parentID: parentID,
                     kind: .credentials,
@@ -305,19 +305,19 @@ extension ExperimentalObjectBrowserSnapshotBuilder {
     }
 
     private static func securitySectionNode(
-        _ kind: ExperimentalObjectBrowserSecuritySectionKind,
+        _ kind: ObjectBrowserSecuritySectionKind,
         session: ConnectionSession,
         count: Int,
         isLoading: Bool,
         parentID: String,
-        children: [ExperimentalObjectBrowserNode]
-    ) -> ExperimentalObjectBrowserNode {
-        let sectionID = ExperimentalObjectBrowserSidebarViewModel.securitySectionNodeID(
+        children: [ObjectBrowserNode]
+    ) -> ObjectBrowserNode {
+        let sectionID = ObjectBrowserSidebarViewModel.securitySectionNodeID(
             connectionID: session.connection.id,
             kind: kind,
             parentID: parentID
         )
-        return ExperimentalObjectBrowserNode(
+        return ObjectBrowserNode(
             id: sectionID,
             row: .securitySection(session, kind, count: count, isLoading: isLoading),
             children: children

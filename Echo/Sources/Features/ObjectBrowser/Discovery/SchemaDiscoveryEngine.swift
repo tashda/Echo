@@ -40,17 +40,63 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                 session.structureLoadingState = .ready
                 session.structureLoadingMessage = nil
                 handle.succeed()
-                await self.onEnqueuePrefetch?(session)
             } catch is CancellationError {
                 session.structureLoadingState = .idle
                 handle.cancel()
+                return
             } catch {
                 session.structureLoadingMessage = error.localizedDescription
                 session.structureLoadingState = .failed(message: error.localizedDescription)
                 handle.fail(error.localizedDescription)
                 ConnectionDebug.log("[SchemaDiscovery] Load failed: \(error.localizedDescription)")
+                return
             }
+
+            // Background schema prefetch: load schemas for all databases that are still
+            // listOnly (no cached schema yet) so future expands are instant.
+            // Runs serially to avoid overwhelming the server.
+            await self.prefetchPendingSchemas(for: session)
+
+            await self.onEnqueuePrefetch?(session)
         }
+    }
+
+    /// Loads schema for every accessible online database whose schema has not yet been
+    /// fetched (listOnly state). Runs serially in the background so the server is not
+    /// overwhelmed. Each result is merged into the structure and written to cache
+    /// incrementally, so the UI updates live as each database is loaded.
+    private func prefetchPendingSchemas(for session: ConnectionSession) async {
+        guard let structure = session.databaseStructure else { return }
+
+        let pending = structure.databases.filter { db in
+            guard db.isOnline && db.isAccessible else { return false }
+            return session.metadataFreshness(forDatabase: db.name) == .listOnly
+        }
+
+        guard !pending.isEmpty else { return }
+
+        ConnectionDebug.log("[SchemaPrefetch] Starting background prefetch for \(pending.count) databases on \(session.connection.connectionName)")
+
+        for database in pending {
+            guard !Task.isCancelled else { break }
+
+            let freshness = session.metadataFreshness(forDatabase: database.name)
+            guard freshness == .listOnly, !session.isRefreshingMetadata(forDatabase: database.name) else {
+                continue
+            }
+
+            // Use the same in-flight tracking the view uses so that if the user
+            // manually expands a database while prefetch is running, the duplicate
+            // load is suppressed on whichever side arrives second.
+            session.markMetadataRefreshStarted(forDatabase: database.name)
+            guard session.beginSchemaLoad(forDatabase: database.name) else { continue }
+
+            await loadDatabaseSchemaOnly(database.name, for: session)
+
+            session.finishSchemaLoad(forDatabase: database.name)
+        }
+
+        ConnectionDebug.log("[SchemaPrefetch] Background prefetch complete for \(session.connection.connectionName)")
     }
 
     func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {

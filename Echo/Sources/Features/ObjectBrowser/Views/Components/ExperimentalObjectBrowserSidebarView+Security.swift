@@ -2,7 +2,7 @@ import SwiftUI
 import PostgresKit
 import SQLServerKit
 
-extension ExperimentalObjectBrowserSidebarView {
+extension ObjectBrowserSidebarView {
     func loadServerSecurityIfNeeded(session: ConnectionSession) {
         let connID = session.connection.id
         let hasData = !(viewModel.securityLoginsBySession[connID] ?? []).isEmpty

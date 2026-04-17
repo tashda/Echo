@@ -2,7 +2,7 @@ import Foundation
 import SQLServerKit
 
 @MainActor @Observable
-final class ExperimentalObjectBrowserSidebarViewModel {
+final class ObjectBrowserSidebarViewModel {
     var expandedNodeIDs: Set<String> = []
     var selectedNodeID: String?
     var hideOfflineDatabasesBySession: [UUID: Bool] = [:]
@@ -18,6 +18,7 @@ final class ExperimentalObjectBrowserSidebarViewModel {
     var ssisLoadingBySession: [UUID: Bool] = [:]
     var databaseSnapshotsBySession: [UUID: [SQLServerDatabaseSnapshot]] = [:]
     var databaseSnapshotsLoadingBySession: [UUID: Bool] = [:]
+    var databaseSnapshotsExpandedBySession: [UUID: Bool] = [:]
     var serverTriggersBySession: [UUID: [ServerTriggerItem]] = [:]
     var serverTriggersLoadingBySession: [UUID: Bool] = [:]
     var securityLoginsBySession: [UUID: [SecurityLoginItem]] = [:]
@@ -45,9 +46,19 @@ final class ExperimentalObjectBrowserSidebarViewModel {
 
     @ObservationIgnored var initializedConnectionIDs: Set<UUID> = []
 
+    private static func hideOfflineKey(for connectionID: UUID) -> String {
+        "echo.sidebar.hideOffline.\(connectionID.uuidString)"
+    }
+
+    func setHideOffline(_ hidden: Bool, for connectionID: UUID) {
+        hideOfflineDatabasesBySession[connectionID] = hidden
+        UserDefaults.standard.set(hidden, forKey: Self.hideOfflineKey(for: connectionID))
+    }
+
     func synchronizeDefaults(
         sessions: [ConnectionSession],
-        autoExpandSectionsForDatabaseType: (DatabaseType) -> Set<SidebarAutoExpandSection>
+        autoExpandSectionsForDatabaseType: (DatabaseType) -> Set<SidebarAutoExpandSection>,
+        hideOfflineDefault: Bool = false
     ) {
         let validConnectionIDs = Set(sessions.map(\.connection.id))
         initializedConnectionIDs = initializedConnectionIDs.intersection(validConnectionIDs)
@@ -55,6 +66,14 @@ final class ExperimentalObjectBrowserSidebarViewModel {
 
         for session in sessions where !initializedConnectionIDs.contains(session.connection.id) {
             initializedConnectionIDs.insert(session.connection.id)
+
+            // Load per-connection hide offline state from UserDefaults, falling back to global default
+            let key = Self.hideOfflineKey(for: session.connection.id)
+            if let saved = UserDefaults.standard.object(forKey: key) as? Bool {
+                hideOfflineDatabasesBySession[session.connection.id] = saved
+            } else {
+                hideOfflineDatabasesBySession[session.connection.id] = hideOfflineDefault
+            }
 
             expanded.insert(Self.serverNodeID(connectionID: session.connection.id))
 
@@ -188,7 +207,7 @@ final class ExperimentalObjectBrowserSidebarViewModel {
     }
 }
 
-extension ExperimentalObjectBrowserSidebarViewModel {
+extension ObjectBrowserSidebarViewModel {
     static func serverNodeID(connectionID: UUID) -> String {
         "\(connectionID.uuidString)#server"
     }
@@ -211,14 +230,14 @@ extension ExperimentalObjectBrowserSidebarViewModel {
 
     static func serverFolderNodeID(
         connectionID: UUID,
-        kind: ExperimentalObjectBrowserServerFolderKind
+        kind: ObjectBrowserServerFolderKind
     ) -> String {
         "\(connectionID.uuidString)#server-folder#\(kind.rawValue)"
     }
 
     static func securitySectionNodeID(
         connectionID: UUID,
-        kind: ExperimentalObjectBrowserSecuritySectionKind,
+        kind: ObjectBrowserSecuritySectionKind,
         parentID: String
     ) -> String {
         "\(parentID)#security-section#\(connectionID.uuidString)#\(kind.rawValue)"
@@ -227,7 +246,7 @@ extension ExperimentalObjectBrowserSidebarViewModel {
     static func securityLeafNodeID(
         connectionID: UUID,
         parentID: String,
-        kind: ExperimentalObjectBrowserSecuritySectionKind,
+        kind: ObjectBrowserSecuritySectionKind,
         name: String
     ) -> String {
         "\(parentID)#security-leaf#\(connectionID.uuidString)#\(kind.rawValue)#\(name)"
@@ -236,7 +255,7 @@ extension ExperimentalObjectBrowserSidebarViewModel {
     static func actionNodeID(
         connectionID: UUID,
         parentID: String?,
-        kind: ExperimentalObjectBrowserActionKind
+        kind: ObjectBrowserActionKind
     ) -> String {
         "\(parentID ?? connectionID.uuidString)#action#\(kind.rawValue)"
     }
@@ -244,7 +263,7 @@ extension ExperimentalObjectBrowserSidebarViewModel {
     static func databaseFolderNodeID(
         connectionID: UUID,
         databaseName: String,
-        kind: ExperimentalObjectBrowserDatabaseFolderKind
+        kind: ObjectBrowserDatabaseFolderKind
     ) -> String {
         "\(connectionID.uuidString)#db#\(databaseName)#folder#\(kind.rawValue)"
     }
