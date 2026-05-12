@@ -7,7 +7,7 @@
       "location" : "https://github.com/tashda/EchoSense",
       "state" : {
         "branch" : "dev",
-        "revision" : "2cd0783fc40ce4f86dc36a5b5a57d1749e7d72d9"
+        "revision" : "2ca0f168d46d7a98034ade2813ba12ccb509183b"
       }
     },
     {
@@ -70,7 +70,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "cf7d65bd8a4cc8df915d23cda1b2ae78d677cd2c"
+        "revision" : "6154516bc2e6159d1e121a59a9cc80460507c446"
       }
     },
     {
@@ -96,8 +96,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-asn1.git",
       "state" : {
-        "revision" : "9f542610331815e29cc3821d3b6f488db8715517",
-        "version" : "1.6.0"
+        "revision" : "eb50cbd14606a9161cbc5d452f18797c90ef0bab",
+        "version" : "1.7.0"
       }
     },
     {
@@ -150,8 +150,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-crypto",
       "state" : {
-        "revision" : "bb4ba815dab96d4edc1e0b86d7b9acf9ff973a84",
-        "version" : "4.3.1"
+        "revision" : "476538ccb827f2dd18efc5de754cc87d77127a47",
+        "version" : "4.4.0"
       }
     },
     {
@@ -186,8 +186,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "558f24a4647193b5a0e2104031b71c55d31ff83a",
-        "version" : "2.97.1"
+        "revision" : "cd6710454f25733900e133c6caf5188952763c36",
+        "version" : "2.98.0"
       }
     },
     {
@@ -195,8 +195,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-ssl.git",
       "state" : {
-        "revision" : "df9c3406028e3297246e6e7081977a167318b692",
-        "version" : "2.36.1"
+        "revision" : "3f337058ccd7243c4cac7911477d8ad4c598d4da",
+        "version" : "2.37.0"
       }
     },
     {
@@ -204,8 +204,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-transport-services.git",
       "state" : {
-        "revision" : "60c3e187154421171721c1a38e800b390680fb5d",
-        "version" : "1.26.0"
+        "revision" : "9d4e67af1eea85967c7de778ad73e7776e5f1f22",
+        "version" : "1.27.0"
       }
     },
     {
