@@ -17,6 +17,12 @@ struct SidebarSettingsView: View {
                 Text("Collapse other connections when opening a server.")
             }
 
+            Section {
+                Toggle("Pin server and database while scrolling", isOn: pinnedPathToggle)
+            } footer: {
+                Text("Shows the server and database you are scrolled into at the top of the Explorer.")
+            }
+
             Section("Databases") {
                 Toggle("Hide offline databases by default", isOn: hideOfflineToggle)
             }
@@ -63,6 +69,17 @@ struct SidebarSettingsView: View {
             set: { enabled in
                 var updated = settings
                 updated.sidebarExpandOneConnectionAtATime = enabled
+                Task { try? await projectStore.updateGlobalSettings(updated) }
+            }
+        )
+    }
+
+    private var pinnedPathToggle: Binding<Bool> {
+        Binding(
+            get: { settings.sidebarShowsPinnedPath },
+            set: { enabled in
+                var updated = settings
+                updated.sidebarShowsPinnedPath = enabled
                 Task { try? await projectStore.updateGlobalSettings(updated) }
             }
         )

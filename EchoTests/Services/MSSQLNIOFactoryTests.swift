@@ -11,6 +11,7 @@ struct MSSQLNIOFactoryTests {
             trustServerCertificate: true,
             sslRootCertPath: nil,
             mssqlEncryptionMode: .optional,
+            hostNameInCertificate: nil,
             readOnlyIntent: false,
             authentication: .init(
                 method: .sqlPassword,
@@ -32,6 +33,7 @@ struct MSSQLNIOFactoryTests {
             trustServerCertificate: true,
             sslRootCertPath: nil,
             mssqlEncryptionMode: .optional,
+            hostNameInCertificate: nil,
             readOnlyIntent: false,
             authentication: .init(
                 method: .sqlPassword,

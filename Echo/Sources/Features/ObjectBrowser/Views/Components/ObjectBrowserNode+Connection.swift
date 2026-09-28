@@ -32,4 +32,35 @@ extension ObjectBrowserNode.Row {
             return nil
         }
     }
+
+    /// The database a row belongs to, when the row carries one directly.
+    @MainActor
+    var databaseName: String? {
+        switch self {
+        case .database(_, let database, _):
+            return database.name
+        case .objectGroup(_, let databaseName, _, _),
+             .object(_, let databaseName, _),
+             .databaseFolder(_, let databaseName, _, _, _),
+             .databaseSubfolder(_, let databaseName, _, _, _, _),
+             .databaseNamedItem(_, let databaseName, _, _, _, _):
+            return databaseName
+        default:
+            return nil
+        }
+    }
+
+    @MainActor
+    var isServerHeader: Bool {
+        if case .server = self { return true }
+        return false
+    }
+}
+
+/// What sits at the top of the Explorer's visible area.
+struct ObjectBrowserTopVisibleContext: Equatable {
+    var connectionID: UUID?
+    var databaseName: String?
+    /// True once the server's own header has scrolled out of view.
+    var isScrolledPastServerHeader: Bool
 }

@@ -11,6 +11,7 @@ struct ObjectBrowserSidebarView: View {
 
     @State var viewModel = ObjectBrowserSidebarViewModel()
     @State var sheetState = SidebarSheetState()
+    @State private var topVisibleContext = ObjectBrowserTopVisibleContext(isScrolledPastServerHeader: false)
 
     private var sessions: [ConnectionSession] {
         environmentState.sessionGroup.sessions
@@ -82,13 +83,18 @@ struct ObjectBrowserSidebarView: View {
                     },
                     revealNodeID: viewModel.revealedNodeID,
                     revealRequestID: viewModel.revealRequestID,
-                    onTopVisibleConnectionChanged: { connectionID in
-                        railBridge?.topVisibleConnectionID = connectionID
+                    onTopVisibleContextChanged: { context in
+                        railBridge?.topVisibleConnectionID = context.connectionID
+                        topVisibleContext = context
                     }
                 )
                 .background(Color.clear)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .clipped()
+                .overlay(alignment: .top) {
+                    pinnedPathBar
+                }
+                .animation(.easeInOut(duration: 0.22), value: pinnedPathConnectionID)
             }
         }
         .environment(sheetState)
@@ -210,6 +216,64 @@ struct ObjectBrowserSidebarView: View {
         )
         viewModel.revealAndPulse(nodeID: visibleNodeID)
         navigationStore.pendingExplorerRevealConnectionID = nil
+    }
+
+    // MARK: - Pinned path
+
+    /// Connection whose path is pinned, or nil while the server's own header is on screen.
+    private var pinnedPathConnectionID: UUID? {
+        guard projectStore.globalSettings.sidebarShowsPinnedPath,
+              topVisibleContext.isScrolledPastServerHeader
+        else { return nil }
+        return topVisibleContext.connectionID
+    }
+
+    @ViewBuilder
+    private var pinnedPathBar: some View {
+        if let connectionID = pinnedPathConnectionID,
+           let session = sessions.first(where: { $0.connection.id == connectionID }) {
+            ExplorerPinnedPathBar(
+                serverName: displayName(for: session.connection),
+                databaseName: topVisibleContext.databaseName,
+                onScrollToServer: { reveal(nodeID: visibleConnectionRootNodeID(for: connectionID)) },
+                onScrollToDatabase: {
+                    guard let databaseName = topVisibleContext.databaseName else { return }
+                    reveal(nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(
+                        connectionID: connectionID,
+                        databaseName: databaseName
+                    ))
+                },
+                onCollapseOtherDatabases: {
+                    guard let databaseName = topVisibleContext.databaseName else { return }
+                    collapseOtherDatabases(of: session, keeping: databaseName)
+                }
+            )
+            .transition(.opacity.combined(with: .offset(y: -LayoutTokens.PinnedPath.height / 3)))
+        }
+    }
+
+    private func displayName(for connection: SavedConnection) -> String {
+        let name = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? connection.host : name
+    }
+
+    private func reveal(nodeID: String) {
+        viewModel.revealedNodeID = nodeID
+        viewModel.revealRequestID &+= 1
+    }
+
+    /// Folds every other open database on the server and brings the kept one back into view.
+    private func collapseOtherDatabases(of session: ConnectionSession, keeping databaseName: String) {
+        let connectionID = session.connection.id
+        let otherDatabaseIDs = (session.databaseStructure?.databases ?? [])
+            .map(\.name)
+            .filter { $0 != databaseName }
+            .map { ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: connectionID, databaseName: $0) }
+        viewModel.expandedNodeIDs.subtract(otherDatabaseIDs)
+        reveal(nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(
+            connectionID: connectionID,
+            databaseName: databaseName
+        ))
     }
 
     /// The rail's context menus are the same ones the server rows use, so they are built here

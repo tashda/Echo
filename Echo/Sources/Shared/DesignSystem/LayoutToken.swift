@@ -34,6 +34,13 @@ public enum LayoutTokens {
         public static let railGap: CGFloat = SpacingTokens.xxs
     }
 
+    public enum PinnedPath {
+        /// Height of the pinned "server › database" line above the Explorer.
+        public static let height: CGFloat = 28
+        /// How far the blur keeps fading below the line.
+        public static let fadeExtent: CGFloat = 14
+    }
+
     public enum TabNavigation {
         /// Apple recommends a menu or another navigation pattern beyond six tabs.
         public static let maximumVisibleTabCount = 6

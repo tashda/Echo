@@ -157,6 +157,8 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarDensity: SidebarDensity = .medium
     var sidebarExpandOneConnectionAtATime: Bool = true
+    /// Pins "server › database" above the Explorer once the server's header scrolls away.
+    var sidebarShowsPinnedPath: Bool = true
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
     var hideInaccessibleDatabases: Bool = false
@@ -232,6 +234,7 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarIconColorMode
         case sidebarDensity
         case sidebarExpandOneConnectionAtATime
+        case sidebarShowsPinnedPath
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
         case hideInaccessibleDatabases
@@ -326,6 +329,11 @@ struct GlobalSettings: Codable, Hashable {
             forKey: .sidebarExpandOneConnectionAtATime
         ) ?? true
 
+        sidebarShowsPinnedPath = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .sidebarShowsPinnedPath
+        ) ?? true
+
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
 
         hideInaccessibleDatabases = try container.decodeIfPresent(Bool.self, forKey: .hideInaccessibleDatabases) ?? false
@@ -391,6 +399,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
         try container.encode(sidebarExpandOneConnectionAtATime, forKey: .sidebarExpandOneConnectionAtATime)
+        try container.encode(sidebarShowsPinnedPath, forKey: .sidebarShowsPinnedPath)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)
         try container.encode(sidebarHideOfflineDatabasesByDefault, forKey: .sidebarHideOfflineDatabasesByDefault)

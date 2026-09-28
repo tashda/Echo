@@ -15,6 +15,7 @@ struct ObjectBrowserRowView: View {
 
     @Environment(ProjectStore.self) var projectStore
     @Environment(EnvironmentState.self) var environmentState
+    @State private var isHeaderHovering = false
     
     private var depth: Int {
         max(0, outlineLevel)
@@ -525,10 +526,15 @@ struct ObjectBrowserRowView: View {
             }
 
             if showsDisclosure {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                // Finder-style: the chevron rotates, and an open section only shows it on hover.
+                Image(systemName: "chevron.right")
                     .font(TypographyTokens.compact.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.quaternary)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
                     .frame(width: SidebarRowConstants.chevronWidth)
+                    .opacity(isHeaderHovering || !isExpanded ? 1 : 0)
+                    .animation(.snappy(duration: 0.2), value: isExpanded)
+                    .animation(.easeInOut(duration: 0.15), value: isHeaderHovering)
             }
         }
         .padding(.leading, SpacingTokens.xs + SpacingTokens.xxs)
@@ -537,6 +543,7 @@ struct ObjectBrowserRowView: View {
         .padding(.bottom, SpacingTokens.xxxs)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+        .onHover { isHeaderHovering = $0 }
     }
 
     private func pendingConnectionRow(pending: PendingConnection) -> some View {

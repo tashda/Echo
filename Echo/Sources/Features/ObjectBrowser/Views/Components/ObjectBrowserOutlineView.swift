@@ -13,8 +13,8 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
     let onSelectionChanged: (ObjectBrowserNode?) -> Void
     let revealNodeID: String?
     let revealRequestID: Int
-    /// Called when the connection owning the topmost visible row changes, e.g. while scrolling.
-    var onTopVisibleConnectionChanged: ((UUID?) -> Void)? = nil
+    /// Called when the server or database at the top of the visible area changes, e.g. while scrolling.
+    var onTopVisibleContextChanged: ((ObjectBrowserTopVisibleContext) -> Void)? = nil
 
     /// Base row height per density. Inner padding lives inside `SidebarRow`;
     /// this is the slot the table allocates. Values tuned to match
@@ -86,7 +86,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         context.coordinator.onExpansionChanged = onExpansionChanged
         context.coordinator.onActivation = onActivation
         context.coordinator.onSelectionChanged = onSelectionChanged
-        context.coordinator.onTopVisibleConnectionChanged = onTopVisibleConnectionChanged
+        context.coordinator.onTopVisibleContextChanged = onTopVisibleContextChanged
         let densityChanged = context.coordinator.baseRowHeight != Self.baseRowHeight(for: density)
         context.coordinator.baseRowHeight = Self.baseRowHeight(for: density)
         context.coordinator.update(
@@ -99,7 +99,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         if densityChanged {
             context.coordinator.tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0 ..< context.coordinator.tableView.numberOfRows))
         }
-        context.coordinator.reportTopVisibleConnection()
+        context.coordinator.reportTopVisibleContext()
     }
 
     @MainActor
@@ -114,7 +114,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         var onExpansionChanged: (ObjectBrowserNode, Bool) -> Void
         var onActivation: (ObjectBrowserNode) -> Void
         var onSelectionChanged: (ObjectBrowserNode?) -> Void
-        var onTopVisibleConnectionChanged: ((UUID?) -> Void)?
+        var onTopVisibleContextChanged: ((ObjectBrowserTopVisibleContext) -> Void)?
         var baseRowHeight: CGFloat = ObjectBrowserOutlineView.baseRowHeight(for: .medium)
 
         private var roots: [ObjectBrowserNode] = []
@@ -123,7 +123,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         private var visibleRows: [VisibleRow] = []
         private var lastVisibleSignature: [String] = []
         private var lastRevealRequestID = 0
-        private var lastTopVisibleConnectionID: UUID?
+        private var lastTopVisibleContext: ObjectBrowserTopVisibleContext?
 
         init(
             rowContent: @escaping (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView,
@@ -216,27 +216,51 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         }
 
         @objc func clipViewBoundsDidChange(_ notification: Notification) {
-            reportTopVisibleConnection()
+            reportTopVisibleContext()
         }
 
-        /// Reports the connection that owns the row at the top of the visible area. Only fires
-        /// when that connection changes, so scrolling within one server costs nothing.
-        func reportTopVisibleConnection() {
-            guard onTopVisibleConnectionChanged != nil,
+        /// Reports the server and database at the top of the visible area. Only fires when they
+        /// change, so scrolling within one database costs nothing.
+        func reportTopVisibleContext() {
+            guard onTopVisibleContextChanged != nil,
                   let clipView = tableView.enclosingScrollView?.contentView,
                   !visibleRows.isEmpty
             else { return }
 
-            let probe = NSPoint(x: tableView.bounds.midX, y: clipView.bounds.minY + baseRowHeight / 2)
-            let row = max(tableView.row(at: probe), 0)
-            let ownerID = connectionID(nearRow: min(row, visibleRows.count - 1))
-            guard ownerID != lastTopVisibleConnectionID else { return }
-            lastTopVisibleConnectionID = ownerID
+            let scrollY = clipView.bounds.minY
+            let probe = NSPoint(x: tableView.bounds.midX, y: scrollY + baseRowHeight / 2)
+            let row = min(max(tableView.row(at: probe), 0), visibleRows.count - 1)
+            let topRow = visibleRows[row].node.row
+
+            let context = ObjectBrowserTopVisibleContext(
+                connectionID: connectionID(nearRow: row),
+                databaseName: databaseName(nearRow: row),
+                isScrolledPastServerHeader: scrollY > 1 && !topRow.isServerHeader && !isSpacer(topRow)
+            )
+            guard context != lastTopVisibleContext else { return }
+            lastTopVisibleContext = context
 
             // Deferred so a report made from updateNSView never mutates state mid-update.
             DispatchQueue.main.async { [weak self] in
-                self?.onTopVisibleConnectionChanged?(ownerID)
+                self?.onTopVisibleContextChanged?(context)
             }
+        }
+
+        private func isSpacer(_ row: ObjectBrowserNode.Row) -> Bool {
+            if case .topSpacer = row { return true }
+            return false
+        }
+
+        /// Columns carry no database, so they take the object row above them. Server-level rows
+        /// (Security, Agent Jobs…) have none.
+        private func databaseName(nearRow row: Int) -> String? {
+            for index in stride(from: row, through: 0, by: -1) {
+                let candidate = visibleRows[index].node.row
+                if let name = candidate.databaseName { return name }
+                if case .column = candidate { continue }
+                return nil
+            }
+            return nil
         }
 
         /// Rows without a connection (spacers, columns, messages) take the nearest owner above,

@@ -41,6 +41,7 @@ class MSSQLDedicatedDockerTestCase: MSSQLDockerTestCase {
             trustServerCertificate: true,
             sslRootCertPath: nil,
             mssqlEncryptionMode: .optional,
+            hostNameInCertificate: nil,
             readOnlyIntent: false,
             authentication: DatabaseAuthenticationConfiguration(
                 method: .sqlPassword,
