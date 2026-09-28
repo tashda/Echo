@@ -7,19 +7,14 @@ enum ObjectBrowserSnapshotBuilder {
         sessions: [ConnectionSession],
         settings: GlobalSettings,
         viewModel: ObjectBrowserSidebarViewModel,
-        selectedConnectionID: UUID? = nil,
-        connectionDockHeight: CGFloat = SpacingTokens.none
+        selectedConnectionID: UUID? = nil
     ) -> [ObjectBrowserNode] {
         let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
             expandOneConnectionAtATime: settings.sidebarExpandOneConnectionAtATime
         )
         let topSpacer = ObjectBrowserNode(
             id: "explorer-lab#top-spacer",
-            row: .topSpacer(
-                connectionLayoutMode.outlineTopSpacerHeight(
-                    connectionDockHeight: connectionDockHeight
-                )
-            )
+            row: .topSpacer(connectionLayoutMode.outlineTopSpacerHeight)
         )
 
         var rows: [ObjectBrowserNode] = [topSpacer]

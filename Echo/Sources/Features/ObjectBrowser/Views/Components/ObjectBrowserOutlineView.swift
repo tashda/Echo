@@ -13,6 +13,8 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
     let onSelectionChanged: (ObjectBrowserNode?) -> Void
     let revealNodeID: String?
     let revealRequestID: Int
+    /// Called when the connection owning the topmost visible row changes, e.g. while scrolling.
+    var onTopVisibleConnectionChanged: ((UUID?) -> Void)? = nil
 
     /// Base row height per density. Inner padding lives inside `SidebarRow`;
     /// this is the slot the table allocates. Values tuned to match
@@ -63,6 +65,13 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         )
 
         scrollView.documentView = context.coordinator.tableView
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.clipViewBoundsDidChange(_:)),
+            name: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView
+        )
         return scrollView
     }
 
@@ -77,6 +86,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         context.coordinator.onExpansionChanged = onExpansionChanged
         context.coordinator.onActivation = onActivation
         context.coordinator.onSelectionChanged = onSelectionChanged
+        context.coordinator.onTopVisibleConnectionChanged = onTopVisibleConnectionChanged
         let densityChanged = context.coordinator.baseRowHeight != Self.baseRowHeight(for: density)
         context.coordinator.baseRowHeight = Self.baseRowHeight(for: density)
         context.coordinator.update(
@@ -89,6 +99,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         if densityChanged {
             context.coordinator.tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0 ..< context.coordinator.tableView.numberOfRows))
         }
+        context.coordinator.reportTopVisibleConnection()
     }
 
     @MainActor
@@ -103,6 +114,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         var onExpansionChanged: (ObjectBrowserNode, Bool) -> Void
         var onActivation: (ObjectBrowserNode) -> Void
         var onSelectionChanged: (ObjectBrowserNode?) -> Void
+        var onTopVisibleConnectionChanged: ((UUID?) -> Void)?
         var baseRowHeight: CGFloat = ObjectBrowserOutlineView.baseRowHeight(for: .medium)
 
         private var roots: [ObjectBrowserNode] = []
@@ -111,6 +123,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         private var visibleRows: [VisibleRow] = []
         private var lastVisibleSignature: [String] = []
         private var lastRevealRequestID = 0
+        private var lastTopVisibleConnectionID: UUID?
 
         init(
             rowContent: @escaping (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView,
@@ -200,6 +213,42 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
                 reveal(nodeID: revealNodeID)
                 lastRevealRequestID = revealRequestID
             }
+        }
+
+        @objc func clipViewBoundsDidChange(_ notification: Notification) {
+            reportTopVisibleConnection()
+        }
+
+        /// Reports the connection that owns the row at the top of the visible area. Only fires
+        /// when that connection changes, so scrolling within one server costs nothing.
+        func reportTopVisibleConnection() {
+            guard onTopVisibleConnectionChanged != nil,
+                  let clipView = tableView.enclosingScrollView?.contentView,
+                  !visibleRows.isEmpty
+            else { return }
+
+            let probe = NSPoint(x: tableView.bounds.midX, y: clipView.bounds.minY + baseRowHeight / 2)
+            let row = max(tableView.row(at: probe), 0)
+            let ownerID = connectionID(nearRow: min(row, visibleRows.count - 1))
+            guard ownerID != lastTopVisibleConnectionID else { return }
+            lastTopVisibleConnectionID = ownerID
+
+            // Deferred so a report made from updateNSView never mutates state mid-update.
+            DispatchQueue.main.async { [weak self] in
+                self?.onTopVisibleConnectionChanged?(ownerID)
+            }
+        }
+
+        /// Rows without a connection (spacers, columns, messages) take the nearest owner above,
+        /// falling back to the first owner below.
+        private func connectionID(nearRow row: Int) -> UUID? {
+            for index in stride(from: row, through: 0, by: -1) {
+                if let id = visibleRows[index].node.row.connectionID { return id }
+            }
+            for index in row ..< visibleRows.count {
+                if let id = visibleRows[index].node.row.connectionID { return id }
+            }
+            return nil
         }
 
         func numberOfRows(in tableView: NSTableView) -> Int {

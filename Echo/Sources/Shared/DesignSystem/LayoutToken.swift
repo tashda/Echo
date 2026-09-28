@@ -1,24 +1,18 @@
 import SwiftUI
 
 public enum LayoutTokens {
-    public enum Sidebar {
-        /// Matches the horizontal inset of Xcode's navigator tab bar.
-        public static let navigationHorizontalPadding: CGFloat = SpacingTokens.xs2
+    public enum ServerRail {
+        /// Width of the rail column along the sidebar's leading edge.
+        public static let width: CGFloat = 52
 
-        /// Matches the native Golden Gate navigator tab bar height.
-        public static let navigationControlHeight: CGFloat = 28
-    }
+        /// Diameter of a server item and of the glass lens behind the active one.
+        public static let itemSize: CGFloat = 34
 
-    public enum ConnectionDock {
-        /// Keeps connection labels readable while allowing the dock to adapt from
-        /// one column in a narrow sidebar to multiple columns at larger widths.
-        public static let minimumColumnWidth: CGFloat = 144
+        /// Vertical gap between server items.
+        public static let itemSpacing: CGFloat = SpacingTokens.xs
 
-        /// Number of connection choices kept visible in the compact dock.
-        public static let collapsedItemLimit = 2
-
-        /// Shared continuous curvature for the dock and its selected connection.
-        public static let cornerRadius = LayoutTokens.Sidebar.navigationControlHeight / 2
+        /// Size of the + button and the tool buttons at the bottom of the rail.
+        public static let utilitySize: CGFloat = 28
     }
 
     public enum TabNavigation {

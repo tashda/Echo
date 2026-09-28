@@ -14,6 +14,7 @@ struct SidebarMenu: View {
 
     @State var selectedNavSection: NavSection = .folder
     @State var pendingDuplicateConnection: SavedConnection?
+    @State private var railBridge = ServerRailBridge()
 
     enum NavSection: String, CaseIterable {
         case folder = "Explorer"
@@ -40,12 +41,38 @@ struct SidebarMenu: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SidebarSectionTabs(selection: $selectedNavSection)
-                .padding(.horizontal, LayoutTokens.Sidebar.navigationHorizontalPadding)
+        HStack(spacing: 0) {
+            ServerRail(
+                sessions: environmentState.sessionGroup.sessions,
+                pendingConnections: environmentState.pendingConnections,
+                selectedConnectionID: selectedConnectionID,
+                selectedSection: $selectedNavSection,
+                bridge: railBridge,
+                onSelectSession: { session in
+                    environmentState.sessionGroup.setActiveSession(session.id)
+                    navigationStore.revealExplorerConnection(session.connection.id)
+                },
+                onRetryPending: { pending in
+                    environmentState.retryPendingConnection(for: pending.connection.id)
+                }
+            )
 
-            contentView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack {
+                // The Explorer stays alive behind the other tools so it keeps its scroll
+                // position and expansion, and switching back is instant.
+                ObjectBrowserSidebarView(
+                    selectedConnectionID: $selectedConnectionID,
+                    railBridge: railBridge
+                )
+                .opacity(selectedNavSection == .folder ? 1 : 0)
+                .allowsHitTesting(selectedNavSection == .folder)
+                .accessibilityHidden(selectedNavSection != .folder)
+
+                if selectedNavSection != .folder {
+                    contentView(for: selectedNavSection)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
         .confirmationDialog(

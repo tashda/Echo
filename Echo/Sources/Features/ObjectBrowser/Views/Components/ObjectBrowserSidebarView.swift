@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ObjectBrowserSidebarView: View {
     @Binding var selectedConnectionID: UUID?
+    var railBridge: ServerRailBridge?
 
     @Environment(ProjectStore.self) var projectStore
     @Environment(EnvironmentState.self) var environmentState
@@ -10,7 +11,6 @@ struct ObjectBrowserSidebarView: View {
 
     @State var viewModel = ObjectBrowserSidebarViewModel()
     @State var sheetState = SidebarSheetState()
-    @State private var connectionDockHeight: CGFloat = SpacingTokens.none
 
     private var sessions: [ConnectionSession] {
         environmentState.sessionGroup.sessions
@@ -31,8 +31,7 @@ struct ObjectBrowserSidebarView: View {
             sessions: sessions,
             settings: projectStore.globalSettings,
             viewModel: viewModel,
-            selectedConnectionID: selectedConnectionID,
-            connectionDockHeight: connectionDockHeight
+            selectedConnectionID: selectedConnectionID
         )
 
         let mainContent = Group {
@@ -48,76 +47,48 @@ struct ObjectBrowserSidebarView: View {
                 .padding(.vertical, SpacingTokens.xl2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
-                ZStack(alignment: .top) {
-                    ObjectBrowserOutlineView(
-                        roots: roots,
-                        expandedNodeIDs: viewModel.expandedNodeIDs,
-                        selectedNodeID: viewModel.selectedNodeID,
-                        density: projectStore.globalSettings.sidebarDensity,
-                        topScrollerInset: connectionLayoutMode.showsConnectionDock
-                            ? connectionDockHeight
-                            : SpacingTokens.none,
-                        rowContent: { node, isExpanded, outlineLevel, outlineOffset, onActivate in
-                            AnyView(
-                                ObjectBrowserRowView(
-                                    node: node,
-                                    isExpanded: isExpanded,
-                                    isSelected: viewModel.selectedNodeID == node.id,
-                                    outlineLevel: outlineLevel,
-                                    outlineOffset: outlineOffset,
-                                    isHighlighted: viewModel.highlightedNodeID == node.id,
-                                    highlightPulse: viewModel.highlightPulse,
-                                    contextMenuBuilder: { contextMenu(for: node) },
-                                    onActivate: onActivate
-                                )
-                                .environment(projectStore)
-                                .environment(environmentState)
-                                .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
+                ObjectBrowserOutlineView(
+                    roots: roots,
+                    expandedNodeIDs: viewModel.expandedNodeIDs,
+                    selectedNodeID: viewModel.selectedNodeID,
+                    density: projectStore.globalSettings.sidebarDensity,
+                    topScrollerInset: SpacingTokens.none,
+                    rowContent: { node, isExpanded, outlineLevel, outlineOffset, onActivate in
+                        AnyView(
+                            ObjectBrowserRowView(
+                                node: node,
+                                isExpanded: isExpanded,
+                                isSelected: viewModel.selectedNodeID == node.id,
+                                outlineLevel: outlineLevel,
+                                outlineOffset: outlineOffset,
+                                isHighlighted: viewModel.highlightedNodeID == node.id,
+                                highlightPulse: viewModel.highlightPulse,
+                                contextMenuBuilder: { contextMenu(for: node) },
+                                onActivate: onActivate
                             )
-                        },
-                        onExpansionChanged: { node, isExpanded in
-                            handleExpansionChange(of: node, isExpanded: isExpanded)
-                        },
-                        onActivation: { node in
-                            handleActivation(of: node)
-                        },
-                        onSelectionChanged: { node in
-                            handleSelectionChange(node)
-                        },
-                        revealNodeID: viewModel.revealedNodeID,
-                        revealRequestID: viewModel.revealRequestID
-                    )
-                    .background(Color.clear)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .clipped()
-
-                    if connectionLayoutMode.showsConnectionDock {
-                        ConnectionDock(
-                            sessions: sessions,
-                            pendingConnections: pendingConnections,
-                            selectedConnectionID: selectedConnectionID,
-                            iconColorMode: projectStore.globalSettings.sidebarIconColorMode,
-                            density: projectStore.globalSettings.sidebarDensity,
-                            accentColorForConnection: { resolvedAccentColor(for: $0) },
-                            contextMenuForSession: { connectionMenu(for: $0) },
-                            contextMenuForPending: { pendingConnectionMenu(for: $0) },
-                            onSelectSession: { session in
-                                selectConnectionFromDock(session)
-                            },
-                            onRetryPending: { pending in
-                                environmentState.retryPendingConnection(for: pending.connection.id)
-                            }
+                            .environment(projectStore)
+                            .environment(environmentState)
+                            .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
                         )
-                        .padding(.horizontal, LayoutTokens.Sidebar.navigationHorizontalPadding)
-                        .padding(.top, SpacingTokens.xs)
-                        .onGeometryChange(for: CGFloat.self) { geometry in
-                            geometry.size.height
-                        } action: { height in
-                            connectionDockHeight = height
-                        }
-                        .zIndex(1)
+                    },
+                    onExpansionChanged: { node, isExpanded in
+                        handleExpansionChange(of: node, isExpanded: isExpanded)
+                    },
+                    onActivation: { node in
+                        handleActivation(of: node)
+                    },
+                    onSelectionChanged: { node in
+                        handleSelectionChange(node)
+                    },
+                    revealNodeID: viewModel.revealedNodeID,
+                    revealRequestID: viewModel.revealRequestID,
+                    onTopVisibleConnectionChanged: { connectionID in
+                        railBridge?.topVisibleConnectionID = connectionID
                     }
-                }
+                )
+                .background(Color.clear)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .clipped()
             }
         }
         .environment(sheetState)
@@ -127,6 +98,7 @@ struct ObjectBrowserSidebarView: View {
         }
         .onAppear {
             schedulePendingNavigationConsumption()
+            registerRailMenus()
         }
         .onChange(of: sessions.map(\.connection.id)) { _, _ in
             synchronizeDefaults()
@@ -240,19 +212,11 @@ struct ObjectBrowserSidebarView: View {
         navigationStore.pendingExplorerRevealConnectionID = nil
     }
 
-    private func selectConnectionFromDock(_ session: ConnectionSession) {
-        let visibleNodeID = visibleConnectionRootNodeID(for: session.connection.id)
-        selectedConnectionID = session.connection.id
-        environmentState.sessionGroup.setActiveSession(session.id)
-        viewModel.selectedNodeID = visibleNodeID
-        viewModel.setServerExpanded(
-            true,
-            connectionID: session.connection.id,
-            sessions: sessions,
-            collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
-        )
-        viewModel.revealedNodeID = visibleNodeID
-        viewModel.revealRequestID &+= 1
+    /// The rail's context menus are the same ones the server rows use, so they are built here
+    /// where the sheets and view model they act on live.
+    private func registerRailMenus() {
+        railBridge?.sessionMenu = { session in connectionMenu(for: session) }
+        railBridge?.pendingMenu = { pending in pendingConnectionMenu(for: pending) }
     }
 
     private func handleSelectionChange(_ node: ObjectBrowserNode?) {
@@ -485,17 +449,6 @@ struct ObjectBrowserSidebarView: View {
             session.markMetadataRefreshStarted(forDatabase: databaseName)
             defer { session.finishSchemaLoad(forDatabase: databaseName) }
             await environmentState.loadSchemaForDatabase(databaseName, connectionSession: session)
-        }
-    }
-
-    private func resolvedAccentColor(for connection: SavedConnection) -> Color {
-        switch projectStore.globalSettings.accentColorSource {
-        case .system:
-            Color.accentColor
-        case .connection:
-            connection.color
-        case .custom:
-            ColorTokens.accent
         }
     }
 

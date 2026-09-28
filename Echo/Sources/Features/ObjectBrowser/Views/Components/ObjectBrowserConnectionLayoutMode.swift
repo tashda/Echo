@@ -8,10 +8,7 @@ enum ObjectBrowserConnectionLayoutMode: Equatable {
         self = expandOneConnectionAtATime ? .singleConnection : .multipleConnections
     }
 
-    var showsConnectionDock: Bool {
-        self == .singleConnection
-    }
-
+    /// In single-connection mode pending connections live in the server rail only.
     var includesPendingConnectionsInOutline: Bool {
         self == .multipleConnections
     }
@@ -20,11 +17,7 @@ enum ObjectBrowserConnectionLayoutMode: Equatable {
         self == .multipleConnections
     }
 
-    func outlineTopSpacerHeight(connectionDockHeight: CGFloat) -> CGFloat {
-        switch self {
-        case .singleConnection:
-            return max(connectionDockHeight, SpacingTokens.none) + SpacingTokens.xs
-        case .multipleConnections: return SpacingTokens.xs
-        }
+    var outlineTopSpacerHeight: CGFloat {
+        SpacingTokens.xs
     }
 }
