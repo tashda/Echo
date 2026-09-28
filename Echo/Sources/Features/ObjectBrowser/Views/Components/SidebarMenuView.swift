@@ -6,13 +6,12 @@ struct SidebarMenu: View {
     
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) var connectionStore
-    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(NavigationStore.self) var navigationStore
 
     @Environment(EnvironmentState.self) var environmentState
     @Environment(AppState.self) var appState
     let onAddConnection: () -> Void
 
-    @State var selectedNavSection: NavSection = .folder
     @State var pendingDuplicateConnection: SavedConnection?
     @State private var railBridge = ServerRailBridge()
 
@@ -43,10 +42,12 @@ struct SidebarMenu: View {
     var body: some View {
         HStack(spacing: 0) {
             ServerRail(
+                style: .embedded,
                 sessions: environmentState.sessionGroup.sessions,
                 pendingConnections: environmentState.pendingConnections,
+                savedConnections: connectionStore.connections,
                 selectedConnectionID: selectedConnectionID,
-                selectedSection: $selectedNavSection,
+                selectedSection: Bindable(navigationStore).sidebarSection,
                 bridge: railBridge,
                 onSelectSession: { session in
                     environmentState.sessionGroup.setActiveSession(session.id)
@@ -54,6 +55,9 @@ struct SidebarMenu: View {
                 },
                 onRetryPending: { pending in
                     environmentState.retryPendingConnection(for: pending.connection.id)
+                },
+                onConnect: { connection in
+                    connectAndNavigate(to: connection)
                 }
             )
 
@@ -64,15 +68,16 @@ struct SidebarMenu: View {
                     selectedConnectionID: $selectedConnectionID,
                     railBridge: railBridge
                 )
-                .opacity(selectedNavSection == .folder ? 1 : 0)
-                .allowsHitTesting(selectedNavSection == .folder)
-                .accessibilityHidden(selectedNavSection != .folder)
+                .opacity(navigationStore.sidebarSection == .folder ? 1 : 0)
+                .allowsHitTesting(navigationStore.sidebarSection == .folder)
+                .accessibilityHidden(navigationStore.sidebarSection != .folder)
 
-                if selectedNavSection != .folder {
-                    contentView(for: selectedNavSection)
+                if navigationStore.sidebarSection != .folder {
+                    contentView(for: navigationStore.sidebarSection)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.leading, -LayoutTokens.ServerRail.contentLeadingOverlap)
         }
         .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
         .confirmationDialog(
@@ -101,25 +106,25 @@ struct SidebarMenu: View {
         .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in
             guard focus != nil else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
-                selectedNavSection = .folder
+                navigationStore.sidebarSection = .folder
             }
         }
         .onChange(of: navigationStore.pendingExplorerRevealRequestID) { _, _ in
             guard navigationStore.pendingExplorerRevealConnectionID != nil else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
-                selectedNavSection = .folder
+                navigationStore.sidebarSection = .folder
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .activateSidebarSearch)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) {
-                selectedNavSection = .search
+                navigationStore.sidebarSection = .search
             }
         }
     }
 
     func connectAndNavigate(to connection: SavedConnection) {
         selectedConnectionID = connection.id
-        selectedNavSection = .folder
+        navigationStore.sidebarSection = .folder
 
         environmentState.connect(to: connection)
     }

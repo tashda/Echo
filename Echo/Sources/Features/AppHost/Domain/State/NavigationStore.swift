@@ -10,6 +10,9 @@ final class NavigationStore {
     var pendingExplorerFocus: ExplorerFocus?
     var pendingExplorerRevealConnectionID: UUID?
     var pendingExplorerRevealRequestID = 0
+    /// Which sidebar tool is showing. Shared so the floating server rail can switch it
+    /// while the sidebar is hidden.
+    var sidebarSection: SidebarMenu.NavSection = .folder
     var isWorkspaceWindowKey = false
     var isManageConnectionsPresented = false
     var showNewProjectSheet = false

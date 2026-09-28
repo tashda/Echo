@@ -2,17 +2,23 @@ import SwiftUI
 
 public enum LayoutTokens {
     public enum ServerRail {
-        /// Width of the rail column along the sidebar's leading edge.
-        public static let width: CGFloat = 52
+        /// Width of the rail column along the open sidebar's leading edge.
+        public static let width: CGFloat = 46
 
-        /// Diameter of a server item and of the glass lens behind the active one.
-        public static let itemSize: CGFloat = 34
+        /// Diameter of every rail item: servers, the + button and the glass lens.
+        public static let itemSize: CGFloat = 32
 
-        /// Vertical gap between server items.
+        /// Vertical gap between rail items.
         public static let itemSpacing: CGFloat = SpacingTokens.xs
 
-        /// Size of the + button and the tool buttons at the bottom of the rail.
-        public static let utilitySize: CGFloat = 28
+        /// Height of the tool buttons at the bottom of the rail.
+        public static let toolHeight: CGFloat = 28
+
+        /// Inset between the floating rail's glass capsule and its items.
+        public static let floatingPadding: CGFloat = SpacingTokens.xxs
+
+        /// Pulls the Explorer toward the rail so the two read as one column.
+        public static let contentLeadingOverlap: CGFloat = SpacingTokens.xxs
     }
 
     public enum TabNavigation {
