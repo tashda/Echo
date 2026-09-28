@@ -71,6 +71,8 @@ struct SidebarMenu: View {
 
                 if navigationStore.sidebarSection != .folder {
                     contentView(for: navigationStore.sidebarSection)
+                        .id(navigationStore.sidebarSection)
+                        .transition(.opacity.combined(with: .offset(y: SpacingTokens.xxs)))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Popover opened from the rail's + button: type to find a saved server, Return connects.
+/// Popover opened from the rail's + button: type to find a saved server, move with the arrow
+/// keys or the pointer, and Return connects the highlighted one.
 struct ServerRailConnectPicker: View {
     let connections: [SavedConnection]
     let connectedIDs: Set<UUID>
@@ -8,6 +9,7 @@ struct ServerRailConnectPicker: View {
     let onManage: () -> Void
 
     @State private var query = ""
+    @State private var highlightedID: UUID?
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
@@ -20,7 +22,15 @@ struct ServerRailConnectPicker: View {
                     .font(.system(size: 15))
                     .focused($isSearchFocused)
                     .onSubmit {
-                        if let first = filtered.first { onConnect(first) }
+                        if let connection = highlightedConnection { onConnect(connection) }
+                    }
+                    .onKeyPress(.downArrow) {
+                        moveHighlight(by: 1)
+                        return .handled
+                    }
+                    .onKeyPress(.upArrow) {
+                        moveHighlight(by: -1)
+                        return .handled
                     }
             }
             .padding(.horizontal, SpacingTokens.sm)
@@ -34,15 +44,22 @@ struct ServerRailConnectPicker: View {
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .frame(maxWidth: .infinity, minHeight: 80)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: SpacingTokens.xxxs) {
-                        ForEach(filtered) { connection in
-                            row(connection)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: SpacingTokens.xxxs) {
+                            ForEach(filtered) { connection in
+                                row(connection)
+                                    .id(connection.id)
+                            }
                         }
+                        .padding(SpacingTokens.xxs)
                     }
-                    .padding(SpacingTokens.xxs)
+                    .frame(maxHeight: 320)
+                    .onChange(of: highlightedID) { _, id in
+                        guard let id else { return }
+                        proxy.scrollTo(id)
+                    }
                 }
-                .frame(maxHeight: 320)
             }
 
             Divider()
@@ -57,6 +74,21 @@ struct ServerRailConnectPicker: View {
         }
         .frame(width: 300)
         .onAppear { isSearchFocused = true }
+        .onChange(of: query) { highlightedID = nil }
+    }
+
+    /// The row Return connects: the one picked with the arrow keys or pointer, else the first.
+    private var highlightedConnection: SavedConnection? {
+        let matches = filtered
+        return matches.first { $0.id == highlightedID } ?? matches.first
+    }
+
+    private func moveHighlight(by offset: Int) {
+        let matches = filtered
+        guard !matches.isEmpty else { return }
+        let current = matches.firstIndex { $0.id == highlightedConnection?.id } ?? 0
+        let next = min(max(current + offset, 0), matches.count - 1)
+        highlightedID = matches[next].id
     }
 
     private var filtered: [SavedConnection] {
@@ -75,6 +107,8 @@ struct ServerRailConnectPicker: View {
         ServerRailConnectRow(
             connection: connection,
             isConnected: connectedIDs.contains(connection.id),
+            isHighlighted: connection.id == highlightedConnection?.id,
+            onHover: { highlightedID = connection.id },
             action: { onConnect(connection) }
         )
     }
@@ -83,9 +117,9 @@ struct ServerRailConnectPicker: View {
 private struct ServerRailConnectRow: View {
     let connection: SavedConnection
     let isConnected: Bool
+    let isHighlighted: Bool
+    let onHover: () -> Void
     let action: () -> Void
-
-    @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
@@ -116,13 +150,16 @@ private struct ServerRailConnectRow: View {
             .padding(.vertical, SpacingTokens.xxs)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                isHovering ? ColorTokens.Sidebar.hoverFill : Color.clear,
+                isHighlighted ? ColorTokens.Sidebar.selectedFill : Color.clear,
                 in: RoundedRectangle(cornerRadius: 8, style: .continuous)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
+        .onContinuousHover { phase in
+            if case .active = phase, !isHighlighted { onHover() }
+        }
+        .accessibilityAddTraits(isHighlighted ? .isSelected : [])
     }
 
     private var displayName: String {

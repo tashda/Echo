@@ -496,7 +496,22 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             let rowRect = tableView.rect(ofRow: row)
             let maxY = max(0, tableView.bounds.height - clipView.bounds.height)
             let targetY = min(max(0, rowRect.minY), maxY)
-            clipView.scroll(to: NSPoint(x: 0, y: targetY))
+            let distance = abs(targetY - clipView.bounds.origin.y)
+
+            guard distance > 1, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+                clipView.scroll(to: NSPoint(x: 0, y: targetY))
+                scrollView.reflectScrolledClipView(clipView)
+                return
+            }
+
+            // Glide rather than jump, so the tree visibly travels to the server picked in the
+            // rail. Longer trips take a little longer, up to a limit.
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = min(0.45, 0.22 + Double(distance) / 6_000)
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.8, 0.2, 1)
+                context.allowsImplicitAnimation = true
+                clipView.animator().setBoundsOrigin(NSPoint(x: 0, y: targetY))
+            }
             scrollView.reflectScrolledClipView(clipView)
         }
     }

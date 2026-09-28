@@ -179,7 +179,12 @@ struct SidebarRow<Trailing: View>: View {
             .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
             .padding(.vertical, densityVerticalPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(highlightFill)
+            // Only the fill animates, so hover and selection ease in without moving the row.
+            .background(
+                highlightFill
+                    .animation(.easeOut(duration: 0.12), value: isHovering)
+                    .animation(.easeOut(duration: 0.16), value: isSelected)
+            )
             .contentShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
             .onHover { hovering in
                 isHovering = hovering

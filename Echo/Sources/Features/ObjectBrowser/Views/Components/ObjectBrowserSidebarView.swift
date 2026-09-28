@@ -66,6 +66,10 @@ struct ObjectBrowserSidebarView: View {
                                 contextMenuBuilder: { contextMenu(for: node) },
                                 onActivate: onActivate
                             )
+                            // Cells are recycled while scrolling; a new identity per node keeps a
+                            // recycled row from inheriting the previous row's hover or animating
+                            // its selection fading away.
+                            .id(node.id)
                             .environment(projectStore)
                             .environment(environmentState)
                             .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)

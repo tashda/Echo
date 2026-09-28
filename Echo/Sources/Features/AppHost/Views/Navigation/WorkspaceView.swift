@@ -52,7 +52,7 @@ private struct WorkspaceBody: View {
                         FloatingServerRail()
                             .padding(.leading, SpacingTokens.xs)
                             .padding(.trailing, SpacingTokens.xxs)
-                            .padding(.top, SpacingTokens.xs)
+                            .padding(.vertical, SpacingTokens.xs)
                             .frame(maxHeight: .infinity, alignment: .top)
                             .transition(.move(edge: .leading).combined(with: .opacity))
                     }

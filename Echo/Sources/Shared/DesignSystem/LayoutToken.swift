@@ -37,6 +37,9 @@ public enum LayoutTokens {
         /// the two stay separate pieces of glass.
         public static let floatingGroupSpacing: CGFloat = SpacingTokens.md1
 
+        /// Room around the floating servers when they scroll, so glass and rings are not clipped.
+        public static let floatingScrollInset: CGFloat = SpacingTokens.xs
+
         /// Pulls the Explorer toward the rail so the two read as one column.
         public static let contentLeadingOverlap: CGFloat = SpacingTokens.xxs
     }
