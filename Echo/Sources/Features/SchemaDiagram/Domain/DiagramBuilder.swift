@@ -18,8 +18,8 @@ final class DiagramBuilder: DiagramBuilderProtocol, @unchecked Sendable {
 
         let service = prefetchService
         Task {
-            await service.setHandler { [weak self] request in
-                await self?.handlePrefetchRequest(request) ?? false
+            await service.setHandler { [self] request in
+                await handlePrefetchRequest(request)
             }
         }
     }
@@ -95,7 +95,7 @@ final class DiagramBuilder: DiagramBuilderProtocol, @unchecked Sendable {
                 cacheKey: context.cacheKey,
                 databaseName: existingDatabaseName,
                 progress: { message in
-                    Task { @MainActor [weak viewModel] in viewModel?.statusMessage = message }
+                    Task { @MainActor [viewModel] in viewModel.statusMessage = message }
                 },
                 isPrefetch: false
             )

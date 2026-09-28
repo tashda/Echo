@@ -15,7 +15,8 @@ struct ActivityMonitorTabFrame<SectionPicker: View, Sparklines: View, SectionCon
 
     var body: some View {
         VStack(spacing: 0) {
-            TabSectionToolbar { sectionPicker() }
+            CenteredTabSectionToolbar { sectionPicker() }
+            Divider()
 
             if !hasPermission {
                 permissionDeniedView
@@ -30,6 +31,7 @@ struct ActivityMonitorTabFrame<SectionPicker: View, Sparklines: View, SectionCon
             }
         }
         .background(ColorTokens.Background.primary)
+        .tabContentFrame()
         .sheet(item: $selectedSQLContext) { context in
             SQLInspectorSheet(context: context) { sql, database in
                 onOpenInQueryWindow(sql, database)

@@ -28,7 +28,7 @@ struct SearchSidebarView: View {
             } else {
                 syncContext()
             }
-            viewModel.setQueryTabProvider { [weak environmentState] in
+            viewModel.setQueryTabProvider {
                 queryTabSnapshots(from: environmentState)
             }
             viewModel.notifyQueryTabsChanged()

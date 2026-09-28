@@ -182,7 +182,10 @@ struct SidebarDensityPicker: View {
     @Binding var selection: SidebarDensity
 
     var body: some View {
-        HStack(spacing: SpacingTokens.md) {
+        // Tighter spacing than the other appearance pickers because density
+        // has 4 options instead of 3 — keeps the row from wrapping at typical
+        // Settings window widths.
+        HStack(spacing: SpacingTokens.xs) {
             ForEach(SidebarDensity.allCases, id: \.self) { density in
                 SidebarDensityCard(density: density, isSelected: selection == density)
                     .onTapGesture {
@@ -200,7 +203,7 @@ private struct SidebarDensityCard: View {
     var body: some View {
         VStack(spacing: SpacingTokens.xxs2) {
             previewThumbnail
-                .frame(width: 96, height: 60)
+                .frame(width: 76, height: 52)
                 .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium, style: .continuous)
@@ -216,6 +219,7 @@ private struct SidebarDensityCard: View {
 
     private var rowSpacing: CGFloat {
         switch density {
+        case .compact: return 1
         case .small: return 2
         case .medium: return 4
         case .large: return 6
@@ -224,6 +228,7 @@ private struct SidebarDensityCard: View {
 
     private var rowHeight: CGFloat {
         switch density {
+        case .compact: return 2
         case .small: return 3
         case .medium: return 4
         case .large: return 5
@@ -245,6 +250,7 @@ private struct SidebarDensityCard: View {
     private func densityRow(icon: String) -> some View {
         let iconSize: CGFloat = {
             switch density {
+            case .compact: return 5
             case .small: return 6
             case .medium: return 7
             case .large: return 8

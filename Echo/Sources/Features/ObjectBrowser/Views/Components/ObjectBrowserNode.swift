@@ -130,7 +130,7 @@ enum ObjectBrowserDatabaseFolderKind: String {
     var systemImage: String {
         switch self {
         case .security: "shield"
-        case .databaseTriggers: "bolt"
+        case .databaseTriggers: "bolt.horizontal"
         case .serviceBroker: "tray.2"
         case .externalResources: "externaldrive"
         }
@@ -175,5 +175,34 @@ final class ObjectBrowserNode: NSObject {
         self.id = id
         self.row = row
         self.children = children
+    }
+}
+
+extension ObjectBrowserNode.Row {
+    /// Finder-style section label rendered above this row when it begins a
+    /// new group. Currently always `nil` — sections were tried at the server
+    /// level (Security / Operations / Extensibility) but a single-item
+    /// section above "Security" looked structurally weak, so the whole
+    /// pattern was dropped. Mechanism preserved for future use.
+    var groupSectionTitle: String? { nil }
+
+    /// Extra height the row needs to render its section label above its
+    /// content. Sized for 12pt semibold text + Finder-style padding above
+    /// (10pt) and below (4pt).
+    var groupSectionHeaderHeight: CGFloat {
+        groupSectionTitle == nil ? 0 : 26
+    }
+
+    /// Backwards-compatible alias retained for callers that still ask for
+    /// padding-only group spacing. New code should use `groupSectionTitle`.
+    var groupTopPadding: CGFloat { groupSectionHeaderHeight }
+
+    /// Extra row-slot height for connection group headers.
+    var extraSlotHeight: CGFloat {
+        switch self {
+        case .server: return SpacingTokens.xs
+        case .pendingConnection: return SpacingTokens.xs
+        default: return 0
+        }
     }
 }

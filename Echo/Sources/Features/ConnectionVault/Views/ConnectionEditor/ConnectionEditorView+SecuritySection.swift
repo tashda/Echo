@@ -30,39 +30,47 @@ extension ConnectionEditorView {
                 if tlsMode != .disable {
                     clientCertificateSection
                 }
+            } else if selectedDatabaseType == .microsoftSQL {
+                // SQL Server: encryption is always available — the dropdown alone
+                // controls behavior, matching the SSMS connection dialog. There is
+                // no "Use SSL/TLS" gate because TDS PRELOGIN handles negotiation:
+                // Optional lets the server upgrade us to TLS if it requires it;
+                // Mandatory/Strict insists on TLS regardless.
+                PropertyRow(title: "Encryption", info: "Strict requires TDS 8.0 TLS-before-TDS (Azure SQL). Mandatory requires TLS but uses classic negotiation. Optional uses TLS only if the server requires it (default).") {
+                    Picker("", selection: $mssqlEncryptionMode) {
+                        ForEach(MSSQLEncryptionMode.allCases, id: \.self) { mode in
+                            Text(mode.description).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                PropertyRow(title: "Trust Server Certificate", info: "Skip server certificate validation. Use for self-signed certificates or internal-CA certificates not in the system trust store.") {
+                    Toggle("", isOn: $trustServerCertificate)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                PropertyRow(title: "Read-Only Intent", info: "Signal read-only application intent for AlwaysOn Availability Group secondary replica routing.") {
+                    Toggle("", isOn: $readOnlyIntent)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                if !trustServerCertificate {
+                    PropertyRow(title: "Host Name In Certificate", info: "Override the hostname used to validate the server certificate. Set this when connecting via IP, alias, or CNAME that differs from the name on the certificate.") {
+                        TextField("", text: $hostNameInCertificate, prompt: Text("e.g. prod-sql-01.contoso.com"))
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    caCertificatePathPicker
+                }
             } else {
                 PropertyRow(title: "Use SSL/TLS") {
                     Toggle("", isOn: $useTLS)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                }
-
-                if useTLS && selectedDatabaseType == .microsoftSQL {
-                    PropertyRow(title: "Trust Server Certificate", info: "Skip server certificate validation. Use for self-signed certificates in development environments.") {
-                        Toggle("", isOn: $trustServerCertificate)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
-
-                    PropertyRow(title: "Encryption Mode", info: "Controls how encryption is negotiated with SQL Server.") {
-                        Picker("", selection: $mssqlEncryptionMode) {
-                            ForEach(MSSQLEncryptionMode.allCases, id: \.self) { mode in
-                                Text(mode.description).tag(mode)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                    }
-
-                    PropertyRow(title: "Read-Only Intent", info: "Signal read-only application intent for AlwaysOn Availability Group secondary replica routing.") {
-                        Toggle("", isOn: $readOnlyIntent)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
-
-                    if !trustServerCertificate {
-                        caCertificatePathPicker
-                    }
                 }
             }
         }

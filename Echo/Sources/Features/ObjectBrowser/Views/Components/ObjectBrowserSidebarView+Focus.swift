@@ -21,7 +21,12 @@ extension ObjectBrowserSidebarView {
         await MainActor.run {
             selectedConnectionID = focus.connectionID
             environmentState.sessionGroup.setActiveSession(session.id)
-            viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.serverNodeID(connectionID: focus.connectionID))
+            viewModel.setServerExpanded(
+                true,
+                connectionID: focus.connectionID,
+                sessions: environmentState.sessionGroup.sessions,
+                collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+            )
             viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: focus.connectionID))
             viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: focus.connectionID, databaseName: focus.databaseName))
             let groupNodeID = ObjectBrowserSidebarViewModel.objectGroupNodeID(
@@ -112,7 +117,12 @@ extension ObjectBrowserSidebarView {
 
         session.sidebarFocusedDatabase = database.name
         viewModel.selectedNodeID = objectNodeID
-        viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.serverNodeID(connectionID: focus.connectionID))
+        viewModel.setServerExpanded(
+            true,
+            connectionID: focus.connectionID,
+            sessions: environmentState.sessionGroup.sessions,
+            collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+        )
         viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: focus.connectionID))
         viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: focus.connectionID, databaseName: database.name))
         viewModel.setExpanded(true, nodeID: objectGroupID)

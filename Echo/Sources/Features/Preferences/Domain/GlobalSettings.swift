@@ -156,9 +156,11 @@ struct GlobalSettings: Codable, Hashable {
     var mysqlToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarDensity: SidebarDensity = .medium
+    var sidebarExpandOneConnectionAtATime: Bool = true
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
     var hideInaccessibleDatabases: Bool = false
+    var sidebarHideOfflineDatabasesByDefault: Bool = false
     var searchIncludeOfflineDatabases: Bool = false
     var searchMinimumQueryLength: Int = 2
     var searchDefaultCategories: Set<String>?
@@ -229,9 +231,11 @@ struct GlobalSettings: Codable, Hashable {
         case mysqlToolCustomPath
         case sidebarIconColorMode
         case sidebarDensity
+        case sidebarExpandOneConnectionAtATime
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
         case hideInaccessibleDatabases
+        case sidebarHideOfflineDatabasesByDefault
         case searchIncludeOfflineDatabases
         case searchMinimumQueryLength
         case searchDefaultCategories
@@ -317,9 +321,15 @@ struct GlobalSettings: Codable, Hashable {
             sidebarDensity = .medium
         }
 
+        sidebarExpandOneConnectionAtATime = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .sidebarExpandOneConnectionAtATime
+        ) ?? true
+
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
 
         hideInaccessibleDatabases = try container.decodeIfPresent(Bool.self, forKey: .hideInaccessibleDatabases) ?? false
+        sidebarHideOfflineDatabasesByDefault = try container.decodeIfPresent(Bool.self, forKey: .sidebarHideOfflineDatabasesByDefault) ?? false
         searchIncludeOfflineDatabases = try container.decodeIfPresent(Bool.self, forKey: .searchIncludeOfflineDatabases) ?? false
         searchMinimumQueryLength = try container.decodeIfPresent(Int.self, forKey: .searchMinimumQueryLength) ?? 2
         searchDefaultCategories = try container.decodeIfPresent(Set<String>.self, forKey: .searchDefaultCategories)
@@ -380,8 +390,10 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
+        try container.encode(sidebarExpandOneConnectionAtATime, forKey: .sidebarExpandOneConnectionAtATime)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)
+        try container.encode(sidebarHideOfflineDatabasesByDefault, forKey: .sidebarHideOfflineDatabasesByDefault)
         try container.encode(searchIncludeOfflineDatabases, forKey: .searchIncludeOfflineDatabases)
         try container.encode(searchMinimumQueryLength, forKey: .searchMinimumQueryLength)
         try container.encodeIfPresent(searchDefaultCategories, forKey: .searchDefaultCategories)

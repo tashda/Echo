@@ -10,6 +10,7 @@ struct ObjectBrowserSidebarView: View {
 
     @State var viewModel = ObjectBrowserSidebarViewModel()
     @State var sheetState = SidebarSheetState()
+    @State private var connectionDockHeight: CGFloat = SpacingTokens.none
 
     private var sessions: [ConnectionSession] {
         environmentState.sessionGroup.sessions
@@ -20,11 +21,18 @@ struct ObjectBrowserSidebarView: View {
     }
 
     var body: some View {
+        let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
+            expandOneConnectionAtATime: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+        )
         let roots = ObjectBrowserSnapshotBuilder.buildRoots(
-            pendingConnections: pendingConnections,
+            pendingConnections: connectionLayoutMode.includesPendingConnectionsInOutline
+                ? pendingConnections
+                : [],
             sessions: sessions,
             settings: projectStore.globalSettings,
-            viewModel: viewModel
+            viewModel: viewModel,
+            selectedConnectionID: selectedConnectionID,
+            connectionDockHeight: connectionDockHeight
         )
 
         let mainContent = Group {
@@ -40,41 +48,76 @@ struct ObjectBrowserSidebarView: View {
                 .padding(.vertical, SpacingTokens.xl2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
-                ObjectBrowserOutlineView(
-                    roots: roots,
-                    expandedNodeIDs: viewModel.expandedNodeIDs,
-                    selectedNodeID: viewModel.selectedNodeID,
-                    rowContent: { node, isExpanded, outlineLevel, outlineOffset, onActivate in
-                        AnyView(
-                            ObjectBrowserRowView(
-                                node: node,
-                                isExpanded: isExpanded,
-                                isSelected: viewModel.selectedNodeID == node.id,
-                                outlineLevel: outlineLevel,
-                                outlineOffset: outlineOffset,
-                                isHighlighted: viewModel.highlightedNodeID == node.id,
-                                highlightPulse: viewModel.highlightPulse,
-                                contextMenuBuilder: { contextMenu(for: node) },
-                                onActivate: onActivate
+                ZStack(alignment: .top) {
+                    ObjectBrowserOutlineView(
+                        roots: roots,
+                        expandedNodeIDs: viewModel.expandedNodeIDs,
+                        selectedNodeID: viewModel.selectedNodeID,
+                        density: projectStore.globalSettings.sidebarDensity,
+                        topScrollerInset: connectionLayoutMode.showsConnectionDock
+                            ? connectionDockHeight
+                            : SpacingTokens.none,
+                        rowContent: { node, isExpanded, outlineLevel, outlineOffset, onActivate in
+                            AnyView(
+                                ObjectBrowserRowView(
+                                    node: node,
+                                    isExpanded: isExpanded,
+                                    isSelected: viewModel.selectedNodeID == node.id,
+                                    outlineLevel: outlineLevel,
+                                    outlineOffset: outlineOffset,
+                                    isHighlighted: viewModel.highlightedNodeID == node.id,
+                                    highlightPulse: viewModel.highlightPulse,
+                                    contextMenuBuilder: { contextMenu(for: node) },
+                                    onActivate: onActivate
+                                )
+                                .environment(projectStore)
+                                .environment(environmentState)
+                                .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
                             )
-                            .environment(projectStore)
-                            .environment(environmentState)
-                            .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
+                        },
+                        onExpansionChanged: { node, isExpanded in
+                            handleExpansionChange(of: node, isExpanded: isExpanded)
+                        },
+                        onActivation: { node in
+                            handleActivation(of: node)
+                        },
+                        onSelectionChanged: { node in
+                            handleSelectionChange(node)
+                        },
+                        revealNodeID: viewModel.revealedNodeID,
+                        revealRequestID: viewModel.revealRequestID
+                    )
+                    .background(Color.clear)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .clipped()
+
+                    if connectionLayoutMode.showsConnectionDock {
+                        ConnectionDock(
+                            sessions: sessions,
+                            pendingConnections: pendingConnections,
+                            selectedConnectionID: selectedConnectionID,
+                            iconColorMode: projectStore.globalSettings.sidebarIconColorMode,
+                            density: projectStore.globalSettings.sidebarDensity,
+                            accentColorForConnection: { resolvedAccentColor(for: $0) },
+                            contextMenuForSession: { connectionMenu(for: $0) },
+                            contextMenuForPending: { pendingConnectionMenu(for: $0) },
+                            onSelectSession: { session in
+                                selectConnectionFromDock(session)
+                            },
+                            onRetryPending: { pending in
+                                environmentState.retryPendingConnection(for: pending.connection.id)
+                            }
                         )
-                    },
-                    onExpansionChanged: { node, isExpanded in
-                        handleExpansionChange(of: node, isExpanded: isExpanded)
-                    },
-                    onActivation: { node in
-                        handleActivation(of: node)
-                    },
-                    onSelectionChanged: { node in
-                        handleSelectionChange(node)
-                    },
-                    revealNodeID: viewModel.revealedNodeID,
-                    revealRequestID: viewModel.revealRequestID
-                )
-                .background(Color.clear)
+                        .padding(.horizontal, LayoutTokens.Sidebar.navigationHorizontalPadding)
+                        .padding(.top, SpacingTokens.xs)
+                        .onGeometryChange(for: CGFloat.self) { geometry in
+                            geometry.size.height
+                        } action: { height in
+                            connectionDockHeight = height
+                        }
+                        .zIndex(1)
+                    }
+                }
             }
         }
         .environment(sheetState)
@@ -112,9 +155,15 @@ struct ObjectBrowserSidebarView: View {
     }
 
     private func synchronizeDefaults() {
-        viewModel.synchronizeDefaults(sessions: sessions) { databaseType in
-            projectStore.globalSettings.sidebarExpandSections(for: databaseType)
-        }
+        viewModel.synchronizeDefaults(
+            sessions: sessions,
+            autoExpandSectionsForDatabaseType: { databaseType in
+                projectStore.globalSettings.sidebarExpandSections(for: databaseType)
+            },
+            hideOfflineDefault: projectStore.globalSettings.sidebarHideOfflineDatabasesByDefault,
+            activeConnectionID: selectedConnectionID ?? sessions.first?.connection.id,
+            expandOneConnectionAtATime: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+        )
         if !sessions.isEmpty {
             viewModel.persistExpansionState(projectID: projectStore.selectedProject?.id)
         }
@@ -153,32 +202,57 @@ struct ObjectBrowserSidebarView: View {
     }
 
     private func focusNewSession(_ session: ConnectionSession) {
-        let serverNodeID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
+        let visibleNodeID = visibleConnectionRootNodeID(for: session.connection.id)
         selectedConnectionID = session.connection.id
         environmentState.sessionGroup.setActiveSession(session.id)
-        viewModel.selectedNodeID = serverNodeID
-        viewModel.setExpanded(true, nodeID: serverNodeID)
+        viewModel.selectedNodeID = visibleNodeID
+        viewModel.setServerExpanded(
+            true,
+            connectionID: session.connection.id,
+            sessions: sessions,
+            collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+        )
         viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: session.connection.id))
-        viewModel.revealAndPulse(nodeID: serverNodeID)
+        viewModel.revealAndPulse(nodeID: visibleNodeID)
 
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_500_000_000)
-            if viewModel.highlightedNodeID == serverNodeID {
+            if viewModel.highlightedNodeID == visibleNodeID {
                 viewModel.highlightedNodeID = nil
             }
-            if viewModel.revealedNodeID == serverNodeID {
+            if viewModel.revealedNodeID == visibleNodeID {
                 viewModel.revealedNodeID = nil
             }
         }
     }
 
     private func revealConnection(_ connectionID: UUID) {
-        let serverNodeID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: connectionID)
+        let visibleNodeID = visibleConnectionRootNodeID(for: connectionID)
         selectedConnectionID = connectionID
-        viewModel.selectedNodeID = serverNodeID
-        viewModel.setExpanded(true, nodeID: serverNodeID)
-        viewModel.revealAndPulse(nodeID: serverNodeID)
+        viewModel.selectedNodeID = visibleNodeID
+        viewModel.setServerExpanded(
+            true,
+            connectionID: connectionID,
+            sessions: sessions,
+            collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+        )
+        viewModel.revealAndPulse(nodeID: visibleNodeID)
         navigationStore.pendingExplorerRevealConnectionID = nil
+    }
+
+    private func selectConnectionFromDock(_ session: ConnectionSession) {
+        let visibleNodeID = visibleConnectionRootNodeID(for: session.connection.id)
+        selectedConnectionID = session.connection.id
+        environmentState.sessionGroup.setActiveSession(session.id)
+        viewModel.selectedNodeID = visibleNodeID
+        viewModel.setServerExpanded(
+            true,
+            connectionID: session.connection.id,
+            sessions: sessions,
+            collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+        )
+        viewModel.revealedNodeID = visibleNodeID
+        viewModel.revealRequestID &+= 1
     }
 
     private func handleSelectionChange(_ node: ObjectBrowserNode?) {
@@ -288,7 +362,16 @@ struct ObjectBrowserSidebarView: View {
 
     private func handleExpansionChange(of node: ObjectBrowserNode, isExpanded: Bool) {
         withAnimation(.snappy(duration: 0.18, extraBounce: 0)) {
-            viewModel.setExpanded(isExpanded, nodeID: node.id)
+            if case .server(let session) = node.row {
+                viewModel.setServerExpanded(
+                    isExpanded,
+                    connectionID: session.connection.id,
+                    sessions: sessions,
+                    collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+                )
+            } else {
+                viewModel.setExpanded(isExpanded, nodeID: node.id)
+            }
         }
 
         switch node.row {
@@ -403,5 +486,26 @@ struct ObjectBrowserSidebarView: View {
             defer { session.finishSchemaLoad(forDatabase: databaseName) }
             await environmentState.loadSchemaForDatabase(databaseName, connectionSession: session)
         }
+    }
+
+    private func resolvedAccentColor(for connection: SavedConnection) -> Color {
+        switch projectStore.globalSettings.accentColorSource {
+        case .system:
+            Color.accentColor
+        case .connection:
+            connection.color
+        case .custom:
+            ColorTokens.accent
+        }
+    }
+
+    private func visibleConnectionRootNodeID(for connectionID: UUID) -> String {
+        let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
+            expandOneConnectionAtATime: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+        )
+        if connectionLayoutMode.showsServerNameInOutline {
+            return ObjectBrowserSidebarViewModel.serverNodeID(connectionID: connectionID)
+        }
+        return ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: connectionID)
     }
 }

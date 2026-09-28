@@ -192,7 +192,12 @@ extension QueryEditorState {
         let total = result.totalRowCount ?? result.rows.count
         performanceTracker.markResultSetReceived(totalRowCount: total)
         streamingMode = .completed; streamingColumns = result.columns
-        shouldPersistResults = shouldPersistResults || total > frontBufferLimit
+        // Also activate spool when the final result set is incomplete: streaming delivered
+        // rows beyond the preview batch as binary updates (stored in deferredSpoolUpdates),
+        // but result.rows only contains the preview rows. Without the spool, those binary
+        // rows are discarded and the display gets stuck on "Loading rows".
+        let hasIncompleteFinalResult = result.rows.count < total
+        shouldPersistResults = shouldPersistResults || total > frontBufferLimit || hasIncompleteFinalResult
         let truncated = Array(result.rows.prefix(shouldPersistResults ? frontBufferLimit : max(frontBufferLimit, total)))
         rowCache.ingest(rows: truncated, startingAt: 0)
         // Clamp streamedRowCount to the authoritative total from the database

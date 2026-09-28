@@ -5,12 +5,31 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
     let roots: [ObjectBrowserNode]
     let expandedNodeIDs: Set<String>
     let selectedNodeID: String?
+    let density: SidebarDensity
+    let topScrollerInset: CGFloat
     let rowContent: (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView
     let onExpansionChanged: (ObjectBrowserNode, Bool) -> Void
     let onActivation: (ObjectBrowserNode) -> Void
     let onSelectionChanged: (ObjectBrowserNode?) -> Void
     let revealNodeID: String?
     let revealRequestID: Int
+
+    /// Base row height per density. Inner padding lives inside `SidebarRow`;
+    /// this is the slot the table allocates. Values tuned to match
+    /// SidebarRow's per-density vertical padding + icon frame (so content
+    /// vertically centers without clipping):
+    /// - compact: 12pt icon + 2×2 padding ≈ 18pt → 18
+    /// - small:   14pt icon + 2×3 padding ≈ 20pt → 20
+    /// - medium:  16pt icon + 2×4 padding ≈ 24pt → 24 (Apple Finder default)
+    /// - large:   18pt icon + 2×6 padding ≈ 30pt → 30
+    static func baseRowHeight(for density: SidebarDensity) -> CGFloat {
+        switch density {
+        case .compact: return 18
+        case .small: return 20
+        case .medium: return 24
+        case .large: return 30
+        }
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -29,6 +48,13 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
+        scrollView.verticalScrollElasticity = .none
+        scrollView.scrollerInsets = NSEdgeInsets(
+            top: max(topScrollerInset, SpacingTokens.none),
+            left: 0,
+            bottom: 0,
+            right: 0
+        )
         scrollView.contentInsets = NSEdgeInsets(
             top: 0,
             left: 0,
@@ -41,10 +67,18 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
+        nsView.scrollerInsets = NSEdgeInsets(
+            top: max(topScrollerInset, SpacingTokens.none),
+            left: 0,
+            bottom: 0,
+            right: 0
+        )
         context.coordinator.rowContent = rowContent
         context.coordinator.onExpansionChanged = onExpansionChanged
         context.coordinator.onActivation = onActivation
         context.coordinator.onSelectionChanged = onSelectionChanged
+        let densityChanged = context.coordinator.baseRowHeight != Self.baseRowHeight(for: density)
+        context.coordinator.baseRowHeight = Self.baseRowHeight(for: density)
         context.coordinator.update(
             roots: roots,
             expandedNodeIDs: expandedNodeIDs,
@@ -52,6 +86,9 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             revealNodeID: revealNodeID,
             revealRequestID: revealRequestID
         )
+        if densityChanged {
+            context.coordinator.tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0 ..< context.coordinator.tableView.numberOfRows))
+        }
     }
 
     @MainActor
@@ -66,6 +103,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         var onExpansionChanged: (ObjectBrowserNode, Bool) -> Void
         var onActivation: (ObjectBrowserNode) -> Void
         var onSelectionChanged: (ObjectBrowserNode?) -> Void
+        var baseRowHeight: CGFloat = ObjectBrowserOutlineView.baseRowHeight(for: .medium)
 
         private var roots: [ObjectBrowserNode] = []
         private var expandedNodeIDs: Set<String> = []
@@ -121,7 +159,9 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             let preservedScrollY = shouldReveal ? nil : currentScrollY()
 
             let oldSignature = lastVisibleSignature
+            let oldTopSpacerHeight = topSpacerHeight(in: visibleRows)
             let newVisibleRows = flattenVisibleRows(from: roots, expandedNodeIDs: expandedNodeIDs)
+            let newTopSpacerHeight = topSpacerHeight(in: newVisibleRows)
             let newSignature = newVisibleRows.map(\.node.id)
             let structureChanged = newSignature != lastVisibleSignature
 
@@ -140,10 +180,20 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
                 refreshVisibleRows()
             }
 
+            if oldTopSpacerHeight != newTopSpacerHeight, tableView.numberOfRows > 0 {
+                tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integer: 0))
+            }
+
             tableView.deselectAll(nil)
 
             if let preservedScrollY {
-                restoreScrollPosition(y: preservedScrollY)
+                restoreScrollPosition(
+                    y: adjustedScrollPosition(
+                        preservedScrollY,
+                        oldTopSpacerHeight: oldTopSpacerHeight,
+                        newTopSpacerHeight: newTopSpacerHeight
+                    )
+                )
             }
 
             if shouldReveal, let revealNodeID {
@@ -161,9 +211,9 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
 
             let visibleRow = visibleRows[row]
             let node = visibleRow.node
-            let identifier = NSUserInterfaceItemIdentifier("ExperimentalOutlineCell")
-            let cell = (tableView.makeView(withIdentifier: identifier, owner: nil) as? ExperimentalTableCellView)
-                ?? ExperimentalTableCellView(identifier: identifier)
+            let identifier = NSUserInterfaceItemIdentifier("ObjectBrowserOutlineCell")
+            let cell = (tableView.makeView(withIdentifier: identifier, owner: nil) as? ObjectBrowserOutlineCellView)
+                ?? ObjectBrowserOutlineCellView(identifier: identifier)
 
             cell.configure(rootView: rowContent(
                 node,
@@ -176,15 +226,19 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         }
 
         func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-            ExperimentalClearRowView()
+            ObjectBrowserClearRowView()
         }
 
         func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-            guard visibleRows.indices.contains(row) else { return 25 }
-            if case .topSpacer(let height) = visibleRows[row].node.row {
-                return height
+            guard visibleRows.indices.contains(row) else { return baseRowHeight }
+            let node = visibleRows[row].node
+            if case .topSpacer(let height) = node.row {
+                // NSTableView raises an internal inconsistency exception when a
+                // variable row-height delegate returns zero. A measured overlay
+                // can briefly report zero during its first layout pass.
+                return max(height, SpacingTokens.micro)
             }
-            return 25
+            return baseRowHeight + node.row.groupTopPadding + node.row.extraSlotHeight
         }
 
         func tableViewSelectionDidChange(_ notification: Notification) {
@@ -209,7 +263,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
 
             for row in visibleRange.location ..< (visibleRange.location + visibleRange.length) {
                 guard visibleRows.indices.contains(row),
-                      let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: false) as? ExperimentalTableCellView
+                      let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: false) as? ObjectBrowserOutlineCellView
                 else { continue }
 
                 let visibleRow = visibleRows[row]
@@ -329,6 +383,26 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             tableView.enclosingScrollView?.contentView.bounds.origin.y
         }
 
+        private func topSpacerHeight(in rows: [VisibleRow]) -> CGFloat? {
+            guard let firstRow = rows.first,
+                  case .topSpacer(let height) = firstRow.node.row
+            else { return nil }
+            return max(height, SpacingTokens.micro)
+        }
+
+        private func adjustedScrollPosition(
+            _ scrollY: CGFloat,
+            oldTopSpacerHeight: CGFloat?,
+            newTopSpacerHeight: CGFloat?
+        ) -> CGFloat {
+            guard let oldTopSpacerHeight,
+                  let newTopSpacerHeight,
+                  scrollY > oldTopSpacerHeight
+            else { return scrollY }
+
+            return scrollY + newTopSpacerHeight - oldTopSpacerHeight
+        }
+
         private func restoreScrollPosition(y: CGFloat) {
             guard let scrollView = tableView.enclosingScrollView else { return }
             let clipView = scrollView.contentView
@@ -353,7 +427,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
 }
 
 @MainActor
-final class ExperimentalTableCellView: NSTableCellView {
+final class ObjectBrowserOutlineCellView: NSTableCellView {
     private let hostingView = NSHostingView(rootView: AnyView(EmptyView()))
 
     init(identifier: NSUserInterfaceItemIdentifier) {
@@ -382,7 +456,7 @@ final class ExperimentalTableCellView: NSTableCellView {
 }
 
 @MainActor
-final class ExperimentalClearRowView: NSTableRowView {
+final class ObjectBrowserClearRowView: NSTableRowView {
     override func drawSelection(in dirtyRect: NSRect) {}
     override func drawBackground(in dirtyRect: NSRect) {}
 }

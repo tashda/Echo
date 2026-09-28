@@ -25,6 +25,7 @@ struct ConnectionConfiguration: Codable, Hashable {
     var sslKeyPath: String?
     var verifySSLCertificate: Bool = true
     var mssqlEncryptionMode: MSSQLEncryptionMode = .optional
+    var hostNameInCertificate: String?
     var readOnlyIntent: Bool = false
 
     // Connection behavior
@@ -64,6 +65,7 @@ struct ConnectionConfiguration: Codable, Hashable {
         sslKeyPath: String? = nil,
         verifySSLCertificate: Bool = true,
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
         connectionTimeout: TimeInterval = 30,
         queryTimeout: TimeInterval = 60,
@@ -95,6 +97,7 @@ struct ConnectionConfiguration: Codable, Hashable {
         self.sslKeyPath = sslKeyPath
         self.verifySSLCertificate = verifySSLCertificate
         self.mssqlEncryptionMode = mssqlEncryptionMode
+        self.hostNameInCertificate = hostNameInCertificate
         self.readOnlyIntent = readOnlyIntent
         self.connectionTimeout = connectionTimeout
         self.queryTimeout = queryTimeout
@@ -130,6 +133,7 @@ struct ConnectionConfiguration: Codable, Hashable {
             sslCertPath: sslCertPath,
             sslKeyPath: sslKeyPath,
             mssqlEncryptionMode: mssqlEncryptionMode,
+            hostNameInCertificate: hostNameInCertificate,
             readOnlyIntent: readOnlyIntent,
             connectionTimeout: connectionTimeout,
             queryTimeout: queryTimeout
@@ -158,6 +162,7 @@ struct ConnectionConfiguration: Codable, Hashable {
             sslCertPath: savedConnection.sslCertPath,
             sslKeyPath: savedConnection.sslKeyPath,
             mssqlEncryptionMode: savedConnection.mssqlEncryptionMode,
+            hostNameInCertificate: savedConnection.hostNameInCertificate,
             readOnlyIntent: savedConnection.readOnlyIntent,
             connectionTimeout: savedConnection.connectionTimeout,
             queryTimeout: savedConnection.queryTimeout,

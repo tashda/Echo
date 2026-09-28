@@ -49,6 +49,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
         trustServerCertificate: Bool,
         sslRootCertPath: String?,
         mssqlEncryptionMode: MSSQLEncryptionMode,
+        hostNameInCertificate: String?,
         readOnlyIntent: Bool,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
@@ -61,15 +62,30 @@ struct MSSQLNIOFactory: DatabaseFactory {
         }()
         let sqlServerAuth = try makeAuthentication(from: authentication)
 
+        // Matches SSMS 19+: the Encryption dropdown alone decides whether TLS
+        // happens. Optional = no TLS attempted (client advertises ENCRYPT_NOT_SUP);
+        // Mandatory/Strict = TLS required. We only hand a TLSConfiguration to
+        // the package when the user actually opted into TLS, so the legacy
+        // useTLS flag is irrelevant for SQL Server connections.
+        //
+        // Migration: a legacy connection saved with useTLS=false is treated as
+        // Optional, preserving its plain-TDS behavior.
+        let effectiveMode: MSSQLEncryptionMode = tls ? mssqlEncryptionMode : .optional
+        let tlsActuallyEnabled = effectiveMode != .optional
+
         var config = SQLServerClient.Configuration(
             hostname: host,
             port: port,
             database: loginDatabase,
             authentication: sqlServerAuth,
-            tlsEnabled: tls,
+            tlsEnabled: tlsActuallyEnabled,
             trustServerCertificate: trustServerCertificate,
             caCertificatePath: sslRootCertPath,
-            encryptionMode: mssqlEncryptionMode.asSQLServerEncryptionMode,
+            encryptionMode: effectiveMode.asSQLServerEncryptionMode,
+            hostNameInCertificate: hostNameInCertificate.flatMap {
+                let trimmed = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
+            },
             metadataConfiguration: .init(
                 includeSystemSchemas: false,
                 enableColumnCache: true,
@@ -93,6 +109,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
         trustServerCertificate: Bool,
         sslRootCertPath: String?,
         mssqlEncryptionMode: MSSQLEncryptionMode,
+        hostNameInCertificate: String?,
         readOnlyIntent: Bool,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int
@@ -105,6 +122,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
             trustServerCertificate: trustServerCertificate,
             sslRootCertPath: sslRootCertPath,
             mssqlEncryptionMode: mssqlEncryptionMode,
+            hostNameInCertificate: hostNameInCertificate,
             readOnlyIntent: readOnlyIntent,
             authentication: authentication,
             connectTimeoutSeconds: connectTimeoutSeconds
@@ -125,6 +143,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
         sslCertPath: String? = nil,
         sslKeyPath: String? = nil,
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
@@ -145,6 +164,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
             trustServerCertificate: trustServerCertificate,
             sslRootCertPath: sslRootCertPath,
             mssqlEncryptionMode: mssqlEncryptionMode,
+            hostNameInCertificate: hostNameInCertificate,
             readOnlyIntent: readOnlyIntent,
             authentication: authentication,
             connectTimeoutSeconds: connectTimeoutSeconds

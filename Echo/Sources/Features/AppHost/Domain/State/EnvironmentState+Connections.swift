@@ -67,6 +67,13 @@ extension EnvironmentState {
         for key in serverEditorKeys { serverEditorViewModels.removeValue(forKey: key) }
         let roleEditorKeys = roleEditorViewModels.keys.filter { $0.connectionSessionID == id }
         for key in roleEditorKeys { roleEditorViewModels.removeValue(forKey: key) }
+        let pickerKeys = windowsPrincipalPickerViewModels.keys.filter { $0.connectionSessionID == id }
+        for key in pickerKeys {
+            // Release any pending callbacks; the windows will close themselves
+            // on disappear and observe their state become unavailable.
+            windowsPrincipalPickerCallbacks.removeValue(forKey: key.requestID)
+            windowsPrincipalPickerViewModels.removeValue(forKey: key)
+        }
         sessionGroup.removeSession(withID: id)
         notificationEngine?.post(category: .connectionDisconnected, message: "Disconnected from \(displayName)")
     }
@@ -135,6 +142,7 @@ extension EnvironmentState {
                 sslCertPath: connection.sslCertPath,
                 sslKeyPath: connection.sslKeyPath,
                 mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                hostNameInCertificate: connection.hostNameInCertificate,
                 readOnlyIntent: connection.readOnlyIntent,
                 authentication: credentials,
                 connectTimeoutSeconds: connectTimeoutSeconds ?? Int(connection.connectionTimeout)
@@ -267,6 +275,7 @@ extension EnvironmentState {
             sslCertPath: connection.sslCertPath,
             sslKeyPath: connection.sslKeyPath,
             mssqlEncryptionMode: connection.mssqlEncryptionMode,
+            hostNameInCertificate: connection.hostNameInCertificate,
             readOnlyIntent: connection.readOnlyIntent,
             authentication: credentials,
             connectTimeoutSeconds: 10
@@ -302,6 +311,7 @@ extension EnvironmentState {
                 trustServerCertificate: connection.trustServerCertificate,
                 sslRootCertPath: connection.sslRootCertPath,
                 mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                hostNameInCertificate: connection.hostNameInCertificate,
                 readOnlyIntent: connection.readOnlyIntent,
                 authentication: credentials,
                 connectTimeoutSeconds: 10
@@ -345,6 +355,7 @@ extension EnvironmentState {
             sslCertPath: connection.sslCertPath,
             sslKeyPath: connection.sslKeyPath,
             mssqlEncryptionMode: connection.mssqlEncryptionMode,
+            hostNameInCertificate: connection.hostNameInCertificate,
             readOnlyIntent: connection.readOnlyIntent,
             authentication: credentials,
             connectTimeoutSeconds: Int(connection.connectionTimeout)

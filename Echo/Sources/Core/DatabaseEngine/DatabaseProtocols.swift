@@ -103,6 +103,7 @@ protocol DatabaseFactory: Sendable {
         sslCertPath: String?,
         sslKeyPath: String?,
         mssqlEncryptionMode: MSSQLEncryptionMode,
+        hostNameInCertificate: String?,
         readOnlyIntent: Bool,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int

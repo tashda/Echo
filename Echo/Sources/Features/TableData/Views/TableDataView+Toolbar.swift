@@ -2,14 +2,12 @@ import SwiftUI
 
 extension TableDataView {
     var tableDataToolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
+        TabSectionToolbar {
             Text("\(viewModel.schemaName).\(viewModel.tableName)")
                 .font(TypographyTokens.prominent.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
-
-            Spacer()
-
+        } controls: {
             if viewModel.isEditMode && viewModel.hasPendingEdits {
                 Button {
                     viewModel.discardChanges()
@@ -52,16 +50,10 @@ extension TableDataView {
                 .controlSize(.small)
             }
 
-            Button {
+            TabRefreshButton(isRefreshing: viewModel.isLoading) {
                 Task { await viewModel.loadInitialData() }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.xs)
     }
 
     var tableDataStatusBar: some View {

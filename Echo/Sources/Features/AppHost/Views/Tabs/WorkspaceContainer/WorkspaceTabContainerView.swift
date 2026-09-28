@@ -4,8 +4,6 @@ import UniformTypeIdentifiers
 import EchoSense
 #if os(macOS)
 import AppKit
-#else
-import UIKit
 #endif
 
 #if os(macOS)
@@ -65,6 +63,7 @@ struct WorkspaceTabContainerView: View {
         }
 
         return tabStore.activeTab
+            ?? tabStore.tabs.first
     }
 
     var body: some View {
@@ -89,7 +88,7 @@ struct WorkspaceTabContainerView: View {
                     }
                 )
             } else if !tabStore.tabs.isEmpty {
-                aliveTabsContainer
+                activeTabContainer
             } else if let activeSession = environmentState.sessionGroup.activeSession {
                 ConnectionDashboardView(session: activeSession)
             } else {
@@ -107,34 +106,18 @@ struct WorkspaceTabContainerView: View {
         }
     }
 
-    /// Keeps all tab views alive in a ZStack. The active tab is fully visible and
-    /// interactive; inactive tabs are hidden (opacity 0) but their NSViews persist
-    /// in memory, so switching is instant — no view teardown/rebuild.
+    /// Mounts only the visible tab. WorkspaceTab and QueryEditorState keep query,
+    /// result, and grid state alive without keeping inactive SwiftUI/AppKit trees
+    /// in the resize and observation paths.
     @ViewBuilder
-    private var aliveTabsContainer: some View {
-        if let hostedWorkspaceTabID,
-           let hostedTab = tabStore.tabs.first(where: { $0.id == hostedWorkspaceTabID }) {
-            // Detached window: show only the hosted tab
+    private var activeTabContainer: some View {
+        if let currentWorkspaceTab {
             WorkspaceContentView(
-                tab: hostedTab,
-                runQuery: { sql in await runQuery(tabId: hostedTab.id, sql: sql) },
-                gridStateProvider: { hostedTab.resultsGridState }
+                tab: currentWorkspaceTab,
+                runQuery: { sql in await runQuery(tabId: currentWorkspaceTab.id, sql: sql) },
+                gridStateProvider: { currentWorkspaceTab.resultsGridState }
             )
-        } else {
-            let activeId = tabStore.activeTabId
-            ZStack {
-                ForEach(tabStore.tabs) { tab in
-                    let isActive = tab.id == activeId
-                    WorkspaceContentView(
-                        tab: tab,
-                        runQuery: { sql in await runQuery(tabId: tab.id, sql: sql) },
-                        gridStateProvider: { tab.resultsGridState }
-                    )
-                    .opacity(isActive ? 1 : 0)
-                    .allowsHitTesting(isActive)
-                    .accessibilityHidden(!isActive)
-                }
-            }
+            .id(currentWorkspaceTab.id)
         }
     }
 

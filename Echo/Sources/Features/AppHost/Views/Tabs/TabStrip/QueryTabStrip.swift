@@ -27,6 +27,7 @@ struct QueryTabStrip: View {
     @State var hoveredTabID: UUID?
     @State var dragState = TabDragState()
     @State private var measuredTabGroupWidth: CGFloat = 0
+    @State private var databaseNamesBySessionID: [UUID: [String]] = [:]
 
     private var tabStripStyle: TabStripBackground.Style {
         .standard(colorScheme)
@@ -103,7 +104,11 @@ struct QueryTabStrip: View {
 #endif
 
                 HStack(spacing: 0) {
-                    tabGroup(orderedTabs: orderedTabs, tabWidth: tabWidth)
+                    tabGroup(
+                        orderedTabs: orderedTabs,
+                        tabWidth: tabWidth,
+                        databaseNamesBySessionID: databaseNamesBySessionID
+                    )
                         .background(
                             GeometryReader { contentGeo in
                                 Color.clear
@@ -139,6 +144,12 @@ struct QueryTabStrip: View {
                 hoveredTabID = nil
             }
         }
+        .onAppear {
+            refreshDatabaseNameCache()
+        }
+        .onChange(of: databaseNameCacheSignature()) { _, _ in
+            refreshDatabaseNameCache()
+        }
     }
 
     func combinedTabs(from tabs: [WorkspaceTab]) -> [(WorkspaceTab, Bool)] {
@@ -167,12 +178,23 @@ struct QueryTabStrip: View {
         .accessibilityLabel("New Tab")
     }
 
-    private func tabGroup(orderedTabs: [(WorkspaceTab, Bool)], tabWidth: CGFloat) -> some View {
+    private func tabGroup(
+        orderedTabs: [(WorkspaceTab, Bool)],
+        tabWidth: CGFloat,
+        databaseNamesBySessionID: [UUID: [String]]
+    ) -> some View {
         HStack(spacing: 0) {
             ForEach(Array(orderedTabs.enumerated()), id: \.element.0.id) { index, element in
                 let tab = element.0
 
-                tabButtonView(tab: tab, targetWidth: tabWidth, index: index, totalCount: orderedTabs.count, appearance: nil)
+                tabButtonView(
+                    tab: tab,
+                    targetWidth: tabWidth,
+                    index: index,
+                    totalCount: orderedTabs.count,
+                    appearance: nil,
+                    databaseNames: databaseNamesBySessionID[tab.connectionSessionID, default: []]
+                )
                     .offset(x: tabOffset(for: tab, index: index, tabWidth: tabWidth))
                     .zIndex(tabZIndex(for: tab))
                     .overlay(alignment: .trailing) {
@@ -194,5 +216,27 @@ struct QueryTabStrip: View {
             }
         }
         .fixedSize()
+    }
+
+    private func databaseNameCacheSignature() -> String {
+        environmentState.sessionGroup.activeSessions.map { session in
+            let databaseSignature = (session.databaseStructure?.databases ?? [])
+                .map { "\($0.name):\($0.isOnline)" }
+                .joined(separator: ",")
+            return "\(session.id.uuidString)|\(databaseSignature)"
+        }
+        .joined(separator: ";")
+    }
+
+    private func refreshDatabaseNameCache() {
+        var next: [UUID: [String]] = [:]
+        for session in environmentState.sessionGroup.activeSessions {
+            let names = (session.databaseStructure?.databases ?? [])
+                .filter(\.isOnline)
+                .map(\.name)
+                .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            next[session.id] = names
+        }
+        databaseNamesBySessionID = next
     }
 }

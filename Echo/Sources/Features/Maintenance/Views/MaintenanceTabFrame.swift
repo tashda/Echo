@@ -24,7 +24,7 @@ struct MaintenanceTabFrame<SectionPicker: View, Content: View>: View {
                 )
             } else {
                 VStack(spacing: 0) {
-                    TabSectionToolbar { sectionPicker() }
+                    CenteredTabSectionToolbar { sectionPicker() }
                     Divider()
                     content()
                 }

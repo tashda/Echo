@@ -120,6 +120,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var sslCertPath: String?
     var sslKeyPath: String?
     var mssqlEncryptionMode: MSSQLEncryptionMode
+    var hostNameInCertificate: String?
     var readOnlyIntent: Bool
     var connectionTimeout: TimeInterval
     var queryTimeout: TimeInterval
@@ -162,6 +163,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case sslCertPath
         case sslKeyPath
         case mssqlEncryptionMode
+        case hostNameInCertificate
         case readOnlyIntent
         case connectionTimeout
         case queryTimeout
@@ -194,6 +196,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         sslCertPath: String? = nil,
         sslKeyPath: String? = nil,
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
         connectionTimeout: TimeInterval = 30,
         queryTimeout: TimeInterval = 60,
@@ -224,6 +227,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         self.sslCertPath = sslCertPath
         self.sslKeyPath = sslKeyPath
         self.mssqlEncryptionMode = mssqlEncryptionMode
+        self.hostNameInCertificate = hostNameInCertificate
         self.readOnlyIntent = readOnlyIntent
         self.connectionTimeout = connectionTimeout
         self.queryTimeout = queryTimeout
@@ -257,6 +261,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         sslCertPath = try container.decodeIfPresent(String.self, forKey: .sslCertPath)
         sslKeyPath = try container.decodeIfPresent(String.self, forKey: .sslKeyPath)
         mssqlEncryptionMode = try container.decodeIfPresent(MSSQLEncryptionMode.self, forKey: .mssqlEncryptionMode) ?? .optional
+        hostNameInCertificate = try container.decodeIfPresent(String.self, forKey: .hostNameInCertificate)
         readOnlyIntent = try container.decodeIfPresent(Bool.self, forKey: .readOnlyIntent) ?? false
         connectionTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .connectionTimeout) ?? 30
         queryTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .queryTimeout) ?? 60
@@ -290,6 +295,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encodeIfPresent(sslCertPath, forKey: .sslCertPath)
         try container.encodeIfPresent(sslKeyPath, forKey: .sslKeyPath)
         try container.encode(mssqlEncryptionMode, forKey: .mssqlEncryptionMode)
+        try container.encodeIfPresent(hostNameInCertificate, forKey: .hostNameInCertificate)
         try container.encode(readOnlyIntent, forKey: .readOnlyIntent)
         try container.encode(connectionTimeout, forKey: .connectionTimeout)
         try container.encode(queryTimeout, forKey: .queryTimeout)

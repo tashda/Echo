@@ -1,6 +1,54 @@
 import SwiftUI
 
 public enum LayoutTokens {
+    public enum Sidebar {
+        /// Matches the horizontal inset of Xcode's navigator tab bar.
+        public static let navigationHorizontalPadding: CGFloat = SpacingTokens.xs2
+
+        /// Matches the native Golden Gate navigator tab bar height.
+        public static let navigationControlHeight: CGFloat = 28
+    }
+
+    public enum ConnectionDock {
+        /// Keeps connection labels readable while allowing the dock to adapt from
+        /// one column in a narrow sidebar to multiple columns at larger widths.
+        public static let minimumColumnWidth: CGFloat = 144
+
+        /// Number of connection choices kept visible in the compact dock.
+        public static let collapsedItemLimit = 2
+
+        /// Shared continuous curvature for the dock and its selected connection.
+        public static let cornerRadius = LayoutTokens.Sidebar.navigationControlHeight / 2
+    }
+
+    public enum TabNavigation {
+        /// Apple recommends a menu or another navigation pattern beyond six tabs.
+        public static let maximumVisibleTabCount = 6
+
+        /// A stable width for a prominent two-item tab picker with descriptive labels.
+        public static let compactPickerWidth: CGFloat = 360
+
+        /// A stable width for a prominent five-item tab picker. This prevents the
+        /// selected tab's native highlight from changing the control's alignment.
+        public static let widePickerWidth: CGFloat = 560
+
+        /// Preserves the same per-item proportions as the five-item picker when a
+        /// page-level navigation control contains six destinations.
+        public static let expandedPickerWidth: CGFloat = 672
+
+        /// Preserves Maintenance's established 112pt segment proportion.
+        public static let itemWidth = widePickerWidth / 5
+
+        public static func pickerWidth(itemCount: Int) -> CGFloat {
+            max(compactPickerWidth, CGFloat(itemCount) * itemWidth)
+        }
+    }
+
+    public enum SplitView {
+        /// Keeps both sides of an adjustable tab-content split usable.
+        public static let minimumPaneHeight: CGFloat = 150
+    }
+
     public enum Icon {
         /// Default square canvas for icon assets embedded inline with 13pt text.
         public static let standardCanvas: CGFloat = SpacingTokens.md

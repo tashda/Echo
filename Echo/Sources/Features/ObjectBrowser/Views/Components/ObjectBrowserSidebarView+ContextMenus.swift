@@ -10,7 +10,7 @@ extension ObjectBrowserSidebarView {
         case .pendingConnection(let pending):
             pendingConnectionMenu(for: pending)
         case .server(let session):
-            serverMenu(for: session)
+            connectionMenu(for: session)
         case .databasesFolder(let session, _):
             databasesFolderMenu(for: session)
         case .database(let session, let database, _):
@@ -48,7 +48,7 @@ extension ObjectBrowserSidebarView {
         }
     }
 
-    private func pendingConnectionMenu(for pending: PendingConnection) -> NSMenu {
+    func pendingConnectionMenu(for pending: PendingConnection) -> NSMenu {
         let menu = NSMenu()
 
         switch pending.phase {
@@ -367,7 +367,7 @@ extension ObjectBrowserSidebarView {
         return menu
     }
 
-    private func serverMenu(for session: ConnectionSession) -> NSMenu {
+    func connectionMenu(for session: ConnectionSession) -> NSMenu {
         let menu = NSMenu()
 
         menu.addActionItem("Refresh All", systemImage: "arrow.clockwise") {
@@ -407,11 +407,10 @@ extension ObjectBrowserSidebarView {
             menu.addDivider()
 
             let connID = session.connection.id
-            let hideOffline = viewModel.hideOfflineDatabasesBySession[connID] ?? false
-            let item = menu.addActionItem("Hide Offline Databases", systemImage: "eye.slash") {
-                viewModel.hideOfflineDatabasesBySession[connID] = !(viewModel.hideOfflineDatabasesBySession[connID] ?? false)
+            let item = menu.addActionItem(hideOfflineDatabasesTitle(for: connID), systemImage: "eye.slash") {
+                self.toggleHideOffline(for: connID)
             }
-            item.state = hideOffline ? NSControl.StateValue.on : NSControl.StateValue.off
+            item.state = (viewModel.hideOfflineDatabasesBySession[connID] ?? false) ? .on : .off
         }
 
         menu.addDivider()
@@ -440,6 +439,16 @@ extension ObjectBrowserSidebarView {
         return menu
     }
 
+    func hideOfflineDatabasesTitle(for connectionID: UUID) -> String {
+        let isHidden = viewModel.hideOfflineDatabasesBySession[connectionID] ?? false
+        return isHidden ? "Show Offline Databases" : "Hide Offline Databases"
+    }
+
+    func toggleHideOffline(for connectionID: UUID) {
+        let newValue = !(viewModel.hideOfflineDatabasesBySession[connectionID] ?? false)
+        viewModel.setHideOffline(newValue, for: connectionID)
+    }
+
     private func databasesFolderMenu(for session: ConnectionSession) -> NSMenu {
         let menu = NSMenu()
         menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
@@ -461,6 +470,12 @@ extension ObjectBrowserSidebarView {
                 sheetState.showAttachSheet = true
             }
         }
+        menu.addDivider()
+        let connID = session.connection.id
+        let hideItem = menu.addActionItem(hideOfflineDatabasesTitle(for: connID), systemImage: "eye.slash") {
+            self.toggleHideOffline(for: connID)
+        }
+        hideItem.state = (viewModel.hideOfflineDatabasesBySession[connID] ?? false) ? .on : .off
         return menu
     }
 

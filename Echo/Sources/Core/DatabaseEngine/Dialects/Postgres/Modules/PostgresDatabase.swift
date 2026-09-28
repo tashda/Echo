@@ -20,6 +20,7 @@ struct PostgresNIOFactory: DatabaseFactory {
         sslCertPath: String? = nil,
         sslKeyPath: String? = nil,
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10

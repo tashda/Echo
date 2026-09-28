@@ -11,10 +11,19 @@ extension ObjectBrowserRowView {
     }
 
     func serverSubtitle(_ session: ConnectionSession) -> String {
+        let typeLabel: String
         if let version = serverVersionLabel(session) {
-            return "\(session.connection.databaseType.displayName) (\(version))"
+            typeLabel = "\(session.connection.databaseType.displayName) (\(version))"
+        } else {
+            typeLabel = session.connection.databaseType.displayName
         }
-        return session.connection.databaseType.displayName
+
+        let displayName = serverDisplayName(session)
+        let host = session.connection.host.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !host.isEmpty, displayName.caseInsensitiveCompare(host) != .orderedSame else {
+            return typeLabel
+        }
+        return "\(host) - \(typeLabel)"
     }
 
     func serverVersionLabel(_ session: ConnectionSession) -> String? {
@@ -68,8 +77,27 @@ extension ObjectBrowserRowView {
         }
     }
 
-    func objectSubtitle(_ object: SchemaObjectInfo) -> String? {
-        guard object.type == .trigger, let table = object.triggerTable, !table.isEmpty else { return nil }
-        return "on \(table)"
+    /// Right-aligned tertiary detail rendered in the row's trailing slot.
+    /// For triggers, this is the parent table name (no "on " prefix — that
+    /// reads like CLI output; the trailing position alone communicates the
+    /// relationship).
+    func objectTrailingDetail(_ object: SchemaObjectInfo) -> String? {
+        guard object.type == .trigger,
+              let table = object.triggerTable,
+              !table.isEmpty
+        else { return nil }
+        return table
+    }
+
+    /// Renders an object's qualified name with the schema prefix dimmed to
+    /// tertiary, matching Xcode's namespace dimming for symbols like `Foo.Bar`.
+    /// Falls back to a single primary-colored Text when there's no schema dot.
+    func dimmedSchemaLabel(for fullName: String) -> Text? {
+        guard let dotIndex = fullName.firstIndex(of: "."),
+              dotIndex != fullName.startIndex
+        else { return nil }
+        let schemaPart = String(fullName[..<fullName.index(after: dotIndex)])
+        let namePart = String(fullName[fullName.index(after: dotIndex)...])
+        return Text("\(Text(schemaPart).foregroundStyle(ColorTokens.Text.tertiary))\(Text(namePart).foregroundStyle(ColorTokens.Text.primary))")
     }
 }

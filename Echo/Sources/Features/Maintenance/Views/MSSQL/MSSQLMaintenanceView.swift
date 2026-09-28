@@ -18,15 +18,15 @@ struct MSSQLMaintenanceView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            Picker(selection: $viewModel.selectedSection) {
+            TabSectionPicker(
+                "Maintenance Section",
+                selection: $viewModel.selectedSection,
+                itemCount: MSSQLMaintenanceViewModel.MaintenanceSection.allCases.count
+            ) {
                 ForEach(MSSQLMaintenanceViewModel.MaintenanceSection.allCases, id: \.self) { section in
                     Text(section.rawValue).tag(section)
                 }
-            } label: {
-                EmptyView()
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 440)
         } content: {
             sectionContent
         }

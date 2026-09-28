@@ -39,16 +39,13 @@ struct ExtendedEventsDataView: View {
                 loadingPlaceholder
             } else if case .error(let message) = viewModel.eventDataLoadingState {
                 errorPlaceholder(message)
+            } else if viewModel.eventData.isEmpty {
+                emptyPlaceholder
             } else {
                 eventTable
-                    .overlay {
-                        if viewModel.eventData.isEmpty {
-                            emptyPlaceholder
-                        }
-                    }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .tabContentFrame()
         .background(ColorTokens.Background.primary)
     }
 
@@ -181,81 +178,4 @@ struct ExtendedEventsDataView: View {
         }
     }
 
-    // MARK: - Formatting
-
-    private func formattedTimestamp(_ date: Date?) -> String {
-        guard let date else { return "--" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-        return formatter.string(from: date)
-    }
-
-    private func summaryFields(_ fields: [String: String]) -> String {
-        let priority = ["sql_text", "database_name", "duration", "username", "statement"]
-        var parts: [String] = []
-        for key in priority {
-            if let value = fields[key], !value.isEmpty {
-                let truncated = value.count > 80 ? String(value.prefix(80)) + "..." : value
-                parts.append("\(key): \(truncated)")
-            }
-        }
-        if parts.isEmpty {
-            let remaining = fields.prefix(3).map { "\($0.key): \($0.value)" }
-            parts = Array(remaining)
-        }
-        return parts.joined(separator: " | ")
-    }
-
-    // MARK: - Placeholders
-
-    private var noSessionPlaceholder: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "waveform.path.ecg")
-                .font(.title2)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("Select a running session to view captured events")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var loadingPlaceholder: some View {
-        TabInitializingPlaceholder(
-            icon: "bolt.horizontal",
-            title: "Loading Event Data",
-            subtitle: "Reading event data stream..."
-        )
-    }
-
-    private func errorPlaceholder(_ message: String) -> some View {
-        VStack(spacing: SpacingTokens.md) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.title2)
-                .foregroundStyle(ColorTokens.Status.warning)
-            Text(message)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, SpacingTokens.xl)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var emptyPlaceholder: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "tray")
-                .font(.title2)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("No events captured yet")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
-            Text("The session's ring buffer has no data. Wait for events to occur, then refresh.")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, SpacingTokens.xl)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 }

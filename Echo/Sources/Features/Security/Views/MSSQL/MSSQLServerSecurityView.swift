@@ -6,11 +6,11 @@ struct MSSQLServerSecurityView: View {
     @Environment(TabStore.self) private var tabStore
     @Environment(EnvironmentState.self) private var environmentState
 
-    @State private var showNewRoleSheet = false
-    @State private var showNewCredentialSheet = false
-    @State private var showNewAuditSheet = false
+    @State var showNewRoleSheet = false
+    @State var showNewCredentialSheet = false
+    @State var showNewAuditSheet = false
 
-    private var session: ConnectionSession? {
+    var session: ConnectionSession? {
         environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
     }
 
@@ -72,45 +72,15 @@ struct MSSQLServerSecurityView: View {
     // MARK: - Section Picker
 
     private var sectionPicker: some View {
-        Picker(selection: $viewModel.selectedSection) {
+        TabSectionPicker(
+            "Security Section",
+            selection: $viewModel.selectedSection,
+            itemCount: ServerSecurityViewModel.Section.allCases.count
+        ) {
             ForEach(ServerSecurityViewModel.Section.allCases, id: \.self) { section in
                 Text(section.rawValue).tag(section)
             }
-        } label: {
-            EmptyView()
         }
-        .pickerStyle(.segmented)
-        .frame(maxWidth: 380)
     }
 
-    // MARK: - Section Content
-
-    @ViewBuilder
-    private var sectionContent: some View {
-        VStack(spacing: 0) {
-            if !(session?.permissions?.canManageRoles ?? true) {
-                PermissionBanner(message: "Some operations require the securityadmin or sysadmin role.")
-            }
-            switch viewModel.selectedSection {
-            case .logins:
-                MSSQLSecurityLoginsSection(viewModel: viewModel)
-            case .serverRoles:
-                MSSQLSecurityServerRolesSection(
-                    viewModel: viewModel,
-                    onNewRole: { showNewRoleSheet = true }
-                )
-            case .credentials:
-                MSSQLSecurityCredentialsSection(
-                    viewModel: viewModel,
-                    onNewCredential: { showNewCredentialSheet = true }
-                )
-            case .audits:
-                MSSQLSecurityAuditsSection(
-                    viewModel: viewModel,
-                    onNewAudit: { showNewAuditSheet = true }
-                )
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 }

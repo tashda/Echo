@@ -47,17 +47,18 @@ struct JobDetailsView: View {
             .padding(.vertical, SpacingTokens.sm)
 
             if viewModel.properties != nil {
-                Picker("", selection: Binding(
-                    get: { DetailSection(rawValue: viewModel.selectedDetailSection) ?? .properties },
-                    set: { viewModel.selectedDetailSection = $0.rawValue }
-                )) {
+                TabSectionPicker(
+                    "Job Detail Section",
+                    selection: Binding(
+                        get: { DetailSection(rawValue: viewModel.selectedDetailSection) ?? .properties },
+                        set: { viewModel.selectedDetailSection = $0.rawValue }
+                    ),
+                    itemCount: DetailSection.allCases.count
+                ) {
                     ForEach(DetailSection.allCases) { section in
                         Text(section.rawValue).tag(section)
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.bottom, SpacingTokens.xs)
 

@@ -9,6 +9,18 @@ struct SidebarSettingsView: View {
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Expand one connection at a time", isOn: expandOneConnectionToggle)
+            } header: {
+                Text("Object Browser")
+            } footer: {
+                Text("Collapse other connections when opening a server.")
+            }
+
+            Section("Databases") {
+                Toggle("Hide offline databases by default", isOn: hideOfflineToggle)
+            }
+
             Section("General") {
                 ForEach(SidebarAutoExpandSection.generalSections) { section in
                     Toggle(section.displayName, isOn: generalToggle(for: section))
@@ -41,6 +53,30 @@ struct SidebarSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Hide offline toggle
+
+    private var expandOneConnectionToggle: Binding<Bool> {
+        Binding(
+            get: { settings.sidebarExpandOneConnectionAtATime },
+            set: { enabled in
+                var updated = settings
+                updated.sidebarExpandOneConnectionAtATime = enabled
+                Task { try? await projectStore.updateGlobalSettings(updated) }
+            }
+        )
+    }
+
+    private var hideOfflineToggle: Binding<Bool> {
+        Binding(
+            get: { settings.sidebarHideOfflineDatabasesByDefault },
+            set: { enabled in
+                var updated = settings
+                updated.sidebarHideOfflineDatabasesByDefault = enabled
+                Task { try? await projectStore.updateGlobalSettings(updated) }
+            }
+        )
     }
 
     // MARK: - General toggles

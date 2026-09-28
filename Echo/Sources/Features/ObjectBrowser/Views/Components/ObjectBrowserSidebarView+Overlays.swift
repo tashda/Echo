@@ -324,9 +324,9 @@ extension ObjectBrowserSidebarView {
                             viewModel.sourceSessionID = session.id
                             viewModel.loadSourceDatabases()
                         }
-                        viewModel.onOpenInQueryTab = { [weak environmentState] script in
+                        viewModel.onOpenInQueryTab = { script in
                             let targetSession = sessions.first(where: { $0.id == viewModel.targetSessionID })
-                            environmentState?.openQueryTab(
+                            environmentState.openQueryTab(
                                 for: targetSession,
                                 presetQuery: script,
                                 database: viewModel.targetDatabaseName

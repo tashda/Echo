@@ -2,27 +2,28 @@ import SwiftUI
 import SQLServerKit
 
 struct QueryStoreView: View {
-    @Bindable var viewModel: QueryStoreViewModel
+    @Bindable internal var viewModel: QueryStoreViewModel
     @Environment(EnvironmentState.self) private var environmentState
-    @Environment(AppState.self) private var appState
+    @Environment(AppState.self) internal var appState
+    @Environment(\.openWindow) private var openWindow
 
     @State private var selectedSQLContext: SQLPopoutContext?
 
     var body: some View {
         VStack(spacing: 0) {
             TabSectionToolbar {
-                Picker(selection: $viewModel.selectedSection) {
+                if let options = viewModel.storeOptions {
+                    QueryStoreStatusBar(options: options)
+                }
+            } controls: {
+                TabSectionPicker(
+                    "Query View",
+                    selection: $viewModel.selectedSection,
+                    itemCount: QueryStoreViewModel.SelectedSection.allCases.count
+                ) {
                     ForEach(QueryStoreViewModel.SelectedSection.allCases, id: \.self) { section in
                         Text(section.rawValue).tag(section)
                     }
-                } label: {
-                    EmptyView()
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 280)
-            } controls: {
-                if let options = viewModel.storeOptions {
-                    QueryStoreStatusBar(options: options)
                 }
             }
 
@@ -39,15 +40,12 @@ struct QueryStoreView: View {
                     Text(message)
                 }
             } else if let options = viewModel.storeOptions, options.isOff {
-                ContentUnavailableView {
-                    Label("Query Store is off", systemImage: "chart.bar.xaxis")
-                } description: {
-                    Text("Enable Query Store in Database Properties to start capturing query performance data.")
-                }
+                queryStoreDisabledView
             } else {
                 contentView
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(ColorTokens.Background.primary)
         .sheet(item: $selectedSQLContext) { context in
             SQLInspectorSheet(context: context) { sql, database in
@@ -70,86 +68,24 @@ struct QueryStoreView: View {
         }
     }
 
-    private var filterBar: some View {
-        HStack(spacing: SpacingTokens.md) {
-            Picker("Time Range", selection: $viewModel.filterTimeRange) {
-                ForEach(QueryStoreViewModel.TimeRange.allCases, id: \.self) { range in
-                    Text(range.rawValue).tag(range)
-                }
-            }
-            .frame(width: 160)
-
-            TextField("Filter query text", text: $viewModel.filterQueryText, prompt: Text("Search queries"))
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 220)
-
-            Stepper("Min Executions: \(viewModel.filterMinExecutions)", value: $viewModel.filterMinExecutions, in: 1...10000)
-                .font(TypographyTokens.detail)
-
-            Button {
-                Task { await viewModel.refreshTopQueries() }
-            } label: {
-                Label("Apply", systemImage: "line.3.horizontal.decrease.circle")
-            }
-            .controlSize(.small)
-        }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.xs)
-        .background(ColorTokens.Background.secondary)
-    }
-
-    private var contentView: some View {
-        VStack(spacing: 0) {
-            if viewModel.selectedSection == .topQueries {
-                filterBar
-                Divider()
-            }
-
-            switch viewModel.selectedSection {
-            case .topQueries:
-                QueryStoreTopQueriesSection(
-                    viewModel: viewModel,
-                    onPopout: popout,
-                    onOpenInQueryWindow: openInQueryWindow,
-                    onDoubleClick: { appState.showInfoSidebar.toggle() }
-                )
-            case .regressedQueries:
-                QueryStoreRegressedSection(
-                    viewModel: viewModel,
-                    onPopout: popout,
-                    onOpenInQueryWindow: openInQueryWindow,
-                    onDoubleClick: { appState.showInfoSidebar.toggle() }
-                )
-            }
-
-            if viewModel.selectedQueryId != nil {
-                Divider()
-                QueryStorePlanDetailSection(viewModel: viewModel)
-                    .frame(maxHeight: 220)
-
-                if !viewModel.waitStats.isEmpty {
-                    Divider()
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Wait Statistics")
-                            .font(TypographyTokens.headline)
-                            .padding(SpacingTokens.sm)
-                        QueryStoreWaitStatsSection(waitStats: viewModel.waitStats)
-                    }
-                    .frame(maxHeight: 180)
-                }
-            }
-        }
-    }
-
     // MARK: - Actions
 
-    private func popout(_ sql: String) {
+    internal func popout(_ sql: String) {
         selectedSQLContext = SQLPopoutContext(sql: sql, title: "Query Details", databaseName: viewModel.databaseName, dialect: .microsoftSQL)
     }
 
-    private func openInQueryWindow(_ sql: String, _ database: String?) {
+    internal func openInQueryWindow(_ sql: String, _ database: String?) {
         let connectionID = environmentState.sessionGroup.activeSessions.first(where: { $0.id == viewModel.connectionSessionID })?.connection.id ?? UUID()
         environmentState.openFormattedQueryTab(sql: sql, database: database, connectionID: connectionID, dialect: .microsoftSQL)
+    }
+
+    internal func openDatabaseProperties() {
+        let value = environmentState.prepareDatabaseEditorWindow(
+            connectionSessionID: viewModel.connectionSessionID,
+            databaseName: viewModel.databaseName,
+            databaseType: .microsoftSQL
+        )
+        openWindow(id: DatabaseEditorWindow.sceneID, value: value)
     }
 
     // MARK: - Inspector

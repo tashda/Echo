@@ -19,6 +19,10 @@ struct SidebarRow<Trailing: View>: View {
     let depth: Int
     let icon: Icon
     let label: String
+    /// Optional pre-built `Text` that overrides the default `Text(label)`
+    /// rendering — used for namespace dimming ("Schema." in tertiary +
+    /// "name" in primary) without bypassing the row's typography.
+    var labelText: Text? = nil
     var subtitle: String? = nil
     var isExpanded: Binding<Bool>? = nil
     var isSelected: Bool = false
@@ -32,6 +36,7 @@ struct SidebarRow<Trailing: View>: View {
         depth: Int,
         icon: Icon,
         label: String,
+        labelText: Text? = nil,
         subtitle: String? = nil,
         isExpanded: Binding<Bool>? = nil,
         isSelected: Bool = false,
@@ -44,6 +49,7 @@ struct SidebarRow<Trailing: View>: View {
         self.depth = depth
         self.icon = icon
         self.label = label
+        self.labelText = labelText
         self.subtitle = subtitle
         self.isExpanded = isExpanded
         self.isSelected = isSelected
@@ -55,44 +61,51 @@ struct SidebarRow<Trailing: View>: View {
     }
 
     @Environment(\.sidebarDensity) private var density
+    @Environment(\.sidebarContextMenuActive) private var isContextMenuActive
+    @State private var isHovering = false
 
     private var densityVerticalPadding: CGFloat {
         switch density {
-        case .small: return SidebarRowConstants.rowVerticalPadding // 4pt
-        case .medium: return 4.5
-        case .large: return 5
+        case .compact: return 2
+        case .small: return 3
+        case .medium: return 4
+        case .large: return 6
         }
     }
 
     private var densityIconFrameWidth: CGFloat {
         switch density {
-        case .small: return SidebarRowConstants.iconFrameWidth // 18pt
-        case .medium: return 19
+        case .compact: return 14
+        case .small: return 16
+        case .medium: return 18
         case .large: return 20
         }
     }
 
     private var densityIconFrameHeight: CGFloat {
         switch density {
-        case .small: return SidebarRowConstants.iconFrameHeight // 16pt
-        case .medium: return 17
+        case .compact: return 12
+        case .small: return 14
+        case .medium: return 16
         case .large: return 18
         }
     }
 
     private var densityIconFont: Font {
         switch density {
-        case .small: return SidebarRowConstants.iconFont // 14pt
-        case .medium: return Font.system(size: 14.5, weight: .regular)
-        case .large: return Font.system(size: 15, weight: .regular)
+        case .compact: return Font.system(size: 11, weight: .regular)
+        case .small: return Font.system(size: 12, weight: .regular)
+        case .medium: return Font.system(size: 14, weight: .regular)
+        case .large: return Font.system(size: 16, weight: .regular)
         }
     }
 
     private var densityLabelFont: Font {
         switch density {
-        case .small: return labelFont // 11pt
-        case .medium: return Font.system(size: 12, weight: .regular)
-        case .large: return Font.system(size: 13, weight: .regular)
+        case .compact: return Font.system(size: 10, weight: .regular)
+        case .small: return Font.system(size: 11, weight: .regular)
+        case .medium: return Font.system(size: 13, weight: .regular)
+        case .large: return Font.system(size: 15, weight: .regular)
         }
     }
 
@@ -109,6 +122,12 @@ struct SidebarRow<Trailing: View>: View {
         if isSelected {
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
                 .fill(ColorTokens.Sidebar.selectedFill)
+        } else if isContextMenuActive {
+            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                .fill(ColorTokens.Sidebar.contextFill)
+        } else if isHovering {
+            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                .fill(ColorTokens.Sidebar.hoverFill)
         } else {
             Color.clear
         }
@@ -137,21 +156,15 @@ struct SidebarRow<Trailing: View>: View {
                 iconView
 
                 if let subtitle {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(label)
-                            .font(densityLabelFont)
-                            .foregroundStyle(labelColor)
-                            .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 1) {
+                        labelTextView
                         Text(subtitle)
                             .font(SidebarRowConstants.trailingFont)
                             .foregroundStyle(ColorTokens.Text.tertiary)
                             .lineLimit(1)
                     }
                 } else {
-                    Text(label)
-                        .font(densityLabelFont)
-                        .foregroundStyle(labelColor)
-                        .lineLimit(1)
+                    labelTextView
                 }
 
                 Spacer(minLength: SpacingTokens.xxxs)
@@ -161,12 +174,23 @@ struct SidebarRow<Trailing: View>: View {
             .padding(.leading, SidebarRowConstants.rowLeadingPadding)
             .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
             .padding(.vertical, densityVerticalPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(highlightFill)
             .contentShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
+            .onHover { hovering in
+                isHovering = hovering
+            }
         }
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .buttonStyle(.plain)
         .focusable(false)
+    }
+
+    @ViewBuilder
+    private var labelTextView: some View {
+        (labelText ?? Text(label).foregroundStyle(labelColor))
+            .font(densityLabelFont)
+            .lineLimit(1)
     }
 
     @ViewBuilder
@@ -199,6 +223,7 @@ extension SidebarRow where Trailing == EmptyView {
         depth: Int,
         icon: Icon,
         label: String,
+        labelText: Text? = nil,
         subtitle: String? = nil,
         isExpanded: Binding<Bool>? = nil,
         isSelected: Bool = false,
@@ -210,6 +235,7 @@ extension SidebarRow where Trailing == EmptyView {
         self.depth = depth
         self.icon = icon
         self.label = label
+        self.labelText = labelText
         self.subtitle = subtitle
         self.isExpanded = isExpanded
         self.isSelected = isSelected

@@ -33,6 +33,10 @@ final class ValidationInlineAnnotation: NSView {
         return NSSize(width: width, height: height)
     }
 
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
     private func setupViews() {
         wantsLayer = true
         layer?.cornerRadius = Self.cornerRadius

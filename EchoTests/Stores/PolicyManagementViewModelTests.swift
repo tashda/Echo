@@ -33,6 +33,8 @@ struct PolicyManagementViewModelTests {
         #expect(!vm.isRefreshing)
         #expect(vm.selectedPolicyID == nil)
         #expect(vm.selectedTab == .policies)
+        #expect(!vm.hasLoaded)
+        #expect(vm.loadErrorMessage == nil)
     }
 
     @Test("selectedPolicy returns nil when no selection")
@@ -42,11 +44,12 @@ struct PolicyManagementViewModelTests {
         #expect(vm.selectedPolicy == nil)
     }
 
-    @Test("refresh does nothing with nil client")
+    @Test("refresh reports an unavailable client")
     @MainActor
     func refreshWithNilClient() {
         let vm = PolicyManagementViewModel(policyClient: nil, connectionSessionID: .init())
         vm.refresh()
         #expect(!vm.isRefreshing)
+        #expect(vm.loadErrorMessage != nil)
     }
 }

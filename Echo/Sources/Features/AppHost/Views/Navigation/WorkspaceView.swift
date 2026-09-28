@@ -11,7 +11,7 @@ import AppKit
 struct WorkspaceView: View {
     var body: some View {
         WorkspaceBody()
-            .toolbar(id: "workspace") {
+            .toolbar {
                 WorkspaceToolbarItems()
             }
     }

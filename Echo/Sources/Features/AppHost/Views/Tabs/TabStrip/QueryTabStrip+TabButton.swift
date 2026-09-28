@@ -2,7 +2,14 @@ import SwiftUI
 
 extension QueryTabStrip {
     @ViewBuilder
-    func tabButtonView(tab: WorkspaceTab, targetWidth: CGFloat, index: Int, totalCount: Int, appearance: TabChromePalette?) -> some View {
+    func tabButtonView(
+        tab: WorkspaceTab,
+        targetWidth: CGFloat,
+        index: Int,
+        totalCount: Int,
+        appearance: TabChromePalette?,
+        databaseNames: [String]
+    ) -> some View {
         let isActive = tabStore.activeTabId == tab.id
         let tabIndex = tabStore.index(of: tab.id) ?? 0
         let hasLeft = tabIndex > 0
@@ -10,7 +17,7 @@ extension QueryTabStrip {
         let canDuplicate = tab.kind == .query
         let closeOthersDisabled = totalCount <= 1
         let isBeingDragged = dragState.isActive && dragState.id == tab.id
-        let databases = resolveDatabaseNames(for: tab)
+        let databases = tab.kind == .query ? databaseNames : []
 
         QueryTabButton(
             tab: tab,
@@ -68,13 +75,6 @@ extension QueryTabStrip {
     }
 
     // MARK: - Database Switching
-
-    func resolveDatabaseNames(for tab: WorkspaceTab) -> [String] {
-        guard tab.kind == .query else { return [] }
-        guard let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) else { return [] }
-        let databases = session.databaseStructure?.databases ?? []
-        return databases.filter(\.isOnline).map(\.name).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
 
     func switchDatabase(_ databaseName: String, for tab: WorkspaceTab) {
         let dbType = tab.connection.databaseType

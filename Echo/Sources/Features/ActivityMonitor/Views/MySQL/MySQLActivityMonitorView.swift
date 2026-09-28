@@ -30,7 +30,6 @@ struct MySQLActivityMonitorView: View {
             }
         ) {
             MySQLActivitySectionPicker(selection: $selectedSection)
-                .frame(maxWidth: 520)
         } sparklines: {
             ActivityMonitorSparklineStrip(metrics: sparklineMetrics)
         } sectionContent: {

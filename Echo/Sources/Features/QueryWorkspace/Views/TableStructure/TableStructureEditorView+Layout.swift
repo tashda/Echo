@@ -14,23 +14,22 @@ extension TableStructureEditorView {
     }
     
     internal var header: some View {
-        TabSectionToolbar {
+        CenteredTabSectionToolbar {
             structureSectionPicker
-        } controls: {
-            EmptyView()
         }
     }
     
     private var structureSectionPicker: some View {
-        Picker(selection: $selectedSection) {
-            ForEach(TableStructureSection.sections(for: viewModel.databaseType)) { section in
+        let sections = TableStructureSection.sections(for: viewModel.databaseType)
+        return TabSectionPicker(
+            "Table Structure Section",
+            selection: $selectedSection,
+            itemCount: sections.count
+        ) {
+            ForEach(sections) { section in
                 Text(section.displayName).tag(section)
             }
-        } label: {
-            EmptyView()
         }
-        .pickerStyle(.segmented)
-        .fixedSize()
     }
     
     @ViewBuilder

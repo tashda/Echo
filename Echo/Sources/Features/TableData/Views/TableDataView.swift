@@ -13,6 +13,7 @@ struct TableDataView: View {
             tableDataStatusBar
         }
         .background(ColorTokens.Background.primary)
+        .tabContentFrame()
         .task {
             await viewModel.loadInitialData()
         }
@@ -91,7 +92,7 @@ struct TableDataView: View {
                         HStack {
                             ProgressView()
                                 .controlSize(.small)
-                            Text("Loading more rows...")
+                            Text("Loading more rows…")
                                 .font(TypographyTokens.detail)
                                 .foregroundStyle(ColorTokens.Text.secondary)
                         }
@@ -109,39 +110,26 @@ struct TableDataView: View {
     }
 
     private var loadingPlaceholder: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            ProgressView()
-            Text("Loading data...")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabInitializingPlaceholder(
+            icon: "tablecells",
+            title: "Loading Table Data",
+            subtitle: "Fetching rows…"
+        )
     }
 
     private func errorPlaceholder(_ message: String) -> some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(TypographyTokens.hero)
-                .foregroundStyle(ColorTokens.Status.error)
+        TabContentUnavailableView("Could Not Load Table Data", systemImage: "exclamationmark.triangle") {
             Text(message)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .multilineTextAlignment(.center)
+        } actions: {
+            Button("Try Again") { Task { await viewModel.loadInitialData() } }
+                .buttonStyle(.bordered)
         }
-        .padding(SpacingTokens.lg)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var emptyPlaceholder: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "tablecells")
-                .font(TypographyTokens.hero)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("No rows found")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
+        TabContentUnavailableView("No Rows", systemImage: "tablecells") {
+            Text("The table does not contain any rows.")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     func presentImportSheet() {

@@ -25,16 +25,43 @@ struct ObjectBrowserRowView: View {
         case .topSpacer:
             0
         case .server:
-            -(SidebarRowConstants.rowOuterHorizontalPadding + SpacingTokens.xs)
+            0
         case .pendingConnection:
-            -(SidebarRowConstants.rowOuterHorizontalPadding + SpacingTokens.xs)
+            0
         default:
             -(SidebarRowConstants.rowOuterHorizontalPadding + SpacingTokens.xxxs)
         }
     }
 
+    /// Leading padding for the Finder-style section label so it aligns with
+    /// the row's icon column at the same indent depth. Indent step + chevron
+    /// column + outer padding.
+    private var sectionLabelLeadingPadding: CGFloat {
+        let indentSpace = CGFloat(depth) * SidebarRowConstants.indentStep
+        return indentSpace
+            + SidebarRowConstants.chevronWidth
+            + SidebarRowConstants.iconTextSpacing
+            + SidebarRowConstants.rowLeadingPadding
+            + SidebarRowConstants.rowOuterHorizontalPadding
+            + abs(leadingAlignmentCompensation)
+    }
+
     var body: some View {
-        rowBody
+        VStack(alignment: .leading, spacing: 0) {
+            if let sectionTitle = node.row.groupSectionTitle {
+                // Finder-style section label — title case (not uppercase),
+                // 12pt semibold in secondary color, anchored to the sidebar's
+                // left edge (not aligned with row icons). Same treatment as
+                // Finder's "Favorites" / "Locations" / "Tags".
+                Text(sectionTitle)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .padding(.leading, SpacingTokens.sm) // 12pt from sidebar edge
+                    .padding(.top, 10)
+                    .padding(.bottom, 4)
+            }
+            rowBody
+        }
             .padding(.leading, leadingAlignmentCompensation)
             .overlay {
                 if shouldShowHighlightOverlay {
@@ -74,7 +101,7 @@ struct ObjectBrowserRowView: View {
             buttonRow {
                 SidebarRow(
                     depth: depth,
-                    icon: .system("cylinder"),
+                    icon: .system("cylinder.split.1x2"),
                     label: "Databases",
                     isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
                     iconColor: ExplorerSidebarPalette.folderIconColor(
@@ -91,7 +118,7 @@ struct ObjectBrowserRowView: View {
             buttonRow {
                 SidebarRow(
                     depth: depth,
-                    icon: .system("internaldrive"),
+                    icon: .system("cylinder"),
                     label: database.name,
                     isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
                     isSelected: isSelected,
@@ -138,29 +165,22 @@ struct ObjectBrowserRowView: View {
                     depth: depth,
                     icon: .system(objectIconName(object.type)),
                     label: object.fullName,
-                    subtitle: objectSubtitle(object),
+                    labelText: dimmedSchemaLabel(for: object.fullName),
                     isExpanded: object.columns.isEmpty ? nil : Binding(get: { isExpanded }, set: { _ in onActivate() }),
                     isSelected: isSelected,
-                    iconColor: ExplorerSidebarPalette.objectGroupIconColor(
-                        for: object.type,
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    ),
+                    iconColor: ColorTokens.Sidebar.symbol,
                     accentColor: resolvedAccentColor(for: session.connection)
-                )
+                ) {
+                    if let detail = objectTrailingDetail(object) {
+                        Text(detail)
+                            .font(SidebarRowConstants.trailingFont)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                            .lineLimit(1)
+                    }
+                }
             }
         case .column(let column, _, _):
-            DatabaseObjectColumnRow(
-                column: column,
-                isHovered: false,
-                onCopyName: {
-#if os(macOS)
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(column.name, forType: .string)
-#endif
-                },
-                onRename: {},
-                onDrop: {}
-            )
+            columnRow(column: column)
         case .serverFolder(_, let kind, let count):
             buttonRow {
                 SidebarRow(
@@ -458,24 +478,35 @@ struct ObjectBrowserRowView: View {
         }
     }
 
+    @ViewBuilder
+    private func columnRow(column: ColumnInfo) -> some View {
+        let typeLabel = Text(EchoFormatters.abbreviatedSQLType(column.dataType))
+            .font(SidebarRowConstants.trailingFont)
+            .foregroundStyle(ColorTokens.Text.tertiary)
+            .lineLimit(1)
+
+        if column.isPrimaryKey {
+            SidebarRow(depth: depth, icon: .system("key.fill"), label: column.name, iconColor: Color.orange) {
+                typeLabel
+            }
+        } else if column.foreignKey != nil {
+            SidebarRow(depth: depth, icon: .system("arrow.turn.down.right"), label: column.name, iconColor: ColorTokens.Status.info) {
+                typeLabel
+            }
+        } else {
+            SidebarRow(depth: depth, icon: .none, label: column.name) {
+                typeLabel
+            }
+        }
+    }
+
     private func serverRow(session: ConnectionSession) -> some View {
-        SidebarConnectionHeader(
-            connectionName: serverDisplayName(session),
-            subtitle: serverSubtitle(session),
-            databaseType: session.connection.databaseType,
-            connectionColor: resolvedAccentColor(for: session.connection),
-            isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
-            isColorful: projectStore.globalSettings.sidebarIconColorMode == .colorful,
-            isSecure: session.connection.useTLS,
-            connectionState: session.connectionState,
-            onAction: onActivate,
-            iconScale: 1,
-            iconFrameScale: 1.58,
-            iconGlyphScale: 1.55,
-            leadingPaddingAdjustment: -SpacingTokens.xxs2,
-            statusPresentation: .none,
-            labelFont: TypographyTokens.standard.weight(.medium)
-        )
+        Button(action: onActivate) {
+            connectionSectionHeader(session: session, showsDisclosure: true)
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .help(serverSubtitle(session))
         .overlay {
             if isHighlighted {
                 StatusWaveOverlay(
@@ -487,62 +518,47 @@ struct ObjectBrowserRowView: View {
         }
     }
 
-    private func pendingConnectionRow(pending: PendingConnection) -> some View {
-        let connection = pending.connection
-        let connectionState: ConnectionState = switch pending.phase {
-        case .connecting:
-            .connecting
-        case .failed(let message):
-            .error(.connectionFailed(message))
-        }
+    private func connectionSectionHeader(session: ConnectionSession, showsDisclosure: Bool) -> some View {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
+            Text(serverDisplayName(session))
+                .font(SidebarRowConstants.sectionHeaderFont)
+                .foregroundStyle(ColorTokens.Text.secondary)
+                .lineLimit(1)
 
-        let trailingAccessory: SidebarConnectionHeader.TrailingAccessory = switch pending.phase {
-        case .connecting:
-            .spinner
-        case .failed:
-            .retryButton({
-                environmentState.retryPendingConnection(for: connection.id)
-            })
-        }
+            Spacer(minLength: SpacingTokens.xxs)
 
-        return SidebarConnectionHeader(
-            connectionName: serverDisplayName(connection),
-            subtitle: connection.databaseType.displayName,
-            databaseType: connection.databaseType,
-            connectionColor: resolvedAccentColor(for: connection),
-            isExpanded: .constant(false),
-            isColorful: projectStore.globalSettings.sidebarIconColorMode == .colorful,
-            isSecure: connection.useTLS,
-            connectionState: connectionState,
-            onAction: {},
-            trailingAccessory: trailingAccessory,
-            iconScale: 1,
-            iconFrameScale: 1.58,
-            iconGlyphScale: 1.55,
-            leadingPaddingAdjustment: -SpacingTokens.xxs2,
-            statusPresentation: .none,
-            labelFont: TypographyTokens.standard.weight(.medium)
-        )
-        .background {
-            switch pending.phase {
-            case .connecting:
-                StatusWaveOverlay(
-                    color: ColorTokens.accent,
-                    cornerRadius: SidebarRowConstants.hoverCornerRadius,
-                    continuous: true
-                )
-                .clipShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
-                .allowsHitTesting(false)
-            case .failed:
-                StatusWaveOverlay(
-                    color: ColorTokens.Status.error,
-                    cornerRadius: SidebarRowConstants.hoverCornerRadius,
-                    trigger: true
-                )
-                .clipShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
-                .allowsHitTesting(false)
+            if case .connecting = session.connectionState {
+                ProgressView()
+                    .controlSize(.mini)
+            } else if case .testing = session.connectionState {
+                ProgressView()
+                    .controlSize(.mini)
+            }
+
+            if showsDisclosure {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(TypographyTokens.compact.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.quaternary)
+                    .frame(width: SidebarRowConstants.chevronWidth)
             }
         }
+        .padding(.leading, SpacingTokens.xs + SpacingTokens.xxs)
+        .padding(.trailing, SidebarRowConstants.rowTrailingPadding + SidebarRowConstants.rowOuterHorizontalPadding)
+        .padding(.top, SpacingTokens.sm)
+        .padding(.bottom, SpacingTokens.xxxs)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func pendingConnectionRow(pending: PendingConnection) -> some View {
+        let connection = pending.connection
+        return ObjectBrowserPendingConnectionRow(
+            pending: pending,
+            displayName: serverDisplayName(connection),
+            onRetry: {
+                environmentState.retryPendingConnection(for: connection.id)
+            }
+        )
     }
 
     private func securityLoginIconName(

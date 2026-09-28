@@ -3,6 +3,7 @@ import SQLServerKit
 
 struct UserEditorGeneralPage: View {
     @Bindable var viewModel: UserEditorViewModel
+    let session: ConnectionSession
 
     var body: some View {
         Section("Identity") {
@@ -88,12 +89,20 @@ struct UserEditorGeneralPage: View {
         case .windowsUser:
             Section("Windows Principal") {
                 PropertyRow(title: "Login Name") {
-                    if viewModel.availableLogins.isEmpty {
-                        TextField("", text: $viewModel.loginName, prompt: Text("DOMAIN\\username"))
-                            .textFieldStyle(.plain)
-                            .multilineTextAlignment(.trailing)
-                    } else {
-                        loginPicker
+                    HStack(spacing: SpacingTokens.xs) {
+                        if viewModel.availableLogins.isEmpty {
+                            TextField("", text: $viewModel.loginName, prompt: Text("DOMAIN\\username"))
+                                .textFieldStyle(.plain)
+                                .multilineTextAlignment(.trailing)
+                        } else {
+                            loginPicker
+                        }
+                        BrowsePrincipalButton(
+                            connectionSessionID: session.connection.id,
+                            connection: session.connection
+                        ) { ntName in
+                            viewModel.loginName = ntName
+                        }
                     }
                 }
             }

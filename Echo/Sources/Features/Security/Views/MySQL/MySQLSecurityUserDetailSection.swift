@@ -22,14 +22,16 @@ struct MySQLSecurityUserDetailSection: View {
             VStack(spacing: 0) {
                 userHeader(user)
                 Divider()
-                TabSectionToolbar {
-                    Picker("Detail Section", selection: $selectedDetailTab) {
+                CenteredTabSectionToolbar {
+                    TabSectionPicker(
+                        "Detail Section",
+                        selection: $selectedDetailTab,
+                        itemCount: DetailTab.allCases.count
+                    ) {
                         ForEach(DetailTab.allCases, id: \.self) { tab in
                             Text(tab.rawValue).tag(tab)
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 520)
                 }
                 Divider()
                 detailTabContent(for: user)

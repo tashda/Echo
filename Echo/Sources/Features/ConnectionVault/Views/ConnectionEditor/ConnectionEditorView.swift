@@ -37,6 +37,7 @@ struct ConnectionEditorView: View {
     @State internal var sslCertPath: String?
     @State internal var sslKeyPath: String?
     @State internal var mssqlEncryptionMode: MSSQLEncryptionMode
+    @State internal var hostNameInCertificate: String
     @State internal var readOnlyIntent: Bool
     @State internal var connectionTimeout: TimeInterval
     @State internal var queryTimeout: TimeInterval
@@ -99,6 +100,7 @@ struct ConnectionEditorView: View {
         _sslCertPath = State(initialValue: model.sslCertPath)
         _sslKeyPath = State(initialValue: model.sslKeyPath)
         _mssqlEncryptionMode = State(initialValue: model.mssqlEncryptionMode)
+        _hostNameInCertificate = State(initialValue: model.hostNameInCertificate ?? "")
         _readOnlyIntent = State(initialValue: model.readOnlyIntent)
         _connectionTimeout = State(initialValue: model.connectionTimeout)
         _queryTimeout = State(initialValue: model.queryTimeout)

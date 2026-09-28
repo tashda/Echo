@@ -3,7 +3,7 @@ import PostgresKit
 import SQLServerKit
 
 extension ObjectBrowserSidebarView {
-    enum ExperimentalMSSQLDatabaseTask {
+    enum MSSQLDatabaseTask {
         case shrink
         case takeOffline
         case bringOnline
@@ -279,7 +279,7 @@ extension ObjectBrowserSidebarView {
         }
     }
 
-    func runMSSQLTask(session: ConnectionSession, database: String, task: ExperimentalMSSQLDatabaseTask) async {
+    func runMSSQLTask(session: ConnectionSession, database: String, task: MSSQLDatabaseTask) async {
         guard let mssqlSession = session.session as? MSSQLSession else { return }
         let admin = mssqlSession.admin
 

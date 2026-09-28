@@ -16,19 +16,17 @@ struct MySQLDatabaseSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            HStack(spacing: SpacingTokens.md) {
-                Picker(selection: $viewModel.selectedSection) {
+            CenteredTabSectionLayout {
+                TabSectionPicker(
+                    "Security Section",
+                    selection: $viewModel.selectedSection,
+                    itemCount: MySQLDatabaseSecurityViewModel.Section.allCases.count
+                ) {
                     ForEach(MySQLDatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
                         Text(section.rawValue).tag(section)
                     }
-                } label: {
-                    EmptyView()
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 720)
-
-                Spacer()
-
+            } controls: {
                 switch viewModel.selectedSection {
                 case .users:
                     Button { showNewUserSheet = true } label: {

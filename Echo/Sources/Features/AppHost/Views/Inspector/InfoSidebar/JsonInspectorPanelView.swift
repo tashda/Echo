@@ -70,7 +70,7 @@ struct JsonInspectorPanelView: View {
                 Text("Raw").tag(JsonInspectorTab.raw)
                 Text("Tree").tag(JsonInspectorTab.tree)
             }
-            .pickerStyle(.segmented)
+            .tabSectionPickerStyle()
             .frame(maxWidth: 120)
             .labelsHidden()
             .controlSize(.small)

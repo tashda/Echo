@@ -71,19 +71,17 @@ struct PostgresDatabaseSecurityView: View {
     }
 
     private var sectionPicker: some View {
-        HStack(spacing: SpacingTokens.md) {
-            Picker(selection: $viewModel.selectedSection) {
+        CenteredTabSectionLayout {
+            TabSectionPicker(
+                "Security Section",
+                selection: $viewModel.selectedSection,
+                itemCount: PostgresDatabaseSecurityViewModel.Section.allCases.count
+            ) {
                 ForEach(PostgresDatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
                     Text(section.rawValue).tag(section)
                 }
-            } label: {
-                EmptyView()
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 400)
-
-            Spacer()
-
+        } controls: {
             Button {
                 showGrantWizard = true
             } label: {

@@ -65,4 +65,10 @@ struct QueryStoreViewModelFilterTests {
         #expect(allCases.contains(.topQueries))
         #expect(allCases.contains(.regressedQueries))
     }
+
+    @Test("SelectedSection labels distinguish the two query views")
+    func selectedSectionLabels() {
+        #expect(QueryStoreViewModel.SelectedSection.topQueries.rawValue == "Top Queries")
+        #expect(QueryStoreViewModel.SelectedSection.regressedQueries.rawValue == "Regressed Queries")
+    }
 }

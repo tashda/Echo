@@ -87,6 +87,10 @@ final class ValidationAccessoryView: NSView {
         isHovering = false
     }
 
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
     override func removeFromSuperview() {
         super.removeFromSuperview()
         hostingView?.removeFromSuperview()

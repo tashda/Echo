@@ -49,16 +49,14 @@ struct ServerPropertiesView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {
-            HStack(spacing: SpacingTokens.md) {
-                Picker(selection: $viewModel.selectedSection) {
-                    ForEach(ServerPropertiesViewModel.Section.allCases, id: \.self) { section in
-                        Text(section.rawValue).tag(section)
-                    }
-                } label: {
-                    EmptyView()
+            TabSectionPicker(
+                "Server Properties Section",
+                selection: $viewModel.selectedSection,
+                itemCount: ServerPropertiesViewModel.Section.allCases.count
+            ) {
+                ForEach(ServerPropertiesViewModel.Section.allCases, id: \.self) { section in
+                    Text(section.rawValue).tag(section)
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 560)
             }
         } content: {
             switch viewModel.selectedSection {
@@ -135,16 +133,14 @@ struct ServerPropertiesView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {
-            HStack(spacing: SpacingTokens.md) {
-                Picker(selection: $viewModel.selectedSection) {
-                    ForEach(availableSections, id: \.self) { section in
-                        Text(section.rawValue).tag(section)
-                    }
-                } label: {
-                    EmptyView()
+            TabSectionPicker(
+                "Server Properties Section",
+                selection: $viewModel.selectedSection,
+                itemCount: availableSections.count
+            ) {
+                ForEach(availableSections, id: \.self) { section in
+                    Text(section.rawValue).tag(section)
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 400)
             }
         } content: {
             switch viewModel.selectedSection {

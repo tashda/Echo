@@ -29,15 +29,15 @@ struct PostgresMaintenanceView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            Picker(selection: $selectedSection) {
+            TabSectionPicker(
+                "Maintenance Section",
+                selection: $selectedSection,
+                itemCount: PostgresMaintenanceSection.allCases.count
+            ) {
                 ForEach(PostgresMaintenanceSection.allCases, id: \.self) { section in
                     Text(section.rawValue).tag(section)
                 }
-            } label: {
-                EmptyView()
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 280)
         } content: {
             sectionContent
         }

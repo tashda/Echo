@@ -237,5 +237,3 @@ public enum ColorTokens {
         public static let externalResources = Color.brown
     }
 }
-
-

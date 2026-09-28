@@ -51,6 +51,7 @@ struct ExtendedEventsView: View {
         .sheet(isPresented: $viewModel.showEditSheet) {
             ExtendedEventsEditSheet(viewModel: viewModel)
         }
+        .tabContentFrame()
     }
 
     @ViewBuilder
@@ -64,11 +65,20 @@ struct ExtendedEventsView: View {
             VStack(spacing: 0) {
                 sectionToolbar
                 Divider()
-                ExtendedEventsSessionList(viewModel: viewModel) { sessionName in
-                    viewModel.selectedSessionName = sessionName
-                    panelState.selectedSegment = .liveData
-                    panelState.isOpen = true
-                    Task { await viewModel.loadEventData() }
+                if viewModel.sessions.isEmpty {
+                    TabContentUnavailableView("No Extended Events Sessions", systemImage: "waveform.path.ecg") {
+                        Text("Create a session to capture and inspect SQL Server events.")
+                    } actions: {
+                        Button("New Session") { viewModel.showCreateSheet = true }
+                            .buttonStyle(.bordered)
+                    }
+                } else {
+                    ExtendedEventsSessionList(viewModel: viewModel) { sessionName in
+                        viewModel.selectedSessionName = sessionName
+                        panelState.selectedSegment = .liveData
+                        panelState.isOpen = true
+                        Task { await viewModel.loadEventData() }
+                    }
                 }
             }
         }
@@ -79,11 +89,12 @@ struct ExtendedEventsView: View {
             Button {
                 viewModel.showCreateSheet = true
             } label: {
-                Label("New Session", systemImage: "plus")
-                    .font(TypographyTokens.detail)
+                Label("New Session", systemImage: "waveform.badge.plus")
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
-            .help("New Extended Events Session")
+            .controlSize(.small)
+            .help("Create an Extended Events session")
         } controls: {
             watchLiveDataToggle
         }
@@ -179,19 +190,11 @@ struct ExtendedEventsView: View {
     }
 
     private func errorPlaceholder(_ message: String) -> some View {
-        VStack(spacing: SpacingTokens.md) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.title2)
-                .foregroundStyle(ColorTokens.Status.warning)
-            Text("Could not load Extended Events")
-                .font(TypographyTokens.standard.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.primary)
+        TabContentUnavailableView("Could Not Load Extended Events", systemImage: "exclamationmark.triangle") {
             Text(message)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, SpacingTokens.xl)
+        } actions: {
+            Button("Try Again") { Task { await viewModel.loadSessions() } }
+                .buttonStyle(.bordered)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

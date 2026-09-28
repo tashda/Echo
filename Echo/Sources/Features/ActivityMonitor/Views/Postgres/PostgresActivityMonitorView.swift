@@ -88,7 +88,6 @@ struct PostgresActivityMonitorView: View {
                 selection: selectedSectionBinding,
                 sectionAvailability: sectionAvailability
             )
-            .frame(maxWidth: 480)
         } sparklines: {
             sparklineStrip
         } sectionContent: {

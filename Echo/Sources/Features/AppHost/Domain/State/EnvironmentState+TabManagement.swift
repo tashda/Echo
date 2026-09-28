@@ -343,11 +343,8 @@ extension EnvironmentState {
                     database: effectiveDatabase
                 )
 
-                let sessionFactory: @Sendable (String) async throws -> DatabaseSession = { [weak self] databaseName in
-                    guard let self else {
-                        throw DatabaseError.connectionFailed("The environment is no longer available.")
-                    }
-                    return try await self.makeDedicatedPostgresConsoleSession(
+                let sessionFactory: @Sendable (String) async throws -> DatabaseSession = { [self] databaseName in
+                    return try await makeDedicatedPostgresConsoleSession(
                         for: connection,
                         database: databaseName
                     )
@@ -489,9 +486,9 @@ extension EnvironmentState {
                     projectID: selectedProjectID ?? UUID(),
                     cacheKey: cacheKey,
                     databaseName: databaseName,
-                    progress: { [weak placeholder] message in
+                    progress: { [placeholder] message in
                         Task { @MainActor in
-                            placeholder?.statusMessage = message
+                            placeholder.statusMessage = message
                         }
                     },
                     isPrefetch: false

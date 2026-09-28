@@ -3,10 +3,13 @@ import SwiftUI
 extension SidebarMenu {
     @ViewBuilder
     var contentView: some View {
-        switch selectedNavSection {
+        contentView(for: selectedNavSection)
+    }
+
+    @ViewBuilder
+    func contentView(for section: NavSection) -> some View {
+        switch section {
         case .folder:
-            ObjectBrowserSidebarView(selectedConnectionID: $selectedConnectionID)
-        case .experimentalFolder:
             ObjectBrowserSidebarView(selectedConnectionID: $selectedConnectionID)
         case .bookmark:
             BookmarksSidebarView()

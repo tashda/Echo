@@ -100,8 +100,31 @@ extension SQLTextView {
         if diagnostic.kind == .syntaxError {
             if let offset = diagnostic.offset {
                 let safeOffset = min(offset, textLength)
-                let start = max(0, safeOffset - 1)
-                let end = min(textLength, safeOffset + 5)
+                let lineRange = text.lineRange(for: NSRange(location: safeOffset, length: 0))
+                let lineMax = min(textLength, lineRange.location + lineRange.length)
+                var start = min(max(lineRange.location, safeOffset), lineMax)
+                while start < lineMax {
+                    let character = text.character(at: start)
+                    guard let scalar = UnicodeScalar(character) else {
+                        break
+                    }
+                    if !CharacterSet.whitespacesAndNewlines.contains(scalar) { break }
+                    start += 1
+                }
+
+                var end = start
+                while end < lineMax {
+                    let character = text.character(at: end)
+                    guard let scalar = UnicodeScalar(character),
+                          CharacterSet.alphanumerics.contains(scalar) || scalar == UnicodeScalar("_") else {
+                        break
+                    }
+                    end += 1
+                }
+
+                if end == start {
+                    end = min(lineMax, start + 1)
+                }
                 let length = end - start
                 return length > 0 ? NSRange(location: start, length: max(length, 1)) : nil
             }

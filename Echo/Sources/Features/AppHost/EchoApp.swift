@@ -85,6 +85,7 @@ struct EchoApp: App {
         JobQueueWindow()
         UserEditorWindow()
         LoginEditorWindow()
+        WindowsPrincipalPickerWindow()
         RoleEditorWindow()
         DatabaseEditorWindow()
         ServerEditorWindow()

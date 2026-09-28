@@ -116,6 +116,7 @@ struct ShrinkEnhancementTests {
         #expect(MSSQLMaintenanceViewModel.MaintenanceSection.tables.rawValue == "Tables")
         #expect(MSSQLMaintenanceViewModel.MaintenanceSection.indexes.rawValue == "Indexes")
         #expect(MSSQLMaintenanceViewModel.MaintenanceSection.backups.rawValue == "Backups")
+        #expect(MSSQLMaintenanceViewModel.MaintenanceSection.queryStore.rawValue == "Query Store")
     }
 
     @Test func maintenanceSectionIdentifiable() {

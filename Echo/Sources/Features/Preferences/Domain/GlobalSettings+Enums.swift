@@ -33,9 +33,10 @@ enum SidebarIconSize: String, Codable, CaseIterable, Sendable {
 }
 
 enum SidebarDensity: String, Codable, CaseIterable, Sendable {
-    case small, medium, large
+    case compact, small, medium, large
     var displayName: String {
         switch self {
+        case .compact: return "Compact"
         case .small: return "Small"
         case .medium: return "Default"
         case .large: return "Large"

@@ -46,8 +46,8 @@ enum ExplorerColumnMetrics {
 /// - Selection pill inset 8pt from sidebar edges, 10pt corner radius
 /// - All icons monochrome secondary gray, Medium visual weight
 enum SidebarRowConstants {
-    /// Chevron font — matches Finder disclosure triangles.
-    static let chevronFont = Font.system(size: 9, weight: .semibold)
+    /// Chevron font — matches Finder disclosure triangles (macOS 26: 10pt semibold).
+    static let chevronFont = Font.system(size: 10, weight: .semibold)
     /// Fixed-width disclosure column — always present for icon alignment.
     static let chevronWidth: CGFloat = SpacingTokens.sm // 12pt
     /// Icon font — Regular weight, renders within 18×16pt frame.
@@ -63,7 +63,8 @@ enum SidebarRowConstants {
     /// Primary label font — 11pt Regular (matches Finder sidebar default density).
     static let labelFont = Font.system(size: 11, weight: .regular)
     /// Font for trailing metadata (counts, types, badges) — matches Finder "Detail".
-    static let trailingFont = TypographyTokens.detail
+    /// Monospaced digits so right-aligned counts (40 / 51 / 2) align cleanly.
+    static let trailingFont = TypographyTokens.detail.monospacedDigit()
     /// Section header font (Finder-style: 11pt, bold).
     static let sectionHeaderFont = TypographyTokens.detail.weight(.bold)
     /// Per-level indentation step — 14pt per tree level.
@@ -76,8 +77,8 @@ enum SidebarRowConstants {
     static let rowVerticalPadding: CGFloat = SpacingTokens.xxs
     /// Outer horizontal padding — selection pill inset from sidebar edges.
     static let rowOuterHorizontalPadding: CGFloat = SpacingTokens.xxs2 // 6pt
-    /// Hover/selection highlight corner radius — 6pt.
-    static let hoverCornerRadius: CGFloat = SpacingTokens.xxs2 // 6pt
+    /// Hover/selection highlight corner radius — 7pt to match macOS 26 Finder/Mail.
+    static let hoverCornerRadius: CGFloat = 7
     /// Spacing between major sidebar sections.
     static let sectionGroupSpacing: CGFloat = SpacingTokens.xxs
 

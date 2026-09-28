@@ -33,6 +33,7 @@ struct SyncAdapter: Sendable {
         fields["sslCertPath"] = try field(connection.sslCertPath, hlc: hlc)
         fields["sslKeyPath"] = try field(connection.sslKeyPath, hlc: hlc)
         fields["mssqlEncryptionMode"] = try field(connection.mssqlEncryptionMode, hlc: hlc)
+        fields["hostNameInCertificate"] = try field(connection.hostNameInCertificate, hlc: hlc)
         fields["readOnlyIntent"] = try field(connection.readOnlyIntent, hlc: hlc)
         fields["connectionTimeout"] = try field(connection.connectionTimeout, hlc: hlc)
         fields["queryTimeout"] = try field(connection.queryTimeout, hlc: hlc)
@@ -79,6 +80,7 @@ struct SyncAdapter: Sendable {
         if let v: String? = try optionalValue(doc, "sslCertPath") { conn.sslCertPath = v }
         if let v: String? = try optionalValue(doc, "sslKeyPath") { conn.sslKeyPath = v }
         if let v: MSSQLEncryptionMode = try value(doc, "mssqlEncryptionMode") { conn.mssqlEncryptionMode = v }
+        if let v: String? = try optionalValue(doc, "hostNameInCertificate") { conn.hostNameInCertificate = v }
         if let v: Bool = try value(doc, "readOnlyIntent") { conn.readOnlyIntent = v }
         if let v: TimeInterval = try value(doc, "connectionTimeout") { conn.connectionTimeout = v }
         if let v: TimeInterval = try value(doc, "queryTimeout") { conn.queryTimeout = v }

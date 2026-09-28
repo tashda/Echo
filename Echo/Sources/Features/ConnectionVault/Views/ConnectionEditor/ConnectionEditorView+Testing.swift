@@ -48,6 +48,11 @@ extension ConnectionEditorView {
             sslCertPath: selectedDatabaseType == .postgresql ? sslCertPath : nil,
             sslKeyPath: selectedDatabaseType == .postgresql ? sslKeyPath : nil,
             mssqlEncryptionMode: selectedDatabaseType == .microsoftSQL ? mssqlEncryptionMode : .optional,
+            hostNameInCertificate: {
+                guard selectedDatabaseType == .microsoftSQL else { return nil }
+                let trimmed = hostNameInCertificate.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
+            }(),
             databaseType: selectedDatabaseType,
             serverVersion: nil,
             colorHex: colorHex,

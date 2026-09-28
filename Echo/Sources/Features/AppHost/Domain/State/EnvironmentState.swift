@@ -42,6 +42,11 @@ final class EnvironmentState {
     var sequenceEditorViewModels: [SequenceEditorWindowValue: SequenceEditorViewModel] = [:]
     var typeEditorViewModels: [TypeEditorWindowValue: TypeEditorViewModel] = [:]
     var databaseMailEditorViewModels: [DatabaseMailEditorWindowValue: DatabaseMailEditorViewModel] = [:]
+    var windowsPrincipalPickerViewModels: [WindowsPrincipalPickerWindowValue: WindowsPrincipalPickerViewModel] = [:]
+    /// Callback registry — keyed by `WindowsPrincipalPickerWindowValue.requestID`.
+    /// The picker window invokes the callback with the selected principal (or
+    /// nil on cancel) and the registry entry is then released.
+    @ObservationIgnored var windowsPrincipalPickerCallbacks: [UUID: WindowsPrincipalPickerCallback] = [:]
     var activeLoginEditorValue: LoginEditorWindowValue?
     var activeUserEditorValue: UserEditorWindowValue?
     var activeDatabaseEditorValue: DatabaseEditorWindowValue?
@@ -242,6 +247,7 @@ final class EnvironmentState {
                     sslCertPath: connection.sslCertPath,
                     sslKeyPath: connection.sslKeyPath,
                     mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                    hostNameInCertificate: connection.hostNameInCertificate,
                     readOnlyIntent: connection.readOnlyIntent,
                     authentication: credentials,
                     connectTimeoutSeconds: Int(connection.connectionTimeout)
@@ -259,11 +265,6 @@ final class EnvironmentState {
                 )
                 if let cachedEntry = await objectBrowserCacheStore.entry(for: connection) {
                     connectionSession.databaseStructure = cachedEntry.structure
-                    connectionSession.hydrateMetadataFreshnessFromCacheStructure()
-                    connectionSession.structureLoadingState = .loading(progress: 0)
-                    connectionSession.structureLoadingMessage = "Refreshing cached metadata…"
-                } else if let legacyStructure = connection.cachedStructure {
-                    connectionSession.databaseStructure = legacyStructure
                     connectionSession.hydrateMetadataFreshnessFromCacheStructure()
                     connectionSession.structureLoadingState = .loading(progress: 0)
                     connectionSession.structureLoadingMessage = "Refreshing cached metadata…"

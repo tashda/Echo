@@ -31,7 +31,7 @@ extension QueryResultsSection {
                 Text(mode.label).tag(mode)
             }
         }
-        .pickerStyle(.segmented)
+        .tabSectionPickerStyle()
         .frame(maxWidth: 260)
         .labelsHidden()
         .controlSize(.small)

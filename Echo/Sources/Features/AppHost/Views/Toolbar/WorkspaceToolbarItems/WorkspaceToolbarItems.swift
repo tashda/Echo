@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct WorkspaceToolbarItems: CustomizableToolbarContent {
-    var body: some CustomizableToolbarContent {
+struct WorkspaceToolbarItems: ToolbarContent {
+    var body: some ToolbarContent {
         navigationItems
         centerItems
         contextActionItems
@@ -11,25 +11,21 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
     // MARK: - Left Side (Navigation)
 
     @ToolbarContentBuilder
-    private var navigationItems: some CustomizableToolbarContent {
-        // Project — own glass group
-        ToolbarItem(id: "workspace.nav.project", placement: .navigation) {
+    private var navigationItems: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigation) {
             ProjectContextMenuButton()
-                .glassEffect(.regular.interactive())
         }
-        .sharedBackgroundVisibility(.hidden)
 
-        // Recent Connections + Connections — shared glass group
-        ToolbarItem(id: "workspace.nav.recents", placement: .navigation) {
+        ToolbarSpacer(.fixed)
+
+        ToolbarItemGroup(placement: .navigation) {
             RecentConnectionsMenuButton()
-        }
-
-        ToolbarItem(id: "workspace.nav.connections", placement: .navigation) {
             ConnectionsMenuButton()
         }
 
-        // Quick Connect — own glass group
-        ToolbarItem(id: "workspace.nav.quickconnect", placement: .navigation) {
+        ToolbarSpacer(.fixed)
+
+        ToolbarItemGroup(placement: .navigation) {
             Button {
                 AppDirector.shared.appState.showSheet(.quickConnect)
             } label: {
@@ -37,15 +33,13 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
             }
             .labelStyle(.iconOnly)
             .help("Quick Connect")
-            .glassEffect(.regular.interactive())
         }
-        .sharedBackgroundVisibility(.hidden)
     }
 
     // MARK: - Center (Breadcrumb spacer)
 
     @ToolbarContentBuilder
-    private var centerItems: some CustomizableToolbarContent {
+    private var centerItems: some ToolbarContent {
         ToolbarItem(id: "workspace.principal.spacer", placement: .principal) {
             Color.clear
                 .frame(width: SpacingTokens.none, height: SpacingTokens.none)
@@ -56,7 +50,7 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
     // MARK: - Right Side: Context-Specific Actions
 
     @ToolbarContentBuilder
-    private var contextActionItems: some CustomizableToolbarContent {
+    private var contextActionItems: some ToolbarContent {
         // Structure tab — Add/Script/Apply buttons
         ToolbarItem(id: "workspace.primary.structure", placement: .primaryAction) {
             TableStructureToolbarItem()
@@ -111,7 +105,7 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
     // MARK: - Right Side: Workspace Actions
 
     @ToolbarContentBuilder
-    private var workspaceActionItems: some CustomizableToolbarContent {
+    private var workspaceActionItems: some ToolbarContent {
         // Refresh — standalone with own glass
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
             RefreshToolbarButton()
