@@ -11,7 +11,6 @@ struct ObjectBrowserSidebarView: View {
 
     @State var viewModel = ObjectBrowserSidebarViewModel()
     @State var sheetState = SidebarSheetState()
-    @State private var topVisibleContext = ObjectBrowserTopVisibleContext(isScrolledPastServerHeader: false)
 
     private var sessions: [ConnectionSession] {
         environmentState.sessionGroup.sessions
@@ -84,17 +83,36 @@ struct ObjectBrowserSidebarView: View {
                     revealNodeID: viewModel.revealedNodeID,
                     revealRequestID: viewModel.revealRequestID,
                     onTopVisibleContextChanged: { context in
-                        railBridge?.topVisibleConnectionID = context.connectionID
-                        topVisibleContext = context
+                        if railBridge?.topVisibleConnectionID != context.connectionID {
+                            railBridge?.topVisibleConnectionID = context.connectionID
+                        }
+                        railBridge?.topVisibleContext = context
                     }
                 )
                 .background(Color.clear)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .clipped()
                 .overlay(alignment: .top) {
-                    pinnedPathBar
+                    if let railBridge {
+                        ExplorerPinnedPathOverlay(
+                            bridge: railBridge,
+                            isEnabled: projectStore.globalSettings.sidebarShowsPinnedPath,
+                            sessions: sessions,
+                            onScrollToServer: { connectionID in
+                                reveal(nodeID: visibleConnectionRootNodeID(for: connectionID))
+                            },
+                            onScrollToDatabase: { connectionID, databaseName in
+                                reveal(nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(
+                                    connectionID: connectionID,
+                                    databaseName: databaseName
+                                ))
+                            },
+                            onCollapseOtherDatabases: { session, databaseName in
+                                collapseOtherDatabases(of: session, keeping: databaseName)
+                            }
+                        )
+                    }
                 }
-                .animation(.easeInOut(duration: 0.22), value: pinnedPathConnectionID)
             }
         }
         .environment(sheetState)
@@ -219,43 +237,6 @@ struct ObjectBrowserSidebarView: View {
     }
 
     // MARK: - Pinned path
-
-    /// Connection whose path is pinned, or nil while the server's own header is on screen.
-    private var pinnedPathConnectionID: UUID? {
-        guard projectStore.globalSettings.sidebarShowsPinnedPath,
-              topVisibleContext.isScrolledPastServerHeader
-        else { return nil }
-        return topVisibleContext.connectionID
-    }
-
-    @ViewBuilder
-    private var pinnedPathBar: some View {
-        if let connectionID = pinnedPathConnectionID,
-           let session = sessions.first(where: { $0.connection.id == connectionID }) {
-            ExplorerPinnedPathBar(
-                serverName: displayName(for: session.connection),
-                databaseName: topVisibleContext.databaseName,
-                onScrollToServer: { reveal(nodeID: visibleConnectionRootNodeID(for: connectionID)) },
-                onScrollToDatabase: {
-                    guard let databaseName = topVisibleContext.databaseName else { return }
-                    reveal(nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(
-                        connectionID: connectionID,
-                        databaseName: databaseName
-                    ))
-                },
-                onCollapseOtherDatabases: {
-                    guard let databaseName = topVisibleContext.databaseName else { return }
-                    collapseOtherDatabases(of: session, keeping: databaseName)
-                }
-            )
-            .transition(.opacity.combined(with: .offset(y: -LayoutTokens.PinnedPath.height / 3)))
-        }
-    }
-
-    private func displayName(for connection: SavedConnection) -> String {
-        let name = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return name.isEmpty ? connection.host : name
-    }
 
     private func reveal(nodeID: String) {
         viewModel.revealedNodeID = nodeID

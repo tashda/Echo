@@ -97,3 +97,46 @@ struct ExplorerPinnedPathBar: View {
         .accessibilityLabel(help)
     }
 }
+
+/// Shows the pinned path while the Explorer is scrolled past a server's header. Reads the
+/// scroll context from the rail bridge so that only this overlay redraws while scrolling.
+struct ExplorerPinnedPathOverlay: View {
+    let bridge: ServerRailBridge
+    let isEnabled: Bool
+    let sessions: [ConnectionSession]
+    let onScrollToServer: (UUID) -> Void
+    let onScrollToDatabase: (UUID, String) -> Void
+    let onCollapseOtherDatabases: (ConnectionSession, String) -> Void
+
+    var body: some View {
+        let context = bridge.topVisibleContext
+        let pinnedID = isEnabled && context.isScrolledPastServerHeader ? context.connectionID : nil
+
+        ZStack(alignment: .top) {
+            if let pinnedID, let session = sessions.first(where: { $0.connection.id == pinnedID }) {
+                ExplorerPinnedPathBar(
+                    serverName: displayName(for: session.connection),
+                    databaseName: context.databaseName,
+                    onScrollToServer: { onScrollToServer(pinnedID) },
+                    onScrollToDatabase: {
+                        if let databaseName = context.databaseName {
+                            onScrollToDatabase(pinnedID, databaseName)
+                        }
+                    },
+                    onCollapseOtherDatabases: {
+                        if let databaseName = context.databaseName {
+                            onCollapseOtherDatabases(session, databaseName)
+                        }
+                    }
+                )
+                .transition(.opacity.combined(with: .offset(y: -LayoutTokens.PinnedPath.height / 3)))
+            }
+        }
+        .animation(.easeInOut(duration: 0.22), value: pinnedID)
+    }
+
+    private func displayName(for connection: SavedConnection) -> String {
+        let name = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? connection.host : name
+    }
+}

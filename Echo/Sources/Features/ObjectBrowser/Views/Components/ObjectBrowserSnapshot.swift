@@ -210,8 +210,12 @@ enum ObjectBrowserSnapshotBuilder {
 
         let supportedTypes = SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
         let snapshot = groupedObjects(for: database, supportedTypes: supportedTypes)
+        // Empty folders are hidden unless the user asks for them in Settings ▸ Sidebar.
+        let visibleTypes = settings.sidebarShowsEmptyFolders
+            ? supportedTypes
+            : supportedTypes.filter { !(snapshot[$0] ?? []).isEmpty }
 
-        let objectGroupNodes = supportedTypes.map { type in
+        let objectGroupNodes = visibleTypes.map { type in
             let objects = snapshot[type] ?? []
             let groupID = ObjectBrowserSidebarViewModel.objectGroupNodeID(
                 connectionID: session.connection.id,
@@ -247,10 +251,23 @@ enum ObjectBrowserSnapshotBuilder {
             )
         }
 
-        return objectGroupNodes + databaseSupplementaryChildren(
+        let children = objectGroupNodes + databaseSupplementaryChildren(
             for: session,
             database: database,
             viewModel: viewModel
         )
+        guard children.isEmpty else { return children }
+
+        // With empty folders hidden, an empty database says so instead of expanding to nothing.
+        let databaseID = ObjectBrowserSidebarViewModel.databaseNodeID(
+            connectionID: session.connection.id,
+            databaseName: database.name
+        )
+        return [
+            ObjectBrowserNode(
+                id: "\(databaseID)#empty",
+                row: .infoLeaf("No objects", systemImage: "tray", paletteTitle: "", depth: 2)
+            )
+        ]
     }
 }

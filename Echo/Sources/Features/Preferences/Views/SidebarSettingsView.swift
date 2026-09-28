@@ -19,8 +19,9 @@ struct SidebarSettingsView: View {
 
             Section {
                 Toggle("Pin server and database while scrolling", isOn: pinnedPathToggle)
+                Toggle("Show empty folders", isOn: emptyFoldersToggle)
             } footer: {
-                Text("Shows the server and database you are scrolled into at the top of the Explorer.")
+                Text("Pinning shows the server and database you are scrolled into at the top of the Explorer. Empty folders such as Views or Functions with nothing in them are hidden unless shown here.")
             }
 
             Section("Databases") {
@@ -69,6 +70,17 @@ struct SidebarSettingsView: View {
             set: { enabled in
                 var updated = settings
                 updated.sidebarExpandOneConnectionAtATime = enabled
+                Task { try? await projectStore.updateGlobalSettings(updated) }
+            }
+        )
+    }
+
+    private var emptyFoldersToggle: Binding<Bool> {
+        Binding(
+            get: { settings.sidebarShowsEmptyFolders },
+            set: { enabled in
+                var updated = settings
+                updated.sidebarShowsEmptyFolders = enabled
                 Task { try? await projectStore.updateGlobalSettings(updated) }
             }
         )

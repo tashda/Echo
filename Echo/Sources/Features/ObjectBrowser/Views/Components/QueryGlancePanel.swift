@@ -1,5 +1,20 @@
 import SwiftUI
 
+/// The glance panel wired to the shared open/closed state. Its own view, so opening and closing
+/// it redraws only the panel.
+struct QueryGlanceOverlay: View {
+    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(EnvironmentState.self) private var environmentState
+
+    var body: some View {
+        QueryGlancePanel(
+            sessions: environmentState.sessionGroup.sessions,
+            isOpen: navigationStore.isQueryGlanceOpen,
+            onClose: { navigationStore.isQueryGlanceOpen = false }
+        )
+    }
+}
+
 /// Glass panel listing every open query tab, grouped by server in rail order. Running queries
 /// come first with a live timer and a stop button; clicking a row switches to that tab.
 ///

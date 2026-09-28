@@ -159,6 +159,8 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarExpandOneConnectionAtATime: Bool = true
     /// Pins "server › database" above the Explorer once the server's header scrolls away.
     var sidebarShowsPinnedPath: Bool = true
+    /// Shows object folders with nothing in them (Views, Functions…) in the Explorer.
+    var sidebarShowsEmptyFolders: Bool = false
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
     var hideInaccessibleDatabases: Bool = false
@@ -235,6 +237,7 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarDensity
         case sidebarExpandOneConnectionAtATime
         case sidebarShowsPinnedPath
+        case sidebarShowsEmptyFolders
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
         case hideInaccessibleDatabases
@@ -334,6 +337,11 @@ struct GlobalSettings: Codable, Hashable {
             forKey: .sidebarShowsPinnedPath
         ) ?? true
 
+        sidebarShowsEmptyFolders = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .sidebarShowsEmptyFolders
+        ) ?? false
+
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
 
         hideInaccessibleDatabases = try container.decodeIfPresent(Bool.self, forKey: .hideInaccessibleDatabases) ?? false
@@ -400,6 +408,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
         try container.encode(sidebarExpandOneConnectionAtATime, forKey: .sidebarExpandOneConnectionAtATime)
         try container.encode(sidebarShowsPinnedPath, forKey: .sidebarShowsPinnedPath)
+        try container.encode(sidebarShowsEmptyFolders, forKey: .sidebarShowsEmptyFolders)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)
         try container.encode(sidebarHideOfflineDatabasesByDefault, forKey: .sidebarHideOfflineDatabasesByDefault)

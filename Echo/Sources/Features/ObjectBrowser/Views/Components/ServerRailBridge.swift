@@ -9,6 +9,10 @@ final class ServerRailBridge {
     /// highlight so it follows the user while scrolling.
     var topVisibleConnectionID: UUID?
 
+    /// Server and database at the top of the Explorer, for the pinned path. Kept here rather than
+    /// in the Explorer's own state so that scrolling redraws only the small views that show it.
+    var topVisibleContext = ObjectBrowserTopVisibleContext(isScrolledPastServerHeader: false)
+
     /// Context menus are built by the Explorer, which owns the sheets and state they act on.
     @ObservationIgnored var sessionMenu: ((ConnectionSession) -> NSMenu)?
     @ObservationIgnored var pendingMenu: ((PendingConnection) -> NSMenu)?

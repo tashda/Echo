@@ -17,8 +17,25 @@ public enum LayoutTokens {
         /// Height of the tool buttons at the bottom of the rail.
         public static let toolHeight: CGFloat = 28
 
+        /// Corner radius of the hover/selection shape behind tool buttons.
+        public static let toolCornerRadius: CGFloat = 8
+
         /// Inset between the floating rail's glass capsule and its items.
         public static let floatingPadding: CGFloat = SpacingTokens.xxs
+
+        /// Glass shapes in the open sidebar closer than this blend as the lens moves between them.
+        public static let glassMergeDistance: CGFloat = SpacingTokens.sm
+
+        /// Glass bubbles in the floating rail closer than this melt into one another.
+        public static let floatingMergeDistance: CGFloat = SpacingTokens.sm
+
+        /// Gap between server bubbles in the floating rail, inside the merge distance so
+        /// neighbours join into a single liquid column.
+        public static let floatingItemSpacing: CGFloat = SpacingTokens.xxs
+
+        /// Gap between the floating servers and the tools capsule, beyond the merge distance so
+        /// the two stay separate pieces of glass.
+        public static let floatingGroupSpacing: CGFloat = SpacingTokens.md1
 
         /// Pulls the Explorer toward the rail so the two read as one column.
         public static let contentLeadingOverlap: CGFloat = SpacingTokens.xxs

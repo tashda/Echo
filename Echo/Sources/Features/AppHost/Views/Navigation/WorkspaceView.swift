@@ -51,6 +51,7 @@ private struct WorkspaceBody: View {
                     if appState.workspaceSidebarVisibility == .detailOnly {
                         FloatingServerRail()
                             .padding(.leading, SpacingTokens.xs)
+                            .padding(.trailing, SpacingTokens.xxs)
                             .padding(.top, SpacingTokens.xs)
                             .frame(maxHeight: .infinity, alignment: .top)
                             .transition(.move(edge: .leading).combined(with: .opacity))
