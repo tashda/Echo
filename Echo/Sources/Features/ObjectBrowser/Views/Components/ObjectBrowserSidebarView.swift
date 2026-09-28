@@ -40,11 +40,18 @@ struct ObjectBrowserSidebarView: View {
                     Image(systemName: "server.rack")
                         .font(TypographyTokens.hero.weight(.medium))
                         .foregroundStyle(ColorTokens.Text.tertiary)
-                    Text("No Connection")
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(ColorTokens.Text.secondary)
+                    VStack(spacing: SpacingTokens.xxxs) {
+                        Text("No Servers Connected")
+                            .font(TypographyTokens.standard.weight(.semibold))
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                        Text("Connect with the + button in the rail.")
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                    .multilineTextAlignment(.center)
                 }
                 .padding(.vertical, SpacingTokens.xl2)
+                .padding(.horizontal, SpacingTokens.sm)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 ObjectBrowserOutlineView(

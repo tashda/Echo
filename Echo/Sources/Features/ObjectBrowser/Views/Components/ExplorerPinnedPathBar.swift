@@ -24,9 +24,10 @@ struct ExplorerPinnedPathBar: View {
             .accessibilityLabel("Scroll to \(serverName)")
 
             if let databaseName {
-                Text("›")
-                    .font(.system(size: 12))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(ColorTokens.Text.tertiary)
+                    .accessibilityHidden(true)
 
                 Button(action: onScrollToDatabase) {
                     Text(databaseName)

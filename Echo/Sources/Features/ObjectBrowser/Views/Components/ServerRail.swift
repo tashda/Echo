@@ -51,20 +51,30 @@ struct ServerRail: View {
     // MARK: - Layouts
 
     private var embeddedRail: some View {
-        VStack(spacing: SpacingTokens.xs) {
-            ScrollView(.vertical) {
-                VStack(spacing: LayoutTokens.ServerRail.itemSpacing) {
-                    GlassEffectContainer(spacing: LayoutTokens.ServerRail.glassMergeDistance) {
-                        serverStack(spacing: LayoutTokens.ServerRail.itemSpacing)
+        let entries = self.entries
+        let highlightedID = highlightedConnectionID(in: entries)
+
+        return VStack(spacing: SpacingTokens.xs) {
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    VStack(spacing: LayoutTokens.ServerRail.itemSpacing) {
+                        GlassEffectContainer(spacing: LayoutTokens.ServerRail.glassMergeDistance) {
+                            serverStack(
+                                entries: entries,
+                                highlightedID: highlightedID,
+                                spacing: LayoutTokens.ServerRail.itemSpacing
+                            )
+                        }
+                        connectButton
+                        glanceButton
                     }
-                    connectButton
-                    glanceButton
+                    .padding(.vertical, SpacingTokens.xxs + LayoutTokens.ServerRail.ringOutset)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.vertical, SpacingTokens.xxs + LayoutTokens.ServerRail.ringOutset)
-                .frame(maxWidth: .infinity)
+                .scrollIndicators(.never)
+                .scrollClipDisabled()
+                .followsHighlight(highlightedID, with: proxy)
             }
-            .scrollIndicators(.never)
-            .scrollClipDisabled()
 
             Divider()
                 .frame(width: LayoutTokens.ServerRail.itemSize - SpacingTokens.xs)
@@ -77,18 +87,27 @@ struct ServerRail: View {
     }
 
     private var floatingRail: some View {
-        VStack(spacing: LayoutTokens.ServerRail.floatingGroupSpacing) {
-            // The column hugs its servers, and only scrolls once they outgrow the window.
-            ViewThatFits(in: .vertical) {
-                floatingServers
+        let entries = self.entries
+        let highlightedID = highlightedConnectionID(in: entries)
+
+        let inset = LayoutTokens.ServerRail.floatingScrollInset
+
+        return VStack(spacing: LayoutTokens.ServerRail.floatingGroupSpacing) {
+            // The column is capped at its own height, so it hugs its servers and only scrolls
+            // once they outgrow the window.
+            ScrollViewReader { proxy in
                 ScrollView(.vertical) {
-                    floatingServers
-                        .padding(LayoutTokens.ServerRail.floatingScrollInset)
+                    floatingServers(entries: entries, highlightedID: highlightedID)
+                        .padding(inset)
                 }
+                .frame(width: LayoutTokens.ServerRail.itemSize + inset * 2)
+                .frame(maxHeight: floatingColumnHeight(serverCount: entries.count) + inset * 2)
                 // The inset keeps glass edges and status rings clear of the scroll clip, while
                 // the column stays where it would be without scrolling.
-                .padding(-LayoutTokens.ServerRail.floatingScrollInset)
+                .padding(-inset)
                 .scrollIndicators(.never)
+                .scrollBounceBehavior(.basedOnSize)
+                .followsHighlight(highlightedID, with: proxy)
             }
 
             // Tools share one capsule, far enough away to stay a separate piece of glass.
@@ -99,13 +118,27 @@ struct ServerRail: View {
             .padding(.vertical, SpacingTokens.xxs)
             .glassEffect(.regular, in: .capsule)
         }
+        // Servers joining or leaving grow and shrink the column, and the tools follow it.
+        .animation(.bouncy(duration: 0.4), value: entries.count)
+    }
+
+    /// Height of the floating servers and + button. Every item has the same fixed size, so this
+    /// is exact without measuring.
+    private func floatingColumnHeight(serverCount: Int) -> CGFloat {
+        let itemCount = CGFloat(serverCount + 1)
+        return itemCount * LayoutTokens.ServerRail.itemSize
+            + CGFloat(serverCount) * LayoutTokens.ServerRail.floatingItemSpacing
     }
 
     /// Servers and + spaced inside the merge distance, so they melt into one liquid column.
-    private var floatingServers: some View {
+    private func floatingServers(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
         GlassEffectContainer(spacing: LayoutTokens.ServerRail.floatingMergeDistance) {
             VStack(spacing: LayoutTokens.ServerRail.floatingItemSpacing) {
-                serverStack(spacing: LayoutTokens.ServerRail.floatingItemSpacing)
+                serverStack(
+                    entries: entries,
+                    highlightedID: highlightedID,
+                    spacing: LayoutTokens.ServerRail.floatingItemSpacing
+                )
                 connectButton
             }
         }
@@ -141,11 +174,9 @@ struct ServerRail: View {
         return entries.first?.connectionID
     }
 
-    private func serverStack(spacing: CGFloat) -> some View {
-        // Worked out once per pass rather than per item, so hundreds of servers stay cheap while
-        // the highlight follows scrolling.
-        let entries = self.entries
-        let highlightedID = highlightedConnectionID(in: entries)
+    /// Entries and the highlight are worked out once per pass by the caller rather than per item,
+    /// so hundreds of servers stay cheap while the highlight follows scrolling.
+    private func serverStack(entries: [ServerRailEntry], highlightedID: UUID?, spacing: CGFloat) -> some View {
         let runningCounts = runningQueryCounts
 
         // Keyed by connection rather than entry, so a server keeps its place, its glass and its
@@ -399,6 +430,19 @@ struct ServerRailButtonLabel<Content: View>: View {
     private func fill(resting: Color) -> Color {
         if isSelected { return Color.accentColor.opacity(0.14) }
         return isHovering ? ColorTokens.Sidebar.selectedFill : resting
+    }
+}
+
+private extension View {
+    /// Keeps the highlighted server in view when the rail itself scrolls, as with hundreds of
+    /// servers. Scrolls only as far as needed, so a visible highlight never moves the rail.
+    func followsHighlight(_ highlightedID: UUID?, with proxy: ScrollViewProxy) -> some View {
+        onChange(of: highlightedID) { _, id in
+            guard let id else { return }
+            withAnimation(.smooth(duration: 0.3)) {
+                proxy.scrollTo(id)
+            }
+        }
     }
 }
 
