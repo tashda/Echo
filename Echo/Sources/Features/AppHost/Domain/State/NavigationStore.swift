@@ -13,6 +13,8 @@ final class NavigationStore {
     /// Which sidebar tool is showing. Shared so the floating server rail can switch it
     /// while the sidebar is hidden.
     var sidebarSection: SidebarMenu.NavSection = .folder
+    /// Whether the open-queries glance panel next to the server rail is showing.
+    var isQueryGlanceOpen = false
     var isWorkspaceWindowKey = false
     var isManageConnectionsPresented = false
     var showNewProjectSheet = false

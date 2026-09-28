@@ -146,9 +146,13 @@ struct SidebarRow<Trailing: View>: View {
                 // Fixed-width disclosure column — always present for icon alignment
                 ZStack(alignment: .center) {
                     if showChevron {
-                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                        // One symbol that rotates, like Finder's disclosure triangle, instead of
+                        // swapping between two glyphs.
+                        Image(systemName: "chevron.right")
                             .font(SidebarRowConstants.chevronFont)
                             .foregroundStyle(ColorTokens.Text.tertiary)
+                            .rotationEffect(.degrees(expanded ? 90 : 0))
+                            .animation(.snappy(duration: 0.2), value: expanded)
                     }
                 }
                 .frame(width: SidebarRowConstants.chevronWidth)

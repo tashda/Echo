@@ -109,9 +109,7 @@ struct ObjectBrowserRowView: View {
                         colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
                     )
                 ) {
-                    Text("\(count)")
-                        .font(SidebarRowConstants.trailingFont)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
+                    countLabel(count)
                 }
             }
         case .database(let session, let database, let isLoading):
@@ -143,20 +141,25 @@ struct ObjectBrowserRowView: View {
                 .opacity(database.isOnline && database.isAccessible ? 1 : 0.5)
             }
         case .objectGroup(_, _, let type, let count):
+            // Empty groups stay (their context menus create objects) but step back: no count,
+            // no disclosure chevron, dimmed label and symbol.
             buttonRow {
                 SidebarRow(
                     depth: depth,
                     icon: .system(type.systemImage),
                     label: type.pluralDisplayName,
-                    isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
-                    iconColor: ExplorerSidebarPalette.objectGroupIconColor(
-                        for: type,
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    )
+                    isExpanded: count > 0
+                        ? Binding(get: { isExpanded }, set: { _ in onActivate() })
+                        : nil,
+                    iconColor: count > 0
+                        ? ExplorerSidebarPalette.objectGroupIconColor(
+                            for: type,
+                            colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
+                        )
+                        : ColorTokens.Text.quaternary,
+                    labelColor: count > 0 ? ColorTokens.Text.primary : ColorTokens.Text.tertiary
                 ) {
-                    Text("\(count)")
-                        .font(SidebarRowConstants.trailingFont)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
+                    countLabel(count)
                 }
             }
         case .object(let session, _, let object):
@@ -193,11 +196,7 @@ struct ObjectBrowserRowView: View {
                         colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
                     )
                 ) {
-                    if let count {
-                        Text("\(count)")
-                            .font(SidebarRowConstants.trailingFont)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                    }
+                    countLabel(count)
                 }
             }
         case .databaseFolder(_, _, let kind, let count, let isLoading):
@@ -212,11 +211,7 @@ struct ObjectBrowserRowView: View {
                         colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
                     )
                 ) {
-                    if let count {
-                        Text("\(count)")
-                            .font(SidebarRowConstants.trailingFont)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                    }
+                    countLabel(count)
                     if isLoading {
                         ProgressView()
                             .controlSize(.mini)
@@ -235,11 +230,7 @@ struct ObjectBrowserRowView: View {
                         colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
                     )
                 ) {
-                    if let count {
-                        Text("\(count)")
-                            .font(SidebarRowConstants.trailingFont)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                    }
+                    countLabel(count)
                 }
             }
         case .databaseNamedItem(let session, _, let title, let systemImage, let paletteTitle, let detail):
@@ -275,9 +266,7 @@ struct ObjectBrowserRowView: View {
                         colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
                     )
                 ) {
-                    Text("\(count)")
-                        .font(SidebarRowConstants.trailingFont)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
+                    countLabel(count)
                     if isLoading {
                         ProgressView()
                             .controlSize(.mini)

@@ -7,6 +7,7 @@ struct FloatingServerRail: View {
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(AppState.self) private var appState
+    @Environment(TabStore.self) private var tabStore
 
     var body: some View {
         ServerRail(
@@ -15,7 +16,9 @@ struct FloatingServerRail: View {
             pendingConnections: environmentState.pendingConnections,
             savedConnections: connectionStore.connections,
             selectedConnectionID: connectionStore.selectedConnectionID,
+            runningQueryCounts: tabStore.runningQueryCountsByConnection,
             selectedSection: Bindable(navigationStore).sidebarSection,
+            isGlanceOpen: Bindable(navigationStore).isQueryGlanceOpen,
             onSelectSession: { session in
                 showSidebar()
                 environmentState.connect(to: session.connection)
@@ -28,6 +31,19 @@ struct FloatingServerRail: View {
             },
             onToolSelected: showSidebar
         )
+        .overlay(alignment: .topLeading) {
+            QueryGlancePanel(
+                sessions: environmentState.sessionGroup.sessions,
+                isOpen: navigationStore.isQueryGlanceOpen,
+                onClose: { navigationStore.isQueryGlanceOpen = false }
+            )
+            .frame(width: LayoutTokens.QueryGlance.width)
+            .offset(
+                x: LayoutTokens.ServerRail.itemSize
+                    + LayoutTokens.ServerRail.floatingPadding * 2
+                    + SpacingTokens.xs
+            )
+        }
     }
 
     private func showSidebar() {

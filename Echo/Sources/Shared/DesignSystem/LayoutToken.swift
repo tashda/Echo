@@ -8,6 +8,9 @@ public enum LayoutTokens {
         /// Diameter of every rail item: servers, the + button and the glass lens.
         public static let itemSize: CGFloat = 32
 
+        /// How far the status ring sits outside an item's circle.
+        public static let ringOutset: CGFloat = 3
+
         /// Vertical gap between rail items.
         public static let itemSpacing: CGFloat = SpacingTokens.xs
 
@@ -19,6 +22,16 @@ public enum LayoutTokens {
 
         /// Pulls the Explorer toward the rail so the two read as one column.
         public static let contentLeadingOverlap: CGFloat = SpacingTokens.xxs
+    }
+
+    public enum QueryGlance {
+        public static let width: CGFloat = 300
+        public static let maxHeight: CGFloat = 440
+        public static let cornerRadius: CGFloat = 22
+        public static let groupCornerRadius: CGFloat = 14
+        public static let rowHeight: CGFloat = 26
+        /// Gap between the rail and the panel.
+        public static let railGap: CGFloat = SpacingTokens.xxs
     }
 
     public enum TabNavigation {

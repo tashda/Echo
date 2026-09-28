@@ -63,14 +63,28 @@ extension ObjectBrowserRowView {
         }
     }
 
+    /// Trailing count for folder rows. Hidden when zero or unknown, so empty folders don't
+    /// fill the tree with "0"s.
+    @ViewBuilder
+    func countLabel(_ count: Int?) -> some View {
+        if let count, count > 0 {
+            Text("\(count)")
+                .font(SidebarRowConstants.trailingFont)
+                .monospacedDigit()
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .contentTransition(.numericText())
+        }
+    }
+
     func objectIconName(_ type: SchemaObjectInfo.ObjectType) -> String {
         switch type {
         case .table: "tablecells"
-        case .view, .materializedView: "eye"
+        case .view: "eye"
+        case .materializedView: "square.stack.3d.up"
         case .function: "function"
         case .trigger: "bolt"
         case .procedure: "terminal"
-        case .extension: "puzzlepiece"
+        case .extension: "puzzlepiece.extension"
         case .sequence: "number"
         case .type: "t.square"
         case .synonym: "arrow.triangle.branch"

@@ -350,13 +350,16 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
 
         private func applyRowAnimations(removed: IndexSet, inserted: IndexSet) {
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.12
+                // Close to NSOutlineView's own disclosure timing; the fade keeps rows from
+                // appearing to pop in.
+                context.duration = 0.2
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 tableView.beginUpdates()
                 if !removed.isEmpty {
-                    tableView.removeRows(at: removed, withAnimation: [.slideUp])
+                    tableView.removeRows(at: removed, withAnimation: [.effectFade, .slideUp])
                 }
                 if !inserted.isEmpty {
-                    tableView.insertRows(at: inserted, withAnimation: [.slideDown])
+                    tableView.insertRows(at: inserted, withAnimation: [.effectFade, .slideDown])
                 }
                 tableView.endUpdates()
             }

@@ -50,6 +50,17 @@ struct ViewMenuCommands: Commands {
             .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
 
             Button {
+                navigationStore.isQueryGlanceOpen.toggle()
+            } label: {
+                Label(
+                    navigationStore.isQueryGlanceOpen ? "Hide Open Queries" : "Show Open Queries",
+                    systemImage: "rectangle.stack"
+                )
+            }
+            .keyboardShortcut("g", modifiers: [.command, .option])
+            .disabled(!navigationStore.isWorkspaceWindowKey)
+
+            Button {
                 NotificationCenter.default.post(name: .activateSidebarSearch, object: nil)
             } label: {
                 Label("Find in Sidebar", systemImage: "magnifyingglass")

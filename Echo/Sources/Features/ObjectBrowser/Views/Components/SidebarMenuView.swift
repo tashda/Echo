@@ -7,6 +7,7 @@ struct SidebarMenu: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) var connectionStore
     @Environment(NavigationStore.self) var navigationStore
+    @Environment(TabStore.self) private var tabStore
 
     @Environment(EnvironmentState.self) var environmentState
     @Environment(AppState.self) var appState
@@ -47,7 +48,9 @@ struct SidebarMenu: View {
                 pendingConnections: environmentState.pendingConnections,
                 savedConnections: connectionStore.connections,
                 selectedConnectionID: selectedConnectionID,
+                runningQueryCounts: tabStore.runningQueryCountsByConnection,
                 selectedSection: Bindable(navigationStore).sidebarSection,
+                isGlanceOpen: Bindable(navigationStore).isQueryGlanceOpen,
                 bridge: railBridge,
                 onSelectSession: { session in
                     environmentState.sessionGroup.setActiveSession(session.id)
@@ -78,6 +81,16 @@ struct SidebarMenu: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.leading, -LayoutTokens.ServerRail.contentLeadingOverlap)
+            .overlay(alignment: .topLeading) {
+                QueryGlancePanel(
+                    sessions: environmentState.sessionGroup.sessions,
+                    isOpen: navigationStore.isQueryGlanceOpen,
+                    onClose: { navigationStore.isQueryGlanceOpen = false }
+                )
+                .padding(.leading, LayoutTokens.QueryGlance.railGap)
+                .padding(.trailing, SpacingTokens.xs)
+                .padding(.top, SpacingTokens.xxs)
+            }
         }
         .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
         .confirmationDialog(

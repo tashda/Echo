@@ -17,7 +17,10 @@ struct ServerRail: View {
     let pendingConnections: [PendingConnection]
     let savedConnections: [SavedConnection]
     let selectedConnectionID: UUID?
+    /// Running queries per connection ID, from the open tabs.
+    let runningQueryCounts: [UUID: Int]
     @Binding var selectedSection: SidebarMenu.NavSection
+    @Binding var isGlanceOpen: Bool
     var bridge: ServerRailBridge?
     let onSelectSession: (ConnectionSession) -> Void
     let onRetryPending: (PendingConnection) -> Void
@@ -34,6 +37,7 @@ struct ServerRail: View {
         let content = VStack(spacing: LayoutTokens.ServerRail.itemSpacing) {
             servers
             connectButton
+            glanceButton
             if style == .floating {
                 Divider().frame(width: LayoutTokens.ServerRail.itemSize - SpacingTokens.xs)
                 tools
@@ -137,6 +141,7 @@ struct ServerRail: View {
             ServerRailItem(
                 monogram: ServerRailMonogram.make(from: entry.displayName),
                 status: status,
+                runningQueryCount: runningQueryCounts[entry.connectionID] ?? 0,
                 isActive: isActive
             )
         }
@@ -144,8 +149,14 @@ struct ServerRail: View {
         .focusable(false)
         .lazyContextMenu { menu(for: entry) }
         .accessibilityLabel(entry.displayName)
-        .accessibilityValue(status.accessibilityDescription)
+        .accessibilityValue(accessibilityValue(status: status, entry: entry))
         .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    private func accessibilityValue(status: ServerRailStatus, entry: ServerRailEntry) -> String {
+        let running = runningQueryCounts[entry.connectionID] ?? 0
+        guard status == .ready, running > 0 else { return status.accessibilityDescription }
+        return running == 1 ? "1 query running" : "\(running) queries running"
     }
 
     private func activate(_ entry: ServerRailEntry) {
@@ -154,6 +165,7 @@ struct ServerRail: View {
             let connectionID = session.connection.id
             clickedConnectionID = connectionID
             selectedSection = .folder
+            isGlanceOpen = false
             onSelectSession(session)
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(700))
@@ -207,6 +219,45 @@ struct ServerRail: View {
         }
     }
 
+    private var totalRunningQueries: Int {
+        runningQueryCounts.values.reduce(0, +)
+    }
+
+    private var glanceButton: some View {
+        Button {
+            isGlanceOpen.toggle()
+        } label: {
+            Image(systemName: "rectangle.stack")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(isGlanceOpen ? Color.accentColor : ColorTokens.Text.secondary)
+                .frame(width: LayoutTokens.ServerRail.itemSize, height: LayoutTokens.ServerRail.itemSize)
+                .background(
+                    isGlanceOpen ? Color.accentColor.opacity(0.12) : Color.clear,
+                    in: Circle()
+                )
+                .overlay(alignment: .topTrailing) {
+                    if totalRunningQueries > 0 {
+                        Text("\(totalRunningQueries)")
+                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .frame(minWidth: 15, minHeight: 15)
+                            .background(Color.accentColor, in: Capsule())
+                            .contentTransition(.numericText())
+                            .transition(.scale(scale: 0.4).combined(with: .opacity))
+                    }
+                }
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .help("Open Queries (⌥⌘G)")
+        .accessibilityLabel("Open Queries")
+        .accessibilityValue(totalRunningQueries > 0 ? "\(totalRunningQueries) running" : "")
+        .animation(.snappy(duration: 0.25), value: totalRunningQueries)
+    }
+
     // MARK: - Tools
 
     private var tools: some View {
@@ -248,12 +299,18 @@ extension SidebarMenu.NavSection {
     static let railTools: [SidebarMenu.NavSection] = [.search, .bookmark, .snippets, .history, .clipboard]
 }
 
-/// A server's monogram in the rail. Healthy servers show only the monogram; connecting servers
-/// are dimmed and lost connections get a red badge.
+/// A server's monogram in the rail, with its status ring.
+///
+/// Healthy and idle servers show only the monogram. Connecting servers are dimmed while the ring
+/// draws around them, and give a small spring pop once connected. Running queries orbit as a
+/// comet. Lost connections are dimmed with a dashed red ring and a red badge.
 struct ServerRailItem: View {
     let monogram: String
     let status: ServerRailStatus
+    let runningQueryCount: Int
     let isActive: Bool
+
+    @State private var connectedPulse = 0
 
     var body: some View {
         Text(monogram)
@@ -262,16 +319,31 @@ struct ServerRailItem: View {
             .opacity(monogramOpacity)
             .frame(width: LayoutTokens.ServerRail.itemSize, height: LayoutTokens.ServerRail.itemSize)
             .contentShape(Circle())
+            .overlay {
+                ServerRailStatusRing(status: status, isBusy: runningQueryCount > 0)
+            }
             .overlay(alignment: .topTrailing) {
                 if status == .failed {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: 12, weight: .bold))
                         .symbolRenderingMode(.palette)
                         .foregroundStyle(.white, ColorTokens.Status.error)
-                        .transition(.scale.combined(with: .opacity))
+                        .offset(x: LayoutTokens.ServerRail.ringOutset, y: -LayoutTokens.ServerRail.ringOutset)
+                        .transition(.scale(scale: 0.4).combined(with: .opacity))
                 }
             }
+            .phaseAnimator([1.0, 1.14, 1.0], trigger: connectedPulse) { content, scale in
+                content.scaleEffect(scale)
+            } animation: { _ in
+                .spring(duration: 0.24, bounce: 0.45)
+            }
             .animation(.snappy(duration: 0.25), value: status)
+            .animation(.snappy(duration: 0.25), value: isActive)
+            .onChange(of: status) { oldStatus, newStatus in
+                if oldStatus == .connecting && newStatus == .ready {
+                    connectedPulse &+= 1
+                }
+            }
     }
 
     private var monogramOpacity: Double {
@@ -282,3 +354,45 @@ struct ServerRailItem: View {
         }
     }
 }
+
+extension TabStore {
+    /// Number of query tabs currently executing, keyed by connection ID.
+    var runningQueryCountsByConnection: [UUID: Int] {
+        var counts: [UUID: Int] = [:]
+        for tab in tabs where tab.query?.isExecuting == true {
+            counts[tab.connection.id, default: 0] += 1
+        }
+        return counts
+    }
+}
+
+#if DEBUG
+#Preview("Server Rail States") {
+    HStack(spacing: SpacingTokens.lg) {
+        ForEach(
+            [
+                ("Connected", ServerRailStatus.ready, 0),
+                ("Connecting", ServerRailStatus.connecting, 0),
+                ("Running", ServerRailStatus.ready, 1),
+                ("Lost", ServerRailStatus.failed, 0),
+            ],
+            id: \.0
+        ) { sample in
+            VStack(spacing: SpacingTokens.xs) {
+                ServerRailItem(monogram: "18", status: sample.1, runningQueryCount: sample.2, isActive: true)
+                    .background {
+                        Circle()
+                            .fill(Color.clear)
+                            .frame(width: LayoutTokens.ServerRail.itemSize, height: LayoutTokens.ServerRail.itemSize)
+                            .glassEffect(.regular, in: .circle)
+                    }
+                Text(sample.0)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+        }
+    }
+    .padding(SpacingTokens.xl)
+    .background(ColorTokens.Background.sidebar)
+}
+#endif
