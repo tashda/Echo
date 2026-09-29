@@ -13,6 +13,7 @@ This folder is the source of truth for how Echo looks, moves and behaves. Every 
 | [05-components.md](05-components.md) | Rail, tree, tabs, toolbar, editor, results, inspector, notifications, floating cards, search |
 | [06-tokens.md](06-tokens.md) | Sizes, radii, spacing and colours in one place |
 | [decisions.md](decisions.md) | Every design decision with its status and date |
+| [reviews.md](reviews.md) | The review rounds behind the decisions, with links to each page |
 
 ## Status of a rule
 
