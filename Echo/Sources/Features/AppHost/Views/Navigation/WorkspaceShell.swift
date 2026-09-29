@@ -5,10 +5,12 @@ import SwiftUI
 /// Echo draws this itself instead of using the system sidebar; the inspector stays a system column.
 ///
 /// Hiding the tree (⌃⌘S) leaves the rail where it is: the tree shrinks into it while the cards
-/// grow into its space.
+/// grow into its space. While it is hidden, a server click can peek: the tree slides back out on
+/// glass over the cards, without moving them, until a click outside or Esc.
 struct WorkspaceShell: View {
     @Environment(AppState.self) private var appState
     @Environment(ProjectStore.self) private var projectStore
+    @Environment(TabStore.self) private var tabStore
     @Environment(\.echoMotion) private var motion
 
     @AppStorage("workspace.treeWidth") private var treeWidth = Double(LayoutTokens.Workspace.treeIdealWidth)
@@ -17,27 +19,60 @@ struct WorkspaceShell: View {
     var body: some View {
         let gutter = projectStore.globalSettings.workspaceGutter.points
         let isTreeVisible = appState.isWorkspaceTreeVisible
+        let isPeeking = !isTreeVisible && appState.peekedServerID != nil
 
         HStack(spacing: SpacingTokens.none) {
             WorkspaceRailColumn(bridge: railBridge)
                 .padding(.leading, gutter)
 
-            treeArea(gutter: gutter, isVisible: isTreeVisible)
+            treeArea(gutter: gutter, isVisible: isTreeVisible, isPeeking: isPeeking)
 
             WorkspaceMainContent()
                 .accessibilityIdentifier("workspace-content")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.leading, isTreeVisible ? SpacingTokens.none : gutter)
+                .overlay {
+                    if isPeeking {
+                        // A click anywhere on the cards closes the peek.
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { closePeek() }
+                            .accessibilityHidden(true)
+                    }
+                }
         }
         .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
         .padding([.trailing, .bottom], gutter)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Workspace.canvas.ignoresSafeArea())
+        .background {
+            if isPeeking {
+                Button("Close Peek", action: closePeek)
+                    .keyboardShortcut(.cancelAction)
+                    .opacity(0)
+                    .frame(width: 0, height: 0)
+                    .accessibilityHidden(true)
+            }
+        }
         .animation(motion.standard, value: isTreeVisible)
+        .animation(motion.standard, value: isPeeking)
+        .onChange(of: isTreeVisible) { _, isVisible in
+            if isVisible { appState.peekedServerID = nil }
+        }
+        .onChange(of: tabStore.activeTabId) { _, _ in
+            // Opening something from the peek puts it away.
+            closePeek()
+        }
     }
 
     private var clampedTreeWidth: CGFloat {
         min(max(CGFloat(treeWidth), LayoutTokens.Workspace.treeMinWidth), LayoutTokens.Workspace.treeMaxWidth)
+    }
+
+    private func closePeek() {
+        if appState.peekedServerID != nil {
+            appState.peekedServerID = nil
+        }
     }
 
     /// The tree with the gutter on each side; the trailing gutter is the resize handle.
@@ -45,21 +80,35 @@ struct WorkspaceShell: View {
     /// Hidden, the tree shrinks into the rail as it fades (Design/04-motion.md) and its space
     /// collapses so the cards grow. It stays alive while hidden, so the table keeps its rows,
     /// scroll position and expansion, and still answers reveal requests. Reduce Motion fades only.
-    private func treeArea(gutter: CGFloat, isVisible: Bool) -> some View {
+    ///
+    /// Peeking shows the same tree again at full size on a glass card, while its space stays
+    /// collapsed, so it lies over the cards instead of pushing them aside.
+    private func treeArea(gutter: CGFloat, isVisible: Bool, isPeeking: Bool) -> some View {
         let width = clampedTreeWidth
+        let isShown = isVisible || isPeeking
+        let peekShape = RoundedRectangle(cornerRadius: LayoutTokens.FloatingSurface.cornerRadius, style: .continuous)
+
         return HStack(spacing: SpacingTokens.none) {
             SidebarColumn(railBridge: railBridge)
                 .accessibilityIdentifier("workspace-sidebar")
                 .frame(width: width)
+                .background {
+                    if isPeeking {
+                        Color.clear
+                            .glassEffect(.regular, in: peekShape)
+                            .transition(.opacity)
+                    }
+                }
                 .padding(.leading, gutter)
 
             WorkspaceTreeResizeHandle(width: $treeWidth, gutter: gutter)
+                .allowsHitTesting(isVisible)
         }
-        .scaleEffect(isVisible || motion.reduceMotion ? 1 : 0.55, anchor: .leading)
-        .opacity(isVisible ? 1 : 0)
+        .scaleEffect(isShown || motion.reduceMotion ? 1 : 0.55, anchor: .leading)
+        .opacity(isShown ? 1 : 0)
         .frame(width: isVisible ? width + gutter * 2 : 0, alignment: .leading)
-        .allowsHitTesting(isVisible)
-        .accessibilityHidden(!isVisible)
+        .allowsHitTesting(isShown)
+        .accessibilityHidden(!isShown)
         .zIndex(1)
     }
 }
@@ -79,19 +128,45 @@ struct WorkspaceRailColumn: View {
             bridge: bridge,
             itemSize: projectStore.globalSettings.railItemSize.points,
             selectedTool: selectedTool,
-            onSelectSession: { session, _ in
-                showTree()
-                if navigationStore.sidebarSection != .folder {
-                    navigationStore.sidebarSection = .folder
-                }
-                environmentState.sessionGroup.setActiveSession(session.id)
-                navigationStore.revealExplorerConnection(session.connection.id)
-            },
+            onSelectSession: selectSession,
             onRetryPending: { pending in
                 environmentState.retryPendingConnection(for: pending.connection.id)
             },
             onSelectTool: selectTool
         )
+    }
+
+    /// With the tree showing, a click selects the server and the tree glides to it. With the
+    /// tree hidden, the `collapsedServerClick` setting decides between peeking and showing the
+    /// tree (Design/05-components.md › Server rail). A plain click on the server that is
+    /// peeking puts the peek away.
+    private func selectSession(_ session: ConnectionSession, click: ServerRailClick) {
+        let connectionID = session.connection.id
+
+        if !appState.isWorkspaceTreeVisible {
+            let showsTree: Bool
+            switch projectStore.globalSettings.collapsedServerClick {
+            case .peekCommandReopens: showsTree = click != .plain
+            case .alwaysPeek: showsTree = false
+            case .alwaysReopen: showsTree = true
+            }
+
+            if showsTree {
+                appState.peekedServerID = nil
+                appState.isWorkspaceTreeVisible = true
+            } else if click == .plain && appState.peekedServerID == connectionID {
+                appState.peekedServerID = nil
+                return
+            } else {
+                appState.peekedServerID = connectionID
+            }
+        }
+
+        if navigationStore.sidebarSection != .folder {
+            navigationStore.sidebarSection = .folder
+        }
+        environmentState.sessionGroup.setActiveSession(session.id)
+        navigationStore.revealExplorerConnection(connectionID)
     }
 
     /// The tool page showing in the tree's place, while the tree shows.

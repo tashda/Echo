@@ -18,6 +18,8 @@ import SwiftUI
     var showInfoSidebar = false
     /// Whether the Explorer tree shows beside the rail (⌃⌘S). The rail always shows.
     var isWorkspaceTreeVisible = true
+    /// The server whose tree is peeking out over the cards while the tree is hidden.
+    var peekedServerID: UUID?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
 
     // MARK: - Query State
