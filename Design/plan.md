@@ -13,12 +13,18 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 
 Nothing visible changes. Everything later builds on this.
 
+Notes from building it:
+- Views read animations from `@Environment(\.echoMotion)` (`motion.standard`, `.hover`, `.press`, `.liquidLead`, `.liquidTrail`, `allowsLoopingEffects`). Only the main window publishes it (`providesEchoMotion()` in `EchoApp`); other windows get the defaults.
+- New settings bind with `projectStore.globalSettingBinding(\.key)` (`Features/Preferences/Views/GlobalSettingBinding.swift`).
+- `Color.adaptive(light:dark:highContrastLight:highContrastDark:)` is for fills that can't be a system colour. The tab strip's active and hover gradients still switch on the colour scheme; move them over when working on B1.
+- Not built or run yet: the first CI or Mac build of this phase should confirm it compiles.
+
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| F1 | **Motion helper.** One `EchoMotion` API: the house spring (`.bouncy(duration: 0.45, extraBounce: 0.08)`), hover and press eases, liquid-stretch springs, and the pulse. Scaled by the speed setting; fades with Reduce Motion. Exposed as an environment value. | `Shared/DesignSystem/MotionToken.swift` (new) | Views can call `.animation(.echo, …)` / `withAnimation(.echo)`; Reduce Motion gives a 0.18s fade | ☐ |
-| F2 | **Layout tokens** for the shell: card corner 12, card shadow, gutter 4/6/8, rail sizes (28/34/40), pill padding, floating-surface sizes. | `Shared/DesignSystem/LayoutToken.swift` | Every value in `06-tokens.md` has a token | ☐ |
-| F3 | **Colour tokens.** Replace literal `Color(white:)`, `Color.white` and `Color.black` in the tab strip and tree fills with adaptive tokens. | `ColorToken.swift`, tab strip, `SidebarRow` | No literal greys in those files; Increase Contrast looks right 👁 | ☐ |
-| F4 | **New settings** in `GlobalSettings` (decodeIfPresent pattern), each with a control in Preferences: `interfaceMotionSpeed` (default / fast), `workspaceGutter` (4/6/8, default 6), `railItemSize` (small/medium/large), `collapsedServerClick` (peek + ⌘-click reopens / always peek / always reopen), `sidebarMonochromeVariant` (accent on open / pure), `editorGutterStyle` (subtle / tinted), `resultsMonospacedCells` (off). | `Features/Preferences/…` | Old settings files still decode; each control changes its setting | ☐ |
+| F1 | **Motion helper.** One `EchoMotion` API: the house spring (`.bouncy(duration: 0.45, extraBounce: 0.08)`), hover and press eases, liquid-stretch springs, and the pulse. Scaled by the speed setting; fades with Reduce Motion. Exposed as an environment value. | `Shared/DesignSystem/MotionToken.swift` (new) | Views can call `.animation(.echo, …)` / `withAnimation(.echo)`; Reduce Motion gives a 0.18s fade | ☑ 2610636 |
+| F2 | **Layout tokens** for the shell: card corner 12, card shadow, gutter 4/6/8, rail sizes (28/34/40), pill padding, floating-surface sizes. | `Shared/DesignSystem/LayoutToken.swift` | Every value in `06-tokens.md` has a token | ☑ 2610636 |
+| F3 | **Colour tokens.** Replace literal `Color(white:)`, `Color.white` and `Color.black` in the tab strip and tree fills with adaptive tokens. | `ColorToken.swift`, tab strip, `SidebarRow` | No literal greys in those files; Increase Contrast looks right 👁 | ☑ 2610636, 👁 pending |
+| F4 | **New settings** in `GlobalSettings` (decodeIfPresent pattern), each with a control in Preferences: `interfaceMotionSpeed` (default / fast), `workspaceGutter` (4/6/8, default 6), `railItemSize` (small/medium/large), `collapsedServerClick` (peek + ⌘-click reopens / always peek / always reopen), `sidebarMonochromeVariant` (accent on open / pure), `editorGutterStyle` (subtle / tinted), `resultsMonospacedCells` (off). | `Features/Preferences/…` | Old settings files still decode; each control changes its setting | ☑ 2610636 |
 
 ## Phase 1 · The shell
 
