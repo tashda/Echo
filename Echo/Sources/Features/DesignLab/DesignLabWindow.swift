@@ -44,7 +44,8 @@ struct LabQuestion: Identifiable {
 }
 
 enum DesignLabPage: String, CaseIterable, Identifiable {
-    case round11 = "Round 11 · tab bar"
+    case round12 = "Round 12 · two-line tabs"
+    case round11 = "Round 11 · decided"
     case round10 = "Round 10 · decided"
     case round9 = "Round 9 · decided"
     case window = "Window · canvas and cards"
@@ -58,7 +59,8 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
-        case .round11: "rectangle.topthird.inset.filled"
+        case .round12: "rectangle.topthird.inset.filled"
+        case .round11: "checkmark.circle"
         case .round10: "checkmark.circle"
         case .round9: "checkmark.circle"
         case .window: "macwindow"
@@ -72,7 +74,8 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var intro: String {
         switch self {
-        case .round11: "The tab bar, again: today's glass capsule feels weaker than the old strip, with inactive tabs too light. Every design below is live: click tabs, hover them for the close button, press +. Query 2 is running. Pick one, or combine: say which in the note."
+        case .round12: "Two-line versions of T2 (round 11's pick). Every design is live: click tabs, hover for the close button, press +. Query 2 is running, so its second line is a timer."
+        case .round11: "Decided in round 11: T2 filled tabs. Kept as a reference. The tab bar, again: today's glass capsule feels weaker than the old strip, with inactive tabs too light. Every design below is live: click tabs, hover them for the close button, press +. Query 2 is running. Pick one, or combine: say which in the note."
         case .round10: "Decided in round 10: a pill per entry on the footer's right, and the database switcher as a card above the pill that rises in. Kept as a reference."
         case .round9: "Decided in round 9: FB1 soft blur, FP1 lift 4pt, SB3 no tree scroll bar, TB1 glass tab bar. Kept as a reference."
         case .window: "The whole window in miniature. Use the controls above the mock window to switch each option; the mock responds live."
@@ -86,10 +89,12 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var questions: [LabQuestion] {
         switch self {
-        case .round11:
+        case .round12:
             [
-                LabQuestion(id: "round11.tabs", title: "The tab bar", howTo: "Try each design below; say in the note what to combine.", options: LabTabDesign.allCases.filter { !$0.isReference }.map { String($0.rawValue.prefix(2)) } + ["Classic"]),
+                LabQuestion(id: "round12.tabs", title: "Two-line tabs", howTo: "Try each design below; say in the note what to combine.", options: ["T2 one line"] + LabTwoLineTab.allCases.filter { !$0.isReference }.map { String($0.rawValue.prefix(2)) }),
             ]
+        case .round11:
+            []
         case .round10:
             []
         case .round9:
@@ -148,7 +153,7 @@ final class DesignLabAnswers {
 // MARK: - Root
 
 private struct DesignLabRootView: View {
-    @State private var page: DesignLabPage = .round11
+    @State private var page: DesignLabPage = .round12
     @State private var answers = DesignLabAnswers()
     @State private var copied = false
 
@@ -224,6 +229,7 @@ private struct DesignLabRootView: View {
     @ViewBuilder
     private var playground: some View {
         switch page {
+        case .round12: LabRound12Playground()
         case .round11: LabRound11Playground()
         case .round10: LabRound10Playground()
         case .round9: LabRound9Playground()
