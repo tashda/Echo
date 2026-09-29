@@ -12,17 +12,6 @@ enum FooterMetricsStyle: String, CaseIterable, Identifiable, Sendable {
 extension BottomPanelStatusBar {
     var metricsSection: some View {
         HStack(spacing: configuration.metricsStyle == .pillPerEntry ? SpacingTokens.xxs : SpacingTokens.xs) {
-            if let bubble = configuration.statusBubble {
-                entry {
-                    HStack(spacing: SpacingTokens.xxs) {
-                        PulsingStatusDot(tint: bubble.tint, isPulsing: bubble.isPulsing)
-                        Text(bubble.label)
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                }
-            }
-
             if let metrics = configuration.metrics {
                 if let selection = metrics.selectionText {
                     entry {
@@ -46,6 +35,17 @@ extension BottomPanelStatusBar {
                     entry {
                         Text(duration)
                             .font(TypographyTokens.detail.monospaced().weight(.medium))
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
+                }
+            }
+            // The status always sits at the far right.
+            if let bubble = configuration.statusBubble {
+                entry {
+                    HStack(spacing: SpacingTokens.xxs) {
+                        PulsingStatusDot(tint: bubble.tint, isPulsing: bubble.isPulsing)
+                        Text(bubble.label)
+                            .font(TypographyTokens.detail)
                             .foregroundStyle(ColorTokens.Text.secondary)
                     }
                 }

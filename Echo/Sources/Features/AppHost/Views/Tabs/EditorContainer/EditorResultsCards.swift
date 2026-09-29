@@ -85,9 +85,14 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
     }
 
     private func foldResults() {
-        withAnimation(motion.settle, completionCriteria: .logicallyComplete) {
+        withAnimation(motion.settle) {
             openProgress = 0
-        } completion: {
+        }
+        // Not an animation completion: that isn't called reliably (for example when the results
+        // card holds no grid), which left a footer-high results card behind.
+        let duration = motion.settleDuration
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(duration))
             if !panelState.isOpen { displaysResults = false }
         }
     }
