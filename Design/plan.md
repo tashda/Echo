@@ -215,11 +215,19 @@ Rules: `05-components` › Inspector. Round 10 chose IN1: the inspector becomes 
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| I1 | **Canvas column.** Replace `.inspector(isPresented:)` with a trailing column in `WorkspaceShell`: same gutter as the tree, its own resize edge (the tree's handle mirrored), and the tree's show/hide motion. ⌥⌘I and the toolbar button keep working. | `WorkspaceShell`, `WorkspaceView` | No native inspector chrome left; width is kept 👁 | ☐ |
-| I2 | **Section cards.** One card component for every section: a header (icon, title, actions) and rows with the label left and a selectable value right; long values wrap; one 12pt padding. Port object details, foreign-key records (nested related records as their own cards), cell value, JSON, job history and SQL help onto it. | `InfoSidebar/*` → new `InspectorCard` | Every content kind renders on cards 👁 | ☐ |
-| I3 | **Width.** JSON widens the column with one smooth spring instead of `InspectorSplitViewConfigurator`'s stepped calls, and returns to the chosen width after. | Shell | No visible stepping | ☐ |
-| I4 | **Row detail.** Selecting a result row shows all its columns as a card. | Inspector + grid selection | Selecting a row fills it | ☐ |
-| I5 | Remove the notifications tab and `InspectorTabSelector` once N-tasks move history to the bell; delete the native inspector plumbing. | `InfoSidebar/*`, `WorkspaceView` | Nothing links to them | ◐ The notifications tab and `InspectorTabSelector` are gone (N3); the native inspector plumbing goes with I1 |
+| I1 | **Canvas column.** Replace `.inspector(isPresented:)` with a trailing column in `WorkspaceShell`: same gutter as the tree, its own resize edge (the tree's handle mirrored), and the tree's show/hide motion. ⌥⌘I and the toolbar button keep working. | `WorkspaceShell`, `WorkspaceView` | No native inspector chrome left; width is kept 👁 | ☑ built, 👁 pending |
+| I2 | **Section cards.** One card component for every section: a header (icon, title, actions) and rows with the label left and a selectable value right; long values wrap; one 12pt padding. Port object details, foreign-key records (nested related records as their own cards), cell value, JSON, job history and SQL help onto it. | `InfoSidebar/*` → new `InspectorCard` | Every content kind renders on cards 👁 | ☑ built, 👁 pending |
+| I3 | **Width.** JSON widens the column with one smooth spring instead of `InspectorSplitViewConfigurator`'s stepped calls, and returns to the chosen width after. | Shell | No visible stepping | ☑ built, 👁 pending |
+| I4 | **Row detail.** Selecting a result row shows all its columns as a card. | Inspector + grid selection | Selecting a row fills it | ☑ built, 👁 pending. Fills from the selected cell's row |
+| I5 | Remove the notifications tab and `InspectorTabSelector` once N-tasks move history to the bell; delete the native inspector plumbing. | `InfoSidebar/*`, `WorkspaceView` | Nothing links to them | ☑ built |
+
+### Notes from building it (Phase 9)
+
+- **Column (I1):** `WorkspaceInspectorColumn` sits after the cards in `WorkspaceShell`: the gutter before it is its resize edge (`WorkspaceColumnResizeHandle`, shared with the tree and mirrored), its width is `@AppStorage("workspace.inspectorWidth")` (260–640, default 300, double-click resets), and hiding slides it out past the trailing edge as it fades, like the tree. `.inspector(isPresented:)`, `InspectorSplitViewConfigurator`, `WorkspaceLayoutMetrics` and `NavigationStore.inspectorWidth` are gone. ⌥⌘I and the toolbar button still toggle `showInfoSidebar`. The Job Queue window and the login editor keep their own system inspectors.
+- **Cards (I2):** `InspectorCard` (header with icon, title, subtitle and actions; 12pt padding; a workspace card) and `InspectorCardRow` (label left, selectable value right, wrapping; NULL italic and faint; copy in the context menu). Object details and foreign-key records are a card each, with related records as their own cards after them; job history, SQL help, cell values and JSON are cards too. Cards stack one gutter apart; with nothing selected a "No Selection" card shows. The uppercase-label boxed rows, the disclosure groups and the doubled 18pt padding are gone.
+- **Width (I3):** JSON widens the column to at least 520pt with one house spring and returns to the chosen width after; the chosen width isn't changed by it.
+- **Row detail (I4):** the grid's cell inspection now carries the whole row (`CellValueInspectorContent.rowFields`), so the inspector shows the cell's card and a "Row N" card with every column, with Copy Row.
+- **Clean-up (I5):** the notifications tab and `InspectorTabSelector` went with N3; the native inspector plumbing went with I1.
 
 ## Phase 10 · Finish
 

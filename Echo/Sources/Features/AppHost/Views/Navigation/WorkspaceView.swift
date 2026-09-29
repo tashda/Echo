@@ -37,17 +37,6 @@ private struct WorkspaceBody: View {
         WorkspaceShell()
         .commandPalette()
         .notificationOverlay()
-        .inspector(isPresented: Bindable(appState).showInfoSidebar) {
-            let isJson = environmentState.dataInspectorContent?.isJson == true
-            inspectorContent
-                .inspectorColumnWidth(
-                    min: WorkspaceLayoutMetrics.inspectorMinWidth,
-                    ideal: isJson
-                        ? WorkspaceLayoutMetrics.jsonInspectorWidth
-                        : WorkspaceLayoutMetrics.inspectorIdealWidth,
-                    max: WorkspaceLayoutMetrics.inspectorMaxWidth
-                )
-        }
         .navigationTitle("Echo")
         .background(WorkspaceWindowConfigurator(tabBarStyle: tabBarStyle))
         .sheet(isPresented: Binding(get: { appState.activeSheet == .connectionEditor }, set: { if !$0 { appState.dismissSheet() } })) {
@@ -107,45 +96,6 @@ private struct WorkspaceBody: View {
         } message: {
             Text("This tab has pending structure changes that haven't been applied. Are you sure you want to close it?")
         }
-    }
-
-    @ViewBuilder
-    private var inspectorContent: some View {
-        let isJson = environmentState.dataInspectorContent?.isJson == true
-        let targetWidth = isJson
-            ? WorkspaceLayoutMetrics.jsonInspectorWidth
-            : navigationStore.inspectorWidth
-
-        let widthBinding = Binding<CGFloat>(
-            get: { navigationStore.inspectorWidth },
-            set: { newValue in
-                // Only update user-preferred width when NOT showing JSON
-                // (so dragging during JSON mode doesn't overwrite the default)
-                guard environmentState.dataInspectorContent?.isJson != true else { return }
-                navigationStore.updateInspectorWidth(
-                    newValue,
-                    min: WorkspaceLayoutMetrics.inspectorMinWidth,
-                    max: WorkspaceLayoutMetrics.inspectorMaxWidth
-                )
-            }
-        )
-
-        InfoSidebarView()
-            .environment(environmentState)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
-            .padding(.bottom, SpacingTokens.sm)
-            .padding(.horizontal, 18)
-#if os(macOS)
-            .background(
-                InspectorSplitViewConfigurator(
-                    width: widthBinding,
-                    targetWidth: targetWidth,
-                    minWidth: WorkspaceLayoutMetrics.inspectorMinWidth,
-                    maxWidth: WorkspaceLayoutMetrics.inspectorMaxWidth
-                )
-            )
-#endif
     }
 
     private var connectionEditorSheet: some View {

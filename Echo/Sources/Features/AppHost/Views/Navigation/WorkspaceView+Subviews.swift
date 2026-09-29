@@ -40,10 +40,3 @@ struct WorkspaceMainContent: View {
         .offset(y: tabBarStyle.contentVerticalOffset)
     }
 }
-
-enum WorkspaceLayoutMetrics {
-    static let inspectorMinWidth: CGFloat = 300
-    static let inspectorIdealWidth: CGFloat = 300
-    static let inspectorMaxWidth: CGFloat = 1600
-    static let jsonInspectorWidth: CGFloat = 600
-}

@@ -15,51 +15,32 @@ struct JsonInspectorPanelView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-            header
-            tabControls
-
-            if isLoading {
-                loadingContent
-            } else {
-                switch selectedTab {
-                case .raw:
-                    rawContent
-                case .tree:
-                    treeContent
-                }
-            }
-        }
-        .padding(.top, SpacingTokens.xxs)
-        .padding(.bottom, SpacingTokens.xxs)
-        .onAppear { buildViewModelAsync() }
-        .onChange(of: content) { _, _ in buildViewModelAsync() }
-        .onDisappear { buildTask?.cancel() }
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                Text(content.title)
-                    .font(TypographyTokens.prominent.weight(.semibold))
-                if let subtitle = content.subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
-            Spacer()
+        InspectorCard(title: content.title, subtitle: content.subtitle, systemImage: "curlybraces") {
             Button {
                 PlatformClipboard.copy(viewModel?.formattedJSON ?? content.rawJSON)
             } label: {
-                Image(systemName: "doc.on.doc")
+                Label("Copy JSON", systemImage: "doc.on.doc")
             }
-            .buttonStyle(.borderless)
-            .controlSize(.small)
             .help("Copy JSON")
+        } content: {
+            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                tabControls
+
+                if isLoading {
+                    loadingContent
+                } else {
+                    switch selectedTab {
+                    case .raw:
+                        rawContent
+                    case .tree:
+                        treeContent
+                    }
+                }
+            }
         }
+        .onAppear { buildViewModelAsync() }
+        .onChange(of: content) { _, _ in buildViewModelAsync() }
+        .onDisappear { buildTask?.cancel() }
     }
 
     // MARK: - Tab Controls

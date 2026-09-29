@@ -17,10 +17,19 @@ struct JobHistoryInspectorContent: Sendable, Equatable {
 }
 
 struct CellValueInspectorContent: Sendable, Equatable {
+    /// One column of the selected cell's row, for the row-detail card (plan I4).
+    struct RowField: Sendable, Equatable {
+        let name: String
+        let value: String
+    }
+
     let columnName: String
     let dataType: String
     let rawValue: String
     let valueKind: ResultGridValueKind
+    /// The row's number in the grid, counting from 1.
+    var rowNumber: Int?
+    var rowFields: [RowField] = []
 }
 
 struct SQLHelpInspectorContent: Sendable, Equatable {

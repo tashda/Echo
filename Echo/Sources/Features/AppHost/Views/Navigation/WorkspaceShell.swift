@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The canvas-and-cards window (Design/02-layout.md): the server rail, the Explorer tree and the
 /// tabs with their cards, side by side on the window canvas and separated by the gutter setting.
-/// Echo draws this itself instead of using the system sidebar; the inspector stays a system column.
+/// Echo draws this itself instead of using the system sidebar or inspector: the inspector is a
+/// column of cards on the trailing side, mirroring the tree (plan I1).
 ///
 /// Hiding the tree (⌃⌘S) leaves the rail where it is: the tree slides behind it while the cards
 /// grow into its space. While it is hidden, a server click can peek: the tree slides back out on
@@ -42,6 +43,7 @@ struct WorkspaceShell: View {
                 .accessibilityIdentifier("workspace-content")
                 .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
                 .padding(.leading, isTreeVisible ? SpacingTokens.none : gutter)
+                .padding(.trailing, appState.showInfoSidebar ? SpacingTokens.none : gutter)
                 .overlay {
                     if isPeeking {
                         // A click anywhere on the cards closes the peek.
@@ -51,10 +53,14 @@ struct WorkspaceShell: View {
                             .accessibilityHidden(true)
                     }
                 }
+
+                // The inspector mirrors the tree on the trailing side (plan I1).
+                WorkspaceInspectorColumn(gutter: gutter)
+                    .padding(.top, stripInset)
             }
         }
         .padding(.top, max(gutter - stripInset, SpacingTokens.none))
-        .padding([.trailing, .bottom], gutter)
+        .padding(.bottom, gutter)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Workspace.canvas.ignoresSafeArea())
         .background {
@@ -116,7 +122,14 @@ struct WorkspaceShell: View {
                 }
                 .padding(.leading, gutter)
 
-            WorkspaceTreeResizeHandle(width: $treeWidth, gutter: gutter)
+            WorkspaceColumnResizeHandle(
+                width: $treeWidth,
+                gutter: gutter,
+                range: Double(LayoutTokens.Workspace.treeMinWidth)...Double(LayoutTokens.Workspace.treeMaxWidth),
+                defaultWidth: Double(LayoutTokens.Workspace.treeIdealWidth),
+                edge: .trailing,
+                accessibilityLabel: "Sidebar width"
+            )
                 .allowsHitTesting(isVisible)
         }
         // Hidden, the tree slides left under the rail's glass and fades. Reduce Motion fades only.
@@ -205,60 +218,6 @@ struct WorkspaceRailColumn: View {
         if !appState.isWorkspaceTreeVisible {
             appState.isWorkspaceTreeVisible = true
         }
-    }
-}
-
-/// The gap between the tree and the cards, which resizes the tree when dragged. Double-click
-/// returns it to its default width.
-struct WorkspaceTreeResizeHandle: View {
-    @Binding var width: Double
-    let gutter: CGFloat
-
-    @State private var widthAtDragStart: Double?
-
-    var body: some View {
-        Color.clear
-            .frame(width: gutter)
-            .frame(maxHeight: .infinity)
-            .overlay {
-                // Wider than the gutter so it is easy to grab.
-                Color.clear
-                    .frame(width: max(gutter, LayoutTokens.Workspace.treeResizeHandleWidth))
-                    .contentShape(Rectangle())
-                    .pointerStyle(.columnResize)
-                    .gesture(drag)
-                    .onTapGesture(count: 2) {
-                        width = Double(LayoutTokens.Workspace.treeIdealWidth)
-                    }
-            }
-            .accessibilityElement()
-            .accessibilityLabel("Sidebar width")
-            .accessibilityValue("\(Int(width)) points")
-            .accessibilityAdjustableAction { direction in
-                let step = Double(SpacingTokens.md)
-                switch direction {
-                case .increment: width = clamp(width + step)
-                case .decrement: width = clamp(width - step)
-                @unknown default: break
-                }
-            }
-    }
-
-    private var drag: some Gesture {
-        // Global coordinates, because the handle itself moves as the tree resizes.
-        DragGesture(minimumDistance: 1, coordinateSpace: .global)
-            .onChanged { value in
-                let start = widthAtDragStart ?? width
-                if widthAtDragStart == nil { widthAtDragStart = start }
-                width = clamp(start + Double(value.translation.width))
-            }
-            .onEnded { _ in
-                widthAtDragStart = nil
-            }
-    }
-
-    private func clamp(_ value: Double) -> Double {
-        min(max(value, Double(LayoutTokens.Workspace.treeMinWidth)), Double(LayoutTokens.Workspace.treeMaxWidth))
     }
 }
 

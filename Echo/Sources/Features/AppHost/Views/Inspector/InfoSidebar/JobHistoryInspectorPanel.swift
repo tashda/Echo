@@ -1,53 +1,27 @@
 import SwiftUI
 
+/// An Agent job run as inspector cards (plan I2): the run's details, then its message.
 struct JobHistoryInspectorPanel: View {
     let content: JobHistoryInspectorContent
 
+    @Environment(ProjectStore.self) private var projectStore
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.md) {
-            Text("Job Execution")
-                .font(TypographyTokens.prominent.weight(.semibold))
-
-            GroupBox {
-                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    PropertyRow(title: "Job") {
-                        Text(content.jobName)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                    Divider()
-                    PropertyRow(title: "Step") {
-                        Text("\(content.stepId) — \(content.stepName)")
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                    Divider()
-                    PropertyRow(title: "Status") {
-                        Text(content.status)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                    Divider()
-                    PropertyRow(title: "Run Date") {
-                        Text(content.runDate)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                    Divider()
-                    PropertyRow(title: "Duration") {
-                        Text(content.duration)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                }
-                .padding(.vertical, SpacingTokens.xs)
+        VStack(alignment: .leading, spacing: projectStore.globalSettings.workspaceGutter.points) {
+            InspectorCard(title: content.jobName, subtitle: "Job Execution", systemImage: "clock.arrow.circlepath") {
+                InspectorCardRow(label: "Step", value: "\(content.stepId) — \(content.stepName)")
+                InspectorCardRow(label: "Status", value: content.status)
+                InspectorCardRow(label: "Run Date", value: content.runDate)
+                InspectorCardRow(label: "Duration", value: content.duration, isLast: true)
             }
-
-            Text("Execution Message")
-                .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.secondary)
-
-            Text(content.message)
-                .font(TypographyTokens.code)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(SpacingTokens.sm)
-                .background(ColorTokens.Background.secondary, in: RoundedRectangle(cornerRadius: 6))
+            InspectorCard(title: "Message", systemImage: "text.alignleft") {
+                Button { copyToGeneralPasteboard(content.message) } label: { Label("Copy", systemImage: "doc.on.doc") }
+            } content: {
+                Text(content.message)
+                    .font(TypographyTokens.code)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 }

@@ -16,7 +16,6 @@ final class NavigationStore {
     var isManageConnectionsPresented = false
     var showNewProjectSheet = false
     var showManageProjectsSheet = false
-    var inspectorWidth: CGFloat = 300
 
     // MARK: - Initialization
     init() {}
@@ -38,11 +37,5 @@ final class NavigationStore {
     func revealExplorerConnection(_ connectionID: UUID) {
         pendingExplorerRevealConnectionID = connectionID
         pendingExplorerRevealRequestID &+= 1
-    }
-    
-    func updateInspectorWidth(_ width: CGFloat, min minWidth: CGFloat, max maxWidth: CGFloat) {
-        let clamped = max(minWidth, min(maxWidth, width))
-        guard abs(inspectorWidth - clamped) > 0.5 else { return }
-        inspectorWidth = clamped
     }
 }
