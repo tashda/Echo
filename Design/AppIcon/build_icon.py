@@ -28,7 +28,7 @@ def row(i,x,y):
    <rect x="{x+5}" y="{y+5}" width="{W-10}" height="{H-10}" rx="{R-5}" fill="none" stroke="url(#rim)" stroke-width="9" opacity=".45" filter="url(#blurE)" clip-path="url(#clip{i})"/>
    <rect x="{x+1.5}" y="{y+1.5}" width="{W-3}" height="{H-3}" rx="{R-1.5}" fill="none" stroke="url(#rim)" stroke-width="2.5" opacity=".7" filter="url(#blurR)"/>
    <!-- soft lower caustic -->
-   <ellipse cx="{x+W*.5}" cy="{y+H*.9}" rx="{W*.38}" ry="{H*.16}" fill="#fff" opacity=".22" filter="url(#blurR)" clip-path="url(#clip{i})"/>
+   <ellipse cx="{x+W*.5}" cy="{y+H*.9}" rx="{W*.38}" ry="{H*.16}" fill="#fff" opacity=".13" filter="url(#blurE)" clip-path="url(#clip{i})"/>
    <!-- specular sheen -->
    <path d="M{x+R*.9},{y+7} H{x+W-R*.9} Q{x+W-R*.35},{y+7} {x+W-R*.2},{y+R*.42} Q{x+W-R*.55},{y+H*.34} {x+W-R*1.4},{y+H*.34} H{x+R*1.4} Q{x+R*.55},{y+H*.34} {x+R*.2},{y+R*.42} Q{x+R*.35},{y+7} {x+R*.9},{y+7}Z" fill="url(#sheen)" filter="url(#blurR)"/>
   </g>'''

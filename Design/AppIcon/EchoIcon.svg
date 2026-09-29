@@ -46,7 +46,7 @@
    <rect x="233.5" y="323.5" width="390" height="102" rx="51" fill="none" stroke="url(#rim)" stroke-width="9" opacity=".45" filter="url(#blurE)" clip-path="url(#clip1)"/>
    <rect x="230.0" y="320.0" width="397" height="109" rx="54.5" fill="none" stroke="url(#rim)" stroke-width="2.5" opacity=".7" filter="url(#blurR)"/>
    <!-- soft lower caustic -->
-   <ellipse cx="428.5" cy="419.3" rx="152.0" ry="17.92" fill="#fff" opacity=".22" filter="url(#blurR)" clip-path="url(#clip1)"/>
+   <ellipse cx="428.5" cy="419.3" rx="152.0" ry="17.92" fill="#fff" opacity=".13" filter="url(#blurE)" clip-path="url(#clip1)"/>
    <!-- specular sheen -->
    <path d="M278.9,325.5 H578.1 Q608.9,325.5 617.3,342.02 Q597.7,356.58 550.1,356.58 H306.9 Q259.3,356.58 239.7,342.02 Q248.1,325.5 278.9,325.5Z" fill="url(#sheen)" filter="url(#blurR)"/>
   </g>
@@ -65,7 +65,7 @@
    <rect x="317.5" y="461.5" width="390" height="102" rx="51" fill="none" stroke="url(#rim)" stroke-width="9" opacity=".45" filter="url(#blurE)" clip-path="url(#clip2)"/>
    <rect x="314.0" y="458.0" width="397" height="109" rx="54.5" fill="none" stroke="url(#rim)" stroke-width="2.5" opacity=".7" filter="url(#blurR)"/>
    <!-- soft lower caustic -->
-   <ellipse cx="512.5" cy="557.3" rx="152.0" ry="17.92" fill="#fff" opacity=".22" filter="url(#blurR)" clip-path="url(#clip2)"/>
+   <ellipse cx="512.5" cy="557.3" rx="152.0" ry="17.92" fill="#fff" opacity=".13" filter="url(#blurE)" clip-path="url(#clip2)"/>
    <!-- specular sheen -->
    <path d="M362.9,463.5 H662.1 Q692.9,463.5 701.3,480.02 Q681.7,494.58 634.1,494.58 H390.9 Q343.3,494.58 323.7,480.02 Q332.1,463.5 362.9,463.5Z" fill="url(#sheen)" filter="url(#blurR)"/>
   </g>
@@ -84,7 +84,7 @@
    <rect x="401.5" y="599.5" width="390" height="102" rx="51" fill="none" stroke="url(#rim)" stroke-width="9" opacity=".45" filter="url(#blurE)" clip-path="url(#clip3)"/>
    <rect x="398.0" y="596.0" width="397" height="109" rx="54.5" fill="none" stroke="url(#rim)" stroke-width="2.5" opacity=".7" filter="url(#blurR)"/>
    <!-- soft lower caustic -->
-   <ellipse cx="596.5" cy="695.3" rx="152.0" ry="17.92" fill="#fff" opacity=".22" filter="url(#blurR)" clip-path="url(#clip3)"/>
+   <ellipse cx="596.5" cy="695.3" rx="152.0" ry="17.92" fill="#fff" opacity=".13" filter="url(#blurE)" clip-path="url(#clip3)"/>
    <!-- specular sheen -->
    <path d="M446.9,601.5 H746.1 Q776.9,601.5 785.3,618.02 Q765.7,632.58 718.1,632.58 H474.9 Q427.3,632.58 407.7,618.02 Q416.1,601.5 446.9,601.5Z" fill="url(#sheen)" filter="url(#blurR)"/>
   </g>
