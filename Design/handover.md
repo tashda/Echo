@@ -18,7 +18,7 @@ Everything is written down in `Design/`. Treat it as the contract:
   - the tree only shows when it has content (a server or a tool page);
   - with no tab and no server, a **welcome sits on the canvas without a card**;
   - a sidebar button sits at the leading end of the toolbar;
-  - each server's tree sits on its own **opaque card** (review round 4, never glass);
+  - each server's tree sits on its own **opaque card with the editor card's exact tokens** (never glass), with a **glass card header** that pins while scrolling and a **rounded end** at the bottom (review rounds 4–7);
   - the server page sits on the canvas in the welcome's style, with Liquid Glass tool buttons.
 - `Design/plan.md`: the build plan, Phases 0–10 with task IDs, a status per task, and "Notes from building it" under finished phases. **This is your to-do list.**
 - `Design/current-state.md`: a map of the code from before the build (Phase 1 has since changed the window and rail; the plan notes say how).
@@ -48,7 +48,8 @@ The direction in one line: **canvas and cards**, inspired by Outlook. There's a 
    - Does the peek card's rounded top sit right over the tree?
    - Does the welcome look right: glass Connect… menu button, recents card, relative times?
    - Do ⌃⌘S and the toolbar sidebar button work, and are they disabled with nothing connected?
-   - Do the server cards in the tree draw correctly while scrolling and expanding folders, and does the lifted card follow the rail?
+   - Do the server cards draw correctly while scrolling and expanding folders, with full shadows, rounded ends at the bottom, and the glass header blurring rows under it? Does the first card line up with the rail?
+   - Is the sidebar toolbar button its own glass circle?
    - Does the server page look like the welcome, with glass tool buttons that wrap on a narrow window?
 2. Then work through `plan.md` **top to bottom**: Phase 2 (tree T1–T6), 3 (tabs B1–B5), 4 (cards E1–E4), 5 (grid R1–R6), 6 (toolbar and search K1–K5), 7 (notifications and floating cards N1–N5), 8 (tab overview O1–O3), 9 (inspector I1–I3), 10 (finish X1–X3). For each task:
    - Read the rules it names first.

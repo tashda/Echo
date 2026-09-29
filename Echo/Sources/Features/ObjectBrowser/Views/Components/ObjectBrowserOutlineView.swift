@@ -42,7 +42,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         )
     }
 
-    func makeNSView(context: Context) -> NSScrollView {
+    func makeNSView(context: Context) -> ObjectBrowserTreeContainerView {
         let scrollView = NSScrollView()
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
@@ -51,18 +51,12 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
         scrollView.verticalScrollElasticity = .none
-        scrollView.scrollerInsets = NSEdgeInsets(
-            top: max(topScrollerInset, SpacingTokens.none),
-            left: 0,
-            bottom: 0,
-            right: 0
-        )
-        scrollView.contentInsets = NSEdgeInsets(
-            top: 0,
-            left: 0,
-            bottom: ExplorerSidebarConstants.scrollBottomPadding + SpacingTokens.md2,
-            right: 0
-        )
+        // Our own insets only; the window's toolbar must not push the first card down.
+        scrollView.automaticallyAdjustsContentInsets = false
+        scrollView.scrollerInsets = Self.scrollerInsets(top: topScrollerInset)
+        // Room for the last card's padding below its last row.
+        scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: LayoutTokens.Workspace.treeCardBottomPadding, right: 0)
+        scrollView.verticalScroller?.controlSize = .small
 
         scrollView.documentView = context.coordinator.tableView
         scrollView.contentView.postsBoundsChangedNotifications = true
@@ -72,16 +66,20 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             name: NSView.boundsDidChangeNotification,
             object: scrollView.contentView
         )
-        return scrollView
+
+        let container = ObjectBrowserTreeContainerView(scrollView: scrollView, tableView: context.coordinator.tableView)
+        context.coordinator.container = container
+        return container
     }
 
-    func updateNSView(_ nsView: NSScrollView, context: Context) {
-        nsView.scrollerInsets = NSEdgeInsets(
-            top: max(topScrollerInset, SpacingTokens.none),
-            left: 0,
-            bottom: 0,
-            right: 0
-        )
+    /// The thin scroller stays inside the cards' rounded corners.
+    static func scrollerInsets(top: CGFloat) -> NSEdgeInsets {
+        let corner = LayoutTokens.Workspace.cardCornerRadius
+        return NSEdgeInsets(top: max(top, corner), left: 0, bottom: corner, right: SpacingTokens.xxxs)
+    }
+
+    func updateNSView(_ nsView: ObjectBrowserTreeContainerView, context: Context) {
+        nsView.scrollView.scrollerInsets = Self.scrollerInsets(top: topScrollerInset)
         context.coordinator.rowContent = rowContent
         context.coordinator.onExpansionChanged = onExpansionChanged
         context.coordinator.onActivation = onActivation
@@ -100,6 +98,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             context.coordinator.tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0 ..< context.coordinator.tableView.numberOfRows))
         }
         context.coordinator.reportTopVisibleContext()
+        nsView.cardsNeedDisplay()
     }
 
     @MainActor
@@ -116,6 +115,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         var onSelectionChanged: (ObjectBrowserNode?) -> Void
         var onTopVisibleContextChanged: ((ObjectBrowserTopVisibleContext) -> Void)?
         var baseRowHeight: CGFloat = ObjectBrowserOutlineView.baseRowHeight(for: .medium)
+        weak var container: ObjectBrowserTreeContainerView?
 
         private var roots: [ObjectBrowserNode] = []
         private var expandedNodeIDs: Set<String> = []
@@ -217,6 +217,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         }
 
         @objc func clipViewBoundsDidChange(_ notification: Notification) {
+            container?.cardsNeedDisplay()
             reportTopVisibleContext()
         }
 
@@ -232,8 +233,6 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             let probe = NSPoint(x: tableView.bounds.midX, y: scrollY + baseRowHeight / 2)
             let row = min(max(tableView.row(at: probe), 0), visibleRows.count - 1)
             let topRow = visibleRows[row].node.row
-
-            tableView.liftedCardIndex = tableView.cardRowRanges.firstIndex { $0.contains(row) || $0.lowerBound > row }
 
             let context = ObjectBrowserTopVisibleContext(
                 connectionID: connectionID(nearRow: row),
@@ -418,6 +417,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
                 }
                 tableView.endUpdates()
             }
+            container?.cardsNeedDisplay()
             refreshVisibleRows()
         }
 
@@ -577,47 +577,119 @@ final class ObjectBrowserOutlineCellView: NSTableCellView {
     }
 }
 
-/// The tree's table. Behind the rows it draws each server's card (Design/05-components.md ›
-/// Explorer tree): opaque like the editor card, with a lighter shadow, and lifted a little for
-/// the server at the top of the view, which is the one the rail selects. Drawing the cards here
-/// keeps them in step with scrolling and row animations at no extra cost.
+/// The tree's table. It knows which rows share a server card; the cards themselves are drawn
+/// by `ObjectBrowserCardLayerView` behind the scroll view, so their shadows aren't clipped.
 @MainActor
 final class ObjectBrowserTableView: NSTableView {
     /// Rows that share a card, one range per server.
-    var cardRowRanges: [ClosedRange<Int>] = [] {
-        didSet { if oldValue != cardRowRanges { needsDisplay = true } }
+    var cardRowRanges: [ClosedRange<Int>] = []
+
+    override func drawBackground(inClipRect clipRect: NSRect) {}
+}
+
+/// Holds the tree's scroll view above the layer that draws its server cards
+/// (Design/05-components.md › Explorer tree).
+///
+/// The scroll view is clipped to the cards' rounded corners, so rows never show outside a card
+/// and the tree ends like the editor card: when a card runs past the bottom, it is cut into
+/// rounded corners there. The cards are drawn behind it, a little larger than the tree, so they
+/// carry the editor card's full shadow.
+@MainActor
+final class ObjectBrowserTreeContainerView: NSView {
+    let scrollView: NSScrollView
+    private let cardLayer: ObjectBrowserCardLayerView
+
+    init(scrollView: NSScrollView, tableView: ObjectBrowserTableView) {
+        self.scrollView = scrollView
+        self.cardLayer = ObjectBrowserCardLayerView(tableView: tableView, scrollView: scrollView)
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.masksToBounds = false
+
+        scrollView.wantsLayer = true
+        scrollView.layer?.cornerRadius = LayoutTokens.Workspace.cardCornerRadius
+        scrollView.layer?.cornerCurve = .continuous
+        scrollView.layer?.masksToBounds = true
+
+        addSubview(cardLayer)
+        addSubview(scrollView)
     }
 
-    /// The card drawn lifted.
-    var liftedCardIndex: Int? {
-        didSet { if oldValue != liftedCardIndex { needsDisplay = true } }
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError()
     }
 
-    override func drawBackground(inClipRect clipRect: NSRect) {
-        let rowCount = numberOfRows
-        for (index, range) in cardRowRanges.enumerated() where range.upperBound < rowCount {
-            var card = rect(ofRow: range.lowerBound).union(rect(ofRow: range.upperBound))
-            card = card.insetBy(dx: LayoutTokens.Workspace.treeCardSideInset, dy: 0)
+    override var isFlipped: Bool { true }
+
+    override func layout() {
+        super.layout()
+        scrollView.frame = bounds
+        let outset = ObjectBrowserCardLayerView.shadowOutset
+        cardLayer.frame = bounds.insetBy(dx: -outset, dy: -outset)
+        cardsNeedDisplay()
+    }
+
+    func cardsNeedDisplay() {
+        cardLayer.needsDisplay = true
+    }
+}
+
+/// Draws each server's card: the editor card's fill, edge and shadow, cut to the part that is
+/// visible in the tree, with rounded corners wherever it is cut.
+@MainActor
+final class ObjectBrowserCardLayerView: NSView {
+    /// Room around the tree for the card shadow.
+    static var shadowOutset: CGFloat {
+        let shadow = ShadowTokens.workspaceCard
+        return shadow.radius + abs(shadow.y)
+    }
+
+    private weak var tableView: ObjectBrowserTableView?
+    private weak var scrollView: NSScrollView?
+
+    init(tableView: ObjectBrowserTableView, scrollView: NSScrollView) {
+        self.tableView = tableView
+        self.scrollView = scrollView
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError()
+    }
+
+    override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let tableView, let scrollView else { return }
+        let viewport = convert(scrollView.bounds, from: scrollView)
+        let rowCount = tableView.numberOfRows
+
+        for range in tableView.cardRowRanges where range.upperBound < rowCount {
+            var card = tableView.rect(ofRow: range.lowerBound).union(tableView.rect(ofRow: range.upperBound))
             card.size.height += LayoutTokens.Workspace.treeCardBottomPadding
-            // Shadows reach a little outside the card, so check against a slightly larger area.
-            guard card.intersects(clipRect.insetBy(dx: 0, dy: -SpacingTokens.md)) else { continue }
-            drawCard(in: card, isLifted: index == liftedCardIndex)
+            let visible = convert(card, from: tableView).intersection(viewport)
+            guard !visible.isNull, visible.height > 1 else { continue }
+            drawCard(in: visible)
         }
     }
 
-    private func drawCard(in rect: NSRect, isLifted: Bool) {
-        let radius = LayoutTokens.Workspace.cardCornerRadius
-        let token = isLifted ? ShadowTokens.treeCardLifted : ShadowTokens.treeCard
+    private func drawCard(in rect: NSRect) {
+        let radius = min(LayoutTokens.Workspace.cardCornerRadius, rect.height / 2)
+        let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+        let token = ShadowTokens.workspaceCard
 
         NSGraphicsContext.saveGraphicsState()
         let shadow = NSShadow()
         shadow.shadowColor = NSColor(token.color)
         shadow.shadowBlurRadius = token.radius
-        // The table is flipped, but shadow offsets are not: a negative height falls downward.
+        // This view is flipped, but shadow offsets are not: a negative height falls downward.
         shadow.shadowOffset = NSSize(width: token.x, height: -token.y)
         shadow.set()
-        NSColor.textBackgroundColor.setFill()
-        NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+        NSColor(ColorTokens.Workspace.card).setFill()
+        path.fill()
         NSGraphicsContext.restoreGraphicsState()
 
         let edgeWidth = LayoutTokens.Workspace.cardEdgeWidth
@@ -627,7 +699,7 @@ final class ObjectBrowserTableView: NSTableView {
             yRadius: radius
         )
         edge.lineWidth = edgeWidth
-        NSColor.separatorColor.withAlphaComponent(LayoutTokens.Workspace.cardEdgeOpacity).setStroke()
+        NSColor(ColorTokens.Workspace.cardEdge).withAlphaComponent(LayoutTokens.Workspace.cardEdgeOpacity).setStroke()
         edge.stroke()
     }
 }

@@ -197,11 +197,14 @@ extension ObjectBrowserNode.Row {
     /// padding-only group spacing. New code should use `groupSectionTitle`.
     var groupTopPadding: CGFloat { groupSectionHeaderHeight }
 
+    /// Extra height of a server header row over an ordinary row.
+    static let serverHeaderExtraHeight: CGFloat = SpacingTokens.xs
+
     /// Extra row-slot height for connection group headers.
     var extraSlotHeight: CGFloat {
         switch self {
-        case .server: return SpacingTokens.xs
-        case .pendingConnection: return SpacingTokens.xs
+        case .server: return Self.serverHeaderExtraHeight
+        case .pendingConnection: return Self.serverHeaderExtraHeight
         default: return 0
         }
     }

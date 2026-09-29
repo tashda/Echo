@@ -18,23 +18,12 @@ enum ObjectBrowserSnapshotBuilder {
         )
 
         var rows: [ObjectBrowserNode] = [topSpacer]
-
-        for pending in pendingConnections {
-            rows.append(
-                ObjectBrowserNode(
-                    id: "\(pending.id.uuidString)#pending",
-                    row: .pendingConnection(pending)
-                )
-            )
-        }
-
-        if !pendingConnections.isEmpty && !sessions.isEmpty {
-            rows.append(
-                ObjectBrowserNode(
-                    id: "explorer-lab#pending-gap",
-                    row: .topSpacer(LayoutTokens.Workspace.treeCardSpacing)
-                )
-            )
+        // Each server sits on its own card; cards are one gutter apart (the Spacing Between
+        // Panes setting), plus the room left below a card's last row.
+        let cardSpacing = settings.workspaceGutter.points + LayoutTokens.Workspace.treeCardBottomPadding
+        func appendGap(before key: String) {
+            guard rows.count > 1 else { return }
+            rows.append(ObjectBrowserNode(id: "explorer-lab#gap#\(key)", row: .topSpacer(cardSpacing)))
         }
 
         if !connectionLayoutMode.showsServerNameInOutline,
@@ -44,29 +33,31 @@ enum ObjectBrowserSnapshotBuilder {
                 settings: settings,
                 viewModel: viewModel
             ))
-            return rows
-        }
-
-        for (index, session) in sessions.enumerated() {
-            if index > 0 {
+        } else {
+            for session in sessions {
+                appendGap(before: session.connection.id.uuidString)
+                let serverID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
                 rows.append(
                     ObjectBrowserNode(
-                        id: "explorer-lab#server-gap#\(session.connection.id.uuidString)",
-                        row: .topSpacer(LayoutTokens.Workspace.treeCardSpacing)
+                        id: serverID,
+                        row: .server(session),
+                        children: serverChildren(
+                            for: session,
+                            settings: settings,
+                            viewModel: viewModel
+                        )
                     )
                 )
             }
+        }
 
-            let serverID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
+        // Servers still connecting, or that failed to, come last, in the rail's order.
+        for pending in pendingConnections {
+            appendGap(before: "pending#\(pending.id.uuidString)")
             rows.append(
                 ObjectBrowserNode(
-                    id: serverID,
-                    row: .server(session),
-                    children: serverChildren(
-                        for: session,
-                        settings: settings,
-                        viewModel: viewModel
-                    )
+                    id: "\(pending.id.uuidString)#pending",
+                    row: .pendingConnection(pending)
                 )
             )
         }

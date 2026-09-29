@@ -32,22 +32,6 @@ public enum ShadowTokens {
         y: 4
     )
 
-    /// A server's card in the tree, at rest: lighter than the editor card so the tree stays calm.
-    public static let treeCard = Shadow(
-        color: Color.black.opacity(0.04),
-        radius: 1.5,
-        x: 0,
-        y: 0.5
-    )
-
-    /// The server card the rail has selected, lifted a little off the canvas.
-    public static let treeCardLifted = Shadow(
-        color: Color.black.opacity(0.10),
-        radius: 6,
-        x: 0,
-        y: 2
-    )
-
     /// The selection disc in the server rail.
     public static let railSelection = Shadow(
         color: Color.black.opacity(0.16),

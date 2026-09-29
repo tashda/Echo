@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Tree cards, scrolling and the bottom edge (review rounds 5–7)
+
+Pages: round 5 https://claude.ai/artifact/CZU1FEeERxgrgLLYttJJ1U · round 6 https://claude.ai/artifact/3VqbnxEy4z1ThCnQJt64Ta · round 7 https://claude.ai/artifact/D77uNvnAc3AzGzic7k88PW and https://claude.ai/artifact/RMNCE8fCR7X367ydcyUjZk
+- **Tree cards use exactly the editor card's tokens** (fill, edge, `workspaceCard` shadow, 12pt corners). The lighter shadow and the lifted card from round 4 are gone. The tree follows the existing settings: Spacing Between Panes sets the gap between cards, the Explorer size setting sets the rows. No new card settings. → 05-components, 06-tokens
+- **Glass card header** (round 6, option 2): once a server's own header scrolls away, "server › database" pins at the top of its card on Liquid Glass with the card's rounded top corners; rows blur through it. It holds controls, so glass is allowed. Replaces the blurred path bar. Rejected: opaque sticky top (1), scrolling under the toolbar (3), a blur band (4). → 05-components, 03-materials
+- **Rounded end** (round 7, F2): the tree stops one gutter above the window edge, on the editor card's bottom line; a card that runs past the bottom is cut into rounded corners with the full card shadow. No fade anywhere. Rejected: glass footer (F1), next-server tab (F3), filter bar (F4). → 05-components
+- Fixed as bugs: the first card lines up with the rail and tab plate; connecting and failed servers come last in rail order, each on its own card; the scroller is the small overlay scroller inset inside the card corners; the sidebar toolbar button has its own glass. → 05-components
+
 ## 2026-09-29 · Tree cards and server page (review round 4)
 
 Review page: https://claude.ai/artifact/2A6mzm6CNJTKnWt8FwLETg

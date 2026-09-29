@@ -17,10 +17,7 @@ public enum LayoutTokens {
         public static let treeResizeHandleWidth: CGFloat = 8
         /// Room below a server's last row inside its card in the tree.
         public static let treeCardBottomPadding: CGFloat = SpacingTokens.xxs
-        /// Space from one server card's last row to the next card: the bottom padding plus the gutter.
-        public static let treeCardSpacing: CGFloat = SpacingTokens.xxs + SpacingTokens.xxs2
-        /// Inset of the server cards from the tree's sides, so their edges aren't clipped.
-        public static let treeCardSideInset: CGFloat = 1
+
     }
 
     /// The two-pill server rail of the canvas-and-cards window. Item size comes from the
@@ -76,17 +73,6 @@ public enum LayoutTokens {
         public static let cornerRadius: CGFloat = 18
         public static let rowHeight: CGFloat = 28
         public static let rowCornerRadius: CGFloat = 10
-    }
-
-    public enum PinnedPath {
-        /// Height of the pinned "server › database" line above the Explorer.
-        public static let height: CGFloat = 28
-        /// How far the blur keeps fading below the line.
-        public static let fadeExtent: CGFloat = 14
-        /// How far the blur fades in at each side.
-        public static let sideFade: CGFloat = SpacingTokens.xs
-        /// Card colour laid over the blur, so it matches the server cards instead of the material.
-        public static let tintOpacity: Double = 0.7
     }
 
     public enum TabNavigation {

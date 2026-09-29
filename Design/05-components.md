@@ -36,7 +36,11 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Explorer tree
 
 - It is an SSMS/pgAdmin-style tree. *Decided.*
-- **One opaque card per server**, hugging its rows: `textBackgroundColor`, 12pt corners, 0.5pt edge, the light `treeCard` shadow. The server at the top of the tree (the one the rail selects) lifts to `treeCardLifted`. Cards are 6pt apart, with 4pt below the last row. Never glass. *Decided* (review round 4).
+- **One opaque card per server**, hugging its rows, with exactly the editor card's look: `textBackgroundColor`, 12pt corners, 0.5pt edge, the `workspaceCard` shadow. Cards are one gutter apart (Spacing Between Panes), with 4pt below the last row. Never glass. *Decided* (review rounds 4 and 5).
+- Servers are listed in the rail's order; connecting and failed servers come last, each on its own card. *Decided.*
+- **Glass card header:** when a server's header scrolls away, it pins at the top of its card as a Liquid Glass bar with the card's rounded top corners, showing "server › database"; rows blur through it. *Decided* (round 6).
+- **Rounded end:** the tree stops one gutter above the window edge, on the editor card's bottom line. A card cut by the bottom edge ends in rounded corners with its full shadow. No fades. *Decided* (round 7).
+- The scroller is the small overlay scroller, inset inside the card corners, shown while scrolling. *Decided.*
 - **Server header = sticky header:**
   - The server name is the section header.
   - When it pins at the top it grows a breadcrumb for the database you're in ("postgres18 › employees"), over a soft fade rather than a band.

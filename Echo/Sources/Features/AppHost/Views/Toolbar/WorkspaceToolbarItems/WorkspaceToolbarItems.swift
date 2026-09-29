@@ -12,9 +12,12 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     @ToolbarContentBuilder
     private var navigationItems: some ToolbarContent {
+        // Its own glass, apart from the connection group, like the sidebar button in Finder.
         ToolbarItem(id: "workspace.navigation.sidebar", placement: .navigation) {
             SidebarToggleToolbarButton()
+                .glassEffect(.regular.interactive())
         }
+        .sharedBackgroundVisibility(.hidden)
 
         ToolbarSpacer(.fixed)
 

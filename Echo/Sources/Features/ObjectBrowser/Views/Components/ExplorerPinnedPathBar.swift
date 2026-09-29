@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// "server › database" pinned above the Explorer once the server's own header has scrolled out
-/// of view. Plain text on a soft blur, with no fill of its own; two actions appear on hover.
+/// The glass card header (Design/05-components.md › Explorer tree): once a server's own header
+/// has scrolled away, "server › database" pins at the top of its card on Liquid Glass with the
+/// card's rounded top corners, and rows blur through it as they scroll. Two actions appear on
+/// hover. It holds controls, so glass is right here even though the card is content.
 struct ExplorerPinnedPathBar: View {
+    let height: CGFloat
     let serverName: String
     let databaseName: String?
     let onScrollToServer: () -> Void
@@ -15,7 +18,7 @@ struct ExplorerPinnedPathBar: View {
         HStack(spacing: SpacingTokens.xxs) {
             Button(action: onScrollToServer) {
                 Text(serverName)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(ColorTokens.Text.primary)
                     .lineLimit(1)
                     .fixedSize()
@@ -58,43 +61,16 @@ struct ExplorerPinnedPathBar: View {
         }
         .padding(.leading, SpacingTokens.sm)
         .padding(.trailing, SpacingTokens.xs)
-        .frame(height: LayoutTokens.PinnedPath.height)
-        .background(alignment: .top) { blur }
+        .frame(height: height)
+        .glassEffect(.regular, in: UnevenRoundedRectangle(
+            topLeadingRadius: LayoutTokens.Workspace.cardCornerRadius,
+            topTrailingRadius: LayoutTokens.Workspace.cardCornerRadius,
+            style: .continuous
+        ))
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .animation(.easeInOut(duration: 0.18), value: isHovering)
         .animation(.easeInOut(duration: 0.22), value: databaseName)
-    }
-
-    /// A blur of the rows underneath, tinted to the server cards it sits on so it has no colour of its own, and
-    /// faded out downward and at both sides, so it never shows an edge against the canvas.
-    private var blur: some View {
-        ZStack {
-            Rectangle().fill(.ultraThinMaterial)
-            ColorTokens.Workspace.card.opacity(LayoutTokens.PinnedPath.tintOpacity)
-        }
-        .mask(
-            LinearGradient(
-                stops: [
-                    .init(color: .black, location: 0),
-                    .init(color: .black, location: 0.55),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
-        .mask(
-            HStack(spacing: SpacingTokens.none) {
-                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
-                    .frame(width: LayoutTokens.PinnedPath.sideFade)
-                Color.black
-                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
-                    .frame(width: LayoutTokens.PinnedPath.sideFade)
-            }
-        )
-        .frame(height: LayoutTokens.PinnedPath.height + LayoutTokens.PinnedPath.fadeExtent)
-        .allowsHitTesting(false)
     }
 
     private func actionButton(_ systemImage: String, help: String, action: @escaping () -> Void) -> some View {
@@ -115,6 +91,8 @@ struct ExplorerPinnedPathBar: View {
 /// scroll context from the rail bridge so that only this overlay redraws while scrolling.
 struct ExplorerPinnedPathOverlay: View {
     let bridge: ServerRailBridge
+    /// Height of a server header row, so the glass covers it exactly.
+    let headerHeight: CGFloat
     let isEnabled: Bool
     let sessions: [ConnectionSession]
     let onScrollToServer: (UUID) -> Void
@@ -128,6 +106,7 @@ struct ExplorerPinnedPathOverlay: View {
         ZStack(alignment: .top) {
             if let pinnedID, let session = sessions.first(where: { $0.connection.id == pinnedID }) {
                 ExplorerPinnedPathBar(
+                    height: headerHeight,
                     serverName: displayName(for: session.connection),
                     databaseName: context.databaseName,
                     onScrollToServer: { onScrollToServer(pinnedID) },
@@ -142,7 +121,7 @@ struct ExplorerPinnedPathOverlay: View {
                         }
                     }
                 )
-                .transition(.opacity.combined(with: .offset(y: -LayoutTokens.PinnedPath.height / 3)))
+                .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.22), value: pinnedID)

@@ -101,12 +101,15 @@ struct ObjectBrowserSidebarView: View {
                     }
                 )
                 .background(Color.clear)
+                // Not clipped: the server cards' shadows reach past the tree's edges. The scroll
+                // view clips the rows to the cards' rounded corners itself.
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .clipped()
                 .overlay(alignment: .top) {
                     if let railBridge {
                         ExplorerPinnedPathOverlay(
                             bridge: railBridge,
+                            headerHeight: ObjectBrowserOutlineView.baseRowHeight(for: projectStore.globalSettings.sidebarDensity)
+                                + ObjectBrowserNode.Row.serverHeaderExtraHeight,
                             isEnabled: projectStore.globalSettings.sidebarShowsPinnedPath,
                             sessions: sessions,
                             onScrollToServer: { connectionID in

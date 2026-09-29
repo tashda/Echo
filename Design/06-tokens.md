@@ -32,8 +32,8 @@ Values that views use. The code equivalents live in `Echo/Sources/Shared/DesignS
 
 | Token | Value | Status |
 |---|---|---|
-| Server card | `textBackgroundColor`, 12pt corners, 0.5pt edge; shadow black 4% r1.5 y0.5, lifted black 10% r6 y2 | Decided |
-| Server card spacing | 4pt below the last row, 6pt between cards | Decided |
+| Server card | the editor card's tokens: `textBackgroundColor`, 12pt corners, 0.5pt edge at 35%, `workspaceCard` shadow | Decided |
+| Server card spacing | 4pt below the last row; the gutter setting between cards | Decided |
 | Density | compact / small / default / large (see `SidebarRow`) | Decided |
 | Indent per level | 12pt | Decided (as in the Design Lab; 14 today) |
 | Row corner | 7pt | Decided |
