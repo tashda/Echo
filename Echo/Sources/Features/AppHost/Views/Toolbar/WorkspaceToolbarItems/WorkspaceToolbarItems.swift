@@ -19,8 +19,8 @@ struct WorkspaceToolbarItems: ToolbarContent {
         ToolbarSpacer(.fixed)
 
         ToolbarItemGroup(placement: .navigation) {
+            // Saved connections open from the + in the rail's server pill.
             RecentConnectionsMenuButton()
-            ConnectionsMenuButton()
         }
 
         ToolbarSpacer(.fixed)

@@ -15,7 +15,8 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - Running queries show nothing in the rail; the tooltip and the peek list them. *Decided.*
   - A lost connection dims the monogram to 40%, and the tooltip says why. *Decided.*
   - Rings, comets, count badges and extra dots were rejected.
-- **No + in the rail.** The toolbar handles connecting. *Decided.*
+- **A + ends the server pill** and opens the connections menu; it is never selected and the disc never moves onto it. It replaced the toolbar's Connections button. *Decided* (2026-09-29).
+- **The selection disc is inset 3pt** inside its item, so a single server never looks like a pill inside a pill. *Decided* (2026-09-29).
 - Item size: medium (34pt) default, with small and large as a setting. *Decided.*
 - **Clicking a server with the tree hidden:** a plain click peeks (the tree for that server slides out over the cards; a click away or Esc slides it back), and ⌘-click or double-click reopens the tree for good. *Decided.* A setting lets users choose instead "always peek" or "always reopen the tree". The glance card and "switch context only" were rejected.
 

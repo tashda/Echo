@@ -31,6 +31,8 @@ public enum LayoutTokens {
         /// Opacity of a server whose connection was lost, and of a connecting server with
         /// Reduce Motion on.
         public static let lostOpacity: Double = 0.4
+        /// Inset between the selection disc and its item, so the disc never echoes the pill's edge.
+        public static let selectionInset: CGFloat = 3
         /// Monogram point size as a share of the item size (12.5pt at the default 34pt).
         public static let monogramFontRatio: CGFloat = 0.37
         /// Point size of the tool symbols.
@@ -58,6 +60,10 @@ public enum LayoutTokens {
         public static let height: CGFloat = 28
         /// How far the blur keeps fading below the line.
         public static let fadeExtent: CGFloat = 14
+        /// How far the blur fades in at each side.
+        public static let sideFade: CGFloat = SpacingTokens.xs
+        /// Canvas colour laid over the blur, so it matches the canvas instead of the material.
+        public static let canvasTintOpacity: Double = 0.7
     }
 
     public enum TabNavigation {

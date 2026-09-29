@@ -20,16 +20,21 @@ struct WorkspaceShell: View {
         let gutter = projectStore.globalSettings.workspaceGutter.points
         let isTreeVisible = appState.isWorkspaceTreeVisible
         let isPeeking = !isTreeVisible && appState.peekedServerID != nil
+        // The tab strip keeps a little room above its plate. The rail and tree start that much
+        // lower, so the rail, the tree and the plate all sit one gutter below the toolbar.
+        let stripInset = (WorkspaceChromeMetrics.tabStripTotalHeight - WorkspaceChromeMetrics.chromeBackgroundHeight) / 2
 
         HStack(spacing: SpacingTokens.none) {
             WorkspaceRailColumn(bridge: railBridge)
                 .padding(.leading, gutter)
+                .padding(.top, stripInset)
 
             treeArea(gutter: gutter, isVisible: isTreeVisible, isPeeking: isPeeking)
+                .padding(.top, stripInset)
 
             WorkspaceMainContent()
                 .accessibilityIdentifier("workspace-content")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
                 .padding(.leading, isTreeVisible ? SpacingTokens.none : gutter)
                 .overlay {
                     if isPeeking {
@@ -41,7 +46,7 @@ struct WorkspaceShell: View {
                     }
                 }
         }
-        .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
+        .padding(.top, max(gutter - stripInset, SpacingTokens.none))
         .padding([.trailing, .bottom], gutter)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Workspace.canvas.ignoresSafeArea())

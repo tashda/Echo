@@ -66,23 +66,35 @@ struct ExplorerPinnedPathBar: View {
         .animation(.easeInOut(duration: 0.22), value: databaseName)
     }
 
-    /// Material that fades out downward, so rows dissolve under the text instead of meeting an edge.
+    /// A blur of the rows underneath, tinted to the canvas so it has no colour of its own, and
+    /// faded out downward and at both sides, so it never shows an edge against the canvas.
     private var blur: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0),
-                        .init(color: .black, location: 0.55),
-                        .init(color: .clear, location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            ColorTokens.Workspace.canvas.opacity(LayoutTokens.PinnedPath.canvasTintOpacity)
+        }
+        .mask(
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: 0.55),
+                    .init(color: .clear, location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
             )
-            .frame(height: LayoutTokens.PinnedPath.height + LayoutTokens.PinnedPath.fadeExtent)
-            .allowsHitTesting(false)
+        )
+        .mask(
+            HStack(spacing: SpacingTokens.none) {
+                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: LayoutTokens.PinnedPath.sideFade)
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: LayoutTokens.PinnedPath.sideFade)
+            }
+        )
+        .frame(height: LayoutTokens.PinnedPath.height + LayoutTokens.PinnedPath.fadeExtent)
+        .allowsHitTesting(false)
     }
 
     private func actionButton(_ systemImage: String, help: String, action: @escaping () -> Void) -> some View {

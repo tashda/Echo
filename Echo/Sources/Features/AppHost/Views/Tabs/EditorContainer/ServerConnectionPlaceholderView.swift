@@ -17,6 +17,9 @@ struct RecentConnectionItem: Identifiable {
 }
 
 struct RecentConnectionsPlaceholder: View {
+    /// The start page lists only the latest few; the rest are in the toolbar's Recent menu.
+    static let maximumCount = 5
+
     let connections: [RecentConnectionItem]
     let onSelectConnection: (RecentConnectionItem) -> Void
 

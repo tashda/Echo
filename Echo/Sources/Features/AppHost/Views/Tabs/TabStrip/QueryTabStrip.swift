@@ -61,7 +61,8 @@ struct QueryTabStrip: View {
 
     let tabReorderAnimation = Animation.interactiveSpring(response: 0.2, dampingFraction: 0.9, blendDuration: 0)
     private let tabStripHeight: CGFloat = WorkspaceChromeMetrics.tabStripTotalHeight
-    private let baseHorizontalInset: CGFloat = 4
+    /// Equal to the plate's edge inset, so the plate lines up with the card's edge below it.
+    private let baseHorizontalInset: CGFloat = 2
     private let basePlateExtension: CGFloat = 0
     private let basePlateEdgeInset: CGFloat = 2
     private let basePlateCornerRadius: CGFloat = 14
@@ -123,7 +124,8 @@ struct QueryTabStrip: View {
                     }
                 }
                 .padding(.leading, effectiveLeadingPadding)
-                .padding(.trailing, hasTabs ? 7 : effectiveTrailingPadding)
+                // The + ends at the card's trailing edge.
+                .padding(.trailing, hasTabs ? trailingPadding : effectiveTrailingPadding)
                 .padding(.vertical, tabContentVerticalPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(tabReorderAnimation, value: tabStore.tabs.map(\.id))

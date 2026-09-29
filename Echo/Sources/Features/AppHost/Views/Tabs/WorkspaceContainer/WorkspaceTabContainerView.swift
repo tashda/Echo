@@ -67,7 +67,12 @@ struct WorkspaceTabContainerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        let gutter = projectStore.globalSettings.workspaceGutter.points
+        // The strip keeps a little room above and below its plate; the gutter covers the rest,
+        // so the visible gap between the plate and the card is the gutter.
+        let stripInset = (WorkspaceChromeMetrics.tabStripTotalHeight - WorkspaceChromeMetrics.chromeBackgroundHeight) / 2
+
+        VStack(spacing: max(gutter - stripInset, SpacingTokens.none)) {
             if showsTabStrip {
                 QueryTabStrip(
                     leadingPadding: tabBarLeadingPadding,
@@ -95,12 +100,14 @@ struct WorkspaceTabContainerView: View {
                     ConnectionDashboardView(session: activeSession)
                 } else {
                     RecentConnectionsPlaceholder(
-                        connections: recentConnectionItems,
+                        connections: Array(recentConnectionItems.prefix(RecentConnectionsPlaceholder.maximumCount)),
                         onSelectConnection: connectToRecentConnection
                     )
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // A zero minimum keeps tall content (a long list, a big dashboard) from pushing the
+            // window past its own edges; the card clips it instead.
+            .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
             .workspaceCard()
         }
         .animation(.easeInOut(duration: 0.2), value: appState.showTabOverview)

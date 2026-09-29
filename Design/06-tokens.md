@@ -25,7 +25,7 @@ Values that views use. The code equivalents live in `Echo/Sources/Shared/DesignS
 | Pill padding | 4pt | Decided (as in the Design Lab) |
 | Rail width | item + 2 × padding (42pt at medium) | Decided (as in the Design Lab) |
 | Gap between pills | at least 12pt | Decided (as in the Design Lab) |
-| Selection disc | `textBackgroundColor` + shadow 16%, radius 1.5, liquid stretch | Decided |
+| Selection disc | `textBackgroundColor` + shadow 16%, radius 1.5, liquid stretch, inset 3pt inside its item | Decided |
 | Selected monogram | the server's connection colour, bold | Decided |
 
 ## Tree

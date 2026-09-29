@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · First build of the shell (asked in chat)
+
+After the owner ran Phase 1:
+- **+ back in the rail**, as the last item of the server pill. It opens the connections menu and replaces the toolbar's Connections button (Recent and Quick Connect stay in the toolbar). Reason: with one server the pill held a single item and read as a double border; connecting from the rail is also closer to the servers. Replaces "no + in the rail" from round 1. → 02-layout, 05-components
+- **Selection disc inset 3pt** inside its item, so it never echoes the pill's edge. → 06-tokens, 05-components
+- **Tools stay a vertical pill** at the bottom of the rail, the same width as the server pill. Horizontal under the tree, one combined pill and toolbar tools were offered and not chosen. → 02-layout
+- Fixed as bugs, no rule change: the start page lists the 5 latest connections; content can never push the window past its edges; the rail, tree and tab plate sit one gutter below the toolbar and the plate lines up with the card; the pinned path blur is tinted to the canvas and fades at every edge.
+
 ## 2026-09-29 · Last open questions (asked in chat)
 
 Decided:

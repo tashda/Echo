@@ -32,7 +32,8 @@ Echo does not use the system sidebar for the Explorer. The window is our own she
 - **Two separate glass pills.** Servers are at the top and tools at the bottom, with canvas between them. *Decided.*
 - **The server pill hugs its servers.** It grows with a spring when one connects. Once it reaches the tool pill it stops growing and scrolls inside. *Decided.*
 - The tool pill contains Bookmarks, Snippets, History and Clipboard. Search moved to the toolbar and ⌘K. *Decided.*
-- There is no + in the rail. Connecting lives in the toolbar. *Decided.*
+- **The server pill ends with a +** that opens the connections menu (open sessions, saved connections, Manage Connections, Quick Connect). It replaces the toolbar's Connections button. *Decided* (2026-09-29, replaces "no + in the rail").
+- **Both pills are the same width** (item + pill padding on every side), so the rail reads as one column. *Decided.*
 - Item size is medium (34pt) by default, with a user setting for small and large. *Decided.*
 
 ## Tree

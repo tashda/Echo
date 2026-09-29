@@ -19,7 +19,8 @@ enum ServerRailClick {
 
 /// The server rail (Design/02-layout.md › Rail): two glass pills on the canvas at the window's
 /// leading edge. Servers are on top, in a pill that hugs them, grows with a spring as they
-/// connect and scrolls once it reaches the tools. The tools pill sits at the bottom.
+/// connect and scrolls once it reaches the tools; its last item is the + that opens the
+/// connections menu. The tools pill sits at the bottom.
 ///
 /// The selected server rests on a white disc that moves with a liquid stretch. It follows the
 /// server at the top of the tree while scrolling, and holds on a clicked server while the tree
@@ -52,12 +53,9 @@ struct ServerRail: View {
         let entryIDs = entries.map(\.connectionID)
 
         VStack(spacing: SpacingTokens.none) {
-            if !entries.isEmpty {
-                serverPill(entries: entries, highlightedID: highlightedID)
-                    // Takes all the height it needs before the gap above the tools.
-                    .layoutPriority(1)
-                    .transition(.scale(scale: 0.6, anchor: .top).combined(with: .opacity))
-            }
+            serverPill(entries: entries, highlightedID: highlightedID)
+                // Takes all the height it needs before the gap above the tools.
+                .layoutPriority(1)
             Spacer(minLength: LayoutTokens.Rail.minimumPillGap)
             toolPill
         }
@@ -104,8 +102,9 @@ struct ServerRail: View {
     private func serverPill(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
         let spacing = LayoutTokens.Rail.itemSpacing
         let padding = LayoutTokens.Rail.pillPadding
-        let count = CGFloat(entries.count)
-        // Every item has the same size, so the pill's natural height is exact without measuring.
+        // Servers plus the + button. Every item has the same size, so the pill's natural height
+        // is exact without measuring.
+        let count = CGFloat(entries.count + 1)
         let contentHeight = count * itemSize + max(0, count - 1) * spacing + padding * 2
         let runningCounts = tabStore.runningQueryCountsByConnection
 
@@ -125,6 +124,7 @@ struct ServerRail: View {
                             )
                             .transition(.scale(scale: 0.4).combined(with: .opacity))
                         }
+                        connectButton
                     }
                 }
                 .padding(padding)
@@ -143,11 +143,15 @@ struct ServerRail: View {
     }
 
     private func selectionDisc(isVisible: Bool) -> some View {
-        Capsule()
+        let inset = LayoutTokens.Rail.selectionInset
+        return Capsule()
             .fill(ColorTokens.Workspace.railSelection)
             .shadow(ShadowTokens.railSelection)
-            .frame(width: itemSize, height: max(itemSize, selectionBottom - selectionTop))
-            .offset(y: selectionTop)
+            .frame(
+                width: itemSize - inset * 2,
+                height: max(itemSize, selectionBottom - selectionTop) - inset * 2
+            )
+            .offset(y: selectionTop + inset)
             .opacity(isVisible ? 1 : 0)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
@@ -211,6 +215,23 @@ struct ServerRail: View {
         }
     }
 
+    /// Opens the connections menu: open sessions, saved connections, Manage Connections and
+    /// Quick Connect.
+    private var connectButton: some View {
+        Menu {
+            ConnectionsMenuContent()
+        } label: {
+            ServerRailToolLabel(symbol: "plus", isSelected: false, width: itemSize, height: itemSize)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .focusable(false)
+        .help("Connect to a Server")
+        .accessibilityLabel("Connect to a Server")
+    }
+
     // MARK: - Selection motion
 
     private func offset(of id: UUID?, in ids: [UUID]) -> CGFloat? {
@@ -258,7 +279,8 @@ struct ServerRail: View {
                 toolButton(section)
             }
         }
-        .padding(.vertical, LayoutTokens.Rail.pillPadding)
+        // Same padding on every side as the server pill, so both pills share the rail's width.
+        .padding(LayoutTokens.Rail.pillPadding)
         .glassEffect(.regular, in: .capsule)
     }
 
@@ -350,6 +372,7 @@ struct ServerRailToolLabel: View {
     let symbol: String
     let isSelected: Bool
     let width: CGFloat
+    var height: CGFloat = LayoutTokens.Rail.toolHeight
 
     @Environment(\.echoMotion) private var motion
     @State private var isHovering = false
@@ -359,7 +382,7 @@ struct ServerRailToolLabel: View {
             .symbolVariant(isSelected ? .fill : .none)
             .font(.system(size: LayoutTokens.Rail.toolSymbolSize))
             .foregroundStyle(foreground)
-            .frame(width: width, height: LayoutTokens.Rail.toolHeight)
+            .frame(width: width, height: height)
             .contentShape(Rectangle())
             .onHover { isHovering = $0 }
             .animation(motion.hover, value: isHovering)
