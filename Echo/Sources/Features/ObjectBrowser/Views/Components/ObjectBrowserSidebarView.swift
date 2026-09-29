@@ -109,7 +109,8 @@ struct ObjectBrowserSidebarView: View {
                     },
                     pinnedHeaderHeight: railBridge != nil && projectStore.globalSettings.sidebarShowsPinnedPath
                         ? pinnedHeaderHeight
-                        : nil
+                        : nil,
+                    showsScrollBar: projectStore.globalSettings.sidebarShowsScrollBar
                 )
                 .background(Color.clear)
                 // Not clipped: the server cards' shadows reach past the tree's edges. The scroll

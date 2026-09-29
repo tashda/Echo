@@ -71,6 +71,8 @@ public enum LayoutTokens {
         public static let chipHorizontalPadding: CGFloat = SpacingTokens.xs2
         public static let pillPadding: CGFloat = SpacingTokens.xxxs
         public static let segmentWidth: CGFloat = 28
+        /// How far the footer sits above its card's bottom edge beyond its own padding (round 9, FP1).
+        public static let bottomLift: CGFloat = SpacingTokens.xxs
         /// Tallest the database switcher's list grows before it scrolls.
         public static let switcherListMaxHeight: CGFloat = 280
     }

@@ -121,6 +121,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     }
 
     func updateNSView(_ container: ResultTableContainerView, context: Context) {
+        container.setFooterOverlay(height: context.environment.cardFooterOverlayHeight)
         guard let tableView = container.tableView else { return }
         context.coordinator.isSplitResizing = isResizing
         if isResizing {

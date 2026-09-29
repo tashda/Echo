@@ -54,6 +54,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: SQLScrollView, context: Context) {
+        nsView.setFooterOverlay(height: context.environment.cardFooterOverlayHeight)
         // A kept-alive tab coming back takes the keyboard again (KeptAliveTabsView).
         let isActiveTab = context.environment.isActiveWorkspaceTab
         if isActiveTab && !context.coordinator.wasActiveTab, let textView = context.coordinator.textView {

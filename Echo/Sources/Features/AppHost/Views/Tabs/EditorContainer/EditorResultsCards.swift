@@ -1,5 +1,11 @@
 import SwiftUI
 
+extension EnvironmentValues {
+    /// How tall the footer floating over the bottom of a card is, so the AppKit content under it
+    /// (the results grid, the editor) can scroll clear of it and blur beneath it (round 9, FB1).
+    @Entry var cardFooterOverlayHeight: CGFloat = 0
+}
+
 /// A query tab's two cards (Design/02-layout.md, 05-components.md › Editor card): the editor
 /// card on top and the results card below, one gutter apart on the canvas.
 ///
@@ -52,25 +58,44 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
         .animation(motion.standard, value: panelState.isResultsMaximized)
     }
 
+    /// The footer floats over the bottom of whichever card holds it, with the content scrolling
+    /// under a soft blur (round 9, FB1), lifted 4pt from the edge (FP1).
+    private var footerZone: CGFloat { LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift }
+
     private var editorCard: some View {
-        VStack(spacing: SpacingTokens.none) {
+        ZStack(alignment: .bottom) {
             editor()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .environment(\.cardFooterOverlayHeight, showsResults ? 0 : footerZone)
             if !showsResults {
-                footer()
+                footerOverlay
             }
         }
         .workspaceCard()
     }
 
     private var resultsCard: some View {
-        VStack(spacing: SpacingTokens.none) {
+        ZStack(alignment: .bottom) {
             results()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
-            footer()
+                .environment(\.cardFooterOverlayHeight, footerZone)
+            footerOverlay
         }
         .workspaceCard()
+    }
+
+    /// A light card tint towards the bottom keeps the footer readable over the blur.
+    private var footerOverlay: some View {
+        footer()
+            .padding(.bottom, LayoutTokens.Footer.bottomLift)
+            .background(alignment: .bottom) {
+                ColorTokens.Workspace.card
+                    .opacity(LayoutTokens.Workspace.pinnedHeaderTintOpacity)
+                    .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom))
+                    .frame(height: footerZone + LayoutTokens.Workspace.pinnedHeaderFade)
+                    .allowsHitTesting(false)
+            }
     }
 
     // MARK: - Sizing

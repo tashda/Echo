@@ -29,6 +29,8 @@ struct ObjectBrowserOutlineView: View {
     /// Height of the pinned card header drawn above the tree, or nil when it's turned off. The
     /// rows under it are blurred (`ExplorerTreeEdgeBlur`).
     var pinnedHeaderHeight: CGFloat? = nil
+    /// Round 9, SB3: no scroll bar unless Settings › Sidebar › Show scroll bar is on.
+    var showsScrollBar = false
 
     /// Row height per density. Inner padding lives inside `SidebarRow`; this is the slot each
     /// row gets, tuned so its content centres without clipping:
@@ -70,7 +72,7 @@ struct ObjectBrowserOutlineView: View {
             .animation(motion.expand, value: rowIDs)
         }
         .scrollPosition($position)
-        .scrollIndicators(.automatic)
+        .scrollIndicators(showsScrollBar ? .automatic : .never)
         // The thin scroller stays inside the cards' rounded corners.
         .contentMargins(.top, max(topScrollerInset, cornerRadius), for: .scrollIndicators)
         .contentMargins(.bottom, cornerRadius, for: .scrollIndicators)

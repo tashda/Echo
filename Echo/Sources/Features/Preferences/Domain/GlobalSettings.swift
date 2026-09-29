@@ -159,6 +159,8 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarExpandOneConnectionAtATime: Bool = true
     /// Pins "server › database" above the Explorer once the server's header scrolls away.
     var sidebarShowsPinnedPath: Bool = true
+    /// The Explorer's scroll bar; hidden by default (round 9, SB3).
+    var sidebarShowsScrollBar: Bool = false
     /// Shows object folders with nothing in them (Views, Functions…) in the Explorer.
     var sidebarShowsEmptyFolders: Bool = false
     // Canvas-and-cards redesign (Design/01-principles.md, rule 7).
@@ -246,6 +248,7 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarDensity
         case sidebarExpandOneConnectionAtATime
         case sidebarShowsPinnedPath
+        case sidebarShowsScrollBar
         case sidebarShowsEmptyFolders
         case interfaceMotionSpeed
         case workspaceGutter
@@ -353,6 +356,7 @@ struct GlobalSettings: Codable, Hashable {
             Bool.self,
             forKey: .sidebarShowsPinnedPath
         ) ?? true
+        sidebarShowsScrollBar = try container.decodeIfPresent(Bool.self, forKey: .sidebarShowsScrollBar) ?? false
 
         sidebarShowsEmptyFolders = try container.decodeIfPresent(
             Bool.self,
@@ -435,6 +439,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
         try container.encode(sidebarExpandOneConnectionAtATime, forKey: .sidebarExpandOneConnectionAtATime)
         try container.encode(sidebarShowsPinnedPath, forKey: .sidebarShowsPinnedPath)
+        try container.encode(sidebarShowsScrollBar, forKey: .sidebarShowsScrollBar)
         try container.encode(sidebarShowsEmptyFolders, forKey: .sidebarShowsEmptyFolders)
         try container.encode(interfaceMotionSpeed, forKey: .interfaceMotionSpeed)
         try container.encode(workspaceGutter, forKey: .workspaceGutter)

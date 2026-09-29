@@ -218,6 +218,9 @@ final class AppDirector {
 
         isInitialized = true
         ensureInitialWorkspaceState()
+#if DEBUG
+        await runAutomationIfRequested()
+#endif
     }
 
     // MARK: - Theme Binding

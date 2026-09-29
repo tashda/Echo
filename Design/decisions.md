@@ -2,6 +2,15 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Round 9 decided in the Design Lab
+
+Lab page "Round 9 · open questions" (owner's answers, pasted in chat):
+- **Behind the footer: FB1, soft blur** (`BackdropEdgeBlur` over the AppKit grid and editor). Follow-up asked: show the right-hand data (status, rows, time) as one big pill or a pill per entry; that goes to round 10. → 05-components
+- **Footer position: FP1**, lifted 4pt from today. → 05-components, 06-tokens
+- **Tree scroll bar: SB3, none**, with a setting to show it, off by default ("Show Scroll Bar" in Settings › Sidebar). → 05-components
+- **Tab bar: TB1, one glass capsule with + inside.** The owner isn't fully sold, so the old strip stays in the code as "Classic", switchable in Settings › Appearance, to revert to. → 05-components
+- New asks for round 10: the results card's entrance should split the editor card rather than rise from the bottom; a view on removing the pinned path header; an Inspector phase; and the database switcher's card and animation judged in the Design Lab (it should open as a glass card from the pill).
+
 ## 2026-09-29 · Scroll bar, database switcher, footer and tabs (review round 9, first answers)
 
 Page: https://claude.ai/artifact/U3DDrkf5zQUEq6635UVBaY (collection `round9`)
