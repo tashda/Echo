@@ -88,12 +88,12 @@ Accepted in the tree card round (explainer: https://claude.ai/artifact/N7UL1qHMG
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| BP1 | **Node kind catalogue and roles:** `ExplorerNodeKind` (title, symbol, role, ID component) and `ExplorerIconRole`; the four `*Kind` enums, `objectIconName` and `ExplorerSidebarPalette` go. | `ObjectBrowser/Blueprint/` | Colours never depend on titles; a test checks every symbol exists | ☑ (this phase's commit) |
+| BP1 | **Node kind catalogue and roles:** `ExplorerNodeKind` (title, symbol, role, ID component) and `ExplorerIconRole`; the four `*Kind` enums, `objectIconName` and `ExplorerSidebarPalette` go. | `ObjectBrowser/Blueprint/` | Colours never depend on titles; a test checks every symbol exists | ☑ e7d467ed |
 | BP2 | **Style as a value:** the S1 metrics live in `SidebarRowConstants` and tokens only. An environment style value waits until there is a second style to switch to. | `ExplorerRowModels.swift`, `SidebarRow` | No raw sizes in `SidebarRow` except the large-density label | ☑ b3f2f25b |
-| BP3 | **Generic child sources:** the 35 per-feature dictionaries become `childSources: [ExplorerSourceKey: ExplorerSourceState]`; loaders write `ExplorerItem`s. | View model, loaders, `+ChildSources.swift` | Folders load on expand and when restored open | ☑ (this phase's commit) |
-| BP4 | **Blueprints:** SQL Server, PostgreSQL, MySQL, SQLite, and `ExplorerBlueprintWalker`; the per-type snapshot builders are deleted. | `ObjectBrowser/Blueprint/` | Tests pin each type's order, the object folder order and saved node IDs | ☑ (this phase's commit) |
-| BP5 | **Generic rows:** `ObjectBrowserNode.Row` goes from 25 cases to 13; `ObjectBrowserRowView` from 557 lines to 130 plus two small extensions. | Node, row view | Builds; every row kind renders 👁 | ☑ (this phase's commit), 👁 pending |
-| BP6 | **Menus by area:** the 1,383-line menu file splits into a dispatcher by node kind plus `+ServerMenus`, `+DatabaseMenus`, `+ObjectMenus`, `+ScriptActions`. | `ObjectBrowserSidebarView+*Menus.swift` | Each file under 500 lines; every menu still opens 👁 | ☑ (this phase's commit), 👁 pending |
+| BP3 | **Generic child sources:** the 35 per-feature dictionaries become `childSources: [ExplorerSourceKey: ExplorerSourceState]`; loaders write `ExplorerItem`s. | View model, loaders, `+ChildSources.swift` | Folders load on expand and when restored open | ☑ e7d467ed |
+| BP4 | **Blueprints:** SQL Server, PostgreSQL, MySQL, SQLite, and `ExplorerBlueprintWalker`; the per-type snapshot builders are deleted. | `ObjectBrowser/Blueprint/` | Tests pin each type's order, the object folder order and saved node IDs | ☑ e7d467ed |
+| BP5 | **Generic rows:** `ObjectBrowserNode.Row` goes from 25 cases to 13; `ObjectBrowserRowView` from 557 lines to 130 plus two small extensions. | Node, row view | Builds; every row kind renders 👁 | ☑ e7d467ed, 👁 pending |
+| BP6 | **Menus by area:** the 1,383-line menu file splits into a dispatcher by node kind plus `+ServerMenus`, `+DatabaseMenus`, `+ObjectMenus`, `+ScriptActions`. | `ObjectBrowserSidebarView+*Menus.swift` | Each file under 500 lines; every menu still opens 👁 | ☑ e7d467ed, 👁 pending |
 
 ### Notes from building it (Phase 2b)
 
