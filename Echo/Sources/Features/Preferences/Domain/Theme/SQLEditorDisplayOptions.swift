@@ -10,6 +10,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var qualifyTableCompletions: Bool
     var showSystemSchemasInCompletion: Bool
     var liveValidationEnabled: Bool
+    /// Subtle (numbers only) or tinted (a faint column with an edge).
+    var gutterStyle: EditorGutterStyle
 
     init(
         showLineNumbers: Bool = true,
@@ -20,7 +22,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         autoCompletionEnabled: Bool = true,
         qualifyTableCompletions: Bool = false,
         showSystemSchemasInCompletion: Bool = false,
-        liveValidationEnabled: Bool = true
+        liveValidationEnabled: Bool = true,
+        gutterStyle: EditorGutterStyle = .subtle
     ) {
         self.showLineNumbers = showLineNumbers
         self.highlightSelectedSymbol = highlightSelectedSymbol
@@ -31,6 +34,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.qualifyTableCompletions = qualifyTableCompletions
         self.showSystemSchemasInCompletion = showSystemSchemasInCompletion
         self.liveValidationEnabled = liveValidationEnabled
+        self.gutterStyle = gutterStyle
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -43,6 +47,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case qualifyTableCompletions
         case showSystemSchemasInCompletion
         case liveValidationEnabled
+        case gutterStyle
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +61,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         qualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .qualifyTableCompletions) ?? false
         showSystemSchemasInCompletion = try container.decodeIfPresent(Bool.self, forKey: .showSystemSchemasInCompletion) ?? false
         liveValidationEnabled = try container.decodeIfPresent(Bool.self, forKey: .liveValidationEnabled) ?? true
+        gutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .gutterStyle)) ?? .subtle
     }
 
     func encode(to encoder: Encoder) throws {
@@ -69,5 +75,6 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(qualifyTableCompletions, forKey: .qualifyTableCompletions)
         try container.encode(showSystemSchemasInCompletion, forKey: .showSystemSchemasInCompletion)
         try container.encode(liveValidationEnabled, forKey: .liveValidationEnabled)
+        try container.encode(gutterStyle, forKey: .gutterStyle)
     }
 }

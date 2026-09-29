@@ -44,22 +44,30 @@ extension SQLTextView {
         validationScheduler.cancel()
         currentDiagnostics = []
         removeAllValidationOverlays()
+        lineNumberRuler?.errorLines = []
     }
 
     func updateValidationOverlays() {
         removeAllValidationOverlays()
 
-        guard !currentDiagnostics.isEmpty else { return }
+        guard !currentDiagnostics.isEmpty else {
+            lineNumberRuler?.errorLines = []
+            return
+        }
         guard let layoutManager, let textContainer else { return }
 
         let text = string as NSString
         let textLength = text.length
         let limitedDiagnostics = Array(currentDiagnostics.prefix(Self.maxValidationOverlays))
+        var errorLines = IndexSet()
+        defer { lineNumberRuler?.errorLines = errorLines }
 
         for diagnostic in limitedDiagnostics {
             guard let range = resolveRange(for: diagnostic, in: text, textLength: textLength) else {
                 continue
             }
+            // A red dot in the gutter on each failing line (Design/05-components.md › Editor card).
+            errorLines.insert(text.lineNumber(at: range.location))
 
             let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
             var tokenRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)

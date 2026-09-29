@@ -101,7 +101,15 @@ Rules: `05-components` › Editor card, Results card.
 | E1 | **Two cards** (12pt corners, floating shadow) with the gutter between them. One split kept alive; the results card collapses instead of the view tree switching, so the editor keeps its scroll position, undo and focus. | `QueryEditorContainer`, `NativeSplitView` | Toggling results doesn't reset the editor | ☑ 3249a82a, 👁 pending |
 | E2 | **Results card rises** after the first run while the editor card shrinks (house spring). | Same | Matches the lab 👁 | ☑ 3249a82a, 👁 pending |
 | E3 | **Resize** by dragging the canvas gap between the cards, with a grab capsule on hover. **Double-click the gap to maximise the results** (the editor becomes a one-line card), and double-click again to restore. Add a menu item and shortcut. | Same | Drag and maximise work; the ratio is saved | ☑ 3249a82a, 👁 pending |
-| E4 | **Gutter:** subtle or tinted (setting), current-line emphasis, red validation markers, one number per logical line, width that grows with digit count, theme colours. | `LineNumberRulerView`, `SQLTextView` | 10 000-line script numbered correctly 👁 | ☐ |
+| E4 | **Gutter:** subtle or tinted (setting), current-line emphasis, red validation markers, one number per logical line, width that grows with digit count, theme colours. | `LineNumberRulerView`, `SQLTextView` | 10 000-line script numbered correctly 👁 | ☑ (this commit), 👁 pending |
+
+### Notes from building it (Phase 4)
+
+- **Two cards** (`EditorResultsCards`, used by `QueryEditorContainer`): query tabs draw their own editor and results cards (`WorkspaceTab.drawsOwnCards`); every other tab kind still sits on one card, now applied per tab in `WorkspaceTabContainerView.tabContent`. `WorkspaceContentView` draws no fill behind query tabs so the canvas shows in the gap.
+- The results card is a SwiftUI split, not `NativeSplitView`: the gap is the handle (`EditorResultsCardGap`, row-resize pointer, grab capsule on hover, double-click to maximise). `BottomPanelState.isResultsMaximized` holds the maximised state; View › Maximize Results is ⌥⇧⌘Y. `splitRatio` (the editor's share) is kept per tab, as before; it isn't remembered across tabs or launches.
+- The footer moves between the cards: in the results card when results show, in the editor card otherwise. Where it sits within the card and what's behind it (FP, FB) wait for the Design Lab.
+- `resultsSection(isResizingResults:)` still always gets `false`; the grid could pause work while the gap is dragged if resizing turns out slow.
+- **Gutter (E4):** `LineNumberRulerView` numbers only logical line starts, counts lines once per draw instead of once per fragment, widens with the digit count (`LayoutTokens.EditorGutter`), draws the current line in the theme's gutter accent, a red dot on lines with validation errors (`errorLines`, from `updateValidationOverlays`), and the tinted style (theme gutter colour plus an edge) from the existing Settings picker, now passed through `SQLEditorDisplayOptions.gutterStyle`.
 
 ## Phase 5 · Results grid
 

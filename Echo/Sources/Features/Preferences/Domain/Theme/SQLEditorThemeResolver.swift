@@ -62,7 +62,8 @@ enum SQLEditorThemeResolver {
             autoCompletionEnabled: globalSettings.editorEnableAutocomplete,
             qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
             showSystemSchemasInCompletion: globalSettings.editorShowSystemSchemas,
-            liveValidationEnabled: globalSettings.editorEnableLiveValidation
+            liveValidationEnabled: globalSettings.editorEnableLiveValidation,
+            gutterStyle: globalSettings.editorGutterStyle
         )
     }
 

@@ -75,6 +75,17 @@ public enum LayoutTokens {
         public static let switcherListMaxHeight: CGFloat = 280
     }
 
+    /// The SQL editor's line-number gutter (Design/05-components.md › Editor card).
+    public enum EditorGutter {
+        /// The gutter always fits at least this many digits, so it doesn't jump at line 10.
+        public static let minimumDigits = 2
+        public static let markerSize: CGFloat = 5
+        public static let markerLeading: CGFloat = SpacingTokens.xxs
+        public static let markerSpacing: CGFloat = SpacingTokens.xxxs
+        public static let numberTrailing: CGFloat = SpacingTokens.xs
+        public static let edgeWidth: CGFloat = 0.5
+    }
+
     /// Placeholder rows while a list loads (`ShimmerPlaceholderRows`).
     public enum Shimmer {
         /// Placeholder rows standing in for one loading row in the Explorer.

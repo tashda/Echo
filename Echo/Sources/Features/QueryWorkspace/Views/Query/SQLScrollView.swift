@@ -140,9 +140,11 @@ final class SQLScrollView: NSScrollView {
             hasVerticalRuler = true
             rulersVisible = true
             verticalRulerView = lineNumberRuler
-            lineNumberRuler.ruleThickness = SpacingTokens.xl
-            lineNumberRuler.setFrameSize(NSSize(width: SpacingTokens.xl, height: lineNumberRuler.frame.size.height))
-            lineNumberRuler.setBoundsSize(NSSize(width: SpacingTokens.xl, height: lineNumberRuler.bounds.size.height))
+            lineNumberRuler.gutterStyle = displayOptions.gutterStyle
+            lineNumberRuler.updateThickness()
+            let thickness = lineNumberRuler.ruleThickness
+            lineNumberRuler.setFrameSize(NSSize(width: thickness, height: lineNumberRuler.frame.size.height))
+            lineNumberRuler.setBoundsSize(NSSize(width: thickness, height: lineNumberRuler.bounds.size.height))
             lineNumberRuler.clientView = sqlTextView
             lineNumberRuler.theme = theme
             lineNumberRuler.sqlTextView = sqlTextView
