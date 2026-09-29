@@ -2,6 +2,19 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Last open questions (asked in chat)
+
+Decided:
+- Stronger connecting pulse confirmed. → 06-tokens, 05-components, 04-motion
+- Rail status: running queries show nothing in the rail; a lost connection dims the monogram to 40%, with the reason in its tooltip. → 05-components
+- Toolbar grouped by task; tab-specific tools in one contextual capsule next to Run. → 05-components
+- Run gets a chevron menu of run modes. → 05-components
+- No floating editor capsule. → 05-components
+- Double-click the gap to maximise the results. → 05-components
+- Autocomplete keeps its system popover, the one exception to arrowless cards; no panel windows planned. → 03-materials, 05-components
+
+With this, nothing in the design is left Open.
+
 ## 2026-09-29 · Review round 3 (Design Lab), second part
 
 The remaining 11 questions.

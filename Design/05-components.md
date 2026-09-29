@@ -11,8 +11,10 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **The highlight follows scrolling:** the rail marks the server whose rows are at the top of the tree. A click holds the highlight on the clicked server while the tree glides to it. *Decided.*
 - **Hover** shows the system tooltip (name and host). No custom hover cards. *Decided.*
 - **Status:**
-  - A connecting server's monogram breathes (opacity) until it connects. The first version was judged too subtle; the stronger values in `06-tokens.md` need a quick check in the Design Lab. *Decided* (breathing); *Leaning* (exact strength).
-  - How to show running queries and lost connections is *Open*. Rings, comets, count badges and extra dots were rejected, so it should be very quiet or live only in the tooltip and peek card.
+  - A connecting server's monogram breathes (opacity) until it connects. The first version was judged too subtle; the stronger values in `06-tokens.md` need a quick check in the Design Lab. *Decided*, stronger version confirmed.
+  - Running queries show nothing in the rail; the tooltip and the peek list them. *Decided.*
+  - A lost connection dims the monogram to 40%, and the tooltip says why. *Decided.*
+  - Rings, comets, count badges and extra dots were rejected.
 - **No + in the rail.** The toolbar handles connecting. *Decided.*
 - Item size: medium (34pt) default, with small and large as a setting. *Decided.*
 - **Clicking a server with the tree hidden:** a plain click peeks (the tree for that server slides out over the cards; a click away or Esc slides it back), and ⌘-click or double-click reopens the tree for good. *Decided.* A setting lets users choose instead "always peek" or "always reopen the tree". The glance card and "switch context only" were rejected.
@@ -46,11 +48,14 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Toolbar
 
 - System glass, but **Echo decides the grouping** so related items always sit together. *Decided.*
-- The exact groups are *Open*. The starting proposal:
+- **Groups by task:** *Decided.*
 
-  [Project] [Recents · Connections · Quick Connect] … [Run] [Format · Validate · Help · Plan] [MSSQL toggles] [Refresh] [Inspector]
-- **Run** is the one tinted item: accent glass, turning red with a timer while running. *Decided.* A menu of run modes (statement at cursor, selection, explain) is *Open*.
-- Editor actions (Format, Validate, Context Help, Estimated Plan) stay in the toolbar. *Decided.* A floating capsule that appears only while editing is still *Open*; an always-on floating capsule was rejected.
+  [Project] [Recents · Connections · Quick Connect] … [Run] [Format · Validate · Help · Plan] [MSSQL toggles] [Refresh · Bell · Inspector]
+
+  Each bracket is one glass capsule.
+- **Tab-specific tools** (Structure add and apply, Activity Monitor pause and refresh rate, Job Queue controls, Error log cycle, maintenance database) form one contextual capsule next to Run. It appears only on tabs that need it and melts in and out as you switch tabs. *Decided.*
+- **Run** is the one tinted item: accent glass, turning red with a timer while running. *Decided.* A small chevron beside Run opens a menu of modes: Run statement at cursor, Run selection, Explain, Explain analyze. A plain click still runs as today. *Decided.*
+- Editor actions (Format, Validate, Context Help, Estimated Plan) stay in the toolbar. *Decided.* No floating capsule in the editor, whether always on, while typing or on selection. *Decided.*
 - Cancel must be bound to ⌘. as the Run tooltip promises. *Decided.*
 
 ## Tabs
@@ -84,7 +89,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - Both get current-line emphasis and validation markers (a red dot on failing lines). *Decided.*
   - Fixes that apply either way: one number per logical line, width that grows with digit count, and using the theme's gutter colours. *Decided.*
 - **After the first run**, the results card rises from the bottom while the editor card shrinks. The editor keeps its scroll position, undo and focus. *Decided.*
-- **Resizing:** drag the canvas gap between the cards; a grab capsule appears on hover. *Decided.* Double-click to maximise the results is *Open*.
+- **Resizing:** drag the canvas gap between the cards; a grab capsule appears on hover. *Decided.* **Double-click the gap to maximise the results**: the editor shrinks to a one-line card. Double-click again to restore. It is also available as a menu item with a shortcut. *Decided.*
 
 ## Results card
 
@@ -136,7 +141,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Floating cards
 
 - Drawn by Echo inside the window, in glass, with no arrow. They grow out of the button that opened them. *Decided.*
-- A borderless panel window only where a card must go past the window edge (for example autocomplete at the caret). *Leaning.*
+- **Autocomplete keeps today's system popover**, arrow included. It is the one exception to arrowless cards. *Decided.* No borderless panel windows are planned.
 - Close on a click outside or Esc; no pinning. *Decided.*
 - Sizes: small 260, medium 320 and large 420pt wide. 12pt padding, 18pt corners, 28pt rows with 10pt corners, and the same hover and selected fills as the tree. *Leaning.*
 - Keep system popovers only where an arrow is genuinely useful. System popovers are no longer the default. *Decided.*

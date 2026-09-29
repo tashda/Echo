@@ -29,7 +29,7 @@ The canvas-and-cards window replaces the system sidebar. Rules: `02-layout`, `03
 | S1 | **Workspace shell.** Replace `NavigationSplitView` with rail · tree · content on a grey canvas (translucent as an option), using the gutter setting. Keep `.inspector`, the toolbar and the sidebar shortcut (⌃⌘S). Add a drag handle to resize the tree. | `WorkspaceView.swift`, new `WorkspaceShell` | Window opens with rail, tree and cards; ⌃⌘S hides and shows the tree; the tree resizes; the inspector still works | ☐ |
 | S2 | **Rail, two glass pills.** Servers on top (hug, scroll when full), tools at the bottom (Bookmarks, Snippets, History, Clipboard). The pill grows and shrinks with the spring. Monogram in secondary grey; selected monogram bold, in its server colour. Tooltip on hover. The highlight follows the tree's scroll (reuse `ServerRailBridge.topVisibleConnectionID`). | `ObjectBrowser/Views/Components/ServerRail*.swift` | Matches the Design Lab rail 👁 | ☐ |
 | S3 | **Liquid-stretch selection** exactly as in `LabRail.swift`: separate springs for the leading and trailing edges. | Rail | Matches the lab at both speeds 👁 | ☐ |
-| S4 | **Rail status.** Connecting servers breathe (strength per `06-tokens`, pending confirmation). Running and lost states are still Open (see below). | Rail | Pulse stops on connect; Reduce Motion shows a still, dimmed monogram | ☐ |
+| S4 | **Rail status.** Connecting servers breathe (strength per `06-tokens`). A lost connection dims the monogram to 40% and its tooltip gives the reason. Running queries show nothing in the rail. | Rail | Pulse stops on connect; a lost server dims; Reduce Motion shows a still, dimmed monogram | ☐ |
 | S5 | **Hide tree.** The tree shrinks into the rail and fades while the cards grow, with the house spring. | Shell | Matches the lab 👁 | ☐ |
 | S6 | **Peek.** With the tree hidden, a click on a server slides that server's tree out over the cards; a click outside or Esc closes it; ⌘-click or double-click reopens the tree. Behaviour follows the `collapsedServerClick` setting. | Shell + rail | All three setting values work | ☐ |
 | S7 | **Remove the old placement.** Delete `FloatingServerRail`, `QueryGlancePanel` and its toggle, the in-sidebar rail layout, and the ⌥⌘G menu item. Keep the reusable logic. | ObjectBrowser components | No dead code left; builds | ☐ |
@@ -67,7 +67,7 @@ Rules: `05-components` › Editor card, Results card.
 |---|---|---|---|---|
 | E1 | **Two cards** (12pt corners, floating shadow) with the gutter between them. One split kept alive; the results card collapses instead of the view tree switching, so the editor keeps its scroll position, undo and focus. | `QueryEditorContainer`, `NativeSplitView` | Toggling results doesn't reset the editor | ☐ |
 | E2 | **Results card rises** after the first run while the editor card shrinks (house spring). | Same | Matches the lab 👁 | ☐ |
-| E3 | **Resize** by dragging the canvas gap between the cards, with a grab capsule on hover. | Same | Drag works; the ratio is saved | ☐ |
+| E3 | **Resize** by dragging the canvas gap between the cards, with a grab capsule on hover. **Double-click the gap to maximise the results** (the editor becomes a one-line card), and double-click again to restore. Add a menu item and shortcut. | Same | Drag and maximise work; the ratio is saved | ☐ |
 | E4 | **Gutter:** subtle or tinted (setting), current-line emphasis, red validation markers, one number per logical line, width that grows with digit count, theme colours. | `LineNumberRulerView`, `SQLTextView` | 10 000-line script numbered correctly 👁 | ☐ |
 
 ## Phase 5 · Results grid
@@ -89,8 +89,8 @@ Rules: `05-components` › Toolbar, Search.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| K1 | **Run:** accent glass (`glassProminent`), red with a timer while running. Add a "Query" menu (Run ⌘↩, Cancel ⌘.). | `ToolbarRunButton`, commands | ⌘. cancels 👁 | ☐ |
-| K2 | **Grouping:** keep Echo's control of groups and follow the group layout once it is decided (Open below). Items that come and go per tab morph into their group. | `WorkspaceToolbarItems` | No toolbar jumping | ⏸ grouping layout |
+| K1 | **Run:** accent glass (`glassProminent`), red with a timer while running. A chevron menu offers Run statement at cursor, Run selection, Explain and Explain analyze. Add a "Query" menu (Run ⌘↩, Cancel ⌘.). | `ToolbarRunButton`, commands | ⌘. cancels; every mode works 👁 | ☐ |
+| K2 | **Grouping by task:** [Project] [Recents · Connections · Quick Connect] … [Run] [Format · Validate · Help · Plan] [MSSQL toggles] [Refresh · Bell · Inspector]. Tab-specific tools go in one contextual capsule next to Run that melts in and out per tab. Remove the per-item `.sharedBackgroundVisibility(.hidden)` + `.glassEffect`. | `WorkspaceToolbarItems` | Groups match; no toolbar jumping when switching tabs 👁 | ☐ |
 | K3 | **Shortcut fixes:** Find off ⇧⌘F, Validate off ⇧⌘V; EchoSense off ⌘. | Commands, settings | No conflicts | ☐ |
 | K4 | **Minimised toolbar search** with results in a glass card, and a **⌘K palette** (objects, tabs, actions, history, snippets) built on `SearchSidebarViewModel`. | New `CommandPalette` | Both open and find a table across servers | ☐ |
 | K5 | Delete the dead `Toolbar/Breadcrumbs/*` and `Toolbar/Popovers/*`. | Toolbar | Builds | ☐ |
@@ -105,7 +105,7 @@ Rules: `03-materials`, `05-components` › Notifications, Floating cards.
 | N2 | **Toasts:** up to three stack and melt; pause on hover; expand into a card with actions; "×N" for repeats; errors stay until dismissed; positioned from the chrome, not a magic number; VoiceOver announcement. | `StatusToastPresenter`, `StatusToastView` | Matches the lab 👁 | ☐ |
 | N3 | **History under a toolbar bell** with an unread badge: grouped by server, filters, kept across launches, every event recorded even when its toast is muted, items link to their tab or server. Remove the inspector notification tab. | `NotificationEngine`, new `NotificationHistoryCard` | Badge clears on open; history survives relaunch | ☐ |
 | N4 | **Query errors** in the results card (message, line, "Show in editor", Messages one click away), a toast when the failing tab isn't in front, and a record in history. | Results section, engine | Error in a background tab raises a toast | ☐ |
-| N5 | Unify the remaining popovers on N1 or on the shared tokens. Replace the autocomplete `NSPopover` with a panel that tracks the caret (no arrow). | Various | One width scale, one padding, one row style | ☐ |
+| N5 | Unify the remaining popovers on N1 or on the shared tokens. Autocomplete keeps its system popover. | Various | One width scale, one padding, one row style | ☐ |
 
 ## Phase 8 · Tab overview
 
@@ -135,15 +135,7 @@ Rules: `03-materials`, `05-components` › Notifications, Floating cards.
 
 ## Still open
 
-Decide these before the tasks that depend on them:
-
-- **Connecting pulse strength**: confirm the stronger version in the Design Lab (S4).
-- **Rail status for running queries and lost connections**: rings, comets, count badges and dots were rejected. Options: none (tooltip and peek only), a dimmed monogram when lost, or a very small mark. Needs a Design Lab page (S4).
-- **Toolbar group layout** (K2). Starting proposal in `05-components` › Toolbar.
-- **Run modes menu** (K1): statement at cursor, selection, explain.
-- **Floating editor actions capsule** while editing (was Maybe).
-- **Double-click the gap to maximise results** (was Maybe).
-- **Borderless panel windows** for cards that must pass the window edge (autocomplete).
+Every design question is decided. Only implementation details remain *Leaning*: the floating-card sizes in `06-tokens.md` and the tree resize handle. Settle them while building, and log any change. New questions go through `process.md`.
 
 ## Handover notes
 

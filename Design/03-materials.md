@@ -19,7 +19,7 @@
 3. **Tint only the primary action.** The Run button is the only tinted glass in the toolbar (`glassProminent`, accent; red while running). *Decided.*
 4. **Glass morphs only within one container.** Shapes that should melt into each other must sit in the same `GlassEffectContainer` in the same window. Plan containers around the morphs in `04-motion.md`. *Decided.*
 5. **Don't stack custom backgrounds on system glass.** Remove custom visual-effect backgrounds from toolbars, popovers and split views. *Decided.*
-6. **Arrowless cards are ours.** Neither SwiftUI nor AppKit can hide a popover's arrow. Floating cards are drawn inside the window over the content, which also lets them morph out of their button. A borderless panel window is kept as a fallback only where a card must extend past the window edge. *Decided* for in-window; *Leaning* for the panel fallback.
+6. **Arrowless cards are ours.** Neither SwiftUI nor AppKit can hide a popover's arrow. Floating cards are drawn inside the window over the content, which also lets them morph out of their button. Autocomplete is the one exception and keeps its system popover. *Decided.*
 7. **Keep the number of glass surfaces low.** Each extra surface costs rendering time, and Apple advises restraint. *Decided.*
 
 ## Accessibility
