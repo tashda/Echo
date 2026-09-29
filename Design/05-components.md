@@ -23,13 +23,14 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Server page
 
 - Shown on the canvas while a server is active and no tab is open. No big card, like the welcome. *Decided* (review round 4).
-- Server icon, name, host and version; then the server's tools as **Liquid Glass buttons** (`.glass`), with **New Query** first as `.glassProminent`. Tools that need a database open a menu of them. The buttons wrap when the window is narrow. *Decided.*
-- "New query in" (databases as 28pt rows), "Recent queries" and "Connection" as small opaque cards, side by side when there is room. *Decided.*
+- No icon. The server name in 26pt bold, only the version under it (the host is its tooltip); the page's top lines up with the rail. *Decided* (round 8, S1a).
+- The server's tools as **Liquid Glass buttons** (`.glass`), with **New Query** first as `.glassProminent`. Tools that need a database open a menu of them. The buttons wrap when the window is narrow. *Decided.*
+- The databases on one small opaque card with a filter field, 28pt rows. Recent queries and connection details are not on this page. *Decided* (round 8).
 
 ## Welcome
 
 - Shown on the canvas while no tab is open and no server is active. **No card**: cards are only for content. *Decided* (2026-09-29).
-- Centred, 420pt wide: Echo's icon (64pt), "Connect to a server", then glass buttons: **Connect…** (prominent, opens the connections menu), Quick Connect, Manage. *Decided.*
+- Centred, 420pt wide: Echo's icon (64pt), **"Echo"** in 26pt bold, then glass buttons: **Connect…** (prominent, opens the connections menu), Quick Connect, Manage. No subtitle. *Decided* (round 8, W1b).
 - Below, "Recent" and the **5 latest connections on one small opaque card**, 28pt rows: the rail monogram in the server's colour, name, host, and when it was last used. A click connects, and the server grows into the rail. *Decided.*
 - With a server active but no tab, the server dashboard shows on a card as before.
 
@@ -130,8 +131,11 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - No Export button in the footer. *Decided.*
 - **Query errors:** shown in the results card with the message, line and a "Show in editor" button, with Messages one click away. They are also recorded in notification history. When the failing tab isn't the one on screen, a toast points to it. *Decided.*
 - **One footer, in the results card.** A single footer holds everything:
-  - on the left, the server › database picker (colour dot, server, database, chevron: clearly clickable) and the result pane switcher (Results, Messages, Plan);
-  - on the right, rows loaded of total, the selection summary, the duration and the status.
+  - on the left, the server · database as a **glass chip** (no chevron; click it to switch database);
+  - in the middle, the result views (Results, Messages, Plan…) as **one glass pill** of icons;
+  - on the right, as quiet text: the status, rows loaded of total, the selection summary and the duration.
+
+  No strip, no divider (round 8, FT1a).
 
   The window-wide bottom status bar goes away. While no results are shown, the editor card shows a slim version with just the picker and status. *Decided.*
 

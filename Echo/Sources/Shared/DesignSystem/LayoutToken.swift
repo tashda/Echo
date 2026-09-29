@@ -48,10 +48,20 @@ public enum LayoutTokens {
         public static func width(itemSize: CGFloat) -> CGFloat { itemSize + pillPadding * 2 }
     }
 
+    /// The footer at the bottom of a tab's card (FT1a).
+    public enum Footer {
+        public static let height: CGFloat = 34
+        public static let chipHeight: CGFloat = 24
+        public static let chipHorizontalPadding: CGFloat = SpacingTokens.xs2
+        public static let pillPadding: CGFloat = SpacingTokens.xxxs
+        public static let segmentWidth: CGFloat = 28
+    }
+
     /// The welcome on the canvas while no tab is open.
     public enum Welcome {
         public static let width: CGFloat = FloatingSurface.largeWidth
         public static let iconSize: CGFloat = SpacingTokens.xxxl
+        public static let titleSize: CGFloat = 26
         /// Inset around the recent connections inside their card.
         public static let listPadding: CGFloat = SpacingTokens.xxs
         public static let monogramSize: CGFloat = 12
@@ -61,8 +71,7 @@ public enum LayoutTokens {
     /// The server page on the canvas while a server is active and no tab is open.
     public enum ServerPage {
         public static let width: CGFloat = 600
-        /// Below twice this (plus the gap), the cards stack in one column.
-        public static let columnMinWidth: CGFloat = 270
+        public static let nameSize: CGFloat = 26
     }
 
     /// Echo's own floating glass cards: peek, pickers, notification history, search results.

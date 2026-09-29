@@ -1,42 +1,28 @@
 import SwiftUI
 
 /// The server page, shown on the canvas while a server is active and no tab is open
-/// (Design/05-components.md › Server page). Same shape as the welcome: no big card, the server's
-/// icon and name, its tools on Liquid Glass buttons, then small opaque cards for the databases,
-/// recent queries and connection details.
+/// (Design/05-components.md › Server page, S1a). Light, like the welcome: the server's name large,
+/// its version as one quiet line, its tools on Liquid Glass buttons, then the databases on one
+/// small card with a filter. The top lines up with the top of the rail.
 struct ConnectionDashboardView: View {
     @Bindable var session: ConnectionSession
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: SpacingTokens.lg) {
+            VStack(alignment: .leading, spacing: SpacingTokens.lg) {
                 ConnectionDashboardHeader(session: session)
                 ConnectionDashboardTools(session: session)
-
-                // Two columns when there is room, one otherwise.
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: SpacingTokens.sm) {
-                        ConnectionDashboardDatabases(session: session)
-                            .frame(minWidth: LayoutTokens.ServerPage.columnMinWidth)
-                        VStack(spacing: SpacingTokens.lg) {
-                            ConnectionDashboardRecentQueries(session: session)
-                            ConnectionDashboardDetails(session: session)
-                        }
-                        .frame(minWidth: LayoutTokens.ServerPage.columnMinWidth)
-                    }
-                    VStack(spacing: SpacingTokens.lg) {
-                        ConnectionDashboardDatabases(session: session)
-                        ConnectionDashboardRecentQueries(session: session)
-                        ConnectionDashboardDetails(session: session)
-                    }
-                }
+                ConnectionDashboardDatabases(session: session)
             }
-            .frame(maxWidth: LayoutTokens.ServerPage.width)
-            .padding(SpacingTokens.xl)
+            .frame(maxWidth: LayoutTokens.ServerPage.width, alignment: .leading)
+            .padding(.horizontal, SpacingTokens.xl)
+            // The rail and tree start this much below the content's top (the tab strip's inset).
+            .padding(.top, (WorkspaceChromeMetrics.tabStripTotalHeight - WorkspaceChromeMetrics.chromeBackgroundHeight) / 2)
+            .padding(.bottom, SpacingTokens.xl)
             .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -46,65 +32,30 @@ struct ConnectionDashboardHeader: View {
     @Bindable var session: ConnectionSession
 
     var body: some View {
-        VStack(spacing: SpacingTokens.xs) {
-            connectionIcon
-            VStack(spacing: SpacingTokens.xxs) {
-                HStack(spacing: SpacingTokens.xs) {
-                    Text(session.connection.connectionName)
-                        .font(TypographyTokens.displayLarge.weight(.semibold))
-                        .foregroundStyle(ColorTokens.Text.primary)
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+            HStack(spacing: SpacingTokens.xs) {
+                Text(session.connection.connectionName)
+                    .font(.system(size: LayoutTokens.ServerPage.nameSize, weight: .bold))
+                    .foregroundStyle(ColorTokens.Text.primary)
+                    .lineLimit(1)
 
-                    if session.connection.databaseType.isBeta {
-                        FeatureBadge.beta
-                    }
+                if session.connection.databaseType.isBeta {
+                    FeatureBadge.beta
                 }
+            }
 
-                Text(serverSubtitle)
+            if let version = session.databaseStructure?.serverVersion ?? session.connection.serverVersion {
+                Text(version)
                     .font(TypographyTokens.standard)
                     .foregroundStyle(ColorTokens.Text.secondary)
-                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
             }
         }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var serverSubtitle: String {
-        var parts: [String] = []
-        parts.append(session.connection.host)
-        if let version = session.databaseStructure?.serverVersion
-            ?? session.connection.serverVersion {
-            parts.append(version)
-        }
-        return parts.joined(separator: " \u{00B7} ")
-    }
-
-    private var connectionIcon: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(session.connection.color.opacity(0.1))
-                .frame(width: 48, height: 48)
-            DatabaseTypeIcon(
-                databaseType: session.connection.databaseType,
-                tint: session.connection.color
-            )
-                .frame(width: 24, height: 24)
-        }
+        .help(session.connection.host)
     }
 }
 
-// MARK: - Section Header
-
-/// The label above one of the page's small cards, set like the welcome's "Recent".
-struct DashboardSectionLabel: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(TypographyTokens.detail.weight(.medium))
-            .foregroundStyle(ColorTokens.Text.secondary)
-            .padding(.leading, LayoutTokens.FloatingSurface.padding)
-    }
-}
+// MARK: - Cards
 
 /// One of the page's small opaque cards: the welcome's recents card.
 struct DashboardCard<Content: View>: View {

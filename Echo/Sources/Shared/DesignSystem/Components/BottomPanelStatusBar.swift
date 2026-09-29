@@ -61,101 +61,88 @@ struct BottomPanelStatusBarConfiguration {
     }
 }
 
-/// Universal 24pt status bar at the bottom of every tab.
+/// The footer at the bottom of every tab's card (Design/05-components.md › Results card, FT1a).
+/// No strip and no divider: the server and database float as a glass chip at the leading edge
+/// (click it to switch database), the result views sit in their own glass pill in the middle,
+/// and the status, row count and duration are quiet text at the trailing edge.
 struct BottomPanelStatusBar: View {
     let configuration: BottomPanelStatusBarConfiguration
 
+    @Environment(\.echoMotion) private var motion
+
     var body: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: 0) {
-                connectionLabel
-                segmentToggles
-                modeIndicatorChips
-                Spacer(minLength: SpacingTokens.sm)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        configuration.onTogglePanel()
-                    }
-                metricsSection
-            }
-            .padding(.leading, SpacingTokens.sm)
-            .padding(.trailing, SpacingTokens.md1)
-            .frame(height: 24)
+        HStack(spacing: SpacingTokens.xs) {
+            connectionChip
+            modeIndicatorChips
+            Spacer(minLength: SpacingTokens.sm)
+                .contentShape(Rectangle())
+                .onTapGesture { configuration.onTogglePanel() }
+            segmentPill
+            Spacer(minLength: SpacingTokens.sm)
+                .contentShape(Rectangle())
+                .onTapGesture { configuration.onTogglePanel() }
+            metricsSection
         }
-        .background(.bar)
+        .padding(.horizontal, SpacingTokens.sm)
+        .frame(height: LayoutTokens.Footer.height)
     }
 
-    private var connectionLabel: some View {
-        HStack(spacing: 0) {
-            Text(configuration.serverName)
+    // MARK: - Connection
+
+    private var connectionText: String {
+        guard let databaseName = configuration.databaseName else { return configuration.serverName }
+        return "\(configuration.serverName) · \(databaseName)"
+    }
+
+    private var connectionChip: some View {
+        let canSwitch = configuration.availableDatabases != nil
+        return Button {
+            configuration.showDatabasePicker?.wrappedValue.toggle()
+        } label: {
+            Text(connectionText)
                 .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
-
-            if let dbName = configuration.databaseName {
-                Text(" • ")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.quaternary)
-
-                databaseLabel(dbName)
+                .truncationMode(.middle)
+                .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
+                .frame(height: LayoutTokens.Footer.chipHeight)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .glassEffect(canSwitch ? .regular.interactive() : .regular, in: .capsule)
+        .disabled(!canSwitch)
+        .help(canSwitch ? "Switch Database" : connectionText)
+        .accessibilityLabel(connectionText)
+        .popover(isPresented: configuration.showDatabasePicker ?? .constant(false)) {
+            if let databases = configuration.availableDatabases,
+               let onSwitch = configuration.onSwitchDatabase,
+               let current = configuration.databaseName {
+                DatabasePickerPopover(
+                    databases: databases,
+                    currentDatabase: current,
+                    onSelect: { selected in
+                        configuration.showDatabasePicker?.wrappedValue = false
+                        onSwitch(selected)
+                    }
+                )
             }
         }
     }
 
-    @ViewBuilder
-    private func databaseLabel(_ dbName: String) -> some View {
-        let hasSwitcher = configuration.availableDatabases != nil
-        Text(dbName)
-            .font(TypographyTokens.detail)
-            .foregroundStyle(hasSwitcher ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
-            .lineLimit(1)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if let binding = configuration.showDatabasePicker {
-                    binding.wrappedValue.toggle()
-                }
-            }
-            .popover(isPresented: configuration.showDatabasePicker ?? .constant(false)) {
-                if let databases = configuration.availableDatabases,
-                   let onSwitch = configuration.onSwitchDatabase {
-                    DatabasePickerPopover(
-                        databases: databases,
-                        currentDatabase: dbName,
-                        onSelect: { selected in
-                            configuration.showDatabasePicker?.wrappedValue = false
-                            onSwitch(selected)
-                        }
-                    )
-                }
-            }
-    }
+    // MARK: - Views
 
     @ViewBuilder
-    private var segmentToggles: some View {
+    private var segmentPill: some View {
         if !configuration.availableSegments.isEmpty {
-            ForEach(Array(configuration.availableSegments.enumerated()), id: \.element) { index, segment in
-                segmentButton(segment)
-                    .padding(.leading, index == 0 ? SpacingTokens.xs : SpacingTokens.xxs)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var modeIndicatorChips: some View {
-        if !configuration.modeIndicators.isEmpty {
-            Divider()
-                .frame(height: 12)
-                .padding(.leading, SpacingTokens.xs)
-            ForEach(configuration.modeIndicators) { indicator in
-                HStack(spacing: SpacingTokens.xxxs) {
-                    Image(systemName: indicator.icon)
-                    Text(indicator.label)
+            HStack(spacing: SpacingTokens.none) {
+                ForEach(configuration.availableSegments, id: \.self) { segment in
+                    segmentButton(segment)
                 }
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Status.modeIndicator)
-                .padding(.leading, SpacingTokens.xs)
             }
+            .padding(LayoutTokens.Footer.pillPadding)
+            .glassEffect(.regular, in: .capsule)
+            .animation(motion.press, value: configuration.selectedSegment)
+            .animation(motion.press, value: configuration.isPanelOpen)
         }
     }
 
@@ -167,18 +154,52 @@ struct BottomPanelStatusBar: View {
         } label: {
             Image(systemName: segment.icon)
                 .font(TypographyTokens.detail)
-                .foregroundStyle(isActive ? ColorTokens.accent : ColorTokens.Text.secondary)
+                .foregroundStyle(isActive ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+                .frame(width: LayoutTokens.Footer.segmentWidth, height: LayoutTokens.Footer.chipHeight - LayoutTokens.Footer.pillPadding * 2)
+                .background {
+                    if isActive {
+                        Capsule()
+                            .fill(ColorTokens.Workspace.card)
+                            .shadow(ShadowTokens.railSelection)
+                    }
+                }
+                .contentShape(Capsule())
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .opacity(isDisabled ? 0.3 : 1)
         .disabled(isDisabled)
-        .help(isDisabled ? segment.label : (isActive ? "Show Results" : "Show \(segment.label)"))
+        .help(isDisabled ? segment.label : (isActive ? "Hide \(segment.label)" : "Show \(segment.label)"))
         .accessibilityLabel(segment.label)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private var modeIndicatorChips: some View {
+        ForEach(configuration.modeIndicators) { indicator in
+            HStack(spacing: SpacingTokens.xxxs) {
+                Image(systemName: indicator.icon)
+                Text(indicator.label)
+            }
+            .font(TypographyTokens.detail)
+            .foregroundStyle(ColorTokens.Status.modeIndicator)
+            .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
+            .frame(height: LayoutTokens.Footer.chipHeight)
+            .background(ColorTokens.Sidebar.hoverFill, in: Capsule())
+        }
     }
 
     @ViewBuilder
     private var metricsSection: some View {
-        HStack(spacing: SpacingTokens.sm) {
+        HStack(spacing: SpacingTokens.xs) {
+            if let bubble = configuration.statusBubble {
+                HStack(spacing: SpacingTokens.xxs) {
+                    PulsingStatusDot(tint: bubble.tint, isPulsing: bubble.isPulsing)
+                    Text(bubble.label)
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
+            }
+
             if let metrics = configuration.metrics {
                 HStack(spacing: SpacingTokens.xxxs) {
                     Text(metrics.rowCountText)
@@ -192,15 +213,6 @@ struct BottomPanelStatusBar: View {
                 if let duration = metrics.durationText {
                     Text(duration)
                         .font(TypographyTokens.detail.monospaced().weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
-
-            if let bubble = configuration.statusBubble {
-                HStack(spacing: SpacingTokens.xxs) {
-                    PulsingStatusDot(tint: bubble.tint, isPulsing: bubble.isPulsing)
-                    Text(bubble.label)
-                        .font(TypographyTokens.detail)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }

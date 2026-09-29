@@ -6,6 +6,7 @@ struct ConnectionDashboardDatabases: View {
     @Environment(\.echoMotion) private var motion
 
     @State private var showAll = false
+    @State private var filter = ""
 
     private var databases: [DatabaseInfo] {
         session.databaseStructure?.databases ?? []
@@ -13,8 +14,6 @@ struct ConnectionDashboardDatabases: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            DashboardSectionLabel(title: "New query in")
-
             switch session.structureLoadingState {
             case .loading:
                 loadingState
@@ -33,6 +32,10 @@ struct ConnectionDashboardDatabases: View {
     // MARK: - Grid
 
     private var visibleDatabases: [DatabaseInfo] {
+        let query = filter.trimmingCharacters(in: .whitespaces)
+        if !query.isEmpty {
+            return databases.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        }
         if showAll || databases.count <= 9 {
             return databases
         }
@@ -42,6 +45,14 @@ struct ConnectionDashboardDatabases: View {
     @ViewBuilder
     private var databaseGrid: some View {
         DashboardCard {
+            TextField("Filter \(databases.count) databases", text: $filter)
+                .textFieldStyle(.plain)
+                .font(TypographyTokens.standard)
+                .padding(.horizontal, SpacingTokens.xs)
+                .frame(height: LayoutTokens.FloatingSurface.rowHeight)
+                .background(ColorTokens.Sidebar.hoverFill, in: RoundedRectangle(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
+                .padding(.bottom, SpacingTokens.xxs)
+
             ForEach(visibleDatabases) { db in
                 DashboardDatabaseRow(
                     name: db.name,
@@ -53,7 +64,7 @@ struct ConnectionDashboardDatabases: View {
             }
         }
 
-        if databases.count > 9, !showAll {
+        if databases.count > 9, !showAll, filter.isEmpty {
             Button {
                 withAnimation(motion.standard) { showAll = true }
             } label: {

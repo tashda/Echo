@@ -13,9 +13,9 @@ struct RecentConnectionItem: Identifiable {
 }
 
 /// What the canvas shows while no tab is open and no server is active (Design/05-components.md ›
-/// Welcome). There is no card: cards exist only for content. Echo's icon, the connect actions on
-/// glass buttons, and the latest connections on one small opaque card, each with the same
-/// monogram and colour it will have in the rail.
+/// Welcome, W1b). There is no card around it: cards exist only for content. Echo's icon and
+/// name, the connect actions on glass buttons, and the latest connections on one small opaque
+/// card, each with the same monogram and colour it will have in the rail.
 struct WorkspaceWelcomeView: View {
     /// The welcome lists only the latest few; the rest are in the toolbar's Recent menu.
     static let maximumRecentCount = 5
@@ -33,8 +33,8 @@ struct WorkspaceWelcomeView: View {
                     .frame(width: LayoutTokens.Welcome.iconSize, height: LayoutTokens.Welcome.iconSize)
                     .accessibilityHidden(true)
 
-                Text("Connect to a server")
-                    .font(TypographyTokens.hero.weight(.semibold))
+                Text("Echo")
+                    .font(.system(size: LayoutTokens.Welcome.titleSize, weight: .bold))
                     .foregroundStyle(ColorTokens.Text.primary)
             }
 

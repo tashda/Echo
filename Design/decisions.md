@@ -7,7 +7,11 @@ Newest first. Each entry says what was decided, and where the rule now lives. Wh
 Page: https://claude.ai/artifact/XPy7hr8a2BgpXjejFSxUWA
 - **Card corners 16pt by default** (C3), the macOS 27 window corner as measured from the owner's screenshot (about 16pt; my first guess of a 26pt window and 20pt cards was wrong). A Card Corners setting in Appearance offers 10 / 12 / 16 / 20 / 26pt for every card. → 02-layout, 06-tokens
 - **Hiding the tree keeps the bounce, walled off** (M1): everything right of the rail is masked at the rail's edge. **The tree slides left behind the rail** as it fades (M2's motion) instead of shrinking. → 04-motion
-- Still open from round 8: tree cards in SwiftUI (being investigated), the path header, welcome, server page, footer.
+- Answered on the page (collection `round8`):
+  - **The Explorer tree is rebuilt fully in SwiftUI, replacing the AppKit table, with no debug switch** ("more future proof"). That settles tree cards as T1 (each server card is the editor's own `.workspaceCard()`) and the path header as H1 (a pinned glass section header that blurs the rows). → 05-components, `swiftui-tree.md`
+  - **Welcome W1b:** one centred column on the canvas: Echo's icon, "Echo" large, the glass actions, the recents card. No subtitle. Rejected W1a and W1c. → 05-components
+  - **Server page S1a:** the server name large, only the version under it, the glass tools, then a databases card with a filter; its top lines up with the rail. Recent queries and connection details leave the page. Rejected S1b and S1c. → 05-components
+  - **Footer FT1a:** no strip or divider; the server and database as a glass chip (no chevron; click to switch database), the result views in one glass pill, and the status, rows and time as quiet text. Rejected FT1b, FT1c and FT1d. → 05-components
 
 ## 2026-09-29 · Tree cards, scrolling and the bottom edge (review rounds 5–7)
 
