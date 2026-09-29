@@ -29,9 +29,8 @@ struct TabStripBackground: View {
 
     private var baseFill: AnyShapeStyle {
         switch style {
-        case .standard(let scheme):
-            let color = scheme == .dark ? ColorTokens.TabStrip.Background.dark : ColorTokens.TabStrip.Background.light
-            return AnyShapeStyle(color)
+        case .standard:
+            return AnyShapeStyle(ColorTokens.TabStrip.Background.plate)
         case .themed(let palette):
             return AnyShapeStyle(palette.baseFill)
         }

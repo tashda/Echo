@@ -24,6 +24,16 @@ struct SidebarSettingsView: View {
                 Text("Pinning shows the server and database you are scrolled into at the top of the Explorer. Empty folders such as Views or Functions with nothing in them are hidden unless shown here.")
             }
 
+            Section {
+                Picker("Clicking a server while the Explorer is hidden", selection: projectStore.globalSettingBinding(\.collapsedServerClick)) {
+                    ForEach(CollapsedServerClickBehavior.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                }
+            } header: {
+                Text("Server Rail")
+            } footer: {
+                Text("Peek slides that server's tree out over your work; click anywhere else to close it.")
+            }
+
             Section("Databases") {
                 Toggle("Hide offline databases by default", isOn: hideOfflineToggle)
             }

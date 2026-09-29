@@ -1,6 +1,51 @@
 import SwiftUI
 
 public enum LayoutTokens {
+    /// The canvas-and-cards window (Design/02-layout.md, 06-tokens.md).
+    public enum Workspace {
+        /// Corner radius of the editor and results cards.
+        public static let cardCornerRadius: CGFloat = 12
+        /// Opacity of the 0.5pt separator edge around cards.
+        public static let cardEdgeOpacity: Double = 0.35
+        /// Width of the separator edge around cards.
+        public static let cardEdgeWidth: CGFloat = 0.5
+        /// Default tree width, and its limits when dragging its edge.
+        public static let treeIdealWidth: CGFloat = 260
+        public static let treeMinWidth: CGFloat = 200
+        public static let treeMaxWidth: CGFloat = 480
+        /// Width of the invisible drag area on the tree's trailing edge.
+        public static let treeResizeHandleWidth: CGFloat = 8
+    }
+
+    /// The two-pill server rail of the canvas-and-cards window. Item size comes from the
+    /// `railItemSize` setting (`RailItemSize.points`).
+    public enum Rail {
+        /// Gap between server items inside the pill.
+        public static let itemSpacing: CGFloat = SpacingTokens.xxs
+        /// Inset between the pill's edge and its items.
+        public static let pillPadding: CGFloat = SpacingTokens.xxs
+        /// Smallest gap between the server pill and the tool pill.
+        public static let minimumPillGap: CGFloat = SpacingTokens.sm
+        /// Height of a tool button in the tool pill.
+        public static let toolHeight: CGFloat = 30
+        /// Opacity of a server whose connection was lost.
+        public static let lostOpacity: Double = 0.4
+
+        /// Rail width for an item size: the item plus the pill padding on both sides.
+        public static func width(itemSize: CGFloat) -> CGFloat { itemSize + pillPadding * 2 }
+    }
+
+    /// Echo's own floating glass cards: peek, pickers, notification history, search results.
+    public enum FloatingSurface {
+        public static let smallWidth: CGFloat = 260
+        public static let mediumWidth: CGFloat = 320
+        public static let largeWidth: CGFloat = 420
+        public static let padding: CGFloat = SpacingTokens.sm
+        public static let cornerRadius: CGFloat = 18
+        public static let rowHeight: CGFloat = 28
+        public static let rowCornerRadius: CGFloat = 10
+    }
+
     public enum ServerRail {
         /// Width of the rail column along the open sidebar's leading edge.
         public static let width: CGFloat = 46

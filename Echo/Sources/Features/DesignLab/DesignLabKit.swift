@@ -13,9 +13,14 @@ enum LabSpeed: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var scale: Double { self == .fast ? 0.7 : 1 }
 
+    /// The app's motion values at this speed, so the lab moves exactly like Echo.
+    func motion(reduceMotion: Bool = false) -> EchoMotion {
+        EchoMotion(speed: self == .fast ? .fast : .standard, reduceMotion: reduceMotion)
+    }
+
     /// Echo's house spring: bouncy, scaled by speed; a short fade when Reduce Motion is on.
-    func spring(reduceMotion: Bool = false, duration: Double = 0.45) -> Animation {
-        reduceMotion ? .easeInOut(duration: 0.18) : .bouncy(duration: duration * scale, extraBounce: 0.08)
+    func spring(reduceMotion: Bool = false) -> Animation {
+        motion(reduceMotion: reduceMotion).standard
     }
 }
 

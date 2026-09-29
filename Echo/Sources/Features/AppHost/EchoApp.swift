@@ -34,6 +34,7 @@ struct EchoApp: App {
     var body: some Scene {
         SwiftUI.WindowGroup {
             WorkspaceView()
+                .providesEchoMotion()
                 .environment(coordinator.projectStore)
                 .environment(coordinator.connectionStore)
                 .environment(coordinator.navigationStore)

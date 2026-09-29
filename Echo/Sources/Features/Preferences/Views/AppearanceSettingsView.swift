@@ -27,6 +27,19 @@ struct AppearanceSettingsView: View {
                     SidebarIconPicker(selection: sidebarIconColorModeBinding)
                 }
 
+                if projectStore.globalSettings.sidebarIconColorMode == .monochrome {
+                    PropertyRow(
+                        title: "Monochrome Style",
+                        subtitle: "Accent on open folders shows the path you've expanded."
+                    ) {
+                        Picker("", selection: projectStore.globalSettingBinding(\.sidebarMonochromeVariant)) {
+                            ForEach(SidebarMonochromeVariant.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                    }
+                }
+
                 PropertyRow(
                     title: "Toolbar Project Button",
                     subtitle: "Show your account avatar or the project icon in the toolbar."
@@ -38,6 +51,43 @@ struct AppearanceSettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
+                }
+            }
+
+            Section("Workspace") {
+                PropertyRow(
+                    title: "Animation Speed",
+                    subtitle: "How fast panels, the rail and cards move. Reduce Motion in System Settings always wins."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.interfaceMotionSpeed)) {
+                        ForEach(InterfaceMotionSpeed.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                }
+
+                PropertyRow(
+                    title: "Spacing Between Panes",
+                    subtitle: "Space between the server rail, the Explorer and the cards."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.workspaceGutter)) {
+                        ForEach(WorkspaceGutter.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                PropertyRow(
+                    title: "Server Rail Size",
+                    subtitle: "Size of the server buttons in the rail."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.railItemSize)) {
+                        ForEach(RailItemSize.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
                 }
             }
 
@@ -56,6 +106,20 @@ struct AppearanceSettingsView: View {
                     PropertyRow(title: "Color") {
                         AccentColorPalette(selection: customAccentColorHexBinding)
                     }
+                }
+            }
+
+            Section("Editor") {
+                PropertyRow(
+                    title: "Line Number Gutter",
+                    subtitle: "Subtle shows numbers only; tinted adds a faint column behind them."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.editorGutterStyle)) {
+                        ForEach(EditorGutterStyle.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
                 }
             }
 

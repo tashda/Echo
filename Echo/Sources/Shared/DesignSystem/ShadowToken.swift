@@ -24,6 +24,14 @@ public enum ShadowTokens {
         y: 0.5
     )
 
+    /// Editor and results cards lifted off the canvas (Design/06-tokens.md).
+    public static let workspaceCard = Shadow(
+        color: Color.black.opacity(0.12),
+        radius: 10,
+        x: 0,
+        y: 4
+    )
+
     /// Standard shadow for floating elements
     public static let elevated = Shadow(
         color: Color.black.opacity(0.15),

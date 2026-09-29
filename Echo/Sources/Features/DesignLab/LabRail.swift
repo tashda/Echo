@@ -138,8 +138,8 @@ struct LabRailView: View {
         }
         // The leading edge races ahead and the trailing edge follows, so the shape stretches
         // toward the target like a drop of liquid, then settles back into a disc.
-        let lead = Animation.spring(duration: 0.28 * speed.scale, bounce: 0.25)
-        let trail = Animation.spring(duration: 0.55 * speed.scale, bounce: 0.3).delay(0.06 * speed.scale)
+        let lead = speed.motion().liquidLead
+        let trail = speed.motion().liquidTrail
         if target > origin {
             withAnimation(lead) { selectionBottom = target + Self.itemSize }
             withAnimation(trail) { selectionTop = target }

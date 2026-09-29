@@ -161,6 +161,14 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarShowsPinnedPath: Bool = true
     /// Shows object folders with nothing in them (Views, Functions…) in the Explorer.
     var sidebarShowsEmptyFolders: Bool = false
+    // Canvas-and-cards redesign (Design/01-principles.md, rule 7).
+    var interfaceMotionSpeed: InterfaceMotionSpeed = .standard
+    var workspaceGutter: WorkspaceGutter = .standard
+    var railItemSize: RailItemSize = .medium
+    var collapsedServerClick: CollapsedServerClickBehavior = .peekCommandReopens
+    var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
+    var editorGutterStyle: EditorGutterStyle = .subtle
+    var resultsMonospacedCells: Bool = false
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
     var hideInaccessibleDatabases: Bool = false
@@ -238,6 +246,13 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarExpandOneConnectionAtATime
         case sidebarShowsPinnedPath
         case sidebarShowsEmptyFolders
+        case interfaceMotionSpeed
+        case workspaceGutter
+        case railItemSize
+        case collapsedServerClick
+        case sidebarMonochromeVariant
+        case editorGutterStyle
+        case resultsMonospacedCells
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
         case hideInaccessibleDatabases
@@ -342,6 +357,15 @@ struct GlobalSettings: Codable, Hashable {
             forKey: .sidebarShowsEmptyFolders
         ) ?? false
 
+        // Unknown values (from a newer build) fall back to the default instead of failing.
+        interfaceMotionSpeed = (try? container.decodeIfPresent(InterfaceMotionSpeed.self, forKey: .interfaceMotionSpeed)) ?? .standard
+        workspaceGutter = (try? container.decodeIfPresent(WorkspaceGutter.self, forKey: .workspaceGutter)) ?? .standard
+        railItemSize = (try? container.decodeIfPresent(RailItemSize.self, forKey: .railItemSize)) ?? .medium
+        collapsedServerClick = (try? container.decodeIfPresent(CollapsedServerClickBehavior.self, forKey: .collapsedServerClick)) ?? .peekCommandReopens
+        sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
+        editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
+        resultsMonospacedCells = try container.decodeIfPresent(Bool.self, forKey: .resultsMonospacedCells) ?? false
+
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
 
         hideInaccessibleDatabases = try container.decodeIfPresent(Bool.self, forKey: .hideInaccessibleDatabases) ?? false
@@ -409,6 +433,13 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarExpandOneConnectionAtATime, forKey: .sidebarExpandOneConnectionAtATime)
         try container.encode(sidebarShowsPinnedPath, forKey: .sidebarShowsPinnedPath)
         try container.encode(sidebarShowsEmptyFolders, forKey: .sidebarShowsEmptyFolders)
+        try container.encode(interfaceMotionSpeed, forKey: .interfaceMotionSpeed)
+        try container.encode(workspaceGutter, forKey: .workspaceGutter)
+        try container.encode(railItemSize, forKey: .railItemSize)
+        try container.encode(collapsedServerClick, forKey: .collapsedServerClick)
+        try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
+        try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
+        try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)
         try container.encode(sidebarHideOfflineDatabasesByDefault, forKey: .sidebarHideOfflineDatabasesByDefault)

@@ -24,6 +24,15 @@ struct QueryResultsSettingsView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
+
+                PropertyRow(
+                    title: "Monospaced cells",
+                    info: "Shows every cell in the editor's monospaced font. Numbers always use aligned digits."
+                ) {
+                    Toggle("", isOn: projectStore.globalSettingBinding(\.resultsMonospacedCells))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
             }
 
             Section("Cell Inspector") {

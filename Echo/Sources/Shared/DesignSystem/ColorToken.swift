@@ -29,15 +29,29 @@ public enum ColorTokens {
     }
     
     // Sidebar — Finder sidebar palette (macOS 26 Tahoe Figma reference)
+    // Light values follow the Tahoe Figma reference (black at 85 / 11 / 7 / 5%). Dark mode mirrors
+    // them in white, and Increase Contrast strengthens the fills so rows stay distinguishable.
     public enum Sidebar {
-        /// Symbol fill — #000000 85% (Figma: light-mode sidebar icons)
-        public static let symbol = Color.black.opacity(0.85)
-        /// Selected row highlight — #000000 11% (Figma: sidebar selection pill)
-        public static let selectedFill = Color.black.opacity(0.11)
+        /// Symbol fill
+        public static let symbol = Color.adaptive(
+            light: .black.withAlphaComponent(0.85), dark: .white.withAlphaComponent(0.85),
+            highContrastLight: .black, highContrastDark: .white
+        )
+        /// Selected row highlight
+        public static let selectedFill = Color.adaptive(
+            light: .black.withAlphaComponent(0.11), dark: .white.withAlphaComponent(0.14),
+            highContrastLight: .black.withAlphaComponent(0.22), highContrastDark: .white.withAlphaComponent(0.28)
+        )
         /// Context-menu / right-click highlight
-        public static let contextFill = Color.black.opacity(0.07)
+        public static let contextFill = Color.adaptive(
+            light: .black.withAlphaComponent(0.07), dark: .white.withAlphaComponent(0.10),
+            highContrastLight: .black.withAlphaComponent(0.16), highContrastDark: .white.withAlphaComponent(0.2)
+        )
         /// Hover highlight
-        public static let hoverFill = Color.black.opacity(0.05)
+        public static let hoverFill = Color.adaptive(
+            light: .black.withAlphaComponent(0.05), dark: .white.withAlphaComponent(0.07),
+            highContrastLight: .black.withAlphaComponent(0.12), highContrastDark: .white.withAlphaComponent(0.16)
+        )
     }
 
     // Surface fills — lightweight tinted backgrounds for cards, rows, and containers
@@ -74,6 +88,11 @@ public enum ColorTokens {
         public enum Background {
             public static let dark = Color(white: 0.22)
             public static let light = Color(white: 0.90)
+            /// The strip's plate, following the appearance and Increase Contrast.
+            public static let plate = Color.adaptive(
+                light: NSColor(white: 0.90, alpha: 1), dark: NSColor(white: 0.22, alpha: 1),
+                highContrastLight: NSColor(white: 0.82, alpha: 1), highContrastDark: NSColor(white: 0.30, alpha: 1)
+            )
         }
 
         // Active tab gradient stops
