@@ -79,6 +79,17 @@ struct AppearanceSettingsView: View {
                 }
 
                 PropertyRow(
+                    title: "Card Corners",
+                    subtitle: "Corner radius of the Explorer cards, the editor, results and other cards."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.workspaceCornerRadius)) {
+                        ForEach(WorkspaceCornerRadius.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                PropertyRow(
                     title: "Server Rail Size",
                     subtitle: "Size of the server buttons in the rail."
                 ) {

@@ -12,7 +12,7 @@ Values that views use. The code equivalents live in `Echo/Sources/Shared/DesignS
 |---|---|---|
 | Canvas | `windowBackgroundColor` (grey), translucent alternative | Decided |
 | Card fill | `textBackgroundColor` | Decided |
-| Card corner | 12pt, continuous | Decided |
+| Card corner | 16pt, continuous (`cardCornerRadius`); the Card Corners setting: 10 / 12 / 16 / 20 / 26pt, read via `\.workspaceCardCornerRadius` | Decided |
 | Card shadow | Floating: black 12%, radius 10, y 4, plus a 0.5pt separator edge at 35% | Decided |
 | Gutter between panes | 6pt default; setting offers 4 / 6 / 8pt | Decided |
 

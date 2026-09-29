@@ -13,6 +13,7 @@ struct ExplorerPinnedPathBar: View {
     let onCollapseOtherDatabases: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.workspaceCardCornerRadius) private var cornerRadius
 
     var body: some View {
         HStack(spacing: SpacingTokens.xxs) {
@@ -63,8 +64,8 @@ struct ExplorerPinnedPathBar: View {
         .padding(.trailing, SpacingTokens.xs)
         .frame(height: height)
         .glassEffect(.regular, in: UnevenRoundedRectangle(
-            topLeadingRadius: LayoutTokens.Workspace.cardCornerRadius,
-            topTrailingRadius: LayoutTokens.Workspace.cardCornerRadius,
+            topLeadingRadius: cornerRadius,
+            topTrailingRadius: cornerRadius,
             style: .continuous
         ))
         .contentShape(Rectangle())

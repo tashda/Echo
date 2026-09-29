@@ -1,10 +1,17 @@
 import SwiftUI
 
-/// An opaque content card on the workspace canvas: 12pt continuous corners, a 0.5pt separator
+extension EnvironmentValues {
+    /// Corner radius of every workspace card, from the Card Corners setting.
+    @Entry var workspaceCardCornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
+}
+
+/// An opaque content card on the workspace canvas: continuous corners from the Card Corners setting, a 0.5pt separator
 /// edge and the floating shadow (Design/02-layout.md › Cards). Glass never goes on cards.
 struct WorkspaceCardModifier: ViewModifier {
+    @Environment(\.workspaceCardCornerRadius) private var cornerRadius
+
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: LayoutTokens.Workspace.cardCornerRadius, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         content
             .clipShape(shape)
             // The shadow is drawn by the fill behind the content, so AppKit-backed content

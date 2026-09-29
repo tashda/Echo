@@ -164,6 +164,7 @@ struct GlobalSettings: Codable, Hashable {
     // Canvas-and-cards redesign (Design/01-principles.md, rule 7).
     var interfaceMotionSpeed: InterfaceMotionSpeed = .standard
     var workspaceGutter: WorkspaceGutter = .standard
+    var workspaceCornerRadius: WorkspaceCornerRadius = .standard
     var railItemSize: RailItemSize = .medium
     var collapsedServerClick: CollapsedServerClickBehavior = .peekCommandReopens
     var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
@@ -248,6 +249,7 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarShowsEmptyFolders
         case interfaceMotionSpeed
         case workspaceGutter
+        case workspaceCornerRadius
         case railItemSize
         case collapsedServerClick
         case sidebarMonochromeVariant
@@ -360,6 +362,7 @@ struct GlobalSettings: Codable, Hashable {
         // Unknown values (from a newer build) fall back to the default instead of failing.
         interfaceMotionSpeed = (try? container.decodeIfPresent(InterfaceMotionSpeed.self, forKey: .interfaceMotionSpeed)) ?? .standard
         workspaceGutter = (try? container.decodeIfPresent(WorkspaceGutter.self, forKey: .workspaceGutter)) ?? .standard
+        workspaceCornerRadius = (try? container.decodeIfPresent(WorkspaceCornerRadius.self, forKey: .workspaceCornerRadius)) ?? .standard
         railItemSize = (try? container.decodeIfPresent(RailItemSize.self, forKey: .railItemSize)) ?? .medium
         collapsedServerClick = (try? container.decodeIfPresent(CollapsedServerClickBehavior.self, forKey: .collapsedServerClick)) ?? .peekCommandReopens
         sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
@@ -435,6 +438,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarShowsEmptyFolders, forKey: .sidebarShowsEmptyFolders)
         try container.encode(interfaceMotionSpeed, forKey: .interfaceMotionSpeed)
         try container.encode(workspaceGutter, forKey: .workspaceGutter)
+        try container.encode(workspaceCornerRadius, forKey: .workspaceCornerRadius)
         try container.encode(railItemSize, forKey: .railItemSize)
         try container.encode(collapsedServerClick, forKey: .collapsedServerClick)
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)

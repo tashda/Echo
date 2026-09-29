@@ -17,7 +17,7 @@
 | Rail selection shape | Liquid stretch: the leading edge springs to the target (0.28s), the trailing edge follows (0.55s, delayed 0.06s), both scaled by speed | Decided |
 | Server connecting | The monogram breathes until connected, then settles. Stronger than the first version (see tokens) | Decided |
 | Server connects | It grows out of the server pill, and the pill stretches to fit | Decided |
-| Hiding the tree | The tree shrinks toward the rail and fades while the cards grow into its space, with the house spring | Decided |
+| Hiding the tree | The tree slides left behind the rail and fades while the cards grow into its space, with the bouncy house spring. Everything right of the rail is masked at the rail's edge, so nothing overshoots onto the rail | Decided (round 8) |
 | Results after the first run | The results card rises from the bottom while the editor card shrinks | Decided |
 | Folder expand | Rows slide down with a fade (native table animation), scaled by speed | Decided |
 | Objects loading | Shimmer placeholder rows, then crossfade to the real rows | Decided |

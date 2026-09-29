@@ -4,7 +4,7 @@ import SwiftUI
 /// tabs with their cards, side by side on the window canvas and separated by the gutter setting.
 /// Echo draws this itself instead of using the system sidebar; the inspector stays a system column.
 ///
-/// Hiding the tree (⌃⌘S) leaves the rail where it is: the tree shrinks into it while the cards
+/// Hiding the tree (⌃⌘S) leaves the rail where it is: the tree slides behind it while the cards
 /// grow into its space. While it is hidden, a server click can peek: the tree slides back out on
 /// glass over the cards, without moving them, until a click outside or Esc.
 struct WorkspaceShell: View {
@@ -32,10 +32,15 @@ struct WorkspaceShell: View {
                 .padding(.leading, gutter)
                 .padding(.top, stripInset)
 
-            treeArea(gutter: gutter, isVisible: isTreeVisible, isPeeking: isPeeking)
-                .padding(.top, stripInset)
+            // Everything right of the rail. The house spring keeps its bounce, but this area is
+            // masked at the rail's edge, so a card overshooting to the left, or the tree sliding
+            // away, disappears behind the rail instead of crossing it. The mask reaches past the
+            // other edges, so card shadows there are untouched.
+            HStack(spacing: SpacingTokens.none) {
+                treeArea(gutter: gutter, isVisible: isTreeVisible, isPeeking: isPeeking)
+                    .padding(.top, stripInset)
 
-            WorkspaceMainContent()
+                WorkspaceMainContent()
                 .accessibilityIdentifier("workspace-content")
                 .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
                 .padding(.leading, isTreeVisible ? SpacingTokens.none : gutter)
@@ -48,6 +53,11 @@ struct WorkspaceShell: View {
                             .accessibilityHidden(true)
                     }
                 }
+            }
+            .mask {
+                Rectangle()
+                    .padding([.top, .bottom, .trailing], -ObjectBrowserCardLayerView.shadowOutset)
+            }
         }
         .padding(.top, max(gutter - stripInset, SpacingTokens.none))
         .padding([.trailing, .bottom], gutter)
@@ -62,6 +72,7 @@ struct WorkspaceShell: View {
                     .accessibilityHidden(true)
             }
         }
+        .environment(\.workspaceCardCornerRadius, projectStore.globalSettings.workspaceCornerRadius.points)
         .animation(motion.standard, value: isTreeVisible)
         .animation(motion.standard, value: isPeeking)
         .onChange(of: isTreeVisible) { _, isVisible in
@@ -85,7 +96,7 @@ struct WorkspaceShell: View {
 
     /// The tree with the gutter on each side; the trailing gutter is the resize handle.
     ///
-    /// Hidden, the tree shrinks into the rail as it fades (Design/04-motion.md) and its space
+    /// Hidden, the tree slides left behind the rail as it fades (Design/04-motion.md) and its space
     /// collapses so the cards grow. It stays alive while hidden, so the table keeps its rows,
     /// scroll position and expansion, and still answers reveal requests. Reduce Motion fades only.
     ///
@@ -112,7 +123,9 @@ struct WorkspaceShell: View {
             WorkspaceTreeResizeHandle(width: $treeWidth, gutter: gutter)
                 .allowsHitTesting(isVisible)
         }
-        .scaleEffect(isShown || motion.reduceMotion ? 1 : 0.55, anchor: .leading)
+        // Hidden, the tree slides left behind the rail (the mask above cuts it off there) and
+        // fades. Reduce Motion fades only.
+        .offset(x: isShown || motion.reduceMotion ? 0 : -(width + gutter))
         .opacity(isShown ? 1 : 0)
         .frame(width: isVisible ? width + gutter * 2 : 0, alignment: .leading)
         .allowsHitTesting(isShown)

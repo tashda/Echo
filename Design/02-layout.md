@@ -49,7 +49,7 @@ Echo does not use the system sidebar for the Explorer. The window is our own she
 
 - The editor and the results are **two separate opaque cards**, with canvas between them. *Decided.*
 - The gap between the two cards is also the resize handle (see `05-components.md`). *Decided.*
-- **Corners: 12pt**, continuous. Concentric corners and 16pt were compared in the Design Lab and rejected. *Decided* (replaces the earlier "concentric with the window" rule).
+- **Corners: 16pt by default**, continuous, matching the macOS 27 window corner (measured from a screenshot, round 8). The Card Corners setting in Appearance offers 10, 12, 16, 20 and 26pt, and applies to every card. *Decided* (2026-09-29, replaces 12pt).
 - **Shadow: floating shadow** (soft, lifted off the canvas). Hairline and flat were rejected. *Decided.*
 - **Gutter: 6pt by default**, with 4pt and 8pt available as a setting. The same gutter separates rail, tree, tab strip and cards. *Decided.*
 

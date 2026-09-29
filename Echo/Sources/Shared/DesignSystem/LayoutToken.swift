@@ -3,8 +3,9 @@ import SwiftUI
 public enum LayoutTokens {
     /// The canvas-and-cards window (Design/02-layout.md, 06-tokens.md).
     public enum Workspace {
-        /// Corner radius of the editor and results cards.
-        public static let cardCornerRadius: CGFloat = 12
+        /// Default corner radius of every card, matching the macOS 27 window corner. The Card
+        /// Corners setting overrides it; views read `@Environment(\.workspaceCardCornerRadius)`.
+        public static let cardCornerRadius: CGFloat = 16
         /// Opacity of the 0.5pt separator edge around cards.
         public static let cardEdgeOpacity: Double = 0.35
         /// Width of the separator edge around cards.

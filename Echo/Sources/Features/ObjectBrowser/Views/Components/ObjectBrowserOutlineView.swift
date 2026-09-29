@@ -7,6 +7,8 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
     let selectedNodeID: String?
     let density: SidebarDensity
     let topScrollerInset: CGFloat
+    /// Corner radius of the server cards, from the Card Corners setting.
+    var cornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
     let rowContent: (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView
     let onExpansionChanged: (ObjectBrowserNode, Bool) -> Void
     let onActivation: (ObjectBrowserNode) -> Void
@@ -53,7 +55,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         scrollView.verticalScrollElasticity = .none
         // Our own insets only; the window's toolbar must not push the first card down.
         scrollView.automaticallyAdjustsContentInsets = false
-        scrollView.scrollerInsets = Self.scrollerInsets(top: topScrollerInset)
+        scrollView.scrollerInsets = Self.scrollerInsets(top: topScrollerInset, cornerRadius: cornerRadius)
         // Room for the last card's padding below its last row.
         scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: LayoutTokens.Workspace.treeCardBottomPadding, right: 0)
         scrollView.verticalScroller?.controlSize = .small
@@ -68,18 +70,19 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
         )
 
         let container = ObjectBrowserTreeContainerView(scrollView: scrollView, tableView: context.coordinator.tableView)
+        container.cornerRadius = cornerRadius
         context.coordinator.container = container
         return container
     }
 
     /// The thin scroller stays inside the cards' rounded corners.
-    static func scrollerInsets(top: CGFloat) -> NSEdgeInsets {
-        let corner = LayoutTokens.Workspace.cardCornerRadius
-        return NSEdgeInsets(top: max(top, corner), left: 0, bottom: corner, right: SpacingTokens.xxxs)
+    static func scrollerInsets(top: CGFloat, cornerRadius: CGFloat) -> NSEdgeInsets {
+        NSEdgeInsets(top: max(top, cornerRadius), left: 0, bottom: cornerRadius, right: SpacingTokens.xxxs)
     }
 
     func updateNSView(_ nsView: ObjectBrowserTreeContainerView, context: Context) {
-        nsView.scrollView.scrollerInsets = Self.scrollerInsets(top: topScrollerInset)
+        nsView.scrollView.scrollerInsets = Self.scrollerInsets(top: topScrollerInset, cornerRadius: cornerRadius)
+        nsView.cornerRadius = cornerRadius
         context.coordinator.rowContent = rowContent
         context.coordinator.onExpansionChanged = onExpansionChanged
         context.coordinator.onActivation = onActivation
@@ -599,6 +602,15 @@ final class ObjectBrowserTreeContainerView: NSView {
     let scrollView: NSScrollView
     private let cardLayer: ObjectBrowserCardLayerView
 
+    var cornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius {
+        didSet {
+            guard oldValue != cornerRadius else { return }
+            scrollView.layer?.cornerRadius = cornerRadius
+            cardLayer.cornerRadius = cornerRadius
+            cardsNeedDisplay()
+        }
+    }
+
     init(scrollView: NSScrollView, tableView: ObjectBrowserTableView) {
         self.scrollView = scrollView
         self.cardLayer = ObjectBrowserCardLayerView(tableView: tableView, scrollView: scrollView)
@@ -647,6 +659,7 @@ final class ObjectBrowserCardLayerView: NSView {
 
     private weak var tableView: ObjectBrowserTableView?
     private weak var scrollView: NSScrollView?
+    var cornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
 
     init(tableView: ObjectBrowserTableView, scrollView: NSScrollView) {
         self.tableView = tableView
@@ -677,7 +690,7 @@ final class ObjectBrowserCardLayerView: NSView {
     }
 
     private func drawCard(in rect: NSRect) {
-        let radius = min(LayoutTokens.Workspace.cardCornerRadius, rect.height / 2)
+        let radius = min(cornerRadius, rect.height / 2)
         let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
         let token = ShadowTokens.workspaceCard
 

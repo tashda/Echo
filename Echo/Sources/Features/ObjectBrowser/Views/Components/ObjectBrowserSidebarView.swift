@@ -8,6 +8,7 @@ struct ObjectBrowserSidebarView: View {
     @Environment(EnvironmentState.self) var environmentState
     @Environment(NavigationStore.self) var navigationStore
     @Environment(\.openWindow) var openWindow
+    @Environment(\.workspaceCardCornerRadius) private var cardCornerRadius
 
     @State var viewModel = ObjectBrowserSidebarViewModel()
     @State var sheetState = SidebarSheetState()
@@ -60,6 +61,7 @@ struct ObjectBrowserSidebarView: View {
                     selectedNodeID: viewModel.selectedNodeID,
                     density: projectStore.globalSettings.sidebarDensity,
                     topScrollerInset: SpacingTokens.none,
+                    cornerRadius: cardCornerRadius,
                     rowContent: { node, isExpanded, outlineLevel, outlineOffset, onActivate in
                         AnyView(
                             ObjectBrowserRowView(

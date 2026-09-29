@@ -44,6 +44,32 @@ enum WorkspaceGutter: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Corner radius of every card in the window: tree cards, editor, results, welcome and server
+/// page. The default matches the macOS 27 window corner (Design/06-tokens.md).
+enum WorkspaceCornerRadius: String, Codable, CaseIterable, Sendable {
+    case tight, small, standard, round, extraRound
+
+    var displayName: String {
+        switch self {
+        case .tight: return "10 pt"
+        case .small: return "12 pt"
+        case .standard: return "16 pt (Default)"
+        case .round: return "20 pt"
+        case .extraRound: return "26 pt"
+        }
+    }
+
+    var points: CGFloat {
+        switch self {
+        case .tight: return 10
+        case .small: return 12
+        case .standard: return 16
+        case .round: return 20
+        case .extraRound: return 26
+        }
+    }
+}
+
 /// Size of the server monograms in the rail.
 enum RailItemSize: String, Codable, CaseIterable, Sendable {
     case small, medium, large

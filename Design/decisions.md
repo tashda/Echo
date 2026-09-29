@@ -2,6 +2,13 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Corners and tree motion (review round 8, first answers)
+
+Page: https://claude.ai/artifact/XPy7hr8a2BgpXjejFSxUWA
+- **Card corners 16pt by default** (C3), the macOS 27 window corner as measured from the owner's screenshot (about 16pt; my first guess of a 26pt window and 20pt cards was wrong). A Card Corners setting in Appearance offers 10 / 12 / 16 / 20 / 26pt for every card. → 02-layout, 06-tokens
+- **Hiding the tree keeps the bounce, walled off** (M1): everything right of the rail is masked at the rail's edge. **The tree slides left behind the rail** as it fades (M2's motion) instead of shrinking. → 04-motion
+- Still open from round 8: tree cards in SwiftUI (being investigated), the path header, welcome, server page, footer.
+
 ## 2026-09-29 · Tree cards, scrolling and the bottom edge (review rounds 5–7)
 
 Pages: round 5 https://claude.ai/artifact/CZU1FEeERxgrgLLYttJJ1U · round 6 https://claude.ai/artifact/3VqbnxEy4z1ThCnQJt64Ta · round 7 https://claude.ai/artifact/D77uNvnAc3AzGzic7k88PW and https://claude.ai/artifact/RMNCE8fCR7X367ydcyUjZk
