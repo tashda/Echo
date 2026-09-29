@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · The database switcher becomes a system popover
+
+The owner found the status popover's Liquid Glass perfect and the switcher's in-window glass flatter and whiter (glass drawn inside the window samples only the card behind it and has no window shadow). Rather than an AppKit panel to mimic a popover without its arrow, the owner chose SwiftUI's own `.popover`, accepting the arrow, "and not fight it, as it will cause different theming issues". The card keeps its filter, list and keyboard; the popover handles closing. Replaces L2/A2. → 05-components › Results card, Floating cards
+
 ## 2026-09-29 · Round 11 corrected: T1 with two-line tabs and icons
 
 The owner meant **T1 (Safari)**, not T2, together with T7's two lines, and from round 12 **L2's icon**; no more lab rounds for the tab bar. The glass tab bar: inactive tabs have no fill, full-strength titles and hairline dividers; the active tab is a raised white pill; every tab shows its kind's icon (a spinner while running) and two lines, the title over the database (the timer while running). The bar is 10pt taller. Classic stays as the fallback. Supersedes the T2 entry below. → 05-components

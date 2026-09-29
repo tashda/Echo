@@ -67,13 +67,12 @@ struct BottomPanelStatusBarConfiguration {
 
 /// The footer at the bottom of every tab's card (Design/05-components.md › Results card, FT1a).
 /// No strip and no divider: the server and database float as a glass chip at the leading edge
-/// (click it and the database switcher rises above it), the result views sit in their own glass
+/// (click it for the database switcher, in a popover), the result views sit in their own glass
 /// pill right beside it, and the status, row count and duration are quiet text at the trailing edge.
 struct BottomPanelStatusBar: View {
     let configuration: BottomPanelStatusBarConfiguration
 
     @Environment(\.echoMotion) private var motion
-    @State private var switcherClosedAt: Date?
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
@@ -105,26 +104,18 @@ struct BottomPanelStatusBar: View {
         configuration.showDatabasePicker?.wrappedValue ?? false
     }
 
-    private static let reopenGuard: TimeInterval = 0.3
-
     private func setSwitcherOpen(_ isOpen: Bool) {
-        if !isOpen { switcherClosedAt = Date() }
         withAnimation(motion.standard) {
             configuration.showDatabasePicker?.wrappedValue = isOpen
         }
     }
 
-    /// The server · database chip. Clicking it opens the database switcher as a glass card
-    /// floating just above the chip, which stays in place, and the card rises into view (round 10,
-    /// L2 and A2). A click on the chip while it's open closes it.
+    /// The server · database chip. Clicking it opens the database switcher in a system popover
+    /// above the chip: the popover brings the system's Liquid Glass, theming and dismissal
+    /// (click outside, Esc), so the card only holds the filter and the list.
     private var connectionChip: some View {
         Button {
-            // A click on the chip while the card is open is also a click outside the card, which
-            // has just closed it; don't reopen it straight away.
-            if let closedAt = switcherClosedAt, Date().timeIntervalSince(closedAt) < Self.reopenGuard {
-                return
-            }
-            setSwitcherOpen(!isSwitcherOpen)
+            setSwitcherOpen(true)
         } label: {
             chipLabel
         }
@@ -133,8 +124,8 @@ struct BottomPanelStatusBar: View {
         .disabled(!canSwitchDatabase)
         .help(canSwitchDatabase ? "Switch Database" : connectionText)
         .accessibilityLabel(connectionText)
-        .overlay(alignment: .bottomLeading) {
-            if isSwitcherOpen, let databases = configuration.availableDatabases {
+        .popover(isPresented: configuration.showDatabasePicker ?? .constant(false), arrowEdge: .top) {
+            if let databases = configuration.availableDatabases {
                 DatabaseSwitcherCard(
                     databases: databases,
                     currentDatabase: configuration.databaseName,
@@ -144,16 +135,9 @@ struct BottomPanelStatusBar: View {
                         configuration.onSwitchDatabase?(selected)
                     },
                     onDismiss: { setSwitcherOpen(false) },
-                    showsChipLabel: false
+                    showsChipLabel: false,
+                    handlesDismissal: false
                 )
-                // Glass on a shape behind the card, so the filter field isn't hosted inside glass
-                // (a text field in glass sends AppKit's key-view walk into an endless loop).
-                .background {
-                    Color.clear
-                        .glassEffect(.regular, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.cornerRadius))
-                }
-                .padding(.bottom, LayoutTokens.Footer.chipHeight + LayoutTokens.Footer.switcherGap)
-                .transition(.offset(y: LayoutTokens.Footer.switcherRise).combined(with: .opacity))
             }
         }
     }

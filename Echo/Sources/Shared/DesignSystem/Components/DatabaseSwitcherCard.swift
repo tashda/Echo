@@ -6,7 +6,7 @@ import AppKit
 /// the top, the databases, and the chip's own label at the bottom where the chip was. Type to
 /// narrow the list, use the arrow keys and Return, or click. Esc or a click outside closes it.
 ///
-/// The glass comes from the footer, so the chip's glass can morph into this card's.
+/// The glass comes from where it's shown: the footer presents it in a system popover.
 struct DatabaseSwitcherCard: View {
     let databases: [String]
     let currentDatabase: String?
@@ -17,6 +17,8 @@ struct DatabaseSwitcherCard: View {
     var showsChipLabel = true
     /// A heading above the filter, such as the server's name.
     var title: String? = nil
+    /// Close on Esc and on clicks outside the card itself. Off inside a popover, which does it.
+    var handlesDismissal = true
 
     @State private var filter = ""
     @State private var highlighted: String?
@@ -49,7 +51,7 @@ struct DatabaseSwitcherCard: View {
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { cardFrame = $0 }
         .onAppear {
             highlighted = currentDatabase
-            installEventMonitor()
+            if handlesDismissal { installEventMonitor() }
             // After the card is on screen, or the editor keeps the keyboard.
             Task { @MainActor in isFilterFocused = true }
         }

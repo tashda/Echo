@@ -128,7 +128,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - No Export button in the footer. *Decided.*
 - **Query errors:** shown in the results card with the message, line and a "Show in editor" button, with Messages one click away. They are also recorded in notification history. When the failing tab isn't the one on screen, a toast points to it. *Decided.*
 - **One footer, in the results card.** A single footer holds everything:
-  - on the left, the server · database as a **glass chip** (no chevron). Clicking it opens a **glass card with a filter field floating just above the chip**, which stays visible; the card rises a little as it fades in; no arrow; Esc, a click outside or another click on the chip closes it (round 9, DB1; round 10, L2 and A2). "Switch database" is also in the ⌘K palette (DB3);
+  - on the left, the server · database as a **glass chip** (no chevron). Clicking it opens the database switcher (a filter field and the databases) in a **system popover above the chip**, with its arrow: the popover's own Liquid Glass, theming and dismissal, rather than glass drawn in the window (owner, after round 10). "Switch database" is also in the ⌘K palette (DB3);
   - right beside it, the result views (Results, Messages, Plan…) as **one glass pill** of icons (moved from the middle after the first build);
   - on the right, **a glass pill per entry**: the status, the selection summary, rows loaded of total, and the duration (round 10).
 
@@ -164,7 +164,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Floating cards
 
 - Drawn by Echo inside the window, in glass, with no arrow. They grow out of the button that opened them. *Decided.*
-- **Autocomplete keeps today's system popover**, arrow included. It is the one exception to arrowless cards. *Decided.* No borderless panel windows are planned.
+- **Autocomplete and the database switcher use the system popover**, arrow included: its glass is the system's own and it themes itself. They are the exceptions to arrowless cards. *Decided.* No borderless panel windows are planned.
 - Close on a click outside or Esc; no pinning. *Decided.*
 - Sizes: small 260, medium 320 and large 420pt wide. 12pt padding, 18pt corners, 28pt rows with 10pt corners, and the same hover and selected fills as the tree. *Leaning.*
 - Keep system popovers only where an arrow is genuinely useful. System popovers are no longer the default. *Decided.*
