@@ -44,6 +44,7 @@ struct LabQuestion: Identifiable {
 }
 
 enum DesignLabPage: String, CaseIterable, Identifiable {
+    case round11 = "Round 11 · tab bar"
     case round10 = "Round 10 · decided"
     case round9 = "Round 9 · decided"
     case window = "Window · canvas and cards"
@@ -57,7 +58,8 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
-        case .round10: "checklist"
+        case .round11: "rectangle.topthird.inset.filled"
+        case .round10: "checkmark.circle"
         case .round9: "checkmark.circle"
         case .window: "macwindow"
         case .rail: "circle.grid.3x3"
@@ -70,6 +72,7 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var intro: String {
         switch self {
+        case .round11: "The tab bar, again: today's glass capsule feels weaker than the old strip, with inactive tabs too light. Every design below is live: click tabs, hover them for the close button, press +. Query 2 is running. Pick one, or combine: say which in the note."
         case .round10: "Decided in round 10: a pill per entry on the footer's right, and the database switcher as a card above the pill that rises in. Kept as a reference."
         case .round9: "Decided in round 9: FB1 soft blur, FP1 lift 4pt, SB3 no tree scroll bar, TB1 glass tab bar. Kept as a reference."
         case .window: "The whole window in miniature. Use the controls above the mock window to switch each option; the mock responds live."
@@ -83,6 +86,10 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var questions: [LabQuestion] {
         switch self {
+        case .round11:
+            [
+                LabQuestion(id: "round11.tabs", title: "The tab bar", howTo: "Try each design below; say in the note what to combine.", options: LabTabDesign.allCases.filter { !$0.isReference }.map { String($0.rawValue.prefix(2)) } + ["Classic"]),
+            ]
         case .round10:
             []
         case .round9:
@@ -141,7 +148,7 @@ final class DesignLabAnswers {
 // MARK: - Root
 
 private struct DesignLabRootView: View {
-    @State private var page: DesignLabPage = .round10
+    @State private var page: DesignLabPage = .round11
     @State private var answers = DesignLabAnswers()
     @State private var copied = false
 
@@ -217,6 +224,7 @@ private struct DesignLabRootView: View {
     @ViewBuilder
     private var playground: some View {
         switch page {
+        case .round11: LabRound11Playground()
         case .round10: LabRound10Playground()
         case .round9: LabRound9Playground()
         case .window: LabWindowPlayground()
