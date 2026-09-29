@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 struct SQLEditorDisplayOptions: Codable, Equatable {
     var showLineNumbers: Bool
@@ -12,6 +13,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var liveValidationEnabled: Bool
     /// Subtle (numbers only) or tinted (a faint column with an edge).
     var gutterStyle: EditorGutterStyle
+    /// Settings › Appearance › Card Corners; the EchoSense popup follows it (capped).
+    var cardCornerRadius: CGFloat
 
     init(
         showLineNumbers: Bool = true,
@@ -23,7 +26,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         qualifyTableCompletions: Bool = false,
         showSystemSchemasInCompletion: Bool = false,
         liveValidationEnabled: Bool = true,
-        gutterStyle: EditorGutterStyle = .subtle
+        gutterStyle: EditorGutterStyle = .subtle,
+        cardCornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
     ) {
         self.showLineNumbers = showLineNumbers
         self.highlightSelectedSymbol = highlightSelectedSymbol
@@ -35,6 +39,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.showSystemSchemasInCompletion = showSystemSchemasInCompletion
         self.liveValidationEnabled = liveValidationEnabled
         self.gutterStyle = gutterStyle
+        self.cardCornerRadius = cardCornerRadius
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -48,6 +53,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case showSystemSchemasInCompletion
         case liveValidationEnabled
         case gutterStyle
+        case cardCornerRadius
     }
 
     init(from decoder: Decoder) throws {
@@ -62,6 +68,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         showSystemSchemasInCompletion = try container.decodeIfPresent(Bool.self, forKey: .showSystemSchemasInCompletion) ?? false
         liveValidationEnabled = try container.decodeIfPresent(Bool.self, forKey: .liveValidationEnabled) ?? true
         gutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .gutterStyle)) ?? .subtle
+        cardCornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .cardCornerRadius) ?? LayoutTokens.Workspace.cardCornerRadius
     }
 
     func encode(to encoder: Encoder) throws {
@@ -76,5 +83,6 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(showSystemSchemasInCompletion, forKey: .showSystemSchemasInCompletion)
         try container.encode(liveValidationEnabled, forKey: .liveValidationEnabled)
         try container.encode(gutterStyle, forKey: .gutterStyle)
+        try container.encode(cardCornerRadius, forKey: .cardCornerRadius)
     }
 }

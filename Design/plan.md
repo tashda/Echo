@@ -246,11 +246,11 @@ Rules: `05-components` › EchoSense. Ranking and the 78 scenarios in `AUTOCOMPL
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| P1 | **Rows (ES1):** kind badge, name in the editor font with the typed letters in bold accent (ESR1, ESR2), the alias or table for columns and always for same-named ones (ESR3), the type on the right. | `AutoCompletionListView` | Matches Round 14 · EchoSense 👁 | ☐ |
-| P2 | **Details footer (ES4):** replaces the side panel and its 1 s delay (ESR6): full name, type, source and detail, key hints; an inset rounded panel, concentric with the popup. | `AutoCompletionDetailView` → footer | No timer; footer follows the selection | ☐ |
-| P3 | **Tint, then solid (ESR4):** tinted while typing, solid once the selection moves with ↑/↓. | Controller + list | Typing resets to tint | ☐ |
-| P4 | **Material and corners (ESR5):** card fill, card edge, floating shadow; the corner follows Card Corners, capped at 14pt; rows use it minus the padding. | List view | No hard-coded white | ☐ |
-| P5 | **Ghost text (ES3)** as a setting, off by default: the top match inline in grey, Tab accepts. | Controller, EchoSense settings | Setting toggles it | ☐ |
+| P1 | **Rows (ES1):** kind badge, name in the editor font with the typed letters in bold accent (ESR1, ESR2), the alias or table for columns and always for same-named ones (ESR3), the type on the right. | `AutoCompletionListView` | Matches Round 14 · EchoSense 👁 | ☑ built, 👁 pending |
+| P2 | **Details footer (ES4):** replaces the side panel and its 1 s delay (ESR6): full name, type, source, nullability and keys (EchoSense `columnFacts`, e10f0ee), key hints; an inset rounded panel, concentric with the popup. | `AutoCompletionDetailView` → footer | No timer; footer follows the selection | ☑ built, 👁 pending |
+| P3 | **Tint, then solid (ESR4):** tinted while typing, solid once the selection moves with ↑/↓. | Controller + list | Typing resets to tint | ☑ built, 👁 pending |
+| P4 | **Material and corners (ESR5):** card fill, card edge, floating shadow; the corner follows Card Corners, capped at 14pt; rows use it minus the padding. | List view | No hard-coded white | ☑ built, 👁 pending |
+| P5 | **Ghost text (ES3)** as a setting, off by default: the top match inline in grey, Tab accepts. | Controller, EchoSense settings | Setting toggles it | ☐ Not started: ghost text was removed from the editor earlier and needs drawing again |
 
 ## Phase 13 · Connections
 

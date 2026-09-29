@@ -1,139 +1,73 @@
 import SwiftUI
 import EchoSense
-#if os(macOS)
 import AppKit
-#else
-import UIKit
-#endif
 
+/// Shows EchoSense's suggestions under the caret in a borderless panel and handles the keys the
+/// editor forwards while it is open.
 @MainActor
 final class SQLAutoCompletionController {
     weak var textView: SQLTextView?
 
-    let popover: NSPopover
-#if os(macOS)
-    var hostingController: NSHostingController<AutoCompletionListView>?
-#else
-    var hostingController: UIHostingController<AutoCompletionListView>?
-#endif
+    let panel = SQLCompletionPanel()
+    var hostingView: NSHostingView<AutoCompletionListView>?
     var flatSuggestions: [SQLAutoCompletionSuggestion] = []
     var selectedIndex: Int = 0
+    /// True once the selection moved with the arrow keys; typing sets it back (ESR4).
+    var isChoosing = false
     var lastQuery: SQLAutoCompletionQuery?
     var lastResponse: SQLCompletionResponse?
-    var detailResetToken = UUID()
-
-    let minWidth: CGFloat = 200
-    let maxWidth: CGFloat = 420
-    let maxHeight: CGFloat = 260
+    var anchorRange: NSRange?
+    var dismissalMonitor: Any?
+    var dismissalObservers: [NSObjectProtocol] = []
 
     init(textView: SQLTextView) {
         self.textView = textView
-        self.popover = NSPopover()
-        popover.behavior = .transient
-        popover.animates = false
-        popover.appearance = textView.effectiveAppearance
+        panel.appearance = textView.effectiveAppearance
     }
 
-    deinit {
-        // Avoid calling main-actor isolated AppKit APIs from deinit,
-        // which runs in a nonisolated context under Swift Concurrency.
-        // Popover will be torn down automatically when deallocated.
-    }
-
-    private var isVisible: Bool { popover.isShown && !flatSuggestions.isEmpty }
+    private var isVisible: Bool { panel.isVisible && !flatSuggestions.isEmpty }
 
     var isPresenting: Bool { isVisible }
 
     func present(suggestions: [SQLAutoCompletionSuggestion], query: SQLAutoCompletionQuery) {
-        guard let textView else {
-            hide()
-            return
-        }
-
-        let appearance = textView.window?.effectiveAppearance ?? textView.effectiveAppearance
-        popover.appearance = appearance
-        hostingController?.view.appearance = appearance
-
-        let previousID = selectedSuggestion?.id
-        flatSuggestions = suggestions
-        guard !flatSuggestions.isEmpty else {
-            hide()
-            return
-        }
-
         lastQuery = query
-
-        if let previousID, let index = flatSuggestions.firstIndex(where: { $0.id == previousID }) {
-            selectedIndex = index
-        } else {
-            selectedIndex = 0
-        }
-
-        let shouldResetDetail = !popover.isShown
-        if shouldResetDetail {
-            detailResetToken = UUID()
-        }
-
-        updatePopoverContent()
-
-        guard textView.window != nil,
-              let caretRect = caretRectForQuery(query) else {
-            hide()
-            return
-        }
-
-        popover.show(relativeTo: caretRect, of: textView, preferredEdge: .maxY)
+        show(suggestions, replacementRange: query.replacementRange)
     }
 
     func present(suggestions: [SQLAutoCompletionSuggestion], response: SQLCompletionResponse) {
-        guard let textView else {
+        lastResponse = response
+        show(suggestions, replacementRange: response.replacementRange)
+    }
+
+    private func show(_ suggestions: [SQLAutoCompletionSuggestion], replacementRange: NSRange) {
+        guard let textView, textView.window != nil, !suggestions.isEmpty else {
             hide()
             return
         }
-
-        let appearance = textView.window?.effectiveAppearance ?? textView.effectiveAppearance
-        popover.appearance = appearance
-        hostingController?.view.appearance = appearance
+        panel.appearance = textView.window?.effectiveAppearance ?? textView.effectiveAppearance
 
         let previousID = selectedSuggestion?.id
         flatSuggestions = suggestions
-        guard !flatSuggestions.isEmpty else {
+        selectedIndex = previousID.flatMap { id in flatSuggestions.firstIndex { $0.id == id } } ?? 0
+        isChoosing = false
+        anchorRange = replacementRange
+
+        updatePanelContent()
+        guard positionPanel() else {
             hide()
             return
         }
-
-        lastResponse = response
-
-        if let previousID, let index = flatSuggestions.firstIndex(where: { $0.id == previousID }) {
-            selectedIndex = index
-        } else {
-            selectedIndex = 0
-        }
-
-        let shouldResetDetail = !popover.isShown
-        if shouldResetDetail {
-            detailResetToken = UUID()
-        }
-
-        updatePopoverContent()
-
-        guard textView.window != nil,
-              let caretRect = caretRectForResponse(response) else {
-            hide()
-            return
-        }
-
-        popover.show(relativeTo: caretRect, of: textView, preferredEdge: .maxY)
+        attachPanel()
     }
 
     func hide() {
         flatSuggestions.removeAll(keepingCapacity: false)
         lastQuery = nil
         lastResponse = nil
+        anchorRange = nil
         selectedIndex = 0
-        if popover.isShown {
-            popover.performClose(nil)
-        }
+        isChoosing = false
+        detachPanel()
     }
 
     func handleKeyDown(_ event: NSEvent) -> Bool {
@@ -147,10 +81,10 @@ final class SQLAutoCompletionController {
             moveSelection(-1)
             return true
         case 121: // page down
-            pageSelection(1)
+            moveSelection(LayoutTokens.EchoSense.visibleRows)
             return true
         case 116: // page up
-            pageSelection(-1)
+            moveSelection(-LayoutTokens.EchoSense.visibleRows)
             return true
         case 53: // escape
             hide()
@@ -188,13 +122,9 @@ final class SQLAutoCompletionController {
         let count = flatSuggestions.count
         let newIndex = (selectedIndex + delta) % count
         selectedIndex = newIndex >= 0 ? newIndex : newIndex + count
-        updatePopoverContent()
-    }
-
-    private func pageSelection(_ direction: Int) {
-        guard !flatSuggestions.isEmpty else { return }
-        let pageSize = 8
-        moveSelection(direction > 0 ? pageSize : -pageSize)
+        isChoosing = true
+        updatePanelContent()
+        _ = positionPanel()
     }
 
     func accept(_ suggestion: SQLAutoCompletionSuggestion) {

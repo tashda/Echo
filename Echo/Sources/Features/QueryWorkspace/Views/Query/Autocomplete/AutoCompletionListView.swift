@@ -1,168 +1,80 @@
 import SwiftUI
+import AppKit
 import EchoSense
 
+/// The EchoSense popup (Design/05-components › EchoSense): rows, then the details footer, on the
+/// card material. Its corner follows Settings › Appearance › Card Corners, capped so the rows and
+/// footer inside keep concentric corners. The window around it draws the shadow.
 struct AutoCompletionListView: View {
     let suggestions: [SQLAutoCompletionSuggestion]
     let selectedID: String?
-    let onSelect: @Sendable (SQLAutoCompletionSuggestion) -> Void
-    let detailResetID: UUID
+    /// True once the selection moved with the arrow keys (ESR4): the row turns solid.
+    let isChoosing: Bool
+    let typed: String
+    let nameFont: NSFont
+    let cardCornerRadius: CGFloat
     let statusMessage: String?
+    let onSelect: @MainActor (SQLAutoCompletionSuggestion) -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var isDetailVisible = false
-    @State private var detailWorkItem: DispatchWorkItem?
-    @State private var detailUnlocked = false
-
-    private enum Layout {
-        static let rowCornerRadius: CGFloat = ShapeTokens.CornerRadius.large
-        static let detailWidth: CGFloat = 200
-        static let containerCornerRadius: CGFloat = ShapeTokens.CornerRadius.medium
-        static let horizontalPadding: CGFloat = SpacingTokens.xxs1
-        static let verticalPadding: CGFloat = SpacingTokens.xxs1
-        static let containerSpacing: CGFloat = 0
-        static let detailRevealDelay: TimeInterval = 1.0
-        static let rowHorizontalPadding: CGFloat = SpacingTokens.xs
-        static let rowIconSpacing: CGFloat = SpacingTokens.xxs2
-        static let rowIconSize: CGFloat = 14
-        static let minListWidth: CGFloat = 220
-    }
+    private var cornerRadius: CGFloat { LayoutTokens.EchoSense.cornerRadius(cardCornerRadius: cardCornerRadius) }
+    private var innerRadius: CGFloat { LayoutTokens.EchoSense.rowCornerRadius(cardCornerRadius: cardCornerRadius) }
+    private var font: Font { Font(nameFont) }
 
     private var selectedSuggestion: SQLAutoCompletionSuggestion? {
         guard let selectedID else { return nil }
         return suggestions.first { $0.id == selectedID }
     }
 
-    private var shouldDisplayDetail: Bool {
-        guard let suggestion = selectedSuggestion, isDetailVisible else { return false }
-        if let path = suggestion.displayObjectPath, !path.isEmpty { return true }
-        if suggestion.kind == .column, let type = suggestion.dataType, !type.isEmpty { return true }
-        return suggestion.serverDisplayName != nil
-    }
-
-    private var listWidth: CGFloat {
-        let titleWidth = suggestions.map { ($0.title as NSString).size(withAttributes: [.font: TypographyTokens.AppKit.standard]).width }.max() ?? 0
-        return max(Layout.minListWidth, Layout.rowHorizontalPadding * 2 + Layout.rowIconSize + Layout.rowIconSpacing + titleWidth)
+    /// Wide enough for the longest name plus its badge, chip and type, within the popup's limits.
+    var preferredWidth: CGFloat {
+        let widest = suggestions.map { suggestion -> CGFloat in
+            let name = (suggestion.nameAndQualifier.name as NSString).size(withAttributes: [.font: nameFont]).width
+            let chip = suggestion.nameAndQualifier.qualifier.map { ($0 as NSString).size(withAttributes: [.font: TypographyTokens.AppKit.detail]).width + LayoutTokens.EchoSense.chipHorizontalPadding * 2 + LayoutTokens.EchoSense.rowSpacing } ?? 0
+            let trailing = suggestion.trailingText.map { ($0 as NSString).size(withAttributes: [.font: TypographyTokens.AppKit.detail]).width + LayoutTokens.EchoSense.rowSpacing } ?? 0
+            return name + chip + trailing
+        }.max() ?? 0
+        let chrome = LayoutTokens.EchoSense.padding * 2 + LayoutTokens.EchoSense.rowHorizontalPadding * 2
+            + LayoutTokens.EchoSense.badgeSize + LayoutTokens.EchoSense.rowSpacing * 2
+        return min(LayoutTokens.EchoSense.maxWidth, max(LayoutTokens.EchoSense.minWidth, ceil(widest + chrome)))
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                if let statusMessage {
-                    Text(statusMessage)
-                        .font(TypographyTokens.detail.weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                        .padding(.horizontal, Layout.rowHorizontalPadding)
-                }
-                listView
+        VStack(alignment: .leading, spacing: LayoutTokens.EchoSense.padding) {
+            if let statusMessage {
+                Text(statusMessage)
+                    .font(TypographyTokens.detail.weight(.medium))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .padding(.horizontal, LayoutTokens.EchoSense.rowHorizontalPadding)
+                    .padding(.top, SpacingTokens.xxs)
             }
-            .padding(.horizontal, Layout.horizontalPadding)
-            .padding(.vertical, Layout.verticalPadding)
-            if shouldDisplayDetail, let suggestion = selectedSuggestion {
-                Divider()
-                AutoCompletionDetailView(suggestion: suggestion).frame(width: Layout.detailWidth, alignment: .leading).transition(.move(edge: .trailing).combined(with: .opacity)).id(suggestion.id)
+            rows
+            if let selectedSuggestion {
+                AutoCompletionDetailFooter(suggestion: selectedSuggestion, nameFont: font, cornerRadius: innerRadius)
             }
         }
-        .background(backgroundMaterial).overlay(borderOverlay).id(detailResetID)
-        .onAppear { scheduleDetailReveal(forceReset: true) }
-        .onChange(of: selectedID) { _, _ in scheduleDetailReveal(forceReset: false) }
-        .onDisappear { cancelDetailReveal() }
+        .padding(LayoutTokens.EchoSense.padding)
+        .frame(width: preferredWidth, alignment: .leading)
+        .background(ColorTokens.EchoSense.background, in: .rect(cornerRadius: cornerRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .strokeBorder(ColorTokens.EchoSense.edge.opacity(LayoutTokens.Workspace.cardEdgeOpacity), lineWidth: LayoutTokens.Workspace.cardEdgeWidth))
+        .clipShape(.rect(cornerRadius: cornerRadius, style: .continuous))
     }
 
-    private var listView: some View {
+    private var rows: some View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
+                VStack(spacing: SpacingTokens.none) {
                     ForEach(suggestions) { suggestion in
-                        AutoCompletionRowView(suggestion: suggestion, isSelected: suggestion.id == selectedID) { onSelect(suggestion) }
-                            .id(suggestion.id)
+                        AutoCompletionRowView(
+                            suggestion: suggestion, typed: typed, isSelected: suggestion.id == selectedID,
+                            isChoosing: isChoosing, nameFont: font, cornerRadius: innerRadius
+                        ) { onSelect(suggestion) }
+                        .id(suggestion.id)
                     }
                 }
             }
-            .frame(minWidth: listWidth, idealWidth: listWidth)
-            .onChange(of: selectedID) { _, _ in if let selectedID { proxy.scrollTo(selectedID, anchor: .center) } }
+            .frame(height: LayoutTokens.EchoSense.rowHeight * CGFloat(min(suggestions.count, LayoutTokens.EchoSense.visibleRows)))
+            .onChange(of: selectedID) { _, id in if let id { proxy.scrollTo(id) } }
         }
-    }
-
-    @ViewBuilder private var backgroundMaterial: some View {
-#if os(macOS)
-        Color.clear
-#else
-        RoundedRectangle(cornerRadius: Layout.containerCornerRadius, style: .continuous).fill(Color.white.opacity(colorScheme == .dark ? 0.2 : 0.95))
-#endif
-    }
-
-    @ViewBuilder private var borderOverlay: some View {
-#if !os(macOS)
-        RoundedRectangle(cornerRadius: Layout.containerCornerRadius, style: .continuous).stroke(Color.black.opacity(0.1), lineWidth: 1)
-#else
-        EmptyView()
-#endif
-    }
-
-    private func scheduleDetailReveal(forceReset: Bool) {
-        detailWorkItem?.cancel()
-        if forceReset { detailUnlocked = false; isDetailVisible = false }
-        else if detailUnlocked { isDetailVisible = selectedSuggestion != nil; return }
-        guard !detailUnlocked, selectedSuggestion != nil else { return }
-        let workItem = DispatchWorkItem { detailUnlocked = true; withAnimation(.easeOut(duration: 0.2)) { isDetailVisible = true } }
-        detailWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + Layout.detailRevealDelay, execute: workItem)
-    }
-
-    private func cancelDetailReveal() { detailWorkItem?.cancel(); detailWorkItem = nil; isDetailVisible = false; detailUnlocked = false }
-}
-
-struct AutoCompletionRowView: View {
-    let suggestion: SQLAutoCompletionSuggestion
-    let isSelected: Bool
-    let action: () -> Void
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: SpacingTokens.xxs2) {
-                Image(systemName: suggestion.kind.iconSystemName)
-                    .font(TypographyTokens.standard.weight(.medium))
-                    .foregroundStyle(isSelected ? activeIconColor : .secondary)
-                    .frame(width: 14)
-                Text(suggestion.title)
-                    .font(TypographyTokens.standard)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundStyle(isSelected ? activeTitleColor : .primary)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, SpacingTokens.xs)
-            .padding(.vertical, SpacingTokens.xxs)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .background(rowBackground)
-    }
-
-    private var activeIconColor: Color {
-#if os(macOS)
-        return Color(nsColor: .selectedMenuItemTextColor)
-#else
-        return .white
-#endif
-    }
-
-    private var activeTitleColor: Color {
-#if os(macOS)
-        return Color(nsColor: .selectedMenuItemTextColor)
-#else
-        return .white
-#endif
-    }
-
-    private var rowBackground: some View {
-        guard isSelected else { return AnyView(EmptyView()) }
-#if os(macOS)
-        return AnyView(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.large, style: .continuous).fill(Color(nsColor: .controlAccentColor)))
-#else
-        return AnyView(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.large, style: .continuous).fill(ColorTokens.accent.opacity(colorScheme == .dark ? 0.32 : 0.22)))
-#endif
     }
 }

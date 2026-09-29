@@ -207,7 +207,7 @@ Decided 2026-09-30.
 ## Floating cards
 
 - Drawn by Echo inside the window, in glass, with no arrow. They grow out of the button that opened them. *Decided.*
-- **Autocomplete and the database switcher use the system popover**, arrow included: its glass is the system's own and it themes itself. They are the exceptions to arrowless cards. *Decided.* No borderless panel windows are planned.
+- **The database switcher uses the system popover**, arrow included: its glass is the system's own and it themes itself. It is the exception to arrowless cards. *Decided.* **Autocomplete no longer does** (2026-09-30, ESR5): it is a borderless panel with the card material whose corner follows Card Corners, so it can match the editor card. *Decided.*
 - Close on a click outside or Esc; no pinning. *Decided.*
 - Sizes: small 260, medium 320 and large 420pt wide. 12pt padding, 18pt corners, 28pt rows with 10pt corners, and the same hover and selected fills as the tree. *Leaning.*
 - Keep system popovers only where an arrow is genuinely useful. System popovers are no longer the default. *Decided.*

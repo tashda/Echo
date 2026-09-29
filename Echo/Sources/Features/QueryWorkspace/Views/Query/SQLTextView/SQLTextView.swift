@@ -141,7 +141,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero); scheduleHighlighting(after: 0)
         if displayOptions.highlightSelectedSymbol { scheduleSymbolHighlights(for: currentSelectionDescriptor(), immediate: true) }
-        completionController?.popover.appearance = effectiveAppearance
+        completionController?.panel.appearance = effectiveAppearance
     }
 
     override func viewDidMoveToWindow() {
