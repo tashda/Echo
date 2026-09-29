@@ -32,7 +32,7 @@ Each rule carries one of these markers:
 
 ## Design Lab
 
-`Echo/Sources/Features/DesignLab/` holds interactive SwiftUI previews (debug builds only) for every Open and Leaning item. Open a file and use Xcode's canvas. The lab is where options are judged on the real rendering before they enter the app.
+`Echo/Sources/Features/DesignLab/` holds interactive playgrounds (debug builds only) for every Open and Leaning item. Run a debug build and choose **Help › Design Lab**, or open a lab file and use Xcode's canvas. The lab is where options are judged on the real rendering before they enter the app.
 
 ## Where this came from
 
