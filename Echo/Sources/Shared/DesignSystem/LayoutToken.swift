@@ -73,6 +73,10 @@ public enum LayoutTokens {
         public static let segmentWidth: CGFloat = 28
         /// How far the footer sits above its card's bottom edge beyond its own padding (round 9, FP1).
         public static let bottomLift: CGFloat = SpacingTokens.xxs
+        /// Space between the chip and the database switcher floating above it (round 10, L2).
+        public static let switcherGap: CGFloat = SpacingTokens.xs
+        /// How far the switcher rises as it appears (round 10, A2).
+        public static let switcherRise: CGFloat = SpacingTokens.sm
         /// Tallest the database switcher's list grows before it scrolls.
         public static let switcherListMaxHeight: CGFloat = 280
     }

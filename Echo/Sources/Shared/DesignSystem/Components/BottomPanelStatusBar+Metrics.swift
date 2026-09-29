@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// How the footer's right-hand side is drawn: quiet text on the blur (today), all of it in one
-/// glass pill, or a glass pill per entry. Round 10 compares them in the Design Lab.
+/// How the footer's right-hand side is drawn: quiet text on the blur, all of it in one glass
+/// pill, or a glass pill per entry (the default, round 10).
 enum FooterMetricsStyle: String, CaseIterable, Identifiable, Sendable {
     case text = "Text"
     case onePill = "One pill"

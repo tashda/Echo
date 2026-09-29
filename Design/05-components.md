@@ -132,13 +132,13 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - No Export button in the footer. *Decided.*
 - **Query errors:** shown in the results card with the message, line and a "Show in editor" button, with Messages one click away. They are also recorded in notification history. When the failing tab isn't the one on screen, a toast points to it. *Decided.*
 - **One footer, in the results card.** A single footer holds everything:
-  - on the left, the server · database as a **glass chip** (no chevron). Clicking it **grows the chip upward into a glass list with a filter field** at the top, no arrow; Esc or a click outside shrinks it back (round 9, DB1). "Switch database" is also in the ⌘K palette (DB3);
+  - on the left, the server · database as a **glass chip** (no chevron). Clicking it opens a **glass card with a filter field floating just above the chip**, which stays visible; the card rises a little as it fades in; no arrow; Esc, a click outside or another click on the chip closes it (round 9, DB1; round 10, L2 and A2). "Switch database" is also in the ⌘K palette (DB3);
   - right beside it, the result views (Results, Messages, Plan…) as **one glass pill** of icons (moved from the middle after the first build);
-  - on the right, as quiet text: the status, rows loaded of total, the selection summary and the duration.
+  - on the right, **a glass pill per entry**: the status, the selection summary, rows loaded of total, and the duration (round 10).
 
   No strip, no divider (round 8, FT1a).
 
-  The footer floats over the bottom of its card, lifted 4pt (round 9, FP1), with the content scrolling under a soft blur and a light tint (FB1). Whether the right-hand text becomes a pill (or a pill per entry) is *Open* (round 10).
+  The footer floats over the bottom of its card, lifted 4pt (round 9, FP1), with the content scrolling under a soft blur and a light tint (FB1).
 
   The window-wide bottom status bar goes away. While no results are shown, the editor card shows a slim version with just the picker and status. *Decided.*
 

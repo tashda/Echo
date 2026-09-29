@@ -2,6 +2,13 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Round 10, Design Lab answers
+
+Lab page "Round 10 · footer and switcher" (owner's answers, pasted in chat):
+- **Footer right-hand side: a glass pill per entry** (status, selection summary, rows, time), the same size as the server · database chip. `FooterMetricsStyle.pillPerEntry` is the default. → 05-components
+- **Database switcher: L2, a card floating above the chip**, which stays visible; no chip label inside the card. → 05-components
+- **Opening: A2, the card rises** a little while fading in, with the house spring. It replaces the frame morph. → 04-motion, 05-components
+
 ## 2026-09-29 · Round 9 decided in the Design Lab
 
 Lab page "Round 9 · open questions" (owner's answers, pasted in chat):

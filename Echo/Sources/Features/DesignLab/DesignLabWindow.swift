@@ -44,7 +44,7 @@ struct LabQuestion: Identifiable {
 }
 
 enum DesignLabPage: String, CaseIterable, Identifiable {
-    case round10 = "Round 10 · footer and switcher"
+    case round10 = "Round 10 · decided"
     case round9 = "Round 9 · decided"
     case window = "Window · canvas and cards"
     case rail = "Server rail"
@@ -70,7 +70,7 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var intro: String {
         switch self {
-        case .round10: "The footer's right-hand side (you picked FB1 and FP1; those are the defaults here), and the database switcher's card and opening. The switcher is Echo's real card; the layouts and openings are the options."
+        case .round10: "Decided in round 10: a pill per entry on the footer's right, and the database switcher as a card above the pill that rises in. Kept as a reference."
         case .round9: "Decided in round 9: FB1 soft blur, FP1 lift 4pt, SB3 no tree scroll bar, TB1 glass tab bar. Kept as a reference."
         case .window: "The whole window in miniature. Use the controls above the mock window to switch each option; the mock responds live."
         case .rail: "The server rail on its own. Click servers to see the selection move."
@@ -84,11 +84,7 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
     var questions: [LabQuestion] {
         switch self {
         case .round10:
-            [
-                LabQuestion(id: "round10.footerRight", title: "The footer's right-hand side", howTo: "Switch Right side; the sample shows a selection summary, rows and time.", options: FooterMetricsStyle.allCases.map(\.rawValue)),
-                LabQuestion(id: "round10.switcherLook", title: "The database switcher's card", howTo: "Switch Layout and click the pill; type to filter, Esc to close.", options: LabSwitcherLook.allCases.map(\.rawValue)),
-                LabQuestion(id: "round10.switcherMotion", title: "How the card opens from the pill", howTo: "Switch Opening and click the pill a few times.", options: LabSwitcherMotion.allCases.map(\.rawValue)),
-            ]
+            []
         case .round9:
             []
         case .window, .rail, .tree, .results, .floating, .inspector:
