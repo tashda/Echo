@@ -117,12 +117,20 @@ Rules: `05-components` › Results card.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| R1 | **Cells:** numbers and dates right-aligned with tabular digits, booleans as ✓/✗, monospaced setting. NULL stays italic text. | `ResultTableDataCellView`, bridge | Matches the lab 👁 | ☐ |
-| R2 | **Header:** name + type line; a sort arrow on hover that sorts; clicking elsewhere selects the column. SF chevrons replace the Touch Bar images. | `ResultTableHeaderCell/View` | Matches the lab 👁 | ☐ |
-| R3 | **Selection:** one outline per range, a ring on the active cell, row numbers in accent. | `ResultTableRowView`, `ResultTableView` | No seams in multi-row selections | ☐ |
-| R4 | **Row hover:** a faint rounded tint, and the row number turns accent. | Table + row number view | Smooth while scrolling | ☐ |
-| R5 | **One footer in the results card.** Left: the server › database picker (colour dot, chevron, search field in the picker) and the pane switcher. Right: rows loaded of total (`RowProgress.materialized` of `totalReported`), the selection summary, the duration and the status. Remove the window-wide status bar. The editor card shows a slim footer (picker + status) while there are no results. | `QueryPanelStatusBar`, `BottomPanelStatusBar` | Only one footer on screen; the picker is clearly clickable 👁 | ☐ |
-| R6 | Feed extra result sets through the main grid and retire `AdditionalResultSetTableView`. | Results section | All result sets look and behave the same | ☐ |
+| R1 | **Cells:** numbers and dates right-aligned with tabular digits, booleans as ✓/✗, monospaced setting. NULL stays italic text. | `ResultTableDataCellView`, bridge | Matches the lab 👁 | ☑ f4e19a5, 👁 pending |
+| R2 | **Header:** name + type line; a sort arrow on hover that sorts; clicking elsewhere selects the column. SF chevrons replace the Touch Bar images. | `ResultTableHeaderCell/View` | Matches the lab 👁 | ☑ 1bf5a72, 👁 pending |
+| R3 | **Selection:** one outline per range, a ring on the active cell, row numbers in accent. | `ResultTableRowView`, `ResultTableView` | No seams in multi-row selections | ☑ c9f823e, 👁 pending |
+| R4 | **Row hover:** a faint rounded tint, and the row number turns accent. | Table + row number view | Smooth while scrolling | ☑ c9f823e, 👁 pending |
+| R5 | **One footer in the results card.** Left: the server › database picker (colour dot, chevron, search field in the picker) and the pane switcher. Right: rows loaded of total (`RowProgress.materialized` of `totalReported`), the selection summary, the duration and the status. Remove the window-wide status bar. The editor card shows a slim footer (picker + status) while there are no results. | `QueryPanelStatusBar`, `BottomPanelStatusBar` | Only one footer on screen; the picker is clearly clickable 👁 | ☑ c8f4808, 👁 pending |
+| R6 | Feed extra result sets through the main grid and retire `AdditionalResultSetTableView`. | Results section | All result sets look and behave the same | ☑ e4efb70 |
+
+### Notes from building it (Phase 5)
+
+- **Cells (R1):** `ResultCellPresentation` holds the rules; only the display changes, copy and export read raw values. The "Monospaced cells" setting reaches the grid through `QueryResultsTableView.monospacedCells` and is part of the palette signature, so toggling it refreshes the cells.
+- **Header (R2):** `ResultTableHeaderCell` draws the name, the type line and the SF chevron itself; `ResultTableHeaderView` tracks hover and turns a click on the arrow into `Coordinator.cycleSort` (ascending, descending, none). The header is `ResultsGridMetrics.headerHeight` (36) tall.
+- **Selection and hover (R3, R4):** rows stroke an open outline so ranges have no seams; the anchor cell gets a ring when the range has more than one cell. Hover uses the tree's hover fill; selected and hovered row numbers turn accent through `ResultTableContainerView.setAccentRows`.
+- **Footer (R5):** "12K of 1.2M" while streaming, and a selection summary (`GridSelectionSummary`, capped at 50,000 cells). There was no window-wide status bar left to remove.
+- **Extra result sets (R6):** `QueryEditorState.additionalResultState(at:)` and `AdditionalResultSetGrid`; each set sorts on its own.
 
 ## Phase 6 · Toolbar and search
 
