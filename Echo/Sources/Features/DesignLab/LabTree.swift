@@ -107,7 +107,9 @@ struct LabTreeView: View {
     private func anchorID(_ server: LabServer) -> String { "\(server.id).anchor" }
 
     private func rowIDs(_ server: LabServer) -> [String] {
-        (LabTree.databases[server.id] ?? []).flatMap { [$0.id] + $0.tables.map { table in "\($0.id).\(table)" } }
+        (LabTree.databases[server.id] ?? []).flatMap { database in
+            [database.id] + database.tables.map { table in "\(database.id).\(table)" }
+        }
     }
 
     @ViewBuilder
