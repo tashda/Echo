@@ -44,6 +44,11 @@ struct LabQuestion: Identifiable {
 }
 
 enum DesignLabPage: String, CaseIterable, Identifiable {
+    case round14Tabs = "Round 14 · tab bar and pages"
+    case round14Dock = "Round 14 · section dock"
+    case round14Connections = "Round 14 · connections"
+    case round14Sense = "Round 14 · EchoSense selection"
+    case round13 = "Tab bar · new directions"
     case treeCard = "Tree card · decided"
     case round12 = "Round 12 · decided"
     case round11 = "Round 11 · decided"
@@ -60,6 +65,11 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .round14Tabs: "rectangle.topthird.inset.filled"
+        case .round14Dock: "square.grid.3x1.below.line.grid.1x2"
+        case .round14Connections: "externaldrive.connected.to.line.below"
+        case .round14Sense: "text.badge.star"
+        case .round13: "rectangle.topthird.inset.filled"
         case .treeCard: "checkmark.circle"
         case .round12: "rectangle.topthird.inset.filled"
         case .round11: "checkmark.circle"
@@ -76,7 +86,12 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var intro: String {
         switch self {
-        case .treeCard: "Decided: S1 Tahoe, colourful icons in the Vivid palette, dimmed schema prefix, server folders as sections, and tree blueprints. Kept as a reference. The content of the server cards, redrawn six ways beside today's. The card itself stays as it is. Every tree is live and they share one state: click folders to open them, hover rows, click to select. The controls above the trees apply to all of them: icon mode (every style has colourful and monochrome), palette, how schema names show, and whether server folders are folders or headings."
+        case .round14Tabs: "The Maybes from the design board, drawn with SwiftUI on the real canvas and card tokens. Top: R9 Today, N1R and N7, each with the ST1 drawer that slides out under Activity Monitor. Bottom: one window where you pick how a tool's pages open (ST1, ST2, ST3, ST5 or TT6) and in which bar style. Click tabs, pages and +, hover to close; Query 2 is running. Try light, dark and Increase Contrast."
+        case .round14Dock: "TC1 from the design board: an icon row under the server name switches what the card shows (Databases, Security, Agent, Management, More). The dock stays pinned while the rows scroll under it with the system's scroll edge effect, and every section remembers its scroll position and open folders. Left: duotone icons (IC2, the new default); right: mono (IC1, the setting). SF Symbols stand in until the Recraft set exists."
+        case .round14Connections: "CN5 from the design board: adding and editing a connection happens in Manage Connections' detail pane, with CN2's fields as a native grouped form. Select a connection and edit it in place; + adds a new one with the same form; Save with an empty server shows the inline message (CR1); the port shows the engine's default (CR2); Security and timeouts fold into one line and remember it (CR7); Test reports next to the buttons (CR4)."
+        case .round14Sense: "ESR4 and ESR5 from the design board, in a small editor you can type in. Rows follow ES1 (letter badge, name in the editor font with your letters highlighted, alias, type) and ES4 (the details footer as an inset rounded panel). Compare the three selection styles, and change Card Corners to see the popup follow the Appearance setting."
+        case .round13: "Three new single-line tab bars, shown against the tree and editor cards. Click tabs and +, and hover a tab to close it. These are proposals only; choosing one does not change Echo's current tab bar."
+        case .treeCard: "Decided: S4 Quiet, colourful icons in the Vivid palette, dimmed schema prefix, server folders as folders, and tree blueprints. Kept as a reference. The content of the server cards, redrawn six ways beside the original tree. The card itself stays as it is. Every tree is live and they share one state: click folders to open them, hover rows, click to select. The controls above the trees apply to all of them: icon mode (every style has colourful and monochrome), palette, how schema names show, and whether server folders are folders or headings."
         case .round12: "Two-line versions of T2 (round 11's pick). Every design is live: click tabs, hover for the close button, press +. Query 2 is running, so its second line is a timer."
         case .round11: "Decided in round 11: T2 filled tabs. Kept as a reference. The tab bar, again: today's glass capsule feels weaker than the old strip, with inactive tabs too light. Every design below is live: click tabs, hover them for the close button, press +. Query 2 is running. Pick one, or combine: say which in the note."
         case .round10: "Decided in round 10: a pill per entry on the footer's right, and the database switcher as a card above the pill that rises in. Kept as a reference."
@@ -92,6 +107,26 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var questions: [LabQuestion] {
         switch self {
+        case .round14Tabs:
+            [
+                LabQuestion(id: "round14-bar-style", title: "Which tab bar?", howTo: "Compare the three windows at the top against the tree and editor cards, in light and dark.", options: LabRound14BarStyle.allCases.map(\.rawValue)),
+                LabQuestion(id: "round14-page-style", title: "How should a tool's pages open?", howTo: "In the bottom window, switch Pages and Bar, then move between Activity Monitor and Query 2.", options: LabRound14PageStyle.allCases.map(\.rawValue)),
+            ]
+        case .round14Dock:
+            [
+                LabQuestion(id: "round14-dock", title: "Section dock", howTo: "Scroll Databases, open and close folders, switch to Agent and back. Does it keep your place, and does the pinned dock read well?", options: ["Accept", "Refine", "Reject"]),
+                LabQuestion(id: "round14-dock-labels", title: "Dock buttons", howTo: "Switch Dock between Icons only and Icons + current title.", options: LabDockLabels.allCases.map(\.rawValue)),
+                LabQuestion(id: "round14-dock-edge", title: "Edge under the dock", howTo: "Scroll rows under the dock with Soft and Hard edge.", options: LabDockEdge.allCases.map(\.rawValue)),
+            ]
+        case .round14Connections:
+            [LabQuestion(id: "round14-cn5", title: "Edit inside Manage Connections", howTo: "Select connections, change fields, press Save with the server empty, press +, press Test.", options: ["Accept", "Refine", "Reject"])]
+        case .round14Sense:
+            [
+                LabQuestion(id: "round14-esr4", title: "Selected suggestion", howTo: "Type on line 1, then press ↓ and ↑, in each Selection style.", options: LabSenseSelection.allCases.map(\.rawValue)),
+                LabQuestion(id: "round14-esr5", title: "Popup corners", howTo: "Switch Card Corners from 10 to 26 in each Popup corners mode.", options: LabSenseCorners.allCases.map(\.rawValue)),
+            ]
+        case .round13:
+            [LabQuestion(id: "round13-tab-direction", title: "Which direction feels at home in Echo?", howTo: "Compare the selected tab against the editor card, then try switching and adding tabs. Add any combination or adjustment in the note.", options: LabNewTabDesign.allCases.map(\.rawValue))]
         case .treeCard:
             []
         case .round12:
@@ -232,6 +267,11 @@ private struct DesignLabRootView: View {
     @ViewBuilder
     private var playground: some View {
         switch page {
+        case .round14Tabs: LabRound14TabsPlayground()
+        case .round14Dock: LabRound14DockPlayground()
+        case .round14Connections: LabRound14ManageConnections().padding(SpacingTokens.md)
+        case .round14Sense: LabRound14SensePlayground()
+        case .round13: LabRound13Playground()
         case .treeCard: LabTreeCardPlayground()
         case .round12: LabRound12Playground()
         case .round11: LabRound11Playground()
