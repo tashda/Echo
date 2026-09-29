@@ -21,11 +21,6 @@ struct ObjectBrowserSidebarView: View {
         environmentState.pendingConnections
     }
 
-    /// Height of a server header row, which the pinned card header and its blur cover exactly.
-    private var pinnedHeaderHeight: CGFloat {
-        ObjectBrowserOutlineView.baseRowHeight(for: projectStore.globalSettings.sidebarDensity)
-            + ObjectBrowserNode.Row.serverHeaderExtraHeight
-    }
 
     var body: some View {
         let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
@@ -107,37 +102,12 @@ struct ObjectBrowserSidebarView: View {
                         }
                         railBridge?.topVisibleContext = context
                     },
-                    pinnedHeaderHeight: railBridge != nil && projectStore.globalSettings.sidebarShowsPinnedPath
-                        ? pinnedHeaderHeight
-                        : nil,
                     showsScrollBar: projectStore.globalSettings.sidebarShowsScrollBar
                 )
                 .background(Color.clear)
                 // Not clipped: the server cards' shadows reach past the tree's edges. The scroll
                 // view clips the rows to the cards' rounded corners itself.
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .overlay(alignment: .top) {
-                    if let railBridge {
-                        ExplorerPinnedPathOverlay(
-                            bridge: railBridge,
-                            headerHeight: pinnedHeaderHeight,
-                            isEnabled: projectStore.globalSettings.sidebarShowsPinnedPath,
-                            sessions: sessions,
-                            onScrollToServer: { connectionID in
-                                reveal(nodeID: visibleConnectionRootNodeID(for: connectionID))
-                            },
-                            onScrollToDatabase: { connectionID, databaseName in
-                                reveal(nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(
-                                    connectionID: connectionID,
-                                    databaseName: databaseName
-                                ))
-                            },
-                            onCollapseOtherDatabases: { session, databaseName in
-                                collapseOtherDatabases(of: session, keeping: databaseName)
-                            }
-                        )
-                    }
-                }
             }
         }
         .environment(sheetState)
@@ -267,20 +237,6 @@ struct ObjectBrowserSidebarView: View {
     private func reveal(nodeID: String) {
         viewModel.revealedNodeID = nodeID
         viewModel.revealRequestID &+= 1
-    }
-
-    /// Folds every other open database on the server and brings the kept one back into view.
-    private func collapseOtherDatabases(of session: ConnectionSession, keeping databaseName: String) {
-        let connectionID = session.connection.id
-        let otherDatabaseIDs = (session.databaseStructure?.databases ?? [])
-            .map(\.name)
-            .filter { $0 != databaseName }
-            .map { ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: connectionID, databaseName: $0) }
-        viewModel.expandedNodeIDs.subtract(otherDatabaseIDs)
-        reveal(nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(
-            connectionID: connectionID,
-            databaseName: databaseName
-        ))
     }
 
     /// The rail's context menus are the same ones the server rows use, so they are built here

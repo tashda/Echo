@@ -49,8 +49,8 @@ struct LabFooterStage: View {
                     LabAppKitGrid(
                         isDrifting: isDrifting,
                         bottomInset: backing == .today ? 0 : footerZone,
-                        blurHeight: backing == .soft ? footerZone + LayoutTokens.Workspace.pinnedHeaderFade : footerZone,
-                        blurRadii: backing == .soft ? LayoutTokens.Workspace.pinnedHeaderBlurRadii : backing == .hard ? [12] : []
+                        blurHeight: backing == .soft ? footerZone + LayoutTokens.EdgeBlur.fade : footerZone,
+                        blurRadii: backing == .soft ? LayoutTokens.EdgeBlur.radii : backing == .hard ? [12] : []
                     )
                         .padding(.bottom, backing == .today ? footerZone : 0)
                     backingView
@@ -76,10 +76,10 @@ struct LabFooterStage: View {
             // The blur itself sits inside the grid (`blurRadii`); this is the light tint over it.
             ZStack(alignment: .bottom) {
                 Color(nsColor: .textBackgroundColor)
-                    .opacity(LayoutTokens.Workspace.pinnedHeaderTintOpacity)
+                    .opacity(LayoutTokens.EdgeBlur.tintOpacity)
                     .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom))
             }
-            .frame(height: footerZone + LayoutTokens.Workspace.pinnedHeaderFade)
+            .frame(height: footerZone + LayoutTokens.EdgeBlur.fade)
             .allowsHitTesting(false)
         case .hard:
             ZStack(alignment: .top) {

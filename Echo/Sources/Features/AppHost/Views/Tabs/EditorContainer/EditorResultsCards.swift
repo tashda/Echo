@@ -11,7 +11,9 @@ extension EnvironmentValues {
 ///
 /// - The editor sits in the same place in the view tree whether results show or not, so it
 ///   keeps its scroll position, undo and focus (plan E1).
-/// - The results card rises from the bottom while the editor card shrinks (E2).
+/// - The results grow up out of the footer (round 10, RS2): the footer detaches from the editor
+///   card as a footer-high results card, then the seam travels up to the split line while the
+///   rows fade in. Closing runs it backwards.
 /// - The gap between the cards resizes them, shows a grab capsule on hover, and a double-click
 ///   maximises the results, leaving a one-line editor card (E3).
 /// - The footer lives in the results card, or in the editor card while there are no results.
@@ -28,7 +30,13 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(\.echoMotion) private var motion
 
-    private var showsResults: Bool { panelState.isOpen || isResultsOnly }
+    /// Follows `panelState.isOpen`, but stays true while the results close, so they can fold back
+    /// into the footer before they go.
+    @State private var displaysResults = false
+    /// 0 while the results card is only the footer, 1 once it reaches the split line.
+    @State private var openProgress: CGFloat = 1
+
+    private var showsResults: Bool { displaysResults || isResultsOnly }
 
     var body: some View {
         let gutter = projectStore.globalSettings.workspaceGutter.points
@@ -49,13 +57,39 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
                         )
                     }
                     resultsCard
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .coordinateSpace(.named(EditorResultsCardGap.coordinateSpace))
         }
-        .animation(motion.standard, value: panelState.isOpen)
         .animation(motion.standard, value: panelState.isResultsMaximized)
+        .onAppear {
+            displaysResults = panelState.isOpen
+            openProgress = 1
+        }
+        .onChange(of: panelState.isOpen) { _, isOpen in
+            isOpen ? growResults() : foldResults()
+        }
+    }
+
+    /// The footer detaches first (no animation), then the results grow up out of it.
+    private func growResults() {
+        var instant = Transaction()
+        instant.disablesAnimations = true
+        withTransaction(instant) {
+            displaysResults = true
+            openProgress = 0
+        }
+        Task { @MainActor in
+            withAnimation(motion.standard) { openProgress = 1 }
+        }
+    }
+
+    private func foldResults() {
+        withAnimation(motion.settle, completionCriteria: .logicallyComplete) {
+            openProgress = 0
+        } completion: {
+            if !panelState.isOpen { displaysResults = false }
+        }
     }
 
     /// The footer floats over the bottom of whichever card holds it, with the content scrolling
@@ -79,6 +113,7 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
             results()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                .opacity(Double(openProgress))
                 .environment(\.cardFooterOverlayHeight, footerZone)
             footerOverlay
         }
@@ -91,9 +126,9 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
             .padding(.bottom, LayoutTokens.Footer.bottomLift)
             .background(alignment: .bottom) {
                 ColorTokens.Workspace.card
-                    .opacity(LayoutTokens.Workspace.pinnedHeaderTintOpacity)
+                    .opacity(LayoutTokens.EdgeBlur.tintOpacity)
                     .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom))
-                    .frame(height: footerZone + LayoutTokens.Workspace.pinnedHeaderFade)
+                    .frame(height: footerZone + LayoutTokens.EdgeBlur.fade)
                     .allowsHitTesting(false)
             }
     }
@@ -101,6 +136,12 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
     // MARK: - Sizing
 
     private func editorHeight(total: CGFloat, gutter: CGFloat) -> CGFloat {
+        // While the results grow, the editor card ends a gutter above a footer-high results card.
+        let aboveFooter = max(total - gutter - footerZone, LayoutTokens.Workspace.collapsedEditorHeight)
+        return aboveFooter + (splitEditorHeight(total: total, gutter: gutter) - aboveFooter) * openProgress
+    }
+
+    private func splitEditorHeight(total: CGFloat, gutter: CGFloat) -> CGFloat {
         if panelState.isResultsMaximized {
             return LayoutTokens.Workspace.collapsedEditorHeight
         }

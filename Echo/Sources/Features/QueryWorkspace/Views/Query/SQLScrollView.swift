@@ -22,8 +22,8 @@ final class SQLScrollView: NSScrollView {
         scrollerInsets.bottom = height
         footerBlur.update(
             edge: .bottom,
-            height: height > 0 ? height + LayoutTokens.Workspace.pinnedHeaderFade : 0,
-            radii: height > 0 ? LayoutTokens.Workspace.pinnedHeaderBlurRadii : []
+            height: height > 0 ? height + LayoutTokens.EdgeBlur.fade : 0,
+            radii: height > 0 ? LayoutTokens.EdgeBlur.radii : []
         )
     }
     var completionContext: SQLEditorCompletionContext? {

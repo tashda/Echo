@@ -18,11 +18,10 @@ struct SidebarSettingsView: View {
             }
 
             Section {
-                Toggle("Pin server and database while scrolling", isOn: pinnedPathToggle)
                 Toggle("Show empty folders", isOn: emptyFoldersToggle)
                 Toggle("Show scroll bar", isOn: scrollBarToggle)
             } footer: {
-                Text("Pinning shows the server and database you are scrolled into at the top of the Explorer. Empty folders such as Views or Functions with nothing in them are hidden unless shown here. The scroll bar is hidden unless shown here; the rail shows which server you're in.")
+                Text("Empty folders such as Views or Functions with nothing in them are hidden unless shown here. The scroll bar is hidden unless shown here; the rail shows which server you're in.")
             }
 
             Section {
@@ -103,17 +102,6 @@ struct SidebarSettingsView: View {
             set: { enabled in
                 var updated = settings
                 updated.sidebarShowsScrollBar = enabled
-                Task { try? await projectStore.updateGlobalSettings(updated) }
-            }
-        )
-    }
-
-    private var pinnedPathToggle: Binding<Bool> {
-        Binding(
-            get: { settings.sidebarShowsPinnedPath },
-            set: { enabled in
-                var updated = settings
-                updated.sidebarShowsPinnedPath = enabled
                 Task { try? await projectStore.updateGlobalSettings(updated) }
             }
         )

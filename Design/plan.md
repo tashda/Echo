@@ -64,7 +64,7 @@ Rules: `05-components` › Explorer tree.
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
 | T1 | **Tree on server cards:** one opaque card per server (built early, see Phase 1 notes), 12pt indent, server header flush left inside its card. | `SidebarRow`, row view, `ObjectBrowserTableView` | Matches review round 4, option B 👁 | ☑ 938efea (12pt indent; cards, glass header and rounded end earlier), 👁 pending. Stress fixture not built, see notes |
-| T2 | **Sticky server header with breadcrumb.** The bold 13pt header pins at the top over a soft fade (no band) and shows "› database" for the database you're in. Either `floatsGroupRows` with group rows, or an overlay driven by the existing top-visible tracking. Replaces `ExplorerPinnedPathBar`. | Outline view, row view | Pins and updates while scrolling, with no rebuild of the tree on scroll 👁 | ☑ b74ac43 (pinned header, as changed by rounds 6–9: soft real blur instead of glass), 👁 pending |
+| T2 | ~~**Sticky server header with breadcrumb.**~~ Removed in round 10 (P1). The bold 13pt header pins at the top over a soft fade (no band) and shows "› database" for the database you're in. Either `floatsGroupRows` with group rows, or an overlay driven by the existing top-visible tracking. Replaces `ExplorerPinnedPathBar`. | Outline view, row view | Pins and updates while scrolling, with no rebuild of the tree on scroll 👁 | ☑ b74ac43 (pinned header, as changed by rounds 6–9: soft real blur instead of glass), 👁 pending |
 | T3 | **Icon modes.** Colourful uses today's colours softened, keyed by an enum rather than title strings. Monochrome has two variants: accent on open folders (default) and pure. | `ExplorerRowModels.swift`, `ColorToken.swift` | All three look right in light and dark 👁 | ☑ 938efea, 👁 pending. Colours still keyed by title strings, see notes |
 | T4 | **Loading:** shimmer rows at the child indent, crossfading into the real rows. Replaces "Expand to load objects…". | Snapshot + row view | Shows while loading, and stops with Reduce Motion | ☑ 08bc0c74, 👁 pending |
 | T5 | **Expand motion:** the native slide and fade, with duration from the motion helper. | Outline view | Speed setting changes it | ☑ d5faf78 (built with the SwiftUI tree: `motion.expand`, scaled by the speed setting) |
@@ -166,13 +166,15 @@ Rules: `03-materials`, `05-components` › Notifications, Floating cards.
 
 ## Phase 9 · Inspector
 
-Round 10 reopens this phase: the native column feels off next to the canvas and cards, and notifications are leaving it. The direction (IN1–IN4 on the round 10 page) is chosen before building; the tasks below get rewritten then.
+Rules: `05-components` › Inspector. Round 10 chose IN1: the inspector becomes a column of cards on the canvas, mirroring the tree, instead of the native inspector column. Notifications leave it first (N-tasks).
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| I1 | One section style and a single 12pt padding across all panels (as in `LabInspector.swift`). | `InfoSidebar/*` | 👁 | ☐ |
-| I2 | Row-detail mode: every column of the selected result row. | Inspector + grid selection | Selecting a row fills it | ☐ |
-| I3 | One smooth width change instead of `InspectorSplitViewConfigurator`'s stepped calls; keep the chosen tab. | `WorkspaceView+SplitView.swift` | No visible stepping | ☐ |
+| I1 | **Canvas column.** Replace `.inspector(isPresented:)` with a trailing column in `WorkspaceShell`: same gutter as the tree, its own resize edge (the tree's handle mirrored), and the tree's show/hide motion. ⌥⌘I and the toolbar button keep working. | `WorkspaceShell`, `WorkspaceView` | No native inspector chrome left; width is kept 👁 | ☐ |
+| I2 | **Section cards.** One card component for every section: a header (icon, title, actions) and rows with the label left and a selectable value right; long values wrap; one 12pt padding. Port object details, foreign-key records (nested related records as their own cards), cell value, JSON, job history and SQL help onto it. | `InfoSidebar/*` → new `InspectorCard` | Every content kind renders on cards 👁 | ☐ |
+| I3 | **Width.** JSON widens the column with one smooth spring instead of `InspectorSplitViewConfigurator`'s stepped calls, and returns to the chosen width after. | Shell | No visible stepping | ☐ |
+| I4 | **Row detail.** Selecting a result row shows all its columns as a card. | Inspector + grid selection | Selecting a row fills it | ☐ |
+| I5 | Remove the notifications tab and `InspectorTabSelector` once N-tasks move history to the bell; delete the native inspector plumbing. | `InfoSidebar/*`, `WorkspaceView` | Nothing links to them | ☐ |
 
 ## Phase 10 · Finish
 

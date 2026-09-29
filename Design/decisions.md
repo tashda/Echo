@@ -2,6 +2,13 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Round 10 review page answers
+
+Page: https://claude.ai/artifact/BfUjeUCPDv9rd6cDXzCwEA (collection `round10`)
+- **Results entrance: RS2, the results grow up out of the footer** ("I want it to look like it is the footer that is expanding up"). Rejected RS1 (split in place) and RS3 (crossfade). → 05-components, 04-motion
+- **Pinned path header: P1, removed**, with its blur and its setting. Rejected P2 (only with one server), P3 (blur only), P4 (keep it, off by default). → 05-components
+- **Inspector: IN1, a column of cards on the canvas**, mirroring the tree. Rejected IN2 (floating card), IN3 (inside the results card), IN4 (native, restyled). Phase 9 is rewritten around it. → 05-components, plan Phase 9
+
 ## 2026-09-29 · Round 10, Design Lab answers
 
 Lab page "Round 10 · footer and switcher" (owner's answers, pasted in chat):

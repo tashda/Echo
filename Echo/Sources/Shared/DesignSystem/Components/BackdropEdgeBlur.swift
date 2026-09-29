@@ -6,7 +6,7 @@ import AppKit
 /// It adds a few views whose Core Image background blur grows towards the edge, each masked to
 /// stop a little further from it. A background filter only sees the content of its own
 /// superview, so the views go straight into the container, above the AppKit view they blur.
-/// SwiftUI content isn't picked up, which is why the Explorer tree uses `ExplorerTreeEdgeBlur`.
+/// SwiftUI content isn't picked up.
 @MainActor
 final class BackdropEdgeBlur {
     enum Edge { case top, bottom }
@@ -84,7 +84,7 @@ final class BackdropEdgeBlurLayerView: NSView {
         mask.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
         mask.locations = [
             0,
-            NSNumber(value: Double(max(reach - LayoutTokens.Workspace.pinnedHeaderBlurStep, 0))),
+            NSNumber(value: Double(max(reach - LayoutTokens.EdgeBlur.step, 0))),
             NSNumber(value: Double(reach)),
         ]
         // Layer coordinates run bottom-up unless the layer is flipped.

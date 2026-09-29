@@ -16,15 +16,6 @@ public enum LayoutTokens {
         public static let treeMaxWidth: CGFloat = 480
         /// Width of the invisible drag area on the tree's trailing edge.
         public static let treeResizeHandleWidth: CGFloat = 8
-        /// How far the pinned header's blur keeps fading below its text.
-        public static let pinnedHeaderFade: CGFloat = SpacingTokens.md
-        /// Blur radii of the pinned header's progressive blur, from the bottom of the band (where
-        /// it meets the sharp rows) to the top edge.
-        public static let pinnedHeaderBlurRadii: [CGFloat] = [1, 3, 6, 10]
-        /// Share of the band over which each blur step fades into the next.
-        public static let pinnedHeaderBlurStep: CGFloat = 0.3
-        /// Card-coloured tint over the blur, so the pinned header stays readable.
-        public static let pinnedHeaderTintOpacity: Double = 0.35
         /// The editor card's height while the results are maximised: about one line of SQL.
         public static let collapsedEditorHeight: CGFloat = 40
         /// The grab capsule that appears on the gap between the editor and results cards.
@@ -79,6 +70,19 @@ public enum LayoutTokens {
         public static let switcherRise: CGFloat = SpacingTokens.sm
         /// Tallest the database switcher's list grows before it scrolls.
         public static let switcherListMaxHeight: CGFloat = 280
+    }
+
+    /// The soft blur of content passing under floating controls, such as the footer
+    /// (`BackdropEdgeBlur`, round 9 FB1).
+    public enum EdgeBlur {
+        /// How far the blur keeps fading beyond the control it sits under.
+        public static let fade: CGFloat = SpacingTokens.md
+        /// Blur radii from where it meets the sharp content to the edge.
+        public static let radii: [CGFloat] = [1, 3, 6, 10]
+        /// Share of the band over which each blur step fades into the next.
+        public static let step: CGFloat = 0.3
+        /// Card-coloured tint over the blur, so the control on it stays readable.
+        public static let tintOpacity: Double = 0.35
     }
 
     /// The SQL editor's line-number gutter (Design/05-components.md › Editor card).

@@ -39,14 +39,10 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - It is an SSMS/pgAdmin-style tree. *Decided.*
 - **One opaque card per server**, hugging its rows, with exactly the editor card's look: `textBackgroundColor`, 12pt corners, 0.5pt edge, the `workspaceCard` shadow. Cards are one gutter apart (Spacing Between Panes), with 4pt below the last row. Never glass. *Decided* (review rounds 4 and 5).
 - Servers are listed in the rail's order; connecting and failed servers come last, each on its own card. *Decided.*
-- **Glass card header:** when a server's header scrolls away, it pins at the top of its card as a Liquid Glass bar with the card's rounded top corners, showing "server › database"; rows blur through it. *Decided* (round 6).
+- **No pinned header** (round 10, P1): rows scroll to the card's rounded top edge; the rail highlights the server you're scrolled into, and a rail click glides to a server's top. The glass header, its blur and the "Pin server and database" setting are gone. *Decided.* (Replaces round 6's glass card header.)
 - **Rounded end:** the tree stops one gutter above the window edge, on the editor card's bottom line. A card cut by the bottom edge ends in rounded corners with its full shadow. No fades. *Decided* (round 7).
 - **No scroll bar** (round 9, SB3); the rail shows which server you're in. Settings › Sidebar › Show scroll bar brings back the small overlay scroller, inset inside the card corners. *Decided.*
-- **Server header = sticky header:**
-  - The server name is the section header.
-  - When it pins at the top it grows a breadcrumb for the database you're in ("postgres18 › employees"), over a soft fade rather than a band.
-  - One element, two states. *Decided* (accepted in the Design Lab).
-  - Style: **bold 13pt**. Small caps and a two-line header were rejected. *Decided.*
+- **Server header:** the server name heads its card in **bold 13pt** and scrolls with the rows (it no longer pins, round 10). Small caps and a two-line header were rejected. *Decided.*
 - **Selection:** a neutral grey pill; the icon turns accent. *Decided.*
 - **Counts:** plain grey tabular digits at the right; zero is hidden. *Decided.*
 - **Density:** four levels (compact, small, default, large) stay as a setting. *Decided.*
@@ -109,7 +105,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - Subtle (numbers only) or tinted (faint column with an edge) as a setting. *Decided.*
   - Both get current-line emphasis and validation markers (a red dot on failing lines). *Decided.*
   - Fixes that apply either way: one number per logical line, width that grows with digit count, and using the theme's gutter colours. *Decided.*
-- **After the first run**, the results card rises from the bottom while the editor card shrinks. The editor keeps its scroll position, undo and focus. *Decided.*
+- **After the first run, the results grow up out of the footer** (round 10, RS2): the footer detaches from the editor card as a footer-high results card, then the seam travels up to the split line while the rows fade in. The editor keeps its scroll position, undo and focus. *Decided.*
 - **Resizing:** drag the canvas gap between the cards; a grab capsule appears on hover. *Decided.* **Double-click the gap to maximise the results**: the editor shrinks to a one-line card. Double-click again to restore. It is also available as a menu item with a shortcut. *Decided.*
 
 ## Results card
@@ -144,7 +140,8 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 
 ## Inspector
 
-- The native macOS inspector column. *Decided.*
+- **A column of cards on the canvas** (round 10, IN1), mirroring the tree on the trailing side: each section is an opaque workspace card (header with icon, title and actions; label left, selectable value right), one gutter apart, with the tree's resize edge and show/hide motion. The window reads tree · cards · inspector. It replaces the native inspector column. *Decided.* A floating card (IN2), a pane inside the results card (IN3) and the restyled native column (IN4) were rejected.
+- Its one job, once notifications move to the bell: the details of what you pointed at (object details, foreign-key records with related records, cell values, the JSON viewer, Agent job history, SQL keyword help). *Decided.*
 - Fixes: *Decided.*
   - one section style across every panel;
   - one smooth width change instead of today's stepped jumps;
