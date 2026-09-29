@@ -5,7 +5,7 @@ import SwiftUI
 // server card; the card itself is the real `.workspaceCard()`.
 
 enum LabTreeCardStyle: String, CaseIterable, Identifiable {
-    case today = "Today"
+    case today = "Original"
     case tahoe = "S1 Tahoe"
     case tiles = "S2 Tiles"
     case structure = "S3 Structure"
@@ -15,11 +15,11 @@ enum LabTreeCardStyle: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     var isReference: Bool { self == .today }
-    var code: String { isReference ? "Today" : String(rawValue.prefix(2)) }
+    var code: String { isReference ? "Original" : String(rawValue.prefix(2)) }
 
     var summary: String {
         switch self {
-        case .today: "What's in the app now: 11pt grey server name, outline symbols, 10pt chevrons, grey selection, schema prefix on every table."
+        case .today: "The original tree: 11pt grey server name, outline symbols, 10pt chevrons, grey selection, schema prefix on every table."
         case .tahoe: "Finder on macOS 26, refined: hierarchical symbols, lighter 9pt chevrons, 26pt rows, accent-tinted selection, bold 13pt server name with its version."
         case .tiles: "System Settings: every folder gets a small coloured tile with a white glyph, objects keep plain glyphs, counts in soft capsules, a monogram header."
         case .structure: "Xcode and DataGrip: compact 22pt rows with thin indent guides; the guide of the selected branch turns accent, selection is solid accent."
@@ -132,6 +132,6 @@ struct LabTreeLook {
     var icons: LabTreeIconMode = .colorful
     var palette: LabTreePalette = .vivid
     var schema: LabTreeSchemaMode = .prefix
-    var topLevel: LabTreeTopLevel = .sections
+    var topLevel: LabTreeTopLevel = .folders
 }
 #endif

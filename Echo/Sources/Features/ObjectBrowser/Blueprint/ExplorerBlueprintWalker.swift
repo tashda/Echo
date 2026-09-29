@@ -6,7 +6,7 @@ import Foundation
 struct ExplorerBlueprintWalker {
     /// Where in the tree an entry is being built.
     enum Place {
-        /// Directly under the server's name: folders become section headings.
+        /// Directly under the server's name: folders remain tree rows.
         case server
         /// Directly inside a database.
         case database(DatabaseInfo)
@@ -85,8 +85,7 @@ struct ExplorerBlueprintWalker {
             source: source
         )
         let childNodes = nodes(for: children, in: .nested(parentID: id, database: place.database), source: source)
-        let row: ObjectBrowserNode.Row = if case .server = place { .section(folder) } else { .folder(folder) }
-        return [ObjectBrowserNode(id: id, row: row, children: childNodes)]
+        return [ObjectBrowserNode(id: id, row: .folder(folder), children: childNodes)]
     }
 
     /// A folder's loaded items; while they load, a shimmer; when there are none, a line saying so.
@@ -154,7 +153,7 @@ struct ExplorerBlueprintWalker {
         )
         return ObjectBrowserNode(
             id: ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: connectionID),
-            row: .section(folder),
+            row: .folder(folder),
             children: databases.map(databaseNode)
         )
     }

@@ -30,17 +30,16 @@ struct ObjectBrowserOutlineView: View {
 
     /// Row height per density. Inner padding lives inside `SidebarRow`; this is the slot each
     /// row gets, tuned so its content centres without clipping:
-    /// - compact: 12pt icon + 2×3 padding ≈ 19pt → 20
-    /// - small:   14pt icon + 2×4 padding ≈ 22pt → 23
-    /// - medium:  16pt icon + 2×5 padding ≈ 26pt → 27
-    /// - large:   18pt icon + 2×7 padding ≈ 33pt → 34
+    /// - compact: 12pt icon + 2×3 padding ≈ 18pt → 21pt slot
+    /// - small:   14pt icon + 2×4 padding ≈ 22pt → 25pt slot
+    /// - medium:  16pt icon + 2×6 padding = 28pt → 29pt slot
+    /// - large:   18pt icon + 2×7 padding = 32pt → 35pt slot
     static func baseRowHeight(for density: SidebarDensity) -> CGFloat {
         switch density {
-        // Each slot is the row plus about 1pt, so neighbouring highlights never touch (style S1).
-        case .compact: return 20
-        case .small: return 23
-        case .medium: return 27
-        case .large: return 34
+        case .compact: return 21
+        case .small: return 25
+        case .medium: return 29
+        case .large: return 35
         }
     }
 

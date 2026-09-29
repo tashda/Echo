@@ -42,10 +42,12 @@ extension ObjectBrowserRowView {
                 icon: .system(folder.kind.symbol),
                 label: folder.kind.title,
                 isExpanded: isEmptyObjectFolder ? nil : expansionBinding,
+                isSelected: isSelected,
                 iconColor: isEmptyObjectFolder ? ColorTokens.Text.quaternary : explorerIconColor(folder.kind.role.color),
-                labelColor: isEmptyObjectFolder ? ColorTokens.Text.tertiary : ColorTokens.Text.primary
+                labelColor: isEmptyObjectFolder ? ColorTokens.Text.tertiary : ColorTokens.Text.primary,
+                accentColor: resolvedAccentColor(for: folder.session.connection),
+                count: folder.count
             ) {
-                countLabel(folder.count)
                 if folder.isLoading {
                     ProgressView()
                         .controlSize(.mini)
@@ -82,7 +84,7 @@ extension ObjectBrowserRowView {
                 icon: .system(item.symbol ?? row.kind.symbol),
                 label: item.name,
                 isSelected: isSelected,
-                iconColor: item.isDisabled ? ColorTokens.Text.quaternary : explorerIconColor((item.role ?? row.kind.role).color),
+                iconColor: item.isDisabled ? ColorTokens.Text.quaternary : ColorTokens.Text.secondary,
                 labelColor: item.isDisabled ? ColorTokens.Text.secondary : ColorTokens.Text.primary,
                 accentColor: resolvedAccentColor(for: row.session.connection)
             ) {

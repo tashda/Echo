@@ -37,18 +37,12 @@ enum ExplorerColumnMetrics {
     static let spacing: CGFloat = SpacingTokens.xs
 }
 
-/// Shared constants for sidebar row consistency (macOS 26 Tahoe Finder sidebar aesthetic).
-///
-/// Measured from macOS 26 Tahoe Finder sidebar (Medium size):
-/// - 13pt text, 20pt icon frame, ~28pt row height
-/// - 18pt indentation per tree level
-/// - Fixed 16pt disclosure column (always present for alignment)
-/// - Selection pill inset 8pt from sidebar edges, 10pt corner radius
-/// - All icons monochrome secondary gray, Medium visual weight
+/// Shared metrics for the S4 Quiet tree rows.
 enum SidebarRowConstants {
-    /// Chevron font: 9pt bold in the quaternary grey, lighter than the icon beside it (tree style S1).
-    static let chevronFont = TypographyTokens.compact.weight(.bold)
-    /// Fixed-width disclosure column — always present for icon alignment.
+    /// A folder's icon becomes this chevron while the pointer is over its row.
+    static let chevronFont = TypographyTokens.detail.weight(.semibold)
+    static let sectionChevronFont = TypographyTokens.compact.weight(.bold)
+    /// Used by server and section headings, which retain their trailing chevrons.
     static let chevronWidth: CGFloat = SpacingTokens.sm // 12pt
     /// Icon font — Regular weight, renders within 18×16pt frame.
     static let iconFont = Font.system(size: 14, weight: .regular)
@@ -58,8 +52,8 @@ enum SidebarRowConstants {
     static let iconFrameHeight: CGFloat = SpacingTokens.md // 16pt
     /// Legacy square frame — use iconFrameWidth/iconFrameHeight instead.
     static let iconFrame: CGFloat = SpacingTokens.md1 // 18pt (width)
-    /// Spacing between chevron, icon and label (tree style S1).
-    static let iconTextSpacing: CGFloat = SpacingTokens.xxs3 // 7pt
+    /// Space between the single icon slot and label.
+    static let iconTextSpacing: CGFloat = SpacingTokens.xs // 8pt
     /// Primary label font — 11pt Regular (matches Finder sidebar default density).
     static let labelFont = Font.system(size: 11, weight: .regular)
     /// Font for trailing metadata (counts, types, badges) — matches Finder "Detail".
@@ -67,12 +61,12 @@ enum SidebarRowConstants {
     static let trailingFont = TypographyTokens.detail.monospacedDigit()
     /// Section header font (Finder-style: 11pt, bold).
     static let sectionHeaderFont = TypographyTokens.detail.weight(.bold)
-    /// The server's name at the top of its card: bold 13pt (tree style S1).
+    /// The server's name at the top of its card: bold 13pt.
     static let serverHeaderFont = TypographyTokens.standard.weight(.bold)
     /// Server-level section headings (Databases, Security…): 11pt semibold.
     static let sectionHeadingFont = TypographyTokens.detail.weight(.semibold)
-    /// Per-level indentation step — 14pt per tree level (Design/05-components.md › Explorer tree, style S1).
-    static let indentStep: CGFloat = SpacingTokens.sm2 // 14pt
+    /// Per-level indentation step — 16pt per tree level.
+    static let indentStep: CGFloat = SpacingTokens.md
     /// Leading padding inside row content highlight area — 6pt.
     static let rowLeadingPadding: CGFloat = SpacingTokens.xxs2 // 6pt
     /// Trailing padding inside rows — 8pt (Figma: trailing 8).
@@ -81,7 +75,7 @@ enum SidebarRowConstants {
     static let rowVerticalPadding: CGFloat = SpacingTokens.xxs
     /// Outer horizontal padding — selection pill inset from sidebar edges.
     static let rowOuterHorizontalPadding: CGFloat = SpacingTokens.xxs2 // 6pt
-    /// Hover/selection highlight corner radius (tree style S1).
+    /// Hover/selection highlight corner radius.
     static let hoverCornerRadius: CGFloat = LayoutTokens.Workspace.treeRowCornerRadius
     /// Spacing between major sidebar sections.
     static let sectionGroupSpacing: CGFloat = SpacingTokens.xxs

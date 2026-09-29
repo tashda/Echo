@@ -1,11 +1,9 @@
 import SwiftUI
 
 /// Universal sidebar row matching macOS Finder sidebar aesthetics.
-///
 /// All sidebar items use this single component. The `depth` parameter controls
 /// indentation, and `isExpanded` controls the disclosure chevron.
-///
-/// The selection highlight only covers the content area (from chevron to trailing
+/// The selection highlight only covers the content area (from icon to trailing
 /// edge), not the indentation space — matching Finder behavior where deeper items
 /// have narrower highlights. When selected, the icon turns accent blue.
 struct SidebarRow<Trailing: View>: View {
@@ -30,6 +28,7 @@ struct SidebarRow<Trailing: View>: View {
     var labelColor: Color = ColorTokens.Text.primary
     var labelFont: Font = SidebarRowConstants.labelFont
     var accentColor: Color = ColorTokens.accent
+    var count: Int? = nil
     @ViewBuilder var trailing: () -> Trailing
 
     init(
@@ -44,6 +43,7 @@ struct SidebarRow<Trailing: View>: View {
         labelColor: Color = ColorTokens.Text.primary,
         labelFont: Font = SidebarRowConstants.labelFont,
         accentColor: Color = ColorTokens.accent,
+        count: Int? = nil,
         @ViewBuilder trailing: @escaping () -> Trailing
     ) {
         self.depth = depth
@@ -57,75 +57,35 @@ struct SidebarRow<Trailing: View>: View {
         self.labelColor = labelColor
         self.labelFont = labelFont
         self.accentColor = accentColor
+        self.count = count
         self.trailing = trailing
     }
 
-    @Environment(\.sidebarDensity) private var density
+    @Environment(\.sidebarDensity) var density
     @Environment(\.sidebarContextMenuActive) private var isContextMenuActive
-    @Environment(\.colorSchemeContrast) private var contrast
-    @State private var isHovering = false
+    @State var isHovering = false
 
     private var densityVerticalPadding: CGFloat {
         switch density {
         case .compact: return SpacingTokens.nano
         case .small: return SpacingTokens.xxs
-        case .medium: return SpacingTokens.xxs1
+        case .medium: return SpacingTokens.xxs2
         case .large: return SpacingTokens.xxs3
         }
     }
 
-    private var densityIconFrameWidth: CGFloat {
-        switch density {
-        case .compact: return 14
-        case .small: return 16
-        case .medium: return 18
-        case .large: return 20
-        }
-    }
-
-    private var densityIconFrameHeight: CGFloat {
-        switch density {
-        case .compact: return 12
-        case .small: return 14
-        case .medium: return 16
-        case .large: return 18
-        }
-    }
-
-    private var densityIconFont: Font {
-        switch density {
-        case .compact: return TypographyTokens.label
-        case .small: return TypographyTokens.detail
-        case .medium: return TypographyTokens.standard
-        case .large: return Font.system(size: 15, weight: .regular)
-        }
-    }
-
-    private var densityLabelFont: Font {
-        switch density {
-        case .compact: return TypographyTokens.label
-        case .small: return TypographyTokens.detail
-        case .medium: return TypographyTokens.standard
-        case .large: return Font.system(size: 15, weight: .regular)
-        }
-    }
-
-    private var showChevron: Bool { isExpanded != nil }
-    private var expanded: Bool { isExpanded?.wrappedValue ?? false }
+    var showChevron: Bool { isExpanded != nil }
+    var expanded: Bool { isExpanded?.wrappedValue ?? false }
 
     /// Icon color changes to accent when selected (Finder behavior).
-    private var resolvedIconColor: Color {
+    var resolvedIconColor: Color {
         isSelected ? accentColor : iconColor
     }
-
     @ViewBuilder
     private var highlightFill: some View {
         if isSelected {
-            // Tree style S1: the selection is tinted with the row's accent, not grey.
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(accentColor.opacity(contrast == .increased
-                    ? ColorTokens.Sidebar.selectedTintOpacityHighContrast
-                    : ColorTokens.Sidebar.selectedTintOpacity))
+                .fill(ColorTokens.Sidebar.selectedFill)
         } else if isContextMenuActive {
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
                 .fill(ColorTokens.Sidebar.contextFill)
@@ -145,22 +105,8 @@ struct SidebarRow<Trailing: View>: View {
                     .frame(width: CGFloat(depth) * SidebarRowConstants.indentStep)
             }
 
-            // Content — inside the highlight area
+            // Quiet style: one icon slot. A folder's symbol becomes a disclosure on hover.
             HStack(alignment: .center, spacing: SidebarRowConstants.iconTextSpacing) {
-                // Fixed-width disclosure column — always present for icon alignment
-                ZStack(alignment: .center) {
-                    if showChevron {
-                        // One symbol that rotates, like Finder's disclosure triangle, instead of
-                        // swapping between two glyphs.
-                        Image(systemName: "chevron.right")
-                            .font(SidebarRowConstants.chevronFont)
-                            .foregroundStyle(ColorTokens.Text.quaternary)
-                            .rotationEffect(.degrees(expanded ? 90 : 0))
-                            .animation(.snappy(duration: 0.2), value: expanded)
-                    }
-                }
-                .frame(width: SidebarRowConstants.chevronWidth)
-
                 iconView
 
                 if let subtitle {
@@ -177,6 +123,13 @@ struct SidebarRow<Trailing: View>: View {
 
                 Spacer(minLength: SpacingTokens.xxxs)
 
+                if let count, count > 0 {
+                    Text("\(count)")
+                        .font(SidebarRowConstants.trailingFont)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .opacity(isHovering ? 1 : 0)
+                        .accessibilityLabel("\(count) items")
+                }
                 trailing()
             }
             .padding(.leading, SidebarRowConstants.rowLeadingPadding)
@@ -197,6 +150,7 @@ struct SidebarRow<Trailing: View>: View {
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .buttonStyle(.plain)
         .focusable(false)
+        .accessibilityValue(showChevron ? (expanded ? "Expanded" : "Collapsed") : "")
     }
 
     @ViewBuilder
@@ -206,31 +160,7 @@ struct SidebarRow<Trailing: View>: View {
             .lineLimit(1)
     }
 
-    @ViewBuilder
-    private var iconView: some View {
-        switch icon {
-        case .system(let name):
-            Image(systemName: name)
-                .font(densityIconFont)
-                .imageScale(.medium)
-                // Tree style S1: hierarchical symbols in both icon modes.
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(resolvedIconColor)
-                .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
-        case .asset(let name):
-            Image(name)
-                .resizable()
-                .renderingMode(.template)
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(resolvedIconColor)
-                .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
-        case .none:
-            EmptyView()
-        }
-    }
 }
-
-// MARK: - Convenience initializer (no trailing content)
 
 extension SidebarRow where Trailing == EmptyView {
     init(
@@ -257,6 +187,7 @@ extension SidebarRow where Trailing == EmptyView {
         self.labelColor = labelColor
         self.labelFont = labelFont
         self.accentColor = accentColor
+        self.count = nil
         self.trailing = { EmptyView() }
     }
 }

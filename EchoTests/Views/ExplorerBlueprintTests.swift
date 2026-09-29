@@ -25,24 +25,24 @@ struct ExplorerBlueprintTests {
 
     // MARK: - Order per database type
 
-    private func sectionKinds(_ blueprint: ExplorerBlueprint) -> [ExplorerNodeKind] {
+    private func serverFolderKinds(_ blueprint: ExplorerBlueprint) -> [ExplorerNodeKind] {
         blueprint.server.compactMap(\.kind)
     }
 
-    @Test func sqlServerSectionsFollowSSMS() {
-        #expect(sectionKinds(.sqlServer) == [
+    @Test func sqlServerFoldersFollowSSMS() {
+        #expect(serverFolderKinds(.sqlServer) == [
             .databases, .serverSecurity, .databaseSnapshots, .agentJobs, .management,
             .integrationServices, .linkedServers, .serverTriggers,
         ])
     }
 
-    @Test func postgresSectionsAreDatabasesAndSecurity() {
-        #expect(sectionKinds(.postgreSQL) == [.databases, .serverSecurity])
+    @Test func postgresFoldersAreDatabasesAndSecurity() {
+        #expect(serverFolderKinds(.postgreSQL) == [.databases, .serverSecurity])
     }
 
     @Test func mySQLAndSQLiteKeepToolsUnderManagement() {
-        #expect(sectionKinds(.mySQL) == [.databases, .management])
-        #expect(sectionKinds(.sqlite) == [.databases, .management])
+        #expect(serverFolderKinds(.mySQL) == [.databases, .management])
+        #expect(serverFolderKinds(.sqlite) == [.databases, .management])
     }
 
     /// The object folders keep the order the tree had before blueprints.
@@ -117,10 +117,10 @@ struct ExplorerBlueprintTests {
         }
     }
 
-    @Test func serverChildrenAreSectionsInBlueprintOrder() {
+    @Test func serverChildrenAreFoldersInBlueprintOrder() {
         let nodes = build(makeSession(.microsoftSQL), ObjectBrowserSidebarViewModel())
-        #expect(nodes.compactMap { folder($0)?.kind } == sectionKinds(.sqlServer))
-        #expect(nodes.allSatisfy { if case .section = $0.row { true } else { false } })
+        #expect(nodes.compactMap { folder($0)?.kind } == serverFolderKinds(.sqlServer))
+        #expect(nodes.allSatisfy { if case .folder = $0.row { true } else { false } })
         #expect(folder(nodes[0])?.count == 1)
     }
 

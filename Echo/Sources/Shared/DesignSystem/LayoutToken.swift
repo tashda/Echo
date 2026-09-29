@@ -1,6 +1,19 @@
 import SwiftUI
 
 public enum LayoutTokens {
+    /// Dimensions for the single-line tab proposals in the debug Design Lab.
+    public enum TabProposals {
+        public static let previewWidth: CGFloat = 920
+        public static let treeWidth: CGFloat = 220
+        public static let editorHeight: CGFloat = 150
+        public static let tabHeight: CGFloat = 30
+        public static let barHeight: CGFloat = 38
+        public static let tabCornerRadius: CGFloat = SpacingTokens.xs
+        public static let activeRuleHeight: CGFloat = SpacingTokens.xxxs
+        public static let tabIconWidth: CGFloat = SpacingTokens.md
+        public static let addButtonWidth: CGFloat = SpacingTokens.xl
+    }
+
     /// The canvas-and-cards window (Design/02-layout.md, 06-tokens.md).
     public enum Workspace {
         /// Default corner radius of every card, matching the macOS 27 window corner. The Card

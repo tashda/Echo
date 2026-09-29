@@ -68,19 +68,19 @@ struct ExplorerTreeLayoutTests {
         )
     }
 
-    /// Server-level folders are section headings (tree style S1), so their children aren't indented.
-    @Test func sectionChildrenStartAtTheLeftEdge() {
+    /// S4's server folders are rows, and their children get the next indent level.
+    @Test func serverFolderChildrenAreIndented() {
         let session = makeSession()
-        func section(_ kind: ExplorerNodeKind) -> ObjectBrowserNode.Row {
-            .section(ExplorerFolder(kind: kind, session: session, databaseName: nil, count: nil, isLoading: false, source: nil))
+        func folder(_ kind: ExplorerNodeKind) -> ObjectBrowserNode.Row {
+            .folder(ExplorerFolder(kind: kind, session: session, databaseName: nil, count: nil, isLoading: false, source: nil))
         }
-        let databases = ObjectBrowserNode(id: "dbs", row: section(.databases), children: [leaf("db")])
-        let security = ObjectBrowserNode(id: "sec", row: section(.serverSecurity), children: [leaf("logins")])
+        let databases = ObjectBrowserNode(id: "dbs", row: folder(.databases), children: [leaf("db")])
+        let security = ObjectBrowserNode(id: "sec", row: folder(.serverSecurity), children: [leaf("logins")])
         let server = ObjectBrowserNode(id: "server", row: .server(session), children: [databases, security])
         let layout = ExplorerTreeLayout(roots: [server], expandedNodeIDs: ["server", "dbs", "sec"], baseRowHeight: base)
         #expect(layout.rows.map(\.id) == ["server", "dbs", "db", "sec", "logins"])
-        #expect(layout.rows.map(\.depth) == [0, 0, 0, 0, 0])
-        #expect(layout.rows[1].height == base + LayoutTokens.Workspace.treeSectionTopPadding)
+        #expect(layout.rows.map(\.depth) == [0, 0, 1, 0, 1])
+        #expect(layout.rows[1].height == base)
     }
 
     @Test func rowIndexFindsTheRowAtAnOffset() {
@@ -103,5 +103,14 @@ struct ExplorerTreeLayoutTests {
         )
         #expect(layout.revealOffset(for: "c") == 25)
         #expect(layout.revealOffset(for: "missing") == nil)
+    }
+
+    @Test func quietStyleKeepsRowsSeparatedAtEveryDensity() {
+        #expect(SidebarRowConstants.indentStep == 16)
+        #expect(SidebarRowConstants.iconTextSpacing == 8)
+        #expect(ObjectBrowserOutlineView.baseRowHeight(for: .compact) == 21)
+        #expect(ObjectBrowserOutlineView.baseRowHeight(for: .small) == 25)
+        #expect(ObjectBrowserOutlineView.baseRowHeight(for: .medium) == 29)
+        #expect(ObjectBrowserOutlineView.baseRowHeight(for: .large) == 35)
     }
 }

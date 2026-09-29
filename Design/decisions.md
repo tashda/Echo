@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Tree card revised to S4 Quiet with folders
+
+The owner revised the tree card choice to **S4 Quiet**, with the Design Lab's **Folders** and **Dimmed prefix** controls. The card stays the same. At medium density, ordinary rows are 28pt in a 29pt slot, with 13pt labels, 13pt light monochrome-rendered symbols, an 8pt icon-to-label gap, 16pt indentation and 8pt corners. There is no separate disclosure column: a folder's icon becomes a 10pt semibold chevron on hover. Folder counts appear on hover. Selection returns to the semantic grey fill; selected icons remain accented. Server-level groups return to ordinary folders and their children regain one indent level. The bold server name and version, Vivid icon palette and ordered blueprints remain. Supersedes the S1 and Sections choices below. → 05-components, 06-tokens
+
 ## 2026-09-29 · Phase 6–9 answers
 
 - **Cancel Query is ⌥⌘.**; EchoSense keeps ⌘. → 05-components, plan K1

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The headings inside a server card: the server's name at the top, and the server-level
 /// sections under it (Databases, Security, Agent Jobs…), drawn as Finder-style headings whose
-/// children start at the card's left edge (tree style S1, "Sections").
+/// children start at the card's left edge.
 extension ObjectBrowserRowView {
     func connectionSectionHeader(session: ConnectionSession, showsDisclosure: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: SidebarRowConstants.iconTextSpacing) {
@@ -68,7 +68,7 @@ extension ObjectBrowserRowView {
     /// Finder-style: the chevron rotates, and an open section only shows it on hover.
     private var disclosureChevron: some View {
         Image(systemName: "chevron.right")
-            .font(SidebarRowConstants.chevronFont)
+            .font(SidebarRowConstants.sectionChevronFont)
             .foregroundStyle(ColorTokens.Text.tertiary)
             .rotationEffect(.degrees(isExpanded ? 90 : 0))
             .frame(width: SidebarRowConstants.chevronWidth)

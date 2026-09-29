@@ -100,6 +100,22 @@ public enum ColorTokens {
 
     // Tab Strip
     public enum TabStrip {
+        /// Opaque, semantic surfaces for the single-line Design Lab proposals.
+        public enum Proposals {
+            public static let track = Color.adaptive(
+                light: NSColor(white: 0.95, alpha: 1), dark: NSColor(white: 0.19, alpha: 1),
+                highContrastLight: NSColor(white: 0.90, alpha: 1), highContrastDark: NSColor(white: 0.26, alpha: 1)
+            )
+            public static let selected = Color.adaptive(
+                light: NSColor(white: 0.84, alpha: 1), dark: NSColor(white: 0.36, alpha: 1),
+                highContrastLight: NSColor(white: 0.74, alpha: 1), highContrastDark: NSColor(white: 0.46, alpha: 1)
+            )
+            public static let inactive = Color.adaptive(
+                light: NSColor(white: 0.91, alpha: 1), dark: NSColor(white: 0.25, alpha: 1),
+                highContrastLight: NSColor(white: 0.83, alpha: 1), highContrastDark: NSColor(white: 0.33, alpha: 1)
+            )
+        }
+
         /// Inactive tab titles in the glass tab bar (round 11, T1): near full strength, unlike the
         /// old light grey.
         public static let glassInactiveTitle = Color.adaptive(

@@ -35,14 +35,14 @@ Values that views use. The code equivalents live in `Echo/Sources/Shared/DesignS
 | Server card | the editor card's tokens: `textBackgroundColor`, 12pt corners, 0.5pt edge at 35%, `workspaceCard` shadow | Decided |
 | Server card spacing | 4pt below the last row; the gutter setting between cards | Decided |
 | Density | compact / small / default / large (see `SidebarRow`) | Decided |
-| Indent per level | 14pt (`SidebarRowConstants.indentStep`) | Decided (S1) |
-| Row corner | 8pt (`LayoutTokens.Workspace.treeRowCornerRadius`) | Decided (S1) |
-| Row slot | 20 / 23 / 27 / 34pt by density; the row is about 1pt shorter | Decided (S1) |
-| Chevron | 9pt bold, quaternary (`SidebarRowConstants.chevronFont`) | Decided (S1) |
-| Icon | 13pt hierarchical at the default density | Decided (S1) |
-| Section heading | 11pt semibold secondary, 4pt extra above (`treeSectionTopPadding`) | Decided (S1) |
-| Server header | 13pt bold primary; product and version 11pt tertiary | Decided (S1) |
-| Selection fill | the row's accent at 18%, 30% with Increase Contrast (`Sidebar.selectedTintOpacity`) | Decided (S1; replaces the grey fill) |
+| Indent per level | 16pt (`SidebarRowConstants.indentStep`) | Decided (S4) |
+| Row corner | 8pt (`LayoutTokens.Workspace.treeRowCornerRadius`) | Decided (S4) |
+| Row slot | 21 / 25 / 29 / 35pt by density; medium row is 28pt | Decided (S4) |
+| Chevron | 10pt semibold, tertiary; replaces folder icon on hover | Decided (S4) |
+| Icon | 13pt light, monochrome rendering at the default density | Decided (S4) |
+| Icon gap | 8pt (`SidebarRowConstants.iconTextSpacing`) | Decided (S4) |
+| Server header | 13pt bold primary; product and version 11pt tertiary | Decided |
+| Selection fill | semantic grey (`ColorTokens.Sidebar.selectedFill`) | Decided (S4) |
 
 ## Floating surfaces
 

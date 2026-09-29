@@ -101,3 +101,6 @@ Tools/
 *.crash
 *.ips
 .ci-fixtures/adventureworks/
+
+# Automation test-server credentials (real config lives in ~/.echo-automation/)
+.echo-automation/

@@ -42,15 +42,15 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **No pinned header** (round 10, P1): rows scroll to the card's rounded top edge; the rail highlights the server you're scrolled into, and a rail click glides to a server's top. The glass header, its blur and the "Pin server and database" setting are gone. *Decided.* (Replaces round 6's glass card header.)
 - **Rounded end:** the tree stops one gutter above the window edge, on the editor card's bottom line. A card cut by the bottom edge ends in rounded corners with its full shadow. No fades. *Decided* (round 7).
 - **No scroll bar** (round 9, SB3); the rail shows which server you're in. Settings › Sidebar › Show scroll bar brings back the small overlay scroller, inset inside the card corners. *Decided.*
-- **Row style: S1 Tahoe** (tree card round). *Decided.* It replaces the earlier row look.
-  - Rows are 26pt in a 27pt slot at the default density, so neighbouring highlights never touch; 13pt labels.
-  - Symbols are hierarchical, 13pt, in both icon modes.
-  - Chevrons are 9pt bold in the quaternary grey, lighter than the icon beside them.
-  - 7pt between chevron, icon and label; 14pt indent per level; 8pt row corners.
+- **Row style: S4 Quiet** (revised tree card decision). *Decided.*
+  - Rows are 28pt in a 29pt slot at the default density, so neighbouring highlights never touch; 13pt labels.
+  - Symbols are 13pt light, rendered monochrome in both icon colour modes.
+  - No separate chevron column: a folder's icon becomes a 10pt semibold chevron on hover.
+  - 8pt between icon and label; 16pt indent per level; 8pt row corners. Folder counts appear on hover.
 - **Server header:** the server's name heads its card in **bold 13pt**, primary, with its product and version (such as "PostgreSQL 18.1") in tertiary 11pt on the right. It scrolls with the rows. A chevron shows while collapsed or hovered. *Decided* (tree card round; the version is new).
-- **Sections:** server-level folders (Databases, Security, Database Snapshots, Agent Jobs, Management, Integration Services Catalogs, Linked Servers, Server Triggers) are Finder-style headings: 11pt semibold secondary, their count, and a trailing chevron shown while collapsed or hovered. Their children start at the card's left edge, so a table sits two levels in. Server-level tools (MySQL, SQLite) sit under a Management heading. *Decided* (tree card round).
-- **Selection:** the row is tinted with its accent (18%; 30% with Increase Contrast) and its icon turns accent. The accent is the system's, the custom one or the server's colour, per the accent setting. *Decided* (tree card round; replaces the grey pill).
-- **Counts:** plain grey tabular digits at the right; zero is hidden. *Decided.*
+- **Folders:** server-level groups (Databases, Security, Database Snapshots, Agent Jobs, Management, Integration Services Catalogs, Linked Servers, Server Triggers) are ordinary folder rows with children indented one level. MySQL's and SQLite's server tools sit under Management. *Decided* (revised tree card round).
+- **Selection:** the row uses the semantic grey fill and its icon turns accent. The accent is the system's, the custom one or the server's colour, per the accent setting. *Decided* (revised tree card round).
+- **Counts:** plain grey tabular digits at the right, appearing on hover; zero is hidden. *Decided.*
 - **Schema names:** objects show their schema as a dimmed prefix (`employees.salary`). *Decided* (tree card round kept it; "schema on the right" and schema groups were rejected).
 - **Density:** four levels (compact, small, default, large) stay as a setting. *Decided.*
 - **Icon colour** stays a setting with two modes; **colourful is the default**. *Decided.*
