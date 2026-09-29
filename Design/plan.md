@@ -166,6 +166,8 @@ Rules: `03-materials`, `05-components` › Notifications, Floating cards.
 
 ## Phase 9 · Inspector
 
+Round 10 reopens this phase: the native column feels off next to the canvas and cards, and notifications are leaving it. The direction (IN1–IN4 on the round 10 page) is chosen before building; the tasks below get rewritten then.
+
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
 | I1 | One section style and a single 12pt padding across all panels (as in `LabInspector.swift`). | `InfoSidebar/*` | 👁 | ☐ |
