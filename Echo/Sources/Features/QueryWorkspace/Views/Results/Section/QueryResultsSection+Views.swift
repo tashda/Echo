@@ -6,8 +6,8 @@ extension QueryResultsSection {
         Group {
             if query.isExecuting && !hasRows {
                 executingView
-            } else if let error = query.errorMessage, !hasRows {
-                errorView(error)
+            } else if let error = query.errorMessage, !hasRows, selectedTab == .results {
+                QueryFailureView(message: error, query: query, panelState: panelState)
             } else {
                 switch selectedTab {
                 case .results:
@@ -229,23 +229,6 @@ extension QueryResultsSection {
                 .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    func errorView(_ message: String) -> some View {
-        VStack(spacing: SpacingTokens.md) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(TypographyTokens.hero)
-                .foregroundStyle(ColorTokens.Status.warning)
-            Text("Query Failed")
-                .font(TypographyTokens.headline)
-            Text(message)
-                .font(TypographyTokens.body)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .textSelection(.enabled)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(SpacingTokens.xl2)
     }
 
     var noRowsReturnedView: some View {

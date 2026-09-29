@@ -155,6 +155,14 @@ final class AppDirector {
             toastPresenter: environmentState.toastPresenter,
             preferencesProvider: { [projectStoreRef] in
                 projectStoreRef.globalSettings.notificationPreferences
+            },
+            contextProvider: { [environmentState = self.environmentState, tabStore = self.tabStore] in
+                let session = environmentState.sessionGroup.activeSession
+                return NotificationContext(
+                    serverName: session.map { $0.connection.connectionName.isEmpty ? $0.connection.host : $0.connection.connectionName },
+                    connectionID: session?.connection.id,
+                    tabID: tabStore.activeTab?.id
+                )
             }
         )
         environmentState.notificationEngine = notificationEngine

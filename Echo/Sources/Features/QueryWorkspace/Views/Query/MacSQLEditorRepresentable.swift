@@ -18,6 +18,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onSchemaLoadNeeded: ((String) -> Void)?
     var validationRequestGeneration: Int = 0
+    var editorLineRequest: EditorLineRequest?
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -87,6 +88,15 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
             textView.validateNow()
         }
 
+        if let request = editorLineRequest, request != context.coordinator.lastLineRequest {
+            context.coordinator.lastLineRequest = request
+            Task { @MainActor [weak textView] in
+                guard let textView else { return }
+                textView.goToLine(request.line)
+                textView.window?.makeFirstResponder(textView)
+            }
+        }
+
         if textView.string != text {
             context.coordinator.isUpdatingFromBinding = true
             let currentSelection = textView.selectedRange()
@@ -127,6 +137,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         var theme: SQLEditorTheme
         var isUpdatingFromBinding = false
         var lastValidationGeneration = 0
+        var lastLineRequest: EditorLineRequest?
 
         init(parent: MacSQLEditorRepresentable) {
             self.parent = parent

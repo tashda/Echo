@@ -100,6 +100,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
     private var workspaceActionItems: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             RefreshToolbarButton()
+            NotificationBellToolbarButton()
             InspectorToolbarButton()
         }
     }

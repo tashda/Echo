@@ -49,6 +49,7 @@ struct QueryInputSection: View {
             completionContext: completionContext,
             onSchemaLoadNeeded: onSchemaLoadNeeded,
             validationRequestGeneration: query.validationRequestGeneration,
+            editorLineRequest: query.editorLineRequest,
             onTextChange: { newText in
                 if query.sql != newText {
                     query.sql = newText

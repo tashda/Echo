@@ -36,16 +36,7 @@ private struct WorkspaceBody: View {
 
         WorkspaceShell()
         .commandPalette()
-        .overlay(alignment: .topTrailing) {
-            if let toast = environmentState.toastPresenter.currentToast {
-                StatusToastView(icon: toast.icon, message: toast.message, style: toast.style)
-                    .onTapGesture { environmentState.toastPresenter.dismiss() }
-                    .padding(.top, 44)
-                    .padding(.trailing, SpacingTokens.lg)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .animation(.easeInOut(duration: 0.25), value: environmentState.toastPresenter.currentToast)
-            }
-        }
+        .notificationOverlay()
         .inspector(isPresented: Bindable(appState).showInfoSidebar) {
             let isJson = environmentState.dataInspectorContent?.isJson == true
             inspectorContent

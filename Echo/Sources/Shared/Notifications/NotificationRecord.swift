@@ -1,0 +1,61 @@
+import Foundation
+
+/// Where an event happened, so its toast and history row can link back (plan N3).
+struct NotificationContext: Codable, Equatable, Sendable {
+    var serverName: String?
+    /// The saved connection, stable across launches.
+    var connectionID: UUID?
+    /// The workspace tab; only meaningful while that tab is open.
+    var tabID: UUID?
+}
+
+/// One event in the notification history. Every event is recorded, even when its toast is muted.
+struct NotificationRecord: Codable, Identifiable, Equatable, Sendable {
+    enum Severity: String, Codable, Sendable {
+        case success, info, warning, error
+    }
+
+    let id: UUID
+    let date: Date
+    let category: NotificationCategory
+    let message: String
+    let severity: Severity
+    var context: NotificationContext?
+
+    init(
+        id: UUID = UUID(),
+        date: Date = Date(),
+        category: NotificationCategory,
+        message: String,
+        severity: Severity,
+        context: NotificationContext? = nil
+    ) {
+        self.id = id
+        self.date = date
+        self.category = category
+        self.message = message
+        self.severity = severity
+        self.context = context
+    }
+}
+
+/// The history card's filters.
+enum NotificationHistoryFilter: String, CaseIterable, Identifiable, Sendable {
+    case all = "All"
+    case errors = "Errors"
+    case connection = "Connection"
+    case queries = "Queries"
+    case jobs = "Jobs"
+
+    var id: String { rawValue }
+
+    func includes(_ record: NotificationRecord) -> Bool {
+        switch self {
+        case .all: true
+        case .errors: record.severity == .error
+        case .connection: record.category.group == .connection
+        case .queries: record.category == .queryFailed
+        case .jobs: record.category.group == .jobs
+        }
+    }
+}

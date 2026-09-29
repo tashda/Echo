@@ -46,8 +46,7 @@ struct DatabaseStreamingModeRow: View {
                             }
                         }
                     }
-                    .padding(SpacingTokens.md)
-                    .frame(width: LayoutTokens.Form.infoPopoverWidth)
+                    .floatingSurfaceContent(.medium)
                 }
             }
         }

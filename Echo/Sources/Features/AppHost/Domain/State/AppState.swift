@@ -15,6 +15,8 @@ import SwiftUI
     var activeSheet: ActiveSheet?
     var structureScriptData: StructureScriptPreviewData?
     var showTabOverview = false
+    /// The notification history under the toolbar bell (plan N3).
+    var isNotificationHistoryVisible = false
     /// The ⌘K palette (plan K4).
     var isCommandPaletteVisible = false
     /// Bumped to put the caret in the toolbar search (Find, ⌥⌘F).

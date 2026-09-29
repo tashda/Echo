@@ -264,6 +264,7 @@ extension WorkspaceTabContainerView {
                         activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
                         state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
+                        reportQueryFailure(error.localizedDescription, tab: tab)
                     }
                 }
             }

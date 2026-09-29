@@ -38,6 +38,8 @@ import OSLog
     var sqlcmdModeEnabled: Bool = false
     /// Incremented to trigger on-demand validation. The text view observes this.
     var validationRequestGeneration: Int = 0
+    /// Set to move the editor's caret to a line, as "Show in Editor" on a query error does.
+    var editorLineRequest: EditorLineRequest?
     @ObservationIgnored var rowCountRefreshHandler: (() -> Void)?
     var streamingMode: StreamingMode = .idle
 

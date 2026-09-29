@@ -59,11 +59,10 @@ struct CommandPalettePresentation: ViewModifier {
     @ViewBuilder
     private var searchCard: some View {
         if isSearchPresented, !search.query.trimmingCharacters(in: .whitespaces).isEmpty {
-            CommandPaletteResultsList(model: search, onPerform: closeSearch)
-                .padding(LayoutTokens.FloatingSurface.padding)
-                .frame(width: LayoutTokens.CommandPalette.searchCardWidth)
-                .glassEffect(.regular, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.cornerRadius, style: .continuous))
-                .padding(.top, SpacingTokens.xs)
+            FloatingCard(size: .large) {
+                CommandPaletteResultsList(model: search, onPerform: closeSearch)
+            }
+            .padding(.top, SpacingTokens.xs)
                 .padding(.trailing, SpacingTokens.xs)
                 .transition(.opacity)
         }

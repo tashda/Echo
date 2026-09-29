@@ -17,6 +17,7 @@ struct SQLEditorView: View {
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onSchemaLoadNeeded: ((String) -> Void)?
     var validationRequestGeneration: Int = 0
+    var editorLineRequest: EditorLineRequest?
     var onTextChange: (String) -> Void
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void
@@ -34,6 +35,7 @@ struct SQLEditorView: View {
         ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil,
         onSchemaLoadNeeded: ((String) -> Void)? = nil,
         validationRequestGeneration: Int = 0,
+        editorLineRequest: EditorLineRequest? = nil,
         onTextChange: @escaping (String) -> Void,
         onSelectionChange: @escaping (SQLEditorSelection) -> Void,
         onSelectionPreviewChange: @escaping (SQLEditorSelection) -> Void,
@@ -48,6 +50,7 @@ struct SQLEditorView: View {
         self.ruleTraceConfig = ruleTraceConfig
         self.onSchemaLoadNeeded = onSchemaLoadNeeded
         self.validationRequestGeneration = validationRequestGeneration
+        self.editorLineRequest = editorLineRequest
         self.onTextChange = onTextChange
         self.onSelectionChange = onSelectionChange
         self.onSelectionPreviewChange = onSelectionPreviewChange
@@ -71,7 +74,8 @@ struct SQLEditorView: View {
             completionContext: completionContext,
             ruleTraceConfig: ruleTraceConfig,
             onSchemaLoadNeeded: onSchemaLoadNeeded,
-            validationRequestGeneration: validationRequestGeneration
+            validationRequestGeneration: validationRequestGeneration,
+            editorLineRequest: editorLineRequest
         )
 #else
         IOSSQLEditorRepresentable(

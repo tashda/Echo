@@ -73,9 +73,10 @@ struct QueryResultsSection: View {
         .onChange(of: query.resultChangeToken) { _, _ in
             handleResultTokenChange()
         }
+        // A failure shows in the Results pane with the Messages pane one click away (plan N4).
         .onChange(of: query.errorMessage) { _, error in
-            if error != nil {
-                panelState.selectedSegment = .messages
+            if error != nil, panelState.selectedSegment != .results {
+                panelState.selectedSegment = .results
             }
         }
         .onChange(of: query.isExecuting) { _, executing in

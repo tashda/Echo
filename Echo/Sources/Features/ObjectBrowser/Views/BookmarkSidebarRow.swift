@@ -58,7 +58,7 @@ struct BookmarkRow: View {
             }
         }
         .onHover { isHovering = $0 }
-        .popover(isPresented: Binding(get: { isInfoPresented }, set: { activePopoverID = $0 ? bookmark.id : nil }), arrowEdge: .leading) { popoverContent.frame(width: 420) }
+        .popover(isPresented: Binding(get: { isInfoPresented }, set: { activePopoverID = $0 ? bookmark.id : nil }), arrowEdge: .leading) { popoverContent.frame(width: FloatingSurfaceSize.large.width) }
         .onChange(of: bookmark.id) { _, _ in cancelRenaming() }
         .onChange(of: bookmark.title) { _, _ in if !isRenaming { renameText = currentTitleSeed } }
     }

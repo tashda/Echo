@@ -8,50 +8,18 @@ struct InfoSidebarView: View {
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
 
-    @State private var selectedTab: InspectorTab = .notifications
-
-    private var hasDataInspectorContent: Bool {
-        environmentState.dataInspectorContent != nil
-    }
-
+    // Notifications moved to the toolbar bell (plan N3), so the inspector has one job: the
+    // details of what you pointed at.
     var body: some View {
-        VStack(spacing: 0) {
-            InspectorTabSelector(selectedTab: $selectedTab)
-                .padding(.horizontal, InspectorLayout.horizontalPadding)
-                .padding(.top, 0)
-                .padding(.bottom, SpacingTokens.xs)
-
-            Divider()
-                .opacity(0.08)
-
-            switch selectedTab {
-            case .dataInspector:
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        dataInspectorContent
-                    }
-                    .padding(.horizontal, InspectorLayout.horizontalPadding)
-                    .padding(.vertical, SpacingTokens.sm)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            case .notifications:
-                NotificationInspectorView(
-                    notificationEngine: environmentState.notificationEngine
-                )
+        ScrollView {
+            VStack(alignment: .leading, spacing: SpacingTokens.md) {
+                dataInspectorContent
             }
-        }
-        .onAppear(perform: updateSelectionForAvailableContent)
-        .onChange(of: environmentState.dataInspectorContent) { _, _ in
-            updateSelectionForAvailableContent()
+            .padding(.horizontal, InspectorLayout.horizontalPadding)
+            .padding(.vertical, SpacingTokens.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-    }
-
-    private func updateSelectionForAvailableContent() {
-        if hasDataInspectorContent {
-            selectedTab = .dataInspector
-        }
     }
 
     @ViewBuilder

@@ -55,13 +55,15 @@ extension ObjectBrowserSidebarView {
         Task {
             do {
                 let success = try await mssql.linkedServers.test(name: name)
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: success ? .generalSuccess : .generalError,
                     icon: success ? "checkmark.circle" : "xmark.circle",
                     message: success ? "Connection to \"\(name)\" succeeded." : "Connection to \"\(name)\" failed.",
                     style: success ? .success : .error
                 )
             } catch {
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
                     icon: "xmark.circle",
                     message: "Connection test failed: \(error.localizedDescription)",
                     style: .error
@@ -76,11 +78,12 @@ extension ObjectBrowserSidebarView {
             try await mssql.linkedServers.drop(name: target.serverName, dropLogins: true)
             loadLinkedServers(session: session)
         } catch {
-            environmentState.toastPresenter.show(
-                icon: "xmark.circle",
-                message: "Failed to drop linked server: \(error.localizedDescription)",
-                style: .error
-            )
+            environmentState.notificationEngine?.post(
+                    category: .generalError,
+                    icon: "xmark.circle",
+                    message: "Failed to drop linked server: \(error.localizedDescription)",
+                    style: .error
+                )
         }
     }
 
@@ -187,7 +190,8 @@ extension ObjectBrowserSidebarView {
                 }
                 loadServerTriggers(session: session)
             } catch {
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
                     icon: "xmark.circle",
                     message: "Failed to \(enabled ? "enable" : "disable") trigger: \(error.localizedDescription)",
                     style: .error
@@ -203,7 +207,8 @@ extension ObjectBrowserSidebarView {
                 try await mssql.triggers.dropServerTrigger(name: name)
                 loadServerTriggers(session: session)
             } catch {
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
                     icon: "xmark.circle",
                     message: "Failed to drop trigger: \(error.localizedDescription)",
                     style: .error
@@ -220,7 +225,8 @@ extension ObjectBrowserSidebarView {
                     environmentState.openQueryTab(for: session, presetQuery: definition)
                 }
             } catch {
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
                     icon: "xmark.circle",
                     message: "Failed to get trigger definition: \(error.localizedDescription)",
                     style: .error
