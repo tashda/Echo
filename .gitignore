@@ -2,6 +2,8 @@
 *.log
 *.md
 !README.md
+# Design language and decisions are shared with everyone working on Echo.
+!Design/*.md
 proxmox_mcp.log
 ci_log.txt
 

@@ -1,0 +1,48 @@
+# Motion
+
+## The house spring
+
+- Every animation in Echo goes through one function. *Decided.*
+- **Default: bouncy.** `.bouncy(duration: 0.45, extraBounce: 0.08)` for movement: selection, cards, panels. *Decided.*
+- Hover and press feedback uses shorter eases (0.12–0.16s). *Decided.*
+- **Speed setting: Default and Fast.** Fast scales durations by 0.7. A Slow setting was rejected. *Decided.*
+- **Reduce Motion:** every spring becomes a short fade of about 0.18s with no bounce, and pulsing stops. *Decided.*
+- Durations are never written in views. They come from the motion token together with the speed setting. *Decided.*
+
+## Where things move
+
+| Moment | Motion | Status |
+|---|---|---|
+| Switching server in the rail | The selection moves to the server and the tree glides so the header lands at the top. With "one server at a time" on, the tree crossfades. | Decided (motion); the selection shape is Open |
+| Rail selection shape | White disc sliding (preferred), liquid stretch, or glass lens | Open, in the Design Lab |
+| Server connecting | The monogram breathes (opacity 100% → 30%) until connected, then settles | Decided |
+| Server connects | It grows out of the server pill, and the pill stretches to fit | Decided |
+| Hiding the tree | The cards slide over the tree with the house spring. Candidates: tree shrinks into the rail (preferred) or card slides over | Open, in the Design Lab |
+| Results after the first run | The results card rises from the bottom while the editor card shrinks | Decided |
+| Folder expand | Rows slide down with a fade (native table animation), scaled by speed | Decided |
+| Objects loading | Shimmer placeholder rows, then crossfade to the real rows | Decided |
+| Switching tabs | Instant, like Safari | Decided |
+| Tab overview | The active tab zooms out into its card; picking a card zooms back in | Decided |
+| Toasts | Stack and melt together; a toast expands into a card on hover | Decided |
+| Floating cards | Grow out of their button (glass morph); close with a click outside or Esc | Decided |
+| Toolbar | Items that come and go per tab morph into their group | Decided |
+| New tab | Grows out of the + button next to the strip | Decided |
+
+## Glass morphing
+
+Morphing is wanted wherever it explains a change. The owner loves native glass morphing. *Decided.*
+
+- A new server grows out of the server pill.
+- The server peek card grows out of its server.
+- Toolbar groups merge and split.
+- Toasts stack and merge.
+- A new tab grows out of +.
+
+Morphs need the shapes to be in one `GlassEffectContainer` in the same window (see `03-materials.md`).
+
+## Rules
+
+1. Use motion only when something changes place, size or state. *Decided.*
+2. Pulse or loop only while something is in progress, and stop the moment it's done. *Decided.*
+3. Animate in response to the user, never on a timer. The exception is progress feedback. *Decided.*
+4. Everything must still work, and read clearly, with motion switched off. *Decided.*
