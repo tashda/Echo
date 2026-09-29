@@ -79,13 +79,22 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("y", modifiers: [.command, .shift, .option])
             .disabled(!navigationStore.isWorkspaceWindowKey || tabStore.activeTab?.kind != .query)
 
+            // Search lives in the toolbar and ⌘K now (plan K4); ⇧⌘F is Format Query (K3).
             Button {
-                NotificationCenter.default.post(name: .activateSidebarSearch, object: nil)
+                appState.toolbarSearchFocusRequest += 1
             } label: {
-                Label("Find in Sidebar", systemImage: "magnifyingglass")
+                Label("Search", systemImage: "magnifyingglass")
             }
-            // Off ⇧⌘F, which is Format Query (plan K3).
             .keyboardShortcut("f", modifiers: [.command, .option])
+            .disabled(!navigationStore.isWorkspaceWindowKey)
+
+            Button {
+                appState.isCommandPaletteVisible.toggle()
+            } label: {
+                Label("Command Palette", systemImage: "command")
+            }
+            .keyboardShortcut("k", modifiers: .command)
+            .disabled(!navigationStore.isWorkspaceWindowKey)
 
             Divider()
 

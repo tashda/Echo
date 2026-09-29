@@ -1,9 +1,15 @@
 import SwiftUI
 
-extension SearchSidebarView {
-    func handleResultTap(_ result: GlobalSearchResult, openInNewTab: Bool = false) {
+/// Opens a search result: reveals objects in the Explorer, opens structure or a preview query, or
+/// switches to a query tab. Shared by the search sidebar, the toolbar search and the ⌘K palette.
+@MainActor
+struct SearchResultOpener {
+    let environmentState: EnvironmentState
+    let navigationStore: NavigationStore
+    let tabStore: TabStore
+
+    func open(_ result: GlobalSearchResult, in session: ConnectionSession, openInNewTab: Bool = false) {
         guard let payload = result.payload else { return }
-        guard let session = viewModel.session(for: result.connectionSessionID) else { return }
 
         let databaseName = result.databaseName
 
@@ -126,24 +132,5 @@ extension SearchSidebarView {
             columnName: columnName
         )
         navigationStore.focusExplorer(focus)
-    }
-
-    private func openDefinition(for objectName: String, schema: String, type: SchemaObjectInfo.ObjectType, in session: ConnectionSession, database: String) {
-        Task {
-            do {
-                let definition = try await session.session.getObjectDefinition(
-                    objectName: objectName,
-                    schemaName: schema,
-                    objectType: type
-                )
-                await MainActor.run {
-                    environmentState.openQueryTab(for: session, presetQuery: definition, database: database)
-                }
-            } catch {
-                await MainActor.run {
-                    environmentState.lastError = DatabaseError.from(error)
-                }
-            }
-        }
     }
 }

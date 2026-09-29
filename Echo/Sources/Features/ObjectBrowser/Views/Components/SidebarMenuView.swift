@@ -19,7 +19,6 @@ struct SidebarMenu: View {
     enum NavSection: String, CaseIterable {
         case folder = "Explorer"
         case bookmark = "Bookmarks"
-        case search = "Search"
         case clipboard = "Clipboard"
         case snippets = "Snippets"
         case history = "History"
@@ -29,7 +28,6 @@ struct SidebarMenu: View {
             switch self {
             case .folder: return "folder"
             case .bookmark: return "bookmark"
-            case .search: return "magnifyingglass"
             case .clipboard: return "clipboard"
             case .snippets: return "curlybraces"
             case .history: return "clock"
@@ -94,12 +92,6 @@ struct SidebarMenu: View {
             guard navigationStore.pendingExplorerRevealConnectionID != nil else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
                 navigationStore.sidebarSection = .folder
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .activateSidebarSearch)) { _ in
-            appState.isWorkspaceTreeVisible = true
-            withAnimation(.easeInOut(duration: 0.2)) {
-                navigationStore.sidebarSection = .search
             }
         }
     }

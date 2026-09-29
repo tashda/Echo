@@ -24,7 +24,6 @@ final class EnvironmentState {
     var sessionGroup = ActiveSessionGroup()
     var pinnedObjectIDs: [String] = []
     var recentConnections: [RecentConnectionRecord] = []
-    var searchSidebarCache: GlobalSearchSidebarCache = GlobalSearchSidebarCache()
     var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
     var userEditorViewModels: [UserEditorWindowValue: UserEditorViewModel] = [:]
     var loginEditorViewModels: [LoginEditorWindowValue: LoginEditorViewModel] = [:]

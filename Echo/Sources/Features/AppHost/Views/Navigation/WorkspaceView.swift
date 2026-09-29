@@ -35,6 +35,7 @@ private struct WorkspaceBody: View {
         let tabBarStyle = appState.workspaceTabBarStyle
 
         WorkspaceShell()
+        .commandPalette()
         .overlay(alignment: .topTrailing) {
             if let toast = environmentState.toastPresenter.currentToast {
                 StatusToastView(icon: toast.icon, message: toast.message, style: toast.style)

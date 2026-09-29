@@ -15,6 +15,10 @@ import SwiftUI
     var activeSheet: ActiveSheet?
     var structureScriptData: StructureScriptPreviewData?
     var showTabOverview = false
+    /// The ⌘K palette (plan K4).
+    var isCommandPaletteVisible = false
+    /// Bumped to put the caret in the toolbar search (Find, ⌥⌘F).
+    var toolbarSearchFocusRequest = 0
     var showInfoSidebar = false
     /// Whether the Explorer tree shows beside the rail (⌃⌘S). The rail always shows.
     var isWorkspaceTreeVisible = true

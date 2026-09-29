@@ -77,58 +77,6 @@ extension QueryTabStrip {
     // MARK: - Database Switching
 
     func switchDatabase(_ databaseName: String, for tab: WorkspaceTab) {
-        let dbType = tab.connection.databaseType
-
-        switch dbType {
-        case .microsoftSQL, .mysql:
-            // Execute USE on the existing connection
-            Task {
-                do {
-                    _ = try await tab.session.sessionForDatabase(databaseName)
-                    await MainActor.run {
-                        tab.activeDatabaseName = databaseName
-                        if let queryState = tab.query {
-                            queryState.updateClipboardContext(
-                                serverName: queryState.clipboardMetadata.serverName,
-                                databaseName: databaseName,
-                                connectionColorHex: queryState.clipboardMetadata.connectionColorHex
-                            )
-                        }
-                        environmentState.notificationEngine?.post(category: .databaseSwitched, message: "Switched to \(databaseName)")
-                    }
-                } catch {
-                    await MainActor.run {
-                        environmentState.notificationEngine?.post(category: .databaseSwitchFailed, message: "Failed to switch: \(error.localizedDescription)", duration: 5.0)
-                    }
-                }
-            }
-
-        case .postgresql:
-            // PostgreSQL needs a new session per database
-            Task {
-                do {
-                    let newSession = try await tab.session.sessionForDatabase(databaseName)
-                    await MainActor.run {
-                        tab.activeDatabaseName = databaseName
-                        if let queryState = tab.query {
-                            queryState.updateClipboardContext(
-                                serverName: queryState.clipboardMetadata.serverName,
-                                databaseName: databaseName,
-                                connectionColorHex: queryState.clipboardMetadata.connectionColorHex
-                            )
-                        }
-                        _ = newSession // Session is cached in PostgresServerConnection
-                        environmentState.notificationEngine?.post(category: .databaseSwitched, message: "Switched to \(databaseName)")
-                    }
-                } catch {
-                    await MainActor.run {
-                        environmentState.notificationEngine?.post(category: .databaseSwitchFailed, message: "Failed to switch: \(error.localizedDescription)", duration: 5.0)
-                    }
-                }
-            }
-
-        case .sqlite:
-            break
-        }
+        environmentState.switchDatabase(databaseName, for: tab)
     }
 }

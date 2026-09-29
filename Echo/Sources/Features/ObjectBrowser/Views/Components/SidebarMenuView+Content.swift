@@ -9,8 +9,6 @@ extension SidebarMenu {
             EmptyView()
         case .bookmark:
             BookmarksSidebarView()
-        case .search:
-            SearchSidebarView()
         case .clipboard:
             ClipboardHistoryView()
         case .snippets:

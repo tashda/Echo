@@ -153,35 +153,10 @@ struct QueryEditorContainer: View {
     }
 
     private func resolveDatabaseNames() -> [String] {
-        guard let session = environmentState.sessionGroup.activeSessions
-            .first(where: { $0.id == tab.connectionSessionID }) else { return [] }
-        let databases = session.databaseStructure?.databases ?? []
-        return databases.filter(\.isOnline).map(\.name).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        environmentState.switchableDatabaseNames(for: tab)
     }
 
     private func switchDatabase(_ databaseName: String) {
-        Task {
-            do {
-                _ = try await tab.session.sessionForDatabase(databaseName)
-                tab.activeDatabaseName = databaseName
-                if let queryState = tab.query {
-                    queryState.updateClipboardContext(
-                        serverName: queryState.clipboardMetadata.serverName,
-                        databaseName: databaseName,
-                        connectionColorHex: queryState.clipboardMetadata.connectionColorHex
-                    )
-                }
-                environmentState.notificationEngine?.post(
-                    category: .databaseSwitched,
-                    message: "Switched to \(databaseName)"
-                )
-            } catch {
-                environmentState.notificationEngine?.post(
-                    category: .databaseSwitchFailed,
-                    message: "Failed to switch: \(error.localizedDescription)",
-                    duration: 5.0
-                )
-            }
-        }
+        environmentState.switchDatabase(databaseName, for: tab)
     }
 }
