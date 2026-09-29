@@ -19,6 +19,12 @@ struct EchoMotion: Sendable, Equatable {
         reduceMotion ? reduced : .bouncy(duration: 0.45 * scale, extraBounce: 0.08)
     }
 
+    /// Moving something to a resting place it must not pass, such as panes growing toward the
+    /// rail: the same pace as the house spring, with no overshoot.
+    var settle: Animation {
+        reduceMotion ? reduced : .smooth(duration: 0.45 * scale)
+    }
+
     /// Hover feedback: fills and highlights easing in.
     var hover: Animation {
         .easeOut(duration: (reduceMotion ? 0.1 : 0.12) * scale)

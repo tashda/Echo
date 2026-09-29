@@ -31,11 +31,9 @@ struct WorkspaceShell: View {
             WorkspaceRailColumn(bridge: railBridge)
                 .padding(.leading, gutter)
                 .padding(.top, stripInset)
+                // Above the tree, so the tree slides away under the rail's glass.
+                .zIndex(2)
 
-            // Everything right of the rail. The house spring keeps its bounce, but this area is
-            // masked at the rail's edge, so a card overshooting to the left, or the tree sliding
-            // away, disappears behind the rail instead of crossing it. The mask reaches past the
-            // other edges, so card shadows there are untouched.
             HStack(spacing: SpacingTokens.none) {
                 treeArea(gutter: gutter, isVisible: isTreeVisible, isPeeking: isPeeking)
                     .padding(.top, stripInset)
@@ -54,10 +52,6 @@ struct WorkspaceShell: View {
                     }
                 }
             }
-            .mask {
-                Rectangle()
-                    .padding([.top, .bottom, .trailing], -ShadowTokens.workspaceCardOutset)
-            }
         }
         .padding(.top, max(gutter - stripInset, SpacingTokens.none))
         .padding([.trailing, .bottom], gutter)
@@ -73,7 +67,9 @@ struct WorkspaceShell: View {
             }
         }
         .environment(\.workspaceCardCornerRadius, projectStore.globalSettings.workspaceCornerRadius.points)
-        .animation(motion.standard, value: isTreeVisible)
+        // Showing the tree keeps the house bounce. Hiding it settles without overshoot, so the
+        // cards growing toward the rail stop exactly at their place instead of bouncing into it.
+        .animation(isTreeVisible ? motion.standard : motion.settle, value: isTreeVisible)
         .animation(motion.standard, value: isPeeking)
         .onChange(of: isTreeVisible) { _, isVisible in
             if isVisible { appState.peekedServerID = nil }
@@ -123,8 +119,7 @@ struct WorkspaceShell: View {
             WorkspaceTreeResizeHandle(width: $treeWidth, gutter: gutter)
                 .allowsHitTesting(isVisible)
         }
-        // Hidden, the tree slides left behind the rail (the mask above cuts it off there) and
-        // fades. Reduce Motion fades only.
+        // Hidden, the tree slides left under the rail's glass and fades. Reduce Motion fades only.
         .offset(x: isShown || motion.reduceMotion ? 0 : -(width + gutter))
         .opacity(isShown ? 1 : 0)
         .frame(width: isVisible ? width + gutter * 2 : 0, alignment: .leading)

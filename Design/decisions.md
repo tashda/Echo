@@ -2,6 +2,12 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · After the SwiftUI tree build (asked in chat)
+
+- Bug: the tree's cards layer set the tree's minimum height, so the window grew with the tree and couldn't be shrunk. The cards now draw in the scroll view's background.
+- **Hiding the tree no longer overshoots:** it uses a spring with no bounce (`settle`), and showing it keeps the bounce. The rail-edge mask is gone because it cut the tree card's shadow. → 04-motion
+- **Footer:** the result views pill sits right beside the server/database chip instead of in the middle. → 05-components
+
 ## 2026-09-29 · Corners and tree motion (review round 8, first answers)
 
 Page: https://claude.ai/artifact/XPy7hr8a2BgpXjejFSxUWA

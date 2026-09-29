@@ -63,7 +63,7 @@ struct BottomPanelStatusBarConfiguration {
 
 /// The footer at the bottom of every tab's card (Design/05-components.md › Results card, FT1a).
 /// No strip and no divider: the server and database float as a glass chip at the leading edge
-/// (click it to switch database), the result views sit in their own glass pill in the middle,
+/// (click it to switch database), the result views sit in their own glass pill right beside it,
 /// and the status, row count and duration are quiet text at the trailing edge.
 struct BottomPanelStatusBar: View {
     let configuration: BottomPanelStatusBarConfiguration
@@ -73,11 +73,8 @@ struct BottomPanelStatusBar: View {
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
             connectionChip
-            modeIndicatorChips
-            Spacer(minLength: SpacingTokens.sm)
-                .contentShape(Rectangle())
-                .onTapGesture { configuration.onTogglePanel() }
             segmentPill
+            modeIndicatorChips
             Spacer(minLength: SpacingTokens.sm)
                 .contentShape(Rectangle())
                 .onTapGesture { configuration.onTogglePanel() }

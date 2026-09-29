@@ -53,41 +53,43 @@ struct ObjectBrowserOutlineView: View {
         let rowIDs = layout.rows.map(\.id)
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
-        ZStack(alignment: .top) {
+        ScrollView(.vertical) {
+            LazyVStack(spacing: SpacingTokens.none) {
+                ForEach(layout.rows) { row in
+                    let node = row.node
+                    rowContent(node, expandedNodeIDs.contains(node.id), row.depth, 0, { activate(node) })
+                        .frame(maxWidth: .infinity)
+                        .frame(height: row.height)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
+            .animation(motion.expand, value: rowIDs)
+        }
+        .scrollPosition($position)
+        .scrollIndicators(.automatic)
+        // The thin scroller stays inside the cards' rounded corners.
+        .contentMargins(.top, max(topScrollerInset, cornerRadius), for: .scrollIndicators)
+        .contentMargins(.bottom, cornerRadius, for: .scrollIndicators)
+        // Rows never show outside a card's corners; a card cut by the tree's edge ends rounded.
+        .clipShape(shape)
+        .onScrollGeometryChange(for: ExplorerTreeScrollMetrics.self) { geometry in
+            ExplorerTreeScrollMetrics(
+                offset: geometry.contentOffset.y + geometry.contentInsets.top,
+                viewportHeight: geometry.containerSize.height
+            )
+        } action: { _, metrics in
+            scroll.offset = metrics.offset
+            scroll.viewportHeight = metrics.viewportHeight
+            reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
+        }
+        // A background never sizes its view, so the cards can't make the tree (or the
+        // window) taller than its space.
+        .background(alignment: .top) {
             ExplorerTreeCardsLayer(cards: layout.cards, scroll: scroll)
                 .animation(motion.expand, value: rowIDs)
-
-            ScrollView(.vertical) {
-                LazyVStack(spacing: SpacingTokens.none) {
-                    ForEach(layout.rows) { row in
-                        let node = row.node
-                        rowContent(node, expandedNodeIDs.contains(node.id), row.depth, 0, { activate(node) })
-                            .frame(maxWidth: .infinity)
-                            .frame(height: row.height)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                }
-                .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
-                .animation(motion.expand, value: rowIDs)
-            }
-            .scrollPosition($position)
-            .scrollIndicators(.automatic)
-            // The thin scroller stays inside the cards' rounded corners.
-            .contentMargins(.top, max(topScrollerInset, cornerRadius), for: .scrollIndicators)
-            .contentMargins(.bottom, cornerRadius, for: .scrollIndicators)
-            // Rows never show outside a card's corners; a card cut by the tree's edge ends rounded.
-            .clipShape(shape)
-            .onScrollGeometryChange(for: ExplorerTreeScrollMetrics.self) { geometry in
-                ExplorerTreeScrollMetrics(
-                    offset: geometry.contentOffset.y + geometry.contentInsets.top,
-                    viewportHeight: geometry.containerSize.height
-                )
-            } action: { _, metrics in
-                scroll.offset = metrics.offset
-                scroll.viewportHeight = metrics.viewportHeight
-                reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
-            }
         }
+        .frame(minHeight: SpacingTokens.none)
         .onChange(of: rowIDs) { _, _ in
             reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
         }

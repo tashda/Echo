@@ -132,7 +132,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Query errors:** shown in the results card with the message, line and a "Show in editor" button, with Messages one click away. They are also recorded in notification history. When the failing tab isn't the one on screen, a toast points to it. *Decided.*
 - **One footer, in the results card.** A single footer holds everything:
   - on the left, the server · database as a **glass chip** (no chevron; click it to switch database);
-  - in the middle, the result views (Results, Messages, Plan…) as **one glass pill** of icons;
+  - right beside it, the result views (Results, Messages, Plan…) as **one glass pill** of icons (moved from the middle after the first build);
   - on the right, as quiet text: the status, rows loaded of total, the selection summary and the duration.
 
   No strip, no divider (round 8, FT1a).
