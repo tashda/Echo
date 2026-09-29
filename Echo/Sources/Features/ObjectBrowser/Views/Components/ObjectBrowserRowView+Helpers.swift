@@ -47,9 +47,32 @@ extension ObjectBrowserRowView {
         if isSelected {
             return resolvedAccentColor(for: session.connection)
         }
-        return projectStore.globalSettings.sidebarIconColorMode == .colorful
-            ? ExplorerSidebarPalette.databaseInstance
-            : ExplorerSidebarPalette.monochrome
+        return explorerIconColor(ExplorerSidebarPalette.databaseInstance)
+    }
+
+    /// The icon colour for a row whose colourful-mode colour is `colorful`
+    /// (Design/05-components.md › Explorer tree): colourful mode softens it towards grey;
+    /// monochrome is grey, with the accent on expanded folders unless "Grey only" is chosen.
+    func explorerIconColor(_ colorful: Color) -> Color {
+        let settings = projectStore.globalSettings
+        switch settings.sidebarIconColorMode {
+        case .colorful:
+            return colorful.mix(with: ExplorerSidebarPalette.monochrome, by: ColorTokens.Explorer.colorfulSoftening)
+        case .monochrome:
+            if isExpanded && settings.sidebarMonochromeVariant == .accentOnOpen {
+                return accentColorForCurrentRow
+            }
+            return ExplorerSidebarPalette.monochrome
+        }
+    }
+
+    /// The accent this row lights up in: the system's, the custom one, or its server's colour.
+    var accentColorForCurrentRow: Color {
+        if let connectionID = node.row.connectionID,
+           let session = environmentState.sessionGroup.sessions.first(where: { $0.connection.id == connectionID }) {
+            return resolvedAccentColor(for: session.connection)
+        }
+        return projectStore.globalSettings.accentColorSource == .custom ? ColorTokens.accent : Color.accentColor
     }
 
     func resolvedAccentColor(for connection: SavedConnection) -> Color {

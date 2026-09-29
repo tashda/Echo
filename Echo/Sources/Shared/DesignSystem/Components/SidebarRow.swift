@@ -62,6 +62,7 @@ struct SidebarRow<Trailing: View>: View {
 
     @Environment(\.sidebarDensity) private var density
     @Environment(\.sidebarContextMenuActive) private var isContextMenuActive
+    @Environment(\.sidebarUsesHierarchicalSymbols) private var usesHierarchicalSymbols
     @State private var isHovering = false
 
     private var densityVerticalPadding: CGFloat {
@@ -209,7 +210,7 @@ struct SidebarRow<Trailing: View>: View {
             Image(systemName: name)
                 .font(densityIconFont)
                 .imageScale(.medium)
-                .symbolRenderingMode(.monochrome)
+                .symbolRenderingMode(usesHierarchicalSymbols ? .hierarchical : .monochrome)
                 .foregroundStyle(resolvedIconColor)
                 .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
         case .asset(let name):

@@ -105,10 +105,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system("cylinder.split.1x2"),
                     label: "Databases",
                     isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: "Databases",
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    )
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: "Databases"))
                 ) {
                     countLabel(count)
                 }
@@ -153,10 +150,7 @@ struct ObjectBrowserRowView: View {
                         ? Binding(get: { isExpanded }, set: { _ in onActivate() })
                         : nil,
                     iconColor: count > 0
-                        ? ExplorerSidebarPalette.objectGroupIconColor(
-                            for: type,
-                            colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                        )
+                        ? explorerIconColor(ExplorerSidebarPalette.objectGroupIconColor(for: type))
                         : ColorTokens.Text.quaternary,
                     labelColor: count > 0 ? ColorTokens.Text.primary : ColorTokens.Text.tertiary
                 ) {
@@ -192,10 +186,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system(kind.systemImage),
                     label: kind.title,
                     isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: kind.title,
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    )
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: kind.title))
                 ) {
                     countLabel(count)
                 }
@@ -207,10 +198,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system(kind.systemImage),
                     label: kind.title,
                     isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: kind.title,
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    )
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: kind.title))
                 ) {
                     countLabel(count)
                     if isLoading {
@@ -226,10 +214,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system(systemImage),
                     label: title,
                     isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: paletteTitle,
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    )
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: paletteTitle))
                 ) {
                     countLabel(count)
                 }
@@ -241,10 +226,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system(systemImage),
                     label: title,
                     isSelected: isSelected,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: paletteTitle,
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    ),
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: paletteTitle)),
                     accentColor: resolvedAccentColor(for: session.connection)
                 ) {
                     if let detail, !detail.isEmpty {
@@ -262,10 +244,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system(kind.systemImage),
                     label: kind.title,
                     isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: kind.title,
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    )
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: kind.title))
                 ) {
                     countLabel(count)
                     if isLoading {
@@ -297,10 +276,7 @@ struct ObjectBrowserRowView: View {
                 depth: depth,
                 icon: .system("shield"),
                 label: role.name,
-                iconColor: ExplorerSidebarPalette.folderIconColor(
-                    title: "Server Roles",
-                    colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                )
+                iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: "Server Roles"))
             ) {
                 if role.isFixed {
                     Text("Fixed")
@@ -313,10 +289,7 @@ struct ObjectBrowserRowView: View {
                 depth: depth,
                 icon: .system("key"),
                 label: credential.name,
-                iconColor: ExplorerSidebarPalette.folderIconColor(
-                    title: "Credentials",
-                    colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                )
+                iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: "Credentials"))
             ) {
                 Text(credential.identity)
                     .font(SidebarRowConstants.trailingFont)
@@ -330,10 +303,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system("clock"),
                     label: job.name,
                     isSelected: isSelected,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: "Agent Jobs",
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    ),
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: "Agent Jobs")),
                     accentColor: Color.accentColor
                 ) {
                     if let lastOutcome = job.lastOutcome, !lastOutcome.isEmpty {
@@ -350,10 +320,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system("camera.fill"),
                     label: snapshot.name,
                     isSelected: isSelected,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: "Database Snapshots",
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    ),
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: "Database Snapshots")),
                     accentColor: Color.accentColor
                 ) {
                     Text(snapshot.sourceDatabaseName)
@@ -369,10 +336,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system("link"),
                     label: server.name,
                     isSelected: isSelected,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: "Linked Servers",
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    ),
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: "Linked Servers")),
                     labelColor: server.isDataAccessEnabled ? ColorTokens.Text.primary : ColorTokens.Text.secondary,
                     accentColor: Color.accentColor
                 ) {
@@ -391,10 +355,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system("folder"),
                     label: folder.name,
                     isSelected: isSelected,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: "Integration Services Catalogs",
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    ),
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: "Integration Services Catalogs")),
                     accentColor: Color.accentColor
                 )
             }
@@ -405,10 +366,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system("bolt"),
                     label: trigger.name,
                     isSelected: isSelected,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: "Server Triggers",
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    ),
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: "Server Triggers")),
                     labelColor: trigger.isDisabled ? ColorTokens.Text.tertiary : ColorTokens.Text.primary,
                     accentColor: Color.accentColor
                 ) {
@@ -426,10 +384,7 @@ struct ObjectBrowserRowView: View {
                     icon: .system(action.systemImage),
                     label: action.title,
                     isSelected: isSelected,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(
-                        title: action.title,
-                        colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                    ),
+                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: action.title)),
                     accentColor: Color.accentColor
                 )
             }
@@ -438,10 +393,7 @@ struct ObjectBrowserRowView: View {
                 depth: depth,
                 icon: .system(systemImage),
                 label: title,
-                iconColor: ExplorerSidebarPalette.folderIconColor(
-                    title: paletteTitle,
-                    colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-                ),
+                iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: paletteTitle)),
                 labelColor: ColorTokens.Text.secondary,
                 labelFont: TypographyTokens.detail
             )
@@ -579,10 +531,7 @@ struct ObjectBrowserRowView: View {
         } else {
             "Logins"
         }
-        return ExplorerSidebarPalette.folderIconColor(
-            title: title,
-            colored: projectStore.globalSettings.sidebarIconColorMode == .colorful
-        )
+        return explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: title))
     }
 
     private func buttonRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {

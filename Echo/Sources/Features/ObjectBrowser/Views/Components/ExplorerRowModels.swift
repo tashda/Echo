@@ -27,6 +27,9 @@ extension EnvironmentValues {
         get { self[SidebarDensityKey.self] }
         set { self[SidebarDensityKey.self] = newValue }
     }
+
+    /// Colourful icon mode draws symbols hierarchically (Design/05-components.md › Explorer tree).
+    @Entry var sidebarUsesHierarchicalSymbols = false
 }
 
 enum ExplorerColumnMetrics {
@@ -67,8 +70,8 @@ enum SidebarRowConstants {
     static let trailingFont = TypographyTokens.detail.monospacedDigit()
     /// Section header font (Finder-style: 11pt, bold).
     static let sectionHeaderFont = TypographyTokens.detail.weight(.bold)
-    /// Per-level indentation step — 14pt per tree level.
-    static let indentStep: CGFloat = SpacingTokens.sm2 // 14pt
+    /// Per-level indentation step — 12pt per tree level (Design/05-components.md › Explorer tree).
+    static let indentStep: CGFloat = SpacingTokens.sm // 12pt
     /// Leading padding inside row content highlight area — 6pt.
     static let rowLeadingPadding: CGFloat = SpacingTokens.xxs2 // 6pt
     /// Trailing padding inside rows — 8pt (Figma: trailing 8).

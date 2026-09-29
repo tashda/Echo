@@ -221,6 +221,8 @@ public enum ColorTokens {
 
     // Explorer / Object Browser
     public enum Explorer {
+        /// How far colourful icons are mixed towards grey, so the palette reads softer.
+        public static let colorfulSoftening: Double = 0.22
         // Data objects (cool tones)
         public static let databaseFolder = Color.green
         public static let databaseInstance = Color.blue
