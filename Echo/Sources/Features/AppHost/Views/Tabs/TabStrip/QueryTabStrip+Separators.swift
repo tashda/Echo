@@ -26,6 +26,8 @@ extension QueryTabStrip {
     }
 
     func separatorOpacity(between current: WorkspaceTab, and next: WorkspaceTab, separatorIndex: Int) -> Double {
+        // Filled tabs (round 11, T2) are separated by their own fills, not hairlines.
+        if projectStore.globalSettings.workspaceTabStripStyle == .glass { return 0 }
         if dragState.isActive,
            let draggingId = dragState.id {
             let orderedTabs = combinedTabs(from: tabStore.tabs).map { $0.0 }

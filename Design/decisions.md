@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Round 11 answer: T2 filled tabs; two-line tabs to explore
+
+Design Lab round 11 (owner's answer, pasted in chat): **T2, filled tabs** inside the glass capsule, so inactive tabs read as buttons with near-full-strength text. "I like the idea of T7 with two lines. Let's explore that as well" → round 12 in the Design Lab explores two-line versions of T2. Also: the results must fold back into the footer smoothly; it now runs as one continuous path (the editor card grows back to full height while the results card lands on its bottom edge and its chrome fades out). → 05-components
+
 ## 2026-09-29 · Round 11 opened: the tab bar again
 
 After living with TB1, the owner finds the glass capsule weaker than the old strip ("the tabs not used is too light"). Round 11 in the Design Lab lays out eight designs (T1 Safari, T2 filled tabs, T3 separate pills, T4 server colour, T5 hugging, T6 underline, T7 two-line, T8 accent active) beside today's glass and Classic. Fixed meanwhile: results always fold back into the footer; the status pill sits at the far right.

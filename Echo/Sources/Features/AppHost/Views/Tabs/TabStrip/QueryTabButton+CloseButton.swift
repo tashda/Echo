@@ -12,6 +12,9 @@ extension QueryTabButton {
         if let appearance {
             return isActive ? appearance.activeTitle : appearance.inactiveTitle
         }
+        if usesFilledTabs && !isActive {
+            return ColorTokens.TabStrip.filledInactiveTitle
+        }
         if tab.isPinned {
             return Color(nsColor: isActive ? .labelColor : .secondaryLabelColor.withAlphaComponent(0.75))
         }

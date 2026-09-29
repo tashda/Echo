@@ -8,6 +8,10 @@ extension EnvironmentValues {
 /// An opaque content card on the workspace canvas: continuous corners from the Card Corners setting, a 0.5pt separator
 /// edge and the floating shadow (Design/02-layout.md › Cards). Glass never goes on cards.
 struct WorkspaceCardModifier: ViewModifier {
+    /// Fades the card's fill, shadow and edge (not its content), for a card dissolving into
+    /// another, such as the results folding back into the footer.
+    var chromeOpacity: Double = 1
+
     @Environment(\.workspaceCardCornerRadius) private var cornerRadius
 
     func body(content: Content) -> some View {
@@ -20,12 +24,14 @@ struct WorkspaceCardModifier: ViewModifier {
                 shape
                     .fill(ColorTokens.Workspace.card)
                     .shadow(ShadowTokens.workspaceCard)
+                    .opacity(chromeOpacity)
             }
             .overlay {
                 shape.strokeBorder(
                     ColorTokens.Workspace.cardEdge.opacity(LayoutTokens.Workspace.cardEdgeOpacity),
                     lineWidth: LayoutTokens.Workspace.cardEdgeWidth
                 )
+                .opacity(chromeOpacity)
                 .allowsHitTesting(false)
             }
     }
@@ -35,5 +41,10 @@ extension View {
     /// Puts the view on an opaque workspace card.
     func workspaceCard() -> some View {
         modifier(WorkspaceCardModifier())
+    }
+
+    /// A workspace card whose fill, shadow and edge are faded to `chromeOpacity`.
+    func workspaceCard(chromeOpacity: Double) -> some View {
+        modifier(WorkspaceCardModifier(chromeOpacity: chromeOpacity))
     }
 }

@@ -28,6 +28,7 @@ struct QueryTabButton: View {
     @State var isHovering = false
     @State var isHoveringClose = false
     @State private var isPressed = false
+    @Environment(\.tabStripUsesFilledTabs) var usesFilledTabs
 
     var shouldShowClose: Bool {
         guard !tab.isPinned else { return false }

@@ -14,7 +14,7 @@ struct QueryTabStrip: View {
     let leadingPadding: CGFloat
     let trailingPadding: CGFloat
 
-    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ProjectStore.self) var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) var tabStore
@@ -147,6 +147,7 @@ struct QueryTabStrip: View {
         }
         .frame(height: tabStripHeight)
         .clipped()
+        .environment(\.tabStripUsesFilledTabs, isGlass)
         .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
             measuredTabGroupWidth = width
         }

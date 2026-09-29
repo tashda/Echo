@@ -43,23 +43,35 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
 
         GeometryReader { proxy in
             let total = proxy.size.height
-            VStack(spacing: SpacingTokens.none) {
-                if !isResultsOnly {
+            if isResultsOnly {
+                resultsCard(height: total)
+            } else {
+                // One continuous path for opening and closing: the editor card spans from full
+                // height (progress 0) to the split line (1), and the results card from a footer
+                // resting on the editor card's bottom to the space below the gap. At 0 the results
+                // card has no chrome left, so swapping its footer for the editor's is invisible.
+                let split = splitEditorHeight(total: total, gutter: gutter)
+                let progress = showsResults ? openProgress : 0
+                let resultsHeight = footerZone + (total - split - gutter - footerZone) * progress
+                ZStack(alignment: .top) {
                     editorCard
-                        .frame(height: showsResults ? editorHeight(total: total, gutter: gutter) : total)
-                }
-                if showsResults {
-                    if !isResultsOnly {
-                        EditorResultsCardGap(
-                            height: gutter,
-                            onDrag: { location in resize(toGapAt: location, total: total) },
-                            onDoubleClick: toggleMaximized
-                        )
+                        .frame(height: total + (split - total) * progress)
+                    if showsResults {
+                        VStack(spacing: SpacingTokens.none) {
+                            Spacer(minLength: SpacingTokens.none)
+                            EditorResultsCardGap(
+                                height: gutter,
+                                onDrag: { location in resize(toGapAt: location, total: total) },
+                                onDoubleClick: toggleMaximized
+                            )
+                            .opacity(Double(progress))
+                            .allowsHitTesting(progress > 0.99)
+                            resultsCard(height: resultsHeight)
+                        }
                     }
-                    resultsCard
                 }
+                .coordinateSpace(.named(EditorResultsCardGap.coordinateSpace))
             }
-            .coordinateSpace(.named(EditorResultsCardGap.coordinateSpace))
         }
         .animation(motion.standard, value: panelState.isResultsMaximized)
         .onAppear {
@@ -113,16 +125,20 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
         .workspaceCard()
     }
 
-    private var resultsCard: some View {
-        ZStack(alignment: .bottom) {
+    /// The results card. While it folds into the footer, its fill, shadow and edge fade out so
+    /// what lands on the editor card is only the footer.
+    private func resultsCard(height: CGFloat) -> some View {
+        let progress = isResultsOnly ? 1 : openProgress
+        return ZStack(alignment: .bottom) {
             results()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
-                .opacity(Double(openProgress))
+                .opacity(Double(progress))
                 .environment(\.cardFooterOverlayHeight, footerZone)
             footerOverlay
         }
-        .workspaceCard()
+        .frame(height: height)
+        .workspaceCard(chromeOpacity: min(Double(progress) * 3, 1))
     }
 
     /// A light card tint towards the bottom keeps the footer readable over the blur.
@@ -139,12 +155,6 @@ struct EditorResultsCards<Editor: View, Results: View, Footer: View>: View {
     }
 
     // MARK: - Sizing
-
-    private func editorHeight(total: CGFloat, gutter: CGFloat) -> CGFloat {
-        // While the results grow, the editor card ends a gutter above a footer-high results card.
-        let aboveFooter = max(total - gutter - footerZone, LayoutTokens.Workspace.collapsedEditorHeight)
-        return aboveFooter + (splitEditorHeight(total: total, gutter: gutter) - aboveFooter) * openProgress
-    }
 
     private func splitEditorHeight(total: CGFloat, gutter: CGFloat) -> CGFloat {
         if panelState.isResultsMaximized {
