@@ -162,7 +162,7 @@ Rules: `05-components` › Toolbar, Search.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| K1 | **Run:** accent glass (`glassProminent`), red with a timer while running. A chevron menu offers Run statement at cursor, Run selection, Explain and Explain analyze. | Add a "Query" menu (Run ⌘↩, Cancel ⌘.). | `ToolbarRunButton`, commands | ⌘. cancels; every mode works 👁 | ☑ built, 👁 pending. Cancel is ⌥⌘. until the owner picks (⌘. stays EchoSense) |
+| K1 | **Run:** accent glass (`glassProminent`), red with a timer while running. A chevron menu offers Run statement at cursor, Run selection, Explain and Explain analyze. | Add a "Query" menu (Run ⌘↩, Cancel ⌘.). | `ToolbarRunButton`, commands | ⌘. cancels; every mode works 👁 | ☑ built, 👁 pending. Cancel is ⌥⌘. (owner, 2026-09-29); ⌘. stays EchoSense |
 | K2 | **Grouping by task:** [Project] [Recents · Connections · Quick Connect] … [Run] [Format · Validate · Help · Plan] [MSSQL toggles] [Refresh · Bell · Inspector]. Tab-specific tools go in one contextual capsule next to Run that melts in and out per tab. Remove the per-item `.sharedBackgroundVisibility(.hidden)` + `.glassEffect`. | `WorkspaceToolbarItems` | Groups match; no toolbar jumping when switching tabs 👁 | ☑ built, 👁 pending. The bell joins with N3 |
 | K3 | **Shortcut fixes:** Find off ⇧⌘F, Validate off ⇧⌘V. EchoSense stays on ⌘. (owner, 2026-09-29) and can be rebound. | Commands, settings | No conflicts | ☑ built |
 | K4 | **Minimised toolbar search** with results in a glass card, and a **⌘K palette** (objects, tabs, actions, history, snippets, and "Switch database" for the current server, round 9 DB3) built on `SearchSidebarViewModel`. | New `CommandPalette` | Both open and find a table across servers | ☑ built, 👁 pending |

@@ -2,6 +2,13 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Phase 6–9 answers
+
+- **Cancel Query is ⌥⌘.**; EchoSense keeps ⌘. → 05-components, plan K1
+- **The tab overview button** leads the right-hand capsule: [Overview · Refresh · Bell · Inspector]. → 05-components
+- **Query shortcuts kept:** Run Statement at Cursor ⇧⌘↩, Explain ⌥⌘E, Explain Analyze ⌥⇧⌘E, Validate ⇧⌘B, Search ⌥⌘F, Command Palette ⌘K. → 05-components
+- **Statement at cursor** ends at a semicolon, a `GO` line or a blank line (blank lines split, even inside a procedure body). → 05-components
+
 ## 2026-09-29 · EchoSense keeps ⌘.
 
 The owner: EchoSense must be triggered by ⌘., which is muscle memory; users can pick another shortcut. This reverses K3's "EchoSense off ⌘." and clashes with "Cancel on ⌘.". Cancel is ⌥⌘. until the owner picks its shortcut. Open. → 05-components, plan K1, K3
