@@ -124,13 +124,10 @@ extension QueryResultsSection {
             if query.selectedResultSetIndex == 0 && hasRows {
                 primaryResultsTable
             } else if query.selectedResultSetIndex > 0,
-                      query.selectedResultSetIndex - 1 < query.additionalResults.count {
-                AdditionalResultSetTableView(
-                    resultSet: query.additionalResults[query.selectedResultSetIndex - 1],
-                    backgroundColor: NSColor(ColorTokens.Background.primary),
-                    alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
-                    showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers
-                )
+                      let state = query.additionalResultState(at: query.selectedResultSetIndex - 1) {
+                // The same grid as the first set (plan R6).
+                AdditionalResultSetGrid(state: state)
+                    .id(query.selectedResultSetIndex)
             } else {
                 noRowsReturnedView
             }

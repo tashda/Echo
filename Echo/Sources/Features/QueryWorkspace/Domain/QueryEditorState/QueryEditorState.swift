@@ -116,7 +116,11 @@ import OSLog
     @ObservationIgnored var shouldPersistResults = false
     @ObservationIgnored var progressiveMaterializationTask: Task<Void, Never>?
     @ObservationIgnored var deferredEnqueueTask: Task<Void, Never>?
-    var additionalResults: [QueryResultSet] = []
+    var additionalResults: [QueryResultSet] = [] {
+        didSet { additionalResultStates.removeAll() }
+    }
+    /// Results-only states for the extra result sets, made on first view (plan R6).
+    @ObservationIgnored var additionalResultStates: [Int: QueryEditorState] = [:]
     var selectedResultSetIndex: Int = 0
     /// Batch labels for multi-batch (GO) results. Nil for single-batch execution.
     var batchResultMetadata: [BatchResultLabel]?
