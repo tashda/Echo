@@ -30,9 +30,17 @@ Notes from building it:
 
 The canvas-and-cards window replaces the system sidebar. Rules: `02-layout`, `03-materials`, `04-motion`, `05-components` › Server rail.
 
+Notes from building it:
+- `WorkspaceShell` (`AppHost/Views/Navigation/WorkspaceShell.swift`) is the window: rail · tree · content on `ColorTokens.Workspace.canvas`, with `.inspector` and the toolbar attached outside it in `WorkspaceView`. `AppState.isWorkspaceTreeVisible` replaces the split view's column visibility; ⌃⌘S toggles it when the workspace is key (the menu title stays "Toggle Sidebar" for the UI tests).
+- The tree stays alive while hidden: it collapses to zero width and fades, so the table keeps its rows, scroll and expansion. Focus and search requests (⇧⌘F, "reveal in Explorer" from search) show it again; rail clicks show it until S6 adds peek.
+- Tree width is saved in `@AppStorage("workspace.treeWidth")`, 200–480pt. The gutter between tree and cards is the resize handle (8pt grab area, column-resize pointer, double-click resets to 260pt).
+- All tab content sits on one `workspaceCard()` below the strip until E1 splits editor and results. The strip's side padding is 0 so it lines up with the card; check it in B1.
+- The translucent canvas isn't a setting yet; `ColorTokens.Workspace.canvas` is the one place to switch it.
+- `FloatingServerRail` and `SidebarSplitViewObserver` are gone (dead once the rail always shows). The rest of S7 still stands.
+
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| S1 | **Workspace shell.** Replace `NavigationSplitView` with rail · tree · content on a grey canvas (translucent as an option), using the gutter setting. Keep `.inspector`, the toolbar and the sidebar shortcut (⌃⌘S). Add a drag handle to resize the tree. | `WorkspaceView.swift`, new `WorkspaceShell` | Window opens with rail, tree and cards; ⌃⌘S hides and shows the tree; the tree resizes; the inspector still works | ☐ |
+| S1 | **Workspace shell.** Replace `NavigationSplitView` with rail · tree · content on a grey canvas (translucent as an option), using the gutter setting. Keep `.inspector`, the toolbar and the sidebar shortcut (⌃⌘S). Add a drag handle to resize the tree. | `WorkspaceView.swift`, new `WorkspaceShell` | Window opens with rail, tree and cards; ⌃⌘S hides and shows the tree; the tree resizes; the inspector still works | ◐ |
 | S2 | **Rail, two glass pills.** Servers on top (hug, scroll when full), tools at the bottom (Bookmarks, Snippets, History, Clipboard). The pill grows and shrinks with the spring. Monogram in secondary grey; selected monogram bold, in its server colour. Tooltip on hover. The highlight follows the tree's scroll (reuse `ServerRailBridge.topVisibleConnectionID`). | `ObjectBrowser/Views/Components/ServerRail*.swift` | Matches the Design Lab rail 👁 | ☐ |
 | S3 | **Liquid-stretch selection** exactly as in `LabRail.swift`: separate springs for the leading and trailing edges. | Rail | Matches the lab at both speeds 👁 | ☐ |
 | S4 | **Rail status.** Connecting servers breathe (strength per `06-tokens`). A lost connection dims the monogram to 40% and its tooltip gives the reason. Running queries show nothing in the rail. | Rail | Pulse stops on connect; a lost server dims; Reduce Motion shows a still, dimmed monogram | ☐ |

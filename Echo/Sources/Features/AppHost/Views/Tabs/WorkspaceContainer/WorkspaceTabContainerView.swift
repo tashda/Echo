@@ -75,28 +75,33 @@ struct WorkspaceTabContainerView: View {
                 )
             }
 
-            if appState.showTabOverview {
-                TabOverviewView(
-                    tabs: tabStore.tabs,
-                    activeTabId: tabStore.activeTabId,
-                    onSelectTab: { tabId in
-                        tabStore.activeTabId = tabId
-                        appState.showTabOverview = false
-                    },
-                    onCloseTab: { tabId in
-                        tabStore.closeTab(id: tabId)
-                    }
-                )
-            } else if !tabStore.tabs.isEmpty {
-                activeTabContainer
-            } else if let activeSession = environmentState.sessionGroup.activeSession {
-                ConnectionDashboardView(session: activeSession)
-            } else {
-                RecentConnectionsPlaceholder(
-                    connections: recentConnectionItems,
-                    onSelectConnection: connectToRecentConnection
-                )
+            // Tab content sits on one opaque card below the strip (Design/02-layout.md › Cards).
+            Group {
+                if appState.showTabOverview {
+                    TabOverviewView(
+                        tabs: tabStore.tabs,
+                        activeTabId: tabStore.activeTabId,
+                        onSelectTab: { tabId in
+                            tabStore.activeTabId = tabId
+                            appState.showTabOverview = false
+                        },
+                        onCloseTab: { tabId in
+                            tabStore.closeTab(id: tabId)
+                        }
+                    )
+                } else if !tabStore.tabs.isEmpty {
+                    activeTabContainer
+                } else if let activeSession = environmentState.sessionGroup.activeSession {
+                    ConnectionDashboardView(session: activeSession)
+                } else {
+                    RecentConnectionsPlaceholder(
+                        connections: recentConnectionItems,
+                        onSelectConnection: connectToRecentConnection
+                    )
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .workspaceCard()
         }
         .animation(.easeInOut(duration: 0.2), value: appState.showTabOverview)
         .onChange(of: tabStore.activeTabId) { _, _ in

@@ -40,7 +40,7 @@ Echo does not use the system sidebar for the Explorer. The window is our own she
 - The tree sits straight on the canvas, starting right after the rail. It has no panel or background of its own. *Decided.*
 - Server names are the section headers, and they pin at the top while scrolling (see `05-components.md`). *Decided.*
 - The tree can be hidden. The rail stays exactly where it is; the tree shrinks into the rail and the cards grow into its space (see `04-motion.md`). *Decided.*
-- Tree width is adjustable by dragging its trailing edge. *Leaning:* needs a small custom resize handle.
+- Tree width is adjustable by dragging its trailing edge, 200–480pt. *Leaning:* the gutter between tree and cards is the handle, with an 8pt grab area and the column-resize pointer; double-click returns it to 260pt. Built in S1, waiting for the owner's check.
 
 ## Cards
 

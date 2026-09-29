@@ -15,8 +15,11 @@ struct ViewMenuCommands: Commands {
     var body: some Commands {
         CommandGroup(after: .sidebar) {
             Button {
-                if let keyWindow = NSApplication.shared.keyWindow,
-                   keyWindow.identifier == AppWindowIdentifier.manageConnections {
+                let keyWindow = NSApplication.shared.keyWindow
+                if keyWindow?.identifier == AppWindowIdentifier.workspace {
+                    // The workspace draws its own tree beside the rail; the shell animates it.
+                    appState.isWorkspaceTreeVisible.toggle()
+                } else if keyWindow?.identifier == AppWindowIdentifier.manageConnections {
                     NotificationCenter.default.post(name: .toggleManageConnectionsSidebar, object: nil)
                 } else {
                     NSApp?.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)

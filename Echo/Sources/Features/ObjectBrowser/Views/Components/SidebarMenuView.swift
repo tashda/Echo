@@ -10,10 +10,11 @@ struct SidebarMenu: View {
 
     @Environment(EnvironmentState.self) var environmentState
     @Environment(AppState.self) var appState
+    /// Shared with the rail beside the tree, so the rail follows the tree's scrolling.
+    let railBridge: ServerRailBridge
     let onAddConnection: () -> Void
 
     @State var pendingDuplicateConnection: SavedConnection?
-    @State private var railBridge = ServerRailBridge()
 
     enum NavSection: String, CaseIterable {
         case folder = "Explorer"
@@ -40,51 +41,24 @@ struct SidebarMenu: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            ServerRail(
-                style: .embedded,
-                selectedSection: Bindable(navigationStore).sidebarSection,
-                isGlanceOpen: Bindable(navigationStore).isQueryGlanceOpen,
-                bridge: railBridge,
-                onSelectSession: { session in
-                    environmentState.sessionGroup.setActiveSession(session.id)
-                    navigationStore.revealExplorerConnection(session.connection.id)
-                },
-                onRetryPending: { pending in
-                    environmentState.retryPendingConnection(for: pending.connection.id)
-                },
-                onConnect: { connection in
-                    connectAndNavigate(to: connection)
-                }
+        ZStack {
+            // The Explorer stays alive behind the other tools so it keeps its scroll
+            // position and expansion, and switching back is instant.
+            ObjectBrowserSidebarView(
+                selectedConnectionID: $selectedConnectionID,
+                railBridge: railBridge
             )
+            .opacity(navigationStore.sidebarSection == .folder ? 1 : 0)
+            .allowsHitTesting(navigationStore.sidebarSection == .folder)
+            .accessibilityHidden(navigationStore.sidebarSection != .folder)
 
-            ZStack {
-                // The Explorer stays alive behind the other tools so it keeps its scroll
-                // position and expansion, and switching back is instant.
-                ObjectBrowserSidebarView(
-                    selectedConnectionID: $selectedConnectionID,
-                    railBridge: railBridge
-                )
-                .opacity(navigationStore.sidebarSection == .folder ? 1 : 0)
-                .allowsHitTesting(navigationStore.sidebarSection == .folder)
-                .accessibilityHidden(navigationStore.sidebarSection != .folder)
-
-                if navigationStore.sidebarSection != .folder {
-                    contentView(for: navigationStore.sidebarSection)
-                        .id(navigationStore.sidebarSection)
-                        .transition(.opacity.combined(with: .offset(y: SpacingTokens.xxs)))
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.leading, -LayoutTokens.ServerRail.contentLeadingOverlap)
-            .overlay(alignment: .topLeading) {
-                QueryGlanceOverlay()
-                    .padding(.leading, LayoutTokens.QueryGlance.railGap)
-                    .padding(.trailing, SpacingTokens.xs)
-                    .padding(.top, SpacingTokens.xxs)
+            if navigationStore.sidebarSection != .folder {
+                contentView(for: navigationStore.sidebarSection)
+                    .id(navigationStore.sidebarSection)
+                    .transition(.opacity.combined(with: .offset(y: SpacingTokens.xxs)))
             }
         }
-        .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .confirmationDialog(
             "Duplicate Connection",
             isPresented: Binding(
@@ -110,6 +84,8 @@ struct SidebarMenu: View {
         }
         .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in
             guard focus != nil else { return }
+            // The tree stays alive while hidden, so focus and search requests still arrive here.
+            appState.isWorkspaceTreeVisible = true
             withAnimation(.easeInOut(duration: 0.2)) {
                 navigationStore.sidebarSection = .folder
             }
@@ -121,6 +97,7 @@ struct SidebarMenu: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .activateSidebarSearch)) { _ in
+            appState.isWorkspaceTreeVisible = true
             withAnimation(.easeInOut(duration: 0.2)) {
                 navigationStore.sidebarSection = .search
             }

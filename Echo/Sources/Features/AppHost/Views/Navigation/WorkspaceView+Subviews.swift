@@ -1,6 +1,9 @@
 import SwiftUI
 
+/// The Explorer tree and the rail's tool pages, on the canvas beside the rail.
 struct SidebarColumn: View {
+    let railBridge: ServerRailBridge
+
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(AppState.self) private var appState
 
@@ -14,17 +17,14 @@ struct SidebarColumn: View {
                 get: { connectionStore.selectedIdentityID },
                 set: { connectionStore.selectedIdentityID = $0 }
             ),
+            railBridge: railBridge,
             onAddConnection: { appState.showSheet(.connectionEditor) }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        #if os(macOS)
-        .background(
-            SidebarSplitViewObserver(width: Bindable(appState).workspaceSidebarWidth)
-        )
-        #endif
     }
 }
 
+/// The tab strip and the active tab, on the canvas beside the tree.
 struct WorkspaceMainContent: View {
     @Environment(AppState.self) private var appState
 
@@ -32,20 +32,16 @@ struct WorkspaceMainContent: View {
         let tabBarStyle = appState.workspaceTabBarStyle
         WorkspaceTabContainerView(
             showsTabStrip: tabBarStyle.showsFloatingStrip,
-            tabBarLeadingPadding: 8,
-            tabBarTrailingPadding: 8
+            tabBarLeadingPadding: SpacingTokens.none,
+            tabBarTrailingPadding: SpacingTokens.none
         )
         .environment(\.useNativeTabBar, false)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ColorTokens.Background.primary)
         .offset(y: tabBarStyle.contentVerticalOffset)
     }
 }
 
 enum WorkspaceLayoutMetrics {
-    static let sidebarMinWidth: CGFloat = 260
-    static let sidebarIdealWidth: CGFloat = 320
-
     static let inspectorMinWidth: CGFloat = 300
     static let inspectorIdealWidth: CGFloat = 300
     static let inspectorMaxWidth: CGFloat = 1600

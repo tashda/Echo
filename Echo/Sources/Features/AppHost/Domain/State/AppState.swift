@@ -16,8 +16,8 @@ import SwiftUI
     var structureScriptData: StructureScriptPreviewData?
     var showTabOverview = false
     var showInfoSidebar = false
-    var workspaceSidebarVisibility: NavigationSplitViewVisibility = .automatic
-    var workspaceSidebarWidth: CGFloat = 320
+    /// Whether the Explorer tree shows beside the rail (⌃⌘S). The rail always shows.
+    var isWorkspaceTreeVisible = true
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
 
     // MARK: - Query State

@@ -13,6 +13,16 @@ public enum ColorTokens {
         public static let sidebar = Color(nsColor: .controlBackgroundColor)
     }
 
+    /// The canvas-and-cards window (Design/02-layout.md, 06-tokens.md).
+    public enum Workspace {
+        /// The window canvas behind the rail, tree, tab strip and cards.
+        public static let canvas = Color(nsColor: .windowBackgroundColor)
+        /// Fill of the editor and results cards.
+        public static let card = Color(nsColor: .textBackgroundColor)
+        /// The separator edge around a card, at `LayoutTokens.Workspace.cardEdgeOpacity`.
+        public static let cardEdge = Color(nsColor: .separatorColor)
+    }
+
     // Materials — use as ShapeStyle with .background()
     public enum Material {
         /// Translucent bar material matching sidebar/toolbar chrome.

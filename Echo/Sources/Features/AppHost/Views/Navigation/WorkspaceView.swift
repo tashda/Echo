@@ -34,53 +34,28 @@ private struct WorkspaceBody: View {
     var body: some View {
         let tabBarStyle = appState.workspaceTabBarStyle
 
-        NavigationSplitView(columnVisibility: Bindable(appState).workspaceSidebarVisibility) {
-            SidebarColumn()
-                .accessibilityIdentifier("workspace-sidebar")
-                .navigationSplitViewColumnWidth(
-                    min: WorkspaceLayoutMetrics.sidebarMinWidth,
-                    ideal: WorkspaceLayoutMetrics.sidebarIdealWidth
-                )
-        } detail: {
-            WorkspaceMainContent()
-                .accessibilityIdentifier("workspace-content")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(ColorTokens.Background.primary)
-                .safeAreaInset(edge: .leading, spacing: SpacingTokens.none) {
-                    // With the sidebar hidden the server rail stays behind as a floating dock.
-                    if appState.workspaceSidebarVisibility == .detailOnly {
-                        FloatingServerRail()
-                            .padding(.leading, SpacingTokens.xs)
-                            .padding(.trailing, SpacingTokens.xxs)
-                            .padding(.vertical, SpacingTokens.xs)
-                            .frame(maxHeight: .infinity, alignment: .top)
-                            .transition(.move(edge: .leading).combined(with: .opacity))
-                    }
-                }
-                .animation(.smooth(duration: 0.3), value: appState.workspaceSidebarVisibility)
-                .overlay(alignment: .topTrailing) {
-                    if let toast = environmentState.toastPresenter.currentToast {
-                        StatusToastView(icon: toast.icon, message: toast.message, style: toast.style)
-                            .onTapGesture { environmentState.toastPresenter.dismiss() }
-                            .padding(.top, 44)
-                            .padding(.trailing, SpacingTokens.lg)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                            .animation(.easeInOut(duration: 0.25), value: environmentState.toastPresenter.currentToast)
-                    }
-                }
-                .inspector(isPresented: Bindable(appState).showInfoSidebar) {
-                    let isJson = environmentState.dataInspectorContent?.isJson == true
-                    inspectorContent
-                        .inspectorColumnWidth(
-                            min: WorkspaceLayoutMetrics.inspectorMinWidth,
-                            ideal: isJson
-                                ? WorkspaceLayoutMetrics.jsonInspectorWidth
-                                : WorkspaceLayoutMetrics.inspectorIdealWidth,
-                            max: WorkspaceLayoutMetrics.inspectorMaxWidth
-                        )
-                }
+        WorkspaceShell()
+        .overlay(alignment: .topTrailing) {
+            if let toast = environmentState.toastPresenter.currentToast {
+                StatusToastView(icon: toast.icon, message: toast.message, style: toast.style)
+                    .onTapGesture { environmentState.toastPresenter.dismiss() }
+                    .padding(.top, 44)
+                    .padding(.trailing, SpacingTokens.lg)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.25), value: environmentState.toastPresenter.currentToast)
+            }
         }
-        .navigationSplitViewStyle(.balanced)
+        .inspector(isPresented: Bindable(appState).showInfoSidebar) {
+            let isJson = environmentState.dataInspectorContent?.isJson == true
+            inspectorContent
+                .inspectorColumnWidth(
+                    min: WorkspaceLayoutMetrics.inspectorMinWidth,
+                    ideal: isJson
+                        ? WorkspaceLayoutMetrics.jsonInspectorWidth
+                        : WorkspaceLayoutMetrics.inspectorIdealWidth,
+                    max: WorkspaceLayoutMetrics.inspectorMaxWidth
+                )
+        }
         .navigationTitle("Echo")
         .background(WorkspaceWindowConfigurator(tabBarStyle: tabBarStyle))
         .sheet(isPresented: Binding(get: { appState.activeSheet == .connectionEditor }, set: { if !$0 { appState.dismissSheet() } })) {
