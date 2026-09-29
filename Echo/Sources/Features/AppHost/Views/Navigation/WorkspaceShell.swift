@@ -56,7 +56,7 @@ struct WorkspaceShell: View {
             }
             .mask {
                 Rectangle()
-                    .padding([.top, .bottom, .trailing], -ObjectBrowserCardLayerView.shadowOutset)
+                    .padding([.top, .bottom, .trailing], -ShadowTokens.workspaceCardOutset)
             }
         }
         .padding(.top, max(gutter - stripInset, SpacingTokens.none))

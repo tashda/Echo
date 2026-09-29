@@ -29,6 +29,16 @@ struct EchoMotion: Sendable, Equatable {
         .easeOut(duration: (reduceMotion ? 0.1 : 0.16) * scale)
     }
 
+    /// Folders opening and closing in the Explorer: rows slide and fade, like the native outline.
+    var expand: Animation {
+        reduceMotion ? reduced : .easeInOut(duration: 0.22 * scale)
+    }
+
+    /// Scrolling the Explorer to a server or object picked elsewhere.
+    var reveal: Animation {
+        reduceMotion ? reduced : .smooth(duration: 0.4 * scale)
+    }
+
     /// Liquid stretch, leading edge: races to the target.
     var liquidLead: Animation {
         reduceMotion ? reduced : .spring(duration: 0.28 * scale, bounce: 0.25)

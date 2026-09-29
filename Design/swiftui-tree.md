@@ -1,6 +1,6 @@
 # Investigation: building the Explorer tree in SwiftUI
 
-Written 2026-09-29 for review round 8, sections 2 (tree cards) and 3 (pinned path header). Status: **proposal**, not decided.
+Written 2026-09-29 for review round 8, sections 2 (tree cards) and 3 (pinned path header). Status: **decided and built**. The owner chose a full replacement with no debug switch. Built as `ExplorerTreeLayout` (fixed-height rows, so card positions, reveal offsets and the top-visible row are computed rather than measured) plus the SwiftUI `ObjectBrowserOutlineView`: one flat `LazyVStack` of rows, and a cards layer behind it using `.workspaceCard()`. The stress fixture (step 10) is still to do.
 
 ## Where we are
 

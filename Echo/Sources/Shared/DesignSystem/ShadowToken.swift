@@ -32,6 +32,11 @@ public enum ShadowTokens {
         y: 4
     )
 
+    /// Room a view needs around a workspace card so its shadow isn't cut off.
+    public static var workspaceCardOutset: CGFloat {
+        workspaceCard.radius + abs(workspaceCard.y)
+    }
+
     /// The selection disc in the server rail.
     public static let railSelection = Shadow(
         color: Color.black.opacity(0.16),

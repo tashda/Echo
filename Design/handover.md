@@ -50,6 +50,8 @@ The direction in one line: **canvas and cards**, inspired by Outlook. There's a 
    - Do ⌃⌘S and the toolbar sidebar button work, and are they disabled with nothing connected?
    - Do the server cards draw correctly while scrolling and expanding folders, with full shadows, rounded ends at the bottom, and the glass header blurring rows under it? Does the first card line up with the rail?
    - Is the sidebar toolbar button its own glass circle?
+   - **The tree is now SwiftUI** (`ExplorerTreeLayout`, `ObjectBrowserOutlineView`). Check scrolling smoothness with big expanded databases, that expand and collapse animate, that the rail follows scrolling, and that "reveal in Explorer" glides to the right row. Then build the 25,000-row stress fixture from `swiftui-tree.md` step 10 and profile it.
+   - Check the welcome (W1b), the server page (S1a) and the footer (FT1a) against round 8.
    - Does the server page look like the welcome, with glass tool buttons that wrap on a narrow window?
 2. Then work through `plan.md` **top to bottom**: Phase 2 (tree T1–T6), 3 (tabs B1–B5), 4 (cards E1–E4), 5 (grid R1–R6), 6 (toolbar and search K1–K5), 7 (notifications and floating cards N1–N5), 8 (tab overview O1–O3), 9 (inspector I1–I3), 10 (finish X1–X3). For each task:
    - Read the rules it names first.
