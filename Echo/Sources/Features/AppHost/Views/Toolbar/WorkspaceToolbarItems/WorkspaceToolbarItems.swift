@@ -12,6 +12,12 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     @ToolbarContentBuilder
     private var navigationItems: some ToolbarContent {
+        ToolbarItem(id: "workspace.navigation.sidebar", placement: .navigation) {
+            SidebarToggleToolbarButton()
+        }
+
+        ToolbarSpacer(.fixed)
+
         ToolbarItemGroup(placement: .navigation) {
             ProjectContextMenuButton()
         }

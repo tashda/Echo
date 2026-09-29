@@ -9,6 +9,8 @@ import SwiftUI
 /// glass over the cards, without moving them, until a click outside or Esc.
 struct WorkspaceShell: View {
     @Environment(AppState.self) private var appState
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(NavigationStore.self) private var navigationStore
     @Environment(ProjectStore.self) private var projectStore
     @Environment(TabStore.self) private var tabStore
     @Environment(\.echoMotion) private var motion
@@ -19,6 +21,7 @@ struct WorkspaceShell: View {
     var body: some View {
         let gutter = projectStore.globalSettings.workspaceGutter.points
         let isTreeVisible = appState.isWorkspaceTreeVisible
+            && WorkspaceTreeAvailability.hasContent(environmentState: environmentState, navigationStore: navigationStore)
         let isPeeking = !isTreeVisible && appState.peekedServerID != nil
         // The tab strip keeps a little room above its plate. The rail and tree start that much
         // lower, so the rail, the tree and the plate all sit one gutter below the toolbar.
@@ -248,5 +251,41 @@ struct WorkspaceTreeResizeHandle: View {
 
     private func clamp(_ value: Double) -> Double {
         min(max(value, Double(LayoutTokens.Workspace.treeMinWidth)), Double(LayoutTokens.Workspace.treeMaxWidth))
+    }
+}
+
+/// Whether the tree has anything to show (Design/02-layout.md › Tree): a server in the rail,
+/// connected or connecting, or a tool page. With neither it stays hidden and can't be opened;
+/// the first server to connect, or picking a tool, brings it out.
+enum WorkspaceTreeAvailability {
+    @MainActor
+    static func hasContent(environmentState: EnvironmentState, navigationStore: NavigationStore) -> Bool {
+        !environmentState.sessionGroup.sessions.isEmpty
+            || !environmentState.pendingConnections.isEmpty
+            || navigationStore.sidebarSection != .folder
+    }
+}
+
+/// Shows and hides the tree (⌃⌘S), at the leading end of the toolbar.
+struct SidebarToggleToolbarButton: View {
+    @Environment(AppState.self) private var appState
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(NavigationStore.self) private var navigationStore
+
+    var body: some View {
+        let hasContent = WorkspaceTreeAvailability.hasContent(
+            environmentState: environmentState,
+            navigationStore: navigationStore
+        )
+        let isShown = appState.isWorkspaceTreeVisible && hasContent
+
+        Button {
+            appState.isWorkspaceTreeVisible = !isShown
+        } label: {
+            Label(isShown ? "Hide Sidebar" : "Show Sidebar", systemImage: "sidebar.left")
+        }
+        .labelStyle(.iconOnly)
+        .disabled(!hasContent)
+        .help(hasContent ? (isShown ? "Hide Sidebar (⌃⌘S)" : "Show Sidebar (⌃⌘S)") : "Connect to a server to show the sidebar")
     }
 }

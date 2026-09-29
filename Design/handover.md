@@ -1,6 +1,6 @@
 # Handover: finishing the canvas-and-cards redesign
 
-Paste this to the next agent, or point it at this file. Written 2026-09-29 after Phase 1 and its first round of fixes (commit 5f8b60b).
+Paste this to the next agent, or point it at this file. Written 2026-09-29 after Phase 1 and two rounds of fixes from the owner's builds (the latest adds the empty-window rules and the welcome).
 
 ---
 
@@ -12,7 +12,12 @@ Everything is written down in `Design/`. Treat it as the contract:
 
 - `Design/README.md`: index, rule status markers, how to change the design.
 - `Design/01-principles.md` → `06-tokens.md`: the rules. **Every design question is Decided.** Only two details are Leaning: the floating-card sizes and the tree resize handle; settle them while building and log them.
-- `Design/decisions.md`: why each rule exists, newest first. The latest entry (2026-09-29, "First build of the shell") changed two rules: the rail's server pill now ends with a **+** (replacing the toolbar Connections button), and the selection disc is **inset 3pt**.
+- `Design/decisions.md`: why each rule exists, newest first. The two latest entries (2026-09-29) changed these rules:
+  - the rail's server pill ends with a **+** (replacing the toolbar Connections button);
+  - the selection disc is **inset 3pt**;
+  - the tree only shows when it has content (a server or a tool page);
+  - with no tab and no server, a **welcome sits on the canvas without a card**;
+  - a sidebar button sits at the leading end of the toolbar.
 - `Design/plan.md`: the build plan, Phases 0–10 with task IDs, a status per task, and "Notes from building it" under finished phases. **This is your to-do list.**
 - `Design/current-state.md`: a map of the code from before the build (Phase 1 has since changed the window and rail; the plan notes say how).
 - The Design Lab (`Echo/Sources/Features/DesignLab/`, debug builds, **Help › Design Lab**) is the visual reference for every task marked 👁. Its rail doesn't show the + yet.
@@ -39,6 +44,8 @@ The direction in one line: **canvas and cards**, inspired by Outlook. There's a 
    - Does the rail's + menu open cleanly, without a stray button border?
    - Is a 6pt gap below the toolbar enough?
    - Does the peek card's rounded top sit right over the tree?
+   - Does the welcome look right: glass Connect… menu button, recents card, relative times?
+   - Do ⌃⌘S and the toolbar sidebar button work, and are they disabled with nothing connected?
 2. Then work through `plan.md` **top to bottom**: Phase 2 (tree T1–T6), 3 (tabs B1–B5), 4 (cards E1–E4), 5 (grid R1–R6), 6 (toolbar and search K1–K5), 7 (notifications and floating cards N1–N5), 8 (tab overview O1–O3), 9 (inspector I1–I3), 10 (finish X1–X3). For each task:
    - Read the rules it names first.
    - Build it using tokens only. Add a token before using any new number or colour.

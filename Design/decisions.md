@@ -2,6 +2,13 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Empty window (asked in chat)
+
+After the owner opened Echo with nothing connected:
+- **The tree only shows when it has content:** a server in the rail (connected or connecting) or a tool page from the bottom pill. With neither it is hidden and ⌃⌘S and the toolbar button do nothing. → 02-layout
+- **Welcome on the canvas, no card.** Cards are only for content. With no tab and no active server the canvas shows Echo's icon, "Connect to a server", glass buttons (Connect… prominent with the connections menu, Quick Connect, Manage), and the 5 latest connections on one small opaque card, each row with its rail monogram in the server's colour, name, host and when it was last used. Tiles and a search-first welcome were offered and not chosen. → 05-components
+- **Sidebar button in the toolbar** at the leading end (`sidebar.left`), as on every Mac app with a sidebar. Fixed as a bug: ⌃⌘S now reaches Echo, because the system's sidebar menu item is replaced.
+
 ## 2026-09-29 · First build of the shell (asked in chat)
 
 After the owner ran Phase 1:

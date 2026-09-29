@@ -44,6 +44,16 @@ public enum LayoutTokens {
         public static func width(itemSize: CGFloat) -> CGFloat { itemSize + pillPadding * 2 }
     }
 
+    /// The welcome on the canvas while no tab is open.
+    public enum Welcome {
+        public static let width: CGFloat = FloatingSurface.largeWidth
+        public static let iconSize: CGFloat = SpacingTokens.xxxl
+        /// Inset around the recent connections inside their card.
+        public static let listPadding: CGFloat = SpacingTokens.xxs
+        public static let monogramSize: CGFloat = 12
+        public static let monogramWidth: CGFloat = SpacingTokens.lg
+    }
+
     /// Echo's own floating glass cards: peek, pickers, notification history, search results.
     public enum FloatingSurface {
         public static let smallWidth: CGFloat = 260

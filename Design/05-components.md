@@ -20,6 +20,13 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - Item size: medium (34pt) default, with small and large as a setting. *Decided.*
 - **Clicking a server with the tree hidden:** a plain click peeks (the tree for that server slides out over the cards; a click away or Esc slides it back), and ⌘-click or double-click reopens the tree for good. *Decided.* A setting lets users choose instead "always peek" or "always reopen the tree". The glance card and "switch context only" were rejected.
 
+## Welcome
+
+- Shown on the canvas while no tab is open and no server is active. **No card**: cards are only for content. *Decided* (2026-09-29).
+- Centred, 420pt wide: Echo's icon (64pt), "Connect to a server", then glass buttons: **Connect…** (prominent, opens the connections menu), Quick Connect, Manage. *Decided.*
+- Below, "Recent" and the **5 latest connections on one small opaque card**, 28pt rows: the rail monogram in the server's colour, name, host, and when it was last used. A click connects, and the server grows into the rail. *Decided.*
+- With a server active but no tab, the server dashboard shows on a card as before.
+
 ## Explorer tree
 
 - It is an SSMS/pgAdmin-style tree on the canvas. *Decided.*

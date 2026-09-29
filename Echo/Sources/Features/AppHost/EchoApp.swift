@@ -78,6 +78,7 @@ struct EchoApp: App {
             )
             ViewMenuCommands(
                 appState: coordinator.appState,
+                environmentState: coordinator.environmentState,
                 navigationStore: coordinator.navigationStore,
                 tabStore: coordinator.tabStore
             )

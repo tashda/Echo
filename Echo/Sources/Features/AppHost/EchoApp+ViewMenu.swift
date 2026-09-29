@@ -9,15 +9,23 @@ import AppKit
 
 struct ViewMenuCommands: Commands {
     var appState: AppState
+    let environmentState: EnvironmentState
     let navigationStore: NavigationStore
     let tabStore: TabStore
 
     var body: some Commands {
-        CommandGroup(after: .sidebar) {
+        // Replaces the system's sidebar item, which would otherwise take ⌃⌘S and send it to a
+        // split view the workspace no longer has.
+        CommandGroup(replacing: .sidebar) {
             Button {
                 let keyWindow = NSApplication.shared.keyWindow
                 if keyWindow?.identifier == AppWindowIdentifier.workspace {
                     // The workspace draws its own tree beside the rail; the shell animates it.
+                    let hasContent = WorkspaceTreeAvailability.hasContent(
+                        environmentState: environmentState,
+                        navigationStore: navigationStore
+                    )
+                    guard hasContent else { return }
                     appState.isWorkspaceTreeVisible.toggle()
                 } else if keyWindow?.identifier == AppWindowIdentifier.manageConnections {
                     NotificationCenter.default.post(name: .toggleManageConnectionsSidebar, object: nil)
