@@ -17,4 +17,11 @@ enum ResultsGridMetrics {
     static let sortIndicatorPointSize: CGFloat = 9
     /// Extra room around the sort arrow that still counts as clicking it.
     static let sortIndicatorHitSlop: CGFloat = 4
+    /// Row hover (plan R4): a faint rounded tint inset from the row's edges.
+    static let hoverHorizontalInset: CGFloat = 2
+    static let hoverVerticalInset: CGFloat = 1
+    static let hoverCornerRadius: CGFloat = 5
+    /// The stronger ring on the active cell of a selection (plan R3).
+    static let activeCellRingWidth: CGFloat = 2
+    static let activeCellCornerRadius: CGFloat = 4
 }

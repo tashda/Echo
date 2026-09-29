@@ -29,6 +29,11 @@ final class ResultTableRowNumberView: NSView {
     /// Called when the user opens a context menu on a row number.
     var onRowContextMenu: ((Int) -> NSMenu?)?
 
+    /// Rows whose number turns accent: the selected rows and the hovered one (plans R3, R4).
+    var accentRows: IndexSet = [] {
+        didSet { if oldValue != accentRows { needsDisplay = true } }
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
@@ -223,7 +228,13 @@ final class ResultTableRowNumberView: NSView {
                 width: bounds.width - leadingPadding - trailingPadding,
                 height: textSize.height
             )
-            label.draw(in: textRect, withAttributes: drawAttributes)
+            if accentRows.contains(row) {
+                var accentAttributes = drawAttributes
+                accentAttributes[.foregroundColor] = AppearanceStore.shared.accentNSColor
+                label.draw(in: textRect, withAttributes: accentAttributes)
+            } else {
+                label.draw(in: textRect, withAttributes: drawAttributes)
+            }
         }
 
         NSGraphicsContext.restoreGraphicsState()

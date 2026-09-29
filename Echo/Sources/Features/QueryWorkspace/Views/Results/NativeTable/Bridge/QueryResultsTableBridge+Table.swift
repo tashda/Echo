@@ -20,6 +20,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
             colorProvider: { [weak self] index in self?.rowBackgroundColor(for: index) ?? .clear },
             highlightProvider: { [weak self, weak tableView] view, index in guard let self, let tableView else { return [] }; return self.selectionRenderInfos(forRow: index, rowView: view, tableView: tableView) }
         )
+        rowView.isHovered = row == hoveredRow
         return rowView
     }
 

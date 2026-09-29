@@ -34,6 +34,8 @@ extension QueryResultsTableView {
         weak var activeSelectableField: NSTextField?
         var cachedPaletteSignature: String?
         var cachedFontStyles: [FontKey: NSFont] = [:]
+        /// The row under the pointer, tinted (plan R4).
+        var hoveredRow: Int?
         /// Monospaced when the "Monospaced cells" setting is on (Settings › Query Results).
         var cellBaseFont: NSFont {
             parent.monospacedCells

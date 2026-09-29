@@ -48,6 +48,11 @@ final class ResultTableContainerView: NSView {
         ])
     }
 
+    /// Accent row numbers for the selected rows and the hovered row.
+    func setAccentRows(_ rows: IndexSet) {
+        rowNumberView.accentRows = rows
+    }
+
     func updateRowNumbers(count: Int) {
         reservedRowNumberCount = max(reservedRowNumberCount, count)
         rowNumberView.update(rowCount: count, reservedCount: reservedRowNumberCount)
