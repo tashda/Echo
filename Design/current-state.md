@@ -1,5 +1,7 @@
 # Current state of the code (September 2026)
 
+> Snapshot from before the build started. Phase 1 has since replaced the window (`WorkspaceShell`) and the rail; `plan.md` notes say what changed.
+
 What Echo's code looked like when the redesign was planned, from a read of the source. Use it to find where things live and what to keep. Paths are relative to `Echo/Sources/`. Line numbers will drift; search for the names.
 
 ## Window and navigation
