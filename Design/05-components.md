@@ -83,7 +83,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Many tabs:** tabs shrink to a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. *Decided.*
 - **New tab** grows out of the + button. *Decided.*
 - **Position: on the canvas above both cards**, the way Safari's tab bar sits above the page. *Decided.*
-- **One glass capsule** holding the tabs and the + as its last item; the active tab is the white pill (round 9, TB1). **Inactive tabs are faint filled capsules with near-full-strength titles** (round 11, T2), so they read as buttons. The earlier grey plate stays available as Settings › Appearance › Tab Bar › Classic, to revert to. *Decided.*
+- **One glass capsule** holding the tabs and the + as its last item; the active tab is the white pill (round 9, TB1). **Inactive tabs have no fill, full-strength titles and hairline dividers** (round 11, T1); every tab shows its kind's icon (a spinner while running) and two lines: the title over the database, or the timer while running (T7, round 12 L2). The bar is 10pt taller than the Classic strip. The earlier grey plate stays available as Settings › Appearance › Tab Bar › Classic, to revert to. *Decided.*
 
 ## Tab overview (open queries)
 

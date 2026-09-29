@@ -33,10 +33,6 @@ extension QueryTabButton {
             return inactiveHoverGradient
         }
 
-        if usesFilledTabs {
-            return LinearGradient(colors: [ColorTokens.TabStrip.filledInactive], startPoint: .top, endPoint: .bottom)
-        }
-
         return nil
     }
 

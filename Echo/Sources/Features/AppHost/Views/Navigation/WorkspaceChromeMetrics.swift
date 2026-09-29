@@ -5,6 +5,10 @@ enum WorkspaceChromeMetrics {
     static let chromeBackgroundHeight: CGFloat = 28
     /// Total vertical footprint of the tab strip (used for layout spacing).
     static let tabStripTotalHeight: CGFloat = 32
+    /// Extra height of the glass tab bar, whose tabs have two lines (round 11, T1 + T7).
+    static let twoLineTabExtraHeight: CGFloat = 10
+    /// Height of a two-line tab: the title over the database.
+    static let twoLineTabHeight: CGFloat = 34
     /// Inset applied above chrome controls to align with the tab strip base plate.
     static let chromeTopInset: CGFloat = (tabStripTotalHeight - chromeBackgroundHeight) / 2
     /// Baseline height used by the toolbar-integrated tab bar accessory.

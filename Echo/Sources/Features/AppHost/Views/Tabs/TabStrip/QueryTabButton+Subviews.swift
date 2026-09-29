@@ -8,9 +8,7 @@ extension QueryTabButton {
     var tabBackground: some View {
 #if os(macOS)
         if let gradient = macTabFillGradient {
-            // Filled tabs keep a hair of space between their fills (round 11, T2).
             tabShape.fill(gradient)
-                .padding(.horizontal, usesFilledTabs ? SpacingTokens.xxxs / 2 : 0)
         } else {
             tabShape.fill(Color.clear)
         }

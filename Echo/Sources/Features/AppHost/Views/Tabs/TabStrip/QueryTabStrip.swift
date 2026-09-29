@@ -65,7 +65,9 @@ struct QueryTabStrip: View {
     @State private var isNewTabHovered = false
 
     let tabReorderAnimation = Animation.interactiveSpring(response: 0.2, dampingFraction: 0.9, blendDuration: 0)
-    private let tabStripHeight: CGFloat = WorkspaceChromeMetrics.tabStripTotalHeight
+    private var tabStripHeight: CGFloat {
+        WorkspaceChromeMetrics.tabStripTotalHeight + (isGlass ? WorkspaceChromeMetrics.twoLineTabExtraHeight : 0)
+    }
     /// Equal to the plate's edge inset, so the plate lines up with the card's edge below it.
     private let baseHorizontalInset: CGFloat = 2
     private let basePlateExtension: CGFloat = 0
@@ -73,7 +75,9 @@ struct QueryTabStrip: View {
     private let basePlateCornerRadius: CGFloat = 14
     private let newTabButtonSize: CGFloat = 28
     private let newTabButtonGap: CGFloat = 6
-    private var basePlateHeight: CGFloat { WorkspaceChromeMetrics.chromeBackgroundHeight }
+    private var basePlateHeight: CGFloat {
+        WorkspaceChromeMetrics.chromeBackgroundHeight + (isGlass ? WorkspaceChromeMetrics.twoLineTabExtraHeight : 0)
+    }
     private var tabContentVerticalPadding: CGFloat {
         max((tabStripHeight - basePlateHeight) / 2, 0)
     }
@@ -147,7 +151,7 @@ struct QueryTabStrip: View {
         }
         .frame(height: tabStripHeight)
         .clipped()
-        .environment(\.tabStripUsesFilledTabs, isGlass)
+        .environment(\.tabStripUsesGlassTabs, isGlass)
         .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
             measuredTabGroupWidth = width
         }

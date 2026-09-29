@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Round 11 corrected: T1 with two-line tabs and icons
+
+The owner meant **T1 (Safari)**, not T2, together with T7's two lines, and from round 12 **L2's icon**; no more lab rounds for the tab bar. The glass tab bar: inactive tabs have no fill, full-strength titles and hairline dividers; the active tab is a raised white pill; every tab shows its kind's icon (a spinner while running) and two lines, the title over the database (the timer while running). The bar is 10pt taller. Classic stays as the fallback. Supersedes the T2 entry below. → 05-components
+
 ## 2026-09-29 · Round 11 answer: T2 filled tabs; two-line tabs to explore
 
 Design Lab round 11 (owner's answer, pasted in chat): **T2, filled tabs** inside the glass capsule, so inactive tabs read as buttons with near-full-strength text. "I like the idea of T7 with two lines. Let's explore that as well" → round 12 in the Design Lab explores two-line versions of T2. Also: the results must fold back into the footer smoothly; it now runs as one continuous path (the editor card grows back to full height while the results card lands on its bottom edge and its chrome fades out). → 05-components

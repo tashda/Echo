@@ -96,13 +96,9 @@ public enum ColorTokens {
 
     // Tab Strip
     public enum TabStrip {
-        /// Inactive tabs in the glass tab bar (round 11, T2): a faint fill so they read as buttons.
-        public static let filledInactive = Color.adaptive(
-            light: .black.withAlphaComponent(0.06), dark: .white.withAlphaComponent(0.08),
-            highContrastLight: .black.withAlphaComponent(0.14), highContrastDark: .white.withAlphaComponent(0.18)
-        )
-        /// Inactive tab titles in the glass tab bar: near full strength, unlike the old light grey.
-        public static let filledInactiveTitle = Color.adaptive(
+        /// Inactive tab titles in the glass tab bar (round 11, T1): near full strength, unlike the
+        /// old light grey.
+        public static let glassInactiveTitle = Color.adaptive(
             light: .black.withAlphaComponent(0.78), dark: .white.withAlphaComponent(0.8),
             highContrastLight: .black, highContrastDark: .white
         )
