@@ -55,7 +55,7 @@ extension ObjectBrowserRowView {
         if isSelected {
             return resolvedAccentColor(for: session.connection)
         }
-        return explorerIconColor(ExplorerSidebarPalette.databaseInstance)
+        return explorerIconColor(ExplorerIconRole.database.color)
     }
 
     /// The icon colour for a row whose colourful-mode colour is `colorful`
@@ -65,12 +65,12 @@ extension ObjectBrowserRowView {
         let settings = projectStore.globalSettings
         switch settings.sidebarIconColorMode {
         case .colorful:
-            return colorful.mix(with: ExplorerSidebarPalette.monochrome, by: ColorTokens.Explorer.colorfulSoftening)
+            return colorful.mix(with: ColorTokens.Text.secondary, by: ColorTokens.Explorer.colorfulSoftening)
         case .monochrome:
             if isExpanded && settings.sidebarMonochromeVariant == .accentOnOpen {
                 return accentColorForCurrentRow
             }
-            return ExplorerSidebarPalette.monochrome
+            return ColorTokens.Text.secondary
         }
     }
 
@@ -104,21 +104,6 @@ extension ObjectBrowserRowView {
                 .monospacedDigit()
                 .foregroundStyle(ColorTokens.Text.tertiary)
                 .contentTransition(.numericText())
-        }
-    }
-
-    func objectIconName(_ type: SchemaObjectInfo.ObjectType) -> String {
-        switch type {
-        case .table: "tablecells"
-        case .view: "eye"
-        case .materializedView: "square.stack.3d.up"
-        case .function: "function"
-        case .trigger: "bolt"
-        case .procedure: "terminal"
-        case .extension: "puzzlepiece.extension"
-        case .sequence: "number"
-        case .type: "t.square"
-        case .synonym: "arrow.triangle.branch"
         }
     }
 

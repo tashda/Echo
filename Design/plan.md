@@ -68,6 +68,8 @@ Rules: `05-components` › Explorer tree.
 | T3 | **Icon modes.** Colourful uses today's colours softened, keyed by an enum rather than title strings. Monochrome has two variants: accent on open folders (default) and pure. | `ExplorerRowModels.swift`, `ColorToken.swift` | All three look right in light and dark 👁 | ☑ 938efea, 👁 pending. Colours still keyed by title strings, see notes |
 | T4 | **Loading:** shimmer rows at the child indent, crossfading into the real rows. Replaces "Expand to load objects…". | Snapshot + row view | Shows while loading, and stops with Reduce Motion | ☑ 08bc0c74, 👁 pending |
 | T5 | **Expand motion:** the native slide and fade, with duration from the motion helper. | Outline view | Speed setting changes it | ☑ d5faf78 (built with the SwiftUI tree: `motion.expand`, scaled by the speed setting) |
+| T7 | **Row style S1 Tahoe** (tree card round): 26pt rows in a 27pt slot, 13pt hierarchical symbols, 9pt bold quaternary chevrons, 14pt indent, 8pt corners, accent-tinted selection; bold 13pt server name with product and version. | `SidebarRow`, `ExplorerRowModels.swift`, `ObjectBrowserRowView+Headers.swift` | Matches the lab's S1 👁 | ☑ b3f2f25b, 👁 pending |
+| T8 | **Server sections:** server-level folders are Finder-style headings whose children start at the card's edge; MySQL and SQLite tools under Management. | `ExplorerTreeLayout`, `ObjectBrowserRowView+Headers.swift`, blueprints | Headings show counts and a hover chevron; children aren't indented 👁 | ☑ b3f2f25b, 👁 pending |
 | T6 | Remove the sidebar Search tool page (search moves to the toolbar in Phase 6). | `SidebarMenuView+Content.swift` | Gone; nothing links to it | ☐ Deferred to K4, so search is never missing between the two |
 
 ### Notes from building it (Phase 2 and round 9)
@@ -76,9 +78,31 @@ Rules: `05-components` › Explorer tree.
 - **Blur over AppKit content** (the results grid, the editor) is `BackdropEdgeBlur`: stacked Core Image Gaussian background filters. A background filter only sees its own superview, so its views go into the same container as the AppKit view, above it. The Design Lab's footer stage uses it; FB1 would use it in the app.
 - **Database switcher** (round 9, DB1, a50abbb): `DatabaseSwitcherCard` grows out of the footer chip with a matched geometry effect. It can't use a `GlassEffectContainer` morph: a text field inside a glass container sent AppKit's key-view walk (the password autofill check) into an endless loop that hung the app.
 - **T1 stress fixture:** not built. Real rows need a `ConnectionSession`, which needs a `DatabaseSession`; the app target has no stub for one (the tests' `MockDatabaseSession` lives in EchoTests). The owner's `dkloosql10-d` (about 65 databases) is a real stress case to profile with Instruments' SwiftUI and Hitches templates.
-- **T3 gap:** icon colours still come from `paletteTitle` strings through `ExplorerSidebarPalette.folderIconColor(title:)`; the row model should carry a role enum instead (34 construction sites). The mode logic itself is in one place: `ObjectBrowserRowView.explorerIconColor(_:)`.
+- **T3 gap (closed by BP1):** icon colours now come from each node kind's `ExplorerIconRole`; `ExplorerSidebarPalette` and its title strings are gone. The mode logic is still in one place: `ObjectBrowserRowView.explorerIconColor(_:)`.
 - **T4:** a loading row is three shimmer rows high (`LayoutTokens.Shimmer`), and the failed-refresh state is a warning message row instead of a loading row. Loading labels lost their trailing dots and are only read by VoiceOver now.
 - **Design Lab:** the first page, "Round 9 · open questions", holds the footer (FB, FP), tree scroll bar (SB) and tab bar (TB) questions. Older lab questions are retired; their pages stay as a reference.
+
+## Phase 2b · Tree blueprints
+
+Accepted in the tree card round (explainer: https://claude.ai/artifact/N7UL1qHMGicpthQmSKVa89). Each database type's tree is an ordered blueprint; the builder, rows and menus are generic. Rules: `05-components` › Explorer tree › How a tree is described.
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| BP1 | **Node kind catalogue and roles:** `ExplorerNodeKind` (title, symbol, role, ID component) and `ExplorerIconRole`; the four `*Kind` enums, `objectIconName` and `ExplorerSidebarPalette` go. | `ObjectBrowser/Blueprint/` | Colours never depend on titles; a test checks every symbol exists | ☑ (this phase's commit) |
+| BP2 | **Style as a value:** the S1 metrics live in `SidebarRowConstants` and tokens only. An environment style value waits until there is a second style to switch to. | `ExplorerRowModels.swift`, `SidebarRow` | No raw sizes in `SidebarRow` except the large-density label | ☑ b3f2f25b |
+| BP3 | **Generic child sources:** the 35 per-feature dictionaries become `childSources: [ExplorerSourceKey: ExplorerSourceState]`; loaders write `ExplorerItem`s. | View model, loaders, `+ChildSources.swift` | Folders load on expand and when restored open | ☑ (this phase's commit) |
+| BP4 | **Blueprints:** SQL Server, PostgreSQL, MySQL, SQLite, and `ExplorerBlueprintWalker`; the per-type snapshot builders are deleted. | `ObjectBrowser/Blueprint/` | Tests pin each type's order, the object folder order and saved node IDs | ☑ (this phase's commit) |
+| BP5 | **Generic rows:** `ObjectBrowserNode.Row` goes from 25 cases to 13; `ObjectBrowserRowView` from 557 lines to 130 plus two small extensions. | Node, row view | Builds; every row kind renders 👁 | ☑ (this phase's commit), 👁 pending |
+| BP6 | **Menus by area:** the 1,383-line menu file splits into a dispatcher by node kind plus `+ServerMenus`, `+DatabaseMenus`, `+ObjectMenus`, `+ScriptActions`. | `ObjectBrowserSidebarView+*Menus.swift` | Each file under 500 lines; every menu still opens 👁 | ☑ (this phase's commit), 👁 pending |
+
+### Notes from building it (Phase 2b)
+
+- **Adding a database type:** add its case to `ExplorerBlueprint.blueprint(for:)`, write `ExplorerBlueprint+<Type>.swift`, add any new kinds to `ExplorerNodeKind` (title, symbol, role), any new sources to `ExplorerChildSource` with a loader in `+ChildSources.swift`, and menus for new kinds in the matching `+*Menus.swift`. Add its order to `ExplorerBlueprintTests`.
+- **Saved expansion state survives:** server folders, database folders, object folders, databases and objects keep their node IDs (`ExplorerNodeKind.idComponent`). Folders nested inside Security (Logins, Server Roles…) got new IDs, so they start collapsed once.
+- **Loading is generic:** a folder with a source loads when it's expanded, and folders restored as open load when the tree syncs (`loadSourcesOfOpenFolders`). A folder shows a shimmer while its source loads with nothing yet, "No …" when it's empty, and keeps showing old items while refreshing.
+- **Small behaviour changes:** empty-folder lines now read "No logins", "No agent jobs" and so on; disabled agent jobs and linked servers without data access are dimmed; a disabled login's detail reads "SQL · Disabled".
+- **Fixed on the way:** the Certificate Logins symbol (`doc.badge.lock`) doesn't exist, so it drew nothing; it's `checkmark.seal` now. `ExplorerBlueprintTests` checks every symbol.
+- **Not run in the app:** another Echo instance was running during this work, so the change was verified by build and tests only. Check the menus and loaders on a Mac (👁 on BP5 and BP6).
 
 ## Phase 3 · Tabs
 

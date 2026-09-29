@@ -159,15 +159,13 @@ struct ObjectBrowserSidebarView: View {
             viewModel.persistExpansionState(projectID: projectStore.selectedProject?.id)
         }
 
-        for session in sessions {
-            let securityNodeID = ObjectBrowserSidebarViewModel.serverFolderNodeID(
-                connectionID: session.connection.id,
-                kind: .security
-            )
-            if viewModel.isExpanded(securityNodeID) {
-                loadServerSecurityIfNeeded(session: session)
-            }
-        }
+        loadSourcesOfOpenFolders(in: ObjectBrowserSnapshotBuilder.buildRoots(
+            pendingConnections: [],
+            sessions: sessions,
+            settings: projectStore.globalSettings,
+            viewModel: viewModel,
+            selectedConnectionID: selectedConnectionID
+        ))
 
         if selectedConnectionID == nil {
             selectedConnectionID = sessions.first?.connection.id
@@ -248,104 +246,31 @@ struct ObjectBrowserSidebarView: View {
     private func handleSelectionChange(_ node: ObjectBrowserNode?) {
         guard let node else { return }
         viewModel.selectedNodeID = node.id
-
-        switch node.row {
-        case .topSpacer:
-            break
-        case .pendingConnection:
-            break
-        case .server(let session),
-             .databasesFolder(let session, _),
-             .database(let session, _, _),
-             .objectGroup(let session, _, _, _),
-             .object(let session, _, _),
-             .serverFolder(let session, _, _),
-             .databaseFolder(let session, _, _, _, _),
-             .databaseSubfolder(let session, _, _, _, _, _),
-             .databaseNamedItem(let session, _, _, _, _, _),
-             .securitySection(let session, _, _, _),
-             .securityLogin(let session, _),
-             .securityServerRole(let session, _),
-             .securityCredential(let session, _),
-             .agentJob(let session, _),
-             .databaseSnapshot(let session, _),
-             .linkedServer(let session, _),
-             .ssisFolder(let session, _),
-             .serverTrigger(let session, _),
-             .action(let session, _, _):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-        case .column:
-            break
-        case .infoLeaf(_, _, _, _), .loading(_, _), .message(_, _, _):
-            break
-        }
+        guard let session = node.row.session else { return }
+        selectedConnectionID = session.connection.id
+        environmentState.sessionGroup.setActiveSession(session.id)
     }
 
     private func handleActivation(of node: ObjectBrowserNode) {
         viewModel.selectedNodeID = node.id
+        if case .database(_, let database, _) = node.row, !database.isAccessible { return }
+        guard let session = node.row.session else { return }
 
+        selectedConnectionID = session.connection.id
+        environmentState.sessionGroup.setActiveSession(session.id)
+        if let databaseName = node.row.databaseName {
+            session.sidebarFocusedDatabase = databaseName
+        }
         switch node.row {
-        case .topSpacer:
-            return
-        case .pendingConnection:
-            return
-        case .server(let session):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-        case .databasesFolder(let session, _):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-        case .database(let session, let database, _):
-            guard database.isAccessible else { return }
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-            session.sidebarFocusedDatabase = database.name
-        case .objectGroup(let session, let databaseName, _, _):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-            session.sidebarFocusedDatabase = databaseName
-        case .object(let session, let databaseName, let object):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-            session.sidebarFocusedDatabase = databaseName
+        case .object(_, let databaseName, let object):
             viewModel.selectedNodeID = ExplorerSidebarIdentity.object(
                 connectionID: session.connection.id,
                 databaseName: databaseName,
                 objectID: object.id
             )
-        case .serverFolder(let session, _, _):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-        case .databaseFolder(let session, let databaseName, _, _, _):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-            session.sidebarFocusedDatabase = databaseName
-        case .databaseSubfolder(let session, let databaseName, _, _, _, _),
-             .databaseNamedItem(let session, let databaseName, _, _, _, _):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-            session.sidebarFocusedDatabase = databaseName
-        case .securitySection(let session, _, _, _),
-             .securityLogin(let session, _),
-             .securityServerRole(let session, _),
-             .securityCredential(let session, _):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-        case .agentJob(let session, _),
-             .databaseSnapshot(let session, _),
-             .linkedServer(let session, _),
-             .ssisFolder(let session, _),
-             .serverTrigger(let session, _):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-        case .action(let session, let action, _):
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
-            perform(action: action, session: session)
-        case .column:
-            break
-        case .infoLeaf(_, _, _, _), .loading(_, _), .message(_, _, _):
+        case .action(_, let kind):
+            perform(action: kind, session: session)
+        default:
             break
         }
     }
@@ -364,74 +289,18 @@ struct ObjectBrowserSidebarView: View {
             }
         }
 
+        guard isExpanded else { return }
         switch node.row {
         case .database(let session, let database, _):
-            if isExpanded {
-                loadSchemaIfNeeded(databaseName: database.name, session: session)
-            }
-        case .serverFolder(let session, let kind, _):
-            guard isExpanded else { break }
-            switch kind {
-            case .agentJobs:
-                if (viewModel.agentJobsBySession[session.connection.id] ?? []).isEmpty,
-                   !(viewModel.agentJobsLoadingBySession[session.connection.id] ?? false) {
-                    loadAgentJobs(session: session)
-                }
-            case .databaseSnapshots:
-                if (viewModel.databaseSnapshotsBySession[session.connection.id] ?? []).isEmpty,
-                   !(viewModel.databaseSnapshotsLoadingBySession[session.connection.id] ?? false) {
-                    loadDatabaseSnapshots(session: session)
-                }
-            case .ssis:
-                if (viewModel.ssisFoldersBySession[session.connection.id] ?? []).isEmpty,
-                   !(viewModel.ssisLoadingBySession[session.connection.id] ?? false) {
-                    Task { await loadSSISFoldersAsync(session: session) }
-                }
-            case .linkedServers:
-                if (viewModel.linkedServersBySession[session.connection.id] ?? []).isEmpty,
-                   !(viewModel.linkedServersLoadingBySession[session.connection.id] ?? false) {
-                    loadLinkedServers(session: session)
-                }
-            case .serverTriggers:
-                if (viewModel.serverTriggersBySession[session.connection.id] ?? []).isEmpty,
-                   !(viewModel.serverTriggersLoadingBySession[session.connection.id] ?? false) {
-                    loadServerTriggers(session: session)
-                }
-            case .security:
-                if isExpanded {
-                    loadServerSecurityIfNeeded(session: session)
-                }
-            case .management:
-                break
-            }
-        case .databaseFolder(let session, let databaseName, let kind, _, _):
-            guard isExpanded else { break }
-            guard let database = session.databaseStructure?.databases.first(where: { $0.name == databaseName }) else { break }
-            switch kind {
-            case .security:
-                loadDatabaseSecurityIfNeeded(database: database, session: session)
-            case .databaseTriggers:
-                if (viewModel.dbDDLTriggersByDB[viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: databaseName)] ?? []).isEmpty,
-                   !(viewModel.dbDDLTriggersLoadingByDB[viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: databaseName)] ?? false) {
-                    loadDatabaseDDLTriggers(database: database, session: session)
-                }
-            case .serviceBroker:
-                if viewModel.serviceBrokerQueuesByDB[viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: databaseName)] == nil,
-                   !(viewModel.serviceBrokerLoadingByDB[viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: databaseName)] ?? false) {
-                    loadServiceBrokerData(database: database, session: session)
-                }
-            case .externalResources:
-                if viewModel.externalDataSourcesByDB[viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: databaseName)] == nil,
-                   !(viewModel.externalResourcesLoadingByDB[viewModel.databaseStorageKey(connectionID: session.connection.id, databaseName: databaseName)] ?? false) {
-                    loadExternalResources(database: database, session: session)
-                }
-            }
+            loadSchemaIfNeeded(databaseName: database.name, session: session)
+        case .section(let folder), .folder(let folder):
+            loadIfNeeded(folder)
         default:
             break
         }
     }
 
-    private func perform(action: ObjectBrowserActionKind, session: ConnectionSession) {
+    private func perform(action: ExplorerNodeKind, session: ConnectionSession) {
         let connectionID = session.connection.id
 
         switch action {
@@ -456,8 +325,10 @@ struct ObjectBrowserSidebarView: View {
             environmentState.openPolicyManagementTab(connectionID: connectionID)
         case .sqlServerLogs:
             environmentState.openErrorLogTab(connectionID: connectionID)
-        case .openJobQueue:
+        case .jobQueue:
             environmentState.openJobQueueTab(for: session)
+        default:
+            break
         }
     }
 

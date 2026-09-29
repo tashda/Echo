@@ -9,7 +9,7 @@ struct ExplorerTreeLayoutTests {
     private let base: CGFloat = 24
 
     private func leaf(_ id: String) -> ObjectBrowserNode {
-        ObjectBrowserNode(id: id, row: .infoLeaf(id, systemImage: "circle", paletteTitle: "", depth: 0))
+        ObjectBrowserNode(id: id, row: .placeholder(id, kind: nil))
     }
 
     private func spacer(_ id: String, _ height: CGFloat) -> ObjectBrowserNode {
@@ -27,7 +27,7 @@ struct ExplorerTreeLayoutTests {
     }
 
     @Test func loadingRowReservesRoomForItsShimmerRows() {
-        let loading = ObjectBrowserNode(id: "loading", row: .loading("Loading objects", depth: 1))
+        let loading = ObjectBrowserNode(id: "loading", row: .loading("Loading objects"))
         let layout = ExplorerTreeLayout(roots: [leaf("a"), loading, leaf("b")], expandedNodeIDs: [], baseRowHeight: base)
         let shimmerHeight = base * CGFloat(LayoutTokens.Shimmer.explorerRowCount)
         #expect(layout.rows[1].height == shimmerHeight)
@@ -48,7 +48,7 @@ struct ExplorerTreeLayoutTests {
     @Test func expandedChildrenAreIndented() {
         let parent = ObjectBrowserNode(
             id: "parent",
-            row: .infoLeaf("parent", systemImage: "folder", paletteTitle: "", depth: 0),
+            row: .placeholder("parent", kind: nil),
             children: [leaf("child")]
         )
         let collapsed = ExplorerTreeLayout(roots: [parent], expandedNodeIDs: [], baseRowHeight: base)
@@ -71,8 +71,11 @@ struct ExplorerTreeLayoutTests {
     /// Server-level folders are section headings (tree style S1), so their children aren't indented.
     @Test func sectionChildrenStartAtTheLeftEdge() {
         let session = makeSession()
-        let databases = ObjectBrowserNode(id: "dbs", row: .databasesFolder(session, count: 1), children: [leaf("db")])
-        let security = ObjectBrowserNode(id: "sec", row: .serverFolder(session, .security, count: nil), children: [leaf("logins")])
+        func section(_ kind: ExplorerNodeKind) -> ObjectBrowserNode.Row {
+            .section(ExplorerFolder(kind: kind, session: session, databaseName: nil, count: nil, isLoading: false, source: nil))
+        }
+        let databases = ObjectBrowserNode(id: "dbs", row: section(.databases), children: [leaf("db")])
+        let security = ObjectBrowserNode(id: "sec", row: section(.serverSecurity), children: [leaf("logins")])
         let server = ObjectBrowserNode(id: "server", row: .server(session), children: [databases, security])
         let layout = ExplorerTreeLayout(roots: [server], expandedNodeIDs: ["server", "dbs", "sec"], baseRowHeight: base)
         #expect(layout.rows.map(\.id) == ["server", "dbs", "db", "sec", "logins"])

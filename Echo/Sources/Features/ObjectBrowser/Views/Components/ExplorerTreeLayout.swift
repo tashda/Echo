@@ -68,13 +68,13 @@ struct ExplorerTreeLayout {
         if case .loading = row {
             return baseRowHeight * CGFloat(LayoutTokens.Shimmer.explorerRowCount)
         }
-        return baseRowHeight + row.groupTopPadding + row.extraSlotHeight
+        return baseRowHeight + row.extraSlotHeight
     }
 
     static func childDepth(for node: ObjectBrowserNode, depth: Int) -> Int {
         switch node.row {
         // Server-level sections are headings: their children start at the card's left edge.
-        case .topSpacer, .pendingConnection, .server, .databasesFolder, .serverFolder:
+        case .topSpacer, .pendingConnection, .server, .section:
             depth
         default:
             depth + 1

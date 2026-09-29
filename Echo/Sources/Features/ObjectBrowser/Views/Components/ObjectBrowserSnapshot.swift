@@ -81,204 +81,23 @@ enum ObjectBrowserSnapshotBuilder {
         settings: GlobalSettings,
         viewModel: ObjectBrowserSidebarViewModel
     ) -> [ObjectBrowserNode] {
+        let connectionID = session.connection.id.uuidString
         switch session.structureLoadingState {
         case .failed(let message):
-            return [
-                ObjectBrowserNode(
-                    id: "\(session.connection.id.uuidString)#failed",
-                    row: .message(message ?? "Failed to load", systemImage: "exclamationmark.triangle.fill", depth: 1)
-                )
-            ]
+            return [ObjectBrowserNode(
+                id: "\(connectionID)#failed",
+                row: .message(message ?? "Failed to load", systemImage: "exclamationmark.triangle.fill")
+            )]
         case .idle:
-            return [
-                ObjectBrowserNode(
-                    id: "\(session.connection.id.uuidString)#server-loading",
-                    row: .loading("Loading server…", depth: 1)
-                )
-            ]
+            return [ObjectBrowserNode(id: "\(connectionID)#server-loading", row: .loading("Loading server"))]
         case .loading where session.databaseStructure == nil:
-            return [
-                ObjectBrowserNode(
-                    id: "\(session.connection.id.uuidString)#server-loading",
-                    row: .loading("Loading server…", depth: 1)
-                )
-            ]
+            return [ObjectBrowserNode(id: "\(connectionID)#server-loading", row: .loading("Loading server"))]
         default:
-            let structure = session.databaseStructure
-            let visibleDatabases = visibleDatabases(
-                for: session,
-                structure: structure,
-                settings: settings,
-                hideOffline: viewModel.hideOfflineDatabasesBySession[session.connection.id] ?? false
-            )
-            let folderID = ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: session.connection.id)
-            let folderChildren = visibleDatabases.map {
-                databaseNode(
-                    for: session,
-                    database: $0,
-                    settings: settings,
-                    expandedNodeIDs: viewModel.expandedNodeIDs,
-                    viewModel: viewModel
-                )
-            }
-
-            var children = [
-                ObjectBrowserNode(
-                    id: folderID,
-                    row: .databasesFolder(session, count: visibleDatabases.count),
-                    children: folderChildren
-                )
-            ]
-            children.append(contentsOf: serverSupplementaryChildren(for: session, viewModel: viewModel))
-            return children
-        }
-    }
-
-    private static func databaseNode(
-        for session: ConnectionSession,
-        database: DatabaseInfo,
-        settings: GlobalSettings,
-        expandedNodeIDs: Set<String>,
-        viewModel: ObjectBrowserSidebarViewModel
-    ) -> ObjectBrowserNode {
-        let databaseID = ObjectBrowserSidebarViewModel.databaseNodeID(
-            connectionID: session.connection.id,
-            databaseName: database.name
-        )
-
-        let isLoading = session.schemaLoadsInFlight.contains(session.schemaLoadKey(database.name))
-
-        // A collapsed database's objects are never shown, so they aren't built: with many
-        // databases whose schemas load in the background, building them made every render (a
-        // rail click, a scroll-driven update) cost thousands of nodes. One placeholder child keeps
-        // the database expandable.
-        guard expandedNodeIDs.contains(databaseID) else {
-            return ObjectBrowserNode(
-                id: databaseID,
-                row: .database(session, database, isLoading: isLoading),
-                children: [
-                    ObjectBrowserNode(
-                        id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: databaseID),
-                        row: .loading("Loading objects", depth: 2)
-                    )
-                ]
+            let builder = ExplorerBlueprintWalker(session: session, settings: settings, viewModel: viewModel)
+            return builder.nodes(
+                for: ExplorerBlueprint.blueprint(for: session.connection.databaseType).server,
+                in: .server
             )
         }
-
-        let children = databaseChildren(
-            for: session,
-            database: database,
-            settings: settings,
-            expandedNodeIDs: expandedNodeIDs,
-            isLoading: isLoading,
-            viewModel: viewModel
-        )
-
-        return ObjectBrowserNode(
-            id: databaseID,
-            row: .database(session, database, isLoading: isLoading),
-            children: children
-        )
-    }
-
-    private static func databaseChildren(
-        for session: ConnectionSession,
-        database: DatabaseInfo,
-        settings: GlobalSettings,
-        expandedNodeIDs: Set<String>,
-        isLoading: Bool,
-        viewModel: ObjectBrowserSidebarViewModel
-    ) -> [ObjectBrowserNode] {
-        if isLoading {
-            return [
-                ObjectBrowserNode(
-                    id: ObjectBrowserSidebarViewModel.loadingNodeID(
-                        parentID: ObjectBrowserSidebarViewModel.databaseNodeID(
-                            connectionID: session.connection.id,
-                            databaseName: database.name
-                        )
-                    ),
-                    row: .loading("Loading schema…", depth: 2)
-                )
-            ]
-        }
-
-        guard session.hasLoadedSchema(forDatabase: database.name) else {
-            return [
-                ObjectBrowserNode(
-                    id: ObjectBrowserSidebarViewModel.loadingNodeID(
-                        parentID: ObjectBrowserSidebarViewModel.databaseNodeID(
-                            connectionID: session.connection.id,
-                            databaseName: database.name
-                        )
-                    ),
-                    row: session.metadataFreshness(forDatabase: database.name) == .failed
-                        ? .message("Schema refresh failed", systemImage: "exclamationmark.triangle", depth: 2)
-                        : .loading("Loading objects", depth: 2)
-                )
-            ]
-        }
-
-        let supportedTypes = SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
-        let snapshot = groupedObjects(for: database, supportedTypes: supportedTypes)
-        // Empty folders are hidden unless the user asks for them in Settings ▸ Sidebar.
-        let visibleTypes = settings.sidebarShowsEmptyFolders
-            ? supportedTypes
-            : supportedTypes.filter { !(snapshot[$0] ?? []).isEmpty }
-
-        let objectGroupNodes = visibleTypes.map { type in
-            let objects = snapshot[type] ?? []
-            let groupID = ObjectBrowserSidebarViewModel.objectGroupNodeID(
-                connectionID: session.connection.id,
-                databaseName: database.name,
-                objectType: type
-            )
-            let showsColumns = type == .table || type == .view || type == .materializedView
-            let groupChildren = objects.map { object -> ObjectBrowserNode in
-                let objectID = ExplorerSidebarIdentity.object(
-                    connectionID: session.connection.id,
-                    databaseName: database.name,
-                    objectID: object.id
-                )
-                let columnChildren: [ObjectBrowserNode] = showsColumns && !object.columns.isEmpty
-                    ? object.columns.map { col in
-                        ObjectBrowserNode(
-                            id: "\(objectID)#col#\(col.name)",
-                            row: .column(col, objectType: type, depth: 4)
-                        )
-                    }
-                    : []
-                return ObjectBrowserNode(
-                    id: objectID,
-                    row: .object(session, database.name, object),
-                    children: columnChildren
-                )
-            }
-
-            return ObjectBrowserNode(
-                id: groupID,
-                row: .objectGroup(session, database.name, type, count: objects.count),
-                children: groupChildren
-            )
-        }
-
-        let children = objectGroupNodes + databaseSupplementaryChildren(
-            for: session,
-            database: database,
-            viewModel: viewModel
-        )
-        guard children.isEmpty else { return children }
-
-        // With empty folders hidden, an empty database says so instead of expanding to nothing.
-        let databaseID = ObjectBrowserSidebarViewModel.databaseNodeID(
-            connectionID: session.connection.id,
-            databaseName: database.name
-        )
-        return [
-            ObjectBrowserNode(
-                id: "\(databaseID)#empty",
-                row: .infoLeaf("No objects", systemImage: "tray", paletteTitle: "", depth: 2)
-            )
-        ]
     }
 }

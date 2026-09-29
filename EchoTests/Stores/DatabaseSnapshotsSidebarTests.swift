@@ -18,19 +18,16 @@ struct DatabaseSnapshotsSidebarTests {
 
     // MARK: - Initial Snapshot State
 
-    @Test func initialSnapshotsExpandedIsEmpty() {
-        let vm = makeViewModel()
-        #expect(vm.databaseSnapshotsExpandedBySession.isEmpty)
+    private func snapshotsKey(_ connectionID: UUID = UUID()) -> ExplorerSourceKey {
+        ExplorerSourceKey(connectionID: connectionID, source: .databaseSnapshots)
     }
 
     @Test func initialSnapshotsDataIsEmpty() {
         let vm = makeViewModel()
-        #expect(vm.databaseSnapshotsBySession.isEmpty)
-    }
-
-    @Test func initialSnapshotsLoadingIsEmpty() {
-        let vm = makeViewModel()
-        #expect(vm.databaseSnapshotsLoadingBySession.isEmpty)
+        let key = snapshotsKey()
+        #expect(vm.childSources.isEmpty)
+        #expect(vm.items(key, kind: .databaseSnapshots).isEmpty)
+        #expect(vm.sourceState(key).needsLoad)
     }
 
     @Test func initialCreateSnapshotSheetNotShown() {
@@ -43,58 +40,56 @@ struct DatabaseSnapshotsSidebarTests {
         #expect(state.createSnapshotConnectionID == nil)
     }
 
-    // MARK: - Snapshot Expansion Toggle
+    // MARK: - Snapshot Folder Expansion
 
-    @Test func expandSnapshotsForSession() {
+    @Test func expandSnapshotsFolderForSession() {
         let vm = makeViewModel()
-        let sessionID = UUID()
+        let folderID = ObjectBrowserSidebarViewModel.serverFolderNodeID(connectionID: UUID(), kind: .databaseSnapshots)
 
-        vm.databaseSnapshotsExpandedBySession[sessionID] = true
-        #expect(vm.databaseSnapshotsExpandedBySession[sessionID] == true)
+        vm.setExpanded(true, nodeID: folderID)
+        #expect(vm.isExpanded(folderID))
+        vm.setExpanded(false, nodeID: folderID)
+        #expect(!vm.isExpanded(folderID))
     }
 
-    @Test func collapseSnapshotsForSession() {
-        let vm = makeViewModel()
-        let sessionID = UUID()
-
-        vm.databaseSnapshotsExpandedBySession[sessionID] = true
-        vm.databaseSnapshotsExpandedBySession[sessionID] = false
-        #expect(vm.databaseSnapshotsExpandedBySession[sessionID] == false)
-    }
-
-    @Test func unexpandedSessionDefaultsToFalse() {
-        let vm = makeViewModel()
-        let sessionID = UUID()
-
-        let isExpanded = vm.databaseSnapshotsExpandedBySession[sessionID] ?? false
-        #expect(isExpanded == false)
+    @Test func snapshotsFolderKeepsItsSavedID() {
+        let connectionID = UUID()
+        #expect(
+            ObjectBrowserSidebarViewModel.serverFolderNodeID(connectionID: connectionID, kind: .databaseSnapshots)
+                == "\(connectionID.uuidString)#server-folder#databaseSnapshots"
+        )
     }
 
     // MARK: - Snapshot Loading State
 
-    @Test func setSnapshotsLoadingForSession() {
+    @Test func beginLoadingMarksTheSourceLoading() {
         let vm = makeViewModel()
-        let sessionID = UUID()
+        let key = snapshotsKey()
 
-        vm.databaseSnapshotsLoadingBySession[sessionID] = true
-        #expect(vm.databaseSnapshotsLoadingBySession[sessionID] == true)
+        vm.beginLoading(key)
+        #expect(vm.sourceState(key).isLoading)
+        #expect(!vm.sourceState(key).needsLoad)
     }
 
-    @Test func clearSnapshotsLoadingForSession() {
+    @Test func finishLoadingStoresItemsAndStopsLoading() {
         let vm = makeViewModel()
-        let sessionID = UUID()
+        let key = snapshotsKey()
 
-        vm.databaseSnapshotsLoadingBySession[sessionID] = true
-        vm.databaseSnapshotsLoadingBySession[sessionID] = false
-        #expect(vm.databaseSnapshotsLoadingBySession[sessionID] == false)
+        vm.beginLoading(key)
+        vm.finishLoading(key, items: [.databaseSnapshots: [ExplorerItem(id: "snap1", name: "snap1", detail: "AdventureWorks")]])
+        #expect(!vm.sourceState(key).isLoading)
+        #expect(vm.sourceState(key).hasLoaded)
+        #expect(vm.items(key, kind: .databaseSnapshots).map(\.name) == ["snap1"])
     }
 
-    @Test func unsetLoadingSessionDefaultsToFalse() {
+    @Test func endLoadingStopsWithoutMarkingLoaded() {
         let vm = makeViewModel()
-        let sessionID = UUID()
+        let key = snapshotsKey()
 
-        let isLoading = vm.databaseSnapshotsLoadingBySession[sessionID] ?? false
-        #expect(isLoading == false)
+        vm.beginLoading(key)
+        vm.endLoading(key)
+        #expect(!vm.sourceState(key).isLoading)
+        #expect(vm.sourceState(key).needsLoad)
     }
 
     // MARK: - Create Snapshot Sheet State
@@ -166,17 +161,15 @@ struct DatabaseSnapshotsSidebarTests {
 
     @Test func snapshotStateIsIndependentPerSession() {
         let vm = makeViewModel()
-        let session1 = UUID()
-        let session2 = UUID()
+        let first = snapshotsKey()
+        let second = snapshotsKey()
 
-        vm.databaseSnapshotsExpandedBySession[session1] = true
-        vm.databaseSnapshotsExpandedBySession[session2] = false
-        vm.databaseSnapshotsLoadingBySession[session1] = false
-        vm.databaseSnapshotsLoadingBySession[session2] = true
+        vm.beginLoading(second)
+        vm.finishLoading(first, items: [.databaseSnapshots: [ExplorerItem(id: "a", name: "a")]])
 
-        #expect(vm.databaseSnapshotsExpandedBySession[session1] == true)
-        #expect(vm.databaseSnapshotsExpandedBySession[session2] == false)
-        #expect(vm.databaseSnapshotsLoadingBySession[session1] == false)
-        #expect(vm.databaseSnapshotsLoadingBySession[session2] == true)
+        #expect(!vm.sourceState(first).isLoading)
+        #expect(vm.sourceState(second).isLoading)
+        #expect(vm.items(first, kind: .databaseSnapshots).count == 1)
+        #expect(vm.items(second, kind: .databaseSnapshots).isEmpty)
     }
 }

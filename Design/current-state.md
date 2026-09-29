@@ -23,14 +23,16 @@ What Echo's code looked like when the redesign was planned, from a read of the s
 
 ## Explorer tree
 
-- It is an AppKit `NSTableView` (`ObjectBrowserOutlineView.swift`) with one `NSHostingView` per row (`ObjectBrowserRowView.swift`). Snapshots come from `ObjectBrowserSnapshot*.swift`.
+- It is SwiftUI: a flat `LazyVStack` (`ObjectBrowserOutlineView.swift`) laid out by `ExplorerTreeLayout`, one `ObjectBrowserRowView` per row, server cards drawn behind by `ExplorerTreeCardsLayer`.
+- **What a tree contains is described by blueprints** (`Features/ObjectBrowser/Blueprint/`):
+  - `ExplorerNodeKind`: the catalogue of every kind of node, with its title, SF Symbol, colour role and ID component.
+  - `ExplorerBlueprint+SQLServer/PostgreSQL/MySQL/SQLite.swift`: one ordered blueprint per database type (`Databases()`, `Folder`, `ItemFolder`, `Items`, `Tool`, `ObjectFolders`, `WhenOnline`). The order in the file is the order in the tree.
+  - `ExplorerChildSource`: where loaded items come from; `ObjectBrowserSidebarViewModel.childSources` holds them all, keyed by `ExplorerSourceKey`. Loaders live in `ObjectBrowserSidebarView+ServerData/+Security/+DatabaseSections.swift`; `+ChildSources.swift` maps a source to its loader.
+  - `ExplorerBlueprintWalker` turns a blueprint and the loaded data into `ObjectBrowserNode`s (13 generic row kinds: section, folder, item, database, object…).
+  - `ExplorerIconRole`: colours by role, from `ColorTokens.Explorer`.
+- Menus are chosen by node kind in `+ContextMenus.swift` and live by area: `+ServerMenus`, `+DatabaseMenus`, `+ObjectMenus`, `+ScriptActions`.
 - Keep state that changes often out of `ObjectBrowserSidebarView`'s body: every body run rebuilds the whole tree.
-- Row look lives in `Shared/DesignSystem/Components/SidebarRow.swift`:
-  - four density levels (compact, small, default, large);
-  - a 14pt indent and 7pt corners.
-- Colours come from `ExplorerSidebarPalette` in `ExplorerRowModels.swift`, which is keyed on folder title strings. Some Postgres colours bypass the tokens.
-- `ColorTokens.Sidebar.symbol` and the fills are black-based and don't adapt to appearance.
-- Selection is drawn by SwiftUI; the table's own selection is off (`selectionHighlightStyle = .none`).
+- Row look lives in `Shared/DesignSystem/Components/SidebarRow.swift` (tree style S1): four density levels, a 14pt indent, 8pt corners, an accent-tinted selection. Server headers and section headings are in `ObjectBrowserRowView+Headers.swift`.
 
 ## Tabs and tab overview
 

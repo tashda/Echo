@@ -11,64 +11,41 @@ extension ObjectBrowserSidebarView {
     }
 
     func loadAgentJobs(session: ConnectionSession) {
-        let connID = session.connection.id
         guard let mssql = session.session as? MSSQLSession else { return }
-        viewModel.agentJobsLoadingBySession[connID] = true
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .agentJobs)
+        viewModel.beginLoading(key)
 
         Task {
-            defer { viewModel.agentJobsLoadingBySession[connID] = false }
-
+            var jobs: [ExplorerItem] = []
             do {
-                let detailed = try await mssql.agent.listJobDetails()
-                viewModel.agentJobsBySession[connID] = detailed.map { job in
-                    .init(
-                        id: job.jobId,
-                        name: job.name,
-                        enabled: job.enabled,
-                        lastOutcome: job.lastRunOutcome
-                    )
+                jobs = try await mssql.agent.listJobDetails().map {
+                    ExplorerItem(id: $0.jobId, name: $0.name, detail: $0.lastRunOutcome, isDisabled: !$0.enabled)
                 }
             } catch {
-                do {
-                    let basic = try await mssql.agent.listJobs()
-                    viewModel.agentJobsBySession[connID] = basic.map { job in
-                        .init(
-                            id: job.name,
-                            name: job.name,
-                            enabled: job.enabled,
-                            lastOutcome: job.lastRunOutcome
-                        )
-                    }
-                } catch {
-                    viewModel.agentJobsBySession[connID] = []
-                }
+                jobs = (try? await mssql.agent.listJobs().map {
+                    ExplorerItem(id: $0.name, name: $0.name, detail: $0.lastRunOutcome, isDisabled: !$0.enabled)
+                }) ?? []
             }
+            viewModel.finishLoading(key, items: [.agentJobs: jobs])
         }
     }
 
     func loadLinkedServers(session: ConnectionSession) {
-        let connID = session.connection.id
         guard let mssql = session.session as? MSSQLSession else { return }
-        viewModel.linkedServersLoadingBySession[connID] = true
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .linkedServers)
+        viewModel.beginLoading(key)
 
         Task {
-            defer { viewModel.linkedServersLoadingBySession[connID] = false }
-
-            do {
-                let servers = try await mssql.linkedServers.list()
-                viewModel.linkedServersBySession[connID] = servers.map { server in
-                    .init(
-                        id: server.name,
-                        name: server.name,
-                        provider: server.provider,
-                        dataSource: server.dataSource,
-                        product: server.product,
-                        isDataAccessEnabled: server.isDataAccessEnabled
-                    )
-                }
-            } catch {
-                viewModel.linkedServersBySession[connID] = []
-            }
+            let servers = (try? await mssql.linkedServers.list()) ?? []
+            viewModel.finishLoading(key, items: [.linkedServers: servers.map {
+                ExplorerItem(
+                    id: $0.name,
+                    name: $0.name,
+                    detail: $0.dataSource.isEmpty ? nil : $0.dataSource,
+                    isDisabled: !$0.isDataAccessEnabled,
+                    payload: .linkedServer
+                )
+            }])
         }
     }
 
@@ -108,35 +85,28 @@ extension ObjectBrowserSidebarView {
     }
 
     func loadSSISFoldersAsync(session: ConnectionSession) async {
-        let connID = session.connection.id
         guard let mssql = session.session as? MSSQLSession else { return }
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .integrationServices)
+        viewModel.beginLoading(key)
 
-        viewModel.ssisLoadingBySession[connID] = true
-        defer { viewModel.ssisLoadingBySession[connID] = false }
-
-        do {
-            if try await mssql.ssis.isSSISCatalogAvailable() {
-                viewModel.ssisFoldersBySession[connID] = try await mssql.ssis.listFolders()
-            } else {
-                viewModel.ssisFoldersBySession[connID] = []
-            }
-        } catch {
-            viewModel.ssisFoldersBySession[connID] = []
+        var folders: [SQLServerSSISFolder] = []
+        if (try? await mssql.ssis.isSSISCatalogAvailable()) == true {
+            folders = (try? await mssql.ssis.listFolders()) ?? []
         }
+        viewModel.finishLoading(key, items: [.integrationServices: folders.map {
+            ExplorerItem(id: $0.name, name: $0.name, payload: .ssisFolder($0))
+        }])
     }
 
     func loadDatabaseSnapshots(session: ConnectionSession) {
-        let connID = session.connection.id
-        viewModel.databaseSnapshotsLoadingBySession[connID] = true
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .databaseSnapshots)
+        viewModel.beginLoading(key)
 
         Task {
-            defer { viewModel.databaseSnapshotsLoadingBySession[connID] = false }
-
-            do {
-                viewModel.databaseSnapshotsBySession[connID] = try await session.session.listDatabaseSnapshots()
-            } catch {
-                viewModel.databaseSnapshotsBySession[connID] = []
-            }
+            let snapshots = (try? await session.session.listDatabaseSnapshots()) ?? []
+            viewModel.finishLoading(key, items: [.databaseSnapshots: snapshots.map {
+                ExplorerItem(id: $0.name, name: $0.name, detail: $0.sourceDatabaseName, payload: .snapshot($0))
+            }])
         }
     }
 
@@ -188,27 +158,21 @@ extension ObjectBrowserSidebarView {
     }
 
     func loadServerTriggers(session: ConnectionSession) {
-        let connID = session.connection.id
         guard let mssql = session.session as? MSSQLSession else { return }
-        viewModel.serverTriggersLoadingBySession[connID] = true
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .serverTriggers)
+        viewModel.beginLoading(key)
 
         Task {
-            defer { viewModel.serverTriggersLoadingBySession[connID] = false }
-
-            do {
-                let triggers = try await mssql.triggers.listServerTriggers()
-                viewModel.serverTriggersBySession[connID] = triggers.map { trigger in
-                    .init(
-                        id: trigger.name,
-                        name: trigger.name,
-                        isDisabled: trigger.isDisabled,
-                        typeDescription: trigger.typeDescription,
-                        events: trigger.events
-                    )
-                }
-            } catch {
-                viewModel.serverTriggersBySession[connID] = []
-            }
+            let triggers = (try? await mssql.triggers.listServerTriggers()) ?? []
+            viewModel.finishLoading(key, items: [.serverTriggers: triggers.map {
+                ExplorerItem(
+                    id: $0.name,
+                    name: $0.name,
+                    detail: $0.isDisabled ? "Disabled" : nil,
+                    isDisabled: $0.isDisabled,
+                    payload: .serverTrigger
+                )
+            }])
         }
     }
 

@@ -3,17 +3,6 @@ import PostgresKit
 import SQLServerKit
 
 extension ObjectBrowserSidebarView {
-    func loadServerSecurityIfNeeded(session: ConnectionSession) {
-        let connID = session.connection.id
-        let hasData = !(viewModel.securityLoginsBySession[connID] ?? []).isEmpty
-            || !(viewModel.securityServerRolesBySession[connID] ?? []).isEmpty
-            || !(viewModel.securityCredentialsBySession[connID] ?? []).isEmpty
-        let isLoading = viewModel.securityServerLoadingBySession[connID] ?? false
-        if !hasData && !isLoading {
-            loadServerSecurity(session: session)
-        }
-    }
-
     func loadServerSecurity(session: ConnectionSession) {
         Task {
             await loadServerSecurityAsync(session: session)
@@ -21,81 +10,73 @@ extension ObjectBrowserSidebarView {
     }
 
     func loadServerSecurityAsync(session: ConnectionSession) async {
-        let connID = session.connection.id
-        viewModel.securityServerLoadingBySession[connID] = true
-        defer { viewModel.securityServerLoadingBySession[connID] = false }
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .serverSecurity)
+        viewModel.beginLoading(key)
 
         switch session.connection.databaseType {
         case .microsoftSQL:
-            await loadMSSQLServerSecurity(session: session, connID: connID)
+            viewModel.finishLoading(key, items: await loadMSSQLServerSecurity(session: session))
         case .postgresql:
-            await loadPostgresServerSecurity(session: session, connID: connID)
+            viewModel.finishLoading(key, items: await loadPostgresServerSecurity(session: session))
         case .mysql, .sqlite:
-            break
+            viewModel.finishLoading(key, items: [:])
         }
     }
 
-    func loadMSSQLServerSecurity(session: ConnectionSession, connID: UUID) async {
-        guard let mssql = session.session as? MSSQLSession else { return }
+    private func loadMSSQLServerSecurity(session: ConnectionSession) async -> [ExplorerNodeKind: [ExplorerItem]] {
+        guard let mssql = session.session as? MSSQLSession else { return [:] }
         let security = mssql.serverSecurity
+        let certificateTypes: Set<ServerLoginType> = [.certificate, .asymmetricKey]
 
-        do {
-            let logins = try await security.listLogins(includeSystemLogins: false)
-            viewModel.securityLoginsBySession[connID] = logins.map {
-                .init(
-                    id: $0.name,
-                    name: $0.name,
-                    loginType: loginTypeDisplayName($0.type),
-                    isDisabled: $0.isDisabled
-                )
-            }
-        } catch {
-            viewModel.securityLoginsBySession[connID] = []
+        let logins = (try? await security.listLogins(includeSystemLogins: false)) ?? []
+        let loginItems: [(isCertificate: Bool, item: ExplorerItem)] = logins.map { login in
+            let type = loginTypeDisplayName(login.type)
+            return (certificateTypes.contains(login.type), ExplorerItem(
+                id: login.name,
+                name: login.name,
+                detail: login.isDisabled ? "\(type) · Disabled" : type,
+                isDisabled: login.isDisabled,
+                symbol: login.isDisabled ? "person.crop.circle.badge.xmark" : nil,
+                payload: .login(type: type)
+            ))
         }
+        let roles = (try? await security.listServerRoles()) ?? []
+        let credentials = (try? await security.listCredentials()) ?? []
 
-        do {
-            let roles = try await security.listServerRoles()
-            viewModel.securityServerRolesBySession[connID] = roles.map {
-                .init(id: $0.name, name: $0.name, isFixed: $0.isFixed)
-            }
-        } catch {
-            viewModel.securityServerRolesBySession[connID] = []
-        }
-
-        do {
-            let credentials = try await security.listCredentials()
-            viewModel.securityCredentialsBySession[connID] = credentials.map {
-                .init(id: $0.name, name: $0.name, identity: $0.identity ?? "")
-            }
-        } catch {
-            viewModel.securityCredentialsBySession[connID] = []
-        }
+        return [
+            .logins: loginItems.filter { !$0.isCertificate }.map(\.item),
+            .certificateLogins: loginItems.filter(\.isCertificate).map(\.item),
+            .serverRoles: roles.map {
+                ExplorerItem(id: $0.name, name: $0.name, detail: $0.isFixed ? "Fixed" : nil, payload: .serverRole(isFixed: $0.isFixed))
+            },
+            .credentials: credentials.map {
+                ExplorerItem(id: $0.name, name: $0.name, detail: $0.identity, payload: .credential(identity: $0.identity ?? ""))
+            },
+        ]
     }
 
-    func loadPostgresServerSecurity(session: ConnectionSession, connID: UUID) async {
-        guard let pg = session.session as? PostgresSession else { return }
+    private func loadPostgresServerSecurity(session: ConnectionSession) async -> [ExplorerNodeKind: [ExplorerItem]] {
+        guard let pg = session.session as? PostgresSession else { return [:] }
+        let roles = (try? await pg.client.security.listRoles()) ?? []
 
-        do {
-            let roles = try await pg.client.security.listRoles()
-            viewModel.securityLoginsBySession[connID] = roles.map { role in
-                let typeDescription: String
-                if role.isSuperuser {
-                    typeDescription = "Superuser"
-                } else if role.canLogin {
-                    typeDescription = "Login Role"
-                } else {
-                    typeDescription = "Group Role"
-                }
-                return .init(
+        var loginRoles: [ExplorerItem] = []
+        var groupRoles: [ExplorerItem] = []
+        for role in roles {
+            let type = role.isSuperuser ? "Superuser" : role.canLogin ? "Login Role" : "Group Role"
+            if role.isSuperuser || role.canLogin {
+                loginRoles.append(ExplorerItem(id: role.name, name: role.name, detail: type, payload: .login(type: type)))
+            } else {
+                groupRoles.append(ExplorerItem(
                     id: role.name,
                     name: role.name,
-                    loginType: typeDescription,
-                    isDisabled: false
-                )
+                    detail: type,
+                    symbol: ExplorerNodeKind.groupRoles.symbol,
+                    role: .roles,
+                    payload: .login(type: type)
+                ))
             }
-        } catch {
-            viewModel.securityLoginsBySession[connID] = []
         }
+        return [.loginRoles: loginRoles, .groupRoles: groupRoles]
     }
 
     func createMSSQLServerRole(session: ConnectionSession) {
