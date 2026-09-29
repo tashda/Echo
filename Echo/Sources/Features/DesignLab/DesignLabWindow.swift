@@ -44,7 +44,7 @@ struct LabQuestion: Identifiable {
 }
 
 enum DesignLabPage: String, CaseIterable, Identifiable {
-    case treeCard = "Tree card · contents"
+    case treeCard = "Tree card · decided"
     case round12 = "Round 12 · decided"
     case round11 = "Round 11 · decided"
     case round10 = "Round 10 · decided"
@@ -60,7 +60,7 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
-        case .treeCard: "list.bullet.indent"
+        case .treeCard: "checkmark.circle"
         case .round12: "rectangle.topthird.inset.filled"
         case .round11: "checkmark.circle"
         case .round10: "checkmark.circle"
@@ -76,7 +76,7 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var intro: String {
         switch self {
-        case .treeCard: "The content of the server cards, redrawn six ways beside today's. The card itself stays as it is. Every tree is live and they share one state: click folders to open them, hover rows, click to select. The controls above the trees apply to all of them: icon mode (every style has colourful and monochrome), palette, how schema names show, and whether server folders are folders or headings."
+        case .treeCard: "Decided: S1 Tahoe, colourful icons in the Vivid palette, dimmed schema prefix, server folders as sections, and tree blueprints. Kept as a reference. The content of the server cards, redrawn six ways beside today's. The card itself stays as it is. Every tree is live and they share one state: click folders to open them, hover rows, click to select. The controls above the trees apply to all of them: icon mode (every style has colourful and monochrome), palette, how schema names show, and whether server folders are folders or headings."
         case .round12: "Two-line versions of T2 (round 11's pick). Every design is live: click tabs, hover for the close button, press +. Query 2 is running, so its second line is a timer."
         case .round11: "Decided in round 11: T2 filled tabs. Kept as a reference. The tab bar, again: today's glass capsule feels weaker than the old strip, with inactive tabs too light. Every design below is live: click tabs, hover them for the close button, press +. Query 2 is running. Pick one, or combine: say which in the note."
         case .round10: "Decided in round 10: a pill per entry on the footer's right, and the database switcher as a card above the pill that rises in. Kept as a reference."
@@ -93,14 +93,7 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
     var questions: [LabQuestion] {
         switch self {
         case .treeCard:
-            [
-                LabQuestion(id: "treeCard.style", title: "Tree style", howTo: "Open, hover and select rows in each card; name any mix in the note (\"S2 tiles with S3 guides\").", options: LabTreeCardStyle.allCases.map(\.code)),
-                LabQuestion(id: "treeCard.icons", title: "Icons by default", howTo: "Switch Icons above the trees. Both stay as a setting; this picks the default.", options: LabTreeIconMode.allCases.map(\.rawValue)),
-                LabQuestion(id: "treeCard.palette", title: "Colour palette", howTo: "With Icons on Colourful, switch Palette. Families: one hue per kind (data, code, security, operations).", options: LabTreePalette.allCases.map(\.rawValue)),
-                LabQuestion(id: "treeCard.schema", title: "Schema names", howTo: "Switch Schema, then look at Tables in employees (one schema) and AdventureWorks2022 (four).", options: LabTreeSchemaMode.allCases.map(\.rawValue)),
-                LabQuestion(id: "treeCard.topLevel", title: "Server folders", howTo: "Switch Server folders: Sections turns Databases, Security and the rest into headings, saving one indent level.", options: LabTreeTopLevel.allCases.map(\.rawValue)),
-                LabQuestion(id: "treeCard.blueprints", title: "Tree blueprints (see the web page)", howTo: "Describe each database type's tree as an ordered blueprint with roles, instead of today's switch statements.", options: LabQuestion.acceptReject),
-            ]
+            []
         case .round12:
             []
         case .round11:

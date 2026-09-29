@@ -37,22 +37,31 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Explorer tree
 
 - It is an SSMS/pgAdmin-style tree. *Decided.*
-- **One opaque card per server**, hugging its rows, with exactly the editor card's look: `textBackgroundColor`, 12pt corners, 0.5pt edge, the `workspaceCard` shadow. Cards are one gutter apart (Spacing Between Panes), with 4pt below the last row. Never glass. *Decided* (review rounds 4 and 5).
+- **One opaque card per server**, hugging its rows, with exactly the editor card's look: `textBackgroundColor`, 12pt corners, 0.5pt edge, the `workspaceCard` shadow. Cards are one gutter apart (Spacing Between Panes), with 4pt below the last row. Never glass. *Decided* (review rounds 4 and 5; the owner likes the card as it is, tree card round).
 - Servers are listed in the rail's order; connecting and failed servers come last, each on its own card. *Decided.*
 - **No pinned header** (round 10, P1): rows scroll to the card's rounded top edge; the rail highlights the server you're scrolled into, and a rail click glides to a server's top. The glass header, its blur and the "Pin server and database" setting are gone. *Decided.* (Replaces round 6's glass card header.)
 - **Rounded end:** the tree stops one gutter above the window edge, on the editor card's bottom line. A card cut by the bottom edge ends in rounded corners with its full shadow. No fades. *Decided* (round 7).
 - **No scroll bar** (round 9, SB3); the rail shows which server you're in. Settings › Sidebar › Show scroll bar brings back the small overlay scroller, inset inside the card corners. *Decided.*
-- **Server header:** the server name heads its card in **bold 13pt** and scrolls with the rows (it no longer pins, round 10). Small caps and a two-line header were rejected. *Decided.*
-- **Selection:** a neutral grey pill; the icon turns accent. *Decided.*
+- **Row style: S1 Tahoe** (tree card round). *Decided.* It replaces the earlier row look.
+  - Rows are 26pt in a 27pt slot at the default density, so neighbouring highlights never touch; 13pt labels.
+  - Symbols are hierarchical, 13pt, in both icon modes.
+  - Chevrons are 9pt bold in the quaternary grey, lighter than the icon beside them.
+  - 7pt between chevron, icon and label; 14pt indent per level; 8pt row corners.
+- **Server header:** the server's name heads its card in **bold 13pt**, primary, with its product and version (such as "PostgreSQL 18.1") in tertiary 11pt on the right. It scrolls with the rows. A chevron shows while collapsed or hovered. *Decided* (tree card round; the version is new).
+- **Sections:** server-level folders (Databases, Security, Database Snapshots, Agent Jobs, Management, Integration Services Catalogs, Linked Servers, Server Triggers) are Finder-style headings: 11pt semibold secondary, their count, and a trailing chevron shown while collapsed or hovered. Their children start at the card's left edge, so a table sits two levels in. Server-level tools (MySQL, SQLite) sit under a Management heading. *Decided* (tree card round).
+- **Selection:** the row is tinted with its accent (18%; 30% with Increase Contrast) and its icon turns accent. The accent is the system's, the custom one or the server's colour, per the accent setting. *Decided* (tree card round; replaces the grey pill).
 - **Counts:** plain grey tabular digits at the right; zero is hidden. *Decided.*
+- **Schema names:** objects show their schema as a dimmed prefix (`employees.salary`). *Decided* (tree card round kept it; "schema on the right" and schema groups were rejected).
 - **Density:** four levels (compact, small, default, large) stay as a setting. *Decided.*
-- **Icon colour** stays a setting with two modes. *Decided.*
-  - Monochrome mode defaults to **monochrome with accent on expanded folders**, so you see your path. A sub-setting switches to pure monochrome. *Decided.*
-  - Colourful mode uses today's colours softened (lower saturation, hierarchical symbols). *Decided.*
+- **Icon colour** stays a setting with two modes; **colourful is the default**. *Decided.*
+  - Colourful mode uses the Vivid palette: today's colours softened towards grey (22%). Soft, Families and Server colour were rejected.
+  - Monochrome mode defaults to **monochrome with accent on expanded folders**, so you see your path. A sub-setting switches to pure monochrome.
+  - Colours are picked by the node's role, never by its title (tree blueprints, plan Phase 2b).
 - **Expanding:** rows slide down with a fade (native table animation), scaled by the speed setting. *Decided.*
 - **Loading:** shimmer placeholder rows at the right indent, then crossfade to the real rows. *Decided.*
 - **No search field in the tree.** *Decided.*
 - **Empty folders** are hidden by default, with a setting to show them. *Decided.*
+- **How a tree is described:** each database type has an ordered **blueprint** (one file per type, built from shared fragments). The order in the blueprint is the order in the tree. Node kinds carry their title, symbol and role; the builder, rows and menus are generic. *Decided* (tree card round).
 
 ## Search
 

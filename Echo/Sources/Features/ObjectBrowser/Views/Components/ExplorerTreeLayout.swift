@@ -71,9 +71,10 @@ struct ExplorerTreeLayout {
         return baseRowHeight + row.groupTopPadding + row.extraSlotHeight
     }
 
-    private static func childDepth(for node: ObjectBrowserNode, depth: Int) -> Int {
+    static func childDepth(for node: ObjectBrowserNode, depth: Int) -> Int {
         switch node.row {
-        case .topSpacer, .pendingConnection, .server:
+        // Server-level sections are headings: their children start at the card's left edge.
+        case .topSpacer, .pendingConnection, .server, .databasesFolder, .serverFolder:
             depth
         default:
             depth + 1

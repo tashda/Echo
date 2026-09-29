@@ -10,6 +10,19 @@ The owner found the status popover's Liquid Glass perfect and the switcher's in-
 
 The owner meant **T1 (Safari)**, not T2, together with T7's two lines, and from round 12 **L2's icon**; no more lab rounds for the tab bar. The glass tab bar: inactive tabs have no fill, full-strength titles and hairline dividers; the active tab is a raised white pill; every tab shows its kind's icon (a spinner while running) and two lines, the title over the database (the timer while running). The bar is 10pt taller. Classic stays as the fallback. Supersedes the T2 entry below. → 05-components
 
+## 2026-09-29 · Tree card answers: S1 Tahoe, sections, blueprints
+
+Design Lab page "Tree card · contents" (owner's answers, pasted in chat):
+- **Tree style: S1 Tahoe.** 26pt rows in a 27pt slot (medium), 13pt labels, 13pt hierarchical symbols in both icon modes, 9pt bold chevrons in the quaternary grey, 7pt between chevron, icon and label, 14pt indent, 8pt row corners, the selection tinted with the row's accent (18%, 30% with Increase Contrast) instead of grey, and the server's name in bold 13pt primary with its product and version on the right. Replaces the grey selection pill, the 12pt indent and the 11pt grey server name. → 05-components, 06-tokens
+- **Icons: colourful by default, Vivid palette** (today's colours softened 22%). Monochrome stays a setting. → 05-components
+- **Schema names: the dimmed prefix stays.** → 05-components
+- **Server folders are sections:** Databases, Security, Agent Jobs and the other server-level folders are Finder-style headings (11pt semibold grey, count, a trailing chevron shown while collapsed or hovered), and their children start at the card's left edge. MySQL's and SQLite's server tools move under a Management heading so they don't read as databases. → 05-components
+- **Tree blueprints: accepted.** Each database type's tree becomes an ordered blueprint with node kinds and roles, replacing the switch statements. Plan Phase 2b. Explainer: https://claude.ai/artifact/N7UL1qHMGicpthQmSKVa89
+
+## 2026-09-29 · Tree card contents opened
+
+The owner likes the server card itself but finds the content inside it dated. Design Lab page "Tree card · contents" shows six styles beside today's (S1 Tahoe, S2 Tiles, S3 Structure, S4 Quiet, S5 Detailed, S6 Path), each in colourful and monochrome, with shared controls for the palette (Vivid, Soft, Families, Server colour), schema names and server folders as sections. The card's surface, corners, edge and shadow are not in question. It also proposes describing each database type's tree as an ordered blueprint (explainer: https://claude.ai/artifact/N7UL1qHMGicpthQmSKVa89). Open.
+
 ## 2026-09-29 · Round 11 answer: T2 filled tabs; two-line tabs to explore
 
 Design Lab round 11 (owner's answer, pasted in chat): **T2, filled tabs** inside the glass capsule, so inactive tabs read as buttons with near-full-strength text. "I like the idea of T7 with two lines. Let's explore that as well" → round 12 in the Design Lab explores two-line versions of T2. Also: the results must fold back into the footer smoothly; it now runs as one continuous path (the editor card grows back to full height while the results card lands on its bottom edge and its chrome fades out). → 05-components

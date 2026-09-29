@@ -15,7 +15,7 @@ struct ObjectBrowserRowView: View {
 
     @Environment(ProjectStore.self) var projectStore
     @Environment(EnvironmentState.self) var environmentState
-    @State private var isHeaderHovering = false
+    @State var isHeaderHovering = false
     
     private var depth: Int {
         max(0, outlineLevel)
@@ -25,9 +25,7 @@ struct ObjectBrowserRowView: View {
         switch node.row {
         case .topSpacer:
             0
-        case .server:
-            0
-        case .pendingConnection:
+        case .server, .pendingConnection, .databasesFolder, .serverFolder:
             0
         default:
             -(SidebarRowConstants.rowOuterHorizontalPadding + SpacingTokens.xxxs)
@@ -99,17 +97,7 @@ struct ObjectBrowserRowView: View {
         case .server(let session):
             serverRow(session: session)
         case .databasesFolder(_, let count):
-            buttonRow {
-                SidebarRow(
-                    depth: depth,
-                    icon: .system("cylinder.split.1x2"),
-                    label: "Databases",
-                    isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
-                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: "Databases"))
-                ) {
-                    countLabel(count)
-                }
-            }
+            sectionHeading(title: "Databases", count: count)
         case .database(let session, let database, let isLoading):
             buttonRow {
                 SidebarRow(
@@ -180,17 +168,7 @@ struct ObjectBrowserRowView: View {
         case .column(let column, _, _):
             columnRow(column: column)
         case .serverFolder(_, let kind, let count):
-            buttonRow {
-                SidebarRow(
-                    depth: depth,
-                    icon: .system(kind.systemImage),
-                    label: kind.title,
-                    isExpanded: Binding(get: { isExpanded }, set: { _ in onActivate() }),
-                    iconColor: explorerIconColor(ExplorerSidebarPalette.folderIconColor(title: kind.title))
-                ) {
-                    countLabel(count)
-                }
-            }
+            sectionHeading(title: kind.title, count: count)
         case .databaseFolder(_, _, let kind, let count, let isLoading):
             buttonRow {
                 SidebarRow(
@@ -457,44 +435,6 @@ struct ObjectBrowserRowView: View {
                 )
             }
         }
-    }
-
-    private func connectionSectionHeader(session: ConnectionSession, showsDisclosure: Bool) -> some View {
-        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-            Text(serverDisplayName(session))
-                .font(SidebarRowConstants.sectionHeaderFont)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .lineLimit(1)
-
-            Spacer(minLength: SpacingTokens.xxs)
-
-            if case .connecting = session.connectionState {
-                ProgressView()
-                    .controlSize(.mini)
-            } else if case .testing = session.connectionState {
-                ProgressView()
-                    .controlSize(.mini)
-            }
-
-            if showsDisclosure {
-                // Finder-style: the chevron rotates, and an open section only shows it on hover.
-                Image(systemName: "chevron.right")
-                    .font(TypographyTokens.compact.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                    .frame(width: SidebarRowConstants.chevronWidth)
-                    .opacity(isHeaderHovering || !isExpanded ? 1 : 0)
-                    .animation(.snappy(duration: 0.2), value: isExpanded)
-                    .animation(.easeInOut(duration: 0.15), value: isHeaderHovering)
-            }
-        }
-        .padding(.leading, SpacingTokens.xs + SpacingTokens.xxs)
-        .padding(.trailing, SidebarRowConstants.rowTrailingPadding + SidebarRowConstants.rowOuterHorizontalPadding)
-        .padding(.top, SpacingTokens.sm)
-        .padding(.bottom, SpacingTokens.xxxs)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .onHover { isHeaderHovering = $0 }
     }
 
     private func pendingConnectionRow(pending: PendingConnection) -> some View {

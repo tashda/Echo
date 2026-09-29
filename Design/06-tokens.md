@@ -35,9 +35,14 @@ Values that views use. The code equivalents live in `Echo/Sources/Shared/DesignS
 | Server card | the editor card's tokens: `textBackgroundColor`, 12pt corners, 0.5pt edge at 35%, `workspaceCard` shadow | Decided |
 | Server card spacing | 4pt below the last row; the gutter setting between cards | Decided |
 | Density | compact / small / default / large (see `SidebarRow`) | Decided |
-| Indent per level | 12pt | Decided (as in the Design Lab; 14 today) |
-| Row corner | 7pt | Decided |
-| Selection fill | neutral grey (`Sidebar.selectedFill`) | Decided |
+| Indent per level | 14pt (`SidebarRowConstants.indentStep`) | Decided (S1) |
+| Row corner | 8pt (`LayoutTokens.Workspace.treeRowCornerRadius`) | Decided (S1) |
+| Row slot | 20 / 23 / 27 / 34pt by density; the row is about 1pt shorter | Decided (S1) |
+| Chevron | 9pt bold, quaternary (`SidebarRowConstants.chevronFont`) | Decided (S1) |
+| Icon | 13pt hierarchical at the default density | Decided (S1) |
+| Section heading | 11pt semibold secondary, 4pt extra above (`treeSectionTopPadding`) | Decided (S1) |
+| Server header | 13pt bold primary; product and version 11pt tertiary | Decided (S1) |
+| Selection fill | the row's accent at 18%, 30% with Increase Contrast (`Sidebar.selectedTintOpacity`) | Decided (S1; replaces the grey fill) |
 
 ## Floating surfaces
 

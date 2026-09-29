@@ -14,6 +14,7 @@ Each review round is an interactive page where every option was marked Yes, Mayb
 | 8 | 2026-09-29 | Corners (measured), tree cards, path header, tree motion, welcome, server page, footer | https://claude.ai/artifact/XPy7hr8a2BgpXjejFSxUWA |
 | 9 | 2026-09-29 | Tree scroll bar, database switcher, footer position and backing, tab bar, faster tab switching | https://claude.ai/artifact/U3DDrkf5zQUEq6635UVBaY |
 | 10 | 2026-09-29 | How the results card appears, the pinned path header, the Inspector (new phase); in the Design Lab: the footer's right-hand side and the database switcher | https://claude.ai/artifact/BfUjeUCPDv9rd6cDXzCwEA |
+| Tree card | 2026-09-29 | The content of the server cards: six styles, palettes, schema names, sections; tree blueprints (answered in the Design Lab) | https://claude.ai/artifact/N7UL1qHMGicpthQmSKVa89 |
 
 Earlier exploration pages: [Echo Navigation Concepts](https://claude.ai/artifact/4Qpv59JDzYej7vuLGfXCQK) and [Echo Sidebar Rethink](https://claude.ai/artifact/YUkxDY7HGiDqdYTBRzmeYG).
 

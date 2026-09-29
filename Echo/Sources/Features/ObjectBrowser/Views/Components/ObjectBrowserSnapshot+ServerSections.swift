@@ -22,16 +22,21 @@ extension ObjectBrowserSnapshotBuilder {
                 serverFolderNode(.security, session: session, count: nil, children: securityChildren(for: session, viewModel: viewModel))
             ]
         case .mysql:
+            // Server-level tools sit under their own heading, so with sections they don't read
+            // as more databases.
             return [
-                actionNode(.maintenance, session: session, depth: 0),
-                actionNode(.serverProperties, session: session, depth: 0),
-                actionNode(.activityMonitor, session: session, depth: 0)
+                serverFolderNode(.management, session: session, count: nil, children: toolChildren([.maintenance, .serverProperties, .activityMonitor], for: session))
             ]
         case .sqlite:
             return [
-                actionNode(.maintenance, session: session, depth: 0)
+                serverFolderNode(.management, session: session, count: nil, children: toolChildren([.maintenance], for: session))
             ]
         }
+    }
+
+    private static func toolChildren(_ actions: [ObjectBrowserActionKind], for session: ConnectionSession) -> [ObjectBrowserNode] {
+        let parentID = ObjectBrowserSidebarViewModel.serverFolderNodeID(connectionID: session.connection.id, kind: .management)
+        return actions.map { actionNode($0, session: session, depth: 1, parentID: parentID) }
     }
 
     private static func serverFolderNode(

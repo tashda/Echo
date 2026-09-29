@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import Testing
 @testable import Echo
 
@@ -54,6 +55,29 @@ struct ExplorerTreeLayoutTests {
         let expanded = ExplorerTreeLayout(roots: [parent], expandedNodeIDs: ["parent"], baseRowHeight: base)
         #expect(collapsed.rows.count == 1)
         #expect(expanded.rows.map(\.depth) == [0, 1])
+    }
+
+    private func makeSession() -> ConnectionSession {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ExplorerTreeLayoutTests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return ConnectionSession(
+            connection: TestFixtures.savedConnection(connectionName: "Test"),
+            session: MockDatabaseSession(),
+            spoolManager: ResultSpooler(configuration: .defaultConfiguration(rootDirectory: root))
+        )
+    }
+
+    /// Server-level folders are section headings (tree style S1), so their children aren't indented.
+    @Test func sectionChildrenStartAtTheLeftEdge() {
+        let session = makeSession()
+        let databases = ObjectBrowserNode(id: "dbs", row: .databasesFolder(session, count: 1), children: [leaf("db")])
+        let security = ObjectBrowserNode(id: "sec", row: .serverFolder(session, .security, count: nil), children: [leaf("logins")])
+        let server = ObjectBrowserNode(id: "server", row: .server(session), children: [databases, security])
+        let layout = ExplorerTreeLayout(roots: [server], expandedNodeIDs: ["server", "dbs", "sec"], baseRowHeight: base)
+        #expect(layout.rows.map(\.id) == ["server", "dbs", "db", "sec", "logins"])
+        #expect(layout.rows.map(\.depth) == [0, 0, 0, 0, 0])
+        #expect(layout.rows[1].height == base + LayoutTokens.Workspace.treeSectionTopPadding)
     }
 
     @Test func rowIndexFindsTheRowAtAnOffset() {

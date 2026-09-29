@@ -132,6 +132,6 @@ struct LabTreeLook {
     var icons: LabTreeIconMode = .colorful
     var palette: LabTreePalette = .vivid
     var schema: LabTreeSchemaMode = .prefix
-    var topLevel: LabTreeTopLevel = .folders
+    var topLevel: LabTreeTopLevel = .sections
 }
 #endif

@@ -26,6 +26,14 @@ extension ObjectBrowserRowView {
         return "\(host) - \(typeLabel)"
     }
 
+    /// The product and version beside the server's name, such as "PostgreSQL 18.1" or
+    /// "SQL Server 2022". Nil when nothing is known yet.
+    func serverProductLabel(_ session: ConnectionSession) -> String? {
+        let raw = session.databaseStructure?.serverVersion ?? session.connection.serverVersion
+        guard let raw, !raw.isEmpty else { return nil }
+        return raw.replacingOccurrences(of: "Microsoft SQL Server", with: "SQL Server")
+    }
+
     func serverVersionLabel(_ session: ConnectionSession) -> String? {
         let raw = session.databaseStructure?.serverVersion ?? session.connection.serverVersion
         guard let raw, !raw.isEmpty else { return nil }

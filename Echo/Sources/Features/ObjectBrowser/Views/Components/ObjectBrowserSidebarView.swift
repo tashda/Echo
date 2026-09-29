@@ -112,7 +112,6 @@ struct ObjectBrowserSidebarView: View {
         }
         .environment(sheetState)
         .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
-        .environment(\.sidebarUsesHierarchicalSymbols, projectStore.globalSettings.sidebarIconColorMode == .colorful)
         .task(id: projectStore.selectedProject?.id) {
             restoreAndSynchronizeState()
         }

@@ -54,6 +54,10 @@ public enum ColorTokens {
             light: .black.withAlphaComponent(0.11), dark: .white.withAlphaComponent(0.14),
             highContrastLight: .black.withAlphaComponent(0.22), highContrastDark: .white.withAlphaComponent(0.28)
         )
+        /// Strength of the selected row's accent tint (tree style S1); the tint takes the row's
+        /// accent, which may be the server's colour. Increase Contrast strengthens it.
+        public static let selectedTintOpacity: Double = 0.18
+        public static let selectedTintOpacityHighContrast: Double = 0.3
         /// Context-menu / right-click highlight
         public static let contextFill = Color.adaptive(
             light: .black.withAlphaComponent(0.07), dark: .white.withAlphaComponent(0.10),

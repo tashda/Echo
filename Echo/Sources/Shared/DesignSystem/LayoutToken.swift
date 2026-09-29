@@ -25,6 +25,10 @@ public enum LayoutTokens {
         public static let gapHitSlop: CGFloat = SpacingTokens.xxs
         /// Room below a server's last row inside its card in the tree.
         public static let treeCardBottomPadding: CGFloat = SpacingTokens.xxs
+        /// Corner of a tree row's hover and selection fill (tree style S1).
+        public static let treeRowCornerRadius: CGFloat = SpacingTokens.xs
+        /// Extra room above a server-level section heading (Databases, Security…).
+        public static let treeSectionTopPadding: CGFloat = SpacingTokens.xxs
 
     }
 

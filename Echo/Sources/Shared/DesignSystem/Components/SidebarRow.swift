@@ -62,15 +62,15 @@ struct SidebarRow<Trailing: View>: View {
 
     @Environment(\.sidebarDensity) private var density
     @Environment(\.sidebarContextMenuActive) private var isContextMenuActive
-    @Environment(\.sidebarUsesHierarchicalSymbols) private var usesHierarchicalSymbols
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var isHovering = false
 
     private var densityVerticalPadding: CGFloat {
         switch density {
-        case .compact: return 2
-        case .small: return 3
-        case .medium: return 4
-        case .large: return 6
+        case .compact: return SpacingTokens.nano
+        case .small: return SpacingTokens.xxs
+        case .medium: return SpacingTokens.xxs1
+        case .large: return SpacingTokens.xxs3
         }
     }
 
@@ -94,18 +94,18 @@ struct SidebarRow<Trailing: View>: View {
 
     private var densityIconFont: Font {
         switch density {
-        case .compact: return Font.system(size: 11, weight: .regular)
-        case .small: return Font.system(size: 12, weight: .regular)
-        case .medium: return Font.system(size: 14, weight: .regular)
-        case .large: return Font.system(size: 16, weight: .regular)
+        case .compact: return TypographyTokens.label
+        case .small: return TypographyTokens.detail
+        case .medium: return TypographyTokens.standard
+        case .large: return Font.system(size: 15, weight: .regular)
         }
     }
 
     private var densityLabelFont: Font {
         switch density {
-        case .compact: return Font.system(size: 10, weight: .regular)
-        case .small: return Font.system(size: 11, weight: .regular)
-        case .medium: return Font.system(size: 13, weight: .regular)
+        case .compact: return TypographyTokens.label
+        case .small: return TypographyTokens.detail
+        case .medium: return TypographyTokens.standard
         case .large: return Font.system(size: 15, weight: .regular)
         }
     }
@@ -121,8 +121,11 @@ struct SidebarRow<Trailing: View>: View {
     @ViewBuilder
     private var highlightFill: some View {
         if isSelected {
+            // Tree style S1: the selection is tinted with the row's accent, not grey.
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Sidebar.selectedFill)
+                .fill(accentColor.opacity(contrast == .increased
+                    ? ColorTokens.Sidebar.selectedTintOpacityHighContrast
+                    : ColorTokens.Sidebar.selectedTintOpacity))
         } else if isContextMenuActive {
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
                 .fill(ColorTokens.Sidebar.contextFill)
@@ -151,7 +154,7 @@ struct SidebarRow<Trailing: View>: View {
                         // swapping between two glyphs.
                         Image(systemName: "chevron.right")
                             .font(SidebarRowConstants.chevronFont)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
+                            .foregroundStyle(ColorTokens.Text.quaternary)
                             .rotationEffect(.degrees(expanded ? 90 : 0))
                             .animation(.snappy(duration: 0.2), value: expanded)
                     }
@@ -210,7 +213,8 @@ struct SidebarRow<Trailing: View>: View {
             Image(systemName: name)
                 .font(densityIconFont)
                 .imageScale(.medium)
-                .symbolRenderingMode(usesHierarchicalSymbols ? .hierarchical : .monochrome)
+                // Tree style S1: hierarchical symbols in both icon modes.
+                .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(resolvedIconColor)
                 .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
         case .asset(let name):

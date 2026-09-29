@@ -200,11 +200,12 @@ extension ObjectBrowserNode.Row {
     /// Extra height of a server header row over an ordinary row.
     static let serverHeaderExtraHeight: CGFloat = SpacingTokens.xs
 
-    /// Extra row-slot height for connection group headers.
+    /// Extra row-slot height for connection group headers and server-level section headings.
     var extraSlotHeight: CGFloat {
         switch self {
         case .server: return Self.serverHeaderExtraHeight
         case .pendingConnection: return Self.serverHeaderExtraHeight
+        case .databasesFolder, .serverFolder: return LayoutTokens.Workspace.treeSectionTopPadding
         default: return 0
         }
     }
