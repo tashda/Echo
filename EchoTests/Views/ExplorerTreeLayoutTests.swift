@@ -25,6 +25,14 @@ struct ExplorerTreeLayoutTests {
         #expect(layout.contentHeight == 49 + LayoutTokens.Workspace.treeCardBottomPadding)
     }
 
+    @Test func loadingRowReservesRoomForItsShimmerRows() {
+        let loading = ObjectBrowserNode(id: "loading", row: .loading("Loading objects", depth: 1))
+        let layout = ExplorerTreeLayout(roots: [leaf("a"), loading, leaf("b")], expandedNodeIDs: [], baseRowHeight: base)
+        let shimmerHeight = base * CGFloat(LayoutTokens.Shimmer.explorerRowCount)
+        #expect(layout.rows[1].height == shimmerHeight)
+        #expect(layout.rows[2].minY == base + shimmerHeight)
+    }
+
     @Test func spacersSplitCards() {
         let layout = ExplorerTreeLayout(
             roots: [spacer("top", 1), leaf("a"), leaf("b"), spacer("gap", 10), leaf("c")],

@@ -398,16 +398,15 @@ struct ObjectBrowserRowView: View {
                 labelFont: TypographyTokens.detail
             )
         case .loading(let title, _):
-            SidebarRow(
-                depth: depth,
-                icon: .none,
-                label: title,
-                labelColor: ColorTokens.Text.tertiary,
-                labelFont: TypographyTokens.detail
-            ) {
-                ProgressView()
-                    .controlSize(.mini)
-            }
+            // Shimmer rows at the child indent (plan T4); the real rows crossfade in over them.
+            ShimmerPlaceholderRows(
+                count: LayoutTokens.Shimmer.explorerRowCount,
+                rowHeight: ObjectBrowserOutlineView.baseRowHeight(for: projectStore.globalSettings.sidebarDensity),
+                leadingInset: CGFloat(depth) * SidebarRowConstants.indentStep
+                    + SidebarRowConstants.chevronWidth
+                    + SidebarRowConstants.rowLeadingPadding,
+                accessibilityLabel: title.trimmingCharacters(in: CharacterSet(charactersIn: "…."))
+            )
         case .message(let title, let systemImage, _):
             SidebarRow(
                 depth: depth,

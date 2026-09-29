@@ -63,12 +63,22 @@ Rules: `05-components` › Explorer tree.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| T1 | **Tree on server cards:** one opaque card per server (built early, see Phase 1 notes), 12pt indent, server header flush left inside its card. | `SidebarRow`, row view, `ObjectBrowserTableView` | Matches review round 4, option B 👁 | ◐ SwiftUI tree with editor cards, glass header and rounded end built; 12pt indent and the stress test still to do |
-| T2 | **Sticky server header with breadcrumb.** The bold 13pt header pins at the top over a soft fade (no band) and shows "› database" for the database you're in. Either `floatsGroupRows` with group rows, or an overlay driven by the existing top-visible tracking. Replaces `ExplorerPinnedPathBar`. | Outline view, row view | Pins and updates while scrolling, with no rebuild of the tree on scroll 👁 | ☐ |
-| T3 | **Icon modes.** Colourful uses today's colours softened, keyed by an enum rather than title strings. Monochrome has two variants: accent on open folders (default) and pure. | `ExplorerRowModels.swift`, `ColorToken.swift` | All three look right in light and dark 👁 | ☐ |
-| T4 | **Loading:** shimmer rows at the child indent, crossfading into the real rows. Replaces "Expand to load objects…". | Snapshot + row view | Shows while loading, and stops with Reduce Motion | ☐ |
-| T5 | **Expand motion:** the native slide and fade, with duration from the motion helper. | Outline view | Speed setting changes it | ☐ |
-| T6 | Remove the sidebar Search tool page (search moves to the toolbar in Phase 6). | `SidebarMenuView+Content.swift` | Gone; nothing links to it | ☐ |
+| T1 | **Tree on server cards:** one opaque card per server (built early, see Phase 1 notes), 12pt indent, server header flush left inside its card. | `SidebarRow`, row view, `ObjectBrowserTableView` | Matches review round 4, option B 👁 | ☑ 938efea (12pt indent; cards, glass header and rounded end earlier), 👁 pending. Stress fixture not built, see notes |
+| T2 | **Sticky server header with breadcrumb.** The bold 13pt header pins at the top over a soft fade (no band) and shows "› database" for the database you're in. Either `floatsGroupRows` with group rows, or an overlay driven by the existing top-visible tracking. Replaces `ExplorerPinnedPathBar`. | Outline view, row view | Pins and updates while scrolling, with no rebuild of the tree on scroll 👁 | ☑ b74ac43 (pinned header, as changed by rounds 6–9: soft real blur instead of glass), 👁 pending |
+| T3 | **Icon modes.** Colourful uses today's colours softened, keyed by an enum rather than title strings. Monochrome has two variants: accent on open folders (default) and pure. | `ExplorerRowModels.swift`, `ColorToken.swift` | All three look right in light and dark 👁 | ☑ 938efea, 👁 pending. Colours still keyed by title strings, see notes |
+| T4 | **Loading:** shimmer rows at the child indent, crossfading into the real rows. Replaces "Expand to load objects…". | Snapshot + row view | Shows while loading, and stops with Reduce Motion | ☑ (this commit), 👁 pending |
+| T5 | **Expand motion:** the native slide and fade, with duration from the motion helper. | Outline view | Speed setting changes it | ☑ d5faf78 (built with the SwiftUI tree: `motion.expand`, scaled by the speed setting) |
+| T6 | Remove the sidebar Search tool page (search moves to the toolbar in Phase 6). | `SidebarMenuView+Content.swift` | Gone; nothing links to it | ☐ Deferred to K4, so search is never missing between the two |
+
+### Notes from building it (Phase 2 and round 9)
+
+- **Blur under the pinned header** (round 9, after "grey" then "solid"): on macOS, SwiftUI materials and in-window `NSVisualEffectView`s over the tree's SwiftUI rows only tint or fade them, and Core Image background filters don't see SwiftUI content at all. `ExplorerTreeEdgeBlur` draws the rows and card fills under the band again, in four copies blurred at radius 1 to 10 (`LayoutTokens.Workspace.pinnedHeaderBlurRadii`), stronger towards the top, with a light card tint. It reads the scroll offset like the cards layer, so the list never re-renders on scroll.
+- **Blur over AppKit content** (the results grid, the editor) is `BackdropEdgeBlur`: stacked Core Image Gaussian background filters. A background filter only sees its own superview, so its views go into the same container as the AppKit view, above it. The Design Lab's footer stage uses it; FB1 would use it in the app.
+- **Database switcher** (round 9, DB1, a50abbb): `DatabaseSwitcherCard` grows out of the footer chip with a matched geometry effect. It can't use a `GlassEffectContainer` morph: a text field inside a glass container sent AppKit's key-view walk (the password autofill check) into an endless loop that hung the app.
+- **T1 stress fixture:** not built. Real rows need a `ConnectionSession`, which needs a `DatabaseSession`; the app target has no stub for one (the tests' `MockDatabaseSession` lives in EchoTests). The owner's `dkloosql10-d` (about 65 databases) is a real stress case to profile with Instruments' SwiftUI and Hitches templates.
+- **T3 gap:** icon colours still come from `paletteTitle` strings through `ExplorerSidebarPalette.folderIconColor(title:)`; the row model should carry a role enum instead (34 construction sites). The mode logic itself is in one place: `ObjectBrowserRowView.explorerIconColor(_:)`.
+- **T4:** a loading row is three shimmer rows high (`LayoutTokens.Shimmer`), and the failed-refresh state is a warning message row instead of a loading row. Loading labels lost their trailing dots and are only read by VoiceOver now.
+- **Design Lab:** the first page, "Round 9 · open questions", holds the footer (FB, FP), tree scroll bar (SB) and tab bar (TB) questions. Older lab questions are retired; their pages stay as a reference.
 
 ## Phase 3 · Tabs
 
@@ -80,7 +90,7 @@ Rules: `05-components` › Tabs. Safari is the reference.
 | B2 | **Running tab:** a spinner at the leading edge and the timer in place of the subtitle. | `QueryTabButton` | Shows while running and clears when done | ☐ |
 | B3 | **Overflow:** a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. | `QueryTabStrip` | 20+ tabs stay usable | ☐ |
 | B4 | **New tab grows out of +** (+ and the plate share a glass container). Switching tabs stays instant. | Strip | 👁 | ☐ |
-| B5 | Make tabs real buttons (accessibility, focus): a click selects at once, dragging still reorders. **Keep the editors of recently used tabs alive** so switching back keeps scroll, undo and cursor (round 9, TFIX). Fix the O(n²) separator pass and read the hairline width from `displayScale`. | Strip | VoiceOver reads the tabs | ☐ |
+| B5 | Make tabs real buttons (accessibility, focus): a click selects at once, dragging still reorders. **Keep the editors of recently used tabs alive** so switching back keeps scroll, undo and cursor (round 9, TFIX). Fix the O(n²) separator pass and read the hairline width from `displayScale`. | Strip | VoiceOver reads the tabs | ☐ TFIX accepted in round 9: also keep recent editors alive |
 
 ## Phase 4 · Editor and results cards
 

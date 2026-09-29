@@ -68,6 +68,18 @@ public enum LayoutTokens {
         public static let switcherListMaxHeight: CGFloat = 280
     }
 
+    /// Placeholder rows while a list loads (`ShimmerPlaceholderRows`).
+    public enum Shimmer {
+        /// Placeholder rows standing in for one loading row in the Explorer.
+        public static let explorerRowCount = 3
+        public static let iconSize: CGFloat = 13
+        public static let iconCornerRadius: CGFloat = 3
+        public static let barHeight: CGFloat = 8
+        /// Width of the moving highlight, as a share of the rows' width.
+        public static let sweepWidthFraction: CGFloat = 0.4
+        public static let sweepDuration: Double = 1.4
+    }
+
     /// The welcome on the canvas while no tab is open.
     public enum Welcome {
         public static let width: CGFloat = FloatingSurface.largeWidth

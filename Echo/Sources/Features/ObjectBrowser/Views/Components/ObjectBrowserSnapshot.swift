@@ -159,7 +159,7 @@ enum ObjectBrowserSnapshotBuilder {
                 children: [
                     ObjectBrowserNode(
                         id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: databaseID),
-                        row: .loading("Expand to load objects…", depth: 2)
+                        row: .loading("Loading objects", depth: 2)
                     )
                 ]
             )
@@ -212,7 +212,9 @@ enum ObjectBrowserSnapshotBuilder {
                             databaseName: database.name
                         )
                     ),
-                    row: .loading(session.metadataFreshness(forDatabase: database.name) == .failed ? "Schema refresh failed" : "Expand to load objects…", depth: 2)
+                    row: session.metadataFreshness(forDatabase: database.name) == .failed
+                        ? .message("Schema refresh failed", systemImage: "exclamationmark.triangle", depth: 2)
+                        : .loading("Loading objects", depth: 2)
                 )
             ]
         }
