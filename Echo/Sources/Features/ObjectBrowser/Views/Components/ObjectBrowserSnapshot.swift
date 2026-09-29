@@ -32,7 +32,7 @@ enum ObjectBrowserSnapshotBuilder {
             rows.append(
                 ObjectBrowserNode(
                     id: "explorer-lab#pending-gap",
-                    row: .topSpacer(SpacingTokens.xs)
+                    row: .topSpacer(LayoutTokens.Workspace.treeCardSpacing)
                 )
             )
         }
@@ -52,7 +52,7 @@ enum ObjectBrowserSnapshotBuilder {
                 rows.append(
                     ObjectBrowserNode(
                         id: "explorer-lab#server-gap#\(session.connection.id.uuidString)",
-                        row: .topSpacer(SpacingTokens.xs)
+                        row: .topSpacer(LayoutTokens.Workspace.treeCardSpacing)
                     )
                 )
             }

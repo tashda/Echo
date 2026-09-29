@@ -10,30 +10,20 @@ struct ConnectionDashboardDetails: View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             DashboardSectionLabel(title: "Connection")
 
-            VStack(spacing: 0) {
+            DashboardCard {
                 detailRow("Server", value: connection.host)
-                detailDivider
                 detailRow("Port", value: "\(connection.port)")
-                detailDivider
                 detailRow("User", value: resolvedUsername)
                 if !connection.database.isEmpty {
-                    detailDivider
                     detailRow("Database", value: connection.database)
                 }
                 if let version = serverVersion, !version.isEmpty {
-                    detailDivider
                     detailRow("Version", value: version)
                 }
-                detailDivider
                 detailRow("Encryption", value: connection.databaseType == .postgresql
                     ? connection.tlsMode.rawValue
                     : (connection.useTLS ? "TLS" : "None"))
             }
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(ColorTokens.Surface.rest)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
     }
 
@@ -55,24 +45,21 @@ struct ConnectionDashboardDetails: View {
         session.databaseStructure?.serverVersion ?? connection.serverVersion
     }
 
-    private var detailDivider: some View {
-        Divider()
-            .padding(.leading, SpacingTokens.sm)
-    }
-
     private func detailRow(_ label: String, value: String) -> some View {
-        HStack {
+        HStack(spacing: SpacingTokens.xs) {
             Text(label)
                 .font(TypographyTokens.standard)
                 .foregroundStyle(ColorTokens.Text.secondary)
-            Spacer()
+            Spacer(minLength: SpacingTokens.xs)
             Text(value)
                 .font(TypographyTokens.standard)
+                .monospacedDigit()
                 .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
+                .truncationMode(.middle)
                 .textSelection(.enabled)
         }
-        .padding(.horizontal, SpacingTokens.sm)
-        .padding(.vertical, SpacingTokens.xs2)
+        .padding(.horizontal, SpacingTokens.xs)
+        .frame(minHeight: LayoutTokens.FloatingSurface.rowHeight)
     }
 }

@@ -64,14 +64,17 @@ struct WorkspaceTabContainerView: View {
         // The strip keeps a little room above and below its plate; the gutter covers the rest,
         // so the visible gap between the plate and the card is the gutter.
         let stripInset = (WorkspaceChromeMetrics.tabStripTotalHeight - WorkspaceChromeMetrics.chromeBackgroundHeight) / 2
-        // Cards are for content: with no tab and no active server, the welcome sits straight
-        // on the canvas and the strip and card grow in once there is something to show.
-        let showsWelcome = tabStore.tabs.isEmpty
-            && !appState.showTabOverview
-            && environmentState.sessionGroup.activeSession == nil
+        // Cards are for content: with no tab open, the welcome (or the active server's page) sits
+        // straight on the canvas, and the strip and card grow in once a tab opens.
+        let showsCanvasPage = tabStore.tabs.isEmpty && !appState.showTabOverview
+        let activeSession = environmentState.sessionGroup.activeSession
 
         Group {
-            if showsWelcome {
+            if showsCanvasPage, let activeSession {
+                ConnectionDashboardView(session: activeSession)
+                    .id(activeSession.id)
+                    .transition(.opacity)
+            } else if showsCanvasPage {
                 WorkspaceWelcomeView(
                     recents: Array(recentConnectionItems.prefix(WorkspaceWelcomeView.maximumRecentCount)),
                     onSelectRecent: connectToRecentConnection
@@ -100,10 +103,8 @@ struct WorkspaceTabContainerView: View {
                                     tabStore.closeTab(id: tabId)
                                 }
                             )
-                        } else if !tabStore.tabs.isEmpty {
+                        } else {
                             activeTabContainer
-                        } else if let activeSession = environmentState.sessionGroup.activeSession {
-                            ConnectionDashboardView(session: activeSession)
                         }
                     }
                     // A zero minimum keeps tall content (a long list, a big dashboard) from pushing
@@ -115,7 +116,7 @@ struct WorkspaceTabContainerView: View {
             }
         }
         .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
-        .animation(motion.standard, value: showsWelcome)
+        .animation(motion.standard, value: showsCanvasPage)
         .animation(.easeInOut(duration: 0.2), value: appState.showTabOverview)
         .onChange(of: tabStore.activeTabId) { _, _ in
             if appState.showTabOverview {

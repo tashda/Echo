@@ -15,6 +15,12 @@ public enum LayoutTokens {
         public static let treeMaxWidth: CGFloat = 480
         /// Width of the invisible drag area on the tree's trailing edge.
         public static let treeResizeHandleWidth: CGFloat = 8
+        /// Room below a server's last row inside its card in the tree.
+        public static let treeCardBottomPadding: CGFloat = SpacingTokens.xxs
+        /// Space from one server card's last row to the next card: the bottom padding plus the gutter.
+        public static let treeCardSpacing: CGFloat = SpacingTokens.xxs + SpacingTokens.xxs2
+        /// Inset of the server cards from the tree's sides, so their edges aren't clipped.
+        public static let treeCardSideInset: CGFloat = 1
     }
 
     /// The two-pill server rail of the canvas-and-cards window. Item size comes from the
@@ -54,6 +60,13 @@ public enum LayoutTokens {
         public static let monogramWidth: CGFloat = SpacingTokens.lg
     }
 
+    /// The server page on the canvas while a server is active and no tab is open.
+    public enum ServerPage {
+        public static let width: CGFloat = 600
+        /// Below twice this (plus the gap), the cards stack in one column.
+        public static let columnMinWidth: CGFloat = 270
+    }
+
     /// Echo's own floating glass cards: peek, pickers, notification history, search results.
     public enum FloatingSurface {
         public static let smallWidth: CGFloat = 260
@@ -72,8 +85,8 @@ public enum LayoutTokens {
         public static let fadeExtent: CGFloat = 14
         /// How far the blur fades in at each side.
         public static let sideFade: CGFloat = SpacingTokens.xs
-        /// Canvas colour laid over the blur, so it matches the canvas instead of the material.
-        public static let canvasTintOpacity: Double = 0.7
+        /// Card colour laid over the blur, so it matches the server cards instead of the material.
+        public static let tintOpacity: Double = 0.7
     }
 
     public enum TabNavigation {

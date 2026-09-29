@@ -14,13 +14,10 @@ struct ConnectionDashboardRecentQueries: View {
     var body: some View {
         if !recentQueries.isEmpty {
             VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                DashboardSectionLabel(title: "Recent Queries")
+                DashboardSectionLabel(title: "Recent queries")
 
-                VStack(spacing: 0) {
-                    ForEach(Array(recentQueries.enumerated()), id: \.element.id) { index, item in
-                        if index > 0 {
-                            Divider().padding(.leading, SpacingTokens.sm)
-                        }
+                DashboardCard {
+                    ForEach(recentQueries) { item in
                         DashboardRecentQueryRow(item: item) {
                             environmentState.openQueryTab(
                                 for: session,
@@ -30,11 +27,6 @@ struct ConnectionDashboardRecentQueries: View {
                         }
                     }
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(ColorTokens.Surface.rest)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
         }
     }
@@ -46,11 +38,9 @@ private struct DashboardRecentQueryRow: View {
     let item: QueryHistoryItem
     let action: () -> Void
 
-    @State private var isHovered = false
-
     var body: some View {
         Button(action: action) {
-            HStack(spacing: SpacingTokens.sm) {
+            DashboardCardRow {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(truncatedQuery)
                         .font(TypographyTokens.detail)
@@ -73,15 +63,11 @@ private struct DashboardRecentQueryRow: View {
                     .foregroundStyle(ColorTokens.Text.tertiary)
                 }
 
-                Spacer()
+                Spacer(minLength: SpacingTokens.none)
             }
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.vertical, SpacingTokens.xs)
-            .contentShape(Rectangle())
-            .background(isHovered ? ColorTokens.Surface.rest : .clear)
+            .padding(.vertical, SpacingTokens.xxs)
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
     }
 
     private var truncatedQuery: String {

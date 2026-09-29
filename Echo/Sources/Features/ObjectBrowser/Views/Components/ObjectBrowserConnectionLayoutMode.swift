@@ -17,7 +17,8 @@ enum ObjectBrowserConnectionLayoutMode: Equatable {
         self == .multipleConnections
     }
 
+    /// Kept minimal so the first server card lines up with the top of the rail.
     var outlineTopSpacerHeight: CGFloat {
-        SpacingTokens.xs
+        SpacingTokens.micro
     }
 }

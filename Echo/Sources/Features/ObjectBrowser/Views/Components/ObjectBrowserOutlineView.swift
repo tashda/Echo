@@ -109,7 +109,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             let depth: Int
         }
 
-        let tableView: NSTableView
+        let tableView: ObjectBrowserTableView
         var rowContent: (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView
         var onExpansionChanged: (ObjectBrowserNode, Bool) -> Void
         var onActivation: (ObjectBrowserNode) -> Void
@@ -136,7 +136,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             self.onActivation = onActivation
             self.onSelectionChanged = onSelectionChanged
 
-            let tableView = NSTableView(frame: .zero)
+            let tableView = ObjectBrowserTableView(frame: .zero)
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("explorer-lab"))
             column.resizingMask = .autoresizingMask
             tableView.addTableColumn(column)
@@ -179,6 +179,7 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             let structureChanged = newSignature != lastVisibleSignature
 
             visibleRows = newVisibleRows
+            tableView.cardRowRanges = cardRowRanges(in: newVisibleRows)
 
             if structureChanged {
                 if !oldSignature.isEmpty,
@@ -232,6 +233,8 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             let row = min(max(tableView.row(at: probe), 0), visibleRows.count - 1)
             let topRow = visibleRows[row].node.row
 
+            tableView.liftedCardIndex = tableView.cardRowRanges.firstIndex { $0.contains(row) || $0.lowerBound > row }
+
             let context = ObjectBrowserTopVisibleContext(
                 connectionID: connectionID(nearRow: row),
                 databaseName: databaseName(nearRow: row),
@@ -244,6 +247,34 @@ struct ObjectBrowserOutlineView: NSViewRepresentable {
             DispatchQueue.main.async { [weak self] in
                 self?.onTopVisibleContextChanged?(context)
             }
+        }
+
+        /// Each server's rows share one card: a card is a run of rows between spacers, and a
+        /// server or pending-connection row always starts a new one.
+        private func cardRowRanges(in rows: [VisibleRow]) -> [ClosedRange<Int>] {
+            var ranges: [ClosedRange<Int>] = []
+            var start: Int?
+
+            for (index, visibleRow) in rows.enumerated() {
+                let row = visibleRow.node.row
+                let startsCard: Bool
+                switch row {
+                case .server, .pendingConnection: startsCard = true
+                default: startsCard = false
+                }
+
+                if isSpacer(row) || startsCard, let open = start {
+                    ranges.append(open ... index - 1)
+                    start = nil
+                }
+                if !isSpacer(row), start == nil {
+                    start = index
+                }
+            }
+            if let open = start, open < rows.count {
+                ranges.append(open ... rows.count - 1)
+            }
+            return ranges
         }
 
         private func isSpacer(_ row: ObjectBrowserNode.Row) -> Bool {
@@ -543,6 +574,61 @@ final class ObjectBrowserOutlineCellView: NSTableCellView {
 
     func configure(rootView: AnyView) {
         hostingView.rootView = rootView
+    }
+}
+
+/// The tree's table. Behind the rows it draws each server's card (Design/05-components.md ›
+/// Explorer tree): opaque like the editor card, with a lighter shadow, and lifted a little for
+/// the server at the top of the view, which is the one the rail selects. Drawing the cards here
+/// keeps them in step with scrolling and row animations at no extra cost.
+@MainActor
+final class ObjectBrowserTableView: NSTableView {
+    /// Rows that share a card, one range per server.
+    var cardRowRanges: [ClosedRange<Int>] = [] {
+        didSet { if oldValue != cardRowRanges { needsDisplay = true } }
+    }
+
+    /// The card drawn lifted.
+    var liftedCardIndex: Int? {
+        didSet { if oldValue != liftedCardIndex { needsDisplay = true } }
+    }
+
+    override func drawBackground(inClipRect clipRect: NSRect) {
+        let rowCount = numberOfRows
+        for (index, range) in cardRowRanges.enumerated() where range.upperBound < rowCount {
+            var card = rect(ofRow: range.lowerBound).union(rect(ofRow: range.upperBound))
+            card = card.insetBy(dx: LayoutTokens.Workspace.treeCardSideInset, dy: 0)
+            card.size.height += LayoutTokens.Workspace.treeCardBottomPadding
+            // Shadows reach a little outside the card, so check against a slightly larger area.
+            guard card.intersects(clipRect.insetBy(dx: 0, dy: -SpacingTokens.md)) else { continue }
+            drawCard(in: card, isLifted: index == liftedCardIndex)
+        }
+    }
+
+    private func drawCard(in rect: NSRect, isLifted: Bool) {
+        let radius = LayoutTokens.Workspace.cardCornerRadius
+        let token = isLifted ? ShadowTokens.treeCardLifted : ShadowTokens.treeCard
+
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor(token.color)
+        shadow.shadowBlurRadius = token.radius
+        // The table is flipped, but shadow offsets are not: a negative height falls downward.
+        shadow.shadowOffset = NSSize(width: token.x, height: -token.y)
+        shadow.set()
+        NSColor.textBackgroundColor.setFill()
+        NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+        NSGraphicsContext.restoreGraphicsState()
+
+        let edgeWidth = LayoutTokens.Workspace.cardEdgeWidth
+        let edge = NSBezierPath(
+            roundedRect: rect.insetBy(dx: edgeWidth / 2, dy: edgeWidth / 2),
+            xRadius: radius,
+            yRadius: radius
+        )
+        edge.lineWidth = edgeWidth
+        NSColor.separatorColor.withAlphaComponent(LayoutTokens.Workspace.cardEdgeOpacity).setStroke()
+        edge.stroke()
     }
 }
 

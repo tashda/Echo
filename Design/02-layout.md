@@ -38,7 +38,7 @@ Echo does not use the system sidebar for the Explorer. The window is our own she
 
 ## Tree
 
-- The tree sits straight on the canvas, starting right after the rail. It has no panel or background of its own. *Decided.*
+- The tree starts right after the rail. **Each server's tree sits on its own opaque card** (editor-card fill, lighter shadow), with the canvas between servers; the first card lines up with the top of the rail. *Decided* (2026-09-29, replaces "no panel or background of its own").
 - Server names are the section headers, and they pin at the top while scrolling (see `05-components.md`). *Decided.*
 - **The tree only shows when it has content**: a server in the rail, or a tool page from the bottom pill. With neither, it stays hidden and can't be opened; the first server to connect or a tool click brings it out. *Decided* (2026-09-29).
 - A sidebar button at the leading end of the toolbar and ⌃⌘S show and hide it. *Decided.*

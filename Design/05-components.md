@@ -20,6 +20,12 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - Item size: medium (34pt) default, with small and large as a setting. *Decided.*
 - **Clicking a server with the tree hidden:** a plain click peeks (the tree for that server slides out over the cards; a click away or Esc slides it back), and ⌘-click or double-click reopens the tree for good. *Decided.* A setting lets users choose instead "always peek" or "always reopen the tree". The glance card and "switch context only" were rejected.
 
+## Server page
+
+- Shown on the canvas while a server is active and no tab is open. No big card, like the welcome. *Decided* (review round 4).
+- Server icon, name, host and version; then the server's tools as **Liquid Glass buttons** (`.glass`), with **New Query** first as `.glassProminent`. Tools that need a database open a menu of them. The buttons wrap when the window is narrow. *Decided.*
+- "New query in" (databases as 28pt rows), "Recent queries" and "Connection" as small opaque cards, side by side when there is room. *Decided.*
+
 ## Welcome
 
 - Shown on the canvas while no tab is open and no server is active. **No card**: cards are only for content. *Decided* (2026-09-29).
@@ -29,7 +35,8 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 
 ## Explorer tree
 
-- It is an SSMS/pgAdmin-style tree on the canvas. *Decided.*
+- It is an SSMS/pgAdmin-style tree. *Decided.*
+- **One opaque card per server**, hugging its rows: `textBackgroundColor`, 12pt corners, 0.5pt edge, the light `treeCard` shadow. The server at the top of the tree (the one the rail selects) lifts to `treeCardLifted`. Cards are 6pt apart, with 4pt below the last row. Never glass. *Decided* (review round 4).
 - **Server header = sticky header:**
   - The server name is the section header.
   - When it pins at the top it grows a breadcrumb for the database you're in ("postgres18 › employees"), over a soft fade rather than a band.

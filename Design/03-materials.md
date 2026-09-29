@@ -7,6 +7,7 @@
 | Rail pills (servers, tools) | `.glassEffect(.regular, in: .capsule)` | Decided |
 | Toolbar items | System toolbar glass; Echo controls the grouping | Decided |
 | Toasts | Interactive regular glass, stacking in one `GlassEffectContainer` | Decided |
+| Explorer tree | Opaque cards per server, never glass (review round 4) | Decided |
 | Floating cards (server peek, connect picker, notification history, search results) | Regular glass, drawn in the window by Echo, no arrow | Decided |
 | Tab strip plate | Keeps today's look (grey plate, white active tab), tokenised, Safari-like | Decided |
 | Tree, editor, results, inspector content | Opaque; no glass | Decided |

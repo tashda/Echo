@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Tree cards and server page (review round 4)
+
+Review page: https://claude.ai/artifact/2A6mzm6CNJTKnWt8FwLETg
+- **Each server's tree sits on its own opaque card** (option B, "Server groups"). The card has the editor card's fill, a lighter shadow, and 12pt corners; the server at the top of the tree, which the rail selects, lifts with a slightly stronger shadow. The first card lines up with the top of the rail. Replaces "the tree has no panel or background of its own". → 02-layout, 05-components, 06-tokens
+- **Opaque, not glass.** The owner asked; the reasons: the tree is content, glass over the flat canvas has nothing to refract and reads as a grey box, and glass trees would compete with the glass rail. "Glass only on controls" stands. → 03-materials
+- Rejected: one full-height tree card (A), staying on the canvas with lines and a tint (C), glass per server.
+- **Server page in the welcome's style:** on the canvas with no big card; icon, name, host and version; the tools on Liquid Glass buttons with New Query prominent; "New query in", "Recent queries" and "Connection" as small opaque cards with 28pt rows, two columns when there is room. → 05-components
+
 ## 2026-09-29 · Empty window (asked in chat)
 
 After the owner opened Echo with nothing connected:

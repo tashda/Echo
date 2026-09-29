@@ -7,6 +7,7 @@ Each review round is an interactive page where every option was marked Yes, Mayb
 | 1 | 2026-09-28 | 143 options across window, rail, tree, toolbar, tabs, editor, results, inspector, motion | https://claude.ai/artifact/AvgjSRZLthyXdMcPh4qcHT |
 | 2 | 2026-09-29 | Deep dives built from Echo's current code: rail, motion, tree, search, tabs, tab overview, run, editor and results cards, notifications, floating cards, inspector | https://claude.ai/artifact/HgFLuKxCr87DGySFAqEU58 |
 | 3 | 2026-09-29 | The 28 questions judged in the in-app Design Lab (Help › Design Lab) | https://claude.ai/artifact/5Szo7pYwYwNvzVWnNPN1qT |
+| 4 | 2026-09-29 | Tree treatment (three mocks) and the server page; answered in chat | https://claude.ai/artifact/2A6mzm6CNJTKnWt8FwLETg |
 
 Earlier exploration pages: [Echo Navigation Concepts](https://claude.ai/artifact/4Qpv59JDzYej7vuLGfXCQK) and [Echo Sidebar Rethink](https://claude.ai/artifact/YUkxDY7HGiDqdYTBRzmeYG).
 

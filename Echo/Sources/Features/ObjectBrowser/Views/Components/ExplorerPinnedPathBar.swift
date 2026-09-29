@@ -66,12 +66,12 @@ struct ExplorerPinnedPathBar: View {
         .animation(.easeInOut(duration: 0.22), value: databaseName)
     }
 
-    /// A blur of the rows underneath, tinted to the canvas so it has no colour of its own, and
+    /// A blur of the rows underneath, tinted to the server cards it sits on so it has no colour of its own, and
     /// faded out downward and at both sides, so it never shows an edge against the canvas.
     private var blur: some View {
         ZStack {
             Rectangle().fill(.ultraThinMaterial)
-            ColorTokens.Workspace.canvas.opacity(LayoutTokens.PinnedPath.canvasTintOpacity)
+            ColorTokens.Workspace.card.opacity(LayoutTokens.PinnedPath.tintOpacity)
         }
         .mask(
             LinearGradient(
