@@ -5,12 +5,13 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Server rail
 
 - Two glass pills: servers on top, tools at the bottom. See `02-layout.md`. *Decided.*
-- **Identity is a two-letter monogram** from the connection name ("18", "TI"). *Decided.* Whether the selected monogram takes the accent or the server's own colour is *Open*. Colour dots and engine badges were rejected.
-- **Selection:** *Leaning* toward a white disc that slides under the monograms. The liquid stretch and the glass lens stay *Open* until compared in the Design Lab. A tinted disc and a ring were rejected.
+- **Identity is a two-letter monogram** from the connection name ("18", "TI"). The selected monogram takes **its server's own connection colour**; the others are secondary grey. *Decided.* Colour dots and engine badges were rejected.
+- **Selection: liquid stretch.** A white disc sits under the selected monogram. When the selection moves, its leading edge races to the target and the trailing edge follows, so it stretches like a drop and settles back into a disc. *Decided.* A plain sliding disc, a glass lens, a tinted disc and a ring were rejected.
+- **The server pill grows and shrinks** with a spring as servers connect and disconnect, and works on the translucent canvas. *Decided.*
 - **The highlight follows scrolling:** the rail marks the server whose rows are at the top of the tree. A click holds the highlight on the clicked server while the tree glides to it. *Decided.*
 - **Hover** shows the system tooltip (name and host). No custom hover cards. *Decided.*
 - **Status:**
-  - A connecting server's monogram breathes (opacity) until it connects. *Decided.*
+  - A connecting server's monogram breathes (opacity) until it connects. The first version was judged too subtle; the stronger values in `06-tokens.md` need a quick check in the Design Lab. *Decided* (breathing); *Leaning* (exact strength).
   - How to show running queries and lost connections is *Open*. Rings, comets, count badges and extra dots were rejected, so it should be very quiet or live only in the tooltip and peek card.
 - **No + in the rail.** The toolbar handles connecting. *Decided.*
 - Item size: medium (34pt) default, with small and large as a setting. *Decided.*
@@ -91,20 +92,24 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Cells:**
   - Numbers and dates are right-aligned with tabular digits. *Decided.*
   - Booleans show as ✓ / ✗ symbols. *Decided.*
-  - Monospaced cells are available as a setting. *Decided.*
+  - Monospaced cells are available as a setting (accepted in the Design Lab). *Decided.*
   - NULL keeps today's italic grey text; a badge was rejected. *Decided.*
-- **Header:** name, data type and a sort arrow are liked, but the header is too bare today. It needs a deep dive in the Design Lab. *Open.*
+- **Header: name + type line.** Column name in 12pt semibold with the data type underneath in grey monospace. A sort arrow appears on hover and clicking it sorts; clicking elsewhere still selects the column. *Decided.* The name-only header and the type-chip-with-keys header were rejected.
 - **Selection:**
-  - One rounded outline around the whole selected range, instead of today's per-row outline that shows seams, plus a stronger ring on the active cell. *Decided.*
+  - One rounded outline around the whole selected range, instead of today's per-row outline that shows seams, plus a stronger ring on the active cell. *Decided* (accepted in the Design Lab).
   - Row numbers of selected rows turn accent. *Decided.*
-  - A row hover highlight only if it looks excellent. *Open.*
+  - Row hover: a faint rounded tint on the hovered row, and its row number turns accent. *Decided.*
 - **Footer:**
   - Keep a footer under the results. *Decided.*
-  - While streaming, show rows loaded against the total ("12 000 of 1.2 M rows"), using the existing row progress, with no progress line. *Leaning.*
-  - A selection summary (count, sum, average) is *Open*.
+  - While streaming, show rows loaded against the total ("12 000 of 1.2 M rows"), using the existing row progress, with no progress line. *Decided.*
+  - Show a selection summary (count, sum and average of selected numeric cells). *Decided.*
   - No Export button in the footer. *Decided.*
 - **Query errors:** shown in the results card with the message, line and a "Show in editor" button, with Messages one click away. They are also recorded in notification history. When the failing tab isn't the one on screen, a toast points to it. *Decided.*
-- **Where the connection context lives** (server › database picker, result panes, rows and time) is *Open*. Recommendation: the footer of the results card, and a slim footer on the editor card while no results are shown. The database name must look clickable.
+- **One footer, in the results card.** A single footer holds everything:
+  - on the left, the server › database picker (colour dot, server, database, chevron: clearly clickable) and the result pane switcher (Results, Messages, Plan);
+  - on the right, rows loaded of total, the selection summary, the duration and the status.
+
+  The window-wide bottom status bar goes away. While no results are shown, the editor card shows a slim version with just the picker and status. *Decided.*
 
 ## Inspector
 

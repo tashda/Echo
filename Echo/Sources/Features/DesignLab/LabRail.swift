@@ -175,9 +175,10 @@ struct LabBreathing: ViewModifier {
 
     func body(content: Content) -> some View {
         if isActive {
-            content.phaseAnimator([1.0, 0.3]) { view, opacity in
-                view.opacity(opacity)
-            } animation: { _ in .easeInOut(duration: 0.8) }
+            // Round 3: 1.0 ↔ 0.3 was too subtle, so the pulse also dips in size.
+            content.phaseAnimator([false, true]) { view, dimmed in
+                view.opacity(dimmed ? 0.15 : 1).scaleEffect(dimmed ? 0.9 : 1)
+            } animation: { _ in .easeInOut(duration: 0.7) }
         } else {
             content
         }

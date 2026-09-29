@@ -14,6 +14,18 @@ This folder is the source of truth for how Echo looks, moves and behaves. Every 
 | [06-tokens.md](06-tokens.md) | Sizes, radii, spacing and colours in one place |
 | [decisions.md](decisions.md) | Every design decision with its status and date |
 | [reviews.md](reviews.md) | The review rounds behind the decisions, with links to each page |
+| [plan.md](plan.md) | The build plan: phases, tasks, acceptance criteria and status |
+| [process.md](process.md) | How a design question goes from Open to built |
+| [current-state.md](current-state.md) | Where things live in the code today and what to keep |
+
+## Picking up the work
+
+Start here if you're new to this, person or agent:
+
+1. Read `01-principles.md`, then skim `02`–`06`.
+2. Open `plan.md`, find the first task that isn't done, and read the rules it names.
+3. Use `current-state.md` to find the code, and the Design Lab playground as the visual reference.
+4. Anything still undecided goes through `process.md` before it's built.
 
 ## Status of a rule
 

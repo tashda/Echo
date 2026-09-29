@@ -91,7 +91,7 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
             [
                 LabQuestion(id: "rail.selection", title: "Selected server", howTo: "Pick each Selection style, click servers and use Jump first ↔ last.", options: ["White disc", "Liquid stretch", "Glass lens"]),
                 LabQuestion(id: "rail.identity", title: "Selected monogram colour", howTo: "Switch Identity.", options: ["Accent", "Server colour"]),
-                LabQuestion(id: "rail.pulse", title: "Connecting pulse", howTo: "Press Connect a server and watch the new monogram until it connects.", options: ["Accept", "Too strong", "Too subtle"]),
+                LabQuestion(id: "rail.pulse2", title: "Connecting pulse, stronger version", howTo: "Press Connect a server. The pulse now dips to 15% and shrinks slightly.", options: ["Accept", "Too strong", "Too subtle"]),
                 LabQuestion(id: "rail.growth", title: "Pill growing and shrinking", howTo: "Connect and disconnect a few servers.", options: LabQuestion.acceptReject),
                 LabQuestion(id: "rail.canvas", title: "Rail on the translucent canvas", howTo: "Switch Canvas to Translucent.", options: LabQuestion.acceptReject),
             ]

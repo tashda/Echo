@@ -15,7 +15,7 @@
 ## Rules
 
 1. **Glass only on the control layer.** Apple's rule: no glass in tables, lists or text areas. *Decided.*
-2. **No glass on glass.** Content on a glass surface uses fills and vibrancy, not a second glass layer. *Leaning:* the rail's glass-lens selection is the one exception still being compared.
+2. **No glass on glass.** Content on a glass surface uses fills and vibrancy, not a second glass layer. The rail's glass-lens selection was rejected. *Decided.*
 3. **Tint only the primary action.** The Run button is the only tinted glass in the toolbar (`glassProminent`, accent; red while running). *Decided.*
 4. **Glass morphs only within one container.** Shapes that should melt into each other must sit in the same `GlassEffectContainer` in the same window. Plan containers around the morphs in `04-motion.md`. *Decided.*
 5. **Don't stack custom backgrounds on system glass.** Remove custom visual-effect backgrounds from toolbars, popovers and split views. *Decided.*

@@ -13,9 +13,9 @@
 
 | Moment | Motion | Status |
 |---|---|---|
-| Switching server in the rail | The selection moves to the server and the tree glides so the header lands at the top. With "one server at a time" on, the tree crossfades. | Decided (motion); the selection shape is Open |
-| Rail selection shape | White disc sliding (preferred), liquid stretch, or glass lens | Open, in the Design Lab |
-| Server connecting | The monogram breathes (opacity 100% → 30%) until connected, then settles | Decided |
+| Switching server in the rail | The selection moves to the server and the tree glides so the header lands at the top. With "one server at a time" on, the tree crossfades. | Decided |
+| Rail selection shape | Liquid stretch: the leading edge springs to the target (0.28s), the trailing edge follows (0.55s, delayed 0.06s), both scaled by speed | Decided |
+| Server connecting | The monogram breathes until connected, then settles. Stronger than the first version (see tokens) | Decided; strength Leaning |
 | Server connects | It grows out of the server pill, and the pill stretches to fit | Decided |
 | Hiding the tree | The tree shrinks toward the rail and fades while the cards grow into its space, with the house spring | Decided |
 | Results after the first run | The results card rises from the bottom while the editor card shrinks | Decided |

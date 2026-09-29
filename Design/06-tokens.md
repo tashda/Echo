@@ -25,7 +25,8 @@ Values that views use. The code equivalents live in `Echo/Sources/Shared/DesignS
 | Pill padding | 4pt | Leaning |
 | Rail width | item + 2 × padding (42pt at medium) | Leaning |
 | Gap between pills | at least 12pt | Leaning |
-| Selection disc | `textBackgroundColor` + shadow 16%, radius 1.5 | Leaning |
+| Selection disc | `textBackgroundColor` + shadow 16%, radius 1.5, liquid stretch | Decided |
+| Selected monogram | the server's connection colour, bold | Decided |
 
 ## Tree
 
@@ -53,7 +54,7 @@ Values that views use. The code equivalents live in `Echo/Sources/Shared/DesignS
 | Fast speed | durations × 0.7 | Decided |
 | Hover / press | 0.12–0.16s ease-out | Decided |
 | Reduce Motion | 0.18s ease-in-out, no bounce, no pulse | Decided |
-| Connecting pulse | opacity 1.0 ↔ 0.3, 0.8s each way | Decided |
+| Connecting pulse | opacity 1.0 ↔ 0.15 with scale 1.0 ↔ 0.9, 0.7s each way (the first 1.0 ↔ 0.3 was too subtle) | Leaning, confirm in the Design Lab |
 
 ## Colour
 

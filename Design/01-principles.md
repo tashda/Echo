@@ -8,7 +8,7 @@ Echo is a database tool that feels like it was made by Apple. It uses what macOS
 
 1. **Native first.** Use the system control, material or behaviour when one exists: toolbar glass, the inspector, menus, tooltips, table views. Build our own only when the system can't do what we need, such as arrowless glass cards or the rail. *Decided.*
 2. **Glass is for controls, never content.** Glass is used for the rail, the toolbar, toasts and floating cards. The tree, editor, results and inspector content are opaque. This is Apple's rule, and breaking it hurts legibility. *Decided.*
-3. **No glass on glass.** Nothing made of glass sits on another piece of glass. Selection inside a glass pill is a fill, not a second glass layer. *Leaning:* the glass lens option stays open until the Design Lab comparison.
+3. **No glass on glass.** Nothing made of glass sits on another piece of glass. Selection inside a glass pill is a fill, not a second glass layer; the rail's glass lens was rejected in the Design Lab. *Decided.*
 4. **One structure everywhere.** The rail, tree and cards stay in the same place whether the tree is shown or hidden. Only the cards move. *Decided.*
 5. **Motion explains change.** Every animation shows where something came from or went. No decorative motion. Pulsing is used only for "in progress" states. *Decided.*
 6. **Everything through tokens.** Sizes, radii, spacing, colours and animations come from `06-tokens.md` and the code's token files. No literal numbers or colours in views. *Decided.*

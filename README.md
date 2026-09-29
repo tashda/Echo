@@ -103,3 +103,7 @@ open Echo.xcodeproj
   <p>Built with ❤️ by the Echo Team.</p>
   <p><a href="https://echodb.dev">echodb.dev</a></p>
 </div>
+
+## Design
+
+Echo's design language, decisions and build plan live in [`Design/`](Design/README.md). Read it before changing anything visual.

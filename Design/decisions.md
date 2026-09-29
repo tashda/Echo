@@ -2,6 +2,17 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Review round 3 (Design Lab), second part
+
+The remaining 11 questions.
+
+Decided:
+- Rail selection: liquid stretch (glass lens rejected, so "no glass on glass" is now fully decided). → 05-components, 04-motion, 01-principles, 03-materials
+- Selected monogram in its server's colour. Pill growth and the translucent canvas accepted. → 05-components, 06-tokens
+- Connecting pulse was too subtle: stronger values proposed, to confirm in the Design Lab. → 06-tokens
+- Results: name + type header with a sort arrow on hover; row hover tint with an accent row number; one-outline selection; footer with rows loaded of total and a selection summary; monospaced cells setting. → 05-components
+- One footer only, in the results card, holding both the connection picker and the results data. The window-wide status bar goes away. → 05-components
+
 ## 2026-09-29 · Review round 3 (Design Lab), first part
 
 17 of 28 questions answered in the Design Lab. The server rail and results grid pages couldn't be judged because the playgrounds slid under the lab's page list; that is fixed, and those 11 questions are still open.
