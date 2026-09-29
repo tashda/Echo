@@ -87,7 +87,7 @@ Rules: `05-components` › Tabs. Safari is the reference.
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
 | B1 | **Strip on the canvas** above the cards; keep the grey plate and white active tab, using the tokens from F3. | `WorkspaceTabContainerView`, TabStrip | Sits on the canvas with the gutter 👁 | ☐ Waits for the tab bar choice (round 9, TB1/TB3/TB4 in the Design Lab) |
-| B2 | **Running tab:** a spinner at the leading edge and the timer in place of the subtitle. | `QueryTabButton` | Shows while running and clears when done | ☑ (this commit), 👁 pending |
+| B2 | **Running tab:** a spinner at the leading edge and the timer in place of the subtitle. | `QueryTabButton` | Shows while running and clears when done | ☑ 461d69ee, 👁 pending |
 | B3 | **Overflow:** a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. | `QueryTabStrip` | 20+ tabs stay usable | ☐ Waits for the tab bar choice (round 9, TB1/TB3/TB4 in the Design Lab) |
 | B4 | **New tab grows out of +** (+ and the plate share a glass container). Switching tabs stays instant. | Strip | 👁 | ☐ Waits for the tab bar choice (round 9, TB1/TB3/TB4 in the Design Lab) |
 | B5 | Make tabs real buttons (accessibility, focus): a click selects at once, dragging still reorders. **Keep the editors of recently used tabs alive** so switching back keeps scroll, undo and cursor (round 9, TFIX). Fix the O(n²) separator pass and read the hairline width from `displayScale`. | Strip | VoiceOver reads the tabs | ◐ TFIX part done (select on press, three most recent tabs kept alive, focus follows the active tab), 👁 pending; separator pass, hairline width and VoiceOver check still to do |
