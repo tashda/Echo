@@ -17,6 +17,7 @@ This folder is the source of truth for how Echo looks, moves and behaves. Every 
 | [plan.md](plan.md) | The build plan: phases, tasks, acceptance criteria and status |
 | [process.md](process.md) | How a design question goes from Open to built |
 | [current-state.md](current-state.md) | Where things live in the code today and what to keep |
+| [swiftui-tree.md](swiftui-tree.md) | Investigation: rebuilding the Explorer tree in SwiftUI (proposal, round 8) |
 
 ## Picking up the work
 
