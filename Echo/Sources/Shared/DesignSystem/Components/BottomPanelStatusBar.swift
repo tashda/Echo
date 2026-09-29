@@ -63,18 +63,26 @@ struct BottomPanelStatusBarConfiguration {
 
 /// The footer at the bottom of every tab's card (Design/05-components.md › Results card, FT1a).
 /// No strip and no divider: the server and database float as a glass chip at the leading edge
-/// (click it to switch database), the result views sit in their own glass pill right beside it,
-/// and the status, row count and duration are quiet text at the trailing edge.
+/// (click it and it grows into the database switcher), the result views sit in their own glass
+/// pill right beside it, and the status, row count and duration are quiet text at the trailing edge.
 struct BottomPanelStatusBar: View {
     let configuration: BottomPanelStatusBarConfiguration
 
     @Environment(\.echoMotion) private var motion
+    @Namespace private var switcherNamespace
+
+    private static let switcherGeometryID = "database-switcher"
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
             connectionChip
-            segmentPill
-            modeIndicatorChips
+                .zIndex(1)
+            // The switcher grows over these and its glass would show them through it, so they
+            // step aside while it's open.
+            if !isSwitcherOpen {
+                segmentPill
+                modeIndicatorChips
+            }
             Spacer(minLength: SpacingTokens.sm)
                 .contentShape(Rectangle())
                 .onTapGesture { configuration.onTogglePanel() }
@@ -91,39 +99,75 @@ struct BottomPanelStatusBar: View {
         return "\(configuration.serverName) · \(databaseName)"
     }
 
+    private var canSwitchDatabase: Bool {
+        configuration.availableDatabases != nil && configuration.onSwitchDatabase != nil
+    }
+
+    private var isSwitcherOpen: Bool {
+        configuration.showDatabasePicker?.wrappedValue ?? false
+    }
+
+    private func setSwitcherOpen(_ isOpen: Bool) {
+        withAnimation(motion.standard) {
+            configuration.showDatabasePicker?.wrappedValue = isOpen
+        }
+    }
+
+    /// The server · database chip. Clicking it grows it upward into the database switcher, whose
+    /// bottom row takes the chip's place (round 9, DB1); the chip keeps its width meanwhile so
+    /// nothing beside it moves.
+    @ViewBuilder
     private var connectionChip: some View {
-        let canSwitch = configuration.availableDatabases != nil
-        return Button {
-            configuration.showDatabasePicker?.wrappedValue.toggle()
-        } label: {
-            Text(connectionText)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
-                .frame(height: LayoutTokens.Footer.chipHeight)
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .glassEffect(canSwitch ? .regular.interactive() : .regular, in: .capsule)
-        .disabled(!canSwitch)
-        .help(canSwitch ? "Switch Database" : connectionText)
-        .accessibilityLabel(connectionText)
-        .popover(isPresented: configuration.showDatabasePicker ?? .constant(false)) {
-            if let databases = configuration.availableDatabases,
-               let onSwitch = configuration.onSwitchDatabase,
-               let current = configuration.databaseName {
-                DatabasePickerPopover(
-                    databases: databases,
-                    currentDatabase: current,
-                    onSelect: { selected in
-                        configuration.showDatabasePicker?.wrappedValue = false
-                        onSwitch(selected)
+        if isSwitcherOpen, let databases = configuration.availableDatabases {
+            // Invisible rather than `.hidden()`: a hidden view leaves SwiftUI's focus tree while
+            // the filter field in its overlay is in it, and AppKit's key-view walk then never ends.
+            chipLabel
+                .opacity(0)
+                .accessibilityHidden(true)
+                .overlay(alignment: .bottomLeading) {
+                    DatabaseSwitcherCard(
+                        databases: databases,
+                        currentDatabase: configuration.databaseName,
+                        chipLabel: connectionText,
+                        onSelect: { selected in
+                            setSwitcherOpen(false)
+                            configuration.onSwitchDatabase?(selected)
+                        },
+                        onDismiss: { setSwitcherOpen(false) }
+                    )
+                    // Glass on a shape behind the card, so the filter field isn't hosted inside it.
+                    .background {
+                        Color.clear
+                            .glassEffect(.regular, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.cornerRadius))
                     }
-                )
+                    .matchedGeometryEffect(id: Self.switcherGeometryID, in: switcherNamespace)
+                }
+        } else {
+            Button {
+                setSwitcherOpen(true)
+            } label: {
+                chipLabel
             }
+            .buttonStyle(.plain)
+            .glassEffect(canSwitchDatabase ? .regular.interactive() : .regular, in: .capsule)
+            // Not a GlassEffectContainer morph: a text field inside a glass container sends
+            // AppKit's key-view walk into an endless loop, so the chip's frame grows instead.
+            .matchedGeometryEffect(id: Self.switcherGeometryID, in: switcherNamespace)
+            .disabled(!canSwitchDatabase)
+            .help(canSwitchDatabase ? "Switch Database" : connectionText)
+            .accessibilityLabel(connectionText)
         }
+    }
+
+    private var chipLabel: some View {
+        Text(connectionText)
+            .font(TypographyTokens.detail)
+            .foregroundStyle(ColorTokens.Text.primary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
+            .frame(height: LayoutTokens.Footer.chipHeight)
+            .contentShape(Capsule())
     }
 
     // MARK: - Views
@@ -228,63 +272,5 @@ struct BottomPanelStatusBar: View {
                 popoverView
             }
         }
-    }
-}
-
-// MARK: - Database Picker Popover
-
-private struct DatabasePickerPopover: View {
-    let databases: [String]
-    let currentDatabase: String
-    let onSelect: (String) -> Void
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(databases, id: \.self) { db in
-                    DatabasePickerRow(
-                        name: db,
-                        isCurrent: db.caseInsensitiveCompare(currentDatabase) == .orderedSame,
-                        onSelect: { onSelect(db) }
-                    )
-                }
-            }
-            .padding(.vertical, SpacingTokens.xxs)
-        }
-        .frame(width: 220)
-        .frame(maxHeight: 300)
-    }
-}
-
-private struct DatabasePickerRow: View {
-    let name: String
-    let isCurrent: Bool
-    let onSelect: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: SpacingTokens.xs) {
-                Image(systemName: "checkmark")
-                    .font(TypographyTokens.compact)
-                    .frame(width: 14)
-                    .foregroundStyle(ColorTokens.accent)
-                    .opacity(isCurrent ? 1 : 0)
-
-                Text(name)
-                    .font(TypographyTokens.caption)
-                    .foregroundStyle(ColorTokens.Text.primary)
-                    .lineLimit(1)
-
-                Spacer()
-            }
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.vertical, SpacingTokens.xxs)
-            .contentShape(Rectangle())
-            .background(isHovered ? ColorTokens.Text.primary.opacity(0.06) : .clear)
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
     }
 }
