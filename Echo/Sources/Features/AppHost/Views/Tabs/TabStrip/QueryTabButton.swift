@@ -167,45 +167,8 @@ struct QueryTabButton: View {
         }
     }
 
-    @ViewBuilder
-    private var tabTitleContent: some View {
-        if tab.isPinned {
-            Text(displayedTitle)
-                .font(tabTitleFont)
-                .lineLimit(1)
-                .foregroundStyle(tabTitleColor)
-        } else if let dbName = tab.tabSubtitle ?? tab.activeDatabaseName, !dbName.isEmpty {
-            HStack(spacing: SpacingTokens.xxxs) {
-                Text(displayedTitle)
-                    .font(tabTitleFont)
-                    .lineLimit(1)
-                    .foregroundStyle(tabTitleColor)
 
-                Text(dbName)
-                    .font(TypographyTokens.detail.weight(.medium))
-                    .lineLimit(1)
-                    .foregroundStyle(tabTitleColor.opacity(0.55))
-            }
-        } else {
-            Text(displayedTitle)
-                .font(tabTitleFont)
-                .lineLimit(1)
-                .foregroundStyle(tabTitleColor)
-        }
-    }
-
-    private var displayedTitle: String {
-        let trimmed = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if tab.isPinned {
-            if let first = trimmed.first {
-                return String(first).uppercased()
-            }
-            return "•"
-        }
-        return trimmed.isEmpty ? "Untitled" : trimmed
-    }
-
-    private var tabTitleFont: Font {
+    var tabTitleFont: Font {
         if tab.isPinned {
             return TypographyTokens.detail.weight(.semibold)
         }
