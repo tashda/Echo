@@ -74,11 +74,15 @@ struct LabWindowPlayground: View {
                     LabPicker(title: "Speed", selection: $speed, options: LabSpeed.allCases)
                 }
                 HStack(spacing: 10) {
-                    Button(isTreeVisible ? "Hide tree" : "Show tree") { toggleTree() }
+                    Button(isTreeVisible ? "Hide tree  ⌃⌘S" : "Show tree  ⌃⌘S") { toggleTree() }
                         .keyboardShortcut("s", modifiers: [.command, .control])
+                        .buttonStyle(.borderedProminent)
                     Button(showsResults ? "Close results" : "Run query") {
                         withAnimation(speed.spring(reduceMotion: reduceMotion)) { showsResults.toggle() }
                     }
+                    .buttonStyle(.borderedProminent)
+                    Text(isTreeVisible ? "Hide the tree, then click a server in the rail to try Server click." : "Tree hidden: click TI or 16 in the rail (⌘-click too).")
+                        .font(.callout).foregroundStyle(.secondary)
                 }
             }
         } content: {
