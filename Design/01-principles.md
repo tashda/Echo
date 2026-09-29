@@ -12,7 +12,15 @@ Echo is a database tool that feels like it was made by Apple. It uses what macOS
 4. **One structure everywhere.** The rail, tree and cards stay in the same place whether the tree is shown or hidden. Only the cards move. *Decided.*
 5. **Motion explains change.** Every animation shows where something came from or went. No decorative motion. Pulsing is used only for "in progress" states. *Decided.*
 6. **Everything through tokens.** Sizes, radii, spacing, colours and animations come from `06-tokens.md` and the code's token files. No literal numbers or colours in views. *Decided.*
-7. **User settings where taste differs.** Rail size, tree density (4 levels), icon colour (colourful or monochrome), gutter style, monospaced result cells and motion speed are settings. The defaults are chosen here. *Decided.*
+7. **User settings where taste differs.** These are settings, with defaults chosen here: *Decided.*
+   - rail size;
+   - tree density (4 levels);
+   - icon colour (colourful, monochrome, and monochrome with accent on open folders);
+   - gutter between panes (4 / 6 / 8pt);
+   - what clicking a server does while the tree is hidden;
+   - editor gutter style;
+   - monospaced result cells;
+   - motion speed.
 8. **Keep what works.** Echo's tab strip, result grid, tab overview and Run button were refined over weeks. Improve them in place; don't replace them. *Decided.*
 9. **Safari is the reference for tabs.** Tabs should look and behave like Safari's. *Decided.*
 10. **Accessibility is not optional.** Reduce Motion, Reduce Transparency and Increase Contrast must all look right. Every control has an accessibility label and keyboard access where the system provides it. *Decided.*

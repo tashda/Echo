@@ -239,7 +239,7 @@ private struct DesignLabRootView: View {
             }
         }
         .padding(16)
-        .frame(maxWidth: 1080, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
         .background(Color(nsColor: .textBackgroundColor), in: .rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.separator, lineWidth: 0.5))
     }
@@ -276,7 +276,7 @@ private struct LabQuestionRow: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 380)
+            .fixedSize()
             TextField("Note", text: $answer.note)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 200)

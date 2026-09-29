@@ -161,7 +161,7 @@ struct LabTreePlayground: View {
             }
             .background(Color(nsColor: .windowBackgroundColor))
         }
-        .frame(width: 720, height: 560)
+        .frame(minWidth: 720, minHeight: 560)
     }
 }
 

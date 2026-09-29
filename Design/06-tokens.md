@@ -12,9 +12,9 @@ Values that views use. The code equivalents live in `Echo/Sources/Shared/DesignS
 |---|---|---|
 | Canvas | `windowBackgroundColor` (grey), translucent alternative | Decided |
 | Card fill | `textBackgroundColor` | Decided |
-| Card corner | Concentric with the window (`ConcentricRectangle`) | Decided (principle), value Open |
-| Card shadow | Floating (radius 10, y 4, 12%) or hairline (0.5pt separator) | Open |
-| Gutter between panes | 4, 6 or 8pt | Open |
+| Card corner | 12pt, continuous | Decided |
+| Card shadow | Floating: black 12%, radius 10, y 4, plus a 0.5pt separator edge at 35% | Decided |
+| Gutter between panes | 6pt default; setting offers 4 / 6 / 8pt | Decided |
 
 ## Rail
 

@@ -226,7 +226,7 @@ struct LabRailPlayground: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(LabCanvasBackground(canvas: canvas))
         }
-        .frame(width: 760, height: 560)
+        .frame(minWidth: 760, minHeight: 560)
     }
 
     private func connect() {

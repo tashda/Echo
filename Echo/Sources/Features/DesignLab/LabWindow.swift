@@ -40,9 +40,9 @@ enum LabTabPlace: String, CaseIterable, Identifiable {
 /// open layout choice is a control above it.
 struct LabWindowPlayground: View {
     @State private var canvas: LabCanvas = .grey
-    @State private var corner: LabCorner = .concentric
+    @State private var corner: LabCorner = .r12
     @State private var shadow: LabCardShadow = .lift
-    @State private var gutter: LabGutter = .eight
+    @State private var gutter: LabGutter = .six
     @State private var hideStyle: LabTreeHide = .shrink
     @State private var serverClick: LabServerClick = .split
     @State private var tabPlace: LabTabPlace = .canvas
@@ -91,7 +91,7 @@ struct LabWindowPlayground: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(nsColor: .underPageBackgroundColor))
         }
-        .frame(width: 1180, height: 820)
+        .frame(minWidth: 1180, minHeight: 820)
     }
 
     // MARK: Window

@@ -34,7 +34,7 @@ struct LabInspectorPlayground: View {
             }
             .background(Color(nsColor: .windowBackgroundColor))
         }
-        .frame(width: 860, height: 600)
+        .frame(minWidth: 860, minHeight: 600)
     }
 
     private let fields: [(String, String)] = [

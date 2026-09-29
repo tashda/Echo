@@ -266,7 +266,7 @@ struct LabResultsPlayground: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .windowBackgroundColor))
         }
-        .frame(width: 820, height: 620)
+        .frame(minWidth: 820, minHeight: 620)
     }
 
     /// Server › database picker, result panes, running state.

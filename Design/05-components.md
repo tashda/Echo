@@ -14,7 +14,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - How to show running queries and lost connections is *Open*. Rings, comets, count badges and extra dots were rejected, so it should be very quiet or live only in the tooltip and peek card.
 - **No + in the rail.** The toolbar handles connecting. *Decided.*
 - Item size: medium (34pt) default, with small and large as a setting. *Decided.*
-- **Clicking a server with the tree hidden:** *Open* between peek, reopening the tree, and a click / ⌘-click split. Recommendation: a plain click peeks (the tree for that server slides out over the cards; a click away or Esc slides it back), and a double-click or ⌘-click reopens the tree for good. The glance card and "switch context only" were rejected.
+- **Clicking a server with the tree hidden:** a plain click peeks (the tree for that server slides out over the cards; a click away or Esc slides it back), and ⌘-click or double-click reopens the tree for good. *Decided.* A setting lets users choose instead "always peek" or "always reopen the tree". The glance card and "switch context only" were rejected.
 
 ## Explorer tree
 
@@ -22,14 +22,14 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Server header = sticky header:**
   - The server name is the section header.
   - When it pins at the top it grows a breadcrumb for the database you're in ("postgres18 › employees"), over a soft fade rather than a band.
-  - One element, two states. *Decided.*
-  - Style is *Open*: bold 13pt, or Finder-style small caps. A two-line header was rejected.
+  - One element, two states. *Decided* (accepted in the Design Lab).
+  - Style: **bold 13pt**. Small caps and a two-line header were rejected. *Decided.*
 - **Selection:** a neutral grey pill; the icon turns accent. *Decided.*
 - **Counts:** plain grey tabular digits at the right; zero is hidden. *Decided.*
 - **Density:** four levels (compact, small, default, large) stay as a setting. *Decided.*
-- **Icon colour** stays a setting. *Decided.* How each mode looks is *Leaning*:
-  - Monochrome mode: pure monochrome, or monochrome with accent on expanded folders. Both are liked; pick in the lab.
-  - Colourful mode: today's colours softened (lower saturation, hierarchical symbols).
+- **Icon colour** stays a setting with two modes. *Decided.*
+  - Monochrome mode defaults to **monochrome with accent on expanded folders**, so you see your path. A sub-setting switches to pure monochrome. *Decided.*
+  - Colourful mode uses today's colours softened (lower saturation, hierarchical symbols). *Decided.*
 - **Expanding:** rows slide down with a fade (native table animation), scaled by the speed setting. *Decided.*
 - **Loading:** shimmer placeholder rows at the right indent, then crossfade to the real rows. *Decided.*
 - **No search field in the tree.** *Decided.*
@@ -60,7 +60,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Running query:** a spinner at the leading edge, and a timer replacing the subtitle. *Decided.*
 - **Many tabs:** tabs shrink to a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. *Decided.*
 - **New tab** grows out of the + button. *Decided.*
-- Position is *Open*: on the canvas above both cards, or inside the editor card. Recommendation: on the canvas, the way Safari's tab bar sits above the page.
+- **Position: on the canvas above both cards**, the way Safari's tab bar sits above the page. *Decided.*
 
 ## Tab overview (open queries)
 
@@ -113,8 +113,8 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - one section style across every panel;
   - one smooth width change instead of today's stepped jumps;
   - a row-detail mode that shows every column of the selected row.
-- Single 12pt padding instead of the doubled gutter. *Leaning.*
-- The exact look is to be shown in the Design Lab before it is built. *Open.*
+- Single 12pt padding instead of the doubled gutter. *Decided.*
+- The proposed look from the Design Lab is accepted: grouped section cards with a header (icon, title, actions) and rows with the label left and a selectable value right. *Decided.*
 
 ## Notifications
 

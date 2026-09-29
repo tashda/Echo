@@ -2,6 +2,22 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Review round 3 (Design Lab), first part
+
+17 of 28 questions answered in the Design Lab. The server rail and results grid pages couldn't be judged because the playgrounds slid under the lab's page list; that is fixed, and those 11 questions are still open.
+
+Decided:
+- Card corners 12pt, replacing the earlier "concentric with the window" rule. → 02-layout, 06-tokens
+- Floating card shadow. Gutter 6pt, adjustable in settings (4/6/8). → 02-layout, 06-tokens, 01-principles
+- Hiding the tree: the tree shrinks into the rail. → 02-layout, 04-motion
+- Server click with the tree hidden: peek, ⌘-click reopens; adjustable in settings. → 05-components, 01-principles
+- Tab strip on the canvas above the cards. Results card rising accepted. → 02-layout, 05-components
+- Tree: bold server header; pinned header with breadcrumb accepted; monochrome mode defaults to accent on open folders, with pure monochrome as a setting; soft colourful mode accepted. → 05-components
+- Toasts: stacking, expanding on hover, ×2/×3 repeats and the history card growing out of the bell all accepted. → 05-components
+- Inspector: proposed design and smooth width change accepted. → 05-components
+
+Still open (to judge in the Design Lab): rail selection style, selected monogram colour, connecting pulse, pill growth, rail on the translucent canvas; results column header, row hover, selection outline, footer content, where the connection bar lives, monospaced cells setting.
+
 ## 2026-09-29 · Review round 2 (deep dives)
 
 Decided:
@@ -19,17 +35,7 @@ Decided:
 - Floating cards: in-window glass, no arrow, close on outside click or Esc, no pin. → 03-materials, 05-components
 - Inspector: native; one section style, smooth width, row-detail mode. → 05-components
 
-Still open, for the Design Lab:
-- Card corner treatment and shadow (must match macOS window corners) and gutter width.
-- Rail selection shape (disc, liquid stretch, glass lens) and the selected monogram's colour.
-- Tree-hide motion (tree shrinks into rail, or card slides over).
-- Clicking a server with the tree hidden (peek, reopen, or click / ⌘-click).
-- Tree header style (bold or small caps) and the monochrome icon variant.
-- Results header design, row hover, selection summary, loaded-of-total rows.
-- Where the connection context and status bar live.
-- Tab strip position (canvas or card).
-- Inspector look, shown before building.
-- Toolbar group layout.
+Left open after round 2 (see round 3 for what was settled): card corners, shadow and gutter; rail selection and monogram colour; tree-hide motion; server click with the tree hidden; tree header style and monochrome variant; results header, hover, footer; where the connection bar lives; tab strip position; inspector look; toolbar group layout.
 
 ## 2026-09-28 · Review round 1 (143 options)
 

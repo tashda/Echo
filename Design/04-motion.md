@@ -17,7 +17,7 @@
 | Rail selection shape | White disc sliding (preferred), liquid stretch, or glass lens | Open, in the Design Lab |
 | Server connecting | The monogram breathes (opacity 100% → 30%) until connected, then settles | Decided |
 | Server connects | It grows out of the server pill, and the pill stretches to fit | Decided |
-| Hiding the tree | The cards slide over the tree with the house spring. Candidates: tree shrinks into the rail (preferred) or card slides over | Open, in the Design Lab |
+| Hiding the tree | The tree shrinks toward the rail and fades while the cards grow into its space, with the house spring | Decided |
 | Results after the first run | The results card rises from the bottom while the editor card shrinks | Decided |
 | Folder expand | Rows slide down with a fade (native table animation), scaled by speed | Decided |
 | Objects loading | Shimmer placeholder rows, then crossfade to the real rows | Decided |

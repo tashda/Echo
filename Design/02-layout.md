@@ -39,20 +39,20 @@ Echo does not use the system sidebar for the Explorer. The window is our own she
 
 - The tree sits straight on the canvas, starting right after the rail. It has no panel or background of its own. *Decided.*
 - Server names are the section headers, and they pin at the top while scrolling (see `05-components.md`). *Decided.*
-- The tree can be hidden. The rail stays exactly where it is, and the cards slide over the tree's space (see `04-motion.md`). *Decided.*
+- The tree can be hidden. The rail stays exactly where it is; the tree shrinks into the rail and the cards grow into its space (see `04-motion.md`). *Decided.*
 - Tree width is adjustable by dragging its trailing edge. *Leaning:* needs a small custom resize handle.
 
 ## Cards
 
 - The editor and the results are **two separate opaque cards**, with canvas between them. *Decided.*
 - The gap between the two cards is also the resize handle (see `05-components.md`). *Decided.*
-- **Corners follow the window.** Card corners are concentric with the macOS window corners: the window radius minus the gutter, using `ConcentricRectangle`, so the cards look like part of the window. *Decided* (the principle). The exact look is *Open* and checked in the Design Lab.
-- Shadow: floating shadow or hairline. *Open*; flat with no shadow was rejected.
-- Gutters of 4, 6 or 8pt are all still candidates. *Open*: whichever looks most macOS-native in the Design Lab wins.
+- **Corners: 12pt**, continuous. Concentric corners and 16pt were compared in the Design Lab and rejected. *Decided* (replaces the earlier "concentric with the window" rule).
+- **Shadow: floating shadow** (soft, lifted off the canvas). Hairline and flat were rejected. *Decided.*
+- **Gutter: 6pt by default**, with 4pt and 8pt available as a setting. The same gutter separates rail, tree, tab strip and cards. *Decided.*
 
 ## Tab strip
 
-- *Open:* on the canvas above both cards, or inside the editor card. The recommendation is on the canvas, like Safari's tab bar sitting above the page. See `05-components.md`.
+- **On the canvas, above both cards**, like Safari's tab bar above the page. *Decided.*
 
 ## Inspector
 

@@ -48,7 +48,7 @@ struct LabFloatingPlayground: View {
                 .padding(12)
             }
         }
-        .frame(width: 760, height: 540)
+        .frame(minWidth: 760, minHeight: 540)
     }
 
     private var animation: Animation { speed.spring(reduceMotion: reduceMotion) }
