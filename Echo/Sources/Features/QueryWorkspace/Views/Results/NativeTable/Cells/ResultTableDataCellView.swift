@@ -57,7 +57,8 @@ final class ResultTableDataCellView: NSTableCellView {
 
     func apply(text: String,
                font: NSFont,
-               textColor: NSColor) {
+               textColor: NSColor,
+               alignment: NSTextAlignment = .left) {
         var shouldInvalidateMetrics = false
         if contentTextField.stringValue != text {
             contentTextField.stringValue = text
@@ -67,12 +68,12 @@ final class ResultTableDataCellView: NSTableCellView {
             contentTextField.font = font
             shouldInvalidateMetrics = true
         }
-        if contentTextField.alignment != .left {
-            contentTextField.alignment = .left
+        if contentTextField.alignment != alignment {
+            contentTextField.alignment = alignment
         }
         if let cell = contentTextField.cell as? VerticallyCenteredTextFieldCell {
-            if cell.alignment != .left {
-                cell.alignment = .left
+            if cell.alignment != alignment {
+                cell.alignment = alignment
                 shouldInvalidateMetrics = true
             }
             if shouldInvalidateMetrics {

@@ -114,7 +114,8 @@ extension QueryResultsSection {
             alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
             showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
             colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
-            isDarkMode: appearanceStore.effectiveColorScheme == .dark
+            isDarkMode: appearanceStore.effectiveColorScheme == .dark,
+            monospacedCells: projectStore.globalSettings.resultsMonospacedCells
         )
     }
 

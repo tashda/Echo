@@ -30,6 +30,8 @@ struct QueryResultsTableView: NSViewRepresentable {
     var showRowNumbers: Bool = true
     var colorOverrides: ResultGridColorOverrides = .init()
     var isDarkMode: Bool = false
+    /// Cells in a monospaced font (Settings › Query Results › Monospaced cells).
+    var monospacedCells: Bool = false
 
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
@@ -63,7 +65,8 @@ struct QueryResultsTableView: NSViewRepresentable {
             alternateRowShading: alternateRowShading,
             showRowNumbers: showRowNumbers,
             colorOverrides: colorOverrides,
-            isDarkMode: isDarkMode
+            isDarkMode: isDarkMode,
+            monospacedCells: monospacedCells
         )
     }
 

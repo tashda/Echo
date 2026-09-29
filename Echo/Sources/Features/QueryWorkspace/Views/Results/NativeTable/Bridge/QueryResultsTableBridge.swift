@@ -33,8 +33,18 @@ extension QueryResultsTableView {
         var contextMenuCell: QueryResultsTableView.SelectedCell?
         weak var activeSelectableField: NSTextField?
         var cachedPaletteSignature: String?
-        var cachedFontStyles: [SQLEditorTokenPalette.ResultGridStyle: NSFont] = [:]
-        let cellBaseFont = NSFont.systemFont(ofSize: 12)
+        var cachedFontStyles: [FontKey: NSFont] = [:]
+        /// Monospaced when the "Monospaced cells" setting is on (Settings › Query Results).
+        var cellBaseFont: NSFont {
+            parent.monospacedCells
+                ? .monospacedSystemFont(ofSize: ResultsGridMetrics.cellFontSize, weight: .regular)
+                : .systemFont(ofSize: ResultsGridMetrics.cellFontSize)
+        }
+
+        struct FontKey: Hashable {
+            let style: SQLEditorTokenPalette.ResultGridStyle
+            let tabularDigits: Bool
+        }
         var lastForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
         var lastJsonSelection: QueryResultsTableView.JsonSelection?
         var cachedViewportSize: CGSize = .zero
@@ -224,20 +234,22 @@ extension QueryResultsTableView {
         }
 
         // Helper methods
-        func resolvedFont(for style: SQLEditorTokenPalette.ResultGridStyle) -> NSFont {
-            if let cached = cachedFontStyles[style] {
+        func resolvedFont(for style: SQLEditorTokenPalette.ResultGridStyle, tabularDigits: Bool = false) -> NSFont {
+            let key = FontKey(style: style, tabularDigits: tabularDigits && !parent.monospacedCells)
+            if let cached = cachedFontStyles[key] {
                 return cached
             }
             var traits: NSFontTraitMask = []
             if style.isBold { traits.insert(.boldFontMask) }
             if style.isItalic { traits.insert(.italicFontMask) }
-            let font: NSFont
-            if traits.isEmpty {
-                font = cellBaseFont
-            } else {
-                font = NSFontManager.shared.convert(cellBaseFont, toHaveTrait: traits)
+            var font = cellBaseFont
+            if key.tabularDigits {
+                font = .monospacedDigitSystemFont(ofSize: font.pointSize, weight: .regular)
             }
-            cachedFontStyles[style] = font
+            if !traits.isEmpty {
+                font = NSFontManager.shared.convert(font, toHaveTrait: traits)
+            }
+            cachedFontStyles[key] = font
             return font
         }
 
@@ -247,6 +259,7 @@ extension QueryResultsTableView {
             let appearance = AppearanceStore.shared.effectiveColorScheme == .dark ? "dark" : "light"
             return [
                 appearance,
+                parent.monospacedCells ? "mono" : "proportional",
                 overrides.nullHex ?? "",
                 overrides.numericHex ?? "",
                 overrides.booleanHex ?? "",

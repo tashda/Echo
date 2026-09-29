@@ -101,9 +101,11 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         let columnInfo = dataIndex < queryState.displayedColumns.count ? queryState.displayedColumns[dataIndex] : nil
         let kind = (rawValue == nil) ? .null : (dataIndex < cachedColumnKinds.count ? cachedColumnKinds[dataIndex] : ResultGridValueClassifier.kind(for: columnInfo, value: rawValue))
         let style = cachedResultGridStyles[kind] ?? { let s = fallbackResultGridStyle(for: kind); cachedResultGridStyles[kind] = s; return s }()
-        let font = resolvedFont(for: style); let displayText = rawValue ?? (kind == .null ? "NULL" : "")
+        // Plan R1: right-aligned tabular numbers and dates, ✓/✗ booleans (ResultCellPresentation).
+        let font = resolvedFont(for: style, tabularDigits: ResultCellPresentation.usesTabularDigits(kind))
+        let displayText = ResultCellPresentation.displayText(rawValue, kind: kind)
         let baseTextColor = cachedTextColors[kind] ?? { let c = dynamicNSColor(for: kind, style: style); cachedTextColors[kind] = c; return c }()
-        cellView.apply(text: displayText, font: font, textColor: baseTextColor)
+        cellView.apply(text: displayText, font: font, textColor: baseTextColor, alignment: ResultCellPresentation.alignment(for: kind))
         let cellPosition = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
         if shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue) {
             cellView.configureIcon(symbolName: "arrow.up.right.square") { [weak self] in self?.activateForeignKey(at: cellPosition) }
