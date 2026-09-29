@@ -105,10 +105,15 @@ struct WorkspaceTabContainerView: View {
                                 }
                             )
                             .workspaceCard()
+                            // The overview zooms in from the tab, and the tab zooms back out of it (plan O3).
+                            .transition(.scale(scale: 1.04).combined(with: .opacity))
                         } else {
                             activeTabContainer
+                                .transition(.scale(scale: 0.94).combined(with: .opacity))
                         }
                     }
+                    .animation(motion.standard, value: appState.showTabOverview)
+                    .simultaneousGesture(overviewPinch)
                     // A zero minimum keeps tall content (a long list, a big dashboard) from pushing
                     // the window past its own edges; the card clips it instead.
                     .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)

@@ -33,8 +33,23 @@ extension TabOverviewView {
 
         Divider()
 
-        Menu("Move to", systemImage: "arrow.right") {
-            moveTabMenuContent(for: tab, currentServerID: serverID, currentDatabaseIdentifier: databaseIdentifier)
+        let databases = environmentState.switchableDatabaseNames(for: tab)
+        if !databases.isEmpty {
+            // Tabs move between databases on their own server; a tab can't change server (plan O2).
+            Menu("Switch Database", systemImage: "cylinder.split.1x2") {
+                ForEach(databases, id: \.self) { database in
+                    Button {
+                        environmentState.switchDatabase(database, for: tab)
+                    } label: {
+                        if database == tab.activeDatabaseName {
+                            Label(database, systemImage: "checkmark")
+                        } else {
+                            Text(database)
+                        }
+                    }
+                    .disabled(database == tab.activeDatabaseName)
+                }
+            }
         }
 
         Divider()
@@ -43,32 +58,6 @@ extension TabOverviewView {
             onCloseTab(tab.id)
         } label: {
             Label("Close Tab", systemImage: "xmark")
-        }
-    }
-
-    @ViewBuilder
-    private func moveTabMenuContent(for tab: WorkspaceTab, currentServerID: UUID, currentDatabaseIdentifier: String) -> some View {
-        let servers = groupedTabs
-        ForEach(servers) { server in
-            Menu(server.connection.connectionName) {
-                let databases = server.databaseGroups.values.sorted { $0.databaseName.localizedCaseInsensitiveCompare($1.databaseName) == .orderedAscending }
-                ForEach(databases) { db in
-                    let dbIdentifier = databaseIdentifier(for: db.databaseName, serverID: server.connection.id)
-                    let isCurrentDb = dbIdentifier == currentDatabaseIdentifier
-                    
-                    Button {
-                        moveTab(tab, toServer: server.connection.id, database: db.databaseName)
-                    } label: {
-                        HStack {
-                            Text(db.databaseName)
-                            if isCurrentDb {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    }
-                    .disabled(isCurrentDb)
-                }
-            }
         }
     }
 
@@ -82,10 +71,5 @@ extension TabOverviewView {
 
     private func unpinTab(_ tab: WorkspaceTab) {
         tabStore.togglePin(for: tab.id)
-    }
-
-    private func moveTab(_ tab: WorkspaceTab, toServer serverID: UUID, database: String) {
-        // Implementation for moving tab between server/database groups
-        // This might require more complex logic in TabStore
     }
 }

@@ -1,10 +1,12 @@
 import SwiftUI
 
 extension TabOverviewView {
+    /// Servers in a stable order (plan O2): the active server first, then by name.
     var groupedTabs: [ServerGroup] {
         let grouped = Dictionary(grouping: tabs) { $0.connection.id }
+        let activeID = activeConnectionID
 
-        return grouped.keys.compactMap { id in
+        return grouped.keys.compactMap { id -> ServerGroup? in
             guard let connection = connectionStore.connections.first(where: { $0.id == id }) else { return nil }
             let serverTabs = grouped[id] ?? []
             return ServerGroup(
@@ -13,6 +15,14 @@ extension TabOverviewView {
                 totalTabCount: serverTabs.count
             )
         }
+        .sorted { lhs, rhs in
+            if (lhs.id == activeID) != (rhs.id == activeID) { return lhs.id == activeID }
+            return Self.serverName(lhs.connection).localizedCaseInsensitiveCompare(Self.serverName(rhs.connection)) == .orderedAscending
+        }
+    }
+
+    static func serverName(_ connection: SavedConnection) -> String {
+        connection.connectionName.isEmpty ? connection.host : connection.connectionName
     }
 
     func databaseGroups(for tabs: [WorkspaceTab]) -> [String: DatabaseGroup] {
@@ -33,8 +43,10 @@ extension TabOverviewView {
         }
     }
 
+    /// Tabs group by the database they're using now, not the connection's default (plan O2).
     func databaseKey(for tab: WorkspaceTab) -> String {
-        tab.connection.database.isEmpty ? "default" : tab.connection.database
+        if let current = tab.activeDatabaseName, !current.isEmpty { return current }
+        return tab.connection.database.isEmpty ? "default" : tab.connection.database
     }
 
     var activeConnectionID: UUID? {

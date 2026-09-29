@@ -199,9 +199,15 @@ Rules: `03-materials`, `05-components` › Notifications, Floating cards.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| O1 | Toolbar button and trackpad pinch to open. | Toolbar, container | Both open it | ☐ |
-| O2 | Slim header; stable server order (active server first); grouped by the active database; live running timer and stop; implement or remove "Move to". | `TabOverview/*` | 👁 | ☐ |
-| O3 | Zoom: the active tab shrinks into its card, and picking a card zooms back in. | Container | 👁 | ☐ |
+| O1 | Toolbar button and trackpad pinch to open. | Toolbar, container | Both open it | ☑ built, 👁 pending |
+| O2 | Slim header; stable server order (active server first); grouped by the active database; live running timer and stop; implement or remove "Move to". | `TabOverview/*` | 👁 | ☑ built, 👁 pending. "Move to" became Switch Database on the tab's own server; a tab can't change server |
+| O3 | Zoom: the active tab shrinks into its card, and picking a card zooms back in. | Container | 👁 | ☑ built, 👁 pending. A scale-and-fade approximation, not a matched zoom into the card |
+
+### Notes from building it (Phase 8)
+
+- **Opening (O1):** `TabOverviewToolbarButton` leads the [Overview · Refresh · Bell · Inspector] capsule (the rule's toolbar groups didn't place it; log if it should move). A trackpad pinch in (below 0.8) opens the overview and a pinch out (above 1.25) closes it (`WorkspaceTabContainerView+OverviewPinch`). ⇧⌘O is unchanged.
+- **Look (O2):** the gradient hero and the capsule controls are gone; `TabOverviewHeader` is one line: "Open Tabs", "12 tabs · 2 running", Collapse All, Expand All. Servers are ordered active first, then by name. Tabs group by `activeDatabaseName`, falling back to the connection's database. A running query tab shows its live time and a red stop button instead of its status badge. The unimplemented "Move to" is now Switch Database, through `EnvironmentState.switchDatabase(_:for:)`.
+- **Motion (O3):** the tab scales down and fades as the overview scales in, on the house spring; picking a card reverses it. A true zoom into the card's frame would need the card's position from inside the scroll view; left for the owner to judge.
 
 ## Phase 9 · Inspector
 

@@ -95,10 +95,11 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     // MARK: - Right Side: Workspace Actions
 
-    /// [Refresh · Bell · Inspector] share one capsule.
+    /// [Overview · Refresh · Bell · Inspector] share one capsule.
     @ToolbarContentBuilder
     private var workspaceActionItems: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
+            TabOverviewToolbarButton()
             RefreshToolbarButton()
             NotificationBellToolbarButton()
             InspectorToolbarButton()

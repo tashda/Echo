@@ -21,3 +21,21 @@ struct InspectorToolbarButton: View {
         .accessibilityLabel(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
     }
 }
+
+/// Opens and closes the tab overview (plan O1); ⇧⌘O and a trackpad pinch do the same.
+struct TabOverviewToolbarButton: View {
+    @Environment(AppState.self) private var appState
+    @Environment(TabStore.self) private var tabStore
+
+    var body: some View {
+        Button {
+            appState.showTabOverview.toggle()
+        } label: {
+            Label(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview", systemImage: "square.grid.2x2")
+                .symbolVariant(appState.showTabOverview ? .fill : .none)
+        }
+        .labelStyle(.iconOnly)
+        .disabled(!tabStore.hasTabs && !appState.showTabOverview)
+        .help(appState.showTabOverview ? "Hide Tab Overview (⇧⌘O)" : "Show Tab Overview (⇧⌘O)")
+    }
+}

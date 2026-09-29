@@ -29,13 +29,8 @@ struct TabOverviewView: View {
     var animation: Animation { .spring(response: 0.45, dampingFraction: 0.82, blendDuration: 0.2) }
 
     var body: some View {
-        VStack(spacing: SpacingTokens.lg) {
-            overviewHero
-
-            if !groupedTabs.isEmpty {
-                overviewControls
-                    .transition(.opacity)
-            }
+        VStack(spacing: SpacingTokens.md) {
+            overviewHeader
 
             ScrollView {
                 if groupedTabs.isEmpty {
@@ -67,7 +62,6 @@ struct TabOverviewView: View {
             }
         }
         .padding(.bottom, SpacingTokens.xl2)
-        .background(overviewBackground)
         .onAppear {
             Task {
                 triggerAnimation()
@@ -102,18 +96,6 @@ struct TabOverviewView: View {
             }
         }
         .animation(animation, value: animateIn)
-    }
-
-    private var overviewBackground: some View {
-#if os(macOS)
-        let top = Color(nsColor: .windowBackgroundColor)
-        let bottom = Color(nsColor: .windowBackgroundColor).opacity(0.97)
-#else
-        let top = Color(.systemBackground)
-        let bottom = Color(.systemBackground)
-#endif
-        return LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
-            .ignoresSafeArea()
     }
 
     private func triggerAnimation() {
