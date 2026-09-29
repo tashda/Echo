@@ -39,7 +39,7 @@ Notes from building it:
 - `FloatingServerRail` and `SidebarSplitViewObserver` went with S1; the glance panel, status ring, connect picker, ⌥⌘G and the old `ServerRail`/`QueryGlance` tokens went with S7.
 - The rail (`ObjectBrowser/Views/Components/ServerRail.swift`) takes its item size from the `railItemSize` setting and reports clicks as `ServerRailClick` (plain, ⌘, double) from `NSApp.currentEvent`, ready for S6. The tooltip text is `ServerRailEntry.tooltip(runningQueryCount:)`.
 - The rail's tool pill is Bookmarks, Snippets, History, Clipboard. Picking the showing tool again goes back to the tree. Search is still reachable with ⇧⌘F until T6 and Phase 6.
-- Peek (S6) reuses the live tree: with the tree hidden and `AppState.peekedServerID` set, the tree shows at full size on regular glass (18pt corners) over the cards while its layout space stays collapsed. A click on the cards, Esc, a tab change or showing the tree puts it away. It doesn't list running queries yet (05-components says the peek lists them); only the tooltip does. Pick that up with the floating cards in Phase 8.
+- Peek (S6) reuses the live tree: with the tree hidden and `AppState.peekedServerID` set, the tree shows at full size on regular glass (18pt corners) over the cards while its layout space stays collapsed. A click on the cards, Esc, a tab change or showing the tree puts it away. It doesn't list running queries yet (05-components says the peek lists them); only the tooltip does. Pick that up with the floating card primitive (N1, Phase 7).
 - S5 was built as part of S1 (the tree shrinks toward the rail and fades while the cards grow, one house-spring animation on `isWorkspaceTreeVisible`).
 
 | ID | Task | Where | Done when | Status |
