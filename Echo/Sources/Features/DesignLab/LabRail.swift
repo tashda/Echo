@@ -47,8 +47,9 @@ struct LabRailView: View {
 
     // MARK: Servers
 
+    /// The servers plus the + that ends the pill (Design/05-components.md › Server rail).
     private var contentHeight: CGFloat {
-        let count = CGFloat(servers.count)
+        let count = CGFloat(servers.count + 1)
         return count * Self.itemSize + max(0, count - 1) * Self.itemSpacing + Self.pillPadding * 2
     }
 
@@ -61,6 +62,7 @@ struct LabRailView: View {
                         serverItem(server)
                             .transition(.scale(scale: 0.4).combined(with: .opacity))
                     }
+                    addItem
                 }
             }
             .padding(Self.pillPadding)
@@ -87,6 +89,25 @@ struct LabRailView: View {
         }
         .buttonStyle(.plain)
         .help("\(server.name)\(server.isConnecting ? " · connecting" : "")")
+    }
+
+    /// Opens the connections menu in the app; never selected, and the disc never moves onto it.
+    private var addItem: some View {
+        Menu {
+            Button("New Connection") {}
+            Button("Quick Connect") {}
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: Self.itemSize, height: Self.itemSize)
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Connections")
     }
 
     private func monogramColor(_ server: LabServer, isSelected: Bool) -> Color {

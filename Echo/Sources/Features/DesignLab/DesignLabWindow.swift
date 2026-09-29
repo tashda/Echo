@@ -44,6 +44,7 @@ struct LabQuestion: Identifiable {
 }
 
 enum DesignLabPage: String, CaseIterable, Identifiable {
+    case round9 = "Round 9 · open questions"
     case window = "Window · canvas and cards"
     case rail = "Server rail"
     case tree = "Tree · sticky header"
@@ -55,6 +56,7 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .round9: "checklist"
         case .window: "macwindow"
         case .rail: "circle.grid.3x3"
         case .tree: "list.bullet.indent"
@@ -66,6 +68,7 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var intro: String {
         switch self {
+        case .round9: "The questions round 9 left open. Each stage switches live; the footer sits on a real AppKit table with Echo's real footer, and FB1 uses the blur the app would use. The other pages were settled in earlier rounds and stay as a reference."
         case .window: "The whole window in miniature. Use the controls above the mock window to switch each option; the mock responds live."
         case .rail: "The server rail on its own. Click servers to see the selection move."
         case .tree: "The Explorer tree. Scroll it to see the server header pin at the top and grow a breadcrumb."
@@ -77,52 +80,16 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var questions: [LabQuestion] {
         switch self {
-        case .window:
+        case .round9:
             [
-                LabQuestion(id: "window.corners", title: "Card corners", howTo: "Switch Corners and compare the cards' corners with the mock window's own corners.", options: ["Concentric", "12pt", "16pt"]),
-                LabQuestion(id: "window.shadow", title: "Card shadow", howTo: "Switch Shadow.", options: ["Floating shadow", "Hairline"]),
-                LabQuestion(id: "window.gutter", title: "Gutter between rail, tree and cards", howTo: "Switch Gutter.", options: ["4pt", "6pt", "8pt"]),
-                LabQuestion(id: "window.treehide", title: "Hiding the tree", howTo: "Press Hide tree / Show tree (or ⌃⌘S) with each Hide tree style, at Default and Fast speed.", options: ["Tree shrinks into rail", "Cards slide over"]),
-                LabQuestion(id: "window.serverclick", title: "Clicking a server while the tree is hidden", howTo: "Hide the tree, then click TI in the rail. Try each Server click option; with the last one, also ⌘-click.", options: ["Peek", "Reopen tree", "Peek · ⌘-click reopens"]),
-                LabQuestion(id: "window.tabs", title: "Tab strip position", howTo: "Switch Tabs.", options: ["On canvas", "In editor card"]),
-                LabQuestion(id: "window.results", title: "Results card appearing", howTo: "Press Close results, then Run query.", options: LabQuestion.acceptReject),
+                LabQuestion(id: "round9.footerBacking", title: "What shows behind the footer", howTo: "Switch Behind with Rows drift on. Try it in light and dark.", options: ["FB1 Soft blur", "FB2 Hard edge", "FB4 Glass bar"]),
+                LabQuestion(id: "round9.footerPosition", title: "Where the footer sits", howTo: "Switch Position, with each Behind option.", options: ["FP1 Lift 4pt", "FP3 Floating"]),
+                LabQuestion(id: "round9.scroller", title: "The tree's scroll bar", howTo: "Switch Scroll bar and scroll the tree; SB1 shows only while scrolling.", options: ["SB1 In the gutter", "SB3 None"]),
+                LabQuestion(id: "round9.tabs", title: "The tab bar", howTo: "Switch Tab bar; click tabs and + (tabs select at once, as TFIX).", options: ["TB1 Glass capsule", "TB3 In the toolbar", "TB4 Hugging tabs"]),
             ]
-        case .rail:
-            [
-                LabQuestion(id: "rail.selection", title: "Selected server", howTo: "Pick each Selection style, click servers and use Jump first ↔ last.", options: ["White disc", "Liquid stretch", "Glass lens"]),
-                LabQuestion(id: "rail.identity", title: "Selected monogram colour", howTo: "Switch Identity.", options: ["Accent", "Server colour"]),
-                LabQuestion(id: "rail.pulse2", title: "Connecting pulse, stronger version", howTo: "Press Connect a server. The pulse now dips to 15% and shrinks slightly.", options: ["Accept", "Too strong", "Too subtle"]),
-                LabQuestion(id: "rail.growth", title: "Pill growing and shrinking", howTo: "Connect and disconnect a few servers.", options: LabQuestion.acceptReject),
-                LabQuestion(id: "rail.canvas", title: "Rail on the translucent canvas", howTo: "Switch Canvas to Translucent.", options: LabQuestion.acceptReject),
-            ]
-        case .tree:
-            [
-                LabQuestion(id: "tree.header", title: "Server header style", howTo: "Switch Header and scroll down through a server.", options: ["Bold", "Small caps"]),
-                LabQuestion(id: "tree.breadcrumb", title: "Pinned header with breadcrumb", howTo: "Scroll into a database: the header should pin and show \"› database\" over a soft fade.", options: LabQuestion.acceptReject),
-                LabQuestion(id: "tree.monochrome", title: "Monochrome icon mode", howTo: "Compare Monochrome and Mono + accent on open.", options: ["Monochrome", "Mono + accent on open"]),
-                LabQuestion(id: "tree.colourful", title: "Colourful icon mode", howTo: "Pick Soft colour.", options: LabQuestion.acceptReject),
-            ]
-        case .results:
-            [
-                LabQuestion(id: "results.header", title: "Column header", howTo: "Switch Header; hover a header to see the sort arrow.", options: ["Today · name", "Name + type line", "Name, type chip, keys"]),
-                LabQuestion(id: "results.hover", title: "Row hover", howTo: "Switch Hover and move the pointer over rows.", options: ["No hover", "Row tint", "Tint + row number"]),
-                LabQuestion(id: "results.selection", title: "Selection outline (one outline, active cell ring)", howTo: "Look at the blue range in the salary column.", options: LabQuestion.acceptReject),
-                LabQuestion(id: "results.footer", title: "Footer: loaded of total rows and selection sum", howTo: "Look at the footer under the grid.", options: ["Both", "Rows only", "Neither"]),
-                LabQuestion(id: "results.context", title: "Where the server › database bar lives", howTo: "Switch Connection bar.", options: ["Results card footer", "Window bottom bar"]),
-                LabQuestion(id: "results.mono", title: "Monospaced cells as a setting", howTo: "Toggle Monospaced cells.", options: LabQuestion.acceptReject),
-            ]
-        case .floating:
-            [
-                LabQuestion(id: "floating.stack", title: "Stacked toasts melting together", howTo: "Press Post notification three times quickly; let them dismiss.", options: LabQuestion.acceptReject),
-                LabQuestion(id: "floating.expand", title: "Toast expanding on hover", howTo: "Hover a toast.", options: LabQuestion.acceptReject),
-                LabQuestion(id: "floating.repeat", title: "Repeats collapse to ×2, ×3", howTo: "Press Post the same one again.", options: LabQuestion.acceptReject),
-                LabQuestion(id: "floating.history", title: "History card growing out of the bell", howTo: "Click the bell.", options: LabQuestion.acceptReject),
-            ]
-        case .inspector:
-            [
-                LabQuestion(id: "inspector.proposed", title: "Proposed inspector", howTo: "Switch Version between Today and Proposed.", options: ["Proposed", "Today", "Needs work"]),
-                LabQuestion(id: "inspector.width", title: "Width change when JSON opens", howTo: "Press Widen / Narrow.", options: LabQuestion.acceptReject),
-            ]
+        case .window, .rail, .tree, .results, .floating, .inspector:
+            // Settled in rounds 3 to 8 (Design/decisions.md); the pages stay as a visual reference.
+            []
         }
     }
 }
@@ -150,7 +117,10 @@ final class DesignLabAnswers {
         Binding(get: { self.answers[id] ?? Answer() }, set: { self.answers[id] = $0; self.save() })
     }
 
-    var answeredCount: Int { answers.values.filter { !$0.choice.isEmpty }.count }
+    /// Answers to the questions on the pages now, not to questions retired since.
+    var answeredCount: Int {
+        DesignLabPage.allCases.flatMap(\.questions).filter { !(answers[$0.id]?.choice ?? "").isEmpty }.count
+    }
 
     func summary() -> String {
         var lines = ["Design Lab results"]
@@ -171,7 +141,7 @@ final class DesignLabAnswers {
 // MARK: - Root
 
 private struct DesignLabRootView: View {
-    @State private var page: DesignLabPage = .window
+    @State private var page: DesignLabPage = .round9
     @State private var answers = DesignLabAnswers()
     @State private var copied = false
 
@@ -247,6 +217,7 @@ private struct DesignLabRootView: View {
     @ViewBuilder
     private var playground: some View {
         switch page {
+        case .round9: LabRound9Playground()
         case .window: LabWindowPlayground()
         case .rail: LabRailPlayground()
         case .tree: LabTreePlayground()
