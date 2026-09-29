@@ -20,7 +20,7 @@ This folder is the source of truth for how Echo looks, moves and behaves. Every 
 
 ## Picking up the work
 
-Start here if you're new to this, person or agent:
+Start here if you're new to this, person or agent. An agent taking over should read `handover.md` first.
 
 1. Read `01-principles.md`, then skim `02`–`06`.
 2. Open `plan.md`, find the first task that isn't done, and read the rules it names.
