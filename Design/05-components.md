@@ -44,9 +44,10 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **No scroll bar** (round 9, SB3); the rail shows which server you're in. Settings › Sidebar › Show scroll bar brings back the small overlay scroller, inset inside the card corners. *Decided.*
 - **Row style: S4 Quiet** (revised tree card decision). *Decided.*
   - Rows are 28pt in a 29pt slot at the default density, so neighbouring highlights never touch; 13pt labels.
-  - Symbols are 13pt light, rendered monochrome in both icon colour modes.
+  - Symbols are 13pt light. **Duotone** by default (IC2, 2026-09-30): the outline in the role colour over its fill at low opacity; **mono line** (IC1) is the setting. A Recraft icon set is pinned for later. *Decided.*
   - No separate chevron column: a folder's icon becomes a 10pt semibold chevron on hover.
   - 8pt between icon and label; 16pt indent per level; 8pt row corners. Folder counts appear on hover.
+- **Section dock** (TC1, 2026-09-30): under the server's name, a row of icon buttons (Databases, Security, Agent, Management, More) switches what the card shows; the tree shows one section at a time. Icons only, the current one on the grey selection fill. The dock and name stay pinned while the rows scroll under them, with **only a soft blur**: no background, no line. Each section keeps its scroll position and open folders, and the card remembers its section per connection. *Decided.*
 - **Server header:** the server's name heads its card in **bold 13pt**, primary, with its product and version (such as "PostgreSQL 18.1") in tertiary 11pt on the right. It scrolls with the rows. A chevron shows while collapsed or hovered. *Decided* (tree card round; the version is new).
 - **Folders:** server-level groups (Databases, Security, Database Snapshots, Agent Jobs, Management, Integration Services Catalogs, Linked Servers, Server Triggers) are ordinary folder rows with children indented one level. MySQL's and SQLite's server tools sit under Management. *Decided* (revised tree card round).
 - **Selection:** the row uses the semantic grey fill and its icon turns accent. The accent is the system's, the custom one or the server's colour, per the accent setting. *Decided* (revised tree card round).
@@ -88,13 +89,14 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Tabs
 
 - **Tabs should look and behave like Safari.** *Decided.*
-- Keep today's strip: a grey capsule plate with a raised white active tab and the database as a subtitle. Move its hard-coded greys into tokens. *Decided.*
+- **Round 9's strip, on one line** (2026-09-30): the grey plate with the raised white active tab; every tab shows its kind's icon (a spinner while running) and its title; the database is in the tooltip. Replaces the glass capsule with two lines below. *Decided.*
 - **Switching tabs is instant.** Tabs are real buttons, so a click selects at once and dragging still reorders; recently used tabs keep their editors alive, keeping scroll, undo and cursor (round 9, TFIX). *Decided.*
-- **Running query:** a spinner at the leading edge, and a timer replacing the subtitle. *Decided.*
+- **Running query:** a spinner at the leading edge; the timer shows in the tooltip and the tab overview. *Decided* (one line, 2026-09-30).
 - **Many tabs:** tabs shrink to a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. *Decided.*
 - **New tab** grows out of the + button. *Decided.*
 - **Position: on the canvas above both cards**, the way Safari's tab bar sits above the page. *Decided.*
-- **One glass capsule** holding the tabs and the + as its last item; the active tab is the white pill (round 9, TB1). **Inactive tabs have no fill, full-strength titles and hairline dividers** (round 11, T1); every tab shows its kind's icon (a spinner while running) and two lines: the title over the database, or the timer while running (T7, round 12 L2). The bar is 10pt taller than the Classic strip. The earlier grey plate stays available as Settings › Appearance › Tab Bar › Classic, to revert to. *Decided.*
+- **One glass capsule** holding the tabs and the + as its last item; the active tab is the white pill (round 9, TB1). **Inactive tabs have no fill, full-strength titles and hairline dividers** (round 11, T1); every tab shows its kind's icon (a spinner while running) and two lines: the title over the database, or the timer while running (T7, round 12 L2). The bar is 10pt taller than the Classic strip. The earlier grey plate stays available as Settings › Appearance › Tab Bar › Classic, to revert to. *Replaced* (2026-09-30) by Round 9's strip on one line.
+- **Tool pages unfold in the tab** (ST2, 2026-09-30): a tool with pages (Activity Monitor, Security, Server Properties) shows its pages as small chips inside its active tab; the other tabs make room with the house spring and it folds back when you leave. Replaces the segmented control at the top of tool tabs. *Decided.*
 
 ## Tab overview (open queries)
 
@@ -112,12 +114,42 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Editor card
 
 - Opaque card; SQL editor inside. *Decided.*
+- **Fonts** (2026-09-30): JetBrains Mono, Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Monaspace and Commit Mono, all SIL OFL. The default is still to be picked by the owner. **13pt with 1.55 line spacing** by default; both are settings. *Decided.*
+- **Editor ideas** (2026-09-30), each a setting where it adds chrome: statement focus with a Run arrow in the gutter, results inline at the end of a statement, errors written on the line, a rounded current-line band with more room, an outline edge (setting), and faint starting points in an empty tab. *Decided.*
 - **Gutter:**
-  - Subtle (numbers only) or tinted (faint column with an edge) as a setting. *Decided.*
+  - Three styles as a setting (2026-09-30): **Subtle** (numbers only), **Tinted column** (full height, cut by the card's corners, hairline edge) and **Tinted lane** (inset 5pt, rounded, no edge). *Decided.*
+  - Numbers stop at the last line; the tint still runs the card's full height. *Decided.*
   - Both get current-line emphasis and validation markers (a red dot on failing lines). *Decided.*
   - Fixes that apply either way: one number per logical line, width that grows with digit count, and using the theme's gutter colours. *Decided.*
 - **After the first run, the results grow up out of the footer** (round 10, RS2): the footer detaches from the editor card as a footer-high results card, then the seam travels up to the split line while the rows fade in. The editor keeps its scroll position, undo and focus. *Decided.*
 - **Resizing:** drag the canvas gap between the cards; a grab capsule appears on hover. *Decided.* **Double-click the gap to maximise the results**: the editor shrinks to a one-line card. Double-click again to restore. It is also available as a menu item with a shortcut. *Decided.*
+
+## EchoSense
+
+Decided 2026-09-30 (design board, round 14). Ranking and rules stay as in `AUTOCOMPLETE_SPEC.md`.
+
+- **Rows:** a kind badge, the name in the editor's font with the typed letters in bold accent, the alias or table for columns (always for same-named columns), and the type on the right. *Decided.*
+- **Selection:** tinted while typing; solid once you move with ↑/↓, meaning Return inserts it. *Decided.*
+- **Details footer:** the selected row's full name, type, source and detail with key hints, in an inset rounded panel concentric with the popup. No side panel and no timer. *Decided.*
+- **Material:** the card fill, card edge and floating shadow; the corner follows Card Corners, capped at 14pt, and rows use it minus the padding. *Decided.*
+- **Ghost text** (the top match inline in grey, Tab accepts) is a setting, off by default. *Decided.*
+
+## Connections
+
+Decided 2026-09-30.
+
+- **One short sheet** for Quick Connect and New Connection: engine (segmented), server and port on one line, database, sign in, Keychain; Security and timeouts in one disclosure with a summary, which remembers whether it was open. Name, folder and colour only appear while "Save to Connections" is on; Quick Connect never asks for them. Quick Connect saves its password in the Keychain too. *Decided.*
+- **Editing happens in Manage Connections:** its detail pane is the editable form; + adds a connection with the same form. *Decided.*
+- **Rules:** the default button is never silently disabled (missing fields get an inline message and focus); the port placeholder follows the engine; pasting a connection URL or string fills the form; the test result sits beside the buttons. *Decided.*
+
+## Tool tabs
+
+Decided 2026-09-30.
+
+- **One tool header** for every tool tab: the tool's icon, title, server and freshness ("updated 2 s ago"), and the tool's actions on the right. *Decided.*
+- **Panes are cards** on the canvas, a gutter apart, like the editor and results cards. *Decided.*
+- **Monitoring tools** open on dashboard tiles: the key figures as cards with sparklines above the detail. *Decided.*
+- Configuration stays in the tab; read-only detail such as a job's history may use the Inspector. *Decided.*
 
 ## Results card
 

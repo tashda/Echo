@@ -2,6 +2,21 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Design board and round 14 answers
+
+Design board: https://claude.ai/artifact/8gQM8VJCknMvFRsCTTSnHJ (collections `verdicts`, `topics`, `notes`). Round 14 answered in the Design Lab.
+
+- **Tree card: TC1 section dock.** An icon row (Databases, Security, Agent, Management, More) under the server name switches what the card shows; icons only. It stays pinned while the rows scroll under it, with **only a soft blur**: no background, no line. Each section remembers its scroll position and open folders. Every other layout (TC2–TC9) was rejected. → 05-components › Explorer tree, plan Phase 16
+- **Tree icons: IC2 duotone** is the default, IC1 mono line stays a setting. Tiles, letters and dots rejected. A Recraft icon set is pinned for later; SF Symbols drawn duotone until then. → 05-components › Explorer tree
+- **Tool tabs:** TT1 panes become cards, TT2 one shared tool header (icon, title, server and freshness, actions), TT3 dashboard tiles for monitoring tools. Configuration stays in the tab; job history may use the Inspector. TT4 rejected. → 05-components › Tool tabs, plan Phase 15
+- **Tool pages open with ST2: the tool's tab unfolds** and shows its pages inside itself. Replaces TT6 and the segmented control at the top of tool tabs. ST1, ST3, ST4, ST5 rejected. → 05-components › Tabs
+- **Tab bar: back to Round 9's strip** (grey plate, white active tab), **on one line**. Every tab keeps its kind's icon; the database moves to the tooltip. Replaces round 11/12's glass capsule with two lines, which the owner regrets. N1, N1R, N4–N9 and R9R rejected. → 05-components › Tabs, plan Phase 14
+- **Connections:** CN2, one short sheet for Quick Connect (saving off) and New Connection; **editing happens inside Manage Connections** (CN5). CN1, CN3, CN4 rejected. Rules CR1 (buttons never silently disabled; inline messages), CR2 (port follows the engine), CR3 (paste a URL anywhere), CR4 (test result by the buttons), CR5 (Quick Connect never asks for a name), CR7 (Advanced remembers itself). CR6 rejected: **Quick Connect also saves its password in the Keychain**. → 05-components › Connections, plan Phase 13
+- **Editor fonts:** bundle JetBrains Mono, Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Monaspace and Commit Mono; remove the other eleven. The owner picks the default later. **13pt with 1.55 line spacing**, both settings. → 05-components › Editor card, plan Phase 11
+- **Gutter:** numbers stop at the last line (GL1). The tinted style becomes two settings: **column** (GT1, full height, cut by the card's corners) and **lane** (GT2, inset rounded). Subtle stays. GT3, GT4 rejected. → 05-components › Editor card
+- **Editor ideas, all accepted:** statement focus with a Run arrow (QE1), results inline (QE2), errors on the line (QE3), room to breathe (QE4), outline edge as a setting (QE5), a helpful empty tab (QE6). → plan Phase 17
+- **EchoSense:** ES1 rows (kind badge, name in the editor font with typed letters highlighted, alias, type), ES4 details in a footer with rounded, concentric corners, ES3 ghost text as a **setting, off by default**. ESR1–ESR3 and ESR6; **ESR4 tint while typing, solid once choosing**; **ESR5 card material, corners follow Card Corners** (capped so rows stay concentric). ES2, ES5 rejected. → 05-components › EchoSense, plan Phase 12
+
 ## 2026-09-29 · Tree card revised to S4 Quiet with folders
 
 The owner revised the tree card choice to **S4 Quiet**, with the Design Lab's **Folders** and **Dimmed prefix** controls. The card stays the same. At medium density, ordinary rows are 28pt in a 29pt slot, with 13pt labels, 13pt light monochrome-rendered symbols, an 8pt icon-to-label gap, 16pt indentation and 8pt corners. There is no separate disclosure column: a folder's icon becomes a 10pt semibold chevron on hover. Folder counts appear on hover. Selection returns to the semantic grey fill; selected icons remain accented. Server-level groups return to ordinary folders and their children regain one indent level. The bold server name and version, Vivid icon palette and ordered blueprints remain. Supersedes the S1 and Sections choices below. → 05-components, 06-tokens

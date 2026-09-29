@@ -110,10 +110,10 @@ Rules: `05-components` › Tabs. Safari is the reference.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| B1 | **Strip on the canvas** above the cards; keep the grey plate and white active tab, using the tokens from F3. | `WorkspaceTabContainerView`, TabStrip | Sits on the canvas with the gutter 👁 | ☐ Waits for the tab bar choice (round 9, TB1/TB3/TB4 in the Design Lab) |
+| B1 | **Strip on the canvas** above the cards; keep the grey plate and white active tab, using the tokens from F3. | `WorkspaceTabContainerView`, TabStrip | Sits on the canvas with the gutter 👁 | ☐ Superseded by Phase 14 (one-line Round 9 strip, 2026-09-30) |
 | B2 | **Running tab:** a spinner at the leading edge and the timer in place of the subtitle. | `QueryTabButton` | Shows while running and clears when done | ☑ 461d69ee, 👁 pending |
-| B3 | **Overflow:** a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. | `QueryTabStrip` | 20+ tabs stay usable | ☐ Waits for the tab bar choice (round 9, TB1/TB3/TB4 in the Design Lab) |
-| B4 | **New tab grows out of +** (+ and the plate share a glass container). Switching tabs stays instant. | Strip | 👁 | ☐ Waits for the tab bar choice (round 9, TB1/TB3/TB4 in the Design Lab) |
+| B3 | **Overflow:** a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. | `QueryTabStrip` | 20+ tabs stay usable | ☐ Superseded by Phase 14 (one-line Round 9 strip, 2026-09-30) |
+| B4 | **New tab grows out of +** (+ and the plate share a glass container). Switching tabs stays instant. | Strip | 👁 | ☐ Superseded by Phase 14 (one-line Round 9 strip, 2026-09-30) |
 | B5 | Make tabs real buttons (accessibility, focus): a click selects at once, dragging still reorders. **Keep the editors of recently used tabs alive** so switching back keeps scroll, undo and cursor (round 9, TFIX). Fix the O(n²) separator pass and read the hairline width from `displayScale`. | Strip | VoiceOver reads the tabs | ◐ TFIX part done (select on press, three most recent tabs kept alive, focus follows the active tab), 👁 pending; separator pass, hairline width and VoiceOver check still to do |
 
 ## Phase 4 · Editor and results cards
@@ -228,6 +228,78 @@ Rules: `05-components` › Inspector. Round 10 chose IN1: the inspector becomes 
 - **Width (I3):** JSON widens the column to at least 520pt with one house spring and returns to the chosen width after; the chosen width isn't changed by it.
 - **Row detail (I4):** the grid's cell inspection now carries the whole row (`CellValueInspectorContent.rowFields`), so the inspector shows the cell's card and a "Row N" card with every column, with Copy Row.
 - **Clean-up (I5):** the notifications tab and `InspectorTabSelector` went with N3; the native inspector plumbing went with I1.
+
+## Phase 11 · Editor type and gutter
+
+Rules: `05-components` › Editor card. Decided on the design board (2026-09-30).
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| E5 | **Fonts.** Bundle JetBrains Mono, Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Monaspace (Neon, Argon, Xenon, Radon, Krypton) and Commit Mono (all OFL, licences in `Resources/Fonts/Licenses`). Remove the other eleven; a saved font that no longer exists falls back to the default. | `Resources/Fonts`, `MonospacedFontPicker`, `SQLEditorTheme` | Every font renders in the editor and the picker; old settings decode | ☐ |
+| E6 | **Size and spacing.** Default 13pt; line spacing is a setting (default 1.55). | `GlobalSettings`, `SQLEditorTheme`, `SQLTextView`, Preferences › Editor | Changing either updates open editors | ☐ |
+| E7 | **Gutter styles:** Subtle, Tinted column (GT1: full height, cut by the card's corners, hairline edge) and Tinted lane (GT2: inset, rounded, no edge). Existing "tinted" settings become Tinted column. | `LineNumberRulerView`, `EditorGutterStyle` | All three look right in light and dark 👁 | ☐ |
+| E8 | **Numbers stop at the last line** (GL1), while the tinted gutter runs the card's full height. | `LineNumberRulerView` | Short scripts show no extra numbers | ☐ |
+
+## Phase 12 · EchoSense popup
+
+Rules: `05-components` › EchoSense. Ranking and the 78 scenarios in `AUTOCOMPLETE_SPEC.md` do not change.
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| P1 | **Rows (ES1):** kind badge, name in the editor font with the typed letters in bold accent (ESR1, ESR2), the alias or table for columns and always for same-named ones (ESR3), the type on the right. | `AutoCompletionListView` | Matches Round 14 · EchoSense 👁 | ☐ |
+| P2 | **Details footer (ES4):** replaces the side panel and its 1 s delay (ESR6): full name, type, source and detail, key hints; an inset rounded panel, concentric with the popup. | `AutoCompletionDetailView` → footer | No timer; footer follows the selection | ☐ |
+| P3 | **Tint, then solid (ESR4):** tinted while typing, solid once the selection moves with ↑/↓. | Controller + list | Typing resets to tint | ☐ |
+| P4 | **Material and corners (ESR5):** card fill, card edge, floating shadow; the corner follows Card Corners, capped at 14pt; rows use it minus the padding. | List view | No hard-coded white | ☐ |
+| P5 | **Ghost text (ES3)** as a setting, off by default: the top match inline in grey, Tab accepts. | Controller, EchoSense settings | Setting toggles it | ☐ |
+
+## Phase 13 · Connections
+
+Rules: `05-components` › Connections.
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| C1 | **Short sheet (CN2)** for Quick Connect and New Connection: engine, server and port on one line, database, sign in, Keychain; Security and timeouts in one disclosure with a summary (CR7); name, folder and colour only while "Save to Connections" is on (CR5). Quick Connect saves its password in the Keychain too. | `ConnectionEditor/*` | Quick Connect needs only server and sign-in | ☐ |
+| C2 | **Rules:** the default button is never silently disabled; missing fields show inline messages and take focus (CR1); the port placeholder follows the engine (CR2); pasting a URL or connection string fills the form (CR3); the test result sits by the buttons (CR4). | Same | Each rule works | ☐ |
+| C3 | **Edit inside Manage Connections (CN5):** the detail pane is the editable form; + adds a new connection with the same form; Save and Revert; unsaved changes are marked. | `ManageConnections/*` | Editing never opens a sheet | ☐ |
+
+## Phase 14 · Tab bar, one line
+
+Rules: `05-components` › Tabs. Replaces the glass capsule with two-line tabs (rounds 11–12).
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| B6 | **Round 9's strip as the only style:** the grey plate and white active tab, one line, the kind's icon (a spinner while running), the database in the tooltip. The bar returns to the Classic height. Remove the glass capsule and the Tab Bar setting. | `QueryTabStrip`, `QueryTabButton*`, `TabStripGlassTabs`, Appearance settings | One line everywhere 👁 | ☐ |
+| B7 | **Tool pages unfold in the tab (ST2):** a tool with pages (Activity Monitor first) shows them as small chips inside its active tab; the other tabs make room with the house spring. The tool's own segmented control goes. | Strip + tool tabs | Matches Round 14 · tab bar and pages 👁 | ☐ |
+
+## Phase 15 · Tool tabs
+
+Rules: `05-components` › Tool tabs.
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| TL1 | **Tool header (TT2):** one component with the tool's icon, title, server and freshness, and its actions on the right. | New `ToolTabHeader` | Used by every tool tab | ☐ |
+| TL2 | **Panes become cards (TT1):** every pane of a tool tab is its own card on the canvas, a gutter apart. Agent Jobs first (Jobs, Details, History), then the rest. | Tool tab views | No unframed panes left 👁 | ☐ |
+| TL3 | **Dashboard tiles (TT3)** for monitoring tools: Activity Monitor's figures as cards with sparklines. | `ActivityMonitor/*` | 👁 | ☐ |
+
+## Phase 16 · Section dock
+
+Rules: `05-components` › Explorer tree.
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| D1 | **Dock (TC1):** each server card gets an icon row (Databases, Security, Agent, Management, More) under its name; the tree shows one section at a time; the row stays pinned with only a soft blur; each section keeps its scroll position and open folders. The server's section is remembered per connection. | Blueprints, outline view, row headers | Matches Round 14 · section dock 👁 | ☐ |
+| D2 | **Duotone icons (IC2)** as the default, mono line (IC1) as the setting. | `SidebarRow`, `ExplorerIconRole` | Both modes in light and dark 👁 | ☐ |
+
+## Phase 17 · Editor ideas
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| Q1 | **Statement focus (QE1):** a faint band on the statement at the caret and a Run arrow in the gutter that runs it. | `SQLTextView`, gutter | Runs only that statement | ☐ |
+| Q2 | **Results inline (QE2):** rows and time (or the error) at the end of the statement after a run, fading when it is edited. | Editor | 👁 | ☐ |
+| Q3 | **Errors on the line (QE3):** short red text at the end of the line beside the dot. | Validation overlays | 👁 | ☐ |
+| Q4 | **Room to breathe (QE4):** wider gutter padding and a rounded current-line band inside the card. | Editor | 👁 | ☐ |
+| Q5 | **Outline edge (QE5)** as a setting: statement ticks, errors and the visible area on the right edge. | Editor | Toggles in Settings | ☐ |
+| Q6 | **Helpful empty tab (QE6):** recent tables and snippets as faint starting points that vanish on typing. | Editor | 👁 | ☐ |
 
 ## Phase 10 · Finish
 
