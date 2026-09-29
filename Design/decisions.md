@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · EchoSense keeps ⌘.
+
+The owner: EchoSense must be triggered by ⌘., which is muscle memory; users can pick another shortcut. This reverses K3's "EchoSense off ⌘." and clashes with "Cancel on ⌘.". Cancel is ⌥⌘. until the owner picks its shortcut. Open. → 05-components, plan K1, K3
+
 ## 2026-09-29 · The database switcher becomes a system popover
 
 The owner found the status popover's Liquid Glass perfect and the switcher's in-window glass flatter and whiter (glass drawn inside the window samples only the card behind it and has no window shadow). Rather than an AppKit panel to mimic a popover without its arrow, the owner chose SwiftUI's own `.popover`, accepting the arrow, "and not fight it, as it will cause different theming issues". The card keeps its filter, list and keyboard; the popover handles closing. Replaces L2/A2. → 05-components › Results card, Floating cards

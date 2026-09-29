@@ -162,11 +162,18 @@ Rules: `05-components` › Toolbar, Search.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| K1 | **Run:** accent glass (`glassProminent`), red with a timer while running. A chevron menu offers Run statement at cursor, Run selection, Explain and Explain analyze. Add a "Query" menu (Run ⌘↩, Cancel ⌘.). | `ToolbarRunButton`, commands | ⌘. cancels; every mode works 👁 | ☐ |
-| K2 | **Grouping by task:** [Project] [Recents · Connections · Quick Connect] … [Run] [Format · Validate · Help · Plan] [MSSQL toggles] [Refresh · Bell · Inspector]. Tab-specific tools go in one contextual capsule next to Run that melts in and out per tab. Remove the per-item `.sharedBackgroundVisibility(.hidden)` + `.glassEffect`. | `WorkspaceToolbarItems` | Groups match; no toolbar jumping when switching tabs 👁 | ☐ |
-| K3 | **Shortcut fixes:** Find off ⇧⌘F, Validate off ⇧⌘V; EchoSense off ⌘. | Commands, settings | No conflicts | ☐ |
+| K1 | **Run:** accent glass (`glassProminent`), red with a timer while running. A chevron menu offers Run statement at cursor, Run selection, Explain and Explain analyze. | Add a "Query" menu (Run ⌘↩, Cancel ⌘.). | `ToolbarRunButton`, commands | ⌘. cancels; every mode works 👁 | ☑ built, 👁 pending. Cancel is ⌥⌘. until the owner picks (⌘. stays EchoSense) |
+| K2 | **Grouping by task:** [Project] [Recents · Connections · Quick Connect] … [Run] [Format · Validate · Help · Plan] [MSSQL toggles] [Refresh · Bell · Inspector]. Tab-specific tools go in one contextual capsule next to Run that melts in and out per tab. Remove the per-item `.sharedBackgroundVisibility(.hidden)` + `.glassEffect`. | `WorkspaceToolbarItems` | Groups match; no toolbar jumping when switching tabs 👁 | ☑ built, 👁 pending. The bell joins with N3 |
+| K3 | **Shortcut fixes:** Find off ⇧⌘F, Validate off ⇧⌘V. EchoSense stays on ⌘. (owner, 2026-09-29) and can be rebound. | Commands, settings | No conflicts | ☑ built |
 | K4 | **Minimised toolbar search** with results in a glass card, and a **⌘K palette** (objects, tabs, actions, history, snippets, and "Switch database" for the current server, round 9 DB3) built on `SearchSidebarViewModel`. | New `CommandPalette` | Both open and find a table across servers | ☐ |
-| K5 | Delete the dead `Toolbar/Breadcrumbs/*` and `Toolbar/Popovers/*`. | Toolbar | Builds | ☐ |
+| K5 | Delete the dead `Toolbar/Breadcrumbs/*` and `Toolbar/Popovers/*`. | Toolbar | Builds | ☑ built |
+
+### Notes from building it (Phase 6)
+
+- **Query menu** (`EchoApp+QueryMenu.swift`) owns every query shortcut; the toolbar buttons bind none. Run ⌘↩ (the selection, or the whole script), Run Statement at Cursor ⇧⌘↩, Explain ⌥⌘E, Explain Analyze ⌥⇧⌘E, Cancel Query ⌥⌘., Show EchoSense Suggestions ⌘., Format Query ⇧⌘F, Validate Query ⇧⌘B (⇧⌘V is Paste and Match Style; ⇧⌘B is Analyze in Xcode). Find in Sidebar is ⌥⌘F. Every item's shortcut can be rebound in Settings › Keyboard Shortcuts, which now lists them all. Esc also shows EchoSense, through NSTextView's `complete(_:)`.
+- **Run modes** (`QueryRunMode`, `WorkspaceTab+RunModes.swift`) are shared by the toolbar chevron and the menu. Statement at cursor (`SQLStatementAtCaret`) ends a statement at `;`, a blank line or a `GO` line, never inside quotes, `[…]`, `$tag$` bodies or comments. Explain is the estimated plan; Explain Analyze runs the query through `getActualExecutionPlan` and shows its rows and the plan.
+- **Run** (`QueryRunToolbarControl`) is a `glassProminent` button, accent when idle and red with the elapsed time while running, beside a chevron in the same capsule.
+- **Groups** (`WorkspaceToolbarItems`, `WorkspaceToolbarContext`): [Sidebar] [Project] [Recents · Quick Connect] … [tab tools] [Run ⌄] [Format · Validate · Help · Plan] [SQLCMD · Statistics] [Refresh · Inspector], each a system glass capsule separated by fixed spacers and hidden with `ToolbarContent.hidden(_:)` when the tab has no use for it. The toolbar content reads only the active tab's kind and database type. No item draws its own glass any more except the sidebar button.
 
 ## Phase 7 · Notifications and floating cards
 

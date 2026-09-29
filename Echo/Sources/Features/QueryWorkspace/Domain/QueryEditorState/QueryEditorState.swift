@@ -134,6 +134,8 @@ import OSLog
     var hasActiveSelection: Bool = false
     /// The selected text, available for "Run Selection".
     @ObservationIgnored var selectedText: String = ""
+    /// The caret's UTF-16 offset, for Run Statement at Cursor (plan K1).
+    @ObservationIgnored var caretLocation: Int = 0
 
     // MARK: - Debug Session State
 

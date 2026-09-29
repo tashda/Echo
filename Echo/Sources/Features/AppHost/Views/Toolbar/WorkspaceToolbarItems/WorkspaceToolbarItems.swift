@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct WorkspaceToolbarItems: ToolbarContent {
+    @Environment(TabStore.self) private var tabStore
+
     var body: some ToolbarContent {
         navigationItems
         centerItems
@@ -30,11 +32,6 @@ struct WorkspaceToolbarItems: ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
             // Saved connections open from the + in the rail's server pill.
             RecentConnectionsMenuButton()
-        }
-
-        ToolbarSpacer(.fixed)
-
-        ToolbarItemGroup(placement: .navigation) {
             Button {
                 AppDirector.shared.appState.showSheet(.quickConnect)
             } label: {
@@ -56,75 +53,61 @@ struct WorkspaceToolbarItems: ToolbarContent {
         }
     }
 
-    // MARK: - Right Side: Context-Specific Actions
+    // MARK: - Right Side (plan K2)
 
+    /// [tab tools] [Run] [Format · Validate · Help · Plan] [MSSQL toggles], each one system glass
+    /// capsule, hidden when the active tab has no use for it.
     @ToolbarContentBuilder
     private var contextActionItems: some ToolbarContent {
-        // Structure tab — Add/Script/Apply buttons
-        ToolbarItem(id: "workspace.primary.structure", placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
             TableStructureToolbarItem()
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        // Activity Monitor, Job Queue, Maintenance — tab-specific controls
-        ToolbarItem(id: "workspace.primary.activitymonitor", placement: .primaryAction) {
             ActivityMonitorToolbarItem()
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        ToolbarItem(id: "workspace.primary.jobqueueplay", placement: .primaryAction) {
             JobQueuePlayToolbarItem()
-        }
-
-        ToolbarItem(id: "workspace.primary.jobqueuepopout", placement: .primaryAction) {
             JobQueuePopOutToolbarItem()
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        ToolbarItem(id: "workspace.primary.errorlogcycle", placement: .primaryAction) {
             ErrorLogCycleToolbarItem()
-                .glassEffect(.regular.interactive())
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        ToolbarItem(id: "workspace.primary.tabcontext", placement: .primaryAction) {
             TabContextToolbarButton()
         }
-        .sharedBackgroundVisibility(.hidden)
+        .hidden(!toolbarContext.hasTabTools)
 
-        // Run — standalone, leftmost query action
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
         ToolbarItem(id: "workspace.primary.queryrun", placement: .primaryAction) {
             QueryRunToolbarItem()
         }
-        .sharedBackgroundVisibility(.hidden)
+        .hidden(!toolbarContext.isQuery)
 
-        // Format + Estimated Plan — "enhance" group
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
         ToolbarItem(id: "workspace.primary.queryenhance", placement: .primaryAction) {
             QueryEditorEnhanceToolbarControls()
         }
-        .sharedBackgroundVisibility(.hidden)
+        .hidden(!toolbarContext.isQuery)
 
-        // Database-specific mode toggles (SQLCMD, Statistics)
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
         ToolbarItem(id: "workspace.primary.querydb", placement: .primaryAction) {
             QueryEditorDatabaseToolbarControls()
         }
-        .sharedBackgroundVisibility(.hidden)
+        .hidden(!toolbarContext.hasDatabaseToggles)
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
     }
 
     // MARK: - Right Side: Workspace Actions
 
+    /// [Refresh · Bell · Inspector] share one capsule.
     @ToolbarContentBuilder
     private var workspaceActionItems: some ToolbarContent {
-        // Refresh — standalone with own glass
-        ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
             RefreshToolbarButton()
-                .glassEffect(.regular.interactive())
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        // Inspector — standalone, rightmost
-        ToolbarItem(id: "workspace.primary.inspector", placement: .primaryAction) {
             InspectorToolbarButton()
         }
+    }
+
+    /// Reads only the active tab's kind and database type, so the toolbar content re-evaluates on a
+    /// tab change and not while a tab's own state changes.
+    private var toolbarContext: WorkspaceToolbarContext {
+        let tab = tabStore.activeTab
+        return WorkspaceToolbarContext(kind: tab?.kind, databaseType: tab?.connection.databaseType)
     }
 }

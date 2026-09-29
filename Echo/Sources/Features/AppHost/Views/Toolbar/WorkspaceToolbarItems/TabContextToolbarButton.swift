@@ -19,7 +19,6 @@ struct ActivityMonitorToolbarItem: View {
             .help(vm.isRunning ? "Pause Monitoring" : "Resume Monitoring")
             .labelStyle(.iconOnly)
             .accessibilityLabel(vm.isRunning ? "Pause Monitoring" : "Resume Monitoring")
-            .glassEffect(.regular.interactive())
         } else {
             EmptyView()
         }
@@ -65,7 +64,6 @@ struct JobQueuePopOutToolbarItem: View {
             .labelStyle(.iconOnly)
             .help("Open in separate window")
             .accessibilityLabel("Open in separate window")
-            .glassEffect(.regular.interactive())
         } else {
             EmptyView()
         }
@@ -97,7 +95,6 @@ struct TabContextToolbarButton: View {
                         }
                     )
                 )
-                .glassEffect(.regular.interactive())
             }
         case .maintenance:
             if let vm = tab.maintenance {
@@ -108,7 +105,6 @@ struct TabContextToolbarButton: View {
                         set: { vm.selectedDatabase = $0 }
                     )
                 )
-                .glassEffect(.regular.interactive())
             }
         case .profiler, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
             EmptyView()

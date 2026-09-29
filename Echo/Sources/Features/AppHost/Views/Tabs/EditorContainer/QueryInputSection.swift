@@ -73,6 +73,7 @@ struct QueryInputSection: View {
         Task {
             currentSelection = selection
             query.selectedText = selection.selectedText
+            query.caretLocation = selection.range.location
             // Always sync to QueryEditorState so toolbar stays correct
             query.hasActiveSelection = hasSelection
             syncSQLHelpInspector(using: trimmed)

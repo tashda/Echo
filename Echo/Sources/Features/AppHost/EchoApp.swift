@@ -66,6 +66,13 @@ struct EchoApp: App {
                 tabStore: coordinator.tabStore,
                 projectStore: coordinator.projectStore
             )
+#if os(macOS)
+            QueryMenuCommands(
+                tabStore: coordinator.tabStore,
+                navigationStore: coordinator.navigationStore,
+                projectStore: coordinator.projectStore
+            )
+#endif
             AboutCommands()
             AppSettingsCommands()
             SparkleCommands()

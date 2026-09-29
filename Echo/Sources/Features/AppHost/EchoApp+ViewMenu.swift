@@ -84,7 +84,8 @@ struct ViewMenuCommands: Commands {
             } label: {
                 Label("Find in Sidebar", systemImage: "magnifyingglass")
             }
-            .keyboardShortcut("f", modifiers: [.command, .shift])
+            // Off ⇧⌘F, which is Format Query (plan K3).
+            .keyboardShortcut("f", modifiers: [.command, .option])
 
             Divider()
 

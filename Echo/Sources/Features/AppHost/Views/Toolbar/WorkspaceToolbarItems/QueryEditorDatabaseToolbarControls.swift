@@ -30,7 +30,6 @@ private struct MSSQLQueryToolbarControls: View {
             sqlcmdModeButton
             statisticsButton
         }
-        .glassEffect(.regular.interactive())
     }
 
     private var sqlcmdModeButton: some View {

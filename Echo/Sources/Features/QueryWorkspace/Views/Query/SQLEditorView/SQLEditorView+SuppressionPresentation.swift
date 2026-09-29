@@ -100,23 +100,13 @@ extension SQLTextView {
         return true
     }
 
-    func handleCommandShortcut(_ event: NSEvent) -> Bool {
-        guard isCommandPeriod(event) else { return false }
+    /// Shows completions on request. Esc (and ⌥Esc) reach this through NSTextView's `complete(_:)`,
+    /// the macOS completion key; ⌘. is Cancel (plan K3).
+    func presentRequestedCompletions() -> Bool {
         if triggerSuppressedCompletionsIfAvailable() {
             return true
         }
         return forcePresentImmediateCompletions()
-    }
-
-    func isCommandPeriod(_ event: NSEvent) -> Bool {
-        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard modifiers.contains(.command) else { return false }
-        let periodKeyCode: UInt16 = 47
-        if event.keyCode == periodKeyCode { return true }
-        if let characters = event.charactersIgnoringModifiers, characters == "." {
-            return true
-        }
-        return false
     }
 }
 #endif

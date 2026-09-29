@@ -152,15 +152,18 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 48 && !event.modifierFlags.contains(.shift) && expandSelectStarShorthandIfNeeded() { return }
-        if handleSnippetNavigation(event) || completionController?.handleKeyDown(event) == true || handleCommandShortcut(event) { return }
+        if handleSnippetNavigation(event) || completionController?.handleKeyDown(event) == true { return }
         super.keyDown(with: event)
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if handleCommandShortcut(event) { return true }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if modifiers == .command, event.charactersIgnoringModifiers == "l" { showGoToLinePanel(); return true }
         return super.performKeyEquivalent(with: event)
+    }
+
+    override func complete(_ sender: Any?) {
+        _ = presentRequestedCompletions()
     }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {

@@ -24,16 +24,14 @@ struct TableStructureToolbarItem: View {
 
     @ViewBuilder
     private func structureControls(viewModel: TableStructureEditorViewModel, tab: WorkspaceTab) -> some View {
-        HStack(spacing: SpacingTokens.sm) {
+        HStack(spacing: SpacingTokens.none) {
             addButton
-                .glassEffect(.regular.interactive())
 
             if viewModel.hasPendingChanges {
                 HStack(spacing: SpacingTokens.none) {
                     scriptButton(viewModel: viewModel)
                     applyButton(viewModel: viewModel, tab: tab)
                 }
-                .glassEffect(.regular.interactive())
             }
         }
         .sheet(item: $applyReview) { review in

@@ -81,7 +81,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Tab-specific tools** (Structure add and apply, Activity Monitor pause and refresh rate, Job Queue controls, Error log cycle, maintenance database) form one contextual capsule next to Run. It appears only on tabs that need it and melts in and out as you switch tabs. *Decided.*
 - **Run** is the one tinted item: accent glass, turning red with a timer while running. *Decided.* A small chevron beside Run opens a menu of modes: Run statement at cursor, Run selection, Explain, Explain analyze. A plain click still runs as today. *Decided.*
 - Editor actions (Format, Validate, Context Help, Estimated Plan) stay in the toolbar. *Decided.* No floating capsule in the editor, whether always on, while typing or on selection. *Decided.*
-- Cancel must be bound to ⌘. as the Run tooltip promises. *Decided.*
+- EchoSense keeps ⌘. (owner: muscle memory; it can be rebound). Cancel needs another shortcut: ⌥⌘. for now. *Open.*
 
 ## Tabs
 
