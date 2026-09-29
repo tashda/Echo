@@ -25,6 +25,13 @@ public enum LayoutTokens {
         public static let pinnedHeaderBlurStep: CGFloat = 0.3
         /// Card-coloured tint over the blur, so the pinned header stays readable.
         public static let pinnedHeaderTintOpacity: Double = 0.35
+        /// The editor card's height while the results are maximised: about one line of SQL.
+        public static let collapsedEditorHeight: CGFloat = 40
+        /// The grab capsule that appears on the gap between the editor and results cards.
+        public static let gapHandleWidth: CGFloat = 36
+        public static let gapHandleHeight: CGFloat = 4
+        /// Extra room above and below the gap that still grabs it, since the gap itself is thin.
+        public static let gapHitSlop: CGFloat = SpacingTokens.xxs
         /// Room below a server's last row inside its card in the tree.
         public static let treeCardBottomPadding: CGFloat = SpacingTokens.xxs
 

@@ -89,7 +89,8 @@ struct WorkspaceTabContainerView: View {
                         )
                     }
 
-                    // Tab content sits on one opaque card below the strip (Design/02-layout.md › Cards).
+                    // Tab content sits on an opaque card below the strip (Design/02-layout.md › Cards);
+                    // query tabs draw two, editor over results.
                     Group {
                         if appState.showTabOverview {
                             TabOverviewView(
@@ -103,6 +104,7 @@ struct WorkspaceTabContainerView: View {
                                     tabStore.closeTab(id: tabId)
                                 }
                             )
+                            .workspaceCard()
                         } else {
                             activeTabContainer
                         }
@@ -110,7 +112,6 @@ struct WorkspaceTabContainerView: View {
                     // A zero minimum keeps tall content (a long list, a big dashboard) from pushing
                     // the window past its own edges; the card clips it instead.
                     .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
-                    .workspaceCard()
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
@@ -140,13 +141,19 @@ struct WorkspaceTabContainerView: View {
         }
     }
 
+    @ViewBuilder
     private func tabContent(_ tab: WorkspaceTab) -> some View {
-        WorkspaceContentView(
+        let content = WorkspaceContentView(
             tab: tab,
             runQuery: { sql in await runQuery(tabId: tab.id, sql: sql) },
             gridStateProvider: { tab.resultsGridState }
         )
         .id(tab.id)
+        if tab.drawsOwnCards {
+            content
+        } else {
+            content.workspaceCard()
+        }
     }
 
     private func connectToRecentConnection(_ item: RecentConnectionItem) {

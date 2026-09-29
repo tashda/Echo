@@ -236,6 +236,10 @@ final class WorkspaceTab: Identifiable {
         }
     }
 
+    /// Query tabs lay out their own editor and results cards (Design/02-layout.md); every other
+    /// tab sits on the one card the workspace gives it.
+    var drawsOwnCards: Bool { kind == .query }
+
     var query: QueryEditorState? {
         if case .query(let state) = content { return state }
         return nil

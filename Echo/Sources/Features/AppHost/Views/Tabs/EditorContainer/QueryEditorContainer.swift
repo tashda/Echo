@@ -27,49 +27,22 @@ struct QueryEditorContainer: View {
     private var panelState: BottomPanelState { tab.panelState }
 
     var body: some View {
-        let backgroundColor = ColorTokens.Background.primary
-        let shouldShowResultsOnly = query.isResultsOnly
-        let panelOpen = panelState.isOpen
-
-        VStack(spacing: 0) {
-            if tab.isDedicatedSessionFailed {
-                ConnectionFailedBanner(
-                    message: tab.dedicatedSessionError ?? "Connection failed"
-                ) {
-                    environmentState.retryDedicatedSession(for: tab)
+        // Two cards, editor over results (plan E1–E3). The editor keeps its place in the view
+        // tree when results open and close, so it's never rebuilt.
+        EditorResultsCards(
+            panelState: panelState,
+            isResultsOnly: query.isResultsOnly,
+            minEditorFraction: minRatio,
+            maxEditorFraction: maxRatio
+        ) {
+            VStack(spacing: SpacingTokens.none) {
+                if tab.isDedicatedSessionFailed {
+                    ConnectionFailedBanner(
+                        message: tab.dedicatedSessionError ?? "Connection failed"
+                    ) {
+                        environmentState.retryDedicatedSession(for: tab)
+                    }
                 }
-            }
-
-            if shouldShowResultsOnly {
-                resultsSection(isResizingResults: false)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(backgroundColor)
-                    .transition(.opacity)
-            } else if panelOpen {
-                NativeSplitView(
-                    isVertical: false,
-                    firstMinFraction: minRatio,
-                    secondMinFraction: 1 - maxRatio,
-                    fraction: Binding(
-                        get: { min(max(panelState.splitRatio, minRatio), maxRatio) },
-                        set: { panelState.splitRatio = min(max($0, minRatio), maxRatio) }
-                    )
-                ) {
-                    QueryInputSection(
-                        query: query,
-                        onAddBookmark: handleBookmarkRequest,
-                        completionContext: editorCompletionContext,
-                        onSchemaLoadNeeded: { dbName in
-                            ensureSchemaLoaded(forDatabase: dbName)
-                        }
-                    )
-                    .background(backgroundColor)
-                } second: {
-                    resultsSection(isResizingResults: false)
-                        .clipped()
-                        .background(backgroundColor)
-                }
-            } else {
                 QueryInputSection(
                     query: query,
                     onAddBookmark: handleBookmarkRequest,
@@ -78,13 +51,12 @@ struct QueryEditorContainer: View {
                         ensureSchemaLoaded(forDatabase: dbName)
                     }
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(backgroundColor)
             }
-
+        } results: {
+            resultsSection(isResizingResults: false)
+        } footer: {
             queryStatusBar
         }
-        .background(ColorTokens.Background.primary)
         .onAppear {
             updateClipboardContext()
             wireToolbarActions()
@@ -99,6 +71,7 @@ struct QueryEditorContainer: View {
             updateClipboardContext()
         }
         .onChange(of: query.hasExecutedAtLeastOnce) { _, executed in
+            // The results card rises after the first run (plan E2); the cards animate it.
             if executed && !panelState.isOpen && projectStore.globalSettings.autoOpenBottomPanel {
                 panelState.isOpen = true
             }

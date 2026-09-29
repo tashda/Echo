@@ -60,6 +60,25 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("y", modifiers: [.command, .shift])
             .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
 
+            // Same as double-clicking the gap between the editor and results cards (plan E3).
+            Button {
+                guard let panelState = tabStore.activeTab?.panelState else { return }
+                if !panelState.isOpen {
+                    panelState.isOpen = true
+                    panelState.isResultsMaximized = true
+                } else {
+                    panelState.isResultsMaximized.toggle()
+                }
+            } label: {
+                let isMaximized = tabStore.activeTab?.panelState.isResultsMaximized ?? false
+                Label(
+                    isMaximized ? "Restore Editor" : "Maximize Results",
+                    systemImage: isMaximized ? "rectangle.split.1x2" : "rectangle.bottomhalf.filled"
+                )
+            }
+            .keyboardShortcut("y", modifiers: [.command, .shift, .option])
+            .disabled(!navigationStore.isWorkspaceWindowKey || tabStore.activeTab?.kind != .query)
+
             Button {
                 NotificationCenter.default.post(name: .activateSidebarSearch, object: nil)
             } label: {

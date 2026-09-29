@@ -17,8 +17,11 @@ struct WorkspaceContentView: View {
 
     var body: some View {
         ZStack {
-            ColorTokens.Background.primary
-                .ignoresSafeArea()
+            // Query tabs draw their own cards on the canvas, so nothing fills behind them.
+            if !tab.drawsOwnCards {
+                ColorTokens.Background.primary
+                    .ignoresSafeArea()
+            }
 
             tabContentView
         }
