@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// The pinned card header (Design/05-components.md › Explorer tree): once a server's own header
-/// has scrolled away, "server › database" pins at the top of its card over a soft blur that
-/// fades out downward, so rows dissolve under it with no hard edge. Two actions appear on hover.
+/// has scrolled away, "server › database" pins at the top of its card. The rows under it are
+/// blurred by `ExplorerTreeEdgeBlur` inside the tree, fading out downward with no hard edge.
+/// Two actions appear on hover.
 struct ExplorerPinnedPathBar: View {
     let height: CGFloat
     let serverName: String
@@ -12,7 +13,6 @@ struct ExplorerPinnedPathBar: View {
     let onCollapseOtherDatabases: () -> Void
 
     @State private var isHovering = false
-    @Environment(\.workspaceCardCornerRadius) private var cornerRadius
 
     var body: some View {
         HStack(spacing: SpacingTokens.xxs) {
@@ -62,20 +62,10 @@ struct ExplorerPinnedPathBar: View {
         .padding(.leading, SpacingTokens.sm)
         .padding(.trailing, SpacingTokens.xs)
         .frame(height: height)
-        .background(alignment: .top) { softEdge }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .animation(.easeInOut(duration: 0.18), value: isHovering)
         .animation(.easeInOut(duration: 0.22), value: databaseName)
-    }
-
-    /// A real blur of the rows underneath that fades out downward, like the system's soft
-    /// scroll edge, so there is no hard back or bottom line. Rounded at the top to follow the card.
-    private var softEdge: some View {
-        let fadeHeight = height + LayoutTokens.Workspace.pinnedHeaderFade
-        return FadingContentBlur(topCornerRadius: cornerRadius, solidFraction: height / fadeHeight)
-            .frame(height: fadeHeight)
-            .allowsHitTesting(false)
     }
 
     private func actionButton(_ systemImage: String, help: String, action: @escaping () -> Void) -> some View {

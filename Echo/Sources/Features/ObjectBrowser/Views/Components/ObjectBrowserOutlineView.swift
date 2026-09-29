@@ -5,8 +5,8 @@ import SwiftUI
 /// Rows are a flat, lazy list with a fixed height per row kind, so every row's position is known
 /// from `ExplorerTreeLayout` without measuring. Behind the list, one card per server is drawn with
 /// the editor card's own modifier, cut to the visible area with rounded corners where the tree's
-/// edge cuts it (round 7, F2). The list itself is clipped to the same rounded shape. Because
-/// everything is SwiftUI, the pinned glass header above the tree really blurs the rows.
+/// edge cuts it (round 7, F2). The list itself is clipped to the same rounded shape. While a
+/// card header is pinned, `ExplorerTreeEdgeBlur` blurs the rows under it.
 ///
 /// Scrolling touches only the small cards layer (through `ExplorerTreeScrollState`), never the
 /// rows, and reports the server and database at the top to the rail.
@@ -26,6 +26,9 @@ struct ObjectBrowserOutlineView: View {
     let revealRequestID: Int
     /// Called when the server or database at the top of the visible area changes, e.g. while scrolling.
     var onTopVisibleContextChanged: ((ObjectBrowserTopVisibleContext) -> Void)? = nil
+    /// Height of the pinned card header drawn above the tree, or nil when it's turned off. The
+    /// rows under it are blurred (`ExplorerTreeEdgeBlur`).
+    var pinnedHeaderHeight: CGFloat? = nil
 
     /// Row height per density. Inner padding lives inside `SidebarRow`; this is the slot each
     /// row gets, tuned so its content centres without clipping:
@@ -71,16 +74,30 @@ struct ObjectBrowserOutlineView: View {
         // The thin scroller stays inside the cards' rounded corners.
         .contentMargins(.top, max(topScrollerInset, cornerRadius), for: .scrollIndicators)
         .contentMargins(.bottom, cornerRadius, for: .scrollIndicators)
+        .overlay(alignment: .top) {
+            if let pinnedHeaderHeight {
+                ExplorerTreeEdgeBlur(
+                    layout: layout,
+                    scroll: scroll,
+                    expandedNodeIDs: expandedNodeIDs,
+                    baseRowHeight: baseRowHeight,
+                    headerHeight: pinnedHeaderHeight,
+                    rowContent: rowContent
+                )
+            }
+        }
         // Rows never show outside a card's corners; a card cut by the tree's edge ends rounded.
         .clipShape(shape)
         .onScrollGeometryChange(for: ExplorerTreeScrollMetrics.self) { geometry in
             ExplorerTreeScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
-                viewportHeight: geometry.containerSize.height
+                viewportHeight: geometry.containerSize.height,
+                contentWidth: geometry.contentSize.width
             )
         } action: { _, metrics in
             scroll.offset = metrics.offset
             scroll.viewportHeight = metrics.viewportHeight
+            scroll.contentWidth = metrics.contentWidth
             reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
         }
         // A background never sizes its view, so the cards can't make the tree (or the
@@ -147,12 +164,15 @@ struct ObjectBrowserOutlineView: View {
 final class ExplorerTreeScrollState {
     var offset: CGFloat = 0
     var viewportHeight: CGFloat = 0
+    /// Width of the rows, which is narrower than the tree when scroll bars are always shown.
+    var contentWidth: CGFloat = 0
     @ObservationIgnored var lastReportedContext: ObjectBrowserTopVisibleContext?
 }
 
 struct ExplorerTreeScrollMetrics: Equatable {
     var offset: CGFloat
     var viewportHeight: CGFloat
+    var contentWidth: CGFloat
 }
 
 /// One card per server behind the rows, each cut to the visible part of the tree. The cards use

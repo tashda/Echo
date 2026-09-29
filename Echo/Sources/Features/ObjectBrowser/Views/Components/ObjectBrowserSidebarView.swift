@@ -21,6 +21,12 @@ struct ObjectBrowserSidebarView: View {
         environmentState.pendingConnections
     }
 
+    /// Height of a server header row, which the pinned card header and its blur cover exactly.
+    private var pinnedHeaderHeight: CGFloat {
+        ObjectBrowserOutlineView.baseRowHeight(for: projectStore.globalSettings.sidebarDensity)
+            + ObjectBrowserNode.Row.serverHeaderExtraHeight
+    }
+
     var body: some View {
         let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
             expandOneConnectionAtATime: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
@@ -100,7 +106,10 @@ struct ObjectBrowserSidebarView: View {
                             railBridge?.topVisibleConnectionID = context.connectionID
                         }
                         railBridge?.topVisibleContext = context
-                    }
+                    },
+                    pinnedHeaderHeight: railBridge != nil && projectStore.globalSettings.sidebarShowsPinnedPath
+                        ? pinnedHeaderHeight
+                        : nil
                 )
                 .background(Color.clear)
                 // Not clipped: the server cards' shadows reach past the tree's edges. The scroll
@@ -110,8 +119,7 @@ struct ObjectBrowserSidebarView: View {
                     if let railBridge {
                         ExplorerPinnedPathOverlay(
                             bridge: railBridge,
-                            headerHeight: ObjectBrowserOutlineView.baseRowHeight(for: projectStore.globalSettings.sidebarDensity)
-                                + ObjectBrowserNode.Row.serverHeaderExtraHeight,
+                            headerHeight: pinnedHeaderHeight,
                             isEnabled: projectStore.globalSettings.sidebarShowsPinnedPath,
                             sessions: sessions,
                             onScrollToServer: { connectionID in

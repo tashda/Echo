@@ -18,6 +18,13 @@ public enum LayoutTokens {
         public static let treeResizeHandleWidth: CGFloat = 8
         /// How far the pinned header's blur keeps fading below its text.
         public static let pinnedHeaderFade: CGFloat = SpacingTokens.md
+        /// Blur radii of the pinned header's progressive blur, from the bottom of the band (where
+        /// it meets the sharp rows) to the top edge.
+        public static let pinnedHeaderBlurRadii: [CGFloat] = [1, 3, 6, 10]
+        /// Share of the band over which each blur step fades into the next.
+        public static let pinnedHeaderBlurStep: CGFloat = 0.3
+        /// Card-coloured tint over the blur, so the pinned header stays readable.
+        public static let pinnedHeaderTintOpacity: Double = 0.35
         /// Room below a server's last row inside its card in the tree.
         public static let treeCardBottomPadding: CGFloat = SpacingTokens.xxs
 
