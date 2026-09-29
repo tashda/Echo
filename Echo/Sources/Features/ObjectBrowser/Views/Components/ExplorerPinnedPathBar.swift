@@ -69,23 +69,12 @@ struct ExplorerPinnedPathBar: View {
         .animation(.easeInOut(duration: 0.22), value: databaseName)
     }
 
-    /// A blur of the rows underneath that fades out downward, like the system's soft scroll
-    /// edge, so there is no hard back or bottom line. Rounded at the top to follow the card.
+    /// A real blur of the rows underneath that fades out downward, like the system's soft
+    /// scroll edge, so there is no hard back or bottom line. Rounded at the top to follow the card.
     private var softEdge: some View {
-        UnevenRoundedRectangle(topLeadingRadius: cornerRadius, topTrailingRadius: cornerRadius, style: .continuous)
-            .fill(.regularMaterial)
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0),
-                        .init(color: .black, location: 0.5),
-                        .init(color: .clear, location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .frame(height: height + LayoutTokens.Workspace.pinnedHeaderFade)
+        let fadeHeight = height + LayoutTokens.Workspace.pinnedHeaderFade
+        return FadingContentBlur(topCornerRadius: cornerRadius, solidFraction: height / fadeHeight)
+            .frame(height: fadeHeight)
             .allowsHitTesting(false)
     }
 

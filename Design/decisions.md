@@ -2,6 +2,15 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-29 · Scroll bar, database switcher, footer and tabs (review round 9, first answers)
+
+Page: https://claude.ai/artifact/U3DDrkf5zQUEq6635UVBaY (collection `round9`)
+- **Database switcher DB1:** clicking the footer chip grows it upward into a glass list with a filter field at the top, no arrow; Esc or a click outside shrinks it back. It replaces the system popover. Rejected DB2 (native menu) and DB4 (pick it in the tree). → 05-components
+- **DB3 as well, not instead:** "Switch database" also joins the ⌘K palette in Phase 6 ("This is not a replacement but an alternative"). → plan K4
+- **Faster tab switching (TFIX):** tabs become real buttons, so a click selects at once and dragging still reorders; recently used tabs keep their editors alive, so switching back keeps scroll, undo and cursor. → 05-components, plan B5
+- Rejected: SB2 (a scroll bar inside each card), SB4 (position shown in the rail), FP2 (footer inset by the corner radius), TB2 (tabs on the canvas), FB3 (a glass footer bar with glass pills inside it: glass on glass).
+- **Still open, to judge in the Design Lab:** scroll bar SB1 or SB3; footer position FP1 or FP3; tab bar TB1, TB3 or TB4; and what sits behind the footer, FB1, FB2 or FB4 (section 5, added after the owner found the solid band behind the footer ugly: soft edge, hard edge, or one glass bar with flat controls inside).
+
 ## 2026-09-29 · After the SwiftUI tree build (asked in chat)
 
 - Bug: the tree's cards layer set the tree's minimum height, so the window grew with the tree and couldn't be shrunk. The cards now draw in the scroll view's background.

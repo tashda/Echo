@@ -82,7 +82,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 
 - **Tabs should look and behave like Safari.** *Decided.*
 - Keep today's strip: a grey capsule plate with a raised white active tab and the database as a subtitle. Move its hard-coded greys into tokens. *Decided.*
-- **Switching tabs is instant.** *Decided.*
+- **Switching tabs is instant.** Tabs are real buttons, so a click selects at once and dragging still reorders; recently used tabs keep their editors alive, keeping scroll, undo and cursor (round 9, TFIX). *Decided.*
 - **Running query:** a spinner at the leading edge, and a timer replacing the subtitle. *Decided.*
 - **Many tabs:** tabs shrink to a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. *Decided.*
 - **New tab** grows out of the + button. *Decided.*
@@ -131,11 +131,13 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - No Export button in the footer. *Decided.*
 - **Query errors:** shown in the results card with the message, line and a "Show in editor" button, with Messages one click away. They are also recorded in notification history. When the failing tab isn't the one on screen, a toast points to it. *Decided.*
 - **One footer, in the results card.** A single footer holds everything:
-  - on the left, the server · database as a **glass chip** (no chevron; click it to switch database);
+  - on the left, the server · database as a **glass chip** (no chevron). Clicking it **grows the chip upward into a glass list with a filter field** at the top, no arrow; Esc or a click outside shrinks it back (round 9, DB1). "Switch database" is also in the ⌘K palette (DB3);
   - right beside it, the result views (Results, Messages, Plan…) as **one glass pill** of icons (moved from the middle after the first build);
   - on the right, as quiet text: the status, rows loaded of total, the selection summary and the duration.
 
   No strip, no divider (round 8, FT1a).
+
+  Where the footer sits (FP1 or FP3) and what shows behind it (FB1, FB2 or FB4; FB3, glass on glass, was rejected) are *Open* until judged in the Design Lab (round 9).
 
   The window-wide bottom status bar goes away. While no results are shown, the editor card shows a slim version with just the picker and status. *Decided.*
 

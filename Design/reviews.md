@@ -12,6 +12,7 @@ Each review round is an interactive page where every option was marked Yes, Mayb
 | 6 | 2026-09-29 | Four blends of the scrolling ideas; card settings | https://claude.ai/artifact/3VqbnxEy4z1ThCnQJt64Ta |
 | 7 | 2026-09-29 | The tree's bottom edge (four options, then F2 at full size) | https://claude.ai/artifact/D77uNvnAc3AzGzic7k88PW · https://claude.ai/artifact/RMNCE8fCR7X367ydcyUjZk |
 | 8 | 2026-09-29 | Corners (measured), tree cards, path header, tree motion, welcome, server page, footer | https://claude.ai/artifact/XPy7hr8a2BgpXjejFSxUWA |
+| 9 | 2026-09-29 | Tree scroll bar, database switcher, footer position and backing, tab bar, faster tab switching | https://claude.ai/artifact/U3DDrkf5zQUEq6635UVBaY |
 
 Earlier exploration pages: [Echo Navigation Concepts](https://claude.ai/artifact/4Qpv59JDzYej7vuLGfXCQK) and [Echo Sidebar Rethink](https://claude.ai/artifact/YUkxDY7HGiDqdYTBRzmeYG).
 
