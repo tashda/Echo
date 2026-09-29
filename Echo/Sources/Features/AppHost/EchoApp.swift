@@ -48,7 +48,12 @@ struct EchoApp: App {
                 .environment(coordinator.notificationEngine)
                 .environment(coordinator.activityEngine)
                 .environment(coordinator.authState)
-                .task { await coordinator.initialize() }
+                .task {
+                    // Xcode launches the app to host SwiftUI previews; skip the heavy start-up
+                    // there so the canvas doesn't time out.
+                    guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1" else { return }
+                    await coordinator.initialize()
+                }
         }
         .defaultLaunchBehavior(.presented)
         .windowToolbarStyle(.unified(showsTitle: false))
@@ -80,6 +85,7 @@ struct EchoApp: App {
             AutocompleteInspectorCommands()
             PerformanceMonitorCommands()
             StreamingTestHarnessCommands()
+            DesignLabCommands()
 #endif
         }
         JobQueueWindow()
@@ -106,6 +112,7 @@ struct EchoApp: App {
         AutocompleteInspectorWindow()
         PerformanceMonitorWindow()
         StreamingTestHarnessWindow()
+        DesignLabWindow()
 #endif
     }
 
