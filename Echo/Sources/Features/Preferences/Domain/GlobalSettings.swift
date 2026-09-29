@@ -171,6 +171,7 @@ struct GlobalSettings: Codable, Hashable {
     var collapsedServerClick: CollapsedServerClickBehavior = .peekCommandReopens
     var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
     var editorGutterStyle: EditorGutterStyle = .subtle
+    var workspaceTabStripStyle: WorkspaceTabStripStyle = .glass
     var resultsMonospacedCells: Bool = false
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
@@ -257,6 +258,7 @@ struct GlobalSettings: Codable, Hashable {
         case collapsedServerClick
         case sidebarMonochromeVariant
         case editorGutterStyle
+        case workspaceTabStripStyle
         case resultsMonospacedCells
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
@@ -371,6 +373,7 @@ struct GlobalSettings: Codable, Hashable {
         collapsedServerClick = (try? container.decodeIfPresent(CollapsedServerClickBehavior.self, forKey: .collapsedServerClick)) ?? .peekCommandReopens
         sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
         editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
+        workspaceTabStripStyle = (try? container.decodeIfPresent(WorkspaceTabStripStyle.self, forKey: .workspaceTabStripStyle)) ?? .glass
         resultsMonospacedCells = try container.decodeIfPresent(Bool.self, forKey: .resultsMonospacedCells) ?? false
 
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
@@ -448,6 +451,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(collapsedServerClick, forKey: .collapsedServerClick)
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
         try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
+        try container.encode(workspaceTabStripStyle, forKey: .workspaceTabStripStyle)
         try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)

@@ -29,6 +29,11 @@ struct QueryTabStrip: View {
     @State private var measuredTabGroupWidth: CGFloat = 0
     @State private var databaseNamesBySessionID: [UUID: [String]] = [:]
 
+    /// Round 9, TB1: the glass capsule, unless Settings › Appearance › Tab Bar is Classic.
+    private var isGlass: Bool {
+        projectStore.globalSettings.workspaceTabStripStyle == .glass
+    }
+
     private var tabStripStyle: TabStripBackground.Style {
         .standard(colorScheme)
     }
@@ -98,9 +103,18 @@ struct QueryTabStrip: View {
             ZStack(alignment: .leading) {
 #if os(macOS)
                 if hasTabs {
-                    TabStripBackground(style: tabStripStyle, height: basePlateHeight, cornerRadius: basePlateCornerRadius)
-                        .frame(width: basePlateWidth, height: basePlateHeight)
-                        .offset(x: basePlateOffset)
+                    if isGlass {
+                        // TB1 (round 9): one glass capsule holding the tabs and the +.
+                        Capsule()
+                            .fill(.clear)
+                            .glassEffect(.regular, in: .capsule)
+                            .frame(width: max(geo.size.width - basePlateLeading - basePlateTrailing, 0), height: basePlateHeight)
+                            .offset(x: basePlateOffset)
+                    } else {
+                        TabStripBackground(style: tabStripStyle, height: basePlateHeight, cornerRadius: basePlateCornerRadius)
+                            .frame(width: basePlateWidth, height: basePlateHeight)
+                            .offset(x: basePlateOffset)
+                    }
                 }
 #endif
 
@@ -124,8 +138,8 @@ struct QueryTabStrip: View {
                     }
                 }
                 .padding(.leading, effectiveLeadingPadding)
-                // The + ends at the card's trailing edge.
-                .padding(.trailing, hasTabs ? trailingPadding : effectiveTrailingPadding)
+                // Classic: the + ends at the card's trailing edge. Glass: it sits inside the capsule.
+                .padding(.trailing, hasTabs && !isGlass ? trailingPadding : effectiveTrailingPadding)
                 .padding(.vertical, tabContentVerticalPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(tabReorderAnimation, value: tabStore.tabs.map(\.id))
@@ -174,7 +188,7 @@ struct QueryTabStrip: View {
                 }
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular, in: .circle)
+        .modifier(NewTabButtonGlass(isInsideCapsule: isGlass))
         .onHover { isNewTabHovered = $0 }
         .help("New Tab")
         .accessibilityLabel("New Tab")

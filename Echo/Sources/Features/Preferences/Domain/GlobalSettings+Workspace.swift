@@ -132,3 +132,16 @@ enum EditorGutterStyle: String, Codable, CaseIterable, Sendable {
         }
     }
 }
+
+/// The tab bar above the cards (round 9, TB1). Classic keeps the old grey plate and separate +,
+/// to revert to if the glass capsule doesn't hold up.
+enum WorkspaceTabStripStyle: String, Codable, CaseIterable, Sendable {
+    case glass, classic
+
+    var displayName: String {
+        switch self {
+        case .glass: return "Glass"
+        case .classic: return "Classic"
+        }
+    }
+}

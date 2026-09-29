@@ -41,7 +41,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - Servers are listed in the rail's order; connecting and failed servers come last, each on its own card. *Decided.*
 - **Glass card header:** when a server's header scrolls away, it pins at the top of its card as a Liquid Glass bar with the card's rounded top corners, showing "server › database"; rows blur through it. *Decided* (round 6).
 - **Rounded end:** the tree stops one gutter above the window edge, on the editor card's bottom line. A card cut by the bottom edge ends in rounded corners with its full shadow. No fades. *Decided* (round 7).
-- The scroller is the small overlay scroller, inset inside the card corners, shown while scrolling. *Decided.*
+- **No scroll bar** (round 9, SB3); the rail shows which server you're in. Settings › Sidebar › Show scroll bar brings back the small overlay scroller, inset inside the card corners. *Decided.*
 - **Server header = sticky header:**
   - The server name is the section header.
   - When it pins at the top it grows a breadcrumb for the database you're in ("postgres18 › employees"), over a soft fade rather than a band.
@@ -87,6 +87,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Many tabs:** tabs shrink to a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. *Decided.*
 - **New tab** grows out of the + button. *Decided.*
 - **Position: on the canvas above both cards**, the way Safari's tab bar sits above the page. *Decided.*
+- **One glass capsule** holding the tabs and the + as its last item; the active tab is the white pill (round 9, TB1). The earlier grey plate stays available as Settings › Appearance › Tab Bar › Classic, to revert to. *Decided.*
 
 ## Tab overview (open queries)
 
@@ -137,7 +138,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 
   No strip, no divider (round 8, FT1a).
 
-  Where the footer sits (FP1 or FP3) and what shows behind it (FB1, FB2 or FB4; FB3, glass on glass, was rejected) are *Open* until judged in the Design Lab (round 9).
+  The footer floats over the bottom of its card, lifted 4pt (round 9, FP1), with the content scrolling under a soft blur and a light tint (FB1). Whether the right-hand text becomes a pill (or a pill per entry) is *Open* (round 10).
 
   The window-wide bottom status bar goes away. While no results are shown, the editor card shows a slim version with just the picker and status. *Decided.*
 

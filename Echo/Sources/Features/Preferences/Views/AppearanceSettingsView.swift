@@ -122,6 +122,18 @@ struct AppearanceSettingsView: View {
 
             Section("Editor") {
                 PropertyRow(
+                    title: "Tab Bar",
+                    subtitle: "Glass puts the tabs and + in one capsule; Classic is the earlier grey strip."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.workspaceTabStripStyle)) {
+                        ForEach(WorkspaceTabStripStyle.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                }
+
+                PropertyRow(
                     title: "Line Number Gutter",
                     subtitle: "Subtle shows numbers only; tinted adds a faint column behind them."
                 ) {
