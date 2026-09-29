@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// The glass card header (Design/05-components.md › Explorer tree): once a server's own header
-/// has scrolled away, "server › database" pins at the top of its card on Liquid Glass with the
-/// card's rounded top corners, and rows blur through it as they scroll. Two actions appear on
-/// hover. It holds controls, so glass is right here even though the card is content.
+/// The pinned card header (Design/05-components.md › Explorer tree): once a server's own header
+/// has scrolled away, "server › database" pins at the top of its card over a soft blur that
+/// fades out downward, so rows dissolve under it with no hard edge. Two actions appear on hover.
 struct ExplorerPinnedPathBar: View {
     let height: CGFloat
     let serverName: String
@@ -63,15 +62,31 @@ struct ExplorerPinnedPathBar: View {
         .padding(.leading, SpacingTokens.sm)
         .padding(.trailing, SpacingTokens.xs)
         .frame(height: height)
-        .glassEffect(.regular, in: UnevenRoundedRectangle(
-            topLeadingRadius: cornerRadius,
-            topTrailingRadius: cornerRadius,
-            style: .continuous
-        ))
+        .background(alignment: .top) { softEdge }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .animation(.easeInOut(duration: 0.18), value: isHovering)
         .animation(.easeInOut(duration: 0.22), value: databaseName)
+    }
+
+    /// A blur of the rows underneath that fades out downward, like the system's soft scroll
+    /// edge, so there is no hard back or bottom line. Rounded at the top to follow the card.
+    private var softEdge: some View {
+        UnevenRoundedRectangle(topLeadingRadius: cornerRadius, topTrailingRadius: cornerRadius, style: .continuous)
+            .fill(.regularMaterial)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: 0.5),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(height: height + LayoutTokens.Workspace.pinnedHeaderFade)
+            .allowsHitTesting(false)
     }
 
     private func actionButton(_ systemImage: String, help: String, action: @escaping () -> Void) -> some View {

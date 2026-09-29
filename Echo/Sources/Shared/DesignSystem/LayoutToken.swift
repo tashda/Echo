@@ -16,6 +16,8 @@ public enum LayoutTokens {
         public static let treeMaxWidth: CGFloat = 480
         /// Width of the invisible drag area on the tree's trailing edge.
         public static let treeResizeHandleWidth: CGFloat = 8
+        /// How far the pinned header's blur keeps fading below its text.
+        public static let pinnedHeaderFade: CGFloat = SpacingTokens.md
         /// Room below a server's last row inside its card in the tree.
         public static let treeCardBottomPadding: CGFloat = SpacingTokens.xxs
 

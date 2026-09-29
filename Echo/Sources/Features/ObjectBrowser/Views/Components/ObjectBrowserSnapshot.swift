@@ -147,6 +147,24 @@ enum ObjectBrowserSnapshotBuilder {
         )
 
         let isLoading = session.schemaLoadsInFlight.contains(session.schemaLoadKey(database.name))
+
+        // A collapsed database's objects are never shown, so they aren't built: with many
+        // databases whose schemas load in the background, building them made every render (a
+        // rail click, a scroll-driven update) cost thousands of nodes. One placeholder child keeps
+        // the database expandable.
+        guard expandedNodeIDs.contains(databaseID) else {
+            return ObjectBrowserNode(
+                id: databaseID,
+                row: .database(session, database, isLoading: isLoading),
+                children: [
+                    ObjectBrowserNode(
+                        id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: databaseID),
+                        row: .loading("Expand to load objects…", depth: 2)
+                    )
+                ]
+            )
+        }
+
         let children = databaseChildren(
             for: session,
             database: database,
