@@ -86,13 +86,20 @@ struct QueryPanelStatusBar: View {
     }
 
     private func buildMetrics() -> BottomPanelStatusBarConfiguration.Metrics {
-        let rowCount = EchoFormatters.compactNumber(query.rowProgress.displayCount)
+        // Rows loaded of the total while streaming (plan R5), then the total.
+        let rowCount = GridSelectionSummary.rowCountText(
+            for: query.rowProgress,
+            isExecuting: query.isExecuting,
+            compact: EchoFormatters.compactNumber
+        )
         let rowLabel = query.rowProgress.displayCount == 1 ? "row" : "rows"
         let elapsed = query.isExecuting ? query.currentExecutionTime : (query.lastExecutionTime ?? 0)
         let hasDuration = query.isExecuting || query.lastExecutionTime != nil
         let durationText = hasDuration ? EchoFormatters.duration(seconds: Int(elapsed.rounded())) : nil
 
-        return .init(rowCountText: rowCount, rowCountLabel: rowLabel, durationText: durationText)
+        var metrics = BottomPanelStatusBarConfiguration.Metrics(rowCountText: rowCount, rowCountLabel: rowLabel, durationText: durationText)
+        metrics.selectionText = query.gridSelectionSummary.flatMap { $0.cellCount > 1 ? $0.text : nil }
+        return metrics
     }
 
     private func buildModeIndicators() -> [BottomPanelStatusBarConfiguration.ModeIndicator] {

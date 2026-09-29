@@ -38,6 +38,7 @@ extension QueryResultsTableView.Coordinator {
 
         guard let tableView else { return }
         updateAccentRowNumbers(in: tableView)
+        updateSelectionSummary(for: region)
 
         let desiredStyle: NSTableView.SelectionHighlightStyle = region != nil ? .none : .regular
         if tableView.selectionHighlightStyle != desiredStyle {
@@ -252,6 +253,30 @@ extension QueryResultsTableView.Coordinator {
         }
         hoveredRow = row
         updateAccentRowNumbers(in: tableView)
+    }
+
+    /// Sums the selected cells for the footer (plan R5); huge selections are only counted.
+    func updateSelectionSummary(for region: SelectedRegion?) {
+        guard let region else {
+            if queryState.gridSelectionSummary != nil { queryState.gridSelectionSummary = nil }
+            return
+        }
+        let rows = region.normalizedRowRange
+        let columns = region.normalizedColumnRange
+        guard rows.lowerBound >= 0, columns.lowerBound >= 0 else { return }
+        let cellCount = rows.count * columns.count
+        var values: [String?] = []
+        if cellCount <= GridSelectionSummary.maximumSummedCells {
+            values.reserveCapacity(cellCount)
+            for row in rows {
+                let source = resolvedRowIndex(for: row)
+                for column in columns {
+                    values.append(source >= 0 ? queryState.valueForDisplay(row: source, column: column) : nil)
+                }
+            }
+        }
+        let summary = GridSelectionSummary.summarize(values, cellCount: cellCount)
+        if queryState.gridSelectionSummary != summary { queryState.gridSelectionSummary = summary }
     }
 
     /// Accent row numbers for the selected rows and the hovered row (plans R3, R4).

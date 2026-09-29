@@ -20,6 +20,8 @@ import OSLog
     var lastExecutionTime: TimeInterval?
     var currentExecutionTime: TimeInterval = 0
     var rowProgress: RowProgress = RowProgress()
+    /// The results grid's selected cells, summed for the footer (plan R5).
+    var gridSelectionSummary: GridSelectionSummary?
     var messages: [QueryExecutionMessage] = []
     var prefersMessagesAfterExecution: Bool = false
     var hasExecutedAtLeastOnce: Bool = false

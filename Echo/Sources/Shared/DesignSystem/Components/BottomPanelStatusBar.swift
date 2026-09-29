@@ -46,6 +46,8 @@ struct BottomPanelStatusBarConfiguration {
         let rowCountText: String
         let rowCountLabel: String
         let durationText: String?
+        /// The selected cells' count, sum and average (plan R5).
+        var selectionText: String? = nil
     }
 
     struct StatusBubble {
@@ -242,6 +244,12 @@ struct BottomPanelStatusBar: View {
             }
 
             if let metrics = configuration.metrics {
+                if let selection = metrics.selectionText {
+                    Text(selection)
+                        .font(TypographyTokens.detail.monospacedDigit())
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .lineLimit(1)
+                }
                 HStack(spacing: SpacingTokens.xxxs) {
                     Text(metrics.rowCountText)
                         .font(TypographyTokens.detail.monospaced().weight(.medium))
