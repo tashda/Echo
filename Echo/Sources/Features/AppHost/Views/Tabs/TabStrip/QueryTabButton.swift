@@ -27,6 +27,7 @@ struct QueryTabButton: View {
 
     @State var isHovering = false
     @State var isHoveringClose = false
+    @State private var isPressed = false
 
     var shouldShowClose: Bool {
         guard !tab.isPinned else { return false }
@@ -75,9 +76,17 @@ struct QueryTabButton: View {
         }
         .onMiddleClick(perform: onClose)
 #endif
-        .onTapGesture {
-            onSelect()
-        }
+        // Selects on press rather than on release (round 9, TFIX), so the click counts at once;
+        // the strip's drag still reorders. Pressing the close button doesn't select the tab.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard !isPressed else { return }
+                    isPressed = true
+                    if !isHoveringClose { onSelect() }
+                }
+                .onEnded { _ in isPressed = false }
+        )
         .contextMenu {
             tabContextMenuContent
         }

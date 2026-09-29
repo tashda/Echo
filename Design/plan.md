@@ -90,7 +90,7 @@ Rules: `05-components` › Tabs. Safari is the reference.
 | B2 | **Running tab:** a spinner at the leading edge and the timer in place of the subtitle. | `QueryTabButton` | Shows while running and clears when done | ☐ |
 | B3 | **Overflow:** a minimum width, then inactive tabs collapse to their icon while the active tab keeps its title. | `QueryTabStrip` | 20+ tabs stay usable | ☐ |
 | B4 | **New tab grows out of +** (+ and the plate share a glass container). Switching tabs stays instant. | Strip | 👁 | ☐ |
-| B5 | Make tabs real buttons (accessibility, focus): a click selects at once, dragging still reorders. **Keep the editors of recently used tabs alive** so switching back keeps scroll, undo and cursor (round 9, TFIX). Fix the O(n²) separator pass and read the hairline width from `displayScale`. | Strip | VoiceOver reads the tabs | ☐ TFIX accepted in round 9: also keep recent editors alive |
+| B5 | Make tabs real buttons (accessibility, focus): a click selects at once, dragging still reorders. **Keep the editors of recently used tabs alive** so switching back keeps scroll, undo and cursor (round 9, TFIX). Fix the O(n²) separator pass and read the hairline width from `displayScale`. | Strip | VoiceOver reads the tabs | ◐ TFIX part done (select on press, three most recent tabs kept alive, focus follows the active tab), 👁 pending; separator pass, hairline width and VoiceOver check still to do |
 
 ## Phase 4 · Editor and results cards
 

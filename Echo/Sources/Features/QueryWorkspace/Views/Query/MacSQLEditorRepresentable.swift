@@ -54,6 +54,15 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: SQLScrollView, context: Context) {
+        // A kept-alive tab coming back takes the keyboard again (KeptAliveTabsView).
+        let isActiveTab = context.environment.isActiveWorkspaceTab
+        if isActiveTab && !context.coordinator.wasActiveTab, let textView = context.coordinator.textView {
+            Task { @MainActor [weak textView] in
+                guard let textView else { return }
+                textView.window?.makeFirstResponder(textView)
+            }
+        }
+        context.coordinator.wasActiveTab = isActiveTab
         nsView.updateTheme(theme)
         nsView.updateDisplay(display)
         nsView.updateBackgroundOverride(backgroundColor.map(NSColor.init))
@@ -112,6 +121,8 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     final class Coordinator: NSObject, SQLTextViewDelegate {
         var parent: MacSQLEditorRepresentable
         weak var textView: SQLTextView?
+        /// Whether this editor's tab was the one on screen at the last update.
+        var wasActiveTab = true
         var theme: SQLEditorTheme
         var isUpdatingFromBinding = false
         var lastValidationGeneration = 0

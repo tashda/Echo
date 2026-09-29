@@ -125,19 +125,28 @@ struct WorkspaceTabContainerView: View {
         }
     }
 
-    /// Mounts only the visible tab. WorkspaceTab and QueryEditorState keep query,
-    /// result, and grid state alive without keeping inactive SwiftUI/AppKit trees
-    /// in the resize and observation paths.
+    /// Keeps the few most recent tabs mounted so switching back is instant (round 9, TFIX); a
+    /// window hosting a single detached tab mounts just that one.
     @ViewBuilder
     private var activeTabContainer: some View {
         if let currentWorkspaceTab {
-            WorkspaceContentView(
-                tab: currentWorkspaceTab,
-                runQuery: { sql in await runQuery(tabId: currentWorkspaceTab.id, sql: sql) },
-                gridStateProvider: { currentWorkspaceTab.resultsGridState }
-            )
-            .id(currentWorkspaceTab.id)
+            if hostedWorkspaceTabID != nil {
+                tabContent(currentWorkspaceTab)
+            } else {
+                KeptAliveTabsView(tabs: tabStore.tabs, activeTab: currentWorkspaceTab) { tab in
+                    tabContent(tab)
+                }
+            }
         }
+    }
+
+    private func tabContent(_ tab: WorkspaceTab) -> some View {
+        WorkspaceContentView(
+            tab: tab,
+            runQuery: { sql in await runQuery(tabId: tab.id, sql: sql) },
+            gridStateProvider: { tab.resultsGridState }
+        )
+        .id(tab.id)
     }
 
     private func connectToRecentConnection(_ item: RecentConnectionItem) {
