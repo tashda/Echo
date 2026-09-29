@@ -33,7 +33,7 @@ extension QueryResultsTableView.Coordinator {
             scheduleRowCountUpdate(for: tableView)
         }
         tableView.headerView?.menu = headerMenu
-        tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, SpacingTokens.lg)
+        tableView.headerView?.frame.size.height = ResultsGridMetrics.headerHeight
         tableView.headerView?.isHidden = false
         isPerformingUpdatePass = true
         defer {

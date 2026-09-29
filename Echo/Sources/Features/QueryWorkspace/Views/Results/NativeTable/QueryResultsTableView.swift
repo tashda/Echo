@@ -97,7 +97,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         tableView.backgroundColor = backgroundColor
 
         if let headerView = tableView.headerView {
-            headerView.frame.size.height = max(headerView.frame.size.height, SpacingTokens.lg)
+            headerView.frame.size.height = ResultsGridMetrics.headerHeight
             headerView.isHidden = false
         }
 
