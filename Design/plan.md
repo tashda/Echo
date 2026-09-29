@@ -98,9 +98,9 @@ Rules: `05-components` › Editor card, Results card.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| E1 | **Two cards** (12pt corners, floating shadow) with the gutter between them. One split kept alive; the results card collapses instead of the view tree switching, so the editor keeps its scroll position, undo and focus. | `QueryEditorContainer`, `NativeSplitView` | Toggling results doesn't reset the editor | ☑ (this commit), 👁 pending |
-| E2 | **Results card rises** after the first run while the editor card shrinks (house spring). | Same | Matches the lab 👁 | ☑ (this commit), 👁 pending |
-| E3 | **Resize** by dragging the canvas gap between the cards, with a grab capsule on hover. **Double-click the gap to maximise the results** (the editor becomes a one-line card), and double-click again to restore. Add a menu item and shortcut. | Same | Drag and maximise work; the ratio is saved | ☑ (this commit), 👁 pending |
+| E1 | **Two cards** (12pt corners, floating shadow) with the gutter between them. One split kept alive; the results card collapses instead of the view tree switching, so the editor keeps its scroll position, undo and focus. | `QueryEditorContainer`, `NativeSplitView` | Toggling results doesn't reset the editor | ☑ 3249a82a, 👁 pending |
+| E2 | **Results card rises** after the first run while the editor card shrinks (house spring). | Same | Matches the lab 👁 | ☑ 3249a82a, 👁 pending |
+| E3 | **Resize** by dragging the canvas gap between the cards, with a grab capsule on hover. **Double-click the gap to maximise the results** (the editor becomes a one-line card), and double-click again to restore. Add a menu item and shortcut. | Same | Drag and maximise work; the ratio is saved | ☑ 3249a82a, 👁 pending |
 | E4 | **Gutter:** subtle or tinted (setting), current-line emphasis, red validation markers, one number per logical line, width that grows with digit count, theme colours. | `LineNumberRulerView`, `SQLTextView` | 10 000-line script numbered correctly 👁 | ☐ |
 
 ## Phase 5 · Results grid
