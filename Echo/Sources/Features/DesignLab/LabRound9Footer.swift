@@ -30,7 +30,8 @@ enum LabFooterPosition: String, CaseIterable, Identifiable {
 /// blur the app would (`BackdropEdgeBlur`), so what you see here is what gets built.
 struct LabFooterStage: View {
     @State private var backing: LabFooterBacking = .soft
-    @State private var position: LabFooterPosition = .today
+    @State private var position: LabFooterPosition = .lift
+    @State private var metricsStyle: FooterMetricsStyle = .text
     @State private var isDrifting = true
     @State private var selectedSegment: PanelSegment = .results
 
@@ -40,6 +41,7 @@ struct LabFooterStage: View {
         LabStage(title: "Footer: where it sits, and what shows behind it") {
             LabPicker(title: "Behind", selection: $backing, options: LabFooterBacking.allCases)
             LabPicker(title: "Position", selection: $position, options: LabFooterPosition.allCases)
+            LabPicker(title: "Right side", selection: $metricsStyle, options: FooterMetricsStyle.allCases)
             Toggle("Rows drift", isOn: $isDrifting)
         } content: {
             LabCard {
@@ -117,9 +119,10 @@ struct LabFooterStage: View {
             onTogglePanel: {},
             isPanelOpen: true
         )
-        configuration.metrics = .init(rowCountText: "96", rowCountLabel: "rows", durationText: "38 ms")
+        configuration.metrics = .init(rowCountText: "96", rowCountLabel: "rows", durationText: "38 ms", selectionText: "3 cells · Sum 263,487 · Avg 87,829")
         configuration.statusBubble = .init(label: "Ready", tint: .green, isPulsing: false)
         configuration.availableDatabases = ["Dev_DM_Reporting", "Dev_DW_Reporting", "DM_Prod"]
+        configuration.metricsStyle = metricsStyle
         return configuration
     }
 }

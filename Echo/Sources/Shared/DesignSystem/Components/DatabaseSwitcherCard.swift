@@ -13,6 +13,10 @@ struct DatabaseSwitcherCard: View {
     let chipLabel: String
     let onSelect: (String) -> Void
     let onDismiss: () -> Void
+    /// Show the chip's label as the card's last row, where the chip was (the card covers it).
+    var showsChipLabel = true
+    /// A heading above the filter, such as the server's name.
+    var title: String? = nil
 
     @State private var filter = ""
     @State private var highlighted: String?
@@ -28,15 +32,17 @@ struct DatabaseSwitcherCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+            if let title {
+                Text(title)
+                    .font(TypographyTokens.detail.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .padding(.horizontal, SpacingTokens.xs)
+            }
             filterField
             list
-            Text(chipLabel)
-                .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.primary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .padding(.horizontal, SpacingTokens.xs)
-                .frame(height: LayoutTokens.Footer.chipHeight, alignment: .leading)
+            if showsChipLabel {
+                chipLabelRow
+            }
         }
         .padding(LayoutTokens.FloatingSurface.padding)
         .frame(width: LayoutTokens.FloatingSurface.smallWidth, alignment: .leading)
@@ -52,6 +58,16 @@ struct DatabaseSwitcherCard: View {
             if let highlighted, matches.contains(highlighted) { return }
             highlighted = matches.first
         }
+    }
+
+    private var chipLabelRow: some View {
+        Text(chipLabel)
+                .font(TypographyTokens.detail.weight(.semibold))
+                .foregroundStyle(ColorTokens.Text.primary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .padding(.horizontal, SpacingTokens.xs)
+                .frame(height: LayoutTokens.Footer.chipHeight, alignment: .leading)
     }
 
     private var filterField: some View {

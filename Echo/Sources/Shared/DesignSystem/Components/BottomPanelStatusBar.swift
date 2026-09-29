@@ -14,6 +14,8 @@ struct BottomPanelStatusBarConfiguration {
     var metrics: Metrics?
     var statusBubble: StatusBubble?
     var modeIndicators: [ModeIndicator] = []
+    /// How the status, selection, rows and time sit on the right (round 10, judged in the lab).
+    var metricsStyle: FooterMetricsStyle = .text
     var statisticsPopover: AnyView?
     var showStatisticsPopover: Binding<Bool>?
 
@@ -228,57 +230,6 @@ struct BottomPanelStatusBar: View {
             .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
             .frame(height: LayoutTokens.Footer.chipHeight)
             .background(ColorTokens.Sidebar.hoverFill, in: Capsule())
-        }
-    }
-
-    @ViewBuilder
-    private var metricsSection: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            if let bubble = configuration.statusBubble {
-                HStack(spacing: SpacingTokens.xxs) {
-                    PulsingStatusDot(tint: bubble.tint, isPulsing: bubble.isPulsing)
-                    Text(bubble.label)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
-
-            if let metrics = configuration.metrics {
-                if let selection = metrics.selectionText {
-                    Text(selection)
-                        .font(TypographyTokens.detail.monospacedDigit())
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                        .lineLimit(1)
-                }
-                HStack(spacing: SpacingTokens.xxxs) {
-                    Text(metrics.rowCountText)
-                        .font(TypographyTokens.detail.monospaced().weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                    Text(metrics.rowCountLabel)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
-
-                if let duration = metrics.durationText {
-                    Text(duration)
-                        .font(TypographyTokens.detail.monospaced().weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if configuration.statisticsPopover != nil,
-               let binding = configuration.showStatisticsPopover {
-                binding.wrappedValue.toggle()
-            } else {
-                configuration.onTogglePanel()
-            }
-        }
-        .popover(isPresented: configuration.showStatisticsPopover ?? .constant(false)) {
-            if let popoverView = configuration.statisticsPopover {
-                popoverView
-            }
         }
     }
 }

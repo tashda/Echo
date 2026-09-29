@@ -44,7 +44,8 @@ struct LabQuestion: Identifiable {
 }
 
 enum DesignLabPage: String, CaseIterable, Identifiable {
-    case round9 = "Round 9 · open questions"
+    case round10 = "Round 10 · footer and switcher"
+    case round9 = "Round 9 · decided"
     case window = "Window · canvas and cards"
     case rail = "Server rail"
     case tree = "Tree · sticky header"
@@ -56,7 +57,8 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
-        case .round9: "checklist"
+        case .round10: "checklist"
+        case .round9: "checkmark.circle"
         case .window: "macwindow"
         case .rail: "circle.grid.3x3"
         case .tree: "list.bullet.indent"
@@ -68,7 +70,8 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var intro: String {
         switch self {
-        case .round9: "The questions round 9 left open. Each stage switches live; the footer sits on a real AppKit table with Echo's real footer, and FB1 uses the blur the app would use. The other pages were settled in earlier rounds and stay as a reference."
+        case .round10: "The footer's right-hand side (you picked FB1 and FP1; those are the defaults here), and the database switcher's card and opening. The switcher is Echo's real card; the layouts and openings are the options."
+        case .round9: "Decided in round 9: FB1 soft blur, FP1 lift 4pt, SB3 no tree scroll bar, TB1 glass tab bar. Kept as a reference."
         case .window: "The whole window in miniature. Use the controls above the mock window to switch each option; the mock responds live."
         case .rail: "The server rail on its own. Click servers to see the selection move."
         case .tree: "The Explorer tree. Scroll it to see the server header pin at the top and grow a breadcrumb."
@@ -80,13 +83,14 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var questions: [LabQuestion] {
         switch self {
-        case .round9:
+        case .round10:
             [
-                LabQuestion(id: "round9.footerBacking", title: "What shows behind the footer", howTo: "Switch Behind with Rows drift on. Try it in light and dark.", options: ["FB1 Soft blur", "FB2 Hard edge", "FB4 Glass bar"]),
-                LabQuestion(id: "round9.footerPosition", title: "Where the footer sits", howTo: "Switch Position, with each Behind option.", options: ["FP1 Lift 4pt", "FP3 Floating"]),
-                LabQuestion(id: "round9.scroller", title: "The tree's scroll bar", howTo: "Switch Scroll bar and scroll the tree; SB1 shows only while scrolling.", options: ["SB1 In the gutter", "SB3 None"]),
-                LabQuestion(id: "round9.tabs", title: "The tab bar", howTo: "Switch Tab bar; click tabs and + (tabs select at once, as TFIX).", options: ["TB1 Glass capsule", "TB3 In the toolbar", "TB4 Hugging tabs"]),
+                LabQuestion(id: "round10.footerRight", title: "The footer's right-hand side", howTo: "Switch Right side; the sample shows a selection summary, rows and time.", options: FooterMetricsStyle.allCases.map(\.rawValue)),
+                LabQuestion(id: "round10.switcherLook", title: "The database switcher's card", howTo: "Switch Layout and click the pill; type to filter, Esc to close.", options: LabSwitcherLook.allCases.map(\.rawValue)),
+                LabQuestion(id: "round10.switcherMotion", title: "How the card opens from the pill", howTo: "Switch Opening and click the pill a few times.", options: LabSwitcherMotion.allCases.map(\.rawValue)),
             ]
+        case .round9:
+            []
         case .window, .rail, .tree, .results, .floating, .inspector:
             // Settled in rounds 3 to 8 (Design/decisions.md); the pages stay as a visual reference.
             []
@@ -141,7 +145,7 @@ final class DesignLabAnswers {
 // MARK: - Root
 
 private struct DesignLabRootView: View {
-    @State private var page: DesignLabPage = .round9
+    @State private var page: DesignLabPage = .round10
     @State private var answers = DesignLabAnswers()
     @State private var copied = false
 
@@ -217,6 +221,7 @@ private struct DesignLabRootView: View {
     @ViewBuilder
     private var playground: some View {
         switch page {
+        case .round10: LabRound10Playground()
         case .round9: LabRound9Playground()
         case .window: LabWindowPlayground()
         case .rail: LabRailPlayground()

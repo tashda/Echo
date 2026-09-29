@@ -2,7 +2,7 @@
 import Foundation
 
 /// Test-server definitions and startup actions for an unattended Echo run.
-/// Loaded from `~/.echo-automation/config.json` (never committed):
+/// Loaded from `<repo>/.echo-automation/config.json` (gitignored), falling back to `~/.echo-automation/config.json`:
 ///
 ///     {
 ///       "connections": [
@@ -42,8 +42,21 @@ nonisolated enum AutomationConfigurationLoader {
     static let environmentKey = "ECHO_AUTOMATION"
     static let pathEnvironmentKey = "ECHO_AUTOMATION_CONFIG"
 
+    /// `<repo>/.echo-automation/config.json`, located from this source file's compile-time path.
+    static var repositoryURL: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Automation
+            .deletingLastPathComponent() // AppHost
+            .deletingLastPathComponent() // Features
+            .deletingLastPathComponent() // Sources
+            .deletingLastPathComponent() // Echo
+            .deletingLastPathComponent() // repo root
+            .appendingPathComponent(".echo-automation/config.json")
+    }
+
     static var defaultURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+        if FileManager.default.fileExists(atPath: repositoryURL.path) { return repositoryURL }
+        return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".echo-automation/config.json")
     }
 
