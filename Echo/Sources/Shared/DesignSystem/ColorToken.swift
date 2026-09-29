@@ -21,6 +21,8 @@ public enum ColorTokens {
         public static let card = Color(nsColor: .textBackgroundColor)
         /// The separator edge around a card, at `LayoutTokens.Workspace.cardEdgeOpacity`.
         public static let cardEdge = Color(nsColor: .separatorColor)
+        /// The disc under the selected server in the rail.
+        public static let railSelection = Color(nsColor: .textBackgroundColor)
     }
 
     // Materials — use as ShapeStyle with .background()

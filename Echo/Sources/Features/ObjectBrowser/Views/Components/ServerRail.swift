@@ -1,146 +1,78 @@
 import AppKit
 import SwiftUI
 
-/// Vertical rail of connected servers followed by the sidebar's secondary tools.
-///
-/// `.embedded` sits inside the open sidebar with no background of its own. Servers rest on faint
-/// discs, and the active server's monogram carries the rail's only glass; because that glass has
-/// one shared identity inside a `GlassEffectContainer`, it flows from bubble to bubble as the
-/// active server changes.
-///
-/// `.floating` is shown over the editor while the sidebar is hidden. Every server is its own
-/// interactive glass bubble, spaced closely enough inside one container that neighbours melt
-/// into a liquid column. Servers that connect or disconnect morph in and out, and the + bubble
-/// sits in the same column, so a new server flows out of it.
-struct ServerRail: View {
-    enum Style {
-        case embedded
-        case floating
-    }
+/// How a server in the rail was clicked. With the tree hidden, a plain click peeks and a
+/// ⌘-click or double-click shows the tree (Design/05-components.md › Server rail).
+enum ServerRailClick {
+    case plain
+    case command
+    case double
 
-    let style: Style
-    @Binding var selectedSection: SidebarMenu.NavSection
-    @Binding var isGlanceOpen: Bool
-    var bridge: ServerRailBridge?
-    let onSelectSession: (ConnectionSession) -> Void
+    /// The click that triggered the current button action.
+    @MainActor static var current: ServerRailClick {
+        guard let event = NSApp.currentEvent else { return .plain }
+        if event.clickCount >= 2 { return .double }
+        if event.modifierFlags.contains(.command) { return .command }
+        return .plain
+    }
+}
+
+/// The server rail (Design/02-layout.md › Rail): two glass pills on the canvas at the window's
+/// leading edge. Servers are on top, in a pill that hugs them, grows with a spring as they
+/// connect and scrolls once it reaches the tools. The tools pill sits at the bottom.
+///
+/// The selected server rests on a white disc that moves with a liquid stretch. It follows the
+/// server at the top of the tree while scrolling, and holds on a clicked server while the tree
+/// glides to it. Connecting servers breathe and lost ones are dimmed; nothing else is drawn.
+struct ServerRail: View {
+    let bridge: ServerRailBridge
+    let itemSize: CGFloat
+    /// The tool page showing in place of the tree, if any.
+    let selectedTool: SidebarMenu.NavSection?
+    let onSelectSession: (ConnectionSession, ServerRailClick) -> Void
     let onRetryPending: (PendingConnection) -> Void
-    let onConnect: (SavedConnection) -> Void
-    /// Called after a tool is picked, so the floating rail can bring the sidebar back.
-    var onToolSelected: () -> Void = {}
+    let onSelectTool: (SidebarMenu.NavSection) -> Void
 
     // The rail reads the stores itself so that connection, selection and query-state changes
-    // redraw only the rail, never the Explorer beside it.
+    // redraw only the rail, never the tree beside it.
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.echoMotion) private var motion
 
-    @Namespace private var glassNamespace
-    /// Keeps the lens on a server the user just clicked while the Explorer scrolls to it.
+    /// Keeps the selection on a server the user just clicked while the tree scrolls to it.
     @State private var clickedConnectionID: UUID?
-    @State private var showsConnectPicker = false
+    /// Top and bottom edges of the selection disc, animated separately for the liquid stretch.
+    @State private var selectionTop: CGFloat = 0
+    @State private var selectionBottom: CGFloat = 0
 
     var body: some View {
-        switch style {
-        case .embedded:
-            embeddedRail
-        case .floating:
-            floatingRail
-        }
-    }
-
-    // MARK: - Layouts
-
-    private var embeddedRail: some View {
         let entries = self.entries
         let highlightedID = highlightedConnectionID(in: entries)
+        let entryIDs = entries.map(\.connectionID)
 
-        return VStack(spacing: SpacingTokens.xs) {
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    VStack(spacing: LayoutTokens.ServerRail.itemSpacing) {
-                        GlassEffectContainer(spacing: LayoutTokens.ServerRail.glassMergeDistance) {
-                            serverStack(
-                                entries: entries,
-                                highlightedID: highlightedID,
-                                spacing: LayoutTokens.ServerRail.itemSpacing
-                            )
-                        }
-                        connectButton
-                        glanceButton
-                    }
-                    .padding(.vertical, SpacingTokens.xxs + LayoutTokens.ServerRail.ringOutset)
-                    .frame(maxWidth: .infinity)
-                }
-                .scrollIndicators(.never)
-                .scrollClipDisabled()
-                .followsHighlight(highlightedID, with: proxy)
+        VStack(spacing: SpacingTokens.none) {
+            if !entries.isEmpty {
+                serverPill(entries: entries, highlightedID: highlightedID)
+                    // Takes all the height it needs before the gap above the tools.
+                    .layoutPriority(1)
+                    .transition(.scale(scale: 0.6, anchor: .top).combined(with: .opacity))
             }
-
-            Divider()
-                .frame(width: LayoutTokens.ServerRail.itemSize - SpacingTokens.xs)
-
-            tools
-                .padding(.bottom, SpacingTokens.sm)
+            Spacer(minLength: LayoutTokens.Rail.minimumPillGap)
+            toolPill
         }
-        .frame(width: LayoutTokens.ServerRail.width)
+        .frame(width: LayoutTokens.Rail.width(itemSize: itemSize))
         .frame(maxHeight: .infinity)
-    }
-
-    private var floatingRail: some View {
-        let entries = self.entries
-        let highlightedID = highlightedConnectionID(in: entries)
-
-        let inset = LayoutTokens.ServerRail.floatingScrollInset
-
-        return VStack(spacing: LayoutTokens.ServerRail.floatingGroupSpacing) {
-            // The column is capped at its own height, so it hugs its servers and only scrolls
-            // once they outgrow the window.
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    floatingServers(entries: entries, highlightedID: highlightedID)
-                        .padding(inset)
-                }
-                .frame(width: LayoutTokens.ServerRail.itemSize + inset * 2)
-                .frame(maxHeight: floatingColumnHeight(serverCount: entries.count) + inset * 2)
-                // The inset keeps glass edges and status rings clear of the scroll clip, while
-                // the column stays where it would be without scrolling.
-                .padding(-inset)
-                .scrollIndicators(.never)
-                .scrollBounceBehavior(.basedOnSize)
-                .followsHighlight(highlightedID, with: proxy)
-            }
-
-            // Tools share one capsule, far enough away to stay a separate piece of glass.
-            VStack(spacing: SpacingTokens.xxxs) {
-                glanceButton
-                tools
-            }
-            .padding(.vertical, SpacingTokens.xxs)
-            .glassEffect(.regular, in: .capsule)
+        .animation(motion.standard, value: entryIDs)
+        .onAppear { placeSelection(on: highlightedID, in: entryIDs, animated: false) }
+        .onChange(of: highlightedID) { oldID, newID in
+            moveSelection(from: oldID, to: newID, in: entryIDs)
         }
-        // Servers joining or leaving grow and shrink the column, and the tools follow it.
-        .animation(.bouncy(duration: 0.4), value: entries.count)
-    }
-
-    /// Height of the floating servers and + button. Every item has the same fixed size, so this
-    /// is exact without measuring.
-    private func floatingColumnHeight(serverCount: Int) -> CGFloat {
-        let itemCount = CGFloat(serverCount + 1)
-        return itemCount * LayoutTokens.ServerRail.itemSize
-            + CGFloat(serverCount) * LayoutTokens.ServerRail.floatingItemSpacing
-    }
-
-    /// Servers and + spaced inside the merge distance, so they melt into one liquid column.
-    private func floatingServers(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
-        GlassEffectContainer(spacing: LayoutTokens.ServerRail.floatingMergeDistance) {
-            VStack(spacing: LayoutTokens.ServerRail.floatingItemSpacing) {
-                serverStack(
-                    entries: entries,
-                    highlightedID: highlightedID,
-                    spacing: LayoutTokens.ServerRail.floatingItemSpacing
-                )
-                connectButton
-            }
+        .onChange(of: entryIDs) { _, ids in
+            placeSelection(on: highlightedID, in: ids, animated: true)
+        }
+        .onChange(of: itemSize) { _, _ in
+            placeSelection(on: highlightedID, in: entryIDs, animated: false)
         }
     }
 
@@ -157,16 +89,11 @@ struct ServerRail: View {
                 .map(ServerRailEntry.pending)
     }
 
-    /// Running queries per connection ID, from the open tabs.
-    private var runningQueryCounts: [UUID: Int] {
-        tabStore.runningQueryCountsByConnection
-    }
-
-    /// The server under the lens: one just clicked, else the one scrolled to in the Explorer,
-    /// else the selected connection, else the first.
+    /// The selected server: one just clicked, else the one at the top of the tree, else the
+    /// selected connection, else the first.
     private func highlightedConnectionID(in entries: [ServerRailEntry]) -> UUID? {
         let candidate = clickedConnectionID
-            ?? bridge?.topVisibleConnectionID
+            ?? bridge.topVisibleConnectionID
             ?? connectionStore.selectedConnectionID
         if let candidate, entries.contains(where: { $0.connectionID == candidate }) {
             return candidate
@@ -174,28 +101,59 @@ struct ServerRail: View {
         return entries.first?.connectionID
     }
 
-    /// Entries and the highlight are worked out once per pass by the caller rather than per item,
-    /// so hundreds of servers stay cheap while the highlight follows scrolling.
-    private func serverStack(entries: [ServerRailEntry], highlightedID: UUID?, spacing: CGFloat) -> some View {
-        let runningCounts = runningQueryCounts
+    private func serverPill(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
+        let spacing = LayoutTokens.Rail.itemSpacing
+        let padding = LayoutTokens.Rail.pillPadding
+        let count = CGFloat(entries.count)
+        // Every item has the same size, so the pill's natural height is exact without measuring.
+        let contentHeight = count * itemSize + max(0, count - 1) * spacing + padding * 2
+        let runningCounts = tabStore.runningQueryCountsByConnection
 
-        // Keyed by connection rather than entry, so a server keeps its place, its glass and its
-        // state as it goes from connecting to connected.
-        return VStack(spacing: spacing) {
-            ForEach(entries, id: \.connectionID) { entry in
-                item(
-                    for: entry,
-                    isActive: entry.connectionID == highlightedID,
-                    runningQueryCount: runningCounts[entry.connectionID] ?? 0
-                )
-                .transition(.scale(scale: 0.6).combined(with: .opacity))
+        return ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                ZStack(alignment: .top) {
+                    selectionDisc(isVisible: highlightedID != nil)
+
+                    // Keyed by connection rather than entry, so a server keeps its place and its
+                    // state as it goes from connecting to connected.
+                    VStack(spacing: spacing) {
+                        ForEach(entries, id: \.connectionID) { entry in
+                            item(
+                                for: entry,
+                                isSelected: entry.connectionID == highlightedID,
+                                runningQueryCount: runningCounts[entry.connectionID] ?? 0
+                            )
+                            .transition(.scale(scale: 0.4).combined(with: .opacity))
+                        }
+                    }
+                }
+                .padding(padding)
+            }
+            .scrollIndicators(.never)
+            .scrollBounceBehavior(.basedOnSize)
+            // Hugs its servers, and only scrolls once they outgrow the space above the tools.
+            .frame(maxHeight: contentHeight)
+            .glassEffect(.regular, in: .capsule)
+            .onChange(of: highlightedID) { _, id in
+                // Scrolls only as far as needed, so a visible selection never moves the rail.
+                guard let id else { return }
+                withAnimation(motion.standard) { proxy.scrollTo(id) }
             }
         }
-        .animation(.bouncy(duration: 0.45, extraBounce: 0.1), value: highlightedID)
-        .animation(.bouncy(duration: 0.4), value: entries.map(\.connectionID))
     }
 
-    private func item(for entry: ServerRailEntry, isActive: Bool, runningQueryCount: Int) -> some View {
+    private func selectionDisc(isVisible: Bool) -> some View {
+        Capsule()
+            .fill(ColorTokens.Workspace.railSelection)
+            .shadow(ShadowTokens.railSelection)
+            .frame(width: itemSize, height: max(itemSize, selectionBottom - selectionTop))
+            .offset(y: selectionTop)
+            .opacity(isVisible ? 1 : 0)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private func item(for entry: ServerRailEntry, isSelected: Bool, runningQueryCount: Int) -> some View {
         let status = entry.status
 
         return Button {
@@ -203,37 +161,34 @@ struct ServerRail: View {
         } label: {
             ServerRailItem(
                 monogram: ServerRailMonogram.make(from: entry.displayName),
+                color: entry.connection.color,
                 status: status,
-                runningQueryCount: runningQueryCount,
-                isActive: isActive,
-                style: style,
-                glassID: entry.connectionID,
-                glassNamespace: glassNamespace
+                isSelected: isSelected,
+                size: itemSize
             )
         }
         .buttonStyle(.plain)
         .focusable(false)
+        .help(entry.tooltip(runningQueryCount: runningQueryCount))
         .lazyContextMenu { menu(for: entry) }
         .accessibilityLabel(entry.displayName)
-        .accessibilityValue(accessibilityValue(status: status, runningQueryCount: runningQueryCount))
-        .accessibilityAddTraits(isActive ? .isSelected : [])
+        .accessibilityValue(accessibilityValue(for: entry, runningQueryCount: runningQueryCount))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private func accessibilityValue(status: ServerRailStatus, runningQueryCount: Int) -> String {
+    private func accessibilityValue(for entry: ServerRailEntry, runningQueryCount: Int) -> String {
+        let status = entry.status
         guard status == .ready, runningQueryCount > 0 else { return status.accessibilityDescription }
         return runningQueryCount == 1 ? "1 query running" : "\(runningQueryCount) queries running"
     }
 
     private func activate(_ entry: ServerRailEntry) {
+        let click = ServerRailClick.current
         switch entry {
         case .session(let session):
             let connectionID = session.connection.id
             clickedConnectionID = connectionID
-            withAnimation(.snappy(duration: 0.22)) {
-                selectedSection = .folder
-            }
-            isGlanceOpen = false
-            onSelectSession(session)
+            onSelectSession(session, click)
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(700))
                 if clickedConnectionID == connectionID {
@@ -250,125 +205,70 @@ struct ServerRail: View {
     private func menu(for entry: ServerRailEntry) -> NSMenu {
         switch entry {
         case .session(let session):
-            return bridge?.sessionMenu?(session) ?? NSMenu()
+            return bridge.sessionMenu?(session) ?? NSMenu()
         case .pending(let pending):
-            return bridge?.pendingMenu?(pending) ?? NSMenu()
+            return bridge.pendingMenu?(pending) ?? NSMenu()
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Selection motion
 
-    private var connectButton: some View {
-        Button {
-            showsConnectPicker.toggle()
-        } label: {
-            connectLabel
+    private func offset(of id: UUID?, in ids: [UUID]) -> CGFloat? {
+        guard let id, let index = ids.firstIndex(of: id) else { return nil }
+        return CGFloat(index) * (itemSize + LayoutTokens.Rail.itemSpacing)
+    }
+
+    private func placeSelection(on id: UUID?, in ids: [UUID], animated: Bool) {
+        guard let top = offset(of: id, in: ids) else { return }
+        let place = {
+            selectionTop = top
+            selectionBottom = top + itemSize
         }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .accessibilityLabel("Connect to a Server")
-        .popover(isPresented: $showsConnectPicker, arrowEdge: .trailing) {
-            ServerRailConnectPicker(
-                connections: connectionStore.connections,
-                connectedIDs: Set(entries.map(\.connectionID)),
-                onConnect: { connection in
-                    showsConnectPicker = false
-                    onConnect(connection)
-                },
-                onManage: {
-                    showsConnectPicker = false
-                    ManageConnectionsWindowController.shared.present()
-                }
-            )
+        if animated {
+            withAnimation(motion.standard, place)
+        } else {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction, place)
         }
     }
 
-    @ViewBuilder
-    private var connectLabel: some View {
-        switch style {
-        case .embedded:
-            ServerRailButtonLabel(shape: .disc, isSelected: showsConnectPicker) {
-                Image(systemName: "plus")
-                    .font(.system(size: 13, weight: .medium))
-            }
-        case .floating:
-            ServerRailButtonLabel(shape: .bare, isSelected: showsConnectPicker) {
-                Image(systemName: "plus")
-                    .font(.system(size: 13, weight: .medium))
-            }
-            .glassEffect(.regular.interactive(), in: .circle)
-            .glassEffectID("server-rail-connect", in: glassNamespace)
+    /// The leading edge races to the target and the trailing edge follows, so the disc stretches
+    /// toward it like a drop of liquid and settles back (Design/04-motion.md).
+    private func moveSelection(from oldID: UUID?, to newID: UUID?, in ids: [UUID]) {
+        guard let target = offset(of: newID, in: ids) else { return }
+        guard !motion.reduceMotion, let origin = offset(of: oldID, in: ids), origin != target else {
+            placeSelection(on: newID, in: ids, animated: true)
+            return
         }
-    }
-
-    private var totalRunningQueries: Int {
-        runningQueryCounts.values.reduce(0, +)
-    }
-
-    private var glanceButton: some View {
-        let totalRunningQueries = self.totalRunningQueries
-
-        return Button {
-            isGlanceOpen.toggle()
-        } label: {
-            ServerRailButtonLabel(shape: toolAppearance, isSelected: isGlanceOpen) {
-                Image(systemName: "rectangle.stack")
-                    .font(.system(size: 13, weight: .regular))
-            }
-            .overlay(alignment: .topTrailing) {
-                if totalRunningQueries > 0 {
-                    Text("\(totalRunningQueries)")
-                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 4)
-                        .frame(minWidth: 15, minHeight: 15)
-                        .background(Color.accentColor, in: Capsule())
-                        .contentTransition(.numericText())
-                        .transition(.scale(scale: 0.4).combined(with: .opacity))
-                }
-            }
+        if target > origin {
+            withAnimation(motion.liquidLead) { selectionBottom = target + itemSize }
+            withAnimation(motion.liquidTrail) { selectionTop = target }
+        } else {
+            withAnimation(motion.liquidLead) { selectionTop = target }
+            withAnimation(motion.liquidTrail) { selectionBottom = target + itemSize }
         }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .help("Open Queries (⌥⌘G)")
-        .accessibilityLabel("Open Queries")
-        .accessibilityValue(totalRunningQueries > 0 ? "\(totalRunningQueries) running" : "")
-        .animation(.snappy(duration: 0.25), value: totalRunningQueries)
     }
 
     // MARK: - Tools
 
-    /// Rounded squares in the sidebar; circles in the floating rail, where they sit in a capsule.
-    private var toolAppearance: ServerRailButtonAppearance {
-        style == .embedded ? .roundedSquare : .circle
-    }
-
-    private var tools: some View {
-        VStack(spacing: SpacingTokens.xxxs) {
+    private var toolPill: some View {
+        VStack(spacing: LayoutTokens.Rail.toolSpacing) {
             ForEach(SidebarMenu.NavSection.railTools, id: \.self) { section in
                 toolButton(section)
             }
         }
+        .padding(.vertical, LayoutTokens.Rail.pillPadding)
+        .glassEffect(.regular, in: .capsule)
     }
 
     private func toolButton(_ section: SidebarMenu.NavSection) -> some View {
-        let isSelected = selectedSection == section && style == .embedded
+        let isSelected = selectedTool == section
 
         return Button {
-            withAnimation(.snappy(duration: 0.22)) {
-                selectedSection = isSelected ? .folder : section
-            }
-            onToolSelected()
+            onSelectTool(section)
         } label: {
-            ServerRailButtonLabel(
-                shape: toolAppearance,
-                isSelected: isSelected,
-                height: LayoutTokens.ServerRail.toolHeight
-            ) {
-                Image(systemName: section.icon)
-                    .font(.system(size: 13, weight: .regular))
-            }
+            ServerRailToolLabel(symbol: section.icon, isSelected: isSelected, width: itemSize)
         }
         .buttonStyle(.plain)
         .focusable(false)
@@ -378,191 +278,97 @@ struct ServerRail: View {
     }
 }
 
-/// Shape behind a rail button's label.
-enum ServerRailButtonAppearance {
-    /// A resting disc like a server item, for actions that sit among the servers.
-    case disc
-    /// No resting fill; a rounded square appears on hover or selection.
-    case roundedSquare
-    /// No resting fill; a circle appears on hover or selection, for buttons inside a capsule.
-    case circle
-    /// No fill at all, for labels that sit on their own glass.
-    case bare
-}
-
-/// Label for the rail's non-server buttons (+, open queries, tools) with a hover state that
-/// matches the server items.
-struct ServerRailButtonLabel<Content: View>: View {
-    let shape: ServerRailButtonAppearance
-    var isSelected: Bool = false
-    var height: CGFloat = LayoutTokens.ServerRail.itemSize
-    @ViewBuilder let content: () -> Content
-
-    @State private var isHovering = false
-
-    var body: some View {
-        content()
-            .foregroundStyle(isSelected ? Color.accentColor : ColorTokens.Text.secondary)
-            .frame(width: LayoutTokens.ServerRail.itemSize, height: height)
-            .background { background }
-            .contentShape(Rectangle())
-            .onHover { isHovering = $0 }
-            .animation(.easeOut(duration: 0.12), value: isHovering)
-            .animation(.snappy(duration: 0.2), value: isSelected)
-    }
-
-    @ViewBuilder
-    private var background: some View {
-        switch shape {
-        case .disc:
-            Circle().fill(fill(resting: ColorTokens.Sidebar.hoverFill))
-        case .roundedSquare:
-            RoundedRectangle(cornerRadius: LayoutTokens.ServerRail.toolCornerRadius, style: .continuous)
-                .fill(fill(resting: .clear))
-        case .circle:
-            Circle()
-                .fill(fill(resting: .clear))
-        case .bare:
-            Color.clear
-        }
-    }
-
-    private func fill(resting: Color) -> Color {
-        if isSelected { return Color.accentColor.opacity(0.14) }
-        return isHovering ? ColorTokens.Sidebar.selectedFill : resting
-    }
-}
-
-private extension View {
-    /// Keeps the highlighted server in view when the rail itself scrolls, as with hundreds of
-    /// servers. Scrolls only as far as needed, so a visible highlight never moves the rail.
-    func followsHighlight(_ highlightedID: UUID?, with proxy: ScrollViewProxy) -> some View {
-        onChange(of: highlightedID) { _, id in
-            guard let id else { return }
-            withAnimation(.smooth(duration: 0.3)) {
-                proxy.scrollTo(id)
-            }
-        }
-    }
-}
-
 extension SidebarMenu.NavSection {
-    /// Tools reachable from the bottom of the server rail. Explorer is the sidebar itself;
-    /// connecting happens through the rail's + button.
-    static let railTools: [SidebarMenu.NavSection] = [.search, .bookmark, .snippets, .history, .clipboard]
+    /// Tools in the rail's bottom pill. Search lives in the toolbar and connecting in the
+    /// toolbar's connection menus (Design/02-layout.md › Rail).
+    static let railTools: [SidebarMenu.NavSection] = [.bookmark, .snippets, .history, .clipboard]
 }
 
-/// A server's monogram in the rail, with its status ring.
-///
-/// In the open sidebar, servers rest on a faint disc that deepens on hover. The active server's
-/// monogram turns the accent color and becomes the content of the rail's single glass lens,
-/// like the selected item in a Finder sidebar. In the floating rail every server is a glass
-/// bubble, and the active one is tinted with the accent color.
-///
-/// Healthy and idle servers show nothing else. Connecting servers are dimmed while the ring draws
-/// around them, and give a small spring pop once connected. Running queries orbit as a comet.
-/// Lost connections are dimmed with a dashed red ring and a red badge.
+/// A server's monogram in the rail: secondary grey, or bold in the server's own colour when
+/// selected. A connecting server breathes; a lost one is dimmed.
 struct ServerRailItem: View {
     let monogram: String
+    let color: Color
     let status: ServerRailStatus
-    let runningQueryCount: Int
-    let isActive: Bool
-    var style: ServerRail.Style = .embedded
-    var glassID: UUID? = nil
-    var glassNamespace: Namespace.ID? = nil
+    let isSelected: Bool
+    let size: CGFloat
 
+    @Environment(\.echoMotion) private var motion
     @State private var isHovering = false
-    @State private var connectedPulse = 0
 
     var body: some View {
         Text(monogram)
-            .font(.system(size: 12.5, weight: isActive ? .bold : .semibold, design: .rounded))
-            .foregroundStyle(isActive ? Color.accentColor : ColorTokens.Text.secondary)
-            .opacity(monogramOpacity)
-            .frame(width: LayoutTokens.ServerRail.itemSize, height: LayoutTokens.ServerRail.itemSize)
-            .background {
-                if style == .embedded && !isActive {
-                    Circle()
-                        .fill(isHovering ? ColorTokens.Sidebar.selectedFill : ColorTokens.Sidebar.hoverFill)
-                        .transition(.opacity)
-                }
-            }
-            .modifier(ServerRailItemGlass(
-                style: style,
-                isActive: isActive,
-                glassID: glassID,
-                namespace: glassNamespace
+            .font(.system(
+                size: size * LayoutTokens.Rail.monogramFontRatio,
+                weight: isSelected ? .bold : .semibold,
+                design: .rounded
             ))
+            .foregroundStyle(foreground)
+            .opacity(status == .failed ? LayoutTokens.Rail.lostOpacity : 1)
+            .modifier(ServerRailBreathing(isActive: status == .connecting))
+            .frame(width: size, height: size)
             .contentShape(Circle())
             .onHover { isHovering = $0 }
-            .overlay {
-                ServerRailStatusRing(status: status, isBusy: runningQueryCount > 0)
-            }
-            .overlay(alignment: .topTrailing) {
-                if status == .failed {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, ColorTokens.Status.error)
-                        .offset(x: LayoutTokens.ServerRail.ringOutset, y: -LayoutTokens.ServerRail.ringOutset)
-                        .transition(.scale(scale: 0.4).combined(with: .opacity))
-                }
-            }
-            .phaseAnimator([1.0, 1.14, 1.0], trigger: connectedPulse) { content, scale in
-                content.scaleEffect(scale)
-            } animation: { _ in
-                .spring(duration: 0.24, bounce: 0.45)
-            }
-            .animation(.snappy(duration: 0.25), value: status)
-            .animation(.easeOut(duration: 0.12), value: isHovering)
-            .onChange(of: status) { oldStatus, newStatus in
-                if oldStatus == .connecting && newStatus == .ready {
-                    connectedPulse &+= 1
-                }
-            }
+            .animation(motion.hover, value: isHovering)
+            .animation(motion.press, value: isSelected)
+            .animation(motion.standard, value: status)
     }
 
-    private var monogramOpacity: Double {
-        switch status {
-        case .ready: return 1
-        case .connecting: return 0.45
-        case .failed: return 0.4
+    private var foreground: Color {
+        if isSelected { return color }
+        return isHovering ? ColorTokens.Text.primary : ColorTokens.Text.secondary
+    }
+}
+
+/// Fades a connecting server in and out, dipping slightly in size, until it connects
+/// (Design/06-tokens.md). With Reduce Motion it is shown still and dimmed instead.
+struct ServerRailBreathing: ViewModifier {
+    let isActive: Bool
+
+    @Environment(\.echoMotion) private var motion
+
+    func body(content: Content) -> some View {
+        if !isActive {
+            content
+        } else if !motion.allowsLoopingEffects {
+            content.opacity(LayoutTokens.Rail.lostOpacity)
+        } else {
+            let halfPeriod = motion.pulseHalfPeriod
+            content.phaseAnimator([false, true]) { view, isDimmed in
+                view
+                    .opacity(isDimmed ? EchoMotion.pulseMinimumOpacity : 1)
+                    .scaleEffect(isDimmed ? EchoMotion.pulseMinimumScale : 1)
+            } animation: { _ in
+                .easeInOut(duration: halfPeriod)
+            }
         }
     }
 }
 
-/// Puts the monogram on glass: the single sliding lens in the open sidebar, or a bubble per
-/// server in the floating rail. The monogram is the glass's content, so it renders crisply on top.
-private struct ServerRailItemGlass: ViewModifier {
-    private static let lensID = "server-rail-lens"
+/// A tool button's symbol in the rail's bottom pill.
+struct ServerRailToolLabel: View {
+    let symbol: String
+    let isSelected: Bool
+    let width: CGFloat
 
-    let style: ServerRail.Style
-    let isActive: Bool
-    let glassID: UUID?
-    let namespace: Namespace.ID?
+    @Environment(\.echoMotion) private var motion
+    @State private var isHovering = false
 
-    func body(content: Content) -> some View {
-        if let namespace {
-            switch style {
-            case .embedded:
-                // One identity for the lens: when the active server changes, the glass leaves
-                // one bubble and flows into the next instead of cross-fading.
-                content
-                    .glassEffect(isActive ? .regular.interactive() : .identity, in: .circle)
-                    .glassEffectID(isActive ? Self.lensID : nil, in: namespace)
-            case .floating:
-                content
-                    .glassEffect(
-                        isActive
-                            ? .regular.tint(Color.accentColor.opacity(0.22)).interactive()
-                            : .regular.interactive(),
-                        in: .circle
-                    )
-                    .glassEffectID(glassID, in: namespace)
-            }
-        } else {
-            content
-        }
+    var body: some View {
+        Image(systemName: symbol)
+            .symbolVariant(isSelected ? .fill : .none)
+            .font(.system(size: LayoutTokens.Rail.toolSymbolSize))
+            .foregroundStyle(foreground)
+            .frame(width: width, height: LayoutTokens.Rail.toolHeight)
+            .contentShape(Rectangle())
+            .onHover { isHovering = $0 }
+            .animation(motion.hover, value: isHovering)
+            .animation(motion.press, value: isSelected)
+    }
+
+    private var foreground: Color {
+        if isSelected { return .accentColor }
+        return isHovering ? ColorTokens.Text.primary : ColorTokens.Text.secondary
     }
 }
 
@@ -578,44 +384,16 @@ extension TabStore {
 }
 
 #if DEBUG
-private struct ServerRailStatesPreview: View {
-    @Namespace private var namespace
-
-    var body: some View {
-        GlassEffectContainer {
-            HStack(spacing: SpacingTokens.lg) {
-                ForEach(
-                    [
-                        ("Connected", ServerRailStatus.ready, 0),
-                        ("Connecting", ServerRailStatus.connecting, 0),
-                        ("Running", ServerRailStatus.ready, 1),
-                        ("Lost", ServerRailStatus.failed, 0),
-                    ],
-                    id: \.0
-                ) { sample in
-                    VStack(spacing: SpacingTokens.xs) {
-                        ServerRailItem(
-                            monogram: "18",
-                            status: sample.1,
-                            runningQueryCount: sample.2,
-                            isActive: true,
-                            style: .floating,
-                            glassID: UUID(),
-                            glassNamespace: namespace
-                        )
-                        Text(sample.0)
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                }
-            }
-        }
-        .padding(SpacingTokens.xl)
-        .background(ColorTokens.Background.primary)
+#Preview("Server rail items") {
+    HStack(spacing: SpacingTokens.lg) {
+        ServerRailItem(monogram: "18", color: .blue, status: .ready, isSelected: true, size: 34)
+        ServerRailItem(monogram: "TI", color: .green, status: .ready, isSelected: false, size: 34)
+        ServerRailItem(monogram: "16", color: .orange, status: .connecting, isSelected: false, size: 34)
+        ServerRailItem(monogram: "WH", color: .purple, status: .failed, isSelected: false, size: 34)
     }
-}
-
-#Preview("Server Rail States") {
-    ServerRailStatesPreview()
+    .padding(SpacingTokens.xl)
+    .glassEffect(.regular, in: .capsule)
+    .padding(SpacingTokens.xl)
+    .background(ColorTokens.Workspace.canvas)
 }
 #endif

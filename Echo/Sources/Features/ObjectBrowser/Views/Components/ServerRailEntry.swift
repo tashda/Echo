@@ -37,6 +37,41 @@ enum ServerRailEntry: Identifiable {
         return name.isEmpty ? connection.host : name
     }
 
+    /// Why the connection was lost, if it was.
+    @MainActor var failureReason: String? {
+        switch self {
+        case .session(let session):
+            switch session.connectionState {
+            case .error(let error): return error.errorDescription ?? error.localizedDescription
+            case .disconnected: return "Disconnected"
+            case .connected, .connecting, .testing: return nil
+            }
+        case .pending(let pending):
+            if case .failed(let message) = pending.phase { return message }
+            return nil
+        }
+    }
+
+    /// The rail's tooltip: name and host, then the connection's state or its running queries.
+    /// The rail itself shows only connecting and lost (Design/05-components.md › Server rail).
+    @MainActor func tooltip(runningQueryCount: Int) -> String {
+        let host = connection.host
+        var lines = [displayName == host || host.isEmpty ? displayName : "\(displayName) · \(host)"]
+        switch status {
+        case .connecting:
+            lines.append("Connecting…")
+        case .failed:
+            lines.append(failureReason.map { "Connection lost: \($0)" } ?? "Connection lost")
+        case .ready:
+            if runningQueryCount == 1 {
+                lines.append("1 query running")
+            } else if runningQueryCount > 1 {
+                lines.append("\(runningQueryCount) queries running")
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
     @MainActor var status: ServerRailStatus {
         switch self {
         case .session(let session):

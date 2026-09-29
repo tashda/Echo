@@ -10,11 +10,8 @@ final class NavigationStore {
     var pendingExplorerFocus: ExplorerFocus?
     var pendingExplorerRevealConnectionID: UUID?
     var pendingExplorerRevealRequestID = 0
-    /// Which sidebar tool is showing. Shared so the floating server rail can switch it
-    /// while the sidebar is hidden.
+    /// Which tool page shows in the tree's place. Shared so the rail can switch it.
     var sidebarSection: SidebarMenu.NavSection = .folder
-    /// Whether the open-queries glance panel next to the server rail is showing.
-    var isQueryGlanceOpen = false
     var isWorkspaceWindowKey = false
     var isManageConnectionsPresented = false
     var showNewProjectSheet = false

@@ -32,6 +32,14 @@ public enum ShadowTokens {
         y: 4
     )
 
+    /// The selection disc in the server rail.
+    public static let railSelection = Shadow(
+        color: Color.black.opacity(0.16),
+        radius: 1.5,
+        x: 0,
+        y: 0.5
+    )
+
     /// Standard shadow for floating elements
     public static let elevated = Shadow(
         color: Color.black.opacity(0.15),

@@ -28,8 +28,15 @@ public enum LayoutTokens {
         public static let minimumPillGap: CGFloat = SpacingTokens.sm
         /// Height of a tool button in the tool pill.
         public static let toolHeight: CGFloat = 30
-        /// Opacity of a server whose connection was lost.
+        /// Opacity of a server whose connection was lost, and of a connecting server with
+        /// Reduce Motion on.
         public static let lostOpacity: Double = 0.4
+        /// Monogram point size as a share of the item size (12.5pt at the default 34pt).
+        public static let monogramFontRatio: CGFloat = 0.37
+        /// Point size of the tool symbols.
+        public static let toolSymbolSize: CGFloat = 13
+        /// Gap between tool buttons inside the tool pill.
+        public static let toolSpacing: CGFloat = SpacingTokens.xxxs
 
         /// Rail width for an item size: the item plus the pill padding on both sides.
         public static func width(itemSize: CGFloat) -> CGFloat { itemSize + pillPadding * 2 }
@@ -44,59 +51,6 @@ public enum LayoutTokens {
         public static let cornerRadius: CGFloat = 18
         public static let rowHeight: CGFloat = 28
         public static let rowCornerRadius: CGFloat = 10
-    }
-
-    public enum ServerRail {
-        /// Width of the rail column along the open sidebar's leading edge.
-        public static let width: CGFloat = 46
-
-        /// Diameter of every rail item: servers, the + button and the glass lens.
-        public static let itemSize: CGFloat = 32
-
-        /// How far the status ring sits outside an item's circle.
-        public static let ringOutset: CGFloat = 3
-
-        /// Vertical gap between rail items.
-        public static let itemSpacing: CGFloat = SpacingTokens.xs
-
-        /// Height of the tool buttons at the bottom of the rail.
-        public static let toolHeight: CGFloat = 28
-
-        /// Corner radius of the hover/selection shape behind tool buttons.
-        public static let toolCornerRadius: CGFloat = 8
-
-        /// Inset between the floating rail's glass capsule and its items.
-        public static let floatingPadding: CGFloat = SpacingTokens.xxs
-
-        /// Glass shapes in the open sidebar closer than this blend as the lens moves between them.
-        public static let glassMergeDistance: CGFloat = SpacingTokens.sm
-
-        /// Glass bubbles in the floating rail closer than this melt into one another.
-        public static let floatingMergeDistance: CGFloat = SpacingTokens.sm
-
-        /// Gap between server bubbles in the floating rail, inside the merge distance so
-        /// neighbours join into a single liquid column.
-        public static let floatingItemSpacing: CGFloat = SpacingTokens.xxs
-
-        /// Gap between the floating servers and the tools capsule, beyond the merge distance so
-        /// the two stay separate pieces of glass.
-        public static let floatingGroupSpacing: CGFloat = SpacingTokens.md1
-
-        /// Room around the floating servers when they scroll, so glass and rings are not clipped.
-        public static let floatingScrollInset: CGFloat = SpacingTokens.xs
-
-        /// Pulls the Explorer toward the rail so the two read as one column.
-        public static let contentLeadingOverlap: CGFloat = SpacingTokens.xxs
-    }
-
-    public enum QueryGlance {
-        public static let width: CGFloat = 300
-        public static let maxHeight: CGFloat = 440
-        public static let cornerRadius: CGFloat = 22
-        public static let groupCornerRadius: CGFloat = 14
-        public static let rowHeight: CGFloat = 26
-        /// Gap between the rail and the panel.
-        public static let railGap: CGFloat = SpacingTokens.xxs
     }
 
     public enum PinnedPath {

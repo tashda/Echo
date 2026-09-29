@@ -29,12 +29,6 @@ struct WorkspaceShell: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.leading, isTreeVisible ? SpacingTokens.none : gutter)
         }
-        .overlay(alignment: .topLeading) {
-            // Open Queries floats beside the rail until the old rail placement goes (plan S7).
-            QueryGlanceOverlay()
-                .padding(.leading, gutter + LayoutTokens.ServerRail.width + LayoutTokens.QueryGlance.railGap)
-                .padding(.top, SpacingTokens.xxs)
-        }
         .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
         .padding([.trailing, .bottom], gutter)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -75,33 +69,45 @@ struct WorkspaceRailColumn: View {
     let bridge: ServerRailBridge
 
     @Environment(EnvironmentState.self) private var environmentState
-    @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
+    @Environment(ProjectStore.self) private var projectStore
     @Environment(AppState.self) private var appState
+    @Environment(\.echoMotion) private var motion
 
     var body: some View {
         ServerRail(
-            style: .embedded,
-            selectedSection: Bindable(navigationStore).sidebarSection,
-            isGlanceOpen: Bindable(navigationStore).isQueryGlanceOpen,
             bridge: bridge,
-            onSelectSession: { session in
+            itemSize: projectStore.globalSettings.railItemSize.points,
+            selectedTool: selectedTool,
+            onSelectSession: { session, _ in
                 showTree()
+                if navigationStore.sidebarSection != .folder {
+                    navigationStore.sidebarSection = .folder
+                }
                 environmentState.sessionGroup.setActiveSession(session.id)
                 navigationStore.revealExplorerConnection(session.connection.id)
             },
             onRetryPending: { pending in
                 environmentState.retryPendingConnection(for: pending.connection.id)
             },
-            onConnect: { connection in
-                connectionStore.selectedConnectionID = connection.id
-                navigationStore.sidebarSection = .folder
-                showTree()
-                environmentState.connect(to: connection)
-            },
-            onToolSelected: showTree
+            onSelectTool: selectTool
         )
-        .frame(maxHeight: .infinity)
+    }
+
+    /// The tool page showing in the tree's place, while the tree shows.
+    private var selectedTool: SidebarMenu.NavSection? {
+        guard appState.isWorkspaceTreeVisible else { return nil }
+        let section = navigationStore.sidebarSection
+        return SidebarMenu.NavSection.railTools.contains(section) ? section : nil
+    }
+
+    /// Picking the tool that is showing goes back to the tree; any other tool shows its page.
+    private func selectTool(_ section: SidebarMenu.NavSection) {
+        let next: SidebarMenu.NavSection = selectedTool == section ? .folder : section
+        withAnimation(motion.standard) {
+            navigationStore.sidebarSection = next
+        }
+        showTree()
     }
 
     private func showTree() {
