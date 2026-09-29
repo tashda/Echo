@@ -19,6 +19,11 @@ enum FontRegistrar {
         if let bundleURLs = Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: fontSubdirectory) {
             collected.append(contentsOf: bundleURLs)
         }
+        // Resources/Fonts sits in the synchronized Echo folder, so its fonts are copied to the
+        // bundle's resource root.
+        if let rootURLs = Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: nil) {
+            collected.append(contentsOf: rootURLs)
+        }
 
         if let resourceRoot = Bundle.main.resourceURL?.appendingPathComponent(fontSubdirectory, isDirectory: true),
            FileManager.default.fileExists(atPath: resourceRoot.path) {

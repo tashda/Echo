@@ -170,6 +170,8 @@ struct GlobalSettings: Codable, Hashable {
     var collapsedServerClick: CollapsedServerClickBehavior = .peekCommandReopens
     var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
     var editorGutterStyle: EditorGutterStyle = .subtle
+    /// 1 once the editor moved to 13pt with 1.55 line spacing (design board, 2026-09-30).
+    var editorTypographyRevision = 1
     var workspaceTabStripStyle: WorkspaceTabStripStyle = .glass
     var resultsMonospacedCells: Bool = false
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
@@ -198,7 +200,7 @@ struct GlobalSettings: Codable, Hashable {
 
     init(
         appearanceMode: AppearanceMode = .system,
-        defaultEditorFontSize: Double = 12.0,
+        defaultEditorFontSize: Double = Double(SQLEditorTheme.defaultFontSize),
         defaultEditorFontFamily: String = "JetBrainsMono-Regular",
         defaultEditorTheme: String = SQLEditorPalette.aurora.id,
         fontLigatureOverrides: [String: Bool] = [:],
@@ -256,6 +258,7 @@ struct GlobalSettings: Codable, Hashable {
         case collapsedServerClick
         case sidebarMonochromeVariant
         case editorGutterStyle
+        case editorTypographyRevision
         case workspaceTabStripStyle
         case resultsMonospacedCells
         case sidebarColoredIcons
@@ -271,7 +274,7 @@ struct GlobalSettings: Codable, Hashable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         appearanceMode = try container.decodeIfPresent(AppearanceMode.self, forKey: .appearanceMode) ?? .system
-        defaultEditorFontSize = try container.decodeIfPresent(Double.self, forKey: .defaultEditorFontSize) ?? 12.0
+        defaultEditorFontSize = try container.decodeIfPresent(Double.self, forKey: .defaultEditorFontSize) ?? Double(SQLEditorTheme.defaultFontSize)
         defaultEditorFontFamily = try container.decodeIfPresent(String.self, forKey: .defaultEditorFontFamily) ?? "JetBrainsMono-Regular"
         defaultEditorTheme = try container.decodeIfPresent(String.self, forKey: .defaultEditorTheme) ?? SQLEditorPalette.aurora.id
         fontLigatureOverrides = try container.decodeIfPresent([String: Bool].self, forKey: .fontLigatureOverrides) ?? [:]
@@ -367,6 +370,12 @@ struct GlobalSettings: Codable, Hashable {
         collapsedServerClick = (try? container.decodeIfPresent(CollapsedServerClickBehavior.self, forKey: .collapsedServerClick)) ?? .peekCommandReopens
         sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
         editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
+        // Settings still on the old defaults (12pt, single spacing) move to the new ones once.
+        if (try container.decodeIfPresent(Int.self, forKey: .editorTypographyRevision) ?? 0) < 1 {
+            if defaultEditorFontSize == 12 { defaultEditorFontSize = Double(SQLEditorTheme.defaultFontSize) }
+            if defaultEditorLineHeight == 1 { defaultEditorLineHeight = Double(SQLEditorTheme.defaultLineHeight) }
+        }
+        editorTypographyRevision = 1
         workspaceTabStripStyle = (try? container.decodeIfPresent(WorkspaceTabStripStyle.self, forKey: .workspaceTabStripStyle)) ?? .glass
         resultsMonospacedCells = try container.decodeIfPresent(Bool.self, forKey: .resultsMonospacedCells) ?? false
 
@@ -444,6 +453,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(collapsedServerClick, forKey: .collapsedServerClick)
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
         try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
+        try container.encode(editorTypographyRevision, forKey: .editorTypographyRevision)
         try container.encode(workspaceTabStripStyle, forKey: .workspaceTabStripStyle)
         try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)

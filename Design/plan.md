@@ -235,10 +235,10 @@ Rules: `05-components` › Editor card. Decided on the design board (2026-09-30)
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| E5 | **Fonts.** Bundle JetBrains Mono, Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Monaspace (Neon, Argon, Xenon, Radon, Krypton) and Commit Mono (all OFL, licences in `Resources/Fonts/Licenses`). Remove the other eleven; a saved font that no longer exists falls back to the default. | `Resources/Fonts`, `MonospacedFontPicker`, `SQLEditorTheme` | Every font renders in the editor and the picker; old settings decode | ☐ |
-| E6 | **Size and spacing.** Default 13pt; line spacing is a setting (default 1.55). | `GlobalSettings`, `SQLEditorTheme`, `SQLTextView`, Preferences › Editor | Changing either updates open editors | ☐ |
-| E7 | **Gutter styles:** Subtle, Tinted column (GT1: full height, cut by the card's corners, hairline edge) and Tinted lane (GT2: inset, rounded, no edge). Existing "tinted" settings become Tinted column. | `LineNumberRulerView`, `EditorGutterStyle` | All three look right in light and dark 👁 | ☐ |
-| E8 | **Numbers stop at the last line** (GL1), while the tinted gutter runs the card's full height. | `LineNumberRulerView` | Short scripts show no extra numbers | ☐ |
+| E5 | **Fonts.** Bundle JetBrains Mono, Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Monaspace (Neon, Argon, Xenon, Radon, Krypton) and Commit Mono regular and bold (its italics report another family name), all OFL, licences in `Resources/Fonts/Licenses`. Remove the other eleven; a saved font that no longer exists falls back to the default. | `Resources/Fonts`, `MonospacedFontPicker`, `SQLEditorTheme` | Every font renders in the editor and the picker; old settings decode | ☑ built, 👁 pending |
+| E6 | **Size and spacing.** Default 13pt; line spacing is a setting (default 1.55). | `GlobalSettings`, `SQLEditorTheme`, `SQLTextView`, Preferences › Editor | Changing either updates open editors | ☑ built, 👁 pending |
+| E7 | **Gutter styles:** Subtle, Tinted column (GT1: full height, cut by the card's corners, hairline edge) and Tinted lane (GT2: inset, rounded, no edge). Existing "tinted" settings become Tinted column. | `LineNumberRulerView`, `EditorGutterStyle` | All three look right in light and dark 👁 | ☑ built, 👁 pending |
+| E8 | **Numbers stop at the last line** (GL1), while the tinted gutter runs the card's full height. | `LineNumberRulerView` | Short scripts show no extra numbers | ☑ already true: the ruler numbers only existing lines |
 
 ## Phase 12 · EchoSense popup
 

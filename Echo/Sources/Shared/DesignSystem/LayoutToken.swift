@@ -107,6 +107,9 @@ public enum LayoutTokens {
         public static let markerSpacing: CGFloat = SpacingTokens.xxxs
         public static let numberTrailing: CGFloat = SpacingTokens.xs
         public static let edgeWidth: CGFloat = 0.5
+        /// Tinted lane (GT2): inset from the card's edges, rounded, no edge line.
+        public static let laneInset: CGFloat = SpacingTokens.xxs1
+        public static let laneCornerRadius: CGFloat = SpacingTokens.xs
     }
 
     /// Placeholder rows while a list loads (`ShimmerPlaceholderRows`).

@@ -135,7 +135,7 @@ struct AppearanceSettingsView: View {
 
                 PropertyRow(
                     title: "Line Number Gutter",
-                    subtitle: "Subtle shows numbers only; tinted adds a faint column behind them."
+                    subtitle: "Subtle shows numbers only; Column adds a faint full-height column; Lane adds a rounded, inset lane."
                 ) {
                     Picker("", selection: projectStore.globalSettingBinding(\.editorGutterStyle)) {
                         ForEach(EditorGutterStyle.allCases, id: \.self) { Text($0.displayName).tag($0) }
@@ -146,49 +146,7 @@ struct AppearanceSettingsView: View {
                 }
             }
 
-            Section("Editor Font") {
-                MonospacedFontPicker(
-                    selectedFamily: Binding(
-                        get: { projectStore.globalSettings.defaultEditorFontFamily },
-                        set: { newValue in
-                            var settings = projectStore.globalSettings
-                            settings.defaultEditorFontFamily = newValue
-                            Task { try? await projectStore.updateGlobalSettings(settings) }
-                        }
-                    ),
-                    fontSize: projectStore.globalSettings.defaultEditorFontSize
-                )
-
-                PropertyRow(title: "Font Size") {
-                    Picker("", selection: Binding(
-                        get: { projectStore.globalSettings.defaultEditorFontSize },
-                        set: { newValue in
-                            var settings = projectStore.globalSettings
-                            settings.defaultEditorFontSize = newValue
-                            Task { try? await projectStore.updateGlobalSettings(settings) }
-                        }
-                    )) {
-                        ForEach(Self.fontSizeOptions, id: \.self) { size in
-                            Text(Self.fontSizeLabel(size)).tag(size)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                }
-
-                PropertyRow(title: "Enable Ligatures") {
-                    Toggle("", isOn: Binding(
-                        get: { projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true },
-                        set: { newValue in
-                            var settings = projectStore.globalSettings
-                            settings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] = newValue
-                            Task { try? await projectStore.updateGlobalSettings(settings) }
-                        }
-                    ))
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                }
-            }
+            editorFontSection
 
             Section {
                 EditorFontPreview(
@@ -204,13 +162,4 @@ struct AppearanceSettingsView: View {
         .scrollContentBackground(.hidden)
     }
 
-    // MARK: - Constants
-
-    private static let fontSizeOptions: [Double] = stride(from: 8.0, through: 24.0, by: 0.5).map { $0 }
-
-    private static func fontSizeLabel(_ size: Double) -> String {
-        size.truncatingRemainder(dividingBy: 1) == 0
-            ? "\(Int(size)),0 pt"
-            : String(format: "%.1f pt", size).replacingOccurrences(of: ".", with: ",")
-    }
 }

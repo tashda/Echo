@@ -101,10 +101,6 @@ enum SQLEditorThemeResolver {
         switch trimmed {
         case SQLEditorTheme.systemFontIdentifier, "System", "system", "MonospacedSystem", ".monospacedSystemFont", ".SystemMonospaced":
             return SQLEditorTheme.systemFontIdentifier
-        case "IBMPlexMono-Regular":
-            return "IBMPlexMono"
-        case "Iosevka-Regular":
-            return "Iosevka"
         default:
             return trimmed
         }

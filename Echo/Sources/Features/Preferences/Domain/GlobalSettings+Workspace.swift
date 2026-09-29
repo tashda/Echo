@@ -121,14 +121,18 @@ enum SidebarMonochromeVariant: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// Look of the SQL editor's line-number gutter.
+/// Look of the SQL editor's line-number gutter (design board, 2026-09-30). `tinted` keeps its
+/// raw value so saved settings still decode; it is the full-height column.
 enum EditorGutterStyle: String, Codable, CaseIterable, Sendable {
-    case subtle, tinted
+    case subtle
+    case tinted
+    case lane
 
     var displayName: String {
         switch self {
         case .subtle: return "Subtle"
-        case .tinted: return "Tinted"
+        case .tinted: return "Column"
+        case .lane: return "Lane"
         }
     }
 }
