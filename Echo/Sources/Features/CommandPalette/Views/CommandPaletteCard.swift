@@ -6,22 +6,19 @@ struct CommandPaletteCard: View {
     @Bindable var model: CommandPaletteModel
     let onClose: () -> Void
 
-    @FocusState private var isFieldFocused: Bool
-
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             field
             if !model.results.isEmpty || !model.query.isEmpty {
                 CommandPaletteResultsList(model: model, onPerform: onClose)
             }
+            hints
         }
         .padding(LayoutTokens.FloatingSurface.padding)
         .frame(width: LayoutTokens.CommandPalette.width)
         // Glass on the card itself, not a GlassEffectContainer: a text field inside a container
         // sent AppKit's autofill into an endless key-view walk (round 10).
         .glassEffect(.regular, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.cornerRadius, style: .continuous))
-        .onAppear { isFieldFocused = true }
-        .onExitCommand(perform: onClose)
     }
 
     private var field: some View {
@@ -29,19 +26,30 @@ struct CommandPaletteCard: View {
             Image(systemName: "magnifyingglass")
                 .font(TypographyTokens.prominent)
                 .foregroundStyle(ColorTokens.Text.secondary)
-            TextField("Search", text: $model.query, prompt: Text("Search objects, tabs, actions and snippets"))
-                .textFieldStyle(.plain)
-                .font(TypographyTokens.title3)
-                .labelsHidden()
-                .focused($isFieldFocused)
-                .onSubmit {
-                    if model.performSelected() { onClose() }
-                }
-                .onKeyPress(.downArrow) { model.moveSelection(by: 1); return .handled }
-                .onKeyPress(.upArrow) { model.moveSelection(by: -1); return .handled }
-                .onKeyPress(.escape) { onClose(); return .handled }
+            CommandPaletteSearchField(
+                text: $model.query,
+                placeholder: "Search objects, tabs, actions and snippets",
+                onMove: { model.moveSelection(by: $0) },
+                onSubmit: { if model.performSelected() { onClose() } },
+                onCancel: onClose
+            )
         }
         .padding(.horizontal, SpacingTokens.xs)
         .frame(height: LayoutTokens.CommandPalette.fieldHeight)
+    }
+
+    /// What the keys do, so the palette teaches itself.
+    private var hints: some View {
+        HStack(spacing: SpacingTokens.sm) {
+            Text("↑↓ Move")
+            Text("↩ Open")
+            Text("⎋ Close")
+            Spacer(minLength: SpacingTokens.none)
+        }
+        .font(TypographyTokens.detail)
+        .foregroundStyle(ColorTokens.Text.tertiary)
+        .padding(.horizontal, SpacingTokens.xs)
+        .padding(.top, SpacingTokens.xxs)
+        .accessibilityHidden(true)
     }
 }

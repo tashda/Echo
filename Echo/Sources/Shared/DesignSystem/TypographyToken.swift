@@ -142,5 +142,7 @@ public enum TypographyTokens {
         nonisolated(unsafe) public static let standard = NSFont.systemFont(ofSize: 13)
         /// 14pt — section headers, prominent labels
         nonisolated(unsafe) public static let prominent = NSFont.systemFont(ofSize: 14)
+        /// Title 3 — the ⌘K palette's field
+        nonisolated(unsafe) public static let title3 = NSFont.preferredFont(forTextStyle: .title3)
     }
 }

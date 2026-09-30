@@ -6,8 +6,11 @@ struct CommandPaletteResultsList: View {
     @Bindable var model: CommandPaletteModel
     let onPerform: () -> Void
 
+    @State private var pointerTracker = PointerMoveTracker()
+
     var body: some View {
         let rows = model.results
+        let selected = model.selectedIndex(in: rows)
         if rows.isEmpty {
             emptyState
         } else {
@@ -18,15 +21,15 @@ struct CommandPaletteResultsList: View {
                             if index == 0 || rows[index - 1].section != item.section {
                                 sectionHeader(item.section)
                             }
-                            row(item, index: index)
+                            row(item, isSelected: index == selected)
                         }
                     }
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 .frame(maxHeight: LayoutTokens.CommandPalette.listMaxHeight)
-                .onChange(of: model.selectedIndex) { _, index in
-                    guard rows.indices.contains(index) else { return }
-                    proxy.scrollTo(rows[index].id)
+                .onChange(of: model.selectedID) { _, id in
+                    guard let id else { return }
+                    proxy.scrollTo(id)
                 }
             }
         }
@@ -51,9 +54,8 @@ struct CommandPaletteResultsList: View {
             .frame(height: LayoutTokens.CommandPalette.sectionHeaderHeight, alignment: .bottomLeading)
     }
 
-    private func row(_ item: CommandPaletteItem, index: Int) -> some View {
-        let isSelected = index == model.selectedIndex
-        return Button {
+    private func row(_ item: CommandPaletteItem, isSelected: Bool) -> some View {
+        Button {
             item.perform()
             onPerform()
         } label: {
@@ -86,7 +88,11 @@ struct CommandPaletteResultsList: View {
         }
         .buttonStyle(.plain)
         .id(item.id)
-        .onHover { if $0 { model.selectedIndex = index } }
+        // Only a real mouse move selects: rows scrolling under a still pointer (after an arrow
+        // key) mustn't take the selection back.
+        .onContinuousHover { phase in
+            if case .active = phase, pointerTracker.pointerMoved() { model.select(item.id) }
+        }
         .accessibilityLabel([item.title, item.subtitle].compactMap { $0 }.joined(separator: ", "))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }

@@ -36,7 +36,6 @@ private struct WorkspaceBody: View {
 
         WorkspaceShell()
         .commandPalette()
-        .notificationOverlay()
         .navigationTitle("Echo")
         .background(WorkspaceWindowConfigurator(tabBarStyle: tabBarStyle))
         .sheet(isPresented: Binding(get: { appState.activeSheet == .connectionEditor }, set: { if !$0 { appState.dismissSheet() } })) {

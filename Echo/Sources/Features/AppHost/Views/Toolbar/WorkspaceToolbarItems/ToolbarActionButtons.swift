@@ -39,3 +39,18 @@ struct TabOverviewToolbarButton: View {
         .help(appState.showTabOverview ? "Hide Tab Overview (⇧⌘O)" : "Show Tab Overview (⇧⌘O)")
     }
 }
+
+/// Opens the ⌘K palette, which is Echo's search (owner, 2026-09-30).
+struct SearchToolbarButton: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        Button {
+            appState.isCommandPaletteVisible.toggle()
+        } label: {
+            Label("Search", systemImage: "magnifyingglass")
+        }
+        .labelStyle(.iconOnly)
+        .help("Search (⌘K)")
+    }
+}

@@ -37,6 +37,7 @@ struct WorkspaceMainContent: View {
         )
         .environment(\.useNativeTabBar, false)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .toastOverlay()
         .offset(y: tabBarStyle.contentVerticalOffset)
     }
 }

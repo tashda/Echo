@@ -80,9 +80,9 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("y", modifiers: [.command, .shift, .option])
             .disabled(!navigationStore.isWorkspaceWindowKey || tabStore.activeTab?.kind.hasBottomPanel != true)
 
-            // Search lives in the toolbar and ⌘K now (plan K4); ⇧⌘F is Format Query (K3).
+            // Search is the ⌘K palette (plan K4); ⇧⌘F is Format Query (K3).
             Button {
-                appState.toolbarSearchFocusRequest += 1
+                appState.isCommandPaletteVisible = true
             } label: {
                 Label("Search", systemImage: "magnifyingglass")
             }

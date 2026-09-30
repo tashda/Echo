@@ -56,4 +56,26 @@ struct CommandPaletteModelTests {
         #expect(model.performSelected())
         #expect(performed == ["B"])
     }
+
+    @Test func selectionFollowsTheRowWhenRowsArriveAboveIt() {
+        var performed: [String] = []
+        let model = CommandPaletteModel()
+        let make: (String) -> CommandPaletteItem = { title in
+            CommandPaletteItem(id: title, section: .actions, title: title, subtitle: nil, systemImage: "circle") { performed.append(title) }
+        }
+        model.localItems = [make("Beta"), make("Gamma")]
+        model.moveSelection(by: 1)
+        model.localItems.insert(make("Alpha"), at: 0)
+        #expect(model.performSelected())
+        #expect(performed == ["Gamma"])
+    }
+
+    @Test func typingSelectsTheFirstRowAgain() {
+        let model = CommandPaletteModel()
+        model.localItems = [item("Run", .actions), item("Rollback", .actions)]
+        model.moveSelection(by: 1)
+        model.query = "r"
+        #expect(model.selectedID == nil)
+        #expect(model.selectedIndex(in: model.results) == 0)
+    }
 }

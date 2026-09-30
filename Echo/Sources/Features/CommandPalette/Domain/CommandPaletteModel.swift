@@ -7,11 +7,14 @@ import Foundation
 final class CommandPaletteModel {
     var query = "" {
         didSet {
+            guard query != oldValue else { return }
             objectSearch.query = query
-            selectedIndex = 0
+            selectedID = nil
         }
     }
-    var selectedIndex = 0
+    /// The selected row, by identity, so rows arriving from the object search can't move the
+    /// selection to a different row. Nil selects the first row.
+    var selectedID: String?
 
     let objectSearch = SearchSidebarViewModel()
     @ObservationIgnored var localItems: [CommandPaletteItem] = []
@@ -42,23 +45,34 @@ final class CommandPaletteModel {
 
     var isSearchingObjects: Bool { objectSearch.isSearching }
 
+    /// The index of the selected row in `rows`: the selected ID's row, or the first.
+    func selectedIndex(in rows: [CommandPaletteItem]) -> Int {
+        selectedID.flatMap { id in rows.firstIndex { $0.id == id } } ?? 0
+    }
+
+    /// Moves the selection, wrapping at either end.
     func moveSelection(by offset: Int) {
-        let count = results.count
-        guard count > 0 else { return }
-        selectedIndex = (selectedIndex + offset + count) % count
+        let rows = results
+        guard !rows.isEmpty else { return }
+        let index = (selectedIndex(in: rows) + offset + rows.count) % rows.count
+        selectedID = rows[index].id
+    }
+
+    func select(_ id: String) {
+        selectedID = id
     }
 
     /// Performs the selected row; returns whether there was one.
     @discardableResult
     func performSelected() -> Bool {
         let rows = results
-        guard rows.indices.contains(selectedIndex) else { return false }
-        rows[selectedIndex].perform()
+        guard !rows.isEmpty else { return false }
+        rows[selectedIndex(in: rows)].perform()
         return true
     }
 
     func reset() {
         query = ""
-        selectedIndex = 0
+        selectedID = nil
     }
 }

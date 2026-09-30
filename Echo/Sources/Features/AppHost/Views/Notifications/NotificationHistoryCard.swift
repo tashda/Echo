@@ -10,25 +10,37 @@ struct NotificationHistoryCard: View {
     @State private var filter: NotificationHistoryFilter = .all
 
     var body: some View {
-        FloatingCard(size: .large) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             header
-            Picker("Show", selection: $filter) {
-                ForEach(NotificationHistoryFilter.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .controlSize(.small)
             list
         }
+        .floatingSurfaceContent(.large)
     }
 
+    /// The title, a filter menu and Clear. The filter shows its name when it isn't All.
     private var header: some View {
-        HStack {
-            Text("Notifications")
+        HStack(spacing: SpacingTokens.xs) {
+            Text(filter == .all ? "Notifications" : "\(filter.rawValue) Notifications")
                 .font(TypographyTokens.headline)
-            Spacer()
+            Spacer(minLength: SpacingTokens.none)
+            Menu {
+                Picker("Show", selection: $filter) {
+                    ForEach(NotificationHistoryFilter.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } label: {
+                Label("Filter", systemImage: filter == .all
+                    ? "line.3.horizontal.decrease.circle"
+                    : "line.3.horizontal.decrease.circle.fill")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .labelStyle(.iconOnly)
+            .fixedSize()
+            .help("Filter")
             Button("Clear") { history.clear() }
-                .buttonStyle(.link)
+                .buttonStyle(.borderless)
                 .disabled(history.records.isEmpty)
         }
     }
