@@ -66,6 +66,8 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp Resources/EchoLab.icns "$app/Contents/Resources/EchoLab.icns"
 cp "$bin/EchoLab" "$app/Contents/MacOS/EchoLab"
+# SwiftPM resource bundles (server-lab recipes, scenarios, ...): Bundle.module aborts when they are missing.
+for resources in "$bin"/*.bundle(N); do cp -R "$resources" "$app/Contents/Resources/"; done
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
