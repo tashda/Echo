@@ -49,7 +49,8 @@ struct QueryEditorContainer: View {
                     completionContext: editorCompletionContext,
                     onSchemaLoadNeeded: { dbName in
                         ensureSchemaLoaded(forDatabase: dbName)
-                    }
+                    },
+                    onRunStatement: runStatementAtCaret
                 )
             }
         } results: {

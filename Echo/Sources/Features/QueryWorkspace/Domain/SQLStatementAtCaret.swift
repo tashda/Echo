@@ -24,6 +24,21 @@ nonisolated enum SQLStatementAtCaret {
         return trimmed.last(where: { NSMaxRange($0.range) <= caret }) ?? trimmed.first
     }
 
+    /// Every statement in the script, trimmed, in order.
+    static func statements(in sql: String) -> [Match] {
+        let units = Array(sql.utf16)
+        return split(units).compactMap { trim($0, in: units) }
+    }
+
+    /// The statement the caret is in (or the nearest before it) among already split statements.
+    static func statement(among statements: [Match], caret: Int) -> Match? {
+        guard !statements.isEmpty else { return nil }
+        if let inside = statements.first(where: { caret >= $0.range.location && caret <= NSMaxRange($0.range) }) {
+            return inside
+        }
+        return statements.last(where: { NSMaxRange($0.range) <= caret }) ?? statements.first
+    }
+
     // MARK: - Splitting
 
     private static func split(_ units: [UInt16]) -> [Range<Int>] {

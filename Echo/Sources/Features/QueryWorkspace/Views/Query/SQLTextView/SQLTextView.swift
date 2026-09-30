@@ -32,6 +32,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     let validationScheduler = SQLValidationScheduler()
     var currentDiagnostics: [SQLDiagnostic] = []
     var validationOverlays: [NSView] = []
+    /// QE1: the script's statements (kept between edits) and the one at the caret.
+    var cachedStatements: [SQLStatementAtCaret.Match] = []
+    var focusedStatementRange: NSRange?
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()
@@ -232,10 +235,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         notifySelectionChanged(); scheduleHighlighting()
         if !isApplyingCompletion { deactivateManualCompletionSuppression() }
         updateCompletionIndicator(); scheduleValidation()
+        refreshStatements()
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
-        notifySelectionChanged(); let range = selectedLineRange()
+        notifySelectionChanged(); updateStatementFocus(); let range = selectedLineRange()
         if range.location != NSNotFound { lineNumberRuler?.highlightedLines = IndexSet(integersIn: range.location..<(range.location + range.length)) }
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)

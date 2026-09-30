@@ -38,6 +38,7 @@ extension SQLTextView {
         if let scrollView = enclosingScrollView as? SQLScrollView {
             scrollView.setRulerVisible(displayOptions.showLineNumbers)
         }
+        refreshStatements()
         
         let container = textContainer
         if displayOptions.wrapLines {

@@ -13,6 +13,14 @@ final class LineNumberRulerView: NSRulerView {
     var errorLines: IndexSet = [] {
         didSet { if oldValue != errorLines { needsDisplay = true } }
     }
+    /// The first line of the statement at the caret, which gets a Run arrow (QE1).
+    var runArrowLine: Int? {
+        didSet { if oldValue != runArrowLine { needsDisplay = true } }
+    }
+    /// Runs the statement at the caret when its arrow is clicked.
+    var onRunStatement: (() -> Void)?
+    /// Where the Run arrow was last drawn, for clicks.
+    var runArrowRect: NSRect?
     /// Subtle (numbers only), a tinted column with an edge, or a tinted inset lane, from Settings.
     var gutterStyle: EditorGutterStyle = .subtle {
         didSet { if oldValue != gutterStyle { needsDisplay = true } }
@@ -95,7 +103,22 @@ final class LineNumberRulerView: NSRulerView {
 
     override var isOpaque: Bool { false }
     override func draw(_ dirtyRect: NSRect) {
+        runArrowRect = nil
         drawHashMarksAndLabels(in: dirtyRect)
+    }
+
+    /// QE1: a small accent triangle at the leading edge of the statement's first line.
+    private func drawRunArrow(labelY: CGFloat, labelHeight: CGFloat) {
+        let size = LayoutTokens.EditorGutter.runArrowSize
+        let rect = NSRect(x: LayoutTokens.EditorGutter.markerLeading, y: labelY + (labelHeight - size) / 2, width: size * 0.85, height: size)
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: rect.minX, y: rect.minY))
+        path.line(to: NSPoint(x: rect.maxX, y: rect.midY))
+        path.line(to: NSPoint(x: rect.minX, y: rect.maxY))
+        path.close()
+        NSColor.controlAccentColor.setFill()
+        path.fill()
+        runArrowRect = rect
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
@@ -214,6 +237,9 @@ final class LineNumberRulerView: NSRulerView {
             .paragraphStyle: paragraphStyle
         ])
 
+        if lineNumber == runArrowLine, !errorLines.contains(lineNumber) {
+            drawRunArrow(labelY: labelY, labelHeight: labelHeight)
+        }
         if errorLines.contains(lineNumber) {
             let size = LayoutTokens.EditorGutter.markerSize
             let dot = NSRect(x: LayoutTokens.EditorGutter.markerLeading, y: labelY + (labelHeight - size) / 2, width: size, height: size)
@@ -230,6 +256,11 @@ final class LineNumberRulerView: NSRulerView {
     private var anchorLine: Int?
 
     override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if let runArrowRect, runArrowRect.insetBy(dx: -LayoutTokens.EditorGutter.markerSpacing, dy: -LayoutTokens.EditorGutter.markerSpacing).contains(point) {
+            onRunStatement?()
+            return
+        }
         guard let line = lineAtEvent(event) else { return }
         anchorLine = line
         sqlTextView?.selectLineRange(line...line)

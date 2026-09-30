@@ -122,6 +122,15 @@ struct AppearanceSettingsView: View {
 
             Section("Editor") {
                 PropertyRow(
+                    title: "Statement Focus",
+                    subtitle: "Shade the statement at the cursor and show a Run arrow beside it."
+                ) {
+                    Toggle("", isOn: projectStore.globalSettingBinding(\.editorStatementFocus))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                PropertyRow(
                     title: "Line Number Gutter",
                     subtitle: "Subtle shows numbers only; Column adds a faint full-height column; Lane adds a rounded, inset lane."
                 ) {

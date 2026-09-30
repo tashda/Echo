@@ -110,6 +110,10 @@ public enum LayoutTokens {
         /// Tinted lane (GT2): inset from the card's edges, rounded, no edge line.
         public static let laneInset: CGFloat = SpacingTokens.xxs1
         public static let laneCornerRadius: CGFloat = SpacingTokens.xs
+        /// QE1: the Run arrow on the statement at the caret.
+        public static let runArrowSize: CGFloat = 8
+        /// QE1: the band behind the statement at the caret.
+        public static let statementBandOpacity: CGFloat = 0.06
     }
 
     /// Placeholder rows while a list loads (`ShimmerPlaceholderRows`).

@@ -63,6 +63,7 @@ enum SQLEditorThemeResolver {
             qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
             showSystemSchemasInCompletion: globalSettings.editorShowSystemSchemas,
             liveValidationEnabled: globalSettings.editorEnableLiveValidation,
+            statementFocusEnabled: globalSettings.editorStatementFocus,
             gutterStyle: globalSettings.editorGutterStyle,
             cardCornerRadius: globalSettings.workspaceCornerRadius.points
         )

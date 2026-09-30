@@ -14,6 +14,8 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var clipboardHistory: ClipboardHistoryStore
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata
     var onAddBookmark: (String) -> Void
+    /// The gutter's Run arrow on the statement at the caret (QE1).
+    var onRunStatement: () -> Void = {}
     var completionContext: SQLEditorCompletionContext?
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onSchemaLoadNeeded: ((String) -> Void)?
@@ -35,6 +37,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         textView.clipboardHistory = clipboardHistory
         textView.clipboardMetadata = clipboardMetadata
         textView.string = text
+        textView.refreshStatements()
         textView.reapplyHighlighting()
         textView.completionContext = completionContext
         if let ruleTraceConfig {
@@ -101,6 +104,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
             context.coordinator.isUpdatingFromBinding = true
             let currentSelection = textView.selectedRange()
             textView.string = text
+            textView.refreshStatements()
             textView.reapplyHighlighting()
             let maxLen = (text as NSString).length
             let restored = NSRange(
@@ -161,6 +165,10 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         func sqlTextView(_ view: SQLTextView, didRequestBookmarkWithContent content: String) {
             parent.onAddBookmark(content)
         }
+
+        func sqlTextViewDidRequestRunStatement(_ view: SQLTextView) {
+            parent.onRunStatement()
+        }
     }
 }
 
@@ -169,10 +177,12 @@ protocol SQLTextViewDelegate: AnyObject {
     func sqlTextView(_ view: SQLTextView, didChangeSelection selection: SQLEditorSelection)
     func sqlTextView(_ view: SQLTextView, didPreviewSelection selection: SQLEditorSelection)
     func sqlTextView(_ view: SQLTextView, didRequestBookmarkWithContent content: String)
+    func sqlTextViewDidRequestRunStatement(_ view: SQLTextView)
 }
 
 extension SQLTextViewDelegate {
     func sqlTextView(_ view: SQLTextView, didPreviewSelection selection: SQLEditorSelection) {}
     func sqlTextView(_ view: SQLTextView, didRequestBookmarkWithContent content: String) {}
+    func sqlTextViewDidRequestRunStatement(_ view: SQLTextView) {}
 }
 #endif

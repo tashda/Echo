@@ -12,6 +12,7 @@ struct QueryInputSection: View {
     let onAddBookmark: (String) -> Void
     let completionContext: SQLEditorCompletionContext?
     let onSchemaLoadNeeded: ((String) -> Void)?
+    var onRunStatement: () -> Void = {}
 
     @Environment(AppState.self) var appState
     @Environment(EnvironmentState.self) private var environmentState
@@ -58,7 +59,8 @@ struct QueryInputSection: View {
             onSelectionChange: handleSelectionChange,
             onSelectionPreviewChange: handleSelectionChange,
             clipboardMetadata: query.clipboardMetadata,
-            onAddBookmark: onAddBookmark
+            onAddBookmark: onAddBookmark,
+            onRunStatement: onRunStatement
         )
         .padding(.leading, leadingPadding)
         .padding(.trailing, trailingPadding)
