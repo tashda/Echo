@@ -41,7 +41,7 @@ struct LabSCDock: View {
                     .frame(height: height)
                     .background { if isCurrent { pill } }
                 }
-                .frame(maxWidth: labelsCurrent && isCurrent ? .infinity : nil)
+                .frame(maxWidth: labelsCurrent && section.id == chosen ? .infinity : nil)
             }
             moreButton(font: font, height: height)
         }

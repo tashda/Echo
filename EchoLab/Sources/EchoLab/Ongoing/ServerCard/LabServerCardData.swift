@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// One row of sample tree content.
-struct LabSCNode: Identifiable, Hashable {
+struct LabSCNode: Identifiable, Hashable, Sendable {
     let id: String
     let title: String
     var prefix: String? = nil
@@ -16,7 +16,7 @@ struct LabSCNode: Identifiable, Hashable {
 }
 
 /// One dock section: its icon, the rows it shows, and its right-click menu.
-struct LabSCSection: Identifiable, Hashable {
+struct LabSCSection: Identifiable, Hashable, Sendable {
     let id: String
     let title: String
     let symbol: String
@@ -29,7 +29,7 @@ struct LabSCSection: Identifiable, Hashable {
     var loadsOnOpen = true
 }
 
-struct LabSCMenuItem: Identifiable, Hashable {
+struct LabSCMenuItem: Identifiable, Hashable, Sendable {
     let title: String
     let symbol: String
     var isDivider = false
@@ -38,13 +38,13 @@ struct LabSCMenuItem: Identifiable, Hashable {
     static let divider = LabSCMenuItem(title: "—", symbol: "", isDivider: true)
 }
 
-enum LabSCEngine: String, CaseIterable, Identifiable {
+enum LabSCEngine: String, CaseIterable, Identifiable, Sendable {
     case sqlServer = "SQL Server"
     case postgres = "PostgreSQL"
     var id: String { rawValue }
 }
 
-struct LabSCServer: Identifiable, Hashable {
+struct LabSCServer: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let engine: LabSCEngine

@@ -4,10 +4,10 @@ enum LabAreas {
     static let all: [LabArea] = [
         FoundationsArea.area,
         ExplorerTreeArea.area,
-        pending("tabs", "Tabs and tool pages", "rectangle.topthird.inset.filled", "The tab strip, tool pages inside a tab, and the tab overview."),
-        pending("window", "Window and cards", "macwindow", "The canvas, the server rail, cards, corners and the toolbar."),
+        TabsArea.area,
+        WindowArea.area,
         pending("editor", "Editor and running", "curlybraces", "The editor card, gutter, fonts, statement focus and the Run controls."),
-        pending("footer-results", "Footer and results", "tablecells", "The footer, the database switcher and the results card."),
+        FooterResultsArea.area,
         pending("inspector", "Inspector", "sidebar.right", "The column of cards on the canvas."),
         pending("connections", "Connections", "externaldrive.connected.to.line.below", "Welcome, Quick Connect, New Connection and Manage Connections."),
         pending("echosense", "EchoSense", "text.badge.star", "The completion popup: rows, selection, details and ghost text."),
