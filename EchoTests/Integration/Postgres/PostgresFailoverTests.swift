@@ -1,75 +1,63 @@
 import Foundation
-import XCTest
+import ServerLabClient
+import Testing
 @testable import Echo
 
-/// Echo Labs round 23 (failover) end to end: a saved connection with two servers connects, Test
-/// checks both, and when the first stops Echo carries on with the second and reports the move.
-/// Needs two servers (postgres-wire's Tests/Fixtures/failover/start-servers.sh):
-/// ECHO_E2E_PG_FAILOVER_PORTS="54351,54352" and ECHO_E2E_PG_FAILOVER_CONTAINER_A.
-final class PostgresFailoverTests: XCTestCase {
-    private var ports: [Int] = []
-    private var containerA = ""
+/// Echo Labs round 23 (failover) end to end on two fresh echo-server-lab servers: a saved
+/// connection with both connects, Test checks both, and when the first server goes away Echo carries
+/// on with the second and reports the move. Both servers are removed afterwards. Run with
+/// SERVERLAB_INTEGRATION=1 (TEST_RUNNER_SERVERLAB_INTEGRATION=1 through xcodebuild).
+private let labIntegrationEnabled = ProcessInfo.processInfo.environment["SERVERLAB_INTEGRATION"] == "1"
 
-    override func setUp() async throws {
-        try await super.setUp()
-        let env = ProcessInfo.processInfo.environment
-        guard let text = env["ECHO_E2E_PG_FAILOVER_PORTS"], let container = env["ECHO_E2E_PG_FAILOVER_CONTAINER_A"] else {
-            throw XCTSkip("ECHO_E2E_PG_FAILOVER_PORTS not set")
+@Suite(.enabled(if: labIntegrationEnabled), .serialized)
+struct PostgresFailoverTests {
+    /// Starts two servers, runs `body`, and removes whatever is left of them.
+    private func withTwoServers(_ body: ([LabServer]) async throws -> Void) async throws {
+        var servers: [LabServer] = []
+        do {
+            servers.append(try await ServerLabCLI.up("pg-17-empty", owner: "echo-tests-failover", leaseMinutes: 30))
+            servers.append(try await ServerLabCLI.up("pg-17-empty", owner: "echo-tests-failover", leaseMinutes: 30))
+            try await body(servers)
+        } catch {
+            for server in servers { try? await ServerLabCLI.down(server) }
+            throw error
         }
-        ports = text.split(separator: ",").compactMap { Int($0) }
-        containerA = container
-        docker("start", containerA)
-        try await Task.sleep(for: .seconds(2))
+        for server in servers { try? await ServerLabCLI.down(server) }
     }
 
-    override func tearDown() async throws {
-        docker("start", containerA)
-        try await super.tearDown()
-    }
-
-    @discardableResult
-    private func docker(_ arguments: String...) -> Int32 {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["docker"] + arguments
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try? process.run()
-        process.waitUntilExit()
-        return process.terminationStatus
-    }
-
-    private var connection: SavedConnection {
-        var connection = SavedConnection(connectionName: "Cluster", host: "127.0.0.1", port: ports[0], database: "postgres",
-                                         username: "postgres", tlsMode: .disable)
-        connection.additionalHosts = [ConnectionHost(host: "127.0.0.1", port: ports[1])]
+    private func connection(_ servers: [LabServer]) -> SavedConnection {
+        var connection = SavedConnection(connectionName: "Cluster", host: servers[0].host, port: servers[0].port, database: "postgres",
+                                         username: servers[0].username, tlsMode: .disable)
+        connection.additionalHosts = [ConnectionHost(host: servers[1].host, port: servers[1].port)]
         return connection
     }
 
-    private let credentials = DatabaseAuthenticationConfiguration(method: .sqlPassword, username: "postgres", password: "postgres")
-
-    func testTestChecksEveryServer() async {
-        let result = await PostgresConnectionTest.testServers(connection, authentication: credentials, connectTimeoutSeconds: 3)
-        XCTAssertTrue(result.isSuccessful, result.message)
-        XCTAssertEqual(result.serverLines.count, 2)
-        XCTAssertTrue(result.message.hasSuffix("connects to 127.0.0.1:\(ports[0])"), result.message)
+    private func credentials(_ server: LabServer) -> DatabaseAuthenticationConfiguration {
+        DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password)
     }
 
-    func testTheSessionMovesToTheSecondServerAndSaysSo() async throws {
-        let session = try await PostgresNIOFactory().connect(to: connection, database: "postgres", authentication: credentials, connectTimeoutSeconds: 3)
-        defer { Task { await session.close() } }
-        let postgres = try XCTUnwrap(session as? PostgresSession)
-        XCTAssertEqual(postgres.client.currentHost.port, ports[0])
-        let changes = postgres.client.hostChanges()
-        let first = Task { () -> Int? in
-            for await change in changes { return change.to.port }
-            return nil
-        }
+    @Test func testChecksEveryServerAndTheSessionMovesWhenTheFirstGoesAway() async throws {
+        try await withTwoServers { servers in
+            let result = await PostgresConnectionTest.testServers(connection(servers), authentication: credentials(servers[0]), connectTimeoutSeconds: 10)
+            #expect(result.isSuccessful, "\(result.message)")
+            #expect(result.serverLines.count == 2)
+            #expect(result.message.hasSuffix("connects to \(servers[0].host):\(servers[0].port)"), "\(result.message)")
 
-        docker("stop", "-t", "0", containerA)
-        _ = try await session.simpleQuery("SELECT 1")
-        let movedTo = await first.value
-        XCTAssertEqual(movedTo, ports[1])
-        XCTAssertEqual(postgres.client.currentHost.port, ports[1])
+            let session = try await PostgresNIOFactory().connect(
+                to: connection(servers), database: "postgres", authentication: credentials(servers[0]), connectTimeoutSeconds: 5)
+            let postgres = try #require(session as? PostgresSession)
+            #expect(postgres.client.currentHost.port == servers[0].port)
+            let changes = postgres.client.hostChanges()
+            let first = Task { () -> Int? in
+                for await change in changes { return change.to.port }
+                return nil
+            }
+
+            try await ServerLabCLI.down(servers[0])   // the first server goes away
+            _ = try await session.simpleQuery("SELECT 1")
+            #expect(await first.value == servers[1].port)
+            #expect(postgres.client.currentHost.port == servers[1].port)
+            await session.close()
+        }
     }
 }
