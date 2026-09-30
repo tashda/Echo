@@ -9,7 +9,7 @@ struct LabInboxView: View {
 
     var body: some View {
         let entries = waiting.map { status in
-            (status, LabRegistry.pages.filter { store.status(of: $0) == status && LabAreas.areaID(ofPage: $0.id) != nil })
+            (status, LabRegistry.pages.filter { store.status(of: $0) == status && ($0.section != .test && $0.section != .reference) })
         }
         if entries.allSatisfy({ $0.1.isEmpty }) {
             ContentUnavailableView("All caught up", systemImage: "tray",
@@ -24,7 +24,7 @@ struct LabInboxView: View {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 1) {
                                             Text(page.title).font(TypographyTokens.standard.weight(.medium))
-                                            Text(LabAreas.area(id: LabAreas.areaID(ofPage: page.id))?.title ?? "")
+                                            Text(LabAreas.area(id: LabAreas.areaID(ofPage: page.id))?.title ?? "No area yet")
                                                 .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
                                         }
                                         Spacer()

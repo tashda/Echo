@@ -48,6 +48,8 @@ struct LabRootView: View {
                 if let areaID = LabAreas.areaID(ofPage: pageID) {
                     destination = .area(areaID)
                     openRound = pageID.hasPrefix("asbuilt.") ? nil : pageID
+                } else {
+                    destination = .page(pageID)
                 }
             }
         case .area(let id):

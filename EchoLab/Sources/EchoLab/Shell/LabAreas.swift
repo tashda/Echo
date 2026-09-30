@@ -38,19 +38,25 @@ enum LabAreas {
         "ported.Round 15 · inspector": "inspector",
         "ported.Round 15 · notifications": "notifications",
         "ongoing.notification-history-r17": "notifications",
+        "ongoing.server-card-r16": "explorer-tree",
         "ported.Round 14 · tab bar and pages": "tabs",
         "ported.Round 14 · section dock": "explorer-tree",
         "ported.Round 14 · connections": "connections",
         "ported.Round 14 · EchoSense selection": "echosense",
     ]
 
+    /// The area a page belongs to: its As built id, the explicit map above, or, for a new round
+    /// nobody has mapped yet, the area whose title matches the page's `group`. Nil only when
+    /// neither applies; the Inbox still lists such pages so nothing goes missing.
     static func areaID(ofPage id: String) -> String? {
         if id.hasPrefix("asbuilt.") { return String(id.dropFirst("asbuilt.".count)) }
-        return roundAreas[id]
+        if let mapped = roundAreas[id] { return mapped }
+        guard let group = LabRegistry.page(id: id)?.group else { return nil }
+        return all.first { $0.title == group }?.id
     }
 
     /// Rounds of an area, not including its As built page.
     static func rounds(in area: LabArea) -> [LabPage] {
-        LabRegistry.pages.filter { roundAreas[$0.id] == area.id }
+        LabRegistry.pages.filter { !$0.id.hasPrefix("asbuilt.") && areaID(ofPage: $0.id) == area.id }
     }
 }
