@@ -4,7 +4,7 @@ import SwiftUI
 /// The editor card and Run as they are in Echo today (plan Phases 11 and 17, round 15 idea 1).
 @MainActor
 enum EditorArea {
-    private static let simulation = LabRunSimulation()
+    private static let runState = RunSpecimenState()
 
     static let area = LabArea(
         id: "editor",
@@ -13,12 +13,13 @@ enum EditorArea {
         summary: "An opaque editor card with a quiet gutter, a statement focus with a Run arrow, and a plain Run button that becomes a stop and a timer while a query runs.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "a24192df", date: "2026-09-30",
-                note: "Round 15's Run was built in commit 755f8254 and is awaiting your confirmation in the running app. The specimen is the round's concept 1."),
+                level: .code, commit: "92d9b637", date: "2026-09-30",
+                note: "The specimen is a copy of QueryRunToolbarControl as of 92d9b637 (native button, accent with a selection, fully red while running). Awaiting your confirmation in the running app."),
             stageHeight: 520,
             behaviours: [
-                .init(trigger: "Idle", result: "Run is a plain ▶ in a capsule of its own, like its neighbours: no tint, no chevron."),
-                .init(trigger: "⌘↩ or click ▶", result: "Runs the query. The button becomes ■ and the elapsed time, in red."),
+                .init(trigger: "Idle", result: "Run is a standard toolbar button, a plain ▶ in a capsule of its own, like its neighbours: no tint, no chevron."),
+                .init(trigger: "Text selected", result: "▶ turns the accent colour: Run will run only the selection."),
+                .init(trigger: "⌘↩ or click ▶", result: "Runs the query. The whole capsule turns red (the system's prominent glass) with ■ and the elapsed time."),
                 .init(trigger: "Click ■", result: "Cancels the query (⌥⌘. also cancels)."),
                 .init(trigger: "Query ends", result: "✓ or ! shows for a moment, then the button settles back to ▶."),
                 .init(trigger: "Right-click Run", result: "The other modes: statement at cursor, Explain, Explain analyze (also in the Query menu)."),
@@ -31,10 +32,14 @@ enum EditorArea {
             ],
             motions: [
                 .init(name: "Run to running to result", curve: "house spring", duration: "0.45s", note: "The capsule's contents change in place; nothing else moves."),
-                .init(name: "Result hold", curve: "shows, then returns to idle", duration: "2.4s", note: "LabRunSimulation.resultHold (lab value)"),
+                .init(name: "Result hold", curve: "shows, then returns to idle", duration: "2.4s", note: "QueryRunToolbarControl.resultHold"),
+                .init(name: "Selection accent", curve: "ease out", duration: "0.12s", note: "echoMotion.hover"),
                 .init(name: "Results grow out of the footer", curve: "house spring", duration: "0.45s"),
             ],
             measurements: [
+                .init(label: "Run", value: "A standard toolbar button, icon only, in its own toolbar group"),
+                .init(label: "Run while running", value: "Prominent glass tinted red, title and icon (■ and the timer)", token: "ColorTokens.Status.error"),
+                .init(label: "Run with a selection", value: "▶ in the accent colour", token: "ColorTokens.accent"),
                 .init(label: "Editor font size", value: "13pt (setting)", token: "editor font setting"),
                 .init(label: "Line spacing", value: "1.55 (setting)"),
                 .init(label: "Fonts bundled", value: "JetBrains Mono, Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Monaspace, Commit Mono",
@@ -59,38 +64,29 @@ enum EditorArea {
             ],
             code: [
                 "Echo/Sources/Features/QueryWorkspace/Views/Query/SQLTextView/",
-                "Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/ToolbarRunButton.swift",
+                "Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/QueryRunToolbarControl.swift",
+                "Echo/Sources/Features/AppHost/EchoApp+QueryMenu.swift",
                 "Echo/Sources/Shared/DesignSystem/Components/ContentPanelCards.swift",
                 "Design/plan.md Phases 11 and 17",
             ]
         ) {
-            EditorSpecimen(simulation: simulation)
+            RunButtonSpecimen(state: runState)
         }
         .controls {
-            EditorControls(simulation: simulation)
+            EditorControls(state: runState)
         }
     )
 }
 
-private struct EditorSpecimen: View {
-    let simulation: LabRunSimulation
-
-    var body: some View {
-        LabRunWindow(
-            editorCapsule: { LabRunQuietGlyph(simulation: simulation) },
-            activeTab: { LabRunTabLabel(icon: "doc.text", title: "Query 1", subtitle: "employees", isActive: true) },
-            editorOverlay: { EmptyView() },
-            footerTrailing: { LabRunStatusPill() }
-        )
-        .padding(SpacingTokens.lg)
-    }
-}
-
 private struct EditorControls: View {
-    @Bindable var simulation: LabRunSimulation
+    @Bindable var state: RunSpecimenState
+
+    private var simulation: LabRunSimulation { state.simulation }
 
     var body: some View {
+        @Bindable var simulation = state.simulation
         HStack(spacing: SpacingTokens.md) {
+            Toggle("Text selected", isOn: $state.hasSelection)
             Button(simulation.phase.isRunning ? "Cancel" : "Run (⌘↩)") { simulation.toggle() }
                 .keyboardShortcut(.return, modifiers: .command)
             Button("Finish now") { simulation.finish(outcome: simulation.outcome) }
