@@ -149,7 +149,7 @@ Rules: `05-components` › Results card.
 | R6 | Feed extra result sets through the main grid and retire `AdditionalResultSetTableView`. | Results section | All result sets look and behave the same | ☑ e4efb70 |
 | R7 | **Values in the grid (round 21):** array count and items, JSON summary, binary kind and size, decimal-point alignment, Copy as Shown. | `ResultCellValueForm`, bridge `+ValueForms` | Matches the lab 👁 | ☑ e18f2087, 👁 pending |
 | R8 | **PostgreSQL script results (round 21):** statement list at the left (first words, command entries, status), one Messages line per statement, the selected result lights its statement, stop on a failed statement (setting to continue), Run as One Transaction. | `ScriptResultEntry`, `QueryResultsSection+Script`, `PostgresDatabase+Batches`, `+PostgresScript` | Matches the lab 👁 | ☑ 9974342b, 👁 pending |
-| R9 | **Cancelling a query (round 21):** footer Cancelling, rows kept and marked partial, Force Stop after 5 s, run note and Messages "Cancelled after …", ROLLBACK note inside a transaction. | `QueryCancelPhase`, `QueryRunNote`, `+Execution` cancel, `QueryResultsSection+Cancel` | Matches the lab 👁 | ☑ R9COMMIT, 👁 pending |
+| R9 | **Cancelling a query (round 21):** footer Cancelling, rows kept and marked partial, Force Stop after 5 s, run note and Messages "Cancelled after …", ROLLBACK note inside a transaction. | `QueryCancelPhase`, `QueryRunNote`, `+Execution` cancel, `QueryResultsSection+Cancel` | Matches the lab 👁 | ☑ 6349d640, 👁 pending |
 
 ### Notes from building it (Phase 5)
 
