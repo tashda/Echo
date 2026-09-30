@@ -37,6 +37,14 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
     /// Follows `panelState.isOpen`, but stays true while the panel closes, so it can fold back
     /// into the footer before it goes.
     @State private var displaysPanel = false
+    /// The panel stays in the view tree once it has shown, hidden while closed, so opening it
+    /// again doesn't build the grid mid-animation and closing it doesn't tear it down at the end.
+    @State private var hasMountedPanel = false
+    /// True while the panel grows or folds. The cards are then laid out at fixed sizes and only
+    /// their clips move, so nothing lays out again on each frame.
+    @State private var isAnimating = false
+    /// Tells a finished animation from one that another has replaced.
+    @State private var animationGeneration = 0
     /// 0 while the panel card is only the footer, 1 once it reaches the split line.
     @State private var openProgress: CGFloat = 1
     /// True when the content brings cards of its own; its card then has no chrome.
@@ -50,7 +58,7 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
         GeometryReader { proxy in
             let total = proxy.size.height
             if isPanelOnly {
-                panelCard(height: total)
+                panelOnlyCard(height: total)
             } else {
                 // One continuous path for opening and closing: the content card spans from its
                 // closed height (progress 0) to the split line (1), and the panel card from a
@@ -59,11 +67,13 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
                 let closed = contentHasCards ? total - footerZone : total
                 let split = splitContentHeight(total: total, gutter: gutter)
                 let progress = showsPanel ? openProgress : 0
-                let panelHeight = footerZone + (total - split - gutter - footerZone) * progress
+                let panelFull = max(total - split - gutter, footerZone)
+                // Laid out at the size it starts or ends at; the clip does the moving.
+                let contentLayoutHeight = showsPanel && !isAnimating ? split : closed
                 ZStack(alignment: .top) {
-                    contentCard
-                        .frame(height: closed + (split - closed) * progress)
-                    if showsPanel {
+                    contentCard(visibleHeight: closed + (split - closed) * progress)
+                        .frame(height: contentLayoutHeight, alignment: .top)
+                    if hasMountedPanel {
                         VStack(spacing: SpacingTokens.none) {
                             Spacer(minLength: SpacingTokens.none)
                             ContentPanelCardGap(
@@ -71,11 +81,18 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
                                 onDrag: { location in resize(toGapAt: location, total: total) },
                                 onDoubleClick: toggleMaximized
                             )
+                            // Rides on the panel's moving top edge.
+                            .offset(y: (panelFull - footerZone) * (1 - progress))
                             .opacity(Double(progress))
-                            .allowsHitTesting(progress > 0.99)
-                            panelCard(height: panelHeight)
+                            .allowsHitTesting(showsPanel && progress > 0.99)
+                            // Closed, it stays mounted but clipped to nothing, so it can't cover the content.
+                            panelCard(height: panelFull, visibleHeight: showsPanel ? footerZone + (panelFull - footerZone) * progress : 0)
                         }
-                    } else if contentHasCards {
+                        .opacity(showsPanel ? 1 : 0)
+                        .allowsHitTesting(showsPanel)
+                        .accessibilityHidden(!showsPanel)
+                    }
+                    if !showsPanel && contentHasCards {
                         VStack(spacing: SpacingTokens.none) {
                             Spacer(minLength: SpacingTokens.none)
                             footer()
@@ -89,6 +106,7 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
         .animation(motion.standard, value: panelState.isResultsMaximized)
         .onAppear {
             displaysPanel = panelState.isOpen
+            hasMountedPanel = panelState.isOpen
             openProgress = 1
         }
         .onChange(of: panelState.isOpen) { _, isOpen in
@@ -96,30 +114,57 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
         }
     }
 
-    /// The footer detaches first (no animation), then the panel grows up out of it.
+    /// The footer detaches first (no animation), then the panel grows up out of it. Both
+    /// directions use the settle curve: no overshoot, so nothing bobs at the end.
     private func growPanel() {
-        var instant = Transaction()
-        instant.disablesAnimations = true
-        withTransaction(instant) {
-            displaysPanel = true
-            openProgress = 0
+        let generation = beginAnimation()
+        if !displaysPanel {
+            withoutAnimation {
+                hasMountedPanel = true
+                displaysPanel = true
+                openProgress = 0
+            }
         }
         Task { @MainActor in
-            withAnimation(motion.standard) { openProgress = 1 }
+            withAnimation(motion.settle) { openProgress = 1 }
+            await finishAnimation(generation) {}
         }
     }
 
     private func foldPanel() {
-        withAnimation(motion.settle) {
-            openProgress = 0
-        }
+        let generation = beginAnimation()
+        withAnimation(motion.settle) { openProgress = 0 }
         // Not an animation completion: that isn't called reliably (for example when the panel
         // card holds no grid), which left a footer-high panel card behind.
-        let duration = motion.settleDuration
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(duration))
-            if !panelState.isOpen { displaysPanel = false }
+            await finishAnimation(generation) {
+                if !panelState.isOpen { displaysPanel = false }
+            }
         }
+    }
+
+    /// Fixes the layout for the animation; the cards' clips move instead.
+    private func beginAnimation() -> Int {
+        animationGeneration += 1
+        withoutAnimation { isAnimating = true }
+        return animationGeneration
+    }
+
+    /// Once the curve has finished and no newer animation has started, lets the cards take their
+    /// resting sizes. The clips already match them, so nothing visibly changes.
+    private func finishAnimation(_ generation: Int, then finish: () -> Void) async {
+        try? await Task.sleep(for: .seconds(motion.settleDuration))
+        guard generation == animationGeneration else { return }
+        withoutAnimation {
+            finish()
+            isAnimating = false
+        }
+    }
+
+    private func withoutAnimation(_ change: () -> Void) {
+        var instant = Transaction()
+        instant.disablesAnimations = true
+        withTransaction(instant, change)
     }
 
     /// The footer floats over the bottom of whichever card holds it, with the content scrolling
@@ -128,7 +173,7 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
 
     private var footerInContentCard: Bool { !showsPanel && !contentHasCards }
 
-    private var contentCard: some View {
+    private func contentCard(visibleHeight: CGFloat) -> some View {
         ZStack(alignment: .bottom) {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -138,23 +183,41 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
                 footerOverlay
             }
         }
-        .modifier(WorkspaceCardModifier(chromeOpacity: contentHasCards ? 0 : 1, clipsContent: !contentHasCards))
+        .modifier(RevealedWorkspaceCardModifier(
+            visibleHeight: visibleHeight,
+            anchor: .top,
+            chromeOpacity: contentHasCards ? 0 : 1,
+            clipsContent: !contentHasCards
+        ))
     }
 
-    /// The panel card. While it folds into the footer, its fill, shadow and edge fade out so
-    /// what lands below the content is only the footer.
-    private func panelCard(height: CGFloat) -> some View {
+    /// The panel card, laid out at its full height and shown from the bottom up to
+    /// `visibleHeight`. While it folds into the footer, its content and chrome fade, so what lands
+    /// below the content is only the footer, which never moves.
+    private func panelCard(height: CGFloat, visibleHeight: CGFloat) -> some View {
         let progress = isPanelOnly ? 1 : openProgress
         return ZStack(alignment: .bottom) {
             panel()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
                 .opacity(Double(progress))
                 .environment(\.cardFooterOverlayHeight, footerZone)
             footerOverlay
         }
         .frame(height: height)
-        .workspaceCard(chromeOpacity: min(Double(progress) * 3, 1))
+        .modifier(RevealedWorkspaceCardModifier(visibleHeight: visibleHeight, anchor: .bottom, chromeOpacity: Double(progress)))
+    }
+
+    /// The panel alone (a table's data preview), with no content card.
+    private func panelOnlyCard(height: CGFloat) -> some View {
+        ZStack(alignment: .bottom) {
+            panel()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .environment(\.cardFooterOverlayHeight, footerZone)
+            footerOverlay
+        }
+        .frame(height: height)
+        .workspaceCard()
     }
 
     /// A light card tint towards the bottom keeps the footer readable over the blur.
