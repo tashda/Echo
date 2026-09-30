@@ -122,6 +122,15 @@ struct AppearanceSettingsView: View {
 
             Section("Editor") {
                 PropertyRow(
+                    title: "Outline Edge",
+                    subtitle: "A strip on the editor's right edge marks statements and errors; click it to jump."
+                ) {
+                    Toggle("", isOn: projectStore.globalSettingBinding(\.editorOutlineEdge))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                PropertyRow(
                     title: "Statement Focus",
                     subtitle: "Shade the statement at the cursor and show a Run arrow beside it."
                 ) {

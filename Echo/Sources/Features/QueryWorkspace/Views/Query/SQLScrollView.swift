@@ -11,6 +11,7 @@ final class SQLScrollView: NSScrollView {
     private var backgroundOverride: NSColor?
     private lazy var footerBlur = BackdropEdgeBlur(container: self)
     private var footerOverlayHeight: CGFloat = -1
+    private let outlineStrip = EditorOutlineStripView()
 
     /// Room for the footer floating over the editor while there are no results, and the soft
     /// blur of the text under it (round 9, FB1). Zero removes both.
@@ -87,6 +88,10 @@ final class SQLScrollView: NSScrollView {
         }
 
         sqlTextView.setFrameSize(NSSize(width: 800, height: 360))
+        outlineStrip.textView = sqlTextView
+        sqlTextView.outlineStrip = outlineStrip
+        contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(clipViewDidScroll), name: NSView.boundsDidChangeNotification, object: contentView)
         lineNumberRuler.needsDisplay = true
         applyTheme()
         applyDisplay()
@@ -137,8 +142,32 @@ final class SQLScrollView: NSScrollView {
         lineNumberRuler.theme = theme
     }
 
+    @objc private func clipViewDidScroll(_ notification: Notification) {
+        if displayOptions.outlineEdgeEnabled { outlineStrip.refresh() }
+    }
+
+    /// QE5: the outline strip sits on the trailing edge, above the footer's room.
+    override func tile() {
+        super.tile()
+        guard outlineStrip.superview === self else { return }
+        let inset = LayoutTokens.EditorOutline.inset
+        let width = LayoutTokens.EditorOutline.width
+        outlineStrip.frame = NSRect(x: bounds.maxX - width - inset, y: inset,
+                                    width: width, height: max(bounds.height - inset * 2 - contentInsets.bottom, 0))
+    }
+
     private func applyDisplay() {
         sqlTextView.displayOptions = displayOptions
+
+        if displayOptions.outlineEdgeEnabled {
+            if outlineStrip.superview == nil { addSubview(outlineStrip) }
+            hasVerticalScroller = false
+            outlineStrip.refresh()
+        } else {
+            outlineStrip.removeFromSuperview()
+            hasVerticalScroller = true
+        }
+        tile()
 
         if displayOptions.wrapLines {
             hasHorizontalScroller = false

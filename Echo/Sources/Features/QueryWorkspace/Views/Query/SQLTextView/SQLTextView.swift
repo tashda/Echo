@@ -36,6 +36,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var cachedStatements: [SQLStatementAtCaret.Match] = []
     var focusedStatementRange: NSRange?
     var lastCurrentLineBandRect: NSRect?
+    /// QE5: the outline strip, when the setting is on.
+    weak var outlineStrip: EditorOutlineStripView?
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()

@@ -298,7 +298,7 @@ Rules: `05-components` › Explorer tree.
 | Q2 | **Results inline (QE2):** rows and time (or the error) at the end of the statement after a run, fading when it is edited. | Editor | 👁 | ☐ |
 | Q3 | **Errors on the line (QE3):** short red text at the end of the line beside the dot. | Validation overlays | 👁 | ☑ already built: validation draws a short inline note after each failing line beside the gutter dot |
 | Q4 | **Room to breathe (QE4):** wider gutter padding and a rounded current-line band inside the card. | Editor | 👁 | ☑ built, 👁 pending: the current line uses the theme's currentLine colour as a rounded band inset 6pt; numbers sit 12pt from the code |
-| Q5 | **Outline edge (QE5)** as a setting: statement ticks, errors and the visible area on the right edge. | Editor | Toggles in Settings | ☐ |
+| Q5 | **Outline edge (QE5)** as a setting: statement ticks, errors and the visible area on the right edge. | Editor | Toggles in Settings | ☑ built, 👁 pending: Settings › Appearance › Editor › Outline Edge, off by default; replaces the scroll bar while on |
 | Q6 | **Helpful empty tab (QE6):** recent tables and snippets as faint starting points that vanish on typing. | Editor | 👁 | ☐ |
 
 ## Phase 10 · Finish

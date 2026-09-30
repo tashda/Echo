@@ -6,13 +6,15 @@ import AppKit
 /// QE4: the caret's line is a rounded band inset from the card's edges.
 extension SQLTextView {
     func refreshStatements() {
-        cachedStatements = displayOptions.statementFocusEnabled ? SQLStatementAtCaret.statements(in: string) : []
+        let needsStatements = displayOptions.statementFocusEnabled || displayOptions.outlineEdgeEnabled
+        cachedStatements = needsStatements ? SQLStatementAtCaret.statements(in: string) : []
         updateStatementFocus()
+        if displayOptions.outlineEdgeEnabled { outlineStrip?.refresh() }
     }
 
     func updateStatementFocus() {
         let caret = selectedRange().location
-        let focused: NSRange? = cachedStatements.count > 1 && caret != NSNotFound
+        let focused: NSRange? = displayOptions.statementFocusEnabled && cachedStatements.count > 1 && caret != NSNotFound
             ? SQLStatementAtCaret.statement(among: cachedStatements, caret: caret)?.range
             : nil
         guard focused != focusedStatementRange else { return }

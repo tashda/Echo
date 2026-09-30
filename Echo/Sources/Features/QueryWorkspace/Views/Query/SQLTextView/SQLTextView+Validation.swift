@@ -60,7 +60,10 @@ extension SQLTextView {
         let textLength = text.length
         let limitedDiagnostics = Array(currentDiagnostics.prefix(Self.maxValidationOverlays))
         var errorLines = IndexSet()
-        defer { lineNumberRuler?.errorLines = errorLines }
+        defer {
+            lineNumberRuler?.errorLines = errorLines
+            if displayOptions.outlineEdgeEnabled { outlineStrip?.refresh() }
+        }
 
         for diagnostic in limitedDiagnostics {
             guard let range = resolveRange(for: diagnostic, in: text, textLength: textLength) else {

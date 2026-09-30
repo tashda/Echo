@@ -13,6 +13,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var liveValidationEnabled: Bool
     /// QE1: a faint band on the statement at the caret and a Run arrow in the gutter.
     var statementFocusEnabled: Bool
+    /// QE5: the outline strip on the editor's right edge, in place of the scroll bar.
+    var outlineEdgeEnabled: Bool
     /// Subtle (numbers only) or tinted (a faint column with an edge).
     var gutterStyle: EditorGutterStyle
     /// Settings › Appearance › Card Corners; the EchoSense popup follows it (capped).
@@ -29,6 +31,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         showSystemSchemasInCompletion: Bool = false,
         liveValidationEnabled: Bool = true,
         statementFocusEnabled: Bool = true,
+        outlineEdgeEnabled: Bool = false,
         gutterStyle: EditorGutterStyle = .subtle,
         cardCornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
     ) {
@@ -42,6 +45,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.showSystemSchemasInCompletion = showSystemSchemasInCompletion
         self.liveValidationEnabled = liveValidationEnabled
         self.statementFocusEnabled = statementFocusEnabled
+        self.outlineEdgeEnabled = outlineEdgeEnabled
         self.gutterStyle = gutterStyle
         self.cardCornerRadius = cardCornerRadius
     }
@@ -57,6 +61,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case showSystemSchemasInCompletion
         case liveValidationEnabled
         case statementFocusEnabled
+        case outlineEdgeEnabled
         case gutterStyle
         case cardCornerRadius
     }
@@ -73,6 +78,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         showSystemSchemasInCompletion = try container.decodeIfPresent(Bool.self, forKey: .showSystemSchemasInCompletion) ?? false
         liveValidationEnabled = try container.decodeIfPresent(Bool.self, forKey: .liveValidationEnabled) ?? true
         statementFocusEnabled = try container.decodeIfPresent(Bool.self, forKey: .statementFocusEnabled) ?? true
+        outlineEdgeEnabled = try container.decodeIfPresent(Bool.self, forKey: .outlineEdgeEnabled) ?? false
         gutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .gutterStyle)) ?? .subtle
         cardCornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .cardCornerRadius) ?? LayoutTokens.Workspace.cardCornerRadius
     }
@@ -89,6 +95,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(showSystemSchemasInCompletion, forKey: .showSystemSchemasInCompletion)
         try container.encode(liveValidationEnabled, forKey: .liveValidationEnabled)
         try container.encode(statementFocusEnabled, forKey: .statementFocusEnabled)
+        try container.encode(outlineEdgeEnabled, forKey: .outlineEdgeEnabled)
         try container.encode(gutterStyle, forKey: .gutterStyle)
         try container.encode(cardCornerRadius, forKey: .cardCornerRadius)
     }
