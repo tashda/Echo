@@ -1,7 +1,15 @@
 /// Every area, in sidebar order, and which area each round belongs to.
 @MainActor
 enum LabAreas {
-    static let all: [LabArea] = [
+    static let all: [LabArea] = registry.map { $0.withDerivedSpec(code: specCodes[$0.id] ?? $0.id.uppercased()) }
+
+    /// Codes for the IDs of areas whose spec is read from their As built page.
+    private static let specCodes = [
+        "foundations": "FND", "explorer-tree": "TREE", "window": "WIN", "editor": "EDT", "footer-results": "FTR",
+        "inspector": "INS", "connections": "CON", "echosense": "SNS", "notifications": "NTF",
+    ]
+
+    private static let registry: [LabArea] = [
         FoundationsArea.area,
         ExplorerTreeArea.area,
         TabsArea.area,
