@@ -19,7 +19,7 @@ struct LabRoundPage: View {
     }
 
     private var page: LabPage { LabRegistry.page(id: pageID) ?? LabRegistry.pages[0] }
-    private var usesColumn: Bool { (spec.controls.count > 4 || !spec.presets.isEmpty) }
+    private var usesColumn: Bool { spec.controls.count > 4 || !spec.presets.isEmpty || !spec.actions.isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -33,6 +33,11 @@ struct LabRoundPage: View {
             }
             .frame(maxHeight: .infinity)
         }
+    }
+
+    private func card(_ exhibit: RoundSpec.Exhibit) -> some View {
+        RoundExhibitCard(page: page, exhibit: exhibit, values: values, settings: settings, decides: spec.exhibitTopic != nil,
+                         recommendation: spec.exhibitTopic.flatMap { $0.recommended == exhibit.id ? $0.why : nil })
     }
 
     private var canvas: some View {
@@ -126,6 +131,16 @@ private struct RoundControlsColumn: View {
                                 }
                                 .buttonStyle(LabPillButtonStyle(isOn: values.matches(preset)))
                                 .help(preset.summary ?? "")
+                            }
+                        }
+                    }
+                }
+                if !spec.actions.isEmpty {
+                    section("Actions", "play.circle") {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6, alignment: .leading)], alignment: .leading, spacing: 6) {
+                            ForEach(spec.actions) { action in
+                                Button { action.perform(values) } label: { Label(action.title, systemImage: action.symbol) }
+                                    .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true))
                             }
                         }
                     }
@@ -240,6 +255,7 @@ private struct RoundExhibitCard: View {
             }
         }
         .padding(SpacingTokens.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .labCard(cornerRadius: 16)
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
             .strokeBorder(border, lineWidth: verdict == nil ? 0 : 2))

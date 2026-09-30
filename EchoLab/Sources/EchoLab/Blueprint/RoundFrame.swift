@@ -1,37 +1,5 @@
 import SwiftUI
 
-/// The frame every round page uses: an info box, "Try it" (the live playground) on the left and
-/// "Your decision" on the right. Nothing else on the page repeats the title.
-struct LabRoundFrame<Play: View>: View {
-    let pageID: String
-    let decision: RoundDecision
-    /// The size the playground is laid out at; it is scaled down to fit the space it gets.
-    let playSize: CGSize
-    @ViewBuilder var play: Play
-
-    private var page: LabPage { LabRegistry.page(id: pageID) ?? LabRegistry.pages[0] }
-
-    var body: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                LabRoundInfoBox(page: page, hint: true)
-                VStack(alignment: .leading, spacing: 0) {
-                    Label("Try it", systemImage: "hand.tap").font(TypographyTokens.headline)
-                        .padding(.horizontal, SpacingTokens.md).padding(.vertical, SpacingTokens.xs)
-                    Divider()
-                    LabFitToWidth(designWidth: playSize.width, designHeight: playSize.height) {
-                        play.environment(\.labInRoundFrame, true)
-                    }
-                    .padding(SpacingTokens.xs)
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
-                .background(ColorTokens.Surface.rest, in: .rect(cornerRadius: 14, style: .continuous))
-            }
-            .padding(SpacingTokens.md)
-        }
-    }
-}
-
 /// The one header of a round page, in a box: which round, its status, what it asks, and how the
 /// page works.
 struct LabRoundInfoBox: View {

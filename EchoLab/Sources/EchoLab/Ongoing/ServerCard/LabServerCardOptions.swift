@@ -21,7 +21,7 @@ enum LabSCHeader: String, CaseIterable, Identifiable {
         case .segmented: "The system segmented control with symbols. Fully native, but mono only and one menu for the whole control."
         case .oneLine: "Name and icons share one line. Saves a row; the version moves to the tooltip."
         case .sectionMenu: "The current section's icon and name as a pull-down. Scales to any number of sections."
-        case .glass: "Icons in a Liquid Glass capsule, as a control floating over the tree. Glass on a control, not on the card."
+        case .glass: "Xcode's navigator icons in a Liquid Glass capsule. Rows scroll under it and show through the glass, blurred."
         case .labelled: "Today's tiles, but the current one also shows its name, so icons never have to be guessed."
         }
     }
@@ -39,7 +39,7 @@ enum LabSCEdge: String, CaseIterable, Identifiable {
     var summary: String {
         switch self {
         case .material: "Echo now: a thin material over the rows. It tints them grey and only its last 12pt fade."
-        case .blurRows: "Each row blurs and fades as it slides under the header. No tint, no edge, works with stacked cards."
+        case .blurRows: "Like the system's soft edge: rows stay visible under the header, blurring and fading more the higher they go, over a light wash of the card colour. Works with stacked cards."
         case .fadeRows: "Rows only fade as they reach the header. The quietest option."
         case .hairline: "No effect; a hairline appears under the header while rows are under it."
         case .system: "macOS 26's own soft scroll edge, as approved in round 14. Only possible when one server's card fills the column."
@@ -56,7 +56,7 @@ enum LabSCSwitch: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// What the card shows while a section or folder loads.
+/// What a folder shows while its items load.
 enum LabSCLoading: String, CaseIterable, Identifiable {
     case shimmer = "Today (shimmer)"
     case skeleton = "Quiet skeleton"
@@ -70,6 +70,44 @@ enum LabSCLoading: String, CaseIterable, Identifiable {
         case .keep: "Nothing moves until the items are there: a spinner sits in the icon or count slot, then the rows arrive once."
         }
     }
+}
+
+/// What the card shows the first time a section loads (on connect, or opening a section).
+enum LabSCInitialLoad: String, CaseIterable, Identifiable {
+    case today = "Today (shimmer)"
+    case skeleton = "I0 · Quiet skeleton"
+    case iconOnly = "I1 · Spinner in the icon"
+    case spinnerRow = "I2 · Spinner row"
+    case centred = "I3 · Centred spinner"
+    case foldersFirst = "I4 · Folders first"
+    case headerSpinner = "I5 · Spinner by the name"
+    var id: String { rawValue }
+
+    var summary: String {
+        switch self {
+        case .today: "Echo now: three shimmering bars."
+        case .skeleton: "Rows shaped like real rows, after a quarter second (your earlier pick, kept for comparison)."
+        case .iconOnly: "Only the section's icon spins. The card keeps what it showed (on connect: just the header) until the rows arrive."
+        case .spinnerRow: "One row in the tree's own style: a spinner in the icon slot and \"Loading Security\" in grey."
+        case .centred: "A small spinner centred in a three-row space, with the section's name under it."
+        case .foldersFirst: "The section's folders and tools show at once (Echo knows them without asking the server), each spinning in its count slot until its items arrive."
+        case .headerSpinner: "A spinner beside the server's name; the card stays closed under the header and opens once the rows are there."
+        }
+    }
+}
+
+/// Whether the dock icon of a loading section also spins.
+enum LabSCIconSpinner: String, CaseIterable, Identifiable {
+    case show = "Spin the icon"
+    case hide = "Keep the icon still"
+    var id: String { rawValue }
+}
+
+/// What stays at the top of the card while its rows scroll.
+enum LabSCPinning: String, CaseIterable, Identifiable {
+    case nameAndIcons = "Name and icons"
+    case iconsOnly = "Icons only"
+    var id: String { rawValue }
 }
 
 enum LabSCLatency: String, CaseIterable, Identifiable {
@@ -164,15 +202,18 @@ enum LabSCDensity: String, CaseIterable, Identifiable {
 
 /// Every choice in one value, passed down the card's views.
 struct LabSCOptions {
-    var header: LabSCHeader = .navigator
+    var header: LabSCHeader = .glass
     var edge: LabSCEdge = .blurRows
     var switchMotion: LabSCSwitch = .crossfade
     var loading: LabSCLoading = .skeleton
+    var initialLoad: LabSCInitialLoad = .foldersFirst
+    var iconSpinner: LabSCIconSpinner = .hide
+    var pinning: LabSCPinning = .nameAndIcons
     var latency: LabSCLatency = .slow
     var dockIcons: LabSCIconStyle = .mono
     var treeIcons: LabSCIconStyle = .duotone
     var density: LabSCDensity = .medium
-    var counts: LabSCCounts = .hover
+    var counts: LabSCCounts = .always
     var selection: LabSCSelection = .symmetric
     var version: LabSCVersion = .below
     var speed: LabSpeed = .standard

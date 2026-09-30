@@ -61,8 +61,8 @@ struct LabRootView: View {
             showsFeedback = true
         }
         .onChange(of: location.destination) { _, new in
-            // The Spec page has its own inspector; feedback opens from "Feedback on <ID>".
-            if new == .spec { showsFeedback = false }
+            // Spec, Inbox and Rounds have nothing to give feedback on; the panel opens from a page or "Feedback on <ID>".
+            if new == .spec || new == .inbox || new == .rounds { showsFeedback = false }
         }
         .onChange(of: currentPageID) { _, new in
             // Round pages keep their decision panel open.
@@ -73,7 +73,9 @@ struct LabRootView: View {
             // "area:<id>:<overview|spec|rounds>" opens an area on that tab.
             if let id = ProcessInfo.processInfo.environment["ECHOLAB_PAGE"] {
                 let parts = id.split(separator: ":").map(String.init)
-                if parts.first == "spec", parts.count == 2 {
+                if id == "inbox" { navigator.show(.inbox) }
+                else if id == "rounds" { navigator.show(.rounds) }
+                else if parts.first == "spec", parts.count == 2 {
                     LabSpecState.shared.select(parts[1])
                     navigator.go(LabLocation(destination: .spec))
                 } else if parts.count == 3, parts[0] == "area" {

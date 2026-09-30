@@ -1,0 +1,83 @@
+{
+  "ongoing.notification-history-r17" : {
+    "comments" : [
+      {
+        "date" : "2026-09-30T10:03:19Z",
+        "id" : "ACDED792-1049-4F73-AC90-7581D7E4C4C1",
+        "text" : "Review of Notification history · round 17\n1. Which history?: picked B · Cards; NEEDS MORE OPTIONS\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Unread: picked Enough\nOverall: I am not a fan of the \"2 new\" and \"Clear\" in the top of the notifications center. They look quite odd with their accent. Please show me different styles of how the count of notifications \"Clear\" can be shown. Also the \"Open Tab\" \/ \"Copy\" on each notification - should this be beautiful buttons? Give me more options."
+      }
+    ],
+    "generalNote" : "I am not a fan of the \"2 new\" and \"Clear\" in the top of the notifications center. They look quite odd with their accent. Please show me different styles of how the count of notifications \"Clear\" can be shown. Also the \"Open Tab\" \/ \"Copy\" on each notification - should this be beautiful buttons? Give me more options.",
+    "history" : [
+      {
+        "date" : "2026-09-30T10:03:19Z",
+        "text" : "Feedback sent"
+      },
+      {
+        "date" : "2026-09-30T10:07:00Z",
+        "text" : "More options added: D · Compact cards, E · Attention first, F · Stacked by server; Header styles H1–H5 and Action styles A1–A5 for every proposal"
+      }
+    ],
+    "needsMore" : [
+
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+
+    },
+    "picks" : {
+      "exhibit" : "cards",
+      "grouping" : "By time",
+      "motion" : "Fade in",
+      "unread" : "enough"
+    },
+    "status" : "Judging",
+    "verdicts" : {
+
+    }
+  },
+  "ongoing.server-card-r16" : {
+    "comments" : [
+      {
+        "date" : "2026-09-30T10:00:33Z",
+        "id" : "EF06491D-D320-4DB4-B60E-E806FF3BA3BC",
+        "text" : "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it\n2. Version: picked Under the name\n3. Edge under the header: picked Blur rows; note: Needs to look like native\n4. Switching sections: picked Crossfade\n5. Loading: picked Quiet skeleton; NEEDS MORE OPTIONS; note: I like the spinner but the \"loading rows\" is not a good fit for the \"initial load\". Please try some more options with the spinner and then what shows inside the card\n6. Counts: picked Always\n7. Selection: picked Symmetric\n8. Customising: picked Works as intended\n9. PostgreSQL: picked Looks right"
+      }
+    ],
+    "generalNote" : "",
+    "history" : [
+      {
+        "date" : "2026-09-30T10:00:33Z",
+        "text" : "Feedback sent"
+      }
+    ],
+    "needsMore" : [
+      "loading"
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+      "edge" : "Needs to look like native",
+      "header" : "Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it",
+      "loading" : "I like the spinner but the \"loading rows\" is not a good fit for the \"initial load\". Please try some more options with the spinner and then what shows inside the card"
+    },
+    "picks" : {
+      "counts" : "Always",
+      "customising" : "works",
+      "edge" : "Blur rows",
+      "header" : "H5 · Glass capsule",
+      "loading" : "Quiet skeleton",
+      "postgres" : "right",
+      "selection" : "Symmetric",
+      "switch" : "Crossfade",
+      "version" : "Under the name"
+    },
+    "status" : "New feedback",
+    "verdicts" : {
+
+    }
+  }
+}

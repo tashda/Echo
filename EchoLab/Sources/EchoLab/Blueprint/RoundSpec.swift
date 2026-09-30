@@ -34,19 +34,22 @@ struct RoundSpec {
         var summary = ""
         /// Marks the exhibit that shows what Echo does today.
         var isEchoToday = false
+        /// A wide exhibit (a whole window) takes the full width of the canvas, on its own row.
+        var isWide = false
         /// The size the specimen is designed at. It is scaled down if its card is narrower;
         /// keep it to about 340 to 700 wide so several fit side by side.
         let designWidth: CGFloat
         let designHeight: CGFloat
         let build: (RoundValues) -> AnyView
 
-        init<V: View>(id: String, title: String, summary: String = "", isEchoToday: Bool = false,
+        init<V: View>(id: String, title: String, summary: String = "", isEchoToday: Bool = false, isWide: Bool = false,
                       designWidth: CGFloat, designHeight: CGFloat,
                       @ViewBuilder build: @escaping (RoundValues) -> V) {
             self.id = id
             self.title = title
             self.summary = summary
             self.isEchoToday = isEchoToday
+            self.isWide = isWide
             self.designWidth = designWidth
             self.designHeight = designHeight
             self.build = { AnyView(build($0)) }
@@ -64,7 +67,17 @@ struct RoundSpec {
         let why: String
     }
 
+    /// A button that does something in the playground (post a notification, run the query).
+    struct Action: Identifiable {
+        let id: String
+        let title: String
+        let symbol: String
+        let perform: @MainActor (RoundValues) -> Void
+    }
+
     var controls: [Control] = []
+    /// Buttons shown with the controls.
+    var actions: [Action] = []
     var exhibits: [Exhibit]
     var questions: [Question] = []
     /// When set, the decision has a topic that picks between the exhibits, and each exhibit

@@ -10,6 +10,9 @@ struct LabSCNode: Identifiable, Hashable, Sendable {
     var children: [LabSCNode] = []
     /// A folder whose items arrive from the server when it is first opened.
     var loadsOnOpen = false
+    /// Something the server lists (a login, a job, a database). Folders and tools are known from
+    /// the blueprint, so Folders first can show them before anything has loaded.
+    var isItem = false
 
     var isFolder: Bool { !children.isEmpty }
     var count: Int? { isFolder ? children.count : nil }
@@ -86,7 +89,7 @@ enum LabSCSampleNodes {
     static func leaves(_ parent: String, _ names: [String], symbol: String, color: Color) -> [LabSCNode] {
         names.map { name in
             let parts = name.split(separator: ".", maxSplits: 1).map(String.init)
-            return LabSCNode(id: "\(parent).\(name)", title: parts.last ?? name, prefix: parts.count == 2 ? parts[0] : nil, symbol: symbol, color: color)
+            return LabSCNode(id: "\(parent).\(name)", title: parts.last ?? name, prefix: parts.count == 2 ? parts[0] : nil, symbol: symbol, color: color, isItem: true)
         }
     }
 
@@ -111,6 +114,8 @@ enum LabSCSampleNodes {
             folders.append(folder("\(id).functions", "Functions", symbol: "function", color: explorer.functions,
                                   leaves("\(id).functions", functions, symbol: "function", color: explorer.functions)))
         }
-        return folder(id, name, symbol: "cylinder", color: explorer.databaseInstance, folders)
+        var database = folder(id, name, symbol: "cylinder", color: explorer.databaseInstance, folders)
+        database.isItem = true
+        return database
     }
 }

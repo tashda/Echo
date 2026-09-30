@@ -6,7 +6,8 @@ import SwiftUI
 final class LabSCState {
     /// The section each server's dock has chosen.
     var chosen: [String: String] = [:]
-    /// The section each card is drawing. Differs from `chosen` only while Keep + spinner waits.
+    /// The section each card is drawing. Differs from `chosen` only while I1 (spinner in the
+    /// icon) waits for a section to load.
     var shown: [String: String] = [:]
     /// Whether the last switch moved right in the dock, for the slide.
     var movedForward: [String: Bool] = [:]
@@ -81,7 +82,7 @@ final class LabSCState {
         withAnimation(options.switchMotion == .instant ? nil : animation) {
             chosen[server.id] = sectionID
             movedForward[server.id] = forward
-            if !(needsLoad && options.loading == .keep) { shown[server.id] = sectionID }
+            if !(needsLoad && options.initialLoad == .iconOnly) { shown[server.id] = sectionID }
             if needsLoad { loading.insert(key) }
         }
         guard needsLoad else { return }
@@ -117,14 +118,26 @@ final class LabSCState {
         if needsLoad { finishLoading(node.id, after: options.latency, animation: animation) {} }
     }
 
-    /// Clears what has loaded, so loading can be judged again.
-    func reset() {
+    /// Connecting: each server's chosen section (Databases at first) loads, as it does in Echo.
+    func connect(_ servers: [LabSCServer], options: LabSCOptions, animation: Animation) {
+        for server in servers {
+            let sectionID = chosenSection(of: server)
+            let key = sectionKey(server, sectionID)
+            guard server.section(sectionID)?.loadsOnOpen == true, !loaded.contains(key), !loading.contains(key) else { continue }
+            loading.insert(key)
+            finishLoading(key, after: options.latency, animation: animation) {}
+        }
+    }
+
+    /// Clears what has loaded and connects again, so loading can be judged again.
+    func reset(_ servers: [LabSCServer], options: LabSCOptions, animation: Animation) {
         loaded = []
         loading = []
         shown = [:]
         chosen = [:]
         expanded = [:]
         selectedRowID = nil
+        connect(servers, options: options, animation: animation)
     }
 
     private func finishLoading(_ key: String, after latency: LabSCLatency, animation: Animation, then: @escaping @MainActor () -> Void) {

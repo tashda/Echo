@@ -21,8 +21,7 @@ extension LabSCServer {
             id: "mssql", name: "Test MSSQL", engine: .sqlServer, rawVersion: "Microsoft SQL Server 16.0.4250.1",
             sections: [
                 LabSCSection(id: "databases", title: "Databases", symbol: "cylinder.split.1x2", color: explorer.databaseFolder, nodes: databases,
-                             menu: [.init(title: "New Database", symbol: "plus"), .init(title: "Attach Database", symbol: "paperclip"), .init(title: "Restore Database", symbol: "arrow.counterclockwise"), .divider, .init(title: "Hide Offline Databases", symbol: "eye.slash"), .init(title: "Refresh", symbol: "arrow.clockwise")],
-                             loadsOnOpen: false),
+                             menu: [.init(title: "New Database", symbol: "plus"), .init(title: "Attach Database", symbol: "paperclip"), .init(title: "Restore Database", symbol: "arrow.counterclockwise"), .divider, .init(title: "Hide Offline Databases", symbol: "eye.slash"), .init(title: "Refresh", symbol: "arrow.clockwise")],),
                 LabSCSection(id: "security", title: "Security", symbol: "shield", color: explorer.security, nodes: [
                     Nodes.folder("mssql.logins", "Logins", symbol: "person.2", color: explorer.logins, loadsOnOpen: true, Nodes.leaves("mssql.logins", ["##MS_PolicyEventProcessingLogin##", "BUILTIN\\Administrators", "echo_app", "etl_service", "reporting_ro", "sa", "web_api"], symbol: "person.crop.circle", color: explorer.logins)),
                     Nodes.folder("mssql.roles", "Server Roles", symbol: "shield", color: explorer.serverRoles, Nodes.leaves("mssql.roles", ["bulkadmin", "dbcreator", "public", "securityadmin", "sysadmin"], symbol: "shield", color: explorer.serverRoles)),
@@ -65,8 +64,7 @@ extension LabSCServer {
             id: "pg", name: "postgres18", engine: .postgres, rawVersion: "PostgreSQL 18.3",
             sections: [
                 LabSCSection(id: "databases", title: "Databases", symbol: "cylinder.split.1x2", color: explorer.databaseFolder, nodes: databases,
-                             menu: [.init(title: "New Database", symbol: "plus"), .init(title: "Restore Database", symbol: "arrow.counterclockwise"), .divider, .init(title: "Refresh", symbol: "arrow.clockwise")],
-                             loadsOnOpen: false),
+                             menu: [.init(title: "New Database", symbol: "plus"), .init(title: "Restore Database", symbol: "arrow.counterclockwise"), .divider, .init(title: "Refresh", symbol: "arrow.clockwise")],),
                 LabSCSection(id: "security", title: "Security", symbol: "shield", color: explorer.security, nodes: [
                     Nodes.folder("pg.login", "Login Roles", symbol: "person.crop.circle", color: explorer.logins, loadsOnOpen: true, Nodes.leaves("pg.login", ["k", "postgres", "reporting", "etl"], symbol: "person.crop.circle", color: explorer.logins)),
                     Nodes.folder("pg.group", "Group Roles", symbol: "person.2.circle", color: explorer.roles, Nodes.leaves("pg.group", ["pg_monitor", "pg_read_all_data", "readers", "writers"], symbol: "person.2.circle", color: explorer.roles)),

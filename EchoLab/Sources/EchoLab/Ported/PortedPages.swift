@@ -13,20 +13,16 @@ enum PortedPages {
 
     private static func labPage(_ page: DesignLabPage, status: LabStatus) -> LabPage {
         let id = "ported.\(page.id)"
-        // Written as a `RoundSpec` (see Blueprint/RoundSpec.swift).
-        if page == .round14Dock {
-            return LabPage.round(id: id, group: "Design Lab", title: page.rawValue, symbol: page.symbol, status: status,
-                                 summary: "Icon style, dock labels and the edge under the dock.", spec: DockRound.spec)
+        let (spec, summary): (RoundSpec, String) = switch page {
+        case .round14Dock: (DockRound.spec, "Icon style, dock labels and the edge under the dock.")
+        case .round14Tabs: (TabsRound.spec, "Round 9's strip on one line, and how a tool's pages open inside its tab.")
+        case .round14Connections: (ConnectionsRound.spec, "Editing a connection inside Manage Connections, with the short sheet.")
+        case .round14Sense: (EchoSenseRound.spec, "How the selected suggestion looks while typing and after you choose it, and its corners.")
+        case .round15Run: (RunRound.spec, "Five places for Run, on one simulated query: idle, running, the result, and back.")
+        case .round15Inspector: (InspectorRound.spec, "Three ways to draw the inspector column without stacked, cut-off shadows.")
+        case .round15Notifications: (NotificationsRound.spec, "Where toasts start and where the notification history opens.")
+        default: (RoundSpec(exhibits: []), page.intro)
         }
-        // Playgrounds not yet rewritten as a `RoundSpec` are scaled into the round frame.
-        return LabPage(
-            id: id, section: .ongoing, group: "Design Lab", title: page.rawValue,
-            symbol: page.symbol, status: status, summary: page.intro, ownsHeader: true,
-            decision: { .legacy(page) }
-        ) {
-            LabRoundFrame(pageID: id, decision: .legacy(page), playSize: CGSize(width: 1180, height: 1300)) {
-                DesignLabPlayground(page: page)
-            }
-        }
+        return LabPage.round(id: id, group: "Design Lab", title: page.rawValue, symbol: page.symbol, status: status, summary: summary, spec: spec)
     }
 }

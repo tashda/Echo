@@ -76,7 +76,7 @@ struct LabRound15RunPlayground: View {
 }
 
 /// Concept 3 needs the pointer over the editor card to show its button.
-private struct LabRunCornerWindow: View {
+struct LabRunCornerWindow: View {
     let simulation: LabRunSimulation
     @State private var isHovering = false
 
