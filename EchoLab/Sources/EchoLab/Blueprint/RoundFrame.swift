@@ -72,7 +72,7 @@ struct LabRoundInfoBox: View {
         // Wrapping text asked for its minimum size is measured at zero width, one word per line,
         // which made the window's minimum height thousands of points. A minimum width prevents it.
         .frame(minWidth: 420, maxWidth: .infinity, alignment: .leading)
-        .background(ColorTokens.Surface.rest, in: .rect(cornerRadius: 14, style: .continuous))
+        .labCard(cornerRadius: 16)
     }
 
     private func hintStep(_ number: String, _ text: String) -> some View {
@@ -106,7 +106,7 @@ struct RoundDecisionPanel: View {
                     } label: {
                         Label("Use all recommendations", systemImage: "star.fill").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, isOn: true))
                     .help("Picks the agent's recommendation for every topic; change any you disagree with")
                 }
                 if hasPreview {
@@ -115,7 +115,7 @@ struct RoundDecisionPanel: View {
                     } label: {
                         Label("Use what's selected in the preview", systemImage: "wand.and.stars").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true))
                     .help("Picks, for every topic that has a control in the playground, the choice you currently have set there")
                 }
                 ForEach(Array(decision.topics.enumerated()), id: \.element.id) { index, topic in
@@ -126,7 +126,7 @@ struct RoundDecisionPanel: View {
             .padding(SpacingTokens.sm)
         }
         .labScrollSizing()
-        .background(ColorTokens.Background.secondary.opacity(0.5))
+        .background(ColorTokens.Workspace.canvas)
     }
 
     private var decided: Int { decision.topics.filter { store.pick(page, topic: $0.id) != nil }.count }
@@ -193,26 +193,26 @@ private struct RoundDecisionTopicCard: View {
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 6, alignment: .leading)], alignment: .leading, spacing: 6) {
                 if let rec = topic.recommended, rec != picked {
-                    Button("Use recommendation", systemImage: "star") { store.setPick(page, topic: topic.id, option: rec) }
-                        .controlSize(.small)
+                    Button { store.setPick(page, topic: topic.id, option: rec) } label: { Label("Use recommendation", systemImage: "star") }
+                        .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent))
                 }
                 if let previewChoice, previewChoice != picked {
-                    Button("Use preview", systemImage: "wand.and.stars") { store.setPick(page, topic: topic.id, option: previewChoice) }
-                        .controlSize(.small)
+                    Button { store.setPick(page, topic: topic.id, option: previewChoice) } label: { Label("Use preview", systemImage: "wand.and.stars") }
+                        .buttonStyle(LabPillButtonStyle())
                 }
-                Toggle(isOn: Binding(get: { needsMore }, set: { store.setNeedsMore(page, topic: topic.id, $0) })) {
-                    Text("Needs more options")
+                Button { store.setNeedsMore(page, topic: topic.id, !needsMore) } label: {
+                    Label("Needs more options", systemImage: needsMore ? "checkmark.circle.fill" : "plus.circle")
                 }
-                .toggleStyle(.button).controlSize(.small).tint(needsMore ? ColorTokens.Status.warning : nil)
+                .buttonStyle(LabPillButtonStyle(tint: ColorTokens.Status.warning, isOn: needsMore))
             }
             TextField("", text: $note, prompt: Text(needsMore ? "What would you like to see instead?" : "Note"), axis: .vertical)
                 .textFieldStyle(.roundedBorder).lineLimit(1...4).font(TypographyTokens.standard)
                 .onChange(of: note) { _, new in store.setPickNote(page, topic: topic.id, note: new) }
         }
         .padding(SpacingTokens.sm)
-        .background(ColorTokens.Workspace.card, in: .rect(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .strokeBorder(needsMore ? ColorTokens.Status.warning : (picked != nil ? ColorTokens.Status.success : ColorTokens.Workspace.cardEdge.opacity(0.5)), lineWidth: picked != nil || needsMore ? 1.5 : 0.5))
+        .labCard(cornerRadius: 14)
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .strokeBorder(needsMore ? ColorTokens.Status.warning : (picked != nil ? ColorTokens.Status.success : .clear), lineWidth: picked != nil || needsMore ? 1.5 : 0))
         .onAppear { note = store.pickNote(page, topic: topic.id) }
     }
 }
@@ -263,15 +263,17 @@ private struct RoundDecisionSummary: View {
                 .onChange(of: general) { _, new in store.setGeneralNote(page, new) }
             HStack {
                 Button("Accept") { store.acceptPicks(page, summary: summary) }
-                    .buttonStyle(.borderedProminent).disabled(!canAccept)
+                    .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true)).disabled(!canAccept)
                     .help("Needs a pick in every topic and no topic marked Needs more options")
                 Button("Send back") { store.sendFeedback(page, comment: summary) }
+                    .buttonStyle(LabPillButtonStyle())
                     .help("Send your picks and notes to Claude as feedback")
                 Button(copied ? "Copied" : "Copy") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(summary, forType: .string)
                     copied = true
                 }
+                .buttonStyle(LabPillButtonStyle())
             }
             Text("Saved as you go. Accept needs a pick in every topic.").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
         }

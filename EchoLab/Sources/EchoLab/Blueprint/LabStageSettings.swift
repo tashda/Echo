@@ -81,7 +81,8 @@ struct LabStageControlColumn: View {
                 Toggle("Fast", isOn: $settings.fast)
                 Toggle("Reduce Motion", isOn: $settings.reduceMotion)
             }
-            Button("Replay", systemImage: "arrow.counterclockwise") { settings.replay += 1 }
+            Button { settings.replay += 1 } label: { Label("Replay", systemImage: "arrow.counterclockwise") }
+                .buttonStyle(LabPillButtonStyle())
         }
         .controlSize(.small)
     }

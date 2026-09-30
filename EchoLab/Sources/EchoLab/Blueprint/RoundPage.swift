@@ -39,8 +39,10 @@ struct LabRoundPage: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 if usesColumn {
-                    Button(showsControls ? "Hide controls" : "Controls", systemImage: "slider.horizontal.3") { showsControls.toggle() }
-                        .buttonStyle(.borderless).controlSize(.small)
+                    Button { showsControls.toggle() } label: {
+                        Label(showsControls ? "Hide controls" : "Show controls", systemImage: "slider.horizontal.3")
+                    }
+                    .buttonStyle(LabPillButtonStyle(isOn: showsControls))
                 }
                 Label("Try it", systemImage: "hand.tap").font(TypographyTokens.headline)
                 Spacer()
@@ -74,7 +76,7 @@ private struct RoundControlMenu: View {
     var body: some View {
         let current = control.choices.first { $0.id == values[control.id] }
         VStack(alignment: .leading, spacing: 3) {
-            Text(control.title).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
+            Text(control.title).font(TypographyTokens.standard.weight(.semibold)).foregroundStyle(ColorTokens.Text.primary)
             Menu {
                 Picker(control.title, selection: values.binding(control.id)) {
                     ForEach(control.choices) { Text($0.name + ($0.id == control.recommended ? "  ★ recommended" : "")).tag($0.id) }
@@ -86,17 +88,17 @@ private struct RoundControlMenu: View {
                     Spacer(minLength: 4)
                     Image(systemName: "chevron.up.chevron.down").font(.system(size: 9)).foregroundStyle(ColorTokens.Text.tertiary)
                 }
-                .padding(.horizontal, 8).frame(height: 26)
-                .background(ColorTokens.Workspace.card, in: .rect(cornerRadius: 7, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(ColorTokens.Workspace.cardEdge.opacity(0.6), lineWidth: 0.5))
+                .font(TypographyTokens.standard)
+                .padding(.horizontal, 10).frame(height: 30)
+                .labField()
                 .contentShape(Rectangle())
             }
             .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
             if let rec = control.recommended, current?.id != rec, let name = control.choices.first(where: { $0.id == rec })?.name {
-                Text("★ Recommended: \(name)").font(TypographyTokens.detail).foregroundStyle(ColorTokens.accent)
+                Label("Recommended: \(name)", systemImage: "star.fill").font(TypographyTokens.detail.weight(.medium)).foregroundStyle(ColorTokens.accent)
             }
             if showsSummary, let summary = current?.summary {
-                Text(summary).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
+                Text(summary).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -111,37 +113,41 @@ private struct RoundControlsColumn: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: SpacingTokens.md) {
+            VStack(alignment: .leading, spacing: SpacingTokens.lg) {
                 if !spec.presets.isEmpty {
-                    section("Presets") {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)], alignment: .leading, spacing: 6) {
+                    section("Presets", "wand.and.stars") {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6, alignment: .leading)], alignment: .leading, spacing: 6) {
                             ForEach(spec.presets) { preset in
-                                Button(preset.name + (preset.isRecommended ? "  ★" : "")) { values.apply(preset) }
-                                    .buttonStyle(.bordered).controlSize(.small)
-                                    .tint(values.matches(preset) ? ColorTokens.accent : nil)
-                                    .help(preset.summary ?? "")
+                                Button { values.apply(preset) } label: {
+                                    HStack(spacing: 4) {
+                                        Text(preset.name)
+                                        if preset.isRecommended { Image(systemName: "star.fill").font(.system(size: 9)) }
+                                    }
+                                }
+                                .buttonStyle(LabPillButtonStyle(isOn: values.matches(preset)))
+                                .help(preset.summary ?? "")
                             }
                         }
                     }
                 }
-                section("Controls") {
-                    VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                section("Controls", "slider.horizontal.3") {
+                    VStack(alignment: .leading, spacing: SpacingTokens.md) {
                         ForEach(spec.controls) { RoundControlMenu(control: $0, values: values) }
-                        Button("Reset controls", systemImage: "arrow.uturn.backward") { values.reset(spec.controls) }
-                            .buttonStyle(.borderless).controlSize(.small)
+                        Button { values.reset(spec.controls) } label: { Label("Reset controls", systemImage: "arrow.uturn.backward") }
+                            .buttonStyle(LabPillButtonStyle())
                     }
                 }
-                section("Test") { LabStageControlColumn(settings: settings) }
+                section("Test", "testtube.2") { LabStageControlColumn(settings: settings) }
             }
-            .padding(SpacingTokens.sm)
+            .padding(SpacingTokens.md)
         }
         .labScrollSizing()
-        .background(ColorTokens.Background.secondary.opacity(0.5))
+        .background(ColorTokens.Workspace.canvas)
     }
 
-    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased()).font(.system(size: 10, weight: .semibold)).foregroundStyle(ColorTokens.Text.tertiary)
+    private func section<Content: View>(_ title: String, _ symbol: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            LabColumnTitle(text: title, symbol: symbol)
             content()
         }
     }
@@ -214,6 +220,7 @@ private struct RoundExhibitCard: View {
             }
             .padding(SpacingTokens.xs)
             .background(ColorTokens.Workspace.canvas, in: .rect(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5))
             .preferredColorScheme(settings.appearance.scheme)
             if decides {
                 HStack(spacing: SpacingTokens.xs) {
@@ -233,9 +240,9 @@ private struct RoundExhibitCard: View {
             }
         }
         .padding(SpacingTokens.sm)
-        .background(ColorTokens.Workspace.card, in: .rect(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .strokeBorder(border, lineWidth: verdict == .pick ? 2 : 0.5))
+        .labCard(cornerRadius: 16)
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .strokeBorder(border, lineWidth: verdict == nil ? 0 : 2))
         .opacity(verdict == .no ? 0.7 : 1)
         .onAppear {
             note = store.optionNote(page, topic: RoundSpec.exhibitTopicID, option: exhibit.id)
@@ -248,7 +255,7 @@ private struct RoundExhibitCard: View {
         case .pick: ColorTokens.Status.success
         case .maybe: ColorTokens.Status.warning
         case .no: ColorTokens.Status.error.opacity(0.6)
-        case nil: ColorTokens.Workspace.cardEdge.opacity(0.5)
+        case nil: .clear
         }
     }
 
@@ -257,7 +264,6 @@ private struct RoundExhibitCard: View {
         return Button {
             store.setVerdict(page, topic: RoundSpec.exhibitTopicID, option: exhibit.id, verdict: isOn ? nil : value)
         } label: { Label(title, systemImage: symbol) }
-            .buttonStyle(.bordered).controlSize(.small)
-            .tint(isOn ? tint : nil).fontWeight(isOn ? .semibold : .regular)
+            .buttonStyle(LabPillButtonStyle(tint: tint, isOn: isOn))
     }
 }
