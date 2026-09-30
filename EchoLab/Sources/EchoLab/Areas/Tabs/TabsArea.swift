@@ -14,11 +14,11 @@ enum TabsArea {
         summary: "Safari-style tabs on one line: a grey plate with a raised white active tab, a glass + at the end, and a tool's pages unfolding inside its own tab.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "e406883e", date: "2026-09-30",
-                note: "Read from QueryTabStrip, QueryTabButton, TabPageChips and the tab tokens. The specimen is drawn with the same tokens and metrics."),
+                level: .code, commit: "2776c002", date: "2026-09-30",
+                note: "Read from QueryTabStrip, QueryTabButton (+Title, +CloseButton, +Appearance), TabPageChips and the tab tokens. The specimen is drawn with the same tokens and metrics."),
             stageHeight: 150,
             behaviours: [
-                .init(trigger: "Click a tab", result: "Selects at once (a real button); dragging still reorders."),
+                .init(trigger: "Click a tab", result: "Selects on press, so the click counts at once; dragging still reorders. Pressing the close button doesn't select the tab."),
                 .init(trigger: "Switch back to a recent tab", result: "Its editor is still alive: scroll, undo history and cursor stay."),
                 .init(trigger: "Hover a tab", result: "The close × appears at its leading edge; the tooltip shows title, database and running time."),
                 .init(trigger: "Middle-click a tab", result: "Closes it."),
@@ -95,7 +95,7 @@ enum TabsArea {
                         .row("Content", "× · icon and title centred · 12pt spacer")),
             ], files: [files + "QueryTabButton.swift"]),
             SpecElement(number: "2.2", name: "Icon", summary: "The tab's kind icon (query, tool, table…).", groups: [
-                .type(.row("Symbol size", "11pt", token: "TypographyTokens.detail"), .row("Frame", "12pt wide", token: "SpacingTokens.sm2")),
+                .type(.row("Symbol size", "11pt", token: "TypographyTokens.detail"), .row("Frame", "14pt wide", token: "SpacingTokens.sm2"), .row("Gap to the title", "6pt", token: "SpacingTokens.xxs2")),
                 .states(.row("Active", "title colour at 80%"), .row("Inactive", "title colour at 70%")),
             ], files: [files + "QueryTabButton+Title.swift"]),
             SpecElement(number: "2.3", name: "Title", summary: "One line, centred in what is left.", groups: [
@@ -122,7 +122,7 @@ enum TabsArea {
             ], files: [files + "QueryTabButton+Appearance.swift"]),
             SpecElement(number: "2.7", name: "Close ×", summary: "Safari-style: at the tab's leading edge, and only while the tab is hovered.", states: [SpecState(key: "hoverActive", name: "Tab hovered"), SpecState(key: "hoverClose", name: "× hovered")], defaultState: "hoverActive", groups: [
                 .type(.row("Glyph", "xmark, 9pt bold", token: "TypographyTokens.compact")),
-                .layout(.row("Hit area", "12pt circle", token: "SpacingTokens.sm2"), .row("Position", "leading edge of the tab")),
+                .layout(.row("Hit area", "a circle in the 14pt icon frame", token: "SpacingTokens.sm2"), .row("Position", "leading edge of the tab")),
                 .states(.row("Visible", "only while the tab is hovered; never on pinned tabs"),
                         .row("Active tab", "secondary label"), .row("Inactive tab", "tertiary label"),
                         .row("Hovering the ×", "label colour on a circle: black 8% (dark: white 18%)")),
@@ -132,7 +132,7 @@ enum TabsArea {
                 .material(.row("Fill", "grey gradient (dark: white 24% to 18%)", token: "TabStrip.DropTarget"), .row("Title", "white")),
             ], files: [files + "QueryTabButton+Appearance.swift"]),
             SpecElement(number: "2.9", name: "Pinned tab", summary: "A narrow tab showing one letter. Turn on \"Pinned tab\" to see it.", groups: [
-                .type(.row("Title", "first letter, uppercased, 11pt semibold")),
+                .type(.row("Title", "first letter, uppercased, 11pt semibold; a dot for an empty title"), .row("Colour", "label; inactive at 75% secondary")),
                 .layout(.row("Padding", "13pt each side"), .row("Close", "none")),
             ], files: [files + "QueryTabButton+Title.swift"]),
             SpecElement(number: "2.10", name: "Running spinner", summary: "Replaces the icon while a query runs.", groups: [
@@ -140,10 +140,11 @@ enum TabsArea {
                 .behaviour(.row("Timer", "in the tooltip and the tab overview, not on the tab")),
             ], files: [files + "QueryTabButton+Title.swift"]),
             SpecElement(number: "2.11", name: "Tooltip", summary: "Title, database, and when a running query started.", groups: [
-                .behaviour(.row("Format", "Title · database · Running since 10:42:03")),
+                .behaviour(.row("Format", "Title · database · Running since 10:42:03; the database is the tab's subtitle or its active database")),
             ], rounds: ["decided.round12-two-line-tabs"], files: [files + "QueryTabButton+Title.swift"]),
             SpecElement(number: "2.12", name: "Context menu", summary: "Right-click a tab.", groups: [
-                .behaviour(.row("Items", "Pin, Duplicate, Switch Database, Close, Close Others, Close to the Left, Close to the Right, Add to Bookmarks")),
+                .behaviour(.row("Items", "Pin Tab or Unpin Tab; Duplicate Tab; Switch Database (a submenu with a check on the current one, when the connection has databases); Close Tab; Close Other Tabs; Close Tabs to the Left; Close Tabs to the Right; Add to Bookmarks (when offered)"),
+                           .row("Disabled", "Duplicate, Close Others and the left and right closes when they would do nothing")),
             ], files: [files + "QueryTabButton.swift"]),
             SpecElement(number: "2.13", name: "Drag to reorder", summary: "Tabs follow the pointer and the others slide aside.", groups: [
                 .motion(.row("Spring", "interactive, response 0.2, damping 0.9", token: "tabReorderAnimation")),

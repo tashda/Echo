@@ -45,10 +45,10 @@ enum FoundationsSpec {
                 .motion(.row("Curve", "smooth, no overshoot"), .row("Duration", "0.45s"), .row("Token", "echoMotion.settle")),
             ], files: [tokens + "MotionToken.swift"]),
             SpecElement(number: "3.3", name: "Hover", summary: "A fill or tint under the pointer.", groups: [
-                .motion(.row("Curve", "ease out"), .row("Duration", "0.12s"), .row("Token", "echoMotion.hover")),
+                .motion(.row("Curve", "ease out"), .row("Duration", "0.12s (0.1s with Reduce Motion)"), .row("Token", "echoMotion.hover")),
             ], files: [tokens + "MotionToken.swift"]),
-            SpecElement(number: "3.4", name: "Press", summary: "A control pressed.", groups: [
-                .motion(.row("Curve", "ease out"), .row("Duration", "0.16s")),
+            SpecElement(number: "3.4", name: "Press", summary: "Press and selection feedback.", groups: [
+                .motion(.row("Curve", "ease out"), .row("Duration", "0.16s (0.1s with Reduce Motion)"), .row("Token", "echoMotion.press")),
             ], files: [tokens + "MotionToken.swift"]),
             SpecElement(number: "3.5", name: "Expand", summary: "Folders in the tree.", groups: [
                 .motion(.row("Curve", "ease in-out"), .row("Duration", "0.22s"), .row("Token", "echoMotion.expand")),
@@ -57,25 +57,36 @@ enum FoundationsSpec {
                 .motion(.row("Curve", "smooth"), .row("Duration", "0.40s"), .row("Token", "echoMotion.reveal")),
             ], files: [tokens + "MotionToken.swift"]),
             SpecElement(number: "3.7", name: "Motion speed", summary: "A setting: Default or Fast.", groups: [
-                .behaviour(.row("Fast", "scales every duration to 0.7×")),
-            ]),
+                .behaviour(.row("Default", "1×"), .row("Fast", "scales every duration to 0.7×", token: "InterfaceMotionSpeed.durationScale"), .row("Reduce Motion", "wins over it")),
+            ], files: ["Echo/Sources/Features/Preferences/Domain/GlobalSettings+Workspace.swift"]),
+            SpecElement(number: "3.8", name: "Liquid stretch", summary: "The rail's selection disc stretches to its target.", groups: [
+                .motion(.row("Leading edge", "spring, bounce 0.25, 0.28s", token: "echoMotion.liquidLead"), .row("Trailing edge", "spring, bounce 0.3, 0.55s, 0.06s later", token: "echoMotion.liquidTrail")),
+            ], files: [tokens + "MotionToken.swift"]),
+            SpecElement(number: "3.9", name: "Connecting pulse", summary: "A server that is connecting breathes.", groups: [
+                .motion(.row("Half cycle", "0.7s ease in-out", token: "echoMotion.pulseHalfPeriod"), .row("Deepest point", "15% opacity, 90% size", token: "EchoMotion.pulseMinimumOpacity / pulseMinimumScale"),
+                        .row("Reduce Motion", "still, dimmed")),
+            ], files: [tokens + "MotionToken.swift"]),
         ]),
         SpecPart(number: "4", name: "Type and spacing", summary: "Sizes come from tokens.", elements: [
             SpecElement(number: "4.1", name: "Standard text", summary: "13pt, for labels and body.", groups: [.type(.row("Size", "13pt", token: "TypographyTokens.standard"))], files: [tokens + "TypographyToken.swift"]),
             SpecElement(number: "4.2", name: "Detail text", summary: "11pt, for secondary information.", groups: [.type(.row("Size", "11pt", token: "TypographyTokens.detail"))], files: [tokens + "TypographyToken.swift"]),
+            SpecElement(number: "4.4", name: "Type steps", summary: "The fixed sizes views use.", groups: [
+                .type(.row("compact", "9pt"), .row("label", "10pt"), .row("detail", "11pt"), .row("caption2", "12pt"), .row("standard", "13pt"), .row("prominent", "14pt"),
+                      .row("code", "13pt monospaced", token: "TypographyTokens.code")),
+            ], files: [tokens + "TypographyToken.swift"]),
             SpecElement(number: "4.3", name: "Spacing steps", summary: "The only spacings views may use.", groups: [
-                .layout(.row("Steps", "2 · 4 · 6 · 8 · 10 · 12 · 16 · 24", token: "SpacingTokens")),
+                .layout(.row("Steps", "1 · 2 · 2.5 · 3 · 3.5 · 4 · 5 · 6 · 7 · 8 · 10 · 12 · 14 · 15 · 16 · 18 · 20 · 24 · 30 · 32 · 40 · 48 · 64pt", token: "SpacingTokens")),
             ], files: [tokens + "SpacingToken.swift"]),
         ]),
         SpecPart(number: "5", name: "Accessibility", summary: "Every setting looks right and every control has a label.", elements: [
             SpecElement(number: "5.1", name: "Reduce Motion", summary: "Every move becomes a fade; loops stop.", groups: [
-                .behaviour(.row("Moves", "a 0.18s fade with no bounce"), .row("Looping effects", "stop")),
+                .behaviour(.row("Moves", "a 0.18s ease-in-out fade with no bounce", token: "EchoMotion.reduced"), .row("Hover and press", "0.1s"), .row("Looping effects", "stop", token: "allowsLoopingEffects")),
             ], files: ["Design/04-motion.md"]),
-            SpecElement(number: "5.2", name: "Reduce Transparency", summary: "Glass falls back to opaque fills.", groups: [
-                .behaviour(.row("Glass controls", "opaque fills"), .row("Cards", "opaque already")),
+            SpecElement(number: "5.2", name: "Reduce Transparency", summary: "The system decides how Liquid Glass looks; Echo has no code of its own for it.", groups: [
+                .behaviour(.row("Glass controls", "the system's fallback"), .row("Cards", "opaque already")),
             ], files: ["Design/03-materials.md"]),
-            SpecElement(number: "5.3", name: "Increase Contrast", summary: "Fills strengthen and edges stay visible.", groups: [
-                .behaviour(.row("Sidebar fills", "strengthen (adaptive colours)"), .row("Edges", "stay visible")),
+            SpecElement(number: "5.3", name: "Increase Contrast", summary: "Adaptive colours switch to their high-contrast values.", groups: [
+                .behaviour(.row("Adaptive colours", "light, dark, and a stronger pair for Increase Contrast", token: "Color.adaptive"), .row("System colours", "follow the system")),
             ], files: ["Design/03-materials.md"]),
             rule("5.4", "Accessibility is not optional", "Reduce Motion, Reduce Transparency and Increase Contrast must all look right; every control has a label."),
         ]),
