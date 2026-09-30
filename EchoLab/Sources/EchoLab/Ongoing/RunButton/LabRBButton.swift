@@ -165,7 +165,7 @@ struct LabRBButton: View {
         holdTask?.cancel()
         switch phase {
         case .succeeded, .failed:
-            guard look.result != .none else { shownResult = nil; return }
+            guard look.result != .nothing else { shownResult = nil; return }
             shownResult = phase
             if look.hold == .errorsStay, case .failed = phase { return }
             let seconds = look.hold.seconds

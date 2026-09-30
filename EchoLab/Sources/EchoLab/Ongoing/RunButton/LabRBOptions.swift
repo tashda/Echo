@@ -98,7 +98,7 @@ enum LabRBSelection: String, CaseIterable {
 }
 
 enum LabRBHover: String, CaseIterable {
-    case none = "H0 · Nothing (today)"
+    case nothing = "H0 · Nothing (today)"
     case grow = "H1 · The glyph grows"
     case nudge = "H2 · The glyph nudges forward"
     case tint = "H3 · Tints to the accent"
@@ -106,7 +106,7 @@ enum LabRBHover: String, CaseIterable {
 
     var summary: String {
         switch self {
-        case .none: "Like its neighbours: the system's press highlight only."
+        case .nothing: "Like its neighbours: the system's press highlight only."
         case .grow: "As the section dock's icons do (round 19)."
         case .nudge: "▶ leans a couple of points forward, as if about to go."
         case .tint: "The glyph takes the accent colour while the pointer is on it."
@@ -226,7 +226,7 @@ enum LabRBResult: String, CaseIterable {
     case drawn = "E1 · ✓ draws itself"
     case rows = "E2 · Rows and time"
     case flash = "E3 · The glass flashes"
-    case none = "E4 · Nothing, straight back"
+    case nothing = "E4 · Nothing, straight back"
 
     var summary: String {
         switch self {
@@ -234,7 +234,7 @@ enum LabRBResult: String, CaseIterable {
         case .drawn: "The same, but the mark draws itself (SF Symbols 7's Draw On)."
         case .rows: "“1,204 rows · 1.5 s” or “Line 3” in the capsule (it grows)."
         case .flash: "▶ stays; the glass washes green or red and fades."
-        case .none: "Straight back to ▶; the results and the line say how it went."
+        case .nothing: "Straight back to ▶; the results and the line say how it went."
         }
     }
 }

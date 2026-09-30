@@ -7,7 +7,7 @@ struct LabRBLook: Equatable {
     var icon: LabRBIcon = .playFill
     var colour: LabRBColour = .primary
     var selection: LabRBSelection = .accentGlyph
-    var hover: LabRBHover = .none
+    var hover: LabRBHover = .nothing
     var unavailable: LabRBUnavailable = .dimmed
     var menu: LabRBMenu = .rightClick
     var memory: LabRBMemory = .alwaysRun

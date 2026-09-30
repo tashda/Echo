@@ -92,8 +92,8 @@ struct LabRBGlyph: View {
     private var discColour: Color {
         switch visual {
         case .running: ColorTokens.Status.error
-        case .succeeded where look.result != .flash && look.result != .none: ColorTokens.Status.success
-        case .failed where look.result != .flash && look.result != .none: ColorTokens.Status.error
+        case .succeeded where look.result != .flash && look.result != .nothing: ColorTokens.Status.success
+        case .failed where look.result != .flash && look.result != .nothing: ColorTokens.Status.error
         default: button.restColour
         }
     }
