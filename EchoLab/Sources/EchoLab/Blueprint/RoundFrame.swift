@@ -223,7 +223,7 @@ private struct RoundDecisionSummary: View {
     }
 
     private var summary: String {
-        var text = "Review of \(page.title)\n" + lines.joined(separator: "\n")
+        var text = "Review of \(LabRoundName.split(page.title).name)\n" + lines.joined(separator: "\n")
         let general = store.generalNote(page)
         if !general.isEmpty { text += "\nOverall: \(general)" }
         return text

@@ -43,7 +43,7 @@ struct LabFeedbackInspector: View {
                         ForEach(comments.reversed()) { comment in
                             VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                                 if let id = comment.element { Text(id).font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(ColorTokens.accent) }
-                                Text(comment.text)
+                                Text(LabRoundName.stripped(comment.text))
                                 Text(comment.date.formatted(date: .abbreviated, time: .shortened))
                                     .font(TypographyTokens.detail)
                                     .foregroundStyle(ColorTokens.Text.tertiary)
@@ -56,7 +56,7 @@ struct LabFeedbackInspector: View {
                     Section("History") {
                         ForEach(Array(history.enumerated().reversed()), id: \.offset) { _, event in
                             HStack {
-                                Text(event.text)
+                                Text(LabRoundName.stripped(event.text))
                                 Spacer()
                                 Text(event.date.formatted(date: .abbreviated, time: .omitted))
                                     .foregroundStyle(ColorTokens.Text.tertiary)

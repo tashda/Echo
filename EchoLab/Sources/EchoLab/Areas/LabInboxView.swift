@@ -132,7 +132,7 @@ struct LabInboxView: View {
         if let change = store.revisionsSinceReview(of: page).flatMap({ $0.changes.isEmpty ? [$0.summary] : $0.changes }).first, !change.isEmpty {
             return "Since your review: " + change
         }
-        return store.comments(for: page).last?.text ?? page.summary
+        return store.comments(for: page).last.map { LabRoundName.stripped($0.text) } ?? page.summary
     }
 }
 
@@ -220,7 +220,7 @@ struct LabMailPageDetail: View {
                         if let element = comment.element {
                             Text(element).font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(ColorTokens.accent)
                         }
-                        Text(comment.text).font(TypographyTokens.standard).fixedSize(horizontal: false, vertical: true)
+                        Text(LabRoundName.stripped(comment.text)).font(TypographyTokens.standard).fixedSize(horizontal: false, vertical: true)
                         Text(comment.date.formatted(date: .abbreviated, time: .shortened))
                             .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
                     }
@@ -245,7 +245,7 @@ struct LabMailPageDetail: View {
             LabReadingCard(title: "History", symbol: "clock") {
                 ForEach(Array(history.enumerated().reversed()), id: \.offset) { _, event in
                     HStack {
-                        Text(event.text)
+                        Text(LabRoundName.stripped(event.text))
                         Spacer()
                         Text(event.date.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(ColorTokens.Text.tertiary)
                     }
