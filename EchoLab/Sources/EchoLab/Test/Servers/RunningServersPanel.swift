@@ -35,12 +35,17 @@ struct RunningServersPanel: View {
                 Picker("Show", selection: $bottomPane) {
                     Text("Log").tag("log")
                     Text("Wire").tag("wire")
+                    Text("Explained").tag("explained")
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(maxWidth: 200)
+                .frame(maxWidth: 300)
                 .padding(.top, SpacingTokens.xs)
-                if bottomPane == "wire" { WireView(model: model) } else { logView }
+                switch bottomPane {
+                case "wire": WireView(model: model)
+                case "explained": ExplainedWireView(model: model)
+                default: logView
+                }
             }
             .frame(minHeight: 180)
         }
@@ -64,19 +69,23 @@ struct RunningServersPanel: View {
 
     @ViewBuilder
     private func row(_ server: RunningServer) -> some View {
-        let mine = model.startedServer(named: server.name)
+        // Parts of a server show once, under its main container.
+        let mine = model.startedServer(named: server.server)
+        let isMain = server.name == server.server
         VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             HStack {
                 Text(server.recipe).font(TypographyTokens.standard)
-                Text(server.role).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                Text(server.part.isEmpty || server.part == "server" ? server.role : "\(server.role), \(server.part)")
+                    .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
                 Spacer()
-                if let mine {
+                if let mine, isMain {
+                    StartedServerMenus(model: model, server: mine)
                     Button("Copy connection") { Self.copy(mine) }
-                    Button("Stop") { Task { await model.stop(mine) } }
+                    Button("Remove") { Task { await model.stop(mine) } }
                 }
             }
             HStack(spacing: SpacingTokens.sm) {
-                if let mine {
+                if let mine, isMain {
                     Text("\(mine.host):\(mine.port)  user \(mine.username)").textSelection(.enabled)
                 }
                 Text("owner \(server.owner)")
@@ -85,6 +94,7 @@ struct RunningServersPanel: View {
             }
             .font(TypographyTokens.detail)
             .foregroundStyle(ColorTokens.Text.secondary)
+            if let mine, isMain { StartedServerDetails(server: mine) }
         }
     }
 

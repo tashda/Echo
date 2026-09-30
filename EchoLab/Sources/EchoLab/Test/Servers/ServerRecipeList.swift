@@ -8,6 +8,7 @@ struct ServerRecipeList: View {
     @Binding var selectedRecipe: String?
     @Binding var leaseMinutes: Int
     @AppStorage("lab.servers.capture") private var capture = false
+    @AppStorage("lab.servers.faults") private var faults = false
     @State private var search = ""
 
     private var filtered: [Recipe] {
@@ -59,6 +60,11 @@ struct ServerRecipeList: View {
                 if let agent = recipe.settings.agent { LabeledContent("Agent", value: agent ? "On" : "Off") }
                 if let collation = recipe.settings.collation { LabeledContent("Collation", value: collation) }
                 if let variant = recipe.settings.imageVariant { LabeledContent("Image", value: variant) }
+                if let topology = recipe.settings.topology {
+                    LabeledContent("Parts", value: topology + (recipe.settings.replicas.map { ", \($0) replicas" } ?? ""))
+                }
+                if let tls = recipe.settings.tls { LabeledContent("TLS", value: "\(tls.mode.rawValue), \(tls.certificate.rawValue) certificate") }
+                if recipe.settings.kerberos == true { LabeledContent("Kerberos", value: "Active Directory domain LAB.TEST") }
             }
             Section("Packs") {
                 if recipe.packs.isEmpty { Text("None: an empty server").foregroundStyle(ColorTokens.Text.secondary) }
@@ -69,11 +75,13 @@ struct ServerRecipeList: View {
             Section {
                 Stepper("Remove after \(leaseMinutes) minutes", value: $leaseMinutes, in: 15...480, step: 15)
                 Toggle("Record traffic", isOn: $capture)
-                    .help("Records the server's traffic; see it decoded under Wire, or open it in Wireshark")
+                    .help("Records the server's traffic; see it decoded under Wire and Explained, or open it in Wireshark")
+                Toggle("Fault proxy", isOn: $faults)
+                    .help("Puts a Toxiproxy part in front of the server for latency, hangs, resets and network cuts")
                 HStack {
                     Button("Build image") { Task { await model.build(recipe) } }
                         .disabled(model.busyRecipes.contains(recipe.name))
-                    Button("Start server") { Task { await model.start(recipe, leaseMinutes: leaseMinutes, capture: capture) } }
+                    Button("Start server") { Task { await model.start(recipe, leaseMinutes: leaseMinutes, capture: capture, faults: faults) } }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.busyRecipes.contains(recipe.name))
                 }

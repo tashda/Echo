@@ -53,6 +53,14 @@ enum TestPages {
             summary: "Start disposable database servers from echo-server-lab recipes on testlab, see what runs there and how much memory is used, and watch builds."
         ) { ServersTestPage() },
         LabPage(
+            id: "test.tds",
+            section: .test,
+            group: "Databases",
+            title: "TDS reference",
+            symbol: "doc.text.magnifyingglass",
+            summary: "Explain TDS bytes field by field with the lab's decoder and look up MS-TDS tokens, types, messages and flows (the tds-mcp tools)."
+        ) { TDSReferencePage() },
+        LabPage(
             id: "test.connections",
             section: .test,
             group: "Databases",

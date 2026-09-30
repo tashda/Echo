@@ -26,6 +26,9 @@ final class LabServersModel {
     private(set) var capturing: Set<String> = []
     private(set) var wire: [WireMessage] = []
     private(set) var wireServer: String?
+    /// The capture explained field by field by the lab's TDS decoder (SQL Server only).
+    private(set) var explained: [ExplainedMessage] = []
+    private(set) var explainedServer: String?
 
     /// Echo Labs marks the servers it starts with this owner.
     static let owner = "echo-labs"
@@ -81,20 +84,21 @@ final class LabServersModel {
         await refresh()
     }
 
-    func start(_ recipe: Recipe, leaseMinutes: Int, capture: Bool) async {
+    func start(_ recipe: Recipe, leaseMinutes: Int, capture: Bool, faults: Bool = false) async {
         guard let lab, !busyRecipes.contains(recipe.name) else { return }
         busyRecipes.insert(recipe.name)
         defer { busyRecipes.remove(recipe.name) }
         append("Starting \(recipe.name) for \(leaseMinutes) minutes")
         do {
-            let server = try await lab.start(recipe, owner: Self.owner, lease: .seconds(leaseMinutes * 60),
+            var server = try await lab.start(recipe, owner: Self.owner, lease: .seconds(leaseMinutes * 60),
                                              log: { line in Task { @MainActor in LabServersModel.shared.append(line) } })
+            if faults { server = try await lab.startFaultProxy(for: server) }
             started.append(server)
             if capture {
                 try await lab.startCapture(of: server)
                 capturing.insert(server.containerName)
             }
-            append("Started \(server.containerName) on \(server.host):\(server.port)\(capture ? ", recording traffic" : "")")
+            append("Started \(server.containerName) on \(server.host):\(server.port)\(capture ? ", recording traffic" : "")\(faults ? ", fault proxy on \(server.parts.last?.port ?? 0)" : "")")
         } catch {
             append("Start failed: \(error)")
         }
@@ -114,6 +118,24 @@ final class LabServersModel {
     }
 
     func clearLog() { log.removeAll() }
+
+    /// Replaces a started server after a change to its parts (a fault proxy was added).
+    func replaceStarted(_ server: LabDatabaseServer) {
+        started.removeAll { $0.containerID == server.containerID }
+        started.append(server)
+    }
+
+    /// Explains the recorded SQL Server traffic of a server started here.
+    func refreshExplained(for containerName: String) async {
+        guard let lab, let server = startedServer(named: containerName), capturing.contains(containerName),
+              server.engine == .sqlServer else { return }
+        do {
+            explained = try await lab.explainedWire(of: server)
+            explainedServer = containerName
+        } catch {
+            append("Explaining the capture failed: \(error)")
+        }
+    }
 
     /// Decodes the traffic recorded for a server started here.
     func refreshWire(for containerName: String) async {

@@ -21,6 +21,7 @@ let package = Package(
                 .product(name: "PostgresKit", package: "postgres-wire"),
                 .product(name: "SQLServerKit", package: "sqlserver-nio"),
                 .product(name: "ServerLabCatalog", package: "echo-server-lab"),
+                .product(name: "TDSSpec", package: "echo-server-lab"),
             ]
         )
     ]
