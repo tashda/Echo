@@ -17,6 +17,14 @@ final class EchoSenseTestModel {
     var liveStructure: EchoSenseDatabaseStructure? { didSet { refresh() } }
     var liveSource: String?
 
+    /// Takes the schema (and dialect) loaded on the Connections page.
+    func useLiveSchema() {
+        guard let connection = LabLiveSession.shared.connection, let structure = connection.structure else { return }
+        databaseType = connection.dialect
+        liveStructure = structure
+        liveSource = "Live: \(connection.profile.name)"
+    }
+
     private(set) var response: SQLCompletionResponse?
     private(set) var elapsedMicroseconds = 0
     private let engine = SQLAutoCompletionEngine()

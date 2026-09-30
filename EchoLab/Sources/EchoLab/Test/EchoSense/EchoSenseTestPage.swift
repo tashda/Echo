@@ -36,6 +36,9 @@ struct EchoSenseTestPage: View {
                 HStack {
                     Text(model.liveSource ?? "Sample: shop (sales, hr)")
                         .foregroundStyle(ColorTokens.Text.secondary)
+                    if LabLiveSession.shared.connection?.structure != nil {
+                        Button("Use live schema") { model.useLiveSchema() }
+                    }
                     if model.liveStructure != nil {
                         Button("Use sample") { model.liveStructure = nil; model.liveSource = nil }
                     }
