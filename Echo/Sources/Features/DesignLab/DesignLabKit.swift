@@ -15,7 +15,7 @@ enum LabSpeed: String, CaseIterable, Identifiable {
 
     /// The app's motion values at this speed, so the lab moves exactly like Echo.
     func motion(reduceMotion: Bool = false) -> EchoMotion {
-        EchoMotion(speed: self == .fast ? .fast : .standard, reduceMotion: reduceMotion)
+        EchoMotion(durationScale: self == .fast ? InterfaceMotionSpeed.fast.durationScale : 1, reduceMotion: reduceMotion)
     }
 
     /// Echo's house spring: bouncy, scaled by speed; a short fade when Reduce Motion is on.

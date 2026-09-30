@@ -4,7 +4,7 @@ import SwiftUI
 extension Color {
     /// A colour that follows the window's appearance: light and dark, plus stronger values when
     /// Increase Contrast is on. Use it for fills that can't be a system colour.
-    static func adaptive(
+    public static func adaptive(
         light: NSColor,
         dark: NSColor,
         highContrastLight: NSColor? = nil,
