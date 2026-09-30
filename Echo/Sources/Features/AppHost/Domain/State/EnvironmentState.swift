@@ -141,6 +141,7 @@ final class EnvironmentState {
         self.objectBrowserCacheStore = objectBrowserCacheStore
 
         self.tabStore.delegate = self
+        self.tabStore.closeGuard = { [weak self] tab in self?.holdCloseForOpenTransaction(tab) ?? false }
         setupBindings()
         loadRecentConnections()
     }

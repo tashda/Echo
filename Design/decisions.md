@@ -2,6 +2,18 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 21 accepted: an open transaction on close
+
+Echo Labs › Tabs › Postgres: open transaction on close · round 21.
+
+- **Form: G2 · an alert,** like "Save changes?". **Default button: D1 · Commit** (Roll Back is the destructive choice, Cancel stops). → 05-components › Tabs
+- **Detail: DT2 · the sentence, how long it has been open and how many statements ran** ("Query 1 has a transaction on shop that is not committed. Open for 12 minutes · 3 statements."). The driver counts statements since BEGIN.
+- **When: W1 · closing the tab, switching database, disconnecting, quitting.**
+- **Failed transaction: FT1 · Roll Back and Cancel,** saying it failed ("Nothing can be committed").
+- **Quitting: Q1 · one alert listing the tabs:** Review…, Roll Back All, Cancel. Disconnecting a server with several such tabs asks the same way.
+- **Don't ask again: N1 · no.**
+- The state is checked with the server before asking (transaction state K1).
+
 ## 2026-09-30 · Round 21 accepted: PostgreSQL transaction state
 
 Echo Labs › Footer and results › Postgres: transaction state · round 21. The owner judged it on the gallery of all states.

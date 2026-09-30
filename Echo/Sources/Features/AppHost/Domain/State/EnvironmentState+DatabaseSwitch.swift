@@ -13,8 +13,16 @@ extension EnvironmentState {
 
     /// Points the tab at another database. SQL Server and MySQL reuse the connection; Postgres gets
     /// a session per database, cached by its server connection.
-    func switchDatabase(_ databaseName: String, for tab: WorkspaceTab) {
+    func switchDatabase(_ databaseName: String, for tab: WorkspaceTab, confirmed: Bool = false) {
         guard tab.connection.databaseType != .sqlite else { return }
+        // Round 21: an open PostgreSQL transaction asks before the tab moves to another database.
+        if !confirmed, mayHaveOpenTransaction(tab) {
+            Task { @MainActor [weak self] in
+                guard let self, await self.confirmOpenTransactions(in: tab, for: .switchDatabase) else { return }
+                self.switchDatabase(databaseName, for: tab, confirmed: true)
+            }
+            return
+        }
         Task {
             do {
                 _ = try await tab.session.sessionForDatabase(databaseName)

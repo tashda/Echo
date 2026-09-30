@@ -16,6 +16,10 @@ protocol TabStoreDelegate: AnyObject {
 /// observing `TabStore` through `@Environment` see changes immediately.
 @Observable @MainActor
 final class TabStore {
+    /// Checked before a tab closes; returns true when it takes the close over (it asks first and
+    /// closes the tab later). Set by EnvironmentState for open PostgreSQL transactions.
+    @ObservationIgnored var closeGuard: ((WorkspaceTab) -> Bool)?
+
     // MARK: - State
 
     var tabDirector = TabDirector()
@@ -143,6 +147,9 @@ extension TabStore: TabDirectorDelegate {
     }
 
     func tabDirector(_ manager: TabDirector, shouldClose tab: WorkspaceTab) -> Bool {
+        // A PostgreSQL transaction that would be lost asks first (round 21); the guard closes the
+        // tab itself once it is resolved.
+        if closeGuard?(tab) == true { return false }
         if case .structure(let editor) = tab.content, editor.hasPendingChanges {
             pendingCloseTabID = tab.id
             showPendingChangesAlert = true

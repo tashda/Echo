@@ -13,6 +13,10 @@ import AppKit
 @main
 struct EchoApp: App {
     @State private var coordinator = AppDirector.shared
+    #if os(macOS)
+    /// Asks before quitting drops open PostgreSQL transactions (round 21).
+    @NSApplicationDelegateAdaptor(EchoAppDelegate.self) private var appDelegate
+    #endif
 
     init() {
         EchoApp.raiseFileDescriptorLimit()

@@ -92,6 +92,41 @@ actor PostgresPinnedSessionStore {
         return session.transactionStatus
     }
 
+    /// A transaction still open on one of this tab's sessions (round 21, open transaction on close).
+    struct OpenTransaction: Sendable, Equatable {
+        let database: String
+        let failed: Bool
+        let startedAt: Date?
+        let statements: Int
+    }
+
+    /// The tab's open transactions, checked with the server (K1: a procedure may have committed or
+    /// begun one without Echo seeing it). Two short queries per open session; only called before
+    /// closing, switching, disconnecting or quitting.
+    func openTransactions() async -> [OpenTransaction] {
+        var open: [OpenTransaction] = []
+        for (key, session) in sessions.sorted(by: { $0.key < $1.key }) where !session.isClosed {
+            guard let status = try? await session.refreshTransactionStatus(), status != .idle else { continue }
+            open.append(OpenTransaction(
+                database: databaseNames[key] ?? key, failed: status == .failed,
+                startedAt: session.transactionStartedAt, statements: session.statementsInTransaction
+            ))
+        }
+        return open
+    }
+
+    /// Commits (or rolls back) every open transaction of the tab. A failed transaction is always
+    /// rolled back; a COMMIT the server answers with ROLLBACK throws.
+    func endTransactions(commit: Bool) async throws {
+        for (key, session) in sessions where !session.isClosed && session.transactionStatus != .idle {
+            let failed = session.transactionStatus == .failed
+            let result = try await session.queryResult(commit && !failed ? "COMMIT" : "ROLLBACK")
+            if commit, !failed, result.metadata.command == "ROLLBACK" {
+                throw PostgresPinnedSessionError.commitRolledBack(database: databaseNames[key] ?? key)
+            }
+        }
+    }
+
     /// Databases whose session is inside a transaction block.
     func databasesWithOpenTransaction() -> [String] {
         sessions.filter { !$0.value.isClosed && $0.value.transactionStatus != .idle }.map(\.key)
@@ -123,11 +158,15 @@ actor PostgresPinnedSessionStore {
 enum PostgresPinnedSessionError: LocalizedError, Equatable {
     /// The connection dropped with a transaction open; runs wait for Reconnect.
     case awaitingReconnect(database: String)
+    /// COMMIT answered ROLLBACK: the transaction had failed.
+    case commitRolledBack(database: String)
 
     var errorDescription: String? {
         switch self {
         case .awaitingReconnect(let database):
             QueryConnectionLossText.awaitingReconnect(database: database)
+        case .commitRolledBack(let database):
+            "The transaction on \(database) could not be committed; the server rolled it back."
         }
     }
 }

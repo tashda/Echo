@@ -47,6 +47,9 @@ extension EnvironmentState {
     }
 
     func disconnectSession(withID id: UUID) async {
+        // Round 21: open PostgreSQL transactions in this server's tabs ask first.
+        let tabsInTransaction = tabStore.tabs.filter { $0.connectionSessionID == id && mayHaveOpenTransaction($0) }
+        guard await confirmOpenTransactions(in: tabsInTransaction, for: .disconnect) else { return }
         let displayName: String
         if let session = sessionGroup.activeSessions.first(where: { $0.id == id }) {
             let name = session.connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
