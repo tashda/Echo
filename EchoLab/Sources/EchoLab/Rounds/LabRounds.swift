@@ -20,7 +20,7 @@ enum LabRounds {
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
         Info(id: "r20", label: "Round 20", title: "Run button", date: "30 Sep 2026",
-             asked: "Everything the Run button can be, now that it sits in its own toolbar group: two pages, how it looks at rest (form, icon, colour, selection, hover, unavailable, other modes) and how it moves (running look, stop icon, motion, the change into running, the result). Changes EDT-4.1 to EDT-4.5.",
+             asked: "Everything the Run button can be, now that it sits in its own toolbar group: two pages, how it looks at rest (form, icon, colour, selection, hover, unavailable, other modes) and how it moves (running look, a delay for quick queries, timer, stop icon, motion, the change into running, the result). Changes EDT-4.1 to EDT-4.5.",
              outcome: "Being judged.",
              pageIDs: ["ongoing.run-button-look-r20", "ongoing.run-button-running-r20"]),
         Info(id: "r19", label: "Round 19", title: "Section dock", date: "30 Sep 2026",

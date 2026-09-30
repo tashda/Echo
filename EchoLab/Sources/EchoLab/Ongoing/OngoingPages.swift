@@ -58,7 +58,7 @@
     static let runButtonRunning = LabPage.round(
         id: "ongoing.run-button-running-r20", group: "Editor and running", title: "Run button: running · round 20", symbol: "stop.circle",
         status: .judging,
-        summary: "How Run moves: seven running looks, the stop icon, motion while running, how it changes into running, the result, and how long the result stays. Changes EDT-4.3 and 4.4.",
+        summary: "How Run moves: seven running looks, a delay so quick queries never make it expand, the timer format, the stop icon, motion while running, how it changes into running, the result and how long it stays, with scenario buttons from 0.2 s to until stopped. Changes EDT-4.3 and 4.4.",
         spec: RunButtonRunningRound.spec)
 
     // ROUNDS-DEFINITIONS
