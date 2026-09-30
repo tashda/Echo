@@ -150,6 +150,7 @@ Decided 2026-09-30.
 
 - **One short sheet** for Quick Connect and New Connection: engine (segmented), server and port on one line, database, sign in, Keychain; Security and timeouts in one disclosure with a summary, which remembers whether it was open. Name, folder and colour only appear while "Save to Connections" is on; Quick Connect never asks for them. Quick Connect saves its password in the Keychain too. *Decided.*
 - **Editing happens in Manage Connections:** its detail pane is the editable form; + adds a connection with the same form. *Decided.*
+- **SQL Server encryption (round 22):** new connections start at Mandatory; the Encryption menu says what each mode checks (Optional encrypts without checking the certificate, Mandatory checks it, Strict is TLS first and always checks); Trust Server Certificate dims under Strict; an "Allow TLS 1.0" switch, off by default and absent under Strict, is for servers without their TLS 1.2 update; a failed Test names the certificate check that failed and offers Trust this certificate or Host Name In Certificate. *Accepted, being built.*
 - **Rules:** the default button is never silently disabled (missing fields get an inline message and focus); the port placeholder follows the engine; pasting a connection URL or string fills the form; the test result sits beside the buttons. *Decided.*
 
 ## Tool tabs

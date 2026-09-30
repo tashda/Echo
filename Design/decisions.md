@@ -2,6 +2,16 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 22 accepted: SQL Server encryption settings
+
+Echo Labs › Connections › SQL Server: encryption settings · round 22. With sqlserver-nio's hardening, no mode sends credentials unencrypted any more; the sheet now says what each mode checks.
+
+- **Default: ED1 · Mandatory for new connections** (encrypts and checks the certificate, as ODBC 18, JDBC and SSMS 20 do). Saved connections keep their mode. Optional (today's default) was not chosen. → 05-components › Connections, CON-4.2
+- **Menu words: EW1 · Say what is checked:** "Optional – encrypt, don't check the certificate", "Mandatory – encrypt and check the certificate", "Strict – TLS first (TDS 8.0), always checks"; the info text says every mode encrypts the password and the session. SSMS's bare words were not chosen. → CON-4.2
+- **Strict and Trust: ST1:** under Strict the Trust Server Certificate switch turns off and dims, with a note that Strict always checks. → CON-4.2
+- **SQL Server 2008 R2 without its TLS 1.2 update: LT2 · an "Allow TLS 1.0" switch** for that connection, off by default and not available under Strict. Recommended was LT1 (require TLS 1.2). The driver refuses TLS 1.0/1.1 unless the switch is on and explains a server that only offers them. → CON-4.2
+- **Test failures: TE1:** the result says which certificate check failed (untrusted issuer, self-signed, expired, not yet valid, another host name) and offers the fix: **Trust this certificate** (turns on Trust Server Certificate) or, for another host name, **Use Host Name In Certificate** filled with the certificate's name. → CON-6.2
+
 ## 2026-09-30 · Round 21 accepted: values in the grid
 
 Echo Labs › Footer and results › Postgres: values in the grid · round 21. Drawing only: copy, export and the inspector keep the server's text.
