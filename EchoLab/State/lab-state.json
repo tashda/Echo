@@ -262,6 +262,45 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.pg-cancel-r21": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:57:10Z",
+        "id": "B2DFBC24-4E5A-499B-83FA-79E64D4D2AE7",
+        "text": "Review of Postgres: cancelling a query\n1. Cancel feedback: picked Proposal\n2. While stopping: picked CX3 · 'Stopping…' in the footer; note: Maybe the three dots are not correct, and please think if it should be Stopping or Cancelling. I have another round with the run button where we will looks at this\n3. Rows already fetched: picked CP1 · Keep the rows, marked as partial\n4. If the server doesn't stop: picked CS2 · Offer Force Stop after 5 s\n5. Reported: picked CR2 · Run note at the statement, and Messages\n6. Shortcut: picked K2 · Keep ⌥⌘. only; note: Cmd + . is EchoSense\n7. Cancelling inside a transaction: picked TX1 · Say so in the note: 'The transaction now needs ROLLBACK'"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:57:10Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T15:48:42Z",
+        "text": "Built into Echo (plan R9): footer Cancelling (no dots), partial rows marked, Force Stop after 5 s, run note and Messages 'Cancelled after …', ROLLBACK note inside a transaction; ⌥⌘. only. Please check it in the running app."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "shortcut": "Cmd + . is EchoSense",
+      "waiting": "Maybe the three dots are not correct, and please think if it should be Stopping or Cancelling. I have another round with the run button where we will looks at this"
+    },
+    "picks": {
+      "exhibit": "proposal",
+      "partial": "CP1 · Keep the rows, marked as partial",
+      "report": "CR2 · Run note at the statement, and Messages",
+      "shortcut": "keep",
+      "stuck": "CS2 · Offer Force Stop after 5 s",
+      "transaction": "say",
+      "waiting": "CX3 · 'Stopping…' in the footer"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.pg-connection-lost-r21": {
     "comments": [
       {
