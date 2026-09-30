@@ -67,6 +67,14 @@ struct QueryInputSection: View {
         .padding(.top, topPadding)
         .padding(.bottom, bottomPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .topLeading) {
+            if query.sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                EmptyQueryHints(databaseType: completionContext?.databaseType) { query.sql = $0 }
+                    .padding(.leading, LayoutTokens.EmptyQueryHints.leadingInset)
+                    .padding(.top, LayoutTokens.EmptyQueryHints.topInset)
+                    .transition(.opacity)
+            }
+        }
         .background(editorBackground)
     }
 

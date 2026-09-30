@@ -299,7 +299,7 @@ Rules: `05-components` › Explorer tree.
 | Q3 | **Errors on the line (QE3):** short red text at the end of the line beside the dot. | Validation overlays | 👁 | ☑ already built: validation draws a short inline note after each failing line beside the gutter dot |
 | Q4 | **Room to breathe (QE4):** wider gutter padding and a rounded current-line band inside the card. | Editor | 👁 | ☑ built, 👁 pending: the current line uses the theme's currentLine colour as a rounded band inset 6pt; numbers sit 12pt from the code |
 | Q5 | **Outline edge (QE5)** as a setting: statement ticks, errors and the visible area on the right edge. | Editor | Toggles in Settings | ☑ built, 👁 pending: Settings › Appearance › Editor › Outline Edge, off by default; replaces the scroll bar while on |
-| Q6 | **Helpful empty tab (QE6):** recent tables and snippets as faint starting points that vanish on typing. | Editor | 👁 | ☐ |
+| Q6 | **Helpful empty tab (QE6):** recent tables and snippets as faint starting points that vanish on typing. | Editor | 👁 | ◐ built with snippets only, 👁 pending: Echo keeps no record of recently used tables yet, so the recent-tables chips wait for one |
 
 ## Phase 10 · Finish
 
