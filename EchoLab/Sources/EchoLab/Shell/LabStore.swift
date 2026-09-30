@@ -128,6 +128,7 @@ final class LabStore {
 
     /// The owner has now seen the current revision.
     func markReviewed(_ page: LabPage) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         guard var item = items[page.id] else { return }
         item.reviewedRevision = item.revisions.last?.number ?? 1
         items[page.id] = item
@@ -159,6 +160,7 @@ final class LabStore {
 
     /// Feedback always sends the item back to New feedback, from any status.
     func sendFeedback(_ page: LabPage, comment: String, element: String? = nil) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         let text = comment.trimmingCharacters(in: .whitespacesAndNewlines)
         var item = items[page.id] ?? Item(status: status(of: page) ?? .newFeedback)
         let wasDecided = item.status == .decided
@@ -179,6 +181,7 @@ final class LabStore {
     func pickNote(_ page: LabPage, topic: String) -> String { items[page.id]?.pickNotes[topic] ?? "" }
 
     func setPick(_ page: LabPage, topic: String, option: String?) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
         if let option { item.picks[topic] = option } else { item.picks.removeValue(forKey: topic) }
         items[page.id] = item
@@ -186,6 +189,7 @@ final class LabStore {
     }
 
     func setPickNote(_ page: LabPage, topic: String, note: String) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
         if note.isEmpty { item.pickNotes.removeValue(forKey: topic) } else { item.pickNotes[topic] = note }
         items[page.id] = item
@@ -201,6 +205,7 @@ final class LabStore {
 
     /// One pick per topic; choosing Pick on another option demotes the earlier one to Maybe.
     func setVerdict(_ page: LabPage, topic: String, option: String, verdict: OptionVerdict?) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
         let key = "\(topic)/\(option)"
         if item.picks[topic] == option { item.picks.removeValue(forKey: topic) }
@@ -219,6 +224,7 @@ final class LabStore {
     func optionNote(_ page: LabPage, topic: String, option: String) -> String { items[page.id]?.optionNotes["\(topic)/\(option)"] ?? "" }
 
     func setOptionNote(_ page: LabPage, topic: String, option: String, note: String) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
         if note.isEmpty { item.optionNotes.removeValue(forKey: "\(topic)/\(option)") } else { item.optionNotes["\(topic)/\(option)"] = note }
         items[page.id] = item
@@ -228,6 +234,7 @@ final class LabStore {
     func needsMore(_ page: LabPage, topic: String) -> Bool { items[page.id]?.needsMore.contains(topic) ?? false }
 
     func setNeedsMore(_ page: LabPage, topic: String, _ on: Bool) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
         item.needsMore.removeAll { $0 == topic }
         if on { item.needsMore.append(topic) }
@@ -238,6 +245,7 @@ final class LabStore {
     func generalNote(_ page: LabPage) -> String { items[page.id]?.generalNote ?? "" }
 
     func setGeneralNote(_ page: LabPage, _ note: String) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
         item.generalNote = note
         items[page.id] = item
@@ -246,6 +254,7 @@ final class LabStore {
 
     /// Accepts the round with the picks written into a comment, so the agent reads them.
     func acceptPicks(_ page: LabPage, summary: String) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
         item.status = .accepted
         item.reviewedRevision = item.revisions.last?.number ?? 1
@@ -262,6 +271,7 @@ final class LabStore {
     // MARK: Storage
 
     private func move(_ page: LabPage, to status: LabStatus, note: String) {
+        reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         var item = items[page.id] ?? Item(status: status)
         item.status = status
         item.reviewedRevision = item.revisions.last?.number ?? 1

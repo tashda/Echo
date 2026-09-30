@@ -325,6 +325,10 @@
       {
         "date": "2026-09-30T13:58:21Z",
         "text": "Feedback sent"
+      },
+      {
+        "date": "2026-09-30T14:48:26Z",
+        "text": "Revision 2: Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
       }
     ],
     "needsMore": [
@@ -350,8 +354,24 @@
       "where": "TW2 · Settings default, connection overrides"
     },
     "reviewedRevision": 1,
-    "revisions": [],
-    "status": "New feedback",
+    "revisions": [
+      {
+        "changes": [
+          "Where: TW2 (Settings default, connection overrides) is now recommended; per tab is done with SET in the tab, no UI",
+          "Nothing about limits appears in the tab unless a limit is set (no 'No limit' pill)",
+          "New exhibit: Where the message goes — the fired state drawn as it stays, on the tab and from another tab",
+          "New options in When it fires: TF4 explained plus a notification when you're elsewhere (recommended), TF5 notification only, TF6 explained plus a notification every time",
+          "New option in Lock waits: TL4 no lock field, show the wait instead",
+          "New control: Lock wait in the footer (LF1-3); LF3 says Waiting for lock and shows who holds it on hover",
+          "New question: A limit set on the server (SL1 names it, SL2 generic)",
+          "Should the limit work? now says what a limit is for"
+        ],
+        "date": "2026-09-30T14:48:26Z",
+        "number": 2,
+        "summary": "Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.pg-value-display-r21": {
