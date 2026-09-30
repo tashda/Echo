@@ -1,3 +1,4 @@
+import EchoSense
 import SwiftUI
 
 /// Builds a `BottomPanelStatusBar` configured for query tabs.

@@ -1,3 +1,4 @@
+import EchoSense
 import Foundation
 
 /// One statement of a script in the results' statement list (Echo Labs round 21, script results:

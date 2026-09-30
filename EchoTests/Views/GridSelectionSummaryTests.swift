@@ -1,3 +1,4 @@
+import EchoSense
 import Testing
 @testable import Echo
 

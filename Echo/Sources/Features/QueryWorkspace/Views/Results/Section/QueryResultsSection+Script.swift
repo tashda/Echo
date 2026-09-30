@@ -1,3 +1,4 @@
+import EchoSense
 import SwiftUI
 
 #if os(macOS)

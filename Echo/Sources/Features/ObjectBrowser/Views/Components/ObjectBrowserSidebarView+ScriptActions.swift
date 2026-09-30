@@ -1,3 +1,4 @@
+import EchoSense
 import AppKit
 import SwiftUI
 import SQLServerKit

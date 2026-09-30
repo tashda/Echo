@@ -1,3 +1,4 @@
+import EchoSense
 import Foundation
 
 /// A query tab's SQL Server connection dropping (Echo Labs round 22, LC4: follows the PostgreSQL

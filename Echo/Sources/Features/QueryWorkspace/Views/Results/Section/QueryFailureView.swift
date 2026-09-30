@@ -1,3 +1,4 @@
+import EchoSense
 import SwiftUI
 
 /// A failed query in the results card (plan N4): the message, the line it points at, "Show in

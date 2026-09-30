@@ -1,3 +1,4 @@
+import EchoSense
 import Foundation
 import Testing
 @testable import Echo

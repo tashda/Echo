@@ -1,3 +1,4 @@
+import EchoSense
 import Foundation
 
 /// A query tab's PostgreSQL connection dropping (Echo Labs round 21, connection lost, accepted):

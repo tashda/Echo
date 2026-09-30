@@ -1,3 +1,4 @@
+import EchoSense
 import Foundation
 
 /// What the results footer says about the selected cells (Design/05-components.md › Results card,
