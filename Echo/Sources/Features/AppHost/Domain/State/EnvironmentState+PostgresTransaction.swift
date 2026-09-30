@@ -18,6 +18,21 @@ extension EnvironmentState {
             case nil: return nil
             }
         }
+        // Round 21, timeouts: the server's own limit (SL1) and who holds a lock the tab waits for (LF3),
+        // both read on other connections, never the running one.
+        query.serverTimeLimitProvider = { [weak tab, weak session] () async -> TimeInterval? in
+            guard let session, let store = session.pinnedStore else { return nil }
+            let active = tab?.activeDatabaseName ?? ""
+            return await store.serverStatementTimeout(for: active.isEmpty ? session.databaseName : active)
+        }
+        query.lockWaitProvider = { [weak session] () async -> QueryLockWait? in
+            guard let session, let store = session.pinnedStore, let pid = await store.runningBackendPID(),
+                  let holder = try? await session.client.blockingSessions(of: pid).first else { return nil }
+            return QueryLockWait(
+                holderPID: holder.pid, holderUser: holder.user, holderApplication: holder.applicationName,
+                holderQuery: holder.query, holderState: holder.state, holderTransactionStartedAt: holder.transactionStartedAt
+            )
+        }
         let tabID = tab.id
         Task { @MainActor [weak self] in
             // One quiet check a minute; nothing runs on the server.

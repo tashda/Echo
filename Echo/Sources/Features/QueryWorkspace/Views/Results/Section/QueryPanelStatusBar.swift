@@ -100,7 +100,11 @@ struct QueryPanelStatusBar: View {
         if query.wasCancelled, !query.isExecuting, query.rowProgress.displayCount > 0 { rowLabel += ", partial" }
         let elapsed = query.isExecuting ? query.currentExecutionTime : (query.lastExecutionTime ?? 0)
         let hasDuration = query.isExecuting || query.lastExecutionTime != nil
-        let durationText = hasDuration ? EchoFormatters.duration(seconds: Int(elapsed.rounded())) : nil
+        var durationText = hasDuration ? EchoFormatters.duration(seconds: Int(elapsed.rounded())) : nil
+        // Round 21, timeouts (FT1): the limit next to the timer while a statement runs under one.
+        if query.isExecuting, let limit = query.timeLimit, let text = durationText {
+            durationText = "\(text) / \(EchoFormatters.duration(seconds: Int(limit.rounded())))"
+        }
 
         var metrics = BottomPanelStatusBarConfiguration.Metrics(rowCountText: rowCount, rowCountLabel: rowLabel, durationText: durationText)
         metrics.selectionText = query.gridSelectionSummary.flatMap { $0.cellCount > 1 ? $0.text : nil }
@@ -135,6 +139,11 @@ struct QueryPanelStatusBar: View {
     private func buildStatusBubble() -> BottomPanelStatusBarConfiguration.StatusBubble {
         if query.cancelPhase != nil {
             return .init(label: "Cancelling", tint: .orange, isPulsing: true)
+        }
+        // Round 21, timeouts (LF3): a statement waiting for a lock says so; hover shows who holds it.
+        if query.isExecuting, let wait = query.lockWait {
+            return .init(label: "Waiting for lock", tint: ColorTokens.Status.warning, isPulsing: false,
+                         icon: "lock", help: wait.summary())
         }
         if query.isExecuting {
             return .init(label: "Executing", tint: .orange, isPulsing: true)

@@ -124,7 +124,12 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var readOnlyIntent: Bool
     var allowLegacyTLS: Bool
     var connectionTimeout: TimeInterval
+    /// The old Query Timeout (60 s by default). It was never applied; round 21 (M3) resets every
+    /// connection to the Settings default, so it is only kept for older copies and sync.
     var queryTimeout: TimeInterval
+    /// The query time limit for this connection in seconds (round 21, TW2): nil uses Settings ›
+    /// Databases › Query time limit, 0 means no limit.
+    var queryTimeLimit: TimeInterval?
     var databaseType: DatabaseType
     var serverVersion: String?
     var colorHex: String
@@ -172,6 +177,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case allowLegacyTLS
         case connectionTimeout
         case queryTimeout
+        case queryTimeLimit
         case databaseType
         case serverVersion
         case colorHex
@@ -207,6 +213,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         allowLegacyTLS: Bool = false,
         connectionTimeout: TimeInterval = 30,
         queryTimeout: TimeInterval = 60,
+        queryTimeLimit: TimeInterval? = nil,
         databaseType: DatabaseType = .postgresql,
         serverVersion: String? = nil,
         colorHex: String = "",
@@ -239,6 +246,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         self.allowLegacyTLS = allowLegacyTLS
         self.connectionTimeout = connectionTimeout
         self.queryTimeout = queryTimeout
+        self.queryTimeLimit = queryTimeLimit
         self.databaseType = databaseType
         self.serverVersion = serverVersion
         self.colorHex = colorHex
@@ -274,6 +282,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         allowLegacyTLS = try container.decodeIfPresent(Bool.self, forKey: .allowLegacyTLS) ?? false
         connectionTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .connectionTimeout) ?? 30
         queryTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .queryTimeout) ?? 60
+        queryTimeLimit = try container.decodeIfPresent(TimeInterval.self, forKey: .queryTimeLimit)
         databaseType = try container.decodeIfPresent(DatabaseType.self, forKey: .databaseType) ?? .postgresql
         serverVersion = try container.decodeIfPresent(String.self, forKey: .serverVersion)
         colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? ""
@@ -310,6 +319,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encode(allowLegacyTLS, forKey: .allowLegacyTLS)
         try container.encode(connectionTimeout, forKey: .connectionTimeout)
         try container.encode(queryTimeout, forKey: .queryTimeout)
+        try container.encodeIfPresent(queryTimeLimit, forKey: .queryTimeLimit)
         try container.encode(databaseType, forKey: .databaseType)
         try container.encodeIfPresent(serverVersion, forKey: .serverVersion)
         try container.encode(colorHex, forKey: .colorHex)

@@ -96,6 +96,21 @@ import OSLog
     /// Between pressing Cancel and the query ending (round 21, cancel): the footer says Cancelling,
     /// and after 5 s without an answer the results offer Force Stop.
     var cancelPhase: QueryCancelPhase?
+    /// The query time limit of the current run in seconds, and whose it is (round 21, timeouts).
+    var timeLimit: TimeInterval?
+    var timeLimitScope: QueryTimeLimitScope?
+    /// Set when the time limit stopped the last run (TF4).
+    var timeLimitStop: QueryTimeLimitStop?
+    /// Run Without Limit: the next run sets no limit (the one after gets the limit back).
+    @ObservationIgnored var runWithoutLimitOnce = false
+    /// Runs the last statement again (Run Without Limit).
+    @ObservationIgnored var rerunAction: (() -> Void)?
+    /// Reads the server's own statement_timeout (SL1).
+    @ObservationIgnored var serverTimeLimitProvider: (@MainActor () async -> TimeInterval?)?
+    /// The running statement waits for a lock (LF3), and how that is found out.
+    var lockWait: QueryLockWait?
+    @ObservationIgnored var lockWaitProvider: (@MainActor () async -> QueryLockWait?)?
+    @ObservationIgnored var lockWaitTask: Task<Void, Never>?
     @ObservationIgnored var forceStopHandler: (() -> Void)?
     var streamingColumns: [ColumnInfo] = []
     var streamingRows: [[String?]] = []

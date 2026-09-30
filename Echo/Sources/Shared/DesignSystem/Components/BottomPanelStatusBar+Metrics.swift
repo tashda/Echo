@@ -128,5 +128,6 @@ private struct StatusBubbleLabel: View {
                 }
             }
         }
+        .help(bubble.help ?? "")
     }
 }

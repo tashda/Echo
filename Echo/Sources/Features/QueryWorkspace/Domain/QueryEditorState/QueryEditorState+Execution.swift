@@ -5,6 +5,8 @@ extension QueryEditorState {
     func startExecution() {
         // An idle drop reconnects on this run (round 21, I1); lost work waits for Reconnect.
         if case .idle = connectionLoss { connectionLoss = nil }
+        timeLimitStop = nil
+        startLockWaitWatch()
         if rowDiagnosticsEnabled && !hasAnnouncedRowDiagnostics {
             hasAnnouncedRowDiagnostics = true
             Logger.query.debug("RowDiagnostics enabled for query '\(self.sql)'")
@@ -87,6 +89,7 @@ extension QueryEditorState {
         if let startTime = executionStartTime { lastExecutionTime = Date().timeIntervalSince(startTime) }
         isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
         cancelPhase = nil; forceStopHandler = nil
+        stopLockWaitWatch()
         refreshTransactionState()
         executionTimer?.invalidate(); executionTimer = nil
         streamingMode = .completed
@@ -114,6 +117,8 @@ extension QueryEditorState {
     func failExecution(with error: String) {
         isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
         cancelPhase = nil; forceStopHandler = nil
+        stopLockWaitWatch()
+        noteTimeLimitStopIfNeeded(error)
         refreshTransactionState()
         executionTimer?.invalidate(); executionTimer = nil
         let endTime = Date()
@@ -145,6 +150,7 @@ extension QueryEditorState {
     func markCancellationCompleted() {
         executingTask = nil; isExecuting = false; isCancellationRequested = false; executionTimer?.invalidate(); executionTimer = nil
         cancelPhase = nil; forceStopHandler = nil
+        stopLockWaitWatch()
         refreshTransactionState()
         streamingMode = .completed
         let endTime = Date()

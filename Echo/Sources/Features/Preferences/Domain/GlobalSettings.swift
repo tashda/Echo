@@ -157,6 +157,11 @@ struct GlobalSettings: Codable, Hashable {
     var managedPostgresConsoleEnabled: Bool = true
     /// Round 21, script results (E3): a PostgreSQL script stops at a failed statement unless this is on.
     var postgresScriptsContinueAfterError: Bool = false
+    /// Round 21, timeouts (TW2, TD2): the default query time limit in seconds; 0 is no limit.
+    /// A connection can override it.
+    var queryTimeLimitSeconds: Int = 0
+    /// Whether the one-time note that query time limits now work was shown (M3).
+    var queryTimeLimitNoticeShown: Bool = false
     /// RN1 (round 21, owner's note): the run note of a failed statement shows the whole message
     /// instead of `! Error`.
     var editorErrorRunNoteShowsMessage: Bool = false
@@ -260,6 +265,8 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarAutoExpandPostgresql, sidebarAutoExpandSQLServer, sidebarAutoExpandMySQL
         case managedPostgresConsoleEnabled
         case postgresScriptsContinueAfterError
+        case queryTimeLimitSeconds
+        case queryTimeLimitNoticeShown
         case editorErrorRunNoteShowsMessage
         case pgToolCustomPath
         case mysqlToolCustomPath
@@ -351,6 +358,8 @@ struct GlobalSettings: Codable, Hashable {
         sidebarAutoExpandMySQL = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandMySQL)
         managedPostgresConsoleEnabled = try container.decodeIfPresent(Bool.self, forKey: .managedPostgresConsoleEnabled) ?? true
         postgresScriptsContinueAfterError = try container.decodeIfPresent(Bool.self, forKey: .postgresScriptsContinueAfterError) ?? false
+        queryTimeLimitSeconds = try container.decodeIfPresent(Int.self, forKey: .queryTimeLimitSeconds) ?? 0
+        queryTimeLimitNoticeShown = try container.decodeIfPresent(Bool.self, forKey: .queryTimeLimitNoticeShown) ?? false
         editorErrorRunNoteShowsMessage = try container.decodeIfPresent(Bool.self, forKey: .editorErrorRunNoteShowsMessage) ?? false
         pgToolCustomPath = try container.decodeIfPresent(String.self, forKey: .pgToolCustomPath)
         mysqlToolCustomPath = try container.decodeIfPresent(String.self, forKey: .mysqlToolCustomPath)
@@ -467,6 +476,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(sidebarAutoExpandMySQL, forKey: .sidebarAutoExpandMySQL)
         try container.encode(managedPostgresConsoleEnabled, forKey: .managedPostgresConsoleEnabled)
         try container.encode(postgresScriptsContinueAfterError, forKey: .postgresScriptsContinueAfterError)
+        try container.encode(queryTimeLimitSeconds, forKey: .queryTimeLimitSeconds)
+        try container.encode(queryTimeLimitNoticeShown, forKey: .queryTimeLimitNoticeShown)
         try container.encode(editorErrorRunNoteShowsMessage, forKey: .editorErrorRunNoteShowsMessage)
         try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
         try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)

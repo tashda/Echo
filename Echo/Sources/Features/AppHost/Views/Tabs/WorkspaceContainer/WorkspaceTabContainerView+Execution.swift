@@ -15,6 +15,7 @@ extension WorkspaceTabContainerView {
 
         let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
         let baseSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
+        await prepareQueryTimeLimit(tab: tab, queryState: queryState, sql: sql)
 
         // MSSQL: split at GO boundaries and route to multi-batch execution if needed
         var effectiveSQL: String

@@ -51,7 +51,8 @@ struct ConnectionEditorView: View {
     @State internal var readOnlyIntent: Bool
     @State internal var allowLegacyTLS: Bool
     @State internal var connectionTimeout: TimeInterval
-    @State internal var queryTimeout: TimeInterval
+    /// The query time limit override in seconds (round 21, TW2): empty uses the Settings default.
+    @State internal var queryTimeLimit: TimeInterval?
     @State internal var colorHex: String
 
     @State internal var passwordDirty = false
@@ -126,7 +127,7 @@ struct ConnectionEditorView: View {
         _readOnlyIntent = State(initialValue: model.readOnlyIntent)
         _allowLegacyTLS = State(initialValue: model.allowLegacyTLS)
         _connectionTimeout = State(initialValue: model.connectionTimeout)
-        _queryTimeout = State(initialValue: model.queryTimeout)
+        _queryTimeLimit = State(initialValue: model.queryTimeLimit)
         _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)
     }
 

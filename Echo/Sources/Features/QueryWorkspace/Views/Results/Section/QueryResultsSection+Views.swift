@@ -6,6 +6,8 @@ extension QueryResultsSection {
         Group {
             if query.isExecuting && !hasRows {
                 executingView
+            } else if let stop = query.timeLimitStop, !hasRows, selectedTab == .results {
+                QueryTimeLimitStopView(stop: stop, query: query, connectionID: connection.id)
             } else if let error = query.errorMessage, !hasRows, selectedTab == .results {
                 QueryFailureView(message: error, query: query, panelState: panelState)
             } else {

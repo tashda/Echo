@@ -22,6 +22,9 @@ actor PostgresPinnedSessionStore {
     /// Sessions this store closed on purpose; their close is not a drop.
     private var closing: Set<ObjectIdentifier> = []
     private var connectionLostHandler: ConnectionLostHandler?
+    /// The tab's query time limit (round 21, timeouts): nil leaves the server's own, `.zero` is none.
+    private var statementTimeout: Duration?
+    private var appliedTimeouts: [ObjectIdentifier: Duration?] = [:]
 
     init(serverConnection: PostgresServerConnection) {
         self.serverConnection = serverConnection
@@ -46,7 +49,41 @@ actor PostgresPinnedSessionStore {
         sessions[key] = session
         databaseNames[key] = database
         watch(session, key: key)
+        await applyStatementTimeout(to: session)
         return session
+    }
+
+    /// Sets the tab's query time limit for every session. A session gets `SET statement_timeout` only
+    /// when its value changes, so runs normally cost nothing extra.
+    func setStatementTimeout(_ timeout: Duration?) async {
+        statementTimeout = timeout
+        for session in sessions.values where !session.isClosed { await applyStatementTimeout(to: session) }
+    }
+
+    private func applyStatementTimeout(to session: PostgresSessionConnection) async {
+        let id = ObjectIdentifier(session)
+        let applied = appliedTimeouts[id] ?? nil
+        guard applied != statementTimeout, !session.isQueryInFlight else { return }
+        do {
+            try await session.setStatementTimeout(statementTimeout)
+            appliedTimeouts[id] = statementTimeout
+        } catch {
+            appliedTimeouts[id] = nil
+        }
+    }
+
+    /// The server's own statement_timeout for `database` in seconds, when Echo set none (SL1).
+    func serverStatementTimeout(for database: String) async -> TimeInterval? {
+        guard let session = sessions[database.lowercased()], !session.isClosed,
+              let result = try? await session.queryResult("SELECT current_setting('statement_timeout')"),
+              let cell = result.rows.first?.first,
+              let text = PostgresCellFormatter().stringValue(for: cell) else { return nil }
+        return QueryTimeLimitStop.parseServerSetting(text)
+    }
+
+    /// The backend of the statement this tab is running, for the lock-wait check (LF3).
+    func runningBackendPID() -> Int32? {
+        sessions.values.first { !$0.isClosed && $0.isQueryInFlight }?.backendPID
     }
 
     /// Whether a connection dropped with a transaction open and is waiting for ``reconnect(database:)``.

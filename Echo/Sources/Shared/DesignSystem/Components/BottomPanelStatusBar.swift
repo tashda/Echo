@@ -62,6 +62,8 @@ struct BottomPanelStatusBarConfiguration {
         var since: Date?
         /// Clicking the status opens these (round 21, TA2).
         var menu: [MenuItem] = []
+        /// Shown on hover (round 21, LF3: who holds the lock).
+        var help: String?
 
         struct MenuItem: Identifiable {
             let title: String

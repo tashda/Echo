@@ -2,6 +2,19 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 21 accepted: query time limits
+
+Echo Labs › Connections › Postgres: statement timeouts · round 21 (revision 2). Chosen on the "Where the message goes" exhibit.
+
+- **Where: TW2 · a default in Settings › Databases, which a connection can override** (its Query Time Limit; empty uses the default, 0 is none). Per tab is `SET statement_timeout` in the tab. → 05-components › Connections, Results card
+- **Default: TD2 · no limit unless set.** No Echo limit leaves the server's own (for the role or database) in force.
+- **When it fires: TF4 · explained where the result would be, plus a notification when you're elsewhere** (another tab or app): "Stopped after 30 s: the statement limit for this connection.", Run Without Limit, and the settings it came from.
+- **Lock waits: TL4 · no lock field; show the wait instead,** and **LF3 · the footer's status says Waiting for lock, with who holds it on hover** (checked once a second after 2 s, on another connection).
+- **The saved 60 s: M3 · reset to no limit**, told once. Echo has no What's New screen, so it is a one-time notification (kept in history) the first time a query runs.
+- **The limit in the footer: FT1 · 0:12 / 0:30 while running.**
+- **A limit set on the server: SL1 · named**: "Stopped by the server's limit of 30 s (set for your role or database)."
+- **Idle in transaction: IT1 · not offered.** **Scripts: SC1 · each statement** (PostgreSQL's own behaviour).
+
 ## 2026-09-30 · Round 21 accepted: an open transaction on close
 
 Echo Labs › Tabs › Postgres: open transaction on close · round 21.

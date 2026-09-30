@@ -177,13 +177,16 @@ extension ConnectionEditorView {
                 }
             }
 
-            PropertyRow(title: "Query Timeout") {
+            PropertyRow(
+                title: "Query Time Limit",
+                info: "Stops a statement that runs longer than this. Empty uses Settings › Databases › Query time limit; 0 means no limit."
+            ) {
                 HStack(spacing: SpacingTokens.xs) {
                     TextField(
                         "",
-                        value: $queryTimeout,
+                        value: $queryTimeLimit,
                         format: .number.grouping(.never),
-                        prompt: Text("60")
+                        prompt: Text("Default")
                     )
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
