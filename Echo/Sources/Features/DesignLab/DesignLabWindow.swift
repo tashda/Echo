@@ -44,6 +44,9 @@ struct LabQuestion: Identifiable {
 }
 
 enum DesignLabPage: String, CaseIterable, Identifiable {
+    case round15Run = "Round 15 · Run"
+    case round15Inspector = "Round 15 · inspector"
+    case round15Notifications = "Round 15 · notifications"
     case round14Tabs = "Round 14 · tab bar and pages"
     case round14Dock = "Round 14 · section dock"
     case round14Connections = "Round 14 · connections"
@@ -65,6 +68,9 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .round15Run: "play.fill"
+        case .round15Inspector: "sidebar.right"
+        case .round15Notifications: "bell"
         case .round14Tabs: "rectangle.topthird.inset.filled"
         case .round14Dock: "square.grid.3x1.below.line.grid.1x2"
         case .round14Connections: "externaldrive.connected.to.line.below"
@@ -86,6 +92,9 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var intro: String {
         switch self {
+        case .round15Run: "Five places for Run, side by side on one simulated query. Press Run in any of them (or ⌘↩), watch it run, then see the result and how it settles back. Switch whether the query succeeds or fails, how long it takes, and the speed. Hover the editor card in 3 and the tab in 4; in 5 use the ▸ in the gutter."
+        case .round15Inspector: "The inspector column three ways, without today's stacked, cut-off shadows. Same content in each: a selected cell, its row, related records. Scroll them and compare the edges, in light and dark."
+        case .round15Notifications: "Toasts in the top-right corner, and three notification histories that aren't popovers. Post a few, hover one (it keeps its width), post the same again, open the bell, and show the inspector to see the toasts move left of it. Long messages are selectable and have Copy."
         case .round14Tabs: "The Maybes from the design board, drawn with SwiftUI on the real canvas and card tokens. Top: R9 Today, N1R and N7, each with the ST1 drawer that slides out under Activity Monitor. Bottom: one window where you pick how a tool's pages open (ST1, ST2, ST3, ST5 or TT6) and in which bar style. Click tabs, pages and +, hover to close; Query 2 is running. Try light, dark and Increase Contrast."
         case .round14Dock: "TC1 from the design board: an icon row under the server name switches what the card shows (Databases, Security, Agent, Management, More). The dock stays pinned while the rows scroll under it with the system's scroll edge effect, and every section remembers its scroll position and open folders. Left: duotone icons (IC2, the new default); right: mono (IC1, the setting). SF Symbols stand in until the Recraft set exists."
         case .round14Connections: "CN5 from the design board: adding and editing a connection happens in Manage Connections' detail pane, with CN2's fields as a native grouped form. Select a connection and edit it in place; + adds a new one with the same form; Save with an empty server shows the inline message (CR1); the port shows the engine's default (CR2); Security and timeouts fold into one line and remember it (CR7); Test reports next to the buttons (CR4)."
@@ -107,6 +116,17 @@ enum DesignLabPage: String, CaseIterable, Identifiable {
 
     var questions: [LabQuestion] {
         switch self {
+        case .round15Run:
+            [
+                LabQuestion(id: "round15-run", title: "Where does Run live?", howTo: "Run a query in each window, let it succeed and fail, cancel one. Say in the note if you'd combine two.", options: LabRunConcept.allCases.map { String($0.rawValue.prefix(1)) }),
+            ]
+        case .round15Inspector:
+            [LabQuestion(id: "round15-inspector", title: "Which inspector look?", howTo: "Scroll each column and look at the edges and shadows.", options: LabInspectorLook.allCases.map(\.rawValue))]
+        case .round15Notifications:
+            [
+                LabQuestion(id: "round15-history", title: "Where does the history open?", howTo: "Switch History, open the bell, open a long error, copy it.", options: ["A", "B", "C"]),
+                LabQuestion(id: "round15-toast-top", title: "Toasts' top edge", howTo: "Post a few with each setting, with and without the inspector.", options: LabToastTop.allCases.map(\.rawValue)),
+            ]
         case .round14Tabs:
             [
                 LabQuestion(id: "round14-bar-style", title: "Which tab bar?", howTo: "Compare the three windows at the top against the tree and editor cards, in light and dark.", options: LabRound14BarStyle.allCases.map(\.rawValue)),
@@ -191,7 +211,7 @@ final class DesignLabAnswers {
 // MARK: - Root
 
 private struct DesignLabRootView: View {
-    @State private var page: DesignLabPage = .treeCard
+    @State private var page: DesignLabPage = .round15Run
     @State private var answers = DesignLabAnswers()
     @State private var copied = false
 
@@ -267,6 +287,9 @@ private struct DesignLabRootView: View {
     @ViewBuilder
     private var playground: some View {
         switch page {
+        case .round15Run: LabRound15RunPlayground()
+        case .round15Inspector: LabRound15InspectorPlayground()
+        case .round15Notifications: LabRound15NotificationsPlayground()
         case .round14Tabs: LabRound14TabsPlayground()
         case .round14Dock: LabRound14DockPlayground()
         case .round14Connections: LabRound14ManageConnections().padding(SpacingTokens.md)
