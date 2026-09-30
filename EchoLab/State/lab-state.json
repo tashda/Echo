@@ -1,15 +1,189 @@
 {
+  "ongoing.mssql-encryption-r22": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:20:38Z",
+        "id": "E61ADE08-6D62-42E6-833E-48ADD7C44D61",
+        "text": "Review of SQL Server: encryption settings\n1. Clearer and safer?: picked Proposal\n2. Default: picked ED1 · Mandatory for new connections\n3. Menu words: picked EW1 · Say what is checked\n4. Strict and Trust: picked ST1 · Trust switch turns off and dims under Strict\n5. SQL Server 2008 R2 without its TLS 1.2 update: picked LT2 · Add an 'Allow TLS 1.0' switch for that connection\n6. When the certificate check fails at Test: picked TE1 · Say which check failed and offer 'Trust this certificate' or Host Name In Certificate"
+      },
+      {
+        "date": "2026-09-30T14:20:39Z",
+        "id": "74FB85CE-F32C-4F22-9955-3D437080159D",
+        "text": "Review of SQL Server: encryption settings\n1. Clearer and safer?: picked Proposal\n2. Default: picked ED1 · Mandatory for new connections\n3. Menu words: picked EW1 · Say what is checked\n4. Strict and Trust: picked ST1 · Trust switch turns off and dims under Strict\n5. SQL Server 2008 R2 without its TLS 1.2 update: picked LT2 · Add an 'Allow TLS 1.0' switch for that connection\n6. When the certificate check fails at Test: picked TE1 · Say which check failed and offer 'Trust this certificate' or Host Name In Certificate"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:20:38Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T14:20:39Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-09-30T14:42:06Z",
+        "text": "Status set to Accepted to match 'Accepted with picks' (recorded in Design/decisions.md)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "default": "ED1 · Mandatory for new connections",
+      "exhibit": "proposal",
+      "legacyTLS": "optIn",
+      "strictTrust": "ST1 · Trust switch turns off and dims under Strict",
+      "testError": "explain",
+      "wording": "EW1 · Say what is checked"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.mssql-errors-r22": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:39:38Z",
+        "id": "A95F6915-F784-4C08-A24B-6D0F17444C0C",
+        "text": "Review of SQL Server: errors and messages\n1. Easier to act on?: picked Proposal\n2. Error header: picked EM1 · SSMS line: Msg 547, Level 16, State 0, Line 3\n3. Line: picked LL1 · 'Line 3' selects the line in the editor\n4. Several errors from one statement: picked AM1 · All messages, in the order the server sent them\n5. COMMIT with an unknown outcome: picked CU1 · 'The connection was lost during COMMIT. The transaction may or may not have been saved; check the data before running it again.'\n6. Errors that end the session: picked FE1 · As a lost connection (round 22 cancel page), with the server's message\n7. Mark in the editor: picked ED1 · Yes, the same design for both engines"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:39:38Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "all": "all",
+      "editor": "same",
+      "exhibit": "proposal",
+      "fatal": "lost",
+      "header": "EM1 · SSMS line: Msg 547, Level 16, State 0, Line 3",
+      "link": "LL1 · 'Line 3' selects the line in the editor",
+      "unknown": "explain"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.mssql-sessions-r22": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:38:35Z",
+        "id": "DF078D1A-67B3-4B59-BF0E-2C6665AF7FA3",
+        "text": "Review of SQL Server: cancel, timeouts and lost connections\n1. Safer tab?: picked Proposal\n2. Query time limit: picked TO1 · Follow the Postgres timeouts decision\n3. Dropped connection: picked LC1 · Reconnect on the next Run, and say what was lost\n4. How cancelling looks: picked CL1 · Yes, one design for both engines\n5. Transactions and cancel: picked XA1 · Keep XACT_ABORT ON and say 'Transaction rolled back' after a cancel inside one\n6. Changes you will not see: picked BG1 · Ship all"
+      },
+      {
+        "date": "2026-09-30T14:38:37Z",
+        "id": "84FA488A-C431-405D-BB3A-B6CBCEA7F37A",
+        "text": "Review of SQL Server: cancel, timeouts and lost connections\n1. Safer tab?: picked Proposal\n2. Query time limit: picked TO1 · Follow the Postgres timeouts decision\n3. Dropped connection: picked LC1 · Reconnect on the next Run, and say what was lost\n4. How cancelling looks: picked CL1 · Yes, one design for both engines\n5. Transactions and cancel: picked XA1 · Keep XACT_ABORT ON and say 'Transaction rolled back' after a cancel inside one\n6. Changes you will not see: picked BG1 · Ship all"
+      },
+      {
+        "date": "2026-09-30T14:38:37Z",
+        "id": "C38B81B3-8D0C-4B54-9FF2-0E43131B62E2",
+        "text": "Review of SQL Server: cancel, timeouts and lost connections\n1. Safer tab?: picked Proposal\n2. Query time limit: picked TO1 · Follow the Postgres timeouts decision\n3. Dropped connection: picked LC1 · Reconnect on the next Run, and say what was lost\n4. How cancelling looks: picked CL1 · Yes, one design for both engines\n5. Transactions and cancel: picked XA1 · Keep XACT_ABORT ON and say 'Transaction rolled back' after a cancel inside one\n6. Changes you will not see: picked BG1 · Ship all"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:38:35Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T14:38:37Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T14:38:37Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T14:41:55Z",
+        "text": "Revision 2: Dropped connection: your chat choice, the Postgres Reconnect button (RC2) for both engines, replaces LC1"
+      },
+      {
+        "date": "2026-09-30T14:41:55Z",
+        "text": "Owner's chat choice recorded: LC4 (Postgres RC2 for both engines) replaces LC1"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "background": "ship",
+      "cancelLook": "same",
+      "dropped": "LC4 · A Reconnect button, as on the Postgres page",
+      "exhibit": "proposal",
+      "timeout": "TO1 · Follow the Postgres timeouts decision",
+      "txn": "on"
+    },
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "New option: LC4 · A Reconnect button, as on the Postgres page",
+          "Exhibit: Echo says at once what was lost and offers Reconnect"
+        ],
+        "date": "2026-09-30T14:41:55Z",
+        "number": 2,
+        "summary": "Dropped connection: your chat choice, the Postgres Reconnect button (RC2) for both engines, replaces LC1"
+      }
+    ],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.mssql-values-r22": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:41:07Z",
+        "id": "C96B4E2F-2429-4180-9593-D5CA1F41CC7D",
+        "text": "Review of SQL Server: values in the grid\n1. Correct values?: picked Proposal\n2. Dates and times: picked DF1 · SQL Server style: 2026-09-30 12:34:56.123\n3. datetimeoffset: picked DO1 · As stored, with its offset\n4. How rows after the preview are stored: picked SS1 · Wire bytes for every row, formatted by the driver\n5. money and smallmoney: picked MN1 · Always four decimals, as SSMS\n6. geography points: picked GE1 · Longitude first, as STAsText"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:41:07Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "dates": "DF1 · SQL Server style: 2026-09-30 12:34:56.123",
+      "exhibit": "proposal",
+      "geo": "sql",
+      "money": "four",
+      "offsets": "DO1 · As stored, with its offset",
+      "spool": "wire"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
   "ongoing.notification-history-r17": {
     "comments": [
       {
         "date": "2026-09-30T10:03:19Z",
         "id": "ACDED792-1049-4F73-AC90-7581D7E4C4C1",
-        "text": "Review of Notification history \u00b7 round 17\n1. Which history?: picked B \u00b7 Cards; NEEDS MORE OPTIONS\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Unread: picked Enough\nOverall: I am not a fan of the \"2 new\" and \"Clear\" in the top of the notifications center. They look quite odd with their accent. Please show me different styles of how the count of notifications \"Clear\" can be shown. Also the \"Open Tab\" / \"Copy\" on each notification - should this be beautiful buttons? Give me more options."
+        "text": "Review of Notification history · round 17\n1. Which history?: picked B · Cards; NEEDS MORE OPTIONS\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Unread: picked Enough\nOverall: I am not a fan of the \"2 new\" and \"Clear\" in the top of the notifications center. They look quite odd with their accent. Please show me different styles of how the count of notifications \"Clear\" can be shown. Also the \"Open Tab\" / \"Copy\" on each notification - should this be beautiful buttons? Give me more options."
       },
       {
         "date": "2026-09-30T11:11:16Z",
         "id": "6C46BF59-91B4-4458-803E-BE82F9C54CB9",
-        "text": "Review of Notification history \u00b7 round 17\n1. Which history?: picked D \u00b7 Compact cards; maybe B \u00b7 Cards\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Header: picked H3 \u00b7 Count by the title, one menu\n5. Actions: picked A2 \u00b7 Small buttons\n6. Unread: picked Enough"
+        "text": "Review of Notification history · round 17\n1. Which history?: picked D · Compact cards; maybe B · Cards\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Header: picked H3 · Count by the title, one menu\n5. Actions: picked A2 · Small buttons\n6. Unread: picked Enough"
       }
     ],
     "generalNote": "",
@@ -20,7 +194,7 @@
       },
       {
         "date": "2026-09-30T10:07:00Z",
-        "text": "More options added: D \u00b7 Compact cards, E \u00b7 Attention first, F \u00b7 Stacked by server; Header styles H1\u2013H5 and Action styles A1\u2013A5 for every proposal"
+        "text": "More options added: D · Compact cards, E · Attention first, F · Stacked by server; Header styles H1–H5 and Action styles A1–A5 for every proposal"
       },
       {
         "date": "2026-09-30T11:11:16Z",
@@ -31,10 +205,10 @@
     "optionNotes": {},
     "pickNotes": {},
     "picks": {
-      "actions": "A2 \u00b7 Small buttons",
+      "actions": "A2 · Small buttons",
       "exhibit": "compactCards",
       "grouping": "By time",
-      "header": "H3 \u00b7 Count by the title, one menu",
+      "header": "H3 · Count by the title, one menu",
       "motion": "Fade in",
       "unread": "enough"
     },
@@ -50,7 +224,7 @@
       {
         "date": "2026-09-30T12:20:51Z",
         "id": "004D889F-5ACC-48AA-8843-0F45CA3369A5",
-        "text": "Review of Notification toast\n1. Which toast?: picked Proposal; note: What I have answered, so no stack.\n2. Layout: picked L2 \u00b7 Title and detail\n3. Actions: picked A2 \u00b7 Small buttons\n4. Dismiss: picked D3 \u00b7 Swipe right\n5. Material: picked M1 \u00b7 Liquid Glass (today)\n6. Arrival: picked E1 \u00b7 Drop from the top (today)\n7. Stacking: picked S1 \u00b7 List of three (today)\n8. Duration: picked T1 \u00b7 3 s (today)"
+        "text": "Review of Notification toast\n1. Which toast?: picked Proposal; note: What I have answered, so no stack.\n2. Layout: picked L2 · Title and detail\n3. Actions: picked A2 · Small buttons\n4. Dismiss: picked D3 · Swipe right\n5. Material: picked M1 · Liquid Glass (today)\n6. Arrival: picked E1 · Drop from the top (today)\n7. Stacking: picked S1 · List of three (today)\n8. Duration: picked T1 · 3 s (today)"
       }
     ],
     "generalNote": "",
@@ -70,18 +244,68 @@
       "exhibit": "What I have answered, so no stack."
     },
     "picks": {
-      "actions": "A2 \u00b7 Small buttons",
-      "arrival": "E1 \u00b7 Drop from the top (today)",
-      "dismiss": "D3 \u00b7 Swipe right",
-      "duration": "T1 \u00b7 3 s (today)",
+      "actions": "A2 · Small buttons",
+      "arrival": "E1 · Drop from the top (today)",
+      "dismiss": "D3 · Swipe right",
+      "duration": "T1 · 3 s (today)",
       "exhibit": "proposal",
-      "layout": "L2 \u00b7 Title and detail",
-      "material": "M1 \u00b7 Liquid Glass (today)",
-      "stacking": "S1 \u00b7 List of three (today)"
+      "layout": "L2 · Title and detail",
+      "material": "M1 · Liquid Glass (today)",
+      "stacking": "S1 · List of three (today)"
     },
     "reviewedRevision": 1,
     "revisions": [],
     "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.pg-connection-lost-r21": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:35:33Z",
+        "id": "BCD8B599-AA6B-4F32-A16B-1B13034EDA4B",
+        "text": "Review of Postgres: connection lost\n1. Tell about lost connections?: picked Proposal\n2. Where: picked CL1 · Error in Messages (today); note: Error in Messages AND a Notification via the Notification Engine\n3. When: picked CW2 · The moment it drops\n4. Reconnect: picked RC2 · A Reconnect button\n5. Wording: picked WD2 · What it means for your work\n6. No transaction open: picked I1 · Quietly: footer says Disconnected, reconnects on the next run\n7. After reconnecting: picked RR3 · Never offer\n8. Notification history: picked H1 · Yes"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:35:33Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "where": "Error in Messages AND a Notification via the Notification Engine"
+    },
+    "picks": {
+      "exhibit": "proposal",
+      "history": "yes",
+      "idle": "quiet",
+      "reconnect": "RC2 · A Reconnect button",
+      "rerun": "never",
+      "when": "CW2 · The moment it drops",
+      "where": "CL1 · Error in Messages (today)",
+      "wording": "WD2 · What it means for your work"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.pg-error-location-r21": {
+    "comments": [],
+    "generalNote": "",
+    "history": [],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "exhibit": "proposal"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.pg-timeouts-r21": {
@@ -89,7 +313,7 @@
       {
         "date": "2026-09-30T13:58:21Z",
         "id": "D14B3620-14DC-4F24-A997-4D07D32F37B8",
-        "text": "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Proposal; note: It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere\n2. Where: picked TW2 \u00b7 Settings default, connection overrides; note: Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab\n3. Default: picked TD2 \u00b7 No limit unless set\n4. When it fires: picked TF2 \u00b7 Explained, with Run Without Limit; NEEDS MORE OPTIONS; note: Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification\n5. Lock waits: picked TL2 \u00b7 Separate field under Timeouts; NEEDS MORE OPTIONS; note: Should this be showing in the footer status?\n6. The 60 seconds already saved: picked M3 \u00b7 Reset to No limit, mention it once in What's New\n7. The limit in the footer: picked FT1 \u00b7 0:12 / 0:30 while running\n8. Idle in transaction: picked IT1 \u00b7 No, the transaction indicator covers it\n9. Scripts: picked SC1 \u00b7 Each statement (how Postgres does it)"
+        "text": "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Proposal; note: It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere\n2. Where: picked TW2 · Settings default, connection overrides; note: Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab\n3. Default: picked TD2 · No limit unless set\n4. When it fires: picked TF2 · Explained, with Run Without Limit; NEEDS MORE OPTIONS; note: Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification\n5. Lock waits: picked TL2 · Separate field under Timeouts; NEEDS MORE OPTIONS; note: Should this be showing in the footer status?\n6. The 60 seconds already saved: picked M3 · Reset to No limit, mention it once in What's New\n7. The limit in the footer: picked FT1 · 0:12 / 0:30 while running\n8. Idle in transaction: picked IT1 · No, the transaction indicator covers it\n9. Scripts: picked SC1 · Each statement (how Postgres does it)"
       }
     ],
     "generalNote": "",
@@ -111,15 +335,15 @@
       "where": "Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab"
     },
     "picks": {
-      "default": "TD2 \u00b7 No limit unless set",
+      "default": "TD2 · No limit unless set",
       "exhibit": "proposal",
-      "fired": "TF2 \u00b7 Explained, with Run Without Limit",
+      "fired": "TF2 · Explained, with Run Without Limit",
       "idle": "no",
-      "locks": "TL2 \u00b7 Separate field under Timeouts",
+      "locks": "TL2 · Separate field under Timeouts",
       "migrate": "resetTell",
       "scripts": "each",
       "timer": "fraction",
-      "where": "TW2 \u00b7 Settings default, connection overrides"
+      "where": "TW2 · Settings default, connection overrides"
     },
     "reviewedRevision": 1,
     "revisions": [],
@@ -131,7 +355,7 @@
       {
         "date": "2026-09-30T14:07:00Z",
         "id": "C7897230-9444-4677-BD57-D5FEA18CB22C",
-        "text": "Review of Postgres: values in the grid\n1. Easier to read?: picked Proposal\n2. Arrays: picked VA4 \u00b7 Count, then the first items\n3. JSON: picked VJ3 \u00b7 Summary: { 4 keys }\n4. Binary: picked VB3 \u00b7 Kind and size\n5. Numbers: picked VN2 \u00b7 Aligned on the decimal point\n6. What copy copies: picked CP3 \u00b7 The server's text; Copy as Shown in the menu\n7. Empty text and NULL: picked EN1 \u00b7 NULL in grey, empty shows nothing (today)\n8. Ranges, intervals and infinity: picked SP1 \u00b7 Keep the server's form\n9. Other databases: picked SC1 \u00b7 Yes, by kind (binary, JSON, numbers)"
+        "text": "Review of Postgres: values in the grid\n1. Easier to read?: picked Proposal\n2. Arrays: picked VA4 · Count, then the first items\n3. JSON: picked VJ3 · Summary: { 4 keys }\n4. Binary: picked VB3 · Kind and size\n5. Numbers: picked VN2 · Aligned on the decimal point\n6. What copy copies: picked CP3 · The server's text; Copy as Shown in the menu\n7. Empty text and NULL: picked EN1 · NULL in grey, empty shows nothing (today)\n8. Ranges, intervals and infinity: picked SP1 · Keep the server's form\n9. Other databases: picked SC1 · Yes, by kind (binary, JSON, numbers)"
       }
     ],
     "generalNote": "",
@@ -149,13 +373,13 @@
     "optionNotes": {},
     "pickNotes": {},
     "picks": {
-      "arrays": "VA4 \u00b7 Count, then the first items",
-      "binary": "VB3 \u00b7 Kind and size",
+      "arrays": "VA4 · Count, then the first items",
+      "binary": "VB3 · Kind and size",
       "copy": "both",
       "emptyNull": "today",
       "exhibit": "proposal",
-      "json": "VJ3 \u00b7 Summary: { 4 keys }",
-      "numbers": "VN2 \u00b7 Aligned on the decimal point",
+      "json": "VJ3 · Summary: { 4 keys }",
+      "numbers": "VN2 · Aligned on the decimal point",
       "scope": "all",
       "special": "keep"
     },
@@ -169,7 +393,7 @@
       {
         "date": "2026-09-30T12:42:35Z",
         "id": "5E613BD9-EF39-4027-8F0F-2155C794FBFC",
-        "text": "Review of Section dock: capsule\n1. Capsule: picked C5 \u00b7 Glass with an edge\n2. Icon weight: picked Medium\n3. Icon size: picked Today\n4. Current section: picked Accent colour (today)\n5. Section name: picked Under the server's name\n6. Hover: picked Icon grows"
+        "text": "Review of Section dock: capsule\n1. Capsule: picked C5 · Glass with an edge\n2. Icon weight: picked Medium\n3. Icon size: picked Today\n4. Current section: picked Accent colour (today)\n5. Section name: picked Under the server's name\n6. Hover: picked Icon grows"
       }
     ],
     "generalNote": "",
@@ -187,7 +411,7 @@
     "optionNotes": {},
     "pickNotes": {},
     "picks": {
-      "capsule": "C5 \u00b7 Glass with an edge",
+      "capsule": "C5 · Glass with an edge",
       "currentMark": "Accent colour (today)",
       "hover": "Icon grows",
       "sectionName": "Under the server's name",
@@ -204,17 +428,17 @@
       {
         "date": "2026-09-30T12:36:49Z",
         "id": "E98A51A0-F775-46F1-B0C9-4F7A836830FD",
-        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 \u00b7 SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 \u00b7 More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
       },
       {
         "date": "2026-09-30T12:36:51Z",
         "id": "89E05383-45DC-4C70-96EA-DCD74CF1EABC",
-        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 \u00b7 SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 \u00b7 More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
       },
       {
         "date": "2026-09-30T12:36:52Z",
         "id": "5FDD8082-5428-4596-BF19-F448C1AF3D07",
-        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 \u00b7 SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 \u00b7 More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
       }
     ],
     "generalNote": "",
@@ -241,9 +465,9 @@
     "pickNotes": {},
     "picks": {
       "groupName": "serverObjects",
-      "grouping": "G1 \u00b7 SSMS five",
+      "grouping": "G1 · SSMS five",
       "limit": "5",
-      "overflow": "M2 \u00b7 More as a section",
+      "overflow": "M2 · More as a section",
       "rule": "yes"
     },
     "reviewedRevision": 1,
@@ -256,7 +480,7 @@
       {
         "date": "2026-09-30T12:39:10Z",
         "id": "D0B7BE8C-185F-4F26-B61C-1E36E35781C0",
-        "text": "Review of Section dock: switching\n1. Switching: picked S3 \u00b7 Fade through\n2. Where the view goes: picked Jump to where it was\n3. The other cards: picked N2 \u00b7 Only the changed card, view holds"
+        "text": "Review of Section dock: switching\n1. Switching: picked S3 · Fade through\n2. Where the view goes: picked Jump to where it was\n3. The other cards: picked N2 · Only the changed card, view holds"
       }
     ],
     "generalNote": "",
@@ -274,9 +498,9 @@
     "optionNotes": {},
     "pickNotes": {},
     "picks": {
-      "neighbours": "N2 \u00b7 Only the changed card, view holds",
+      "neighbours": "N2 · Only the changed card, view holds",
       "scroll": "Jump to where it was",
-      "switch": "S3 \u00b7 Fade through"
+      "switch": "S3 · Fade through"
     },
     "reviewedRevision": 1,
     "revisions": [],
@@ -288,17 +512,17 @@
       {
         "date": "2026-09-30T10:00:33Z",
         "id": "EF06491D-D320-4DB4-B60E-E806FF3BA3BC",
-        "text": "Review of Server card \u00b7 round 16\n1. Header style: picked H5 \u00b7 Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it\n2. Version: picked Under the name\n3. Edge under the header: picked Blur rows; note: Needs to look like native\n4. Switching sections: picked Crossfade\n5. Loading: picked Quiet skeleton; NEEDS MORE OPTIONS; note: I like the spinner but the \"loading rows\" is not a good fit for the \"initial load\". Please try some more options with the spinner and then what shows inside the card\n6. Counts: picked Always\n7. Selection: picked Symmetric\n8. Customising: picked Works as intended\n9. PostgreSQL: picked Looks right"
+        "text": "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it\n2. Version: picked Under the name\n3. Edge under the header: picked Blur rows; note: Needs to look like native\n4. Switching sections: picked Crossfade\n5. Loading: picked Quiet skeleton; NEEDS MORE OPTIONS; note: I like the spinner but the \"loading rows\" is not a good fit for the \"initial load\". Please try some more options with the spinner and then what shows inside the card\n6. Counts: picked Always\n7. Selection: picked Symmetric\n8. Customising: picked Works as intended\n9. PostgreSQL: picked Looks right"
       },
       {
         "date": "2026-09-30T11:17:03Z",
         "id": "FDCF1724-BCEE-4A9A-BF46-55DBDF632BFD",
-        "text": "Review of Server card \u00b7 round 16\n1. Header style: picked H5 \u00b7 Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 \u00b7 Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
+        "text": "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 · Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
       },
       {
         "date": "2026-09-30T11:17:05Z",
         "id": "21CD2918-45AA-4D6C-95FB-8EBF12467D3F",
-        "text": "Review of Server card \u00b7 round 16\n1. Header style: picked H5 \u00b7 Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 \u00b7 Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
+        "text": "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 · Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
       }
     ],
     "generalNote": "",
@@ -309,7 +533,7 @@
       },
       {
         "date": "2026-09-30T10:14:42Z",
-        "text": "More options added: Initial load I1\u2013I5 (spinner in the icon, spinner row, centred spinner, folders first, spinner by the name), Spinner on the icon, Pinned (name and icons / icons only); H5 reworked as Xcode navigator icons in a glass capsule with rows blurred under it; Blur rows reworked after the system soft edge, with a System edge reference exhibit; your picks are the new defaults"
+        "text": "More options added: Initial load I1–I5 (spinner in the icon, spinner row, centred spinner, folders first, spinner by the name), Spinner on the icon, Pinned (name and icons / icons only); H5 reworked as Xcode navigator icons in a glass capsule with rows blurred under it; Blur rows reworked after the system soft edge, with a System edge reference exhibit; your picks are the new defaults"
       },
       {
         "date": "2026-09-30T11:17:03Z",
@@ -339,9 +563,9 @@
       "counts": "Always",
       "customising": "works",
       "edge": "Blur rows",
-      "header": "H5 \u00b7 Glass capsule",
+      "header": "H5 · Glass capsule",
       "iconSpinner": "Keep the icon still",
-      "initialLoad": "I4 \u00b7 Folders first",
+      "initialLoad": "I4 · Folders first",
       "loading": "Quiet skeleton",
       "pinning": "Name and icons",
       "postgres": "right",

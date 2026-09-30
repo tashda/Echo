@@ -23,6 +23,7 @@ enum MssqlSessionsRound {
         case reconnectAndSay = "LC1 · Reconnect on the next Run, and say what was lost"
         case reconnectSilently = "LC2 · Reconnect on the next Run, silently"
         case today = "LC3 · Keep failing until the tab is reopened (today)"
+        case button = "LC4 · A Reconnect button, as on the Postgres page"
     }
 
     private static let width: CGFloat = 620
@@ -35,10 +36,11 @@ enum MssqlSessionsRound {
                 question: "Pick 'A query that runs 50 seconds'. When should Echo stop a long query, and where is that set?",
                 recommend: .followPostgres,
                 why: "On the Postgres timeouts page you picked TW2 (a Settings default a connection can override) and TD2 (no limit unless set); one rule for every engine is less to learn. The limit becomes the driver's request deadline, which cancels on the server. Today's 45 seconds is hard-coded, ignores the connection's Query Timeout and leaves the query running on the server."),
-            .of("dropped", "Dropped connection", Dropped.self, default: .reconnectAndSay,
-                question: "Pick 'The server drops the connection', then Run again. What should happen?",
-                recommend: .reconnectAndSay,
-                why: "A new session is the only way forward, but it has lost the temporary tables, SET options and any open transaction, so Echo must say so (the Postgres connection-lost page decides how it looks). Silent reconnects make the next statement fail in confusing ways; today the tab is dead until reopened."),
+            .of("dropped", "Dropped connection", Dropped.self, default: .button,
+                question: "Pick 'The server drops the connection'. How does the tab get working again?",
+                recommend: .button,
+                why: "You chose this in chat (2026-09-30), replacing LC1: both engines follow the Postgres connection-lost decision (CW2, RC2, WD2). Echo says at once what was lost and offers Reconnect; nothing reconnects or reruns by itself, so no statement runs in a fresh session by surprise.",
+                newChoices: (revision: 2, choices: [.button])),
         ],
         exhibits: [
             .init(id: "today", title: "Echo today", summary: "Cancel reconnects and loses #staging; 45 s kills the wait but not the query; a dropped tab stays broken.",
@@ -49,7 +51,7 @@ enum MssqlSessionsRound {
                   designWidth: width, designHeight: height) { values in
                 MssqlSessionsExhibit(scenario: Scenario(rawValue: values["scenario"]) ?? .cancel,
                                      timeout: Timeout(rawValue: values["timeout"]) ?? .followPostgres,
-                                     dropped: Dropped(rawValue: values["dropped"]) ?? .reconnectAndSay,
+                                     dropped: Dropped(rawValue: values["dropped"]) ?? .button,
                                      today: false)
             },
         ],
@@ -84,8 +86,8 @@ enum MssqlSessionsRound {
                        "proposal",
                        "It keeps the session through a cancel, stops long queries on the server when a limit applies, and recovers from a dropped connection while saying what was lost."),
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "TO1, LC1.",
-                  values: ["timeout": Timeout.followPostgres.rawValue, "dropped": Dropped.reconnectAndSay.rawValue], isRecommended: true),
+            .init(id: "recommended", name: "My recommendation", summary: "TO1, LC4.",
+                  values: ["timeout": Timeout.followPostgres.rawValue, "dropped": Dropped.button.rawValue], isRecommended: true),
         ]
     )
 }
@@ -131,9 +133,13 @@ struct MssqlSessionsExhibit: View {
 
     private var footerStatus: String {
         switch scenario {
-        case .cancel: "Cancelled"
-        case .long: today || timeout == .today ? "Stopped" : "Done in 0:50"
-        case .dropped: today || dropped == .today ? "Failed" : "Reconnected"
+        case .cancel:
+            return "Cancelled"
+        case .long:
+            return today || timeout == .today ? "Stopped" : "Done in 0:50"
+        case .dropped:
+            if today || dropped == .today { return "Failed" }
+            return dropped == .button ? "Disconnected" : "Reconnected"
         }
     }
 
@@ -172,6 +178,12 @@ struct MssqlSessionsExhibit: View {
             }
             if dropped == .reconnectSilently {
                 return [lost, Entry(sql: rerun, text: "1000")]
+            }
+            if dropped == .button {
+                return [Entry(sql: "SELECT * FROM #staging;",
+                              text: "The connection to sql01 dropped. This tab's #staging table, its SET options and its open transaction are gone; nothing was committed after the last COMMIT.",
+                              colour: error),
+                        Entry(sql: nil, text: "[ Reconnect ]  starts a new session; your statements are not run again.", colour: ColorTokens.Text.secondary)]
             }
             return [lost,
                     Entry(sql: rerun, text: "Reconnected. The new session does not have #staging, the SET options or the open transaction of the old one.", colour: warning),
