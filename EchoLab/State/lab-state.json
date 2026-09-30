@@ -51,6 +51,10 @@
       {
         "date" : "2026-09-30T10:00:33Z",
         "text" : "Feedback sent"
+      },
+      {
+        "date" : "2026-09-30T10:14:42Z",
+        "text" : "More options added: Initial load I1–I5 (spinner in the icon, spinner row, centred spinner, folders first, spinner by the name), Spinner on the icon, Pinned (name and icons \/ icons only); H5 reworked as Xcode navigator icons in a glass capsule with rows blurred under it; Blur rows reworked after the system soft edge, with a System edge reference exhibit; your picks are the new defaults"
       }
     ],
     "needsMore" : [
@@ -75,7 +79,7 @@
       "switch" : "Crossfade",
       "version" : "Under the name"
     },
-    "status" : "New feedback",
+    "status" : "Judging",
     "verdicts" : {
 
     }

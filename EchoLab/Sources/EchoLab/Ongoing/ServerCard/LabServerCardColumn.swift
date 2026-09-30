@@ -14,12 +14,12 @@ struct LabSCTreeColumn: View {
     @State private var focusedServerID = LabSCServer.mssql.id
     @State private var customizing: LabSCServer?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    /// The soft zone under the header where rows blur or fade before they pass under it.
-    private let edgeZone = SpacingTokens.sm
+    @Environment(\.workspaceCardCornerRadius) private var cornerRadius
 
     private var animation: Animation { options.speed.spring(reduceMotion: reduceMotion) }
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: LayoutTokens.Workspace.cardCornerRadius, style: .continuous) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: cornerRadius, style: .continuous) }
+    /// Pinned › Icons only: the name scrolls away and only the dock stays.
+    private var pinsIconsOnly: Bool { options.pinning == .iconsOnly && LabSCHeaderView.canSplit(options.header) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
@@ -34,10 +34,13 @@ struct LabSCTreeColumn: View {
             } else {
                 stacked
             }
-            Button("Reset loading", systemImage: "arrow.counterclockwise") { state.reset() }
-                .controlSize(.small)
-                .help("Forget what has loaded, to see loading again")
+            Button("Reset and connect again", systemImage: "arrow.counterclockwise") {
+                state.reset(servers, options: options, animation: animation)
+            }
+            .controlSize(.small)
+            .help("Forget what has loaded and connect again, to see the initial load")
         }
+        .onAppear { state.connect(servers, options: options, animation: animation) }
         .sheet(item: $customizing) { server in
             LabSCCustomizeSheet(server: server, state: state, dockIcons: $dockIcons, treeIcons: $treeIcons)
         }
@@ -49,10 +52,13 @@ struct LabSCTreeColumn: View {
         ScrollView {
             LazyVStack(spacing: SpacingTokens.none, pinnedViews: [.sectionHeaders]) {
                 ForEach(servers) { server in
-                    Section {
-                        cardBody(for: server)
-                    } header: {
-                        pinnedHeader(for: server)
+                    if pinsIconsOnly {
+                        header(for: server, part: .name)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(ColorTokens.Workspace.card, in: topShape)
+                        Section { cardBody(for: server) } header: { pinnedHeader(for: server, part: .dock) }
+                    } else {
+                        Section { cardBody(for: server) } header: { pinnedHeader(for: server, part: .all) }
                     }
                 }
             }
@@ -62,44 +68,40 @@ struct LabSCTreeColumn: View {
         .clipShape(shape)
     }
 
+    private var topShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(topLeadingRadius: cornerRadius, topTrailingRadius: cornerRadius, style: .continuous)
+    }
+
     private func cardBody(for server: LabSCServer) -> some View {
-        let total = headerHeights[server.id] ?? 0
-        return LabSCCardBody(server: server, state: state, options: options, animation: animation,
-                             headerOpaqueHeight: max(total - edgeZone, 0), edgeZone: edgeZone)
+        let headerHeight = headerHeights[server.id] ?? 0
+        return LabSCCardBody(server: server, state: state, options: options, animation: animation, headerHeight: headerHeight)
             .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
             .background(ColorTokens.Workspace.card, in: UnevenRoundedRectangle(
-                bottomLeadingRadius: LayoutTokens.Workspace.cardCornerRadius,
-                bottomTrailingRadius: LayoutTokens.Workspace.cardCornerRadius, style: .continuous))
+                bottomLeadingRadius: cornerRadius, bottomTrailingRadius: cornerRadius, style: .continuous))
             .onGeometryChange(for: Bool.self) { proxy in
-                proxy.frame(in: .scrollView).minY < total - SpacingTokens.micro
+                proxy.frame(in: .scrollView).minY < headerHeight - SpacingTokens.micro
             } action: { isPinned in
                 if isPinned { pinned.insert(server.id) } else { pinned.remove(server.id) }
             }
             .padding(.bottom, SpacingTokens.xs)
     }
 
-    private func pinnedHeader(for server: LabSCServer) -> some View {
+    private func pinnedHeader(for server: LabSCServer, part: LabSCHeaderView.Part) -> some View {
         let isPinned = pinned.contains(server.id)
-        return VStack(spacing: SpacingTokens.none) {
-            header(for: server)
-                .padding(.bottom, SpacingTokens.xxs)
-                .background { headerBackground(isPinned: isPinned) }
-                .overlay(alignment: .bottom) {
-                    if isPinned && options.edge == .hairline { Divider() }
-                }
-            // The soft zone: card-coloured at rest, see-through while rows pass under it.
-            Rectangle()
-                .fill(isPinned ? Color.clear : ColorTokens.Workspace.card)
-                .frame(height: edgeZone)
-        }
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeights[server.id] = $0 }
+        return header(for: server, part: part)
+            .padding(.bottom, SpacingTokens.xs)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background { headerBackground(isPinned: isPinned, roundedTop: part == .all) }
+            .overlay(alignment: .bottom) {
+                if isPinned && options.edge == .hairline { Divider() }
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeights[server.id] = $0 }
     }
 
     @ViewBuilder
-    private func headerBackground(isPinned: Bool) -> some View {
-        let top = UnevenRoundedRectangle(topLeadingRadius: LayoutTokens.Workspace.cardCornerRadius,
-                                         topTrailingRadius: LayoutTokens.Workspace.cardCornerRadius, style: .continuous)
-        if isPinned && options.edge == .material {
+    private func headerBackground(isPinned: Bool, roundedTop: Bool) -> some View {
+        switch (isPinned, options.edge) {
+        case (true, .material):
             // Echo today: a thin material over the rows, fading out over its last 12pt.
             Rectangle()
                 .fill(.ultraThinMaterial)
@@ -110,8 +112,17 @@ struct LabSCTreeColumn: View {
                     }
                 }
                 .padding(.bottom, -SpacingTokens.sm)
-        } else {
-            top.fill(ColorTokens.Workspace.card)
+        case (true, .blurRows), (true, .fadeRows):
+            // The soft edge's light wash: the rows blur and fade themselves (LabSCEdgeEffect).
+            LinearGradient(stops: [
+                .init(color: ColorTokens.Workspace.card.opacity(0.85), location: 0),
+                .init(color: ColorTokens.Workspace.card.opacity(0.45), location: 0.55),
+                .init(color: ColorTokens.Workspace.card.opacity(0), location: 1),
+            ], startPoint: .top, endPoint: .bottom)
+        case (true, _):
+            Rectangle().fill(ColorTokens.Workspace.card)
+        case (false, _):
+            if roundedTop { topShape.fill(ColorTokens.Workspace.card) } else { Rectangle().fill(ColorTokens.Workspace.card) }
         }
     }
 
@@ -125,15 +136,15 @@ struct LabSCTreeColumn: View {
         }
         .scrollIndicators(.never)
         .safeAreaBar(edge: .top) {
-            header(for: server).padding(.bottom, SpacingTokens.xxs2)
+            header(for: server, part: .all).padding(.bottom, SpacingTokens.xs)
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
         .background(ColorTokens.Workspace.card, in: shape)
         .clipShape(shape)
     }
 
-    private func header(for server: LabSCServer) -> some View {
-        LabSCHeaderView(server: server, state: state, options: options) { sectionID in
+    private func header(for server: LabSCServer, part: LabSCHeaderView.Part) -> some View {
+        LabSCHeaderView(server: server, state: state, options: options, part: part) { sectionID in
             state.choose(sectionID, in: server, options: options, animation: animation)
         } onCustomize: {
             customizing = server

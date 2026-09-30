@@ -8,9 +8,8 @@ struct LabSCCardBody: View {
     let state: LabSCState
     let options: LabSCOptions
     let animation: Animation
-    /// Where rows start to pass under the pinned header, for the blur and fade.
-    var headerOpaqueHeight: CGFloat = 0
-    var edgeZone: CGFloat = 0
+    /// The pinned header's height: rows blur and fade as they pass under it.
+    var headerHeight: CGFloat = 0
 
     var body: some View {
         let shownID = state.shownSection(of: server)
@@ -32,13 +31,27 @@ struct LabSCCardBody: View {
     // MARK: - Rows
 
     enum FlatRow: Identifiable {
-        case node(LabSCNode, depth: Int)
-        case loading(id: String, depth: Int)
+        case node(LabSCNode, depth: Int, isLoading: Bool)
+        /// Skeleton or shimmer placeholders, three rows tall.
+        case placeholder(id: String, depth: Int, style: LabSCLoading)
+        /// I2 and Folders first: one row with a spinner in the icon slot.
+        case spinnerRow(id: String, depth: Int, title: String)
+        /// I3: a spinner centred in a three-row space.
+        case centred(id: String, title: String)
 
         var id: String {
             switch self {
-            case .node(let node, _): node.id
-            case .loading(let id, _): "loading|\(id)"
+            case .node(let node, _, _): node.id
+            case .placeholder(let id, _, _): "placeholder|\(id)"
+            case .spinnerRow(let id, _, _): "spinner|\(id)"
+            case .centred(let id, _): "centred|\(id)"
+            }
+        }
+
+        var slots: CGFloat {
+            switch self {
+            case .node, .spinnerRow: 1
+            case .placeholder, .centred: 3
             }
         }
     }
@@ -46,40 +59,56 @@ struct LabSCCardBody: View {
     private func flatRows(_ sectionID: String) -> [FlatRow] {
         guard let section = server.section(sectionID) else { return [] }
         let key = state.sectionKey(server, sectionID)
-        if state.loading.contains(key) && options.loading != .keep {
-            return [.loading(id: key, depth: 0)]
+        let sectionLoading = state.loading.contains(key)
+        if sectionLoading {
+            switch options.initialLoad {
+            case .today: return [.placeholder(id: key, depth: 0, style: .shimmer)]
+            case .skeleton: return [.placeholder(id: key, depth: 0, style: .skeleton)]
+            case .iconOnly, .headerSpinner: return []
+            case .spinnerRow: return [.spinnerRow(id: key, depth: 0, title: "Loading \(section.title)")]
+            case .centred: return [.centred(id: key, title: section.title)]
+            case .foldersFirst: break
+            }
         }
         let expanded = state.expandedIDs(server, section)
         var rows: [FlatRow] = []
-        func walk(_ nodes: [LabSCNode], depth: Int) {
+        // While a section loads (Folders first), only what the blueprint knows is drawn: folders
+        // and tools. The items a level lists wait behind one spinner row.
+        func walk(_ nodes: [LabSCNode], depth: Int, title: String) {
+            var waitsForItems = false
             for node in nodes {
-                rows.append(.node(node, depth: depth))
+                if sectionLoading && node.isItem {
+                    waitsForItems = true
+                    continue
+                }
+                let folderLoading = state.loading.contains(node.id) || (sectionLoading && node.isFolder)
+                rows.append(.node(node, depth: depth, isLoading: folderLoading))
                 guard node.isFolder, expanded.contains(node.id) else { continue }
-                if state.loading.contains(node.id) && options.loading != .keep {
-                    rows.append(.loading(id: node.id, depth: depth + 1))
+                if sectionLoading {
+                    rows.append(.spinnerRow(id: node.id, depth: depth + 1, title: "Loading \(node.title)"))
+                } else if state.loading.contains(node.id) && options.loading != .keep {
+                    rows.append(.placeholder(id: node.id, depth: depth + 1, style: options.loading))
                 } else {
-                    walk(node.children, depth: depth + 1)
+                    walk(node.children, depth: depth + 1, title: node.title)
                 }
             }
+            if waitsForItems {
+                rows.append(.spinnerRow(id: "\(key)|\(title)", depth: depth, title: "Loading \(title)"))
+            }
         }
-        walk(section.nodes, depth: 0)
+        walk(section.nodes, depth: 0, title: section.title)
         return rows
     }
 
     private func height(of rows: [FlatRow]) -> CGFloat {
-        rows.reduce(SpacingTokens.none) { total, row in
-            switch row {
-            case .node: total + options.density.rowSlot
-            case .loading: total + options.density.rowSlot * 3
-            }
-        }
+        rows.reduce(SpacingTokens.none) { $0 + options.density.rowSlot * $1.slots }
     }
 
     private func content(_ rows: [FlatRow]) -> some View {
         VStack(spacing: SpacingTokens.none) {
             ForEach(rows) { row in
                 rowView(row)
-                    .modifier(LabSCEdgeEffect(edge: options.edge, top: headerOpaqueHeight, zone: edgeZone))
+                    .modifier(LabSCEdgeEffect(edge: options.edge, headerHeight: headerHeight))
                     .transition(rowTransition)
             }
         }
@@ -88,15 +117,19 @@ struct LabSCCardBody: View {
     @ViewBuilder
     private func rowView(_ row: FlatRow) -> some View {
         switch row {
-        case .loading(_, let depth):
-            LabSCLoadingRows(style: options.loading, depth: depth, options: options)
-        case .node(let node, let depth):
+        case .placeholder(_, let depth, let style):
+            LabSCLoadingRows(style: style, depth: depth, options: options)
+        case .spinnerRow(_, let depth, let title):
+            LabSCSpinnerRow(title: title, depth: depth, options: options)
+        case .centred(_, let title):
+            LabSCCentredSpinner(title: title, height: options.density.rowSlot * 3)
+        case .node(let node, let depth, let isLoading):
             let section = server.section(state.shownSection(of: server))
             LabSCRow(
                 node: node, depth: depth,
                 isExpanded: section.map { state.expandedIDs(server, $0).contains(node.id) } ?? false,
                 isSelected: state.selectedRowID == node.id,
-                isLoading: state.loading.contains(node.id),
+                isLoading: isLoading,
                 options: options
             ) {
                 if node.isFolder, let section {
@@ -132,21 +165,24 @@ struct LabSCCardBody: View {
     }
 }
 
-/// Blur rows, Fade rows: a row blurs and fades as it slides into the soft zone under the pinned
-/// header, and is fully gone by the time it reaches the header's opaque part.
+/// Blur rows, Fade rows, modelled on macOS 26's soft scroll edge: a row stays visible under the
+/// pinned header, and blurs and fades more the higher it goes, so it is a soft haze behind the
+/// name and a readable blur behind the icons. The header adds a light wash of the card colour.
 struct LabSCEdgeEffect: ViewModifier {
     let edge: LabSCEdge
-    let top: CGFloat
-    let zone: CGFloat
+    let headerHeight: CGFloat
+
+    /// The strongest blur, at the card's top edge.
+    static let maxBlur = SpacingTokens.xs2
 
     func body(content: Content) -> some View {
-        if (edge == .blurRows || edge == .fadeRows) && zone > 0 {
-            content.visualEffect { [edge, top, zone] effect, proxy in
-                let minY = proxy.frame(in: .scrollView).minY
-                let progress = min(max((top + zone - minY) / zone, 0), 1)
+        if (edge == .blurRows || edge == .fadeRows) && headerHeight > 0 {
+            content.visualEffect { [edge, headerHeight, maxBlur = Self.maxBlur] effect, proxy in
+                let midY = proxy.frame(in: .scrollView).midY
+                let progress = min(max((headerHeight - midY) / headerHeight, 0), 1)
                 return effect
-                    .blur(radius: edge == .blurRows ? progress * SpacingTokens.xxs : 0)
-                    .opacity(1 - progress * 0.9)
+                    .blur(radius: edge == .blurRows ? progress * maxBlur : 0)
+                    .opacity(1 - pow(progress, 0.8) * 0.92)
             }
         } else {
             content

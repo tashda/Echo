@@ -7,7 +7,7 @@ struct LabSCDock: View {
     let server: LabSCServer
     let state: LabSCState
     let options: LabSCOptions
-    let onChoose: (String) -> Void
+    let onChoose: @MainActor (String) -> Void
     let onCustomize: () -> Void
 
     private var sections: [LabSCSection] { state.dock(for: server).compactMap(server.section) }
@@ -112,22 +112,23 @@ struct LabSCDock: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// H5, Xcode's navigator icons on a glass capsule the card's width; rows show through, blurred.
     private var glass: some View {
         GlassEffectContainer {
-            HStack(spacing: SpacingTokens.xxxs) {
+            HStack(spacing: SpacingTokens.none) {
                 ForEach(sections) { section in
                     button(section, font: options.density.dockIconFont) { isCurrent in
                         LabSCSymbol(name: section.symbol, color: section.color, style: options.dockIcons, isCurrent: isCurrent, font: options.density.dockIconFont)
-                            .frame(width: options.density.dockHeight + SpacingTokens.xxs, height: options.density.dockHeight)
-                            .background { if isCurrent { Capsule().fill(ColorTokens.Sidebar.selectedFill) } }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: options.density.dockHeight)
                     }
                 }
                 moreButton(font: options.density.dockIconFont, height: options.density.dockHeight)
             }
-            .padding(SpacingTokens.nano)
+            .padding(.horizontal, SpacingTokens.xxs2)
             .glassEffect(.regular, in: .capsule)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, SpacingTokens.xxs2)
         .contextMenu { dockMenu }
     }
 
@@ -140,7 +141,8 @@ struct LabSCDock: View {
 
     private func button<Label: View>(_ section: LabSCSection, font: Font, @ViewBuilder label: @escaping (Bool) -> Label) -> some View {
         let isCurrent = section.id == chosen
-        let isLoading = state.loading.contains(state.sectionKey(server, section.id))
+        let spins = options.iconSpinner == .show || options.initialLoad == .iconOnly
+        let isLoading = spins && state.loading.contains(state.sectionKey(server, section.id))
         return Button { onChoose(section.id) } label: {
             label(isCurrent)
                 .opacity(isLoading ? 0.25 : 1)

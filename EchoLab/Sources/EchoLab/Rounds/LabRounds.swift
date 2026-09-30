@@ -24,7 +24,7 @@ enum LabRounds {
              pageIDs: ["ongoing.notification-history-r17"]),
         Info(id: "r16", label: "Round 16", title: "Server card", date: "30 Sep 2026",
              asked: "Your bugs and feedback on the section dock as built: header and dock styles, the edge under the pinned header, switching, loading, counts, selection, dock customising and PostgreSQL's sections.",
-             outcome: "Being judged.",
+             outcome: "First look: H5 glass capsule, version under the name, blur rows, crossfade, quiet skeleton, counts always, symmetric selection; customising and PostgreSQL's sections kept. Being judged again: H5 as Xcode's navigator icons with rows blurred under the glass, blur rows modelled on the system edge (with a reference), what stays pinned, and five spinner options for the initial load.",
              pageIDs: ["ongoing.server-card-r16"]),
         Info(id: "r15", label: "Round 15", title: "Run, inspector and notifications", date: "30 Sep 2026",
              asked: "Five places for the Run button, three looks for the inspector column, and where toasts and the history live.",
