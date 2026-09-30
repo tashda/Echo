@@ -107,20 +107,30 @@ struct LabFitToWidth<Content: View>: View {
     @ViewBuilder var content: Content
     @State private var width: CGFloat = 0
 
-    private var scale: CGFloat { width > 0 ? min(1, width / designWidth) : 1 }
+    /// Fills the card (a little more than the design size at most), then the zoom on top.
+    private var scale: CGFloat {
+        let fit = width > 0 ? min(width / designWidth, 1.6) : 1
+        return fit * CGFloat(LabZoom.shared.level)
+    }
 
     var body: some View {
+        let scaledWidth = designWidth * scale
+        let scaledHeight = designHeight * scale
         Color.clear
             .frame(maxWidth: .infinity)
-            .frame(height: designHeight * scale)
+            .frame(height: scaledHeight)
             .background(GeometryReader { proxy in
                 Color.clear.onChange(of: proxy.size.width, initial: true) { _, new in width = new }
             })
             .overlay(alignment: .top) {
-                content
-                    .frame(width: designWidth, height: designHeight)
-                    .scaleEffect(scale, anchor: .top)
-                    .frame(maxWidth: .infinity, alignment: .top)
+                ScrollView(.horizontal, showsIndicators: scaledWidth > width + 1) {
+                    content
+                        .frame(width: designWidth, height: designHeight)
+                        .scaleEffect(scale, anchor: .topLeading)
+                        .frame(width: scaledWidth, height: scaledHeight, alignment: .topLeading)
+                        .frame(minWidth: width, alignment: .top)
+                }
+                .scrollBounceBehavior(.basedOnSize)
             }
     }
 }
@@ -133,19 +143,28 @@ struct LabFitToWidthAuto<Content: View>: View {
     @State private var width: CGFloat = 0
     @State private var measured = CGSize(width: 1, height: 1)
 
-    private var scale: CGFloat { width > 0 ? min(1, width / designWidth) : 1 }
+    private var scale: CGFloat {
+        let fit = width > 0 ? min(width / designWidth, 1.6) : 1
+        return fit * CGFloat(LabZoom.shared.level)
+    }
 
     var body: some View {
+        let scaledWidth = designWidth * scale
         Color.clear
             .frame(maxWidth: .infinity)
             .frame(height: max(measured.height, 1) * scale)
             .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { width = $0 }
-            .overlay(alignment: .topLeading) {
-                content
-                    .frame(width: designWidth, alignment: .topLeading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .onGeometryChange(for: CGSize.self, of: { $0.size }) { measured = $0 }
-                    .scaleEffect(scale, anchor: .topLeading)
+            .overlay(alignment: .top) {
+                ScrollView(.horizontal, showsIndicators: scaledWidth > width + 1) {
+                    content
+                        .frame(width: designWidth, alignment: .topLeading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onGeometryChange(for: CGSize.self, of: { $0.size }) { measured = $0 }
+                        .scaleEffect(scale, anchor: .topLeading)
+                        .frame(width: scaledWidth, height: max(measured.height, 1) * scale, alignment: .topLeading)
+                        .frame(minWidth: width, alignment: .top)
+                }
+                .scrollBounceBehavior(.basedOnSize)
             }
     }
 }

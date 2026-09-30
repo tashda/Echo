@@ -57,7 +57,7 @@ struct LabRoundPage: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                     if !usesColumn { RoundControlsBar(page: page, spec: spec, values: values, settings: settings) }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320, maximum: 720), spacing: SpacingTokens.sm, alignment: .top)],
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320 * LabZoom.shared.level, maximum: 720 * LabZoom.shared.level), spacing: SpacingTokens.sm, alignment: .top)],
                               alignment: .leading, spacing: SpacingTokens.sm) {
                         ForEach(spec.exhibits) { exhibit in
                             RoundExhibitCard(page: page, exhibit: exhibit, values: values, settings: settings, decides: spec.exhibitTopic != nil,

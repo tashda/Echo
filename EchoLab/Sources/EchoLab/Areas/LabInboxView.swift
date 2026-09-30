@@ -6,13 +6,27 @@ struct LabInboxView: View {
     @Environment(LabStore.self) private var store
     @Environment(LabNavigator.self) private var navigator
 
-    enum Filter: String, CaseIterable, Identifiable {
-        case all = "All", you = "For you", agent = "With the agent"
+    /// The Inbox's groups, top to bottom: what you judge, what you check in Echo, what the agent has.
+    enum Group: String, CaseIterable, Identifiable {
+        case judging = "Judging", inEcho = "For you to check in Echo", agent = "With the agent"
         var id: String { rawValue }
-        var turn: LabStatus.Turn? {
+        func includes(_ status: LabStatus) -> Bool {
+            switch self {
+            case .judging: status == .judging
+            case .inEcho: status == .inEcho
+            case .agent: status == .newFeedback || status == .accepted
+            }
+        }
+    }
+
+    enum Filter: String, CaseIterable, Identifiable {
+        case all = "All", judging = "Judging", inEcho = "For you to check in Echo", agent = "With the agent"
+        var id: String { rawValue }
+        var group: Group? {
             switch self {
             case .all: nil
-            case .you: .you
+            case .judging: .judging
+            case .inEcho: .inEcho
             case .agent: .agent
             }
         }
@@ -22,13 +36,12 @@ struct LabInboxView: View {
     @AppStorage("lab.inbox.selected") private var selectedID: String?
     @State private var search = ""
 
-    private let turns: [LabStatus.Turn] = [.you, .agent]
 
     private var items: [LabPage] {
         LabRegistry.pages.filter { page in
-            guard let status = store.status(of: page), turns.contains(status.turn),
+            guard let status = store.status(of: page), Group.allCases.contains(where: { $0.includes(status) }),
                   page.section != .test, page.section != .reference else { return false }
-            if let wanted = filter.turn, status.turn != wanted { return false }
+            if let wanted = filter.group, !wanted.includes(status) { return false }
             let query = search.trimmingCharacters(in: .whitespaces).lowercased()
             return query.isEmpty || page.title.lowercased().contains(query) || areaTitle(page).lowercased().contains(query)
                 || page.summary.lowercased().contains(query)
@@ -62,7 +75,10 @@ struct LabInboxView: View {
                     }
                     .pickerStyle(.inline)
                 } label: {
-                    Label("Filter", systemImage: filter == .all ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                    Image(systemName: filter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                        .font(.system(size: 15, weight: .regular))
+                        .frame(width: 22, height: 22)
+                        .accessibilityLabel("Filter")
                 }
                 .menuIndicator(.hidden)
                 .help("Show: \(filter.rawValue)")
@@ -72,8 +88,8 @@ struct LabInboxView: View {
 
     private var list: some View {
         List(selection: $selectedID) {
-            ForEach(turns, id: \.self) { turn in
-                let group = items.filter { store.status(of: $0)?.turn == turn }
+            ForEach(Group.allCases) { turn in
+                let group = items.filter { store.status(of: $0).map(turn.includes) ?? false }
                 if !group.isEmpty {
                     Section {
                         ForEach(group) { page in

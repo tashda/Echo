@@ -39,6 +39,11 @@ struct EchoLabApp: App {
         }
         .defaultSize(width: 1280, height: 860)
         .commands {
+            CommandGroup(after: .toolbar) {
+                Button("Zoom In") { LabZoom.shared.zoomIn() }.keyboardShortcut("=", modifiers: .command)
+                Button("Zoom Out") { LabZoom.shared.zoomOut() }.keyboardShortcut("-", modifiers: .command)
+                Button("Actual Size") { LabZoom.shared.reset() }.keyboardShortcut("0", modifiers: .command)
+            }
             CommandMenu("Build") {
                 Button("Rebuild and Relaunch") { LabBuilder.shared.rebuild() }
                     .keyboardShortcut("b", modifiers: [.command, .shift])

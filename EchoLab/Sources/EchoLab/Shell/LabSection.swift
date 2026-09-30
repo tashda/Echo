@@ -45,9 +45,9 @@ enum LabStatus: String, Codable, CaseIterable {
     var title: String {
         switch self {
         case .newFeedback: "Sent to agent"
-        case .judging: "To judge"
+        case .judging: "Judging"
         case .accepted: "Accepted"
-        case .inEcho: "To check in Echo"
+        case .inEcho: "For you to check in Echo"
         case .decided: "Decided"
         }
     }

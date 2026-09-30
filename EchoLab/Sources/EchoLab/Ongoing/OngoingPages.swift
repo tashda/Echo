@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -116,6 +116,34 @@
         status: .judging,
         summary: "Whether and where a statement or lock timeout is set, and what Echo says when one fires.",
         spec: PgTimeoutsRound.spec)
+
+    /// Round 22: SQL Server: values in the grid.
+    static let mssqlValues = LabPage.round(
+        id: "ongoing.mssql-values-r22", group: "Footer and results", title: "SQL Server: values in the grid · round 22", symbol: "tablecells",
+        status: .judging,
+        summary: "Values after row 200 of a SQL Server result are garbled, and dates, offsets and money lose digits; how should they read?",
+        spec: MssqlValuesRound.spec)
+
+    /// Round 22: SQL Server: errors and messages.
+    static let mssqlErrors = LabPage.round(
+        id: "ongoing.mssql-errors-r22", group: "Editor and running", title: "SQL Server: errors and messages · round 22", symbol: "exclamationmark.triangle",
+        status: .judging,
+        summary: "How should SQL Server errors show their number, severity, state and line, and what does a commit with an unknown outcome say?",
+        spec: MssqlErrorsRound.spec)
+
+    /// Round 22: SQL Server: cancel, timeouts and lost connections.
+    static let mssqlSessions = LabPage.round(
+        id: "ongoing.mssql-sessions-r22", group: "Editor and running", title: "SQL Server: cancel, timeouts and lost connections · round 22", symbol: "stop.circle",
+        status: .judging,
+        summary: "Cancel no longer throws the query tab's session away; what changes for cancel, the 45-second limit and a dropped connection?",
+        spec: MssqlSessionsRound.spec)
+
+    /// Round 22: SQL Server: encryption settings.
+    static let mssqlEncryption = LabPage.round(
+        id: "ongoing.mssql-encryption-r22", group: "Connections", title: "SQL Server: encryption settings · round 22", symbol: "lock.shield",
+        status: .judging,
+        summary: "What do Optional, Mandatory and Strict mean now, which is the default, and how does the sheet explain them?",
+        spec: MssqlEncryptionRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

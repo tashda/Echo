@@ -19,6 +19,22 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r22", label: "Round 22", title: "SQL Server: encryption settings", date: "30 Sep 2026",
+             asked: "What do Optional, Mandatory and Strict mean now, which is the default, and how does the sheet explain them?",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.mssql-encryption-r22"]),
+        Info(id: "r22", label: "Round 22", title: "SQL Server: cancel, timeouts and lost connections", date: "30 Sep 2026",
+             asked: "Cancel no longer throws the query tab's session away; what changes for cancel, the 45-second limit and a dropped connection?",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.mssql-sessions-r22"]),
+        Info(id: "r22", label: "Round 22", title: "SQL Server: errors and messages", date: "30 Sep 2026",
+             asked: "How should SQL Server errors show their number, severity, state and line, and what does a commit with an unknown outcome say?",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.mssql-errors-r22"]),
+        Info(id: "r22", label: "Round 22", title: "SQL Server: values in the grid", date: "30 Sep 2026",
+             asked: "Values after row 200 of a SQL Server result are garbled, and dates, offsets and money lose digits; how should they read?",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.mssql-values-r22"]),
         Info(id: "r21", label: "Round 21", title: "PostgreSQL: sessions, scripts and results", date: "30 Sep 2026",
              asked: "Everything Echo can now do with PostgreSQL that needs a look first: eight pages. Transaction state in a tab, closing or switching with an open transaction, a lost connection, cancelling on the server, script results, where an error is, how PostgreSQL values read in the grid, and statement timeouts.",
              outcome: "Being judged.",

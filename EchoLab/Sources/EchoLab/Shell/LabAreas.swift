@@ -76,6 +76,10 @@ enum LabAreas {
         "ongoing.pg-error-location-r21": "editor",
         "ongoing.pg-value-display-r21": "footer-results",
         "ongoing.pg-timeouts-r21": "connections",
+        "ongoing.mssql-values-r22": "footer-results",
+        "ongoing.mssql-errors-r22": "editor",
+        "ongoing.mssql-sessions-r22": "editor",
+        "ongoing.mssql-encryption-r22": "connections",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

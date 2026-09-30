@@ -49,6 +49,7 @@ struct LabRootView: View {
                             .disabled(!navigator.canGoForward).keyboardShortcut("]", modifiers: .command)
                     }
                     ToolbarItem { LabBuildStatus(builder: .shared) }
+                    ToolbarItem { LabZoomControls(zoom: .shared) }
                     ToolbarItem {
                         Button(LabRegistry.page(id: currentPageID)?.decision != nil ? "Decision" : "Feedback", systemImage: "sidebar.trailing") { showsFeedback.toggle() }
                     }
