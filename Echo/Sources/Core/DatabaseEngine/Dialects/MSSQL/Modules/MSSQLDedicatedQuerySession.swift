@@ -73,6 +73,22 @@ nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSessio
         return reconnected
     }
 
+    /// Runs one query of the tab. When it fails because the session is gone (round 22, FE1:
+    /// severity 20 and above ends it, or the network dropped), the new session starts at once,
+    /// so the next run does not reuse a connection whose socket has not finished closing.
+    func runRecoveringLostConnection<T>(_ body: () async throws -> T) async throws -> T {
+        do {
+            return try await body()
+        } catch {
+            if SQLServerFailure.isConnectionLost(error) {
+                lock.withLock {
+                    if reconnectTask == nil { _ = startReconnectLocked() }
+                }
+            }
+            throw error
+        }
+    }
+
     /// Called after a cancelled run. The driver cancels the statement on the
     /// server and keeps the session (round 22, cancel keeps the session), so
     /// a new session is started only if the connection did not survive.

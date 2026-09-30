@@ -115,8 +115,8 @@ extension SQLServerSessionAdapter {
             var currentAdditionalColumns: [ColumnInfo] = []
             var currentAdditionalRows: [[String?]] = []
 
-            var errorMessage: SQLServerStreamMessage?
-            var infoMessages: [SQLServerStreamMessage] = []
+            // Every message of the batch in order (EM1): PRINT and informational messages, then errors.
+            var streamMessages: [SQLServerStreamMessage] = []
 
             for try await event in stream {
                 try Task.checkCancellation()
@@ -198,11 +198,7 @@ extension SQLServerSessionAdapter {
                     }
 
                 case .message(let msg):
-                    if msg.kind == .error {
-                        errorMessage = msg
-                    } else {
-                        infoMessages.append(msg)
-                    }
+                    streamMessages.append(msg)
 
                 case .done:
                     break
@@ -217,8 +213,10 @@ extension SQLServerSessionAdapter {
                 ))
             }
 
-            if let err = errorMessage {
-                throw DatabaseError.queryError(err.message)
+            // The driver's structured error keeps number, severity, line, procedure and every
+            // message of the batch (round 22, errors); SQLServerFailure reads them back.
+            if let failure = SQLServerError.fromServerMessages(streamMessages) {
+                throw DatabaseError.from(sqlServerError: failure)
             }
 
             if !pendingPayloads.isEmpty {
@@ -243,23 +241,7 @@ extension SQLServerSessionAdapter {
                 ? [ColumnInfo(name: "result", dataType: "text")]
                 : primaryColumns
 
-            let serverMessages = infoMessages.map { msg in
-                ServerMessage(
-                    kind: .info,
-                    number: msg.number,
-                    message: msg.message,
-                    state: msg.state,
-                    severity: msg.severity,
-                    serverName: msg.serverName,
-                    procedureName: msg.procedureName,
-                    lineNumber: msg.lineNumber,
-                    category: "Server Response",
-                    metadata: [
-                        "source": "sqlserver-nio",
-                        "token": "INFO"
-                    ]
-                )
-            }
+            let serverMessages = streamMessages.map(\.echoServerMessage)
 
             return QueryResultSet(
                 columns: resolvedColumns,

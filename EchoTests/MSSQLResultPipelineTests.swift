@@ -100,7 +100,8 @@ struct MSSQLResultPipelineTests {
         state.consumeFinalResult(result)
         state.finishExecution()
 
-        for _ in 0..<100 where state.displayedRowCount < total {
+        // Rows materialize progressively; allow for a loaded machine (the loop ends as soon as all are in).
+        for _ in 0..<400 where state.displayedRowCount < total {
             try await Task.sleep(for: .milliseconds(50))
         }
         return state

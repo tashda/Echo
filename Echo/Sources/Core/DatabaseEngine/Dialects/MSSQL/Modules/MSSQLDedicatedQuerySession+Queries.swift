@@ -7,7 +7,7 @@ extension MSSQLDedicatedQuerySession {
         // No fixed time limit (round 22, TO1 with the Postgres decision TD2:
         // no limit unless set). Cancelling the task cancels the statement on
         // the server and keeps the session.
-        let executionResult = try await connection.execute(sql)
+        let executionResult = try await runRecoveringLostConnection { try await connection.execute(sql) }
         var queryResult = convertSQLServerRowsToEcho(executionResult.rows)
         if let raw = connection.decodeLastSensitivityClassification() {
             queryResult.dataClassification = extractClassification(from: raw, columnCount: queryResult.columns.count)
@@ -23,7 +23,9 @@ extension MSSQLDedicatedQuerySession {
         guard let progressHandler else {
             return try await simpleQuery(sql)
         }
-        return try await streamQueryWithProgress(sql, progressHandler: progressHandler)
+        return try await runRecoveringLostConnection {
+            try await streamQueryWithProgress(sql, progressHandler: progressHandler)
+        }
     }
 
     func simpleQuery(
@@ -84,8 +86,8 @@ extension MSSQLDedicatedQuerySession {
         var additionalResults: [QueryResultSet] = []
         var currentAdditionalColumns: [ColumnInfo] = []
         var currentAdditionalRows: [[String?]] = []
-        var errorMessage: SQLServerStreamMessage?
-        var infoMessages: [SQLServerStreamMessage] = []
+        // Every message of the batch in order (EM1): PRINT and informational messages, then errors.
+        var serverMessages: [SQLServerStreamMessage] = []
 
         for try await event in stream {
             switch event {
@@ -164,11 +166,7 @@ extension MSSQLDedicatedQuerySession {
                 }
 
             case .message(let message):
-                if message.kind == .error {
-                    errorMessage = message
-                } else {
-                    infoMessages.append(message)
-                }
+                serverMessages.append(message)
 
             case .done:
                 break
@@ -185,8 +183,10 @@ extension MSSQLDedicatedQuerySession {
             )
         }
 
-        if let errorMessage {
-            throw DatabaseError.queryError(errorMessage.message)
+        // The driver's structured error keeps number, severity, line, procedure and every
+        // message of the batch (round 22, errors); SQLServerFailure reads them back.
+        if let failure = SQLServerError.fromServerMessages(serverMessages) {
+            throw DatabaseError.from(sqlServerError: failure)
         }
 
         if !pendingPayloads.isEmpty {
@@ -216,23 +216,7 @@ extension MSSQLDedicatedQuerySession {
                 from: connection.decodeLastSensitivityClassification(),
                 columnCount: primaryColumns.count
             ),
-            serverMessages: infoMessages.map { message in
-                ServerMessage(
-                    kind: .info,
-                    number: message.number,
-                    message: message.message,
-                    state: message.state,
-                    severity: message.severity,
-                    serverName: message.serverName,
-                    procedureName: message.procedureName,
-                    lineNumber: message.lineNumber,
-                    category: "Server Response",
-                    metadata: [
-                        "source": "sqlserver-nio",
-                        "token": "INFO"
-                    ]
-                )
-            }
+            serverMessages: serverMessages.map(\.echoServerMessage)
         )
     }
 
