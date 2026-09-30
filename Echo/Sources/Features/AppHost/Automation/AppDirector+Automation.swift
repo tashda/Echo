@@ -40,6 +40,12 @@ extension AppDirector {
             logger.info("Registered automation connection \(entry.name, privacy: .public)")
         }
 
+        if let script = AutomationScript.load() {
+            // Its own task, so a long script never holds up the app finishing its start.
+            Task(name: "automation-script") { await self.runAutomationScript(script, connections: registered) }
+            return
+        }
+
         guard let name = configuration.autoConnect, let target = registered[name] else { return }
         environmentState.connect(to: target)
         logger.info("Automation connecting to \(name, privacy: .public)")

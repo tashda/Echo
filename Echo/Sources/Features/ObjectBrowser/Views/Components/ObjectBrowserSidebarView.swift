@@ -158,7 +158,7 @@ struct ObjectBrowserSidebarView: View {
 
         let withSheets = applyServerToolSheets(to: applySheets(to: mainContent))
         let withAlerts = applyAlerts(to: withSheets)
-        withAlerts
+        receivesAutomation(withAlerts, builtRoots: builtRoots, roots: roots)
     }
 
     private func synchronizeDefaults() {
