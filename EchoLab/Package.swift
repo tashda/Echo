@@ -16,6 +16,7 @@ let package = Package(
             dependencies: [
                 .product(name: "EchoDesignSystem", package: "EchoDesignSystem"),
                 .product(name: "EchoSense", package: "EchoSense"),
+                .product(name: "EchoSenseScenarios", package: "EchoSense"),
                 .product(name: "PostgresKit", package: "postgres-wire"),
                 .product(name: "SQLServerKit", package: "sqlserver-nio"),
             ]

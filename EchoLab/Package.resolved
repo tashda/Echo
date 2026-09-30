@@ -1,5 +1,5 @@
 {
-  "originHash" : "be2e12c3c91fd319ed856f843df6b84ca26a8b10539d094eff5a92d9e590edde",
+  "originHash" : "d39365b990ce40bfcdf37e8b669cf99be59448c0d928723be8eddcc08b640c80",
   "pins" : [
     {
       "identity" : "echosense",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/tashda/EchoSense",
       "state" : {
         "branch" : "dev",
-        "revision" : "e10f0eecaf086c58c4d920da993a865843d60ea9"
+        "revision" : "e493d72e3d116d6827fe447ddf584c0666f0925c"
       }
     },
     {

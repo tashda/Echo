@@ -25,22 +25,32 @@ struct LabCaretTextView: NSViewRepresentable {
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
-        guard let view = scroll.documentView as? NSTextView, view.string != text else { return }
-        view.string = text
+        guard let view = scroll.documentView as? NSTextView else { return }
+        // Text and caret set from outside (opening a scenario) move the editor's; they are not edits,
+        // so nothing is reported back while they are applied.
+        context.coordinator.isMoving = true
+        defer { context.coordinator.isMoving = false }
+        if view.string != text { view.string = text }
+        let wanted = min(max(caret, 0), (text as NSString).length)
+        if view.selectedRange().location != wanted || view.selectedRange().length != 0 {
+            view.setSelectedRange(NSRange(location: wanted, length: 0))
+        }
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: LabCaretTextView
+        /// True while the caret is being set from outside, so that isn't reported back as an edit.
+        var isMoving = false
         init(_ parent: LabCaretTextView) { self.parent = parent }
 
         func textDidChange(_ notification: Notification) {
-            guard let view = notification.object as? NSTextView else { return }
+            guard !isMoving, let view = notification.object as? NSTextView else { return }
             parent.text = view.string
             parent.caret = view.selectedRange().location
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
-            guard let view = notification.object as? NSTextView else { return }
+            guard !isMoving, let view = notification.object as? NSTextView else { return }
             parent.caret = view.selectedRange().location
         }
     }
