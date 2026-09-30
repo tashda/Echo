@@ -130,24 +130,38 @@ private struct NotificationsSpecimenToasts: View {
     }
 }
 
-/// One toast: the message on one line; hovered, the whole message (selectable) and quiet links.
+/// One toast, copied from StatusToastRow (round 18): a bold title with the reason under it in
+/// two lines; hovered, the whole reason (selectable) and small buttons; a flick right dismisses.
 private struct NotificationsSpecimenToast: View {
     let toast: NotificationsSpecimenState.Event
     let state: NotificationsSpecimenState
 
+    @State private var dragOffset: CGFloat = 0
+    @Environment(\.echoMotion) private var motion
+
     private var isExpanded: Bool { state.hoveredID == toast.id }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+        let parts = toast.message.components(separatedBy: ": ")
+        let detail = parts.count > 1 ? parts.dropFirst().joined(separator: ": ") : nil
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.xs) {
                 Image(systemName: toast.icon)
                     .font(TypographyTokens.standard.weight(.semibold))
                     .foregroundStyle(toast.tint)
-                Text(toast.message)
-                    .font(TypographyTokens.standard.weight(.medium))
-                    .lineLimit(isExpanded ? nil : 1)
-                    .fixedSize(horizontal: false, vertical: isExpanded)
-                    .textSelection(.enabled)
+                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+                    Text(parts.first ?? toast.message)
+                        .font(TypographyTokens.standard.weight(.semibold))
+                        .lineLimit(1)
+                    if let detail {
+                        Text(detail)
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                            .lineLimit(isExpanded ? nil : 2)
+                            .fixedSize(horizontal: false, vertical: isExpanded)
+                            .textSelection(.enabled)
+                    }
+                }
                 if toast.count > 1 {
                     Text("×\(toast.count)")
                         .font(TypographyTokens.detail.weight(.semibold).monospacedDigit())
@@ -161,7 +175,7 @@ private struct NotificationsSpecimenToast: View {
                     .opacity(isExpanded || toast.kind == .error ? 1 : 0)
             }
             if isExpanded {
-                HStack(spacing: SpacingTokens.sm) {
+                HStack(spacing: SpacingTokens.xs) {
                     if let link = toast.link { Button(link) { state.dismiss(toast.id) } }
                     Button("Copy") {}
                     Button("Show All") {
@@ -169,9 +183,8 @@ private struct NotificationsSpecimenToast: View {
                         state.toggleHistory()
                     }
                 }
-                .buttonStyle(.plain)
-                .font(TypographyTokens.detail.weight(.medium))
-                .foregroundStyle(ColorTokens.accent)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .padding(.leading, SpacingTokens.lg)
             }
         }
@@ -179,6 +192,19 @@ private struct NotificationsSpecimenToast: View {
         .padding(.vertical, SpacingTokens.xs)
         .frame(width: LayoutTokens.Toast.width, alignment: .leading)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: LayoutTokens.Toast.cornerRadius, style: .continuous))
+        .offset(x: dragOffset)
+        .opacity(1 - Double(min(dragOffset / LayoutTokens.Toast.width, LayoutTokens.Toast.swipeFadeLimit)))
+        .gesture(
+            DragGesture(minimumDistance: SpacingTokens.xs)
+                .onChanged { dragOffset = max(0, $0.translation.width) }
+                .onEnded { value in
+                    if value.translation.width > LayoutTokens.Toast.swipeDismissDistance {
+                        state.dismiss(toast.id)
+                    } else {
+                        withAnimation(motion.standard) { dragOffset = 0 }
+                    }
+                }
+        )
         .onHover { inside in
             if inside { state.hoveredID = toast.id } else if state.hoveredID == toast.id { state.hoveredID = nil }
         }

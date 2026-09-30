@@ -20,6 +20,13 @@ Echo Labs › Explorer tree › Server card · round 16 (owner's bugs and feedba
 - **PostgreSQL's dock:** Databases, Security, Activity (Activity Monitor's pages), Management (Maintenance, Back Up Server, Back Up Globals, Restore, PSQL Console) and Tablespaces. → blueprints
 - **No dock under two sections** (SQLite shows its name and tree; MySQL gets two icons). → 05-components
 
+## 2026-09-30 · Round 18: the notification toast
+
+- **L2 · Title and detail:** a bold title (the message up to its first ": ") with the reason under it in two lines of secondary text; hovering shows the whole reason, selectable. One line, the pill and the server line were not chosen. → 05-components › Notifications
+- **A2 · Small buttons:** Open Tab or Show Server, Copy and Show All, as in the history. → 05-components › Notifications
+- **D3 · Swipe right** dismisses (past 80pt; a short drag springs back); × still shows on hover and always on errors. → 05-components › Notifications
+- **Unchanged:** Liquid Glass, dropping in from the top (arrival confirmed in chat), a list of three, 3 s; errors stay until dismissed. Tinted glass, an opaque card, the deck, newest-only and 5 s or 8 s were not chosen.
+
 ## 2026-09-30 · Round 17 accepted: the notification history
 
 - **D · Compact cards,** grouped by time (Today, Yesterday, then the date), opening with a fade: one line per event (icon, the message's first part, time); opened, the server, the rest of the message (selectable) and the actions. B · Cards was a maybe; A · Timeline, C · List and detail, E · Attention first and F · Stacked by server were not chosen. → 05-components › Notifications

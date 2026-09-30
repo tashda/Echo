@@ -40,19 +40,11 @@ struct NotificationRecord: Codable, Identifiable, Equatable, Sendable {
 }
 
 extension NotificationRecord {
-    /// The first line of a compact card: the message up to its first ": " ("Query 1 failed",
-    /// "Backup failed for sales"), or the whole message when it has none.
-    var headline: String {
-        guard let range = message.range(of: ": ") else { return message }
-        return String(message[..<range.lowerBound])
-    }
+    /// The first line of a compact card; see `NotificationMessageParts`.
+    var headline: String { NotificationMessageParts(message).headline }
 
     /// What follows the headline, shown when the card is opened.
-    var detail: String? {
-        guard let range = message.range(of: ": ") else { return nil }
-        let rest = message[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-        return rest.isEmpty ? nil : rest
-    }
+    var detail: String? { NotificationMessageParts(message).detail }
 }
 
 /// The history card's filters.

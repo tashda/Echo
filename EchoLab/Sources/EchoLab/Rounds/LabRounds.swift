@@ -21,7 +21,7 @@ enum LabRounds {
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
         Info(id: "r18", label: "Round 18", title: "Notification toast", date: "30 Sep 2026",
              asked: "Everything about the toast itself: its layout, actions, dismissing, material, how it arrives, how several stack, and how long it stays.",
-             outcome: "Being judged.",
+             outcome: "Title and detail, small buttons, swipe right to dismiss; glass, drop from the top, a list of three and 3 s kept. Built into Echo; waiting for your check in the running app.",
              pageIDs: ["ongoing.notification-toast-r18"]),
         Info(id: "r17", label: "Round 17", title: "Notification history", date: "30 Sep 2026",
              asked: "How the notification history looks in the inspector's column, and how a notification opens to its whole, selectable message.",
