@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Echo Lab: the window and Help menu command of the in-app Design Lab were not copied.
+// Echo Labs: the window and Help menu command of the in-app Design Lab were not copied.
 
 // MARK: - Questions
 
@@ -182,7 +182,7 @@ final class DesignLabAnswers {
 
 // MARK: - Page
 
-/// One Design Lab page in Echo Lab: what to judge, then the playground.
+/// One Design Lab page in Echo Labs: what to judge, then the playground.
 struct DesignLabPageView: View {
     let page: DesignLabPage
     @State private var answers = DesignLabAnswers()

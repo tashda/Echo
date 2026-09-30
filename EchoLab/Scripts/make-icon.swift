@@ -1,6 +1,6 @@
 import AppKit
 
-// Builds Echo Lab's icon: Echo's app icon with LABS written across the lower part.
+// Builds Echo Labs' icon: Echo's app icon with LABS written across the lower part.
 // Usage: swift Scripts/make-icon.swift   (run from EchoLab/)
 let source = "../Echo/Assets.xcassets/AppIcon.appiconset/Echo-mac-1024.png"
 guard let base = NSImage(contentsOfFile: source) else { fatalError("Echo icon not found") }

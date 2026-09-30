@@ -4,7 +4,7 @@ import Observation
 
 /// The owner's feedback and each item's status, saved as JSON in the repo
 /// (`EchoLab/State/lab-state.json`) so agents can read it. Only changes from a page's default
-/// status are stored. The file is re-read whenever Echo Lab becomes active, so an agent's edits
+/// status are stored. The file is re-read whenever Echo Labs becomes active, so an agent's edits
 /// (moving an item to In Echo, for example) show up without a restart.
 @Observable @MainActor
 final class LabStore {
@@ -118,7 +118,7 @@ final class LabStore {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Self.encoder.encode(items).write(to: fileURL, options: .atomic)
         } catch {
-            NSLog("Echo Lab could not save feedback: \(error.localizedDescription)")
+            NSLog("Echo Labs could not save feedback: \(error.localizedDescription)")
         }
     }
 

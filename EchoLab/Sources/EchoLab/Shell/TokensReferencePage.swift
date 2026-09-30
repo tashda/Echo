@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Reference: the tokens Echo Lab and Echo share. Also proves Echo Lab renders with the same tokens Echo ships.
+/// Reference: the tokens Echo Labs and Echo share. Also proves Echo Labs renders with the same tokens Echo ships.
 struct TokensReferencePage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.md) {

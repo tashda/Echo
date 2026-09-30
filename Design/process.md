@@ -9,10 +9,10 @@ The loop every design question goes through. Anyone (a person or an agent) can p
 
 ## 2. Make it judgeable
 
-Anything visual or animated gets a page in **Echo Lab** (`EchoLab/`, Ongoing work; see the Echo Lab workflow in `CLAUDE.md`). The old in-app Design Lab (`Echo/Sources/Features/DesignLab/`) has been copied over and will be deleted.
+Anything visual or animated gets a page in **Echo Labs** (`EchoLab/`, Ongoing work; see the Echo Labss workflow in `CLAUDE.md`).
 
-- A playground is a plain SwiftUI view with sample data and a control bar (see `LabStage`, `LabPicker` in `DesignLabKit.swift`). It must not depend on app state.
-- Register the page in `DesignLabWindow.swift`: add a `DesignLabPage` case, its intro, its questions (`LabQuestion`: title, how to try it, options) and its playground.
+- A playground is a plain SwiftUI view with sample data and a control bar (see `LabStage`, `LabPicker` in `EchoLab/Sources/EchoLab/Ported/DesignLabKit.swift`). It must not depend on app state.
+- Register the page in `EchoLab/Sources/EchoLab/Ported/PortedPages.swift` and in `DesignLabWindow.swift` there (a `DesignLabPage` case, its intro, its questions and its playground).
 - Every question says exactly which control to use and what to look at.
 - Keep the playground's frame flexible (`minWidth`, not a fixed width) so its controls never overflow.
 - Animations go through `LabSpeed.spring(…)`, the stand-in for Echo's house spring.
@@ -23,7 +23,7 @@ Non-visual or broad questions can go straight to a review page (step 3).
 
 Either:
 
-- **Design Lab Copy results**: the owner answers in the lab and pastes the summary into chat; or
+- **the Feedback panel in Echo Labss**: the owner accepts, comments or reopens, and it is saved in `EchoLab/State/lab-state.json`; or
 - **a review page**: an interactive artifact in the same format as the earlier rounds (listed in `reviews.md`), where each option is marked Yes, Maybe or No with notes. Answers are stored in the page's database; read them with the artifact data tools.
 
 ## 4. Record the decision
@@ -32,7 +32,7 @@ Either:
 - Add an entry at the top of `decisions.md`: what was decided and where the rule now lives. Never rewrite older entries; a changed rule gets a new entry.
 - If a Decided rule is replaced, say so in both places ("replaces the earlier … rule").
 - Update the lab's defaults to the decided values.
-- Set the Echo Lab page to `In Echo`. When the owner has confirmed it on the real app, freeze it into `Decided/Library/` as live code and remove it from Ongoing.
+- Set the Echo Labs page to `In Echo`. When the owner has confirmed it on the real app, freeze it into `Decided/Library/` as live code and remove it from Ongoing.
 
 ## 5. Build it
 

@@ -1,6 +1,6 @@
 # Components
 
-Each section lists the rules for one part of Echo. Items marked **Open** have a Design Lab preview; when one is settled, update it here and in `decisions.md`.
+Each section lists the rules for one part of Echo. Items marked **Open** have a Echo Labs preview; when one is settled, update it here and in `decisions.md`.
 
 ## Server rail
 
@@ -11,7 +11,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **The highlight follows scrolling:** the rail marks the server whose rows are at the top of the tree. A click holds the highlight on the clicked server while the tree glides to it. *Decided.*
 - **Hover** shows the system tooltip (name and host). No custom hover cards. *Decided.*
 - **Status:**
-  - A connecting server's monogram breathes (opacity) until it connects. The first version was judged too subtle; the stronger values in `06-tokens.md` need a quick check in the Design Lab. *Decided*, stronger version confirmed.
+  - A connecting server's monogram breathes (opacity) until it connects. The first version was judged too subtle; the stronger values in `06-tokens.md` need a quick check in the Echo Labs. *Decided*, stronger version confirmed.
   - Running queries show nothing in the rail; the tooltip and the peek list them. *Decided.*
   - A lost connection dims the monogram to 40%, and the tooltip says why. *Decided.*
   - Rings, comets, count badges and extra dots were rejected.
@@ -162,11 +162,11 @@ Decided 2026-09-30.
 - **Cells:**
   - Numbers and dates are right-aligned with tabular digits. *Decided.*
   - Booleans show as ✓ / ✗ symbols. *Decided.*
-  - Monospaced cells are available as a setting (accepted in the Design Lab). *Decided.*
+  - Monospaced cells are available as a setting (accepted in the Echo Labs). *Decided.*
   - NULL keeps today's italic grey text; a badge was rejected. *Decided.*
 - **Header: name + type line.** Column name in 12pt semibold with the data type underneath in grey monospace. A sort arrow appears on hover and clicking it sorts; clicking elsewhere still selects the column. *Decided.* The name-only header and the type-chip-with-keys header were rejected.
 - **Selection:**
-  - One rounded outline around the whole selected range, instead of today's per-row outline that shows seams, plus a stronger ring on the active cell. *Decided* (accepted in the Design Lab).
+  - One rounded outline around the whole selected range, instead of today's per-row outline that shows seams, plus a stronger ring on the active cell. *Decided* (accepted in the Echo Labs).
   - Row numbers of selected rows turn accent. *Decided.*
   - Row hover: a faint rounded tint on the hovered row, and its row number turns accent. *Decided.*
 - **Footer:**
@@ -195,7 +195,7 @@ Decided 2026-09-30.
   - one smooth width change instead of today's stepped jumps;
   - a row-detail mode that shows every column of the selected row.
 - Single 12pt padding instead of the doubled gutter. *Decided.*
-- The proposed look from the Design Lab is accepted: grouped section cards with a header (icon, title, actions) and rows with the label left and a selectable value right. *Decided.*
+- The proposed look from the Echo Labs is accepted: grouped section cards with a header (icon, title, actions) and rows with the label left and a selectable value right. *Decided.*
 
 ## Notifications
 

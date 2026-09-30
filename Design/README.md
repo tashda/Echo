@@ -25,7 +25,7 @@ Start here if you're new to this, person or agent. An agent taking over should r
 
 1. Read `01-principles.md`, then skim `02`–`06`.
 2. Open `plan.md`, find the first task that isn't done, and read the rules it names.
-3. Use `current-state.md` to find the code, and the Design Lab playground as the visual reference.
+3. Use `current-state.md` to find the code, and the Echo Labs playground as the visual reference.
 4. Anything still undecided goes through `process.md` before it's built.
 
 ## Status of a rule
@@ -33,8 +33,8 @@ Start here if you're new to this, person or agent. An agent taking over should r
 Each rule carries one of these markers:
 
 - **Decided**: agreed; build it this way.
-- **Leaning**: preferred direction, still to be confirmed in the Design Lab.
-- **Open**: not decided; options are listed, and the Design Lab has a preview to compare them.
+- **Leaning**: preferred direction, still to be confirmed in the Echo Labs.
+- **Open**: not decided; options are listed, and the Echo Labs has a preview to compare them.
 
 ## Changing the design
 
@@ -42,11 +42,11 @@ Each rule carries one of these markers:
 2. If the change follows them, build it. Use the tokens in `06-tokens.md`, never literal numbers or colours.
 3. If it doesn't, stop and propose a rule change: what changes, why, and which screens it affects.
 4. Once agreed, update the rule, add a line to `decisions.md`, then build.
-5. When a Design Lab comparison settles an Open item, move it to Decided in both places.
+5. When a Echo Labs comparison settles an Open item, move it to Decided in both places.
 
-## Design Lab
+## Echo Labs
 
-`Echo/Sources/Features/DesignLab/` holds interactive playgrounds (debug builds only) for every Open and Leaning item. Run a debug build and choose **Help › Design Lab**, or open a lab file and use Xcode's canvas. The lab is where options are judged on the real rendering before they enter the app.
+`EchoLab/` is a separate app (a SwiftPM package on the shared `Packages/EchoDesignSystem` tokens) where options are judged on the real rendering before they enter Echo. Open it with `EchoLab/Scripts/open-lab.sh` (or the Raycast command "Echo Labs"). Ongoing pages are playgrounds for every Open and Leaning item; Decided holds each settled decision with its reasoning and live code. The workflow is in `CLAUDE.md` (Echo Labs).
 
 ## Where this came from
 

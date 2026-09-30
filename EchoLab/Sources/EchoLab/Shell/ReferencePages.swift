@@ -7,7 +7,7 @@
             group: "Design system",
             title: "Design tokens",
             symbol: "paintpalette",
-            summary: "The shared EchoDesignSystem tokens, rendered by Echo Lab itself."
+            summary: "The shared EchoDesignSystem tokens, rendered by Echo Labs itself."
         ) { TokensReferencePage() }
     ]
 }

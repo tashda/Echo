@@ -60,7 +60,7 @@ Rough size: 3–5 focused days, most of it in steps 2, 5 and 9.
   - no representable, coordinator, container or card layer view;
   - no `NSHostingView` per row;
   - no cell recycling workarounds (the `.id(node.id)` hack in `ObjectBrowserSidebarView`).
-- **Easier to design:** everything is SwiftUI, so Design Lab previews can show the real tree.
+- **Easier to design:** everything is SwiftUI, so Echo Labs previews can show the real tree.
 
 ## Pitfalls and how to handle them
 

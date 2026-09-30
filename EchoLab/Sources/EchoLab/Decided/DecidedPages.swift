@@ -1,5 +1,5 @@
 /// The decision library, one `LabDecision` per folder under `Decided/Library/`. A decision lands
-/// here when the owner has confirmed it on the real app; see CLAUDE.md, Echo Lab workflow.
+/// here when the owner has confirmed it on the real app; see CLAUDE.md, Echo Labs workflow.
 @MainActor
 enum DecidedPages {
     static let library: [LabDecision] = [

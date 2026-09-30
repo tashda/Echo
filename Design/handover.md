@@ -22,7 +22,7 @@ Everything is written down in `Design/`. Treat it as the contract:
   - the server page sits on the canvas in the welcome's style, with Liquid Glass tool buttons.
 - `Design/plan.md`: the build plan, Phases 0–10 with task IDs, a status per task, and "Notes from building it" under finished phases. **This is your to-do list.**
 - `Design/current-state.md`: a map of the code from before the build (Phase 1 has since changed the window and rail; the plan notes say how).
-- The Design Lab (`Echo/Sources/Features/DesignLab/`, debug builds, **Help › Design Lab**) is the visual reference for every task marked 👁. Its rail doesn't show the + yet.
+- Echo Labs (`EchoLab/`, `EchoLab/Scripts/open-lab.sh`) is the visual reference for every task marked 👁. Its rail doesn't show the + yet.
 
 The direction in one line: **canvas and cards**, inspired by Outlook. There's a glass rail of two pills at the leading edge (servers with a + on top, tools at the bottom). The tree sits straight on the grey window canvas. The editor and results are opaque cards with 12pt corners, a floating shadow and a 6pt gutter (setting 4/6/8). The tab strip sits on the canvas above the cards, and the inspector is the native one. Glass goes only on controls, never on content.
 
@@ -63,7 +63,7 @@ The direction in one line: **canvas and cards**, inspired by Outlook. There's a 
    - The peek should also list running queries; do this with the floating-card primitive, N1.
    - Move the tab strip's active and hover gradients to adaptive tokens in B1.
    - E1 splits the single content card into editor and results cards.
-   - Add the + to the Design Lab rail.
+   - Add the + to the Echo Labs rail.
    - The translucent canvas isn't a setting yet; `ColorTokens.Workspace.canvas` is the switch point.
 4. **"100% done"** means every row in `plan.md` is ☑, every 👁 has been checked by the owner, and X3 (walking every rule in `01`–`06` against the app) is ticked with no unlogged exceptions.
 

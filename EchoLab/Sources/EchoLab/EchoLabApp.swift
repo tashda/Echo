@@ -10,7 +10,7 @@ struct EchoLabApp: App {
     }
 
     var body: some Scene {
-        Window("Echo Lab", id: "lab") {
+        Window("Echo Labs", id: "lab") {
             LabRootView()
         }
         .defaultSize(width: 1280, height: 860)
