@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -165,6 +165,13 @@
         status: .judging,
         summary: "How a connection names several servers and which one to use (primary, standby), and whether Echo says when it moves to another. Changes CON-2.3 and CON-4.3.",
         spec: PgFailoverHostsRound.spec)
+
+    /// Round 24: Run: ▶ into ■.
+    static let runIntoRunning = LabPage.round(
+        id: "ongoing.run-into-running-r24", group: "Editor and running", title: "Run: ▶ into ■ · round 24", symbol: "play.square",
+        status: .judging,
+        summary: "The icon itself turns ▶ into ■ (seven ways, led by round 20 R1's in-place replace, with a slow-motion scrubber), then how the red arrives, how the capsule grows and the timer appears, the curve, and how it ends. Changes EDT-4.3; round 20's A2 glass morph is replaced by this.",
+        spec: RunIntoRunningRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

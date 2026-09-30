@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r24", label: "Round 24", title: "Run: ▶ into ■", date: "30 Sep 2026",
+             asked: "How ▶ transforms into ■ when a query starts, and how the capsule turns red and grows for the timer, smoothly (owner's notes on round 20)",
+             outcome: "Accepted: one button in its own glass; ▶ replaced by ■ in place (as round 20's R1), the glass fades to red, then it grows and the time fades in, staged; the red drains as the ✓ draws. Built into Echo; waiting for your check in the running app.",
+             pageIDs: ["ongoing.run-into-running-r24"]),
         Info(id: "r23", label: "Round 23", title: "Postgres: several servers and failover", date: "30 Sep 2026",
              asked: "The connection sheet's options for what postgres-wire now supports: Kerberos sign-in, an encrypted client key, several servers with failover.",
              outcome: "Being judged.",
@@ -53,7 +57,7 @@ enum LabRounds {
              pageIDs: ["ongoing.pg-transaction-state-r21", "ongoing.pg-open-transaction-guard-r21", "ongoing.pg-connection-lost-r21", "ongoing.pg-cancel-r21", "ongoing.pg-script-results-r21", "ongoing.pg-error-location-r21", "ongoing.pg-value-display-r21", "ongoing.pg-timeouts-r21"]),
         Info(id: "r20", label: "Round 20", title: "Run button", date: "30 Sep 2026",
              asked: "Everything the Run button can be, now that it sits in its own toolbar group: two pages, how it looks at rest (form, icon, colour, selection, hover, unavailable, other modes) and how it moves (running look, a delay for quick queries, timer, stop icon, motion, the change into running, the result). Changes EDT-4.1 to EDT-4.5.",
-             outcome: "Being judged.",
+             outcome: "Accepted: Run stays a plain ▶ at rest; its tooltip says where it runs or why it can't, it never overflows, ⌘↩ toggles Run and Stop; running keeps the red capsule and time (“5 s”), Stopping on a slow cancel, the ✓ draws itself, a notification for long queries while away. The change into running went to round 24. Built into Echo; waiting for your check in the running app.",
              pageIDs: ["ongoing.run-button-look-r20", "ongoing.run-button-running-r20"]),
         Info(id: "r19", label: "Round 19", title: "Section dock", date: "30 Sep 2026",
              asked: "Three pages on the dock as built in round 16: how a card switches sections (and why the card above moves), how the capsule looks, and how many sections a dock holds and what happens to the rest. Changes TREE-1.2 and TREE-3.1 to TREE-3.7.",
