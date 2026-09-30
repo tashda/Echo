@@ -2,6 +2,24 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 16 accepted: the server card
+
+Echo Labs › Explorer tree › Server card · round 16 (owner's bugs and feedback on the section dock as built).
+
+- **Header H5 · Glass capsule:** Xcode's navigator icons spread across a Liquid Glass capsule as wide as the card, the current one in the accent colour with no fill. The capsule is a control, not the card, so "cards are never glass" still holds. H0 (today's tiles), H1 navigator bar, H2 segmented, H3 one line, H4 section menu and H6 labelled current were not chosen. → 05-components › Explorer tree
+- **Pinned: name and icons,** because several servers share the column. Icons only was not chosen.
+- **Version under the name,** as the product and release ("SQL Server 2022", "PostgreSQL 18.3"); the full build is in the tooltip. Replaces the full build on the right. → 05-components
+- **Under the header: Blur rows,** modelled on the system's soft scroll edge. Rows stay under the pinned header and blur and fade more towards the top, over a light wash of the card colour. It works with stacked cards, which the real system edge can't. Replaces the grey material. Fade rows, the hairline and the system edge (one server per column) were not chosen. → 05-components
+- **Switching sections: crossfade,** with the card's height settling without overshoot (`settle`). Rows no longer drop in from the top. Slide and instant were not chosen. → 05-components, 04-motion
+- **Initial load: I4 · Folders first.** A section's folders and tools show at once (the blueprint knows them), each spinning in its count slot; a level that is only items (databases, jobs) shows one spinner row. The dock icon stays still. Replaces the shimmer for sections. I1–I3 and I5 were not chosen. → 05-components
+- **Opening a folder: quiet skeleton,** row-shaped placeholders shown only after a quarter second. Replaces the shimmer. → 05-components
+- **Counts always show,** quiet grey, in the whole tree. Replaces S4 Quiet's "counts appear on hover". → 05-components
+- **Selection is inset equally on both sides** (the 8pt pull to the left, left over from S1's chevron column, goes). → 05-components
+- **The dock follows the sidebar size setting.** → 05-components
+- **Right-click a dock icon** for its section's own menu, then Dock (show or hide each section, the type's defaults, Customize Dock). Sections left out sit under More (»). **Customize Dock** sets the order and visibility for every server of the type (saved in Settings › Sidebar, synced with the settings) or one server (saved on the connection). The dock's icon style (mono by default) is its own setting, apart from the tree's. → 05-components
+- **PostgreSQL's dock:** Databases, Security, Activity (Activity Monitor's pages), Management (Maintenance, Back Up Server, Back Up Globals, Restore, PSQL Console) and Tablespaces. → blueprints
+- **No dock under two sections** (SQLite shows its name and tree; MySQL gets two icons). → 05-components
+
 ## 2026-09-30 · Round 17 accepted: the notification history
 
 - **D · Compact cards,** grouped by time (Today, Yesterday, then the date), opening with a fade: one line per event (icon, the message's first part, time); opened, the server, the rest of the message (selectable) and the actions. B · Cards was a maybe; A · Timeline, C · List and detail, E · Attention first and F · Stacked by server were not chosen. → 05-components › Notifications

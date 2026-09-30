@@ -46,12 +46,19 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - Rows are 28pt in a 29pt slot at the default density, so neighbouring highlights never touch; 13pt labels.
   - Symbols are 13pt light. **Duotone** by default (IC2, 2026-09-30): the outline in the role colour over its fill at low opacity; **mono line** (IC1) is the setting. A Recraft icon set is pinned for later. *Decided.*
   - No separate chevron column: a folder's icon becomes an 11pt semibold chevron on hover.
-  - 8pt between icon and label; 16pt indent per level; 8pt row corners. Folder counts appear on hover.
-- **Section dock** (TC1, 2026-09-30): under the server's name, a row of icon buttons (Databases, Security, Agent, Management, More) switches what the card shows; the tree shows one section at a time. Icons only, the current one on the grey selection fill. The dock and name stay pinned while the rows scroll under them, with **only a soft blur**: no background, no line. Each section keeps its scroll position and open folders, and the card remembers its section per connection. *Decided.*
-- **Server header:** the server's name heads its card in **bold 13pt**, primary, with its product and version (such as "PostgreSQL 18.1") in tertiary 11pt on the right. It scrolls with the rows. A chevron shows while collapsed or hovered. *Decided* (tree card round; the version is new).
+  - 8pt between icon and label; 16pt indent per level; 8pt row corners. Folder counts always show (round 16).
+- **Section dock** (TC1, 2026-09-30; round 16): under the server's name, a row of icons switches what the card shows; the tree shows one section at a time. *Decided.*
+  - **H5 · Glass capsule:** Xcode's navigator icons spread across a Liquid Glass capsule as wide as the card; the current icon in the accent colour, no fill. Icons follow the sidebar size. The dock's icon style is its own setting (mono by default), apart from the tree's.
+  - **Pinned:** the name and the capsule stay at the top while the rows scroll under them. **Blur rows:** rows stay visible under the header, blurring and fading more towards the top over a light wash of the card colour (modelled on the system's soft scroll edge). No material, no line.
+  - **Switching:** the rows crossfade and the card's height settles without overshoot (`settle`). Each section keeps its scroll position and open folders; the card remembers its section per connection.
+  - **Initial load (I4 · Folders first):** a section's folders and tools show at once, spinning in their count slots; a level that is only items shows one spinner row ("Loading Databases"). The dock icon stays still.
+  - **Menus:** right-click an icon for its section's own menu, then Dock (show or hide each section, the type's defaults, Customize Dock); right-click the empty capsule for Dock alone. Sections left out sit under More (»).
+  - **Customize Dock:** order and visibility for every server of the type (Settings › Sidebar, synced with the settings) or for one server (on the saved connection).
+  - Servers with fewer than two sections have no dock.
+- **Server header:** the server's name heads its card in bold (13pt at the default size, following the sidebar size), primary, with the product and release under it in tertiary 11pt ("SQL Server 2022", "PostgreSQL 18.3"; the full build in the tooltip). *Decided* (round 16; replaces the full build on the right).
 - **Folders:** server-level groups (Databases, Security, Database Snapshots, Agent Jobs, Management, Integration Services Catalogs, Linked Servers, Server Triggers) are ordinary folder rows with children indented one level. MySQL's and SQLite's server tools sit under Management. *Decided* (revised tree card round).
-- **Selection:** the row uses the semantic grey fill and its icon turns accent. The accent is the system's, the custom one or the server's colour, per the accent setting. *Decided* (revised tree card round).
-- **Counts:** plain grey tabular digits at the right, appearing on hover; zero is hidden. *Decided.*
+- **Selection:** the row uses the semantic grey fill and its icon turns accent, inset equally on both sides (round 16). The accent is the system's, the custom one or the server's colour, per the accent setting. *Decided* (revised tree card round).
+- **Counts:** plain grey tabular digits at the right, always shown; zero is hidden. While a folder loads, a spinner takes the count's place. *Decided* (round 16; replaces "appearing on hover").
 - **Schema names:** objects show their schema as a dimmed prefix (`employees.salary`). *Decided* (tree card round kept it; "schema on the right" and schema groups were rejected).
 - **Density:** four levels (compact, small, default, large) stay as a setting. *Decided.*
 - **Icon colour** stays a setting with two modes; **colourful is the default**. *Decided.*
@@ -59,7 +66,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - Monochrome mode defaults to **monochrome with accent on expanded folders**, so you see your path. A sub-setting switches to pure monochrome.
   - Colours are picked by the node's role, never by its title (tree blueprints, plan Phase 2b).
 - **Expanding:** rows slide down with a fade (native table animation), scaled by the speed setting. *Decided.*
-- **Loading:** shimmer placeholder rows at the right indent, then crossfade to the real rows. *Decided.*
+- **Loading:** a folder shows a quiet skeleton (row-shaped placeholders at the child indent, only after a quarter second), then the rows fade in. A section's first load is Folders first (above). *Decided* (round 16; replaces the shimmer).
 - **No search field in the tree.** *Decided.*
 - **Empty folders** are hidden by default, with a setting to show them. *Decided.*
 - **How a tree is described:** each database type has an ordered **blueprint** (one file per type, built from shared fragments). The order in the blueprint is the order in the tree. Node kinds carry their title, symbol and role; the builder, rows and menus are generic. *Decided* (tree card round).
