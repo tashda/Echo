@@ -218,10 +218,10 @@ struct PgValueExhibit: View {
     private func colouredJSON(_ pairs: [(String, String)]) -> Text {
         var text = Text("{")
         for (index, pair) in pairs.enumerated() {
-            if index > 0 { text = text + Text(", ") }
-            text = text + Text("\"\(pair.0)\"").foregroundColor(ColorTokens.Status.info) + Text(": \(pair.1)")
+            let key = Text("\"\(pair.0)\"").foregroundColor(ColorTokens.Status.info)
+            text = Text("\(text)\(index > 0 ? ", " : "")\(key): \(pair.1)")
         }
-        return text + Text("}")
+        return Text("\(text)}")
     }
 
     @ViewBuilder

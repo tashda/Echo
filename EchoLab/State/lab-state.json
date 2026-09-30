@@ -100,6 +100,98 @@
 
     }
   },
+  "ongoing.pg-timeouts-r21" : {
+    "comments" : [
+      {
+        "date" : "2026-09-30T13:58:21Z",
+        "id" : "D14B3620-14DC-4F24-A997-4D07D32F37B8",
+        "text" : "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Proposal; note: It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere\n2. Where: picked TW2 · Settings default, connection overrides; note: Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab\n3. Default: picked TD2 · No limit unless set\n4. When it fires: picked TF2 · Explained, with Run Without Limit; NEEDS MORE OPTIONS; note: Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification\n5. Lock waits: picked TL2 · Separate field under Timeouts; NEEDS MORE OPTIONS; note: Should this be showing in the footer status?\n6. The 60 seconds already saved: picked M3 · Reset to No limit, mention it once in What's New\n7. The limit in the footer: picked FT1 · 0:12 \/ 0:30 while running\n8. Idle in transaction: picked IT1 · No, the transaction indicator covers it\n9. Scripts: picked SC1 · Each statement (how Postgres does it)"
+      }
+    ],
+    "generalNote" : "",
+    "history" : [
+      {
+        "date" : "2026-09-30T13:58:21Z",
+        "text" : "Feedback sent"
+      }
+    ],
+    "needsMore" : [
+      "locks",
+      "fired"
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+      "exhibit" : "It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere",
+      "fired" : "Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification",
+      "locks" : "Should this be showing in the footer status?",
+      "where" : "Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab"
+    },
+    "picks" : {
+      "default" : "TD2 · No limit unless set",
+      "exhibit" : "proposal",
+      "fired" : "TF2 · Explained, with Run Without Limit",
+      "idle" : "no",
+      "locks" : "TL2 · Separate field under Timeouts",
+      "migrate" : "resetTell",
+      "scripts" : "each",
+      "timer" : "fraction",
+      "where" : "TW2 · Settings default, connection overrides"
+    },
+    "reviewedRevision" : 1,
+    "revisions" : [
+
+    ],
+    "status" : "New feedback",
+    "verdicts" : {
+
+    }
+  },
+  "ongoing.pg-value-display-r21" : {
+    "comments" : [
+      {
+        "date" : "2026-09-30T14:07:00Z",
+        "id" : "C7897230-9444-4677-BD57-D5FEA18CB22C",
+        "text" : "Review of Postgres: values in the grid\n1. Easier to read?: picked Proposal\n2. Arrays: picked VA4 · Count, then the first items\n3. JSON: picked VJ3 · Summary: { 4 keys }\n4. Binary: picked VB3 · Kind and size\n5. Numbers: picked VN2 · Aligned on the decimal point\n6. What copy copies: picked CP3 · The server's text; Copy as Shown in the menu\n7. Empty text and NULL: picked EN1 · NULL in grey, empty shows nothing (today)\n8. Ranges, intervals and infinity: picked SP1 · Keep the server's form\n9. Other databases: picked SC1 · Yes, by kind (binary, JSON, numbers)"
+      }
+    ],
+    "generalNote" : "",
+    "history" : [
+      {
+        "date" : "2026-09-30T14:07:00Z",
+        "text" : "Accepted with picks"
+      }
+    ],
+    "needsMore" : [
+
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+
+    },
+    "picks" : {
+      "arrays" : "VA4 · Count, then the first items",
+      "binary" : "VB3 · Kind and size",
+      "copy" : "both",
+      "emptyNull" : "today",
+      "exhibit" : "proposal",
+      "json" : "VJ3 · Summary: { 4 keys }",
+      "numbers" : "VN2 · Aligned on the decimal point",
+      "scope" : "all",
+      "special" : "keep"
+    },
+    "reviewedRevision" : 1,
+    "revisions" : [
+
+    ],
+    "status" : "Accepted",
+    "verdicts" : {
+
+    }
+  },
   "ongoing.section-dock-capsule-r19" : {
     "comments" : [
       {

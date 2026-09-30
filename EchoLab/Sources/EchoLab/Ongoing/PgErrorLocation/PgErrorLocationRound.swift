@@ -161,7 +161,7 @@ struct PgErrorExhibit: View {
         let marked = showsMark && (mark == .squiggle || mark == .squiggleHover)
             ? word.underline(true, pattern: .dot, color: ColorTokens.Status.error)
             : word
-        return Text("       ") + marked + Text(", total from orders")
+        return Text("       \(marked), total from orders")
     }
 
     private func codeLine(_ number: Int, _ text: Text) -> some View {

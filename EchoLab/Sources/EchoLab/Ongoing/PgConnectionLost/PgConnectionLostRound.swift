@@ -195,6 +195,15 @@ struct PgLostExhibit: View {
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 
+    private var disconnectedPill: some View {
+        PgPill(tint: ColorTokens.Status.error) {
+            PgStatusLabel(text: "Disconnected", color: ColorTokens.Status.error)
+            if options.where_ == .footer, options.reconnect == .button {
+                Button("Reconnect") { reconnect() }.buttonStyle(.plain).foregroundStyle(ColorTokens.accent)
+            }
+        }
+    }
+
     private var resultsCard: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             ForEach(Array(messages.suffix(3).enumerated()), id: \.offset) { _, message in
@@ -204,13 +213,10 @@ struct PgLostExhibit: View {
             Spacer(minLength: SpacingTokens.none)
             PgFooter(segment: "Messages") {
                 switch phase {
-                case .reported, .droppedUnnoticed where options.when == .atOnce:
-                    PgPill(tint: ColorTokens.Status.error) {
-                        PgStatusLabel(text: "Disconnected", color: ColorTokens.Status.error)
-                        if options.where_ == .footer, options.reconnect == .button {
-                            Button("Reconnect") { reconnect() }.buttonStyle(.plain).foregroundStyle(ColorTokens.accent)
-                        }
-                    }
+                case .reported:
+                    disconnectedPill
+                case .droppedUnnoticed where options.when == .atOnce:
+                    disconnectedPill
                 case .reconnected:
                     PgPill { PgStatusLabel(text: "Reconnected · new session", color: ColorTokens.Status.success) }
                 default:
