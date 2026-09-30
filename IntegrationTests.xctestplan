@@ -43,6 +43,7 @@
         "MSSQLTableDesignerTests",
         "MSSQLTableOperationsTests",
         "MSSQLTransactionTests",
+        "MSSQLDedicatedSessionCancelTests",
         "MSSQLTriggerTests",
         "MSSQLViewTests",
         "PGActivityMonitorTests",

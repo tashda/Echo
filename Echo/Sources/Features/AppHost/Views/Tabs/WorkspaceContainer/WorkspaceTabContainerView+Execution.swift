@@ -319,7 +319,11 @@ extension WorkspaceTabContainerView {
         guard let tab = tabStore.tabs.first(where: { $0.id == tabId }),
               let queryState = tab.query else { return }
         guard tab.connection.databaseType == .postgresql else {
-            queryState.cancelExecution()
+            if let session = tab.session as? MSSQLDedicatedQuerySession {
+                cancelSQLServerQuery(queryState: queryState, session: session)
+            } else {
+                queryState.cancelExecution()
+            }
             return
         }
         // PostgreSQL: stop the statement on the server first (otherwise it keeps running and the
@@ -333,6 +337,24 @@ extension WorkspaceTabContainerView {
             _ = await session.cancelRunningQuery()
             queryState.cancelExecution()
             await followPostgresCancel(queryState: queryState, session: session)
+        }
+    }
+
+    /// SQL Server: cancelling the task cancels the statement on the server and keeps the session
+    /// (round 22, CL1). Tabs run with XACT_ABORT ON, so SQL Server rolls back a transaction the
+    /// cancelled statement was in; say so (XA1).
+    private func cancelSQLServerQuery(queryState: QueryEditorState, session: MSSQLDedicatedQuerySession) {
+        let transactionWasOpen = session.isInTransaction
+        queryState.cancelExecution()
+        guard transactionWasOpen else { return }
+        Task { @MainActor in
+            while queryState.isExecuting { try? await Task.sleep(for: .milliseconds(100)) }
+            guard queryState.wasCancelled, !session.isInTransaction else { return }
+            queryState.appendMessage(
+                message: "Transaction rolled back: the cancelled statement was inside a transaction, and SQL Server rolled it back (XACT_ABORT is on).",
+                severity: .warning,
+                category: "Transaction"
+            )
         }
     }
 

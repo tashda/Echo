@@ -26,6 +26,12 @@ nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSessio
         lock.withLock { _connection }
     }
 
+    /// Whether the session has an open transaction. The driver follows SQL Server's transaction
+    /// notices (ENVCHANGE), so this costs no round trip.
+    var isInTransaction: Bool {
+        connection.isInTransaction
+    }
+
     var database: String? {
         connection.currentDatabase
     }

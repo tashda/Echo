@@ -35,6 +35,7 @@
         "MSSQLSecurityTests",
         "MSSQLTableOperationsTests",
         "MSSQLTransactionTests",
+        "MSSQLDedicatedSessionCancelTests",
         "MSSQLTriggerTests",
         "MSSQLViewTests"
       ],
