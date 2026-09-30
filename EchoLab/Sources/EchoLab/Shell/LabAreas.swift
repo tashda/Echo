@@ -13,7 +13,7 @@ enum LabAreas {
         FoundationsArea.area,
         ExplorerTreeArea.area,
         TabsArea.area,
-        pending("tool-tabs", "Tool tabs", "square.grid.2x2", "The tool header, panes as cards, dashboard tiles and a tool's bottom panel."),
+        ToolTabsArea.area,
         WindowArea.area,
         EditorArea.area,
         FooterResultsArea.area,
