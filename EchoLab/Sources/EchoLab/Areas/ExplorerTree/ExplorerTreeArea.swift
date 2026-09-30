@@ -4,6 +4,8 @@ import SwiftUI
 /// Settings the Explorer tree specimen shares with its controls.
 @Observable @MainActor
 final class ExplorerTreeSpecimenSettings {
+    /// The state the Spec page forces ("hoverRow", "hoverObject"); nil shows the rows at rest.
+    var forced: String?
     var iconMode: LabDockIconMode = LabPrefs.load("explorerTree.iconMode", default: LabDockIconMode.duotone) {
         didSet { LabPrefs.save(iconMode, key: "explorerTree.iconMode") }
     }
@@ -82,20 +84,12 @@ enum ExplorerTreeArea {
         }
         .controls {
             ExplorerTreeControls(settings: settings)
-        }
+        },
+        spec: ExplorerTreeSpec.spec(settings: settings)
     )
 }
 
-private struct ExplorerTreeSpecimen: View {
-    let settings: ExplorerTreeSpecimenSettings
-    @Environment(\.echoMotion) private var motion
-
-    var body: some View {
-        LabRound14DockCard(iconMode: settings.iconMode, labels: .iconsOnly, edge: .soft, animation: motion.standard)
-    }
-}
-
-private struct ExplorerTreeControls: View {
+struct ExplorerTreeControls: View {
     @Bindable var settings: ExplorerTreeSpecimenSettings
 
     var body: some View {
