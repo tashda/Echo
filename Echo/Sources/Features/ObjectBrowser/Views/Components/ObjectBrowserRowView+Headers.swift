@@ -13,10 +13,7 @@ extension ObjectBrowserRowView {
                     .font(serverNameFont)
                     .foregroundStyle(ColorTokens.Text.primary)
                     .lineLimit(1)
-                Text(ServerProductLabel.label(
-                    rawVersion: session.databaseStructure?.serverVersion ?? session.connection.serverVersion,
-                    databaseType: session.connection.databaseType
-                ))
+                Text(productLine(session))
                 .font(SidebarRowConstants.trailingFont)
                 .foregroundStyle(ColorTokens.Text.tertiary)
                 .lineLimit(1)
@@ -42,6 +39,16 @@ extension ObjectBrowserRowView {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .contentShape(Rectangle())
         .onHover { isHeaderHovering = $0 }
+    }
+
+    /// The product and release, then the dock's current section (round 19).
+    private func productLine(_ session: ConnectionSession) -> String {
+        let product = ServerProductLabel.label(
+            rawVersion: session.databaseStructure?.serverVersion ?? session.connection.serverVersion,
+            databaseType: session.connection.databaseType
+        )
+        guard let section = dockSectionTitles[session.connection.id] else { return product }
+        return "\(product) · \(section)"
     }
 
     /// Bold, one step with the sidebar size: 13pt at the default size.

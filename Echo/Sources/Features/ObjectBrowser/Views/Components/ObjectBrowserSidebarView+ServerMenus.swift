@@ -71,6 +71,20 @@ extension ObjectBrowserSidebarView {
             menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
                 Task { await loadSSISFoldersAsync(session: session) }
             }
+        case .serverObjects:
+            menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
+                loadLinkedServers(session: session)
+                loadServerTriggers(session: session)
+            }
+            menu.addDivider()
+            menu.addActionItem("New Linked Server", systemImage: "link.badge.plus") {
+                sheetState.newLinkedServerSessionID = session.connection.id
+                sheetState.showNewLinkedServerSheet = true
+            }
+            menu.addActionItem("New Server Trigger", systemImage: "bolt") {
+                sheetState.newServerTriggerConnectionID = session.connection.id
+                sheetState.showNewServerTriggerSheet = true
+            }
         case .linkedServers:
             menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
                 loadLinkedServers(session: session)

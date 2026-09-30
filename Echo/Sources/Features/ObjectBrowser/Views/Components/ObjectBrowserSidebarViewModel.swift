@@ -7,6 +7,10 @@ final class ObjectBrowserSidebarViewModel {
     var hideOfflineDatabasesBySession: [UUID: Bool] = [:]
     var revealedNodeID: String?
     var revealRequestID = 0
+    /// False makes the next reveal a jump (a dock switch returning to its place, round 19).
+    var revealAnimated = true
+    /// Servers whose rows are faded out while their dock switches sections (round 19, S3).
+    var dockFadingConnectionIDs: Set<UUID> = []
     var highlightedNodeID: String?
     var highlightPulse = false
     /// Everything loaded for folders beyond the schema (logins, jobs, queues…), by source.

@@ -12,26 +12,43 @@ extension ObjectBrowserSidebarView {
         )
     }
 
-    /// Switching a server's dock section: remembers where the old section was scrolled to,
-    /// opens the new one (loading its items like expanding a folder would), and returns to where
-    /// that section was left, or to the server's card.
+    /// Switching a server's dock section (round 19, S3 and jump): remembers where the old section
+    /// was scrolled to, fades the card's rows out, swaps in the new section (loading its items like
+    /// expanding a folder would) while the card's edge settles, jumps back to where that section
+    /// was left, and fades the rows in. A section never shown before doesn't scroll.
     func selectDockSection(_ itemID: String, connectionID: UUID, builtRoots: [ObjectBrowserNode]) {
         guard let (server, session) = serverNode(connectionID, in: builtRoots),
               let layout = ExplorerDock.layout(for: server.children, session: session, saved: savedDockKeys(for: session))
         else { return }
-        let current = ExplorerDock.selectedID(in: layout.all, saved: viewModel.dockSelection(for: connectionID))
-        guard current != itemID else { return }
+        let current = ExplorerDock.selectedID(in: layout, connectionID: connectionID, saved: viewModel.dockSelection(for: connectionID))
+        guard current != itemID, !viewModel.dockFadingConnectionIDs.contains(connectionID) else { return }
 
         if let top = viewModel.topVisibleRow, top.connectionID == connectionID {
             viewModel.setDockScrollAnchor(top.id, connectionID: connectionID, itemID: current)
         }
-        // The rows crossfade and the card settles without overshoot (ObjectBrowserOutlineView).
-        viewModel.setDockSelection(itemID, for: connectionID)
-        if let section = ExplorerDock.section(for: itemID, in: builtRoots) {
-            handleExpansionChange(of: section, isExpanded: true)
+        let fadeOut = Self.dockFadeOutDuration * motion.durationScale
+        withAnimation(.easeIn(duration: fadeOut)) {
+            _ = viewModel.dockFadingConnectionIDs.insert(connectionID)
         }
-        reveal(nodeID: viewModel.dockScrollAnchor(connectionID: connectionID, itemID: itemID) ?? server.id)
+        Task(name: "explorer-dock-switch") { @MainActor in
+            try? await Task.sleep(for: .seconds(fadeOut))
+            // The list settles the card's edge (ObjectBrowserOutlineView animates dock switches).
+            viewModel.setDockSelection(itemID, for: connectionID)
+            if let section = ExplorerDock.section(for: itemID, in: builtRoots) {
+                handleExpansionChange(of: section, isExpanded: true)
+            }
+            if let anchor = viewModel.dockScrollAnchor(connectionID: connectionID, itemID: itemID) {
+                reveal(nodeID: anchor, animated: false)
+            }
+            withAnimation(.easeOut(duration: Self.dockFadeInDuration * motion.durationScale)) {
+                _ = viewModel.dockFadingConnectionIDs.remove(connectionID)
+            }
+        }
     }
+
+    /// S3's timing (round 19): a quick fade out, then a gentler fade in.
+    static let dockFadeOutDuration: Double = 0.08
+    static let dockFadeInDuration: Double = 0.18
 
     /// The server's own dock, or else its type's; nil for the blueprint's default.
     func savedDockKeys(for session: ConnectionSession) -> [String]? {

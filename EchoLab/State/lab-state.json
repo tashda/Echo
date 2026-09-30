@@ -53,6 +53,202 @@
       "exhibit\/cards" : "maybe"
     }
   },
+  "ongoing.notification-toast-r18" : {
+    "comments" : [
+      {
+        "date" : "2026-09-30T12:20:51Z",
+        "id" : "004D889F-5ACC-48AA-8843-0F45CA3369A5",
+        "text" : "Review of Notification toast\n1. Which toast?: picked Proposal; note: What I have answered, so no stack.\n2. Layout: picked L2 · Title and detail\n3. Actions: picked A2 · Small buttons\n4. Dismiss: picked D3 · Swipe right\n5. Material: picked M1 · Liquid Glass (today)\n6. Arrival: picked E1 · Drop from the top (today)\n7. Stacking: picked S1 · List of three (today)\n8. Duration: picked T1 · 3 s (today)"
+      }
+    ],
+    "generalNote" : "",
+    "history" : [
+      {
+        "date" : "2026-09-30T12:20:51Z",
+        "text" : "Accepted with picks"
+      },
+      {
+        "date" : "2026-09-30T12:26:04Z",
+        "text" : "Built into Echo (arrival and the proposal confirmed in chat)"
+      }
+    ],
+    "needsMore" : [
+
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+      "exhibit" : "What I have answered, so no stack."
+    },
+    "picks" : {
+      "actions" : "A2 · Small buttons",
+      "arrival" : "E1 · Drop from the top (today)",
+      "dismiss" : "D3 · Swipe right",
+      "duration" : "T1 · 3 s (today)",
+      "exhibit" : "proposal",
+      "layout" : "L2 · Title and detail",
+      "material" : "M1 · Liquid Glass (today)",
+      "stacking" : "S1 · List of three (today)"
+    },
+    "reviewedRevision" : 1,
+    "revisions" : [
+
+    ],
+    "status" : "In Echo",
+    "verdicts" : {
+
+    }
+  },
+  "ongoing.section-dock-capsule-r19" : {
+    "comments" : [
+      {
+        "date" : "2026-09-30T12:42:35Z",
+        "id" : "5E613BD9-EF39-4027-8F0F-2155C794FBFC",
+        "text" : "Review of Section dock: capsule\n1. Capsule: picked C5 · Glass with an edge\n2. Icon weight: picked Medium\n3. Icon size: picked Today\n4. Current section: picked Accent colour (today)\n5. Section name: picked Under the server's name\n6. Hover: picked Icon grows"
+      }
+    ],
+    "generalNote" : "",
+    "history" : [
+      {
+        "date" : "2026-09-30T12:42:35Z",
+        "text" : "Accepted with picks"
+      },
+      {
+        "date" : "2026-09-30T13:00:00Z",
+        "text" : "Built into Echo"
+      }
+    ],
+    "needsMore" : [
+
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+
+    },
+    "picks" : {
+      "capsule" : "C5 · Glass with an edge",
+      "currentMark" : "Accent colour (today)",
+      "hover" : "Icon grows",
+      "sectionName" : "Under the server's name",
+      "size" : "Today",
+      "weight" : "Medium"
+    },
+    "reviewedRevision" : 1,
+    "revisions" : [
+
+    ],
+    "status" : "In Echo",
+    "verdicts" : {
+
+    }
+  },
+  "ongoing.section-dock-sections-r19" : {
+    "comments" : [
+      {
+        "date" : "2026-09-30T12:36:49Z",
+        "id" : "E98A51A0-F775-46F1-B0C9-4F7A836830FD",
+        "text" : "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+      },
+      {
+        "date" : "2026-09-30T12:36:51Z",
+        "id" : "89E05383-45DC-4C70-96EA-DCD74CF1EABC",
+        "text" : "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+      },
+      {
+        "date" : "2026-09-30T12:36:52Z",
+        "id" : "5FDD8082-5428-4596-BF19-F448C1AF3D07",
+        "text" : "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+      }
+    ],
+    "generalNote" : "",
+    "history" : [
+      {
+        "date" : "2026-09-30T12:36:49Z",
+        "text" : "Accepted with picks"
+      },
+      {
+        "date" : "2026-09-30T12:36:51Z",
+        "text" : "Feedback sent"
+      },
+      {
+        "date" : "2026-09-30T12:36:52Z",
+        "text" : "Accepted with picks"
+      },
+      {
+        "date" : "2026-09-30T13:00:00Z",
+        "text" : "Built into Echo"
+      }
+    ],
+    "needsMore" : [
+
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+
+    },
+    "picks" : {
+      "groupName" : "serverObjects",
+      "grouping" : "G1 · SSMS five",
+      "limit" : "5",
+      "overflow" : "M2 · More as a section",
+      "rule" : "yes"
+    },
+    "reviewedRevision" : 1,
+    "revisions" : [
+
+    ],
+    "status" : "In Echo",
+    "verdicts" : {
+
+    }
+  },
+  "ongoing.section-dock-switching-r19" : {
+    "comments" : [
+      {
+        "date" : "2026-09-30T12:39:10Z",
+        "id" : "D0B7BE8C-185F-4F26-B61C-1E36E35781C0",
+        "text" : "Review of Section dock: switching\n1. Switching: picked S3 · Fade through\n2. Where the view goes: picked Jump to where it was\n3. The other cards: picked N2 · Only the changed card, view holds"
+      }
+    ],
+    "generalNote" : "",
+    "history" : [
+      {
+        "date" : "2026-09-30T12:39:10Z",
+        "text" : "Accepted with picks"
+      },
+      {
+        "date" : "2026-09-30T13:00:00Z",
+        "text" : "Built into Echo"
+      }
+    ],
+    "needsMore" : [
+
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+
+    },
+    "picks" : {
+      "neighbours" : "N2 · Only the changed card, view holds",
+      "scroll" : "Jump to where it was",
+      "switch" : "S3 · Fade through"
+    },
+    "reviewedRevision" : 1,
+    "revisions" : [
+
+    ],
+    "status" : "In Echo",
+    "verdicts" : {
+
+    }
+  },
   "ongoing.server-card-r16" : {
     "comments" : [
       {

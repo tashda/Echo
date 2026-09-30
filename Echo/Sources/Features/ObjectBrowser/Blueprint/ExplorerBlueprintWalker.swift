@@ -41,8 +41,8 @@ struct ExplorerBlueprintWalker {
 
     private func nodes(for entry: ExplorerBlueprintNode, in place: Place, source: ExplorerChildSource?) -> [ObjectBrowserNode] {
         switch entry {
-        case .databases:
-            return [databasesSection()]
+        case .databases(let extras):
+            return [databasesSection(extras: extras)]
         case .group(let kind, let ownSource, let hidesWhenEmpty, let children):
             return folderNode(kind, source: ownSource ?? source, hidesWhenEmpty: hidesWhenEmpty, children: children, in: place)
         case .items(let kind):
@@ -140,7 +140,7 @@ struct ExplorerBlueprintWalker {
 
     // MARK: - Databases
 
-    private func databasesSection() -> ObjectBrowserNode {
+    private func databasesSection(extras: [ExplorerBlueprintNode]) -> ObjectBrowserNode {
         let databases = ObjectBrowserSnapshotBuilder.visibleDatabases(
             for: session,
             structure: session.databaseStructure,
@@ -157,9 +157,10 @@ struct ExplorerBlueprintWalker {
             isLoading: isLoading,
             source: nil
         )
-        let children = isLoading
+        let databaseRows = isLoading
             ? [ObjectBrowserNode(id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: folderID), row: .loading("Loading databases", style: .spinnerRow))]
             : databases.map(databaseNode)
+        let children = databaseRows + nodes(for: extras, in: .nested(parentID: folderID, database: nil))
         return ObjectBrowserNode(id: folderID, row: .folder(folder), children: children)
     }
 

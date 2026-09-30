@@ -17,6 +17,7 @@ struct ObjectBrowserRowView: View {
     @Environment(ProjectStore.self) var projectStore
     @Environment(EnvironmentState.self) var environmentState
     @State var isHeaderHovering = false
+    @Environment(\.explorerDockSectionTitles) var dockSectionTitles
 
     var depth: Int {
         max(0, outlineLevel)

@@ -52,7 +52,7 @@ struct ExplorerDockTests {
     }
 
     @Test func withNoChoiceEverySectionIsInTheCapsule() throws {
-        let kinds: [ExplorerNodeKind] = [.databases, .serverSecurity, .databaseSnapshots, .agentJobs, .management, .integrationServices]
+        let kinds: [ExplorerNodeKind] = [.databases, .serverSecurity, .serverObjects, .agentJobs, .management]
         let layout = try #require(dockLayout(ExplorerDock.apply(to: [server(kinds)], selections: [:])))
         #expect(layout.shown.map(\.key) == kinds.map(\.rawValue))
         #expect(layout.overflow.isEmpty)
@@ -70,6 +70,31 @@ struct ExplorerDockTests {
         let kinds: [ExplorerNodeKind] = [.databases, .serverSecurity, .agentJobs]
         let roots = ExplorerDock.apply(to: [server(kinds)], selections: [connectionID: "f2"], savedKeys: { _ in [ExplorerNodeKind.databases.rawValue] })
         #expect(roots[0].children.dropFirst().map(\.id) == ["f2.a", "f2.b"])
+    }
+
+    /// Round 19: the capsule shows at most five; the rest go under More.
+    @Test func theCapsuleHoldsAtMostFive() {
+        let arranged = ExplorerDock.arrange(keys: ["a", "b", "c", "d", "e", "f", "g"], saved: nil, preferred: nil)
+        #expect(arranged.shown == ["a", "b", "c", "d", "e"])
+        #expect(arranged.overflow == ["f", "g"])
+    }
+
+    /// Round 19, M2: More is a section listing the left-out sections as ordinary folders.
+    @Test func moreListsTheLeftOutSectionsAsFolders() throws {
+        let kinds: [ExplorerNodeKind] = [.databases, .serverSecurity, .agentJobs]
+        let more = ExplorerDock.moreItemID(connectionID)
+        let roots = ExplorerDock.apply(to: [server(kinds)], selections: [connectionID: more], savedKeys: { _ in [ExplorerNodeKind.databases.rawValue] })
+        #expect(roots[0].children.dropFirst().map(\.id) == ["f1", "f2"])
+    }
+
+    @Test func moreFallsBackWhenNothingIsLeftOut() {
+        let roots = ExplorerDock.apply(to: [server([.databases, .serverSecurity])], selections: [connectionID: ExplorerDock.moreItemID(connectionID)])
+        #expect(roots[0].children.dropFirst().map(\.id) == ["f0.a", "f0.b"])
+    }
+
+    @Test func eachDockedServerHasItsSectionTitle() {
+        let roots = ExplorerDock.apply(to: [server([.databases, .serverSecurity])], selections: [connectionID: "f1"])
+        #expect(ExplorerDock.currentTitles(in: roots)[connectionID] == ExplorerNodeKind.serverSecurity.title)
     }
 
     @Test func arrangeKeepsTheSavedOrderAndDropsUnknownKeys() {

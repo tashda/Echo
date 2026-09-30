@@ -33,8 +33,9 @@ nonisolated struct ExplorerBlueprint: Sendable {
 
 /// One entry in a blueprint.
 nonisolated indirect enum ExplorerBlueprintNode: Sendable {
-    /// The Databases section: one row per database, each built from the blueprint's `database`.
-    case databases
+    /// The Databases section: one row per database, each built from the blueprint's `database`,
+    /// then any folders listed after them (SQL Server's Database Snapshots, as in SSMS).
+    case databases(extras: [ExplorerBlueprintNode])
     /// A folder (a section heading at server level). `source` names where its items load from;
     /// folders inside it share that source unless they name their own.
     case group(ExplorerNodeKind, source: ExplorerChildSource?, hidesWhenEmpty: Bool, children: [ExplorerBlueprintNode])
@@ -65,9 +66,12 @@ nonisolated protocol ExplorerBlueprintEntry: Sendable {
 /// The words a blueprint is written in. They are nested in `ExplorerBlueprint`, so they only
 /// exist inside blueprint files.
 extension ExplorerBlueprint {
-    /// The Databases section.
+    /// The Databases section, with any folders that follow the databases in it.
     nonisolated struct Databases: ExplorerBlueprintEntry {
-        var node: ExplorerBlueprintNode { .databases }
+        let node: ExplorerBlueprintNode
+        init(@ExplorerBlueprintBuilder _ extras: () -> [ExplorerBlueprintNode] = { [] }) {
+            node = .databases(extras: extras())
+        }
     }
 
     /// A folder with fixed contents. `loading` names where the items inside it load from.

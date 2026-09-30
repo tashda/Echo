@@ -29,6 +29,10 @@ struct ObjectBrowserOutlineView: View {
     var onTopVisibleContextChanged: ((ObjectBrowserTopVisibleContext) -> Void)? = nil
     /// Round 9, SB3: no scroll bar unless Settings › Sidebar › Show scroll bar is on.
     var showsScrollBar = false
+    /// Servers whose rows are faded out mid-switch (round 19, S3).
+    var fadingConnectionIDs: Set<UUID> = []
+    /// False makes the next reveal a jump, as a dock switch returning to its place (round 19).
+    var revealAnimated = true
 
     /// Row height per density. Inner padding lives inside `SidebarRow`; this is the slot each
     /// row gets, tuned so its content centres without clipping:
@@ -61,26 +65,31 @@ struct ObjectBrowserOutlineView: View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         ScrollView(.vertical) {
-            // A server with a dock pins its name and dock while its rows scroll (TC1).
-            LazyVStack(spacing: SpacingTokens.none, pinnedViews: [.sectionHeaders]) {
-                ForEach(layout.groups) { group in
-                    if group.header.isEmpty {
-                        rows(group.rows)
-                    } else {
-                        Section {
-                            rows(group.rows, underHeaderOf: group.header.reduce(SpacingTokens.none) { $0 + $1.height })
-                        } header: {
-                            VStack(spacing: SpacingTokens.none) { rows(group.header) }
-                                .background { ExplorerPinnedHeaderWash(restingMinY: group.header[0].minY, scroll: scroll) }
+            VStack(spacing: SpacingTokens.none) {
+                // A server with a dock pins its name and dock while its rows scroll (TC1).
+                LazyVStack(spacing: SpacingTokens.none, pinnedViews: [.sectionHeaders]) {
+                    ForEach(layout.groups) { group in
+                        if group.header.isEmpty {
+                            rows(group.rows)
+                        } else {
+                            Section {
+                                rows(group.rows, underHeaderOf: group.header.reduce(SpacingTokens.none) { $0 + $1.height })
+                                    // Round 19, S3: a switching card's rows fade out, swap and fade in.
+                                    .opacity(isFading(group) ? 0 : 1)
+                            } header: {
+                                VStack(spacing: SpacingTokens.none) { rows(group.header) }
+                                    .background { ExplorerPinnedHeaderWash(restingMinY: group.header[0].minY, scroll: scroll) }
+                            }
                         }
                     }
                 }
+                .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
+                // A dock switch settles without overshoot (round 16); it is the inner modifier, so it
+                // wins over `expand` when both change.
+                .animation(motion.settle, value: dockSelections)
+                .animation(motion.expand, value: rowIDs)
+                ExplorerTreeHoldSpacer(scroll: scroll, contentHeight: layout.contentHeight)
             }
-            .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
-            // A dock switch settles without overshoot (round 16); it is the inner modifier, so it
-            // wins over `expand` when both change.
-            .animation(motion.settle, value: dockSelections)
-            .animation(motion.expand, value: rowIDs)
         }
         .scrollPosition($position)
         .scrollIndicators(showsScrollBar ? .automatic : .never)
@@ -93,12 +102,14 @@ struct ObjectBrowserOutlineView: View {
             ExplorerTreeScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
                 viewportHeight: geometry.containerSize.height,
-                contentWidth: geometry.contentSize.width
+                contentWidth: geometry.contentSize.width,
+                totalHeight: geometry.contentSize.height
             )
         } action: { _, metrics in
             scroll.offset = metrics.offset
             scroll.viewportHeight = metrics.viewportHeight
             scroll.contentWidth = metrics.contentWidth
+            scroll.totalHeight = metrics.totalHeight
             reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
             reportTopRow(in: layout, baseRowHeight: baseRowHeight)
         }
@@ -154,6 +165,11 @@ struct ObjectBrowserOutlineView: View {
     }
 
     /// Glides so the requested row (or the gap above its card) lands at the top.
+    private func isFading(_ group: ExplorerTreeLayout.Group) -> Bool {
+        guard let connectionID = group.header.first?.node.row.connectionID else { return false }
+        return fadingConnectionIDs.contains(connectionID)
+    }
+
     private func reveal(in layout: ExplorerTreeLayout) {
         guard revealRequestID != handledRevealRequestID,
               let revealNodeID,
@@ -163,7 +179,7 @@ struct ObjectBrowserOutlineView: View {
 
         let maxOffset = max(0, layout.contentHeight - scroll.viewportHeight)
         let y = min(max(0, target), maxOffset)
-        withAnimation(motion.reveal) {
+        withAnimation(revealAnimated ? motion.reveal : nil) {
             position.scrollTo(y: y)
         }
     }

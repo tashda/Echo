@@ -28,6 +28,10 @@ struct ExplorerDockLayout: Equatable {
 @MainActor
 enum ExplorerDock {
     static func dockNodeID(_ connectionID: UUID) -> String { "dock|\(connectionID.uuidString)" }
+    /// More (»), the section that lists whatever the capsule leaves out (round 19, M2).
+    static func moreItemID(_ connectionID: UUID) -> String { "dock-more|\(connectionID.uuidString)" }
+    /// The capsule shows at most this many sections (round 19).
+    static let capsuleLimit = 5
 
     /// The servers' children replaced by their dock and the chosen section's contents. Servers
     /// with fewer than two sections, or sections the dock can't describe, keep their tree.
@@ -41,15 +45,17 @@ enum ExplorerDock {
             guard case .server(let session) = root.row else { return root }
             let connectionID = session.connection.id
             guard let layout = layout(for: root.children, session: session, saved: savedKeys(session)) else { return root }
-            let selected = selectedID(in: layout.all, saved: selections[connectionID])
+            let selected = selectedID(in: layout, connectionID: connectionID, saved: selections[connectionID])
             let dock = ObjectBrowserNode(id: dockNodeID(connectionID), row: .dock(session, layout, selectedID: selected))
-            return ObjectBrowserNode(id: root.id, row: root.row, children: [dock] + content(of: root, selected: selected))
+            return ObjectBrowserNode(id: root.id, row: root.row, children: [dock] + content(of: root, layout: layout, selected: selected))
         }
     }
 
-    static func selectedID(in items: [ExplorerDockItem], saved: String?) -> String {
-        if let saved, items.contains(where: { $0.id == saved }) { return saved }
-        return items.first?.id ?? ""
+    /// The saved section if it still exists (More only while something is left out), else the first.
+    static func selectedID(in layout: ExplorerDockLayout, connectionID: UUID, saved: String?) -> String {
+        if let saved, layout.all.contains(where: { $0.id == saved }) { return saved }
+        if saved == moreItemID(connectionID), !layout.overflow.isEmpty { return moreItemID(connectionID) }
+        return layout.shown.first?.id ?? ""
     }
 
     /// The dock for a server's sections, or nil when it keeps its tree.
@@ -57,25 +63,40 @@ enum ExplorerDock {
         let described = sections.compactMap(describe)
         guard described.count == sections.count, described.count >= 2 else { return nil }
         let blueprintDefault = ExplorerBlueprint.blueprint(for: session.connection.databaseType).dock?.map(\.rawValue)
-        let arranged = arrange(keys: described.map(\.key), saved: saved, preferred: blueprintDefault)
+        let arranged = arrange(keys: described.map(\.key), saved: saved, preferred: blueprintDefault, limit: capsuleLimit)
         let byKey = Dictionary(described.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
         return ExplorerDockLayout(shown: arranged.shown.compactMap { byKey[$0] }, overflow: arranged.overflow.compactMap { byKey[$0] })
     }
 
     /// Which section keys the capsule shows, in order, and which go under More. The saved order
-    /// wins, then the blueprint's; keys neither mentions go under More, and the capsule is never
-    /// empty.
-    nonisolated static func arrange(keys: [String], saved: [String]?, preferred: [String]?) -> (shown: [String], overflow: [String]) {
+    /// wins, then the blueprint's; keys neither mentions go under More. The capsule is never
+    /// empty and holds at most `limit` sections.
+    nonisolated static func arrange(keys: [String], saved: [String]?, preferred: [String]?, limit: Int = 5) -> (shown: [String], overflow: [String]) {
         let wanted = (saved ?? preferred)?.filter(keys.contains) ?? keys
-        let shown = wanted.isEmpty ? keys : wanted
+        let shown = Array((wanted.isEmpty ? keys : wanted).prefix(limit))
         return (shown, keys.filter { !shown.contains($0) })
     }
 
-    /// What the card shows below the dock: a section's contents, or the section itself when it
-    /// is a single tool.
-    static func content(of server: ObjectBrowserNode, selected: String) -> [ObjectBrowserNode] {
+    /// What the card shows below the dock: a section's contents, the section itself when it is a
+    /// single tool, or for More the left-out sections as ordinary folders.
+    static func content(of server: ObjectBrowserNode, layout: ExplorerDockLayout, selected: String) -> [ObjectBrowserNode] {
+        if case .server(let session) = server.row, selected == moreItemID(session.connection.id) {
+            let left = Set(layout.overflow.map(\.id))
+            return server.children.filter { left.contains($0.id) }
+        }
         guard let section = server.children.first(where: { $0.id == selected }) else { return [] }
         return section.children.isEmpty ? [section] : section.children
+    }
+
+    /// Each docked server's current section name, for its header ("SQL Server 2022 · Security").
+    static func currentTitles(in roots: [ObjectBrowserNode]) -> [UUID: String] {
+        var titles: [UUID: String] = [:]
+        for root in roots {
+            guard case .dock(let session, let layout, let selectedID) = root.children.first?.row else { continue }
+            let connectionID = session.connection.id
+            titles[connectionID] = selectedID == moreItemID(connectionID) ? "More" : layout.all.first { $0.id == selectedID }?.title
+        }
+        return titles
     }
 
     /// The section node a dock item stands for.
@@ -112,6 +133,8 @@ struct ExplorerDockActions {
 
 extension EnvironmentValues {
     @Entry var explorerDockActions = ExplorerDockActions()
+    /// Each docked server's current section name, shown after its product in the header.
+    @Entry var explorerDockSectionTitles: [UUID: String] = [:]
 }
 
 extension LayoutTokens {
@@ -119,6 +142,12 @@ extension LayoutTokens {
     enum ExplorerDock {
         /// The dock row's slot over an ordinary row: room for the capsule's edge and shadow.
         static let extraHeight: CGFloat = SpacingTokens.xs
+        /// C5 (round 19): the capsule's hairline edge, as a share of the card edge's colour.
+        static let edgeOpacity: Double = 0.8
+        /// C5: the capsule's soft shadow.
+        static let shadowOpacity: Double = 0.08
+        /// A hovered icon grows by this much (round 19).
+        static let hoverScale: CGFloat = 1.12
 
         /// The capsule's height, following the sidebar size.
         static func capsuleHeight(for density: SidebarDensity) -> CGFloat {

@@ -54,7 +54,7 @@ struct ExplorerDockCustomizationSheet: View {
                 } header: {
                     Text("Sections")
                 } footer: {
-                    Text("Drag to reorder. Sections left out stay under More.")
+                    Text("Drag to reorder. The capsule shows up to five; the rest are under More.")
                         .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }

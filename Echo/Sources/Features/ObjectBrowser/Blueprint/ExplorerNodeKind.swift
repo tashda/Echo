@@ -9,7 +9,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
     case serverSecurity
     case logins, certificateLogins, serverRoles, credentials, loginRoles, groupRoles
     case databaseSnapshots, agentJobs, management, integrationServices, linkedServers, serverTriggers
-    case activity, tablespaces
+    case activity, tablespaces, serverObjects
 
     // Tools
     case maintenance, serverProperties, activityMonitor, extendedEvents, databaseMail, sqlProfiler
@@ -60,6 +60,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .sqlServerLogs: return "SQL Server Logs"
         case .jobQueue: return "Agent Jobs Overview"
         case .activity: return "Activity"
+        case .serverObjects: return "Server Objects"
         case .tablespaces: return "Tablespaces"
         case .tablespace: return "Tablespace"
         case .backUpServer: return "Back Up Server"
@@ -133,6 +134,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .serverTrigger, .databaseTrigger: return "bolt"
         case .maintenance: return "wrench.and.screwdriver"
         case .activity: return "gauge.high"
+        case .serverObjects: return "square.grid.2x2"
         case .tablespaces, .tablespace: return "square.stack.3d.up"
         case .backUpServer: return "externaldrive.badge.timemachine"
         case .backUpGlobals: return "globe"
@@ -196,7 +198,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .agentJobs, .agentJob, .jobQueue: .jobs
         case .management, .sqlServerLogs: .management
         case .integrationServices, .ssisFolder: .integrationServices
-        case .linkedServers, .linkedServer: .linkedServers
+        case .linkedServers, .linkedServer, .serverObjects: .linkedServers
         case .serverTriggers, .serverTrigger: .serverTriggers
         case .databaseTriggers, .databaseTrigger: .databaseTriggers
         case .activityMonitor: .activityMonitor

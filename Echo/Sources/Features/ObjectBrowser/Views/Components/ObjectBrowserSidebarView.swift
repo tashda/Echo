@@ -9,6 +9,7 @@ struct ObjectBrowserSidebarView: View {
     @Environment(NavigationStore.self) var navigationStore
     @Environment(\.openWindow) var openWindow
     @Environment(\.workspaceCardCornerRadius) private var cardCornerRadius
+    @Environment(\.echoMotion) var motion
 
     @State var viewModel = ObjectBrowserSidebarViewModel()
     @State var sheetState = SidebarSheetState()
@@ -41,6 +42,7 @@ struct ObjectBrowserSidebarView: View {
             selections: viewModel.dockSelections(for: sessions.map(\.connection.id)),
             savedKeys: savedDockKeys(for:)
         )
+        let dockSectionTitles = ExplorerDock.currentTitles(in: roots)
 
         let mainContent = Group {
             if sessions.isEmpty && pendingConnections.isEmpty {
@@ -91,6 +93,7 @@ struct ObjectBrowserSidebarView: View {
                             .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
                             .environment(\.sidebarUsesDuotoneIcons, projectStore.globalSettings.sidebarIconColorMode == .colorful)
                             .environment(\.explorerDockActions, dockActions(builtRoots: builtRoots))
+                            .environment(\.explorerDockSectionTitles, dockSectionTitles)
                         )
                     },
                     onExpansionChanged: { node, isExpanded in
@@ -113,7 +116,9 @@ struct ObjectBrowserSidebarView: View {
                         }
                         railBridge?.topVisibleContext = context
                     },
-                    showsScrollBar: projectStore.globalSettings.sidebarShowsScrollBar
+                    showsScrollBar: projectStore.globalSettings.sidebarShowsScrollBar,
+                    fadingConnectionIDs: viewModel.dockFadingConnectionIDs,
+                    revealAnimated: viewModel.revealAnimated
                 )
                 .background(Color.clear)
                 // Not clipped: the server cards' shadows reach past the tree's edges. The scroll
@@ -242,7 +247,8 @@ struct ObjectBrowserSidebarView: View {
 
     // MARK: - Pinned path
 
-    func reveal(nodeID: String) {
+    func reveal(nodeID: String, animated: Bool = true) {
+        viewModel.revealAnimated = animated
         viewModel.revealedNodeID = nodeID
         viewModel.revealRequestID &+= 1
     }

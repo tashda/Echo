@@ -29,11 +29,31 @@ struct ExplorerBlueprintTests {
         blueprint.server.compactMap(\.kind)
     }
 
-    @Test func sqlServerFoldersFollowSSMS() {
-        #expect(serverFolderKinds(.sqlServer) == [
-            .databases, .serverSecurity, .databaseSnapshots, .agentJobs, .management,
-            .integrationServices, .linkedServers, .serverTriggers,
-        ])
+    /// Round 19: SSMS's grouping in five sections.
+    @Test func sqlServerFoldersFollowSSMSInFive() {
+        #expect(serverFolderKinds(.sqlServer) == [.databases, .serverSecurity, .serverObjects, .agentJobs, .management])
+    }
+
+    /// Round 19: no database type has more than five server-level sections.
+    @Test(arguments: DatabaseType.allCases)
+    func noTypeHasMoreThanFiveSections(_ databaseType: DatabaseType) {
+        #expect(ExplorerBlueprint.blueprint(for: databaseType).server.count <= ExplorerDock.capsuleLimit)
+    }
+
+    @Test func databaseSnapshotsFollowTheDatabases() throws {
+        let nodes = build(makeSession(.microsoftSQL), ObjectBrowserSidebarViewModel())
+        let databases = try #require(nodes.first)
+        #expect(databases.children.first.map { if case .database = $0.row { true } else { false } } == true)
+        #expect(databases.children.last.flatMap(folder)?.kind == .databaseSnapshots)
+        #expect(folder(databases)?.count == 1)
+    }
+
+    @Test func serverObjectsHoldLinkedServersAndServerTriggers() throws {
+        let nodes = build(makeSession(.microsoftSQL), ObjectBrowserSidebarViewModel())
+        let objects = try #require(nodes.first { folder($0)?.kind == .serverObjects })
+        #expect(objects.children.compactMap { folder($0)?.kind } == [.linkedServers, .serverTriggers])
+        let management = try #require(nodes.first { folder($0)?.kind == .management })
+        #expect(management.children.last.flatMap(folder)?.kind == .integrationServices)
     }
 
     /// Round 16: PostgreSQL's server tools became sections.
@@ -41,9 +61,10 @@ struct ExplorerBlueprintTests {
         #expect(serverFolderKinds(.postgreSQL) == [.databases, .serverSecurity, .activity, .management, .tablespaces])
     }
 
-    @Test func sqlServerDocksItsFirstFourSectionsByDefault() {
-        #expect(ExplorerBlueprint.sqlServer.dock == [.databases, .serverSecurity, .agentJobs, .management])
-        #expect(ExplorerBlueprint.postgreSQL.dock == nil)
+    @Test func everyTypeDocksAllItsSectionsByDefault() {
+        for type in DatabaseType.allCases {
+            #expect(ExplorerBlueprint.blueprint(for: type).dock == nil)
+        }
     }
 
     @Test func postgresActivityToolsOpenEveryMonitorPage() throws {
