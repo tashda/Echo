@@ -1,4 +1,5 @@
 #if os(macOS)
+import EchoSense
 import SwiftUI
 
 struct JsonInspectorPanelView: View {

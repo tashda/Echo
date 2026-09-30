@@ -11,6 +11,8 @@ struct QueryPanelStatusBar: View {
     let onSwitchDatabase: ((String) -> Void)?
     /// Runs COMMIT or ROLLBACK from the transaction pill's menu (round 21, TA2).
     var onRunCommand: ((String) -> Void)?
+    /// The server a connection with several moved to (round 23, FS1).
+    var serverMove: ConnectionServerMove?
 
     @State private var showStatisticsPopover = false
     @State private var showDatabasePicker = false
@@ -119,6 +121,9 @@ struct QueryPanelStatusBar: View {
         }
         if query.statisticsEnabled {
             indicators.append(.init(id: "statistics", label: "Statistics", icon: "chart.bar"))
+        }
+        if let serverMove {
+            indicators.append(.init(id: "server", label: serverMove.label, icon: "arrow.triangle.swap", help: serverMove.help))
         }
         return indicators
     }
