@@ -55,12 +55,20 @@ extension SidebarRow {
     private var symbolView: some View {
         switch icon {
         case .system(let name):
-            Image(systemName: name)
-                .font(densityIconFont)
-                .imageScale(.medium)
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(resolvedIconColor)
-                .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
+            ZStack {
+                // Duotone (IC2, design board 2026-09-30): the outline over its fill at low
+                // opacity, for symbols that have a fill variant.
+                if usesDuotoneIcons, let fill = SidebarDuotoneSymbols.fillName(for: name) {
+                    Image(systemName: fill)
+                        .foregroundStyle(resolvedIconColor.opacity(SidebarDuotoneSymbols.fillOpacity))
+                }
+                Image(systemName: name)
+                    .foregroundStyle(resolvedIconColor)
+            }
+            .font(densityIconFont)
+            .imageScale(.medium)
+            .symbolRenderingMode(.monochrome)
+            .frame(width: densityIconFrameWidth, height: densityIconFrameHeight)
         case .asset(let name):
             Image(name)
                 .resizable()

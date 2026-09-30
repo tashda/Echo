@@ -62,6 +62,7 @@ struct SidebarRow<Trailing: View>: View {
     }
 
     @Environment(\.sidebarDensity) var density
+    @Environment(\.sidebarUsesDuotoneIcons) var usesDuotoneIcons
     @Environment(\.sidebarContextMenuActive) private var isContextMenuActive
     @State var isHovering = false
 

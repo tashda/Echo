@@ -15,8 +15,8 @@ enum SidebarIconColorMode: String, Codable, CaseIterable, Sendable {
     case colorful, monochrome
     var displayName: String {
         switch self {
-        case .colorful: return "Colorful"
-        case .monochrome: return "Monochrome"
+        case .colorful: return "Duotone"
+        case .monochrome: return "Mono"
         }
     }
 }

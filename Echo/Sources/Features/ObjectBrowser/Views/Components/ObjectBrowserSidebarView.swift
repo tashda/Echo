@@ -83,6 +83,7 @@ struct ObjectBrowserSidebarView: View {
                             .environment(projectStore)
                             .environment(environmentState)
                             .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
+                            .environment(\.sidebarUsesDuotoneIcons, projectStore.globalSettings.sidebarIconColorMode == .colorful)
                         )
                     },
                     onExpansionChanged: { node, isExpanded in
