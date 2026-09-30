@@ -74,6 +74,7 @@ struct SearchResultOpener {
             sql = "SELECT *\nFROM \(qualified)\nLIMIT 200;"
         }
         environmentState.openQueryTab(for: session, presetQuery: sql, database: database)
+        environmentState.recordRecentTable(SchemaObjectInfo(name: table, schema: schema, type: .table), in: session, databaseName: database)
     }
 
     private func openQueryPreview(forColumn column: String, table: String, schema: String, session: ConnectionSession, database: String) {

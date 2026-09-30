@@ -50,7 +50,8 @@ struct QueryEditorContainer: View {
                     onSchemaLoadNeeded: { dbName in
                         ensureSchemaLoaded(forDatabase: dbName)
                     },
-                    onRunStatement: runStatementAtCaret
+                    onRunStatement: runStatementAtCaret,
+                    tableStarts: emptyTabTableStarts
                 )
             }
         } results: {

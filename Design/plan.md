@@ -278,7 +278,7 @@ Rules: `05-components` › Tool tabs.
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
 | TL1 | **Tool header (TT2):** one component with the tool's icon, title, server and freshness, and its actions on the right. | New `ToolTabHeader` | Used by every tool tab | ☑ built, 👁 pending: Activity Monitor draws it itself; every other tool tab gets it from `ToolTabContainer` (icon, title, server · database) |
-| TL2 | **Panes become cards (TT1):** every pane of a tool tab is its own card on the canvas, a gutter apart. Agent Jobs first (Jobs, Details, History), then the rest. | Tool tab views | No unframed panes left 👁 | ☑ built for Agent Jobs (`CardSplitView`), 👁 pending; other multi-pane tools still to move |
+| TL2 | **Panes become cards (TT1):** every pane of a tool tab is its own card on the canvas, a gutter apart. Agent Jobs first (Jobs, Details, History), then the rest. | Tool tab views | No unframed panes left 👁 | ☑ built, 👁 pending: Agent Jobs, Extended Events, Schema Diff, Query Builder, Resource Governor, Tuning Advisor, MySQL configuration, MySQL and Postgres advanced objects, and the bottom panel of every tool that has one (Maintenance, security, server properties) all use `CardSplitView`; a pane's card turns itself off when the pane holds cards (`adaptiveWorkspaceCard`); the toolbar row moves onto the canvas under the header; the status bar floats on the canvas below the cards |
 | TL3 | **Dashboard tiles (TT3)** for monitoring tools: Activity Monitor's figures as cards with sparklines. | `ActivityMonitor/*` | 👁 | ☑ built, 👁 pending |
 
 ## Phase 16 · Section dock
@@ -299,7 +299,7 @@ Rules: `05-components` › Explorer tree.
 | Q3 | **Errors on the line (QE3):** short red text at the end of the line beside the dot. | Validation overlays | 👁 | ☑ already built: validation draws a short inline note after each failing line beside the gutter dot |
 | Q4 | **Room to breathe (QE4):** wider gutter padding and a rounded current-line band inside the card. | Editor | 👁 | ☑ built, 👁 pending: the current line uses the theme's currentLine colour as a rounded band inset 6pt; numbers sit 12pt from the code |
 | Q5 | **Outline edge (QE5)** as a setting: statement ticks, errors and the visible area on the right edge. | Editor | Toggles in Settings | ☑ built, 👁 pending: Settings › Appearance › Editor › Outline Edge, off by default; replaces the scroll bar while on |
-| Q6 | **Helpful empty tab (QE6):** recent tables and snippets as faint starting points that vanish on typing. | Editor | 👁 | ◐ built with snippets only, 👁 pending: Echo keeps no record of recently used tables yet, so the recent-tables chips wait for one |
+| Q6 | **Helpful empty tab (QE6):** recent tables and snippets as faint starting points that vanish on typing. | Editor | 👁 | ☑ built, 👁 pending: Echo now remembers tables opened by Data, Structure, Diagram and search (`RecentTableStore`, per connection and database, 60 kept); the empty tab shows the last four as chips above the snippets, and a chip inserts the table's first-rows query |
 
 ## Phase 10 · Finish
 

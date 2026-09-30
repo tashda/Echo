@@ -116,6 +116,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - Opaque card; SQL editor inside. *Decided.*
 - **Fonts** (2026-09-30): JetBrains Mono, Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Monaspace and Commit Mono, all SIL OFL. The default is still to be picked by the owner. **13pt with 1.55 line spacing** by default; both are settings. *Decided.*
 - **Editor ideas** (2026-09-30), each a setting where it adds chrome: statement focus with a Run arrow in the gutter, results inline at the end of a statement, errors written on the line, a rounded current-line band with more room, an outline edge (setting), and faint starting points in an empty tab. *Decided.*
+  - The empty tab's starting points: the four tables opened last on the tab's connection and database (Data, Structure, Diagram or search), then snippets. A table inserts its first-rows query. *Built 2026-09-30.*
 - **Gutter:**
   - Three styles as a setting (2026-09-30): **Subtle** (numbers only), **Tinted column** (full height, cut by the card's corners, hairline edge) and **Tinted lane** (inset 5pt, rounded, no edge). *Decided.*
   - Numbers stop at the last line; the tint still runs the card's full height. *Decided.*
@@ -148,6 +149,9 @@ Decided 2026-09-30.
 
 - **One tool header** for every tool tab: the tool's icon, title, server and freshness ("updated 2 s ago"), and the tool's actions on the right. *Decided.*
 - **Panes are cards** on the canvas, a gutter apart, like the editor and results cards. *Decided.*
+  - A tool whose pages mix one-pane and several-pane layouts keeps one card for the one-pane pages; the card steps aside when the page brings cards of its own. *Built 2026-09-30.*
+  - Once a tool's panes are cards, its toolbar row sits on the canvas under the tool header, lined up with it, and the status bar floats on the canvas under the cards. The bottom panel (Messages, Live Data) is a card of its own. *Built 2026-09-30.*
+  - A pane that compares or lists two things of one object (a session's events and targets, the source and target DDL) keeps them in its one card.
 - **Monitoring tools** open on dashboard tiles: the key figures as cards with sparklines above the detail. *Decided.*
 - Configuration stays in the tab; read-only detail such as a job's history may use the Inspector. *Decided.*
 

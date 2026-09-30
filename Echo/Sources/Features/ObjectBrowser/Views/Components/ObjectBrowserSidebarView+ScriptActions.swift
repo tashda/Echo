@@ -211,13 +211,7 @@ extension ObjectBrowserSidebarView {
     }
 
     func previewQuery(for object: SchemaObjectInfo, databaseType: DatabaseType) -> String {
-        let qualified = qualifiedName(for: object, databaseType: databaseType)
-        return switch databaseType {
-        case .microsoftSQL:
-            "SELECT TOP 1000 * FROM \(qualified);"
-        default:
-            "SELECT * FROM \(qualified) LIMIT 1000;"
-        }
+        TablePreviewQuery.sql(schema: object.schema, table: object.name, databaseType: databaseType)
     }
 
     func executeStatement(for object: SchemaObjectInfo, databaseType: DatabaseType) -> String {

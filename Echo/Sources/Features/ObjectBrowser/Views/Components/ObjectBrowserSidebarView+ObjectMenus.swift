@@ -80,6 +80,7 @@ extension ObjectBrowserSidebarView {
             menu.addActionItem("Data", systemImage: "tablecells") {
                 let sql = previewQuery(for: object, databaseType: databaseType)
                 environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
+                environmentState.recordRecentTable(object, in: session, databaseName: databaseName)
             }
         }
 

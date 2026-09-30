@@ -24,6 +24,8 @@ final class EnvironmentState {
     var sessionGroup = ActiveSessionGroup()
     var pinnedObjectIDs: [String] = []
     var recentConnections: [RecentConnectionRecord] = []
+    /// Tables opened recently, for the empty query tab's starting points (QE6).
+    let recentTables = RecentTableStore()
     var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
     var userEditorViewModels: [UserEditorWindowValue: UserEditorViewModel] = [:]
     var loginEditorViewModels: [LoginEditorWindowValue: LoginEditorViewModel] = [:]
@@ -347,6 +349,7 @@ final class EnvironmentState {
 
     internal func removeRecentConnections(for connectionID: UUID) {
         recentConnections.removeAll { $0.id == connectionID }
+        recentTables.forget(connectionID: connectionID)
         saveRecentConnections()
     }
 

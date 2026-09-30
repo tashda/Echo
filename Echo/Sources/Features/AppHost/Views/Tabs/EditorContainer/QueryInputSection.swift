@@ -13,6 +13,8 @@ struct QueryInputSection: View {
     let completionContext: SQLEditorCompletionContext?
     let onSchemaLoadNeeded: ((String) -> Void)?
     var onRunStatement: () -> Void = {}
+    /// The empty tab's recent tables (QE6), read only while the tab is empty.
+    var tableStarts: () -> [EmptyQueryHints.TableStart] = { [] }
 
     @Environment(AppState.self) var appState
     @Environment(EnvironmentState.self) private var environmentState
@@ -71,7 +73,7 @@ struct QueryInputSection: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .topLeading) {
             if query.sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                EmptyQueryHints(databaseType: completionContext?.databaseType) { query.sql = $0 }
+                EmptyQueryHints(databaseType: completionContext?.databaseType, tableStarts: tableStarts()) { query.sql = $0 }
                     .padding(.leading, LayoutTokens.EmptyQueryHints.leadingInset)
                     .padding(.top, LayoutTokens.EmptyQueryHints.topInset)
                     .transition(.opacity)
