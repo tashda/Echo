@@ -37,6 +37,7 @@ enum LabAreas {
         "ported.Round 15 · Run": "editor",
         "ported.Round 15 · inspector": "inspector",
         "ported.Round 15 · notifications": "notifications",
+        "ongoing.notification-history-r17": "notifications",
         "ported.Round 14 · tab bar and pages": "tabs",
         "ported.Round 14 · section dock": "explorer-tree",
         "ported.Round 14 · connections": "connections",
