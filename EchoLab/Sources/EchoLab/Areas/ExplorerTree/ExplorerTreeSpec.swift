@@ -92,7 +92,8 @@ enum ExplorerTreeSpec {
             ], rounds: [round16, r19Sections], files: [components + "ExplorerDock.swift", "Echo/Sources/Features/ObjectBrowser/Blueprint/"]),
             SpecElement(number: "3.6", name: "Dock menus", summary: "Right-click the dock.", groups: [
                 .behaviour(.row("On an icon", "that section's menu and Dock"), .row("On the empty capsule", "Dock alone"),
-                           .row("Dock", "opens the customising sheet (order, which sections show, per server or per type)")),
+                           .row("Dock", "opens the Customize Dock sheet"),
+                           .row("The sheet", "titled Customize Dock with the server's name; Applies to every server of its type or this server only; the sections as toggles you drag to reorder (at most five show, the rest are under More); Icons for the dock (Mono or Duotone) and the tree (Colourful or Monochrome); Use Default Sections; Done, disabled while no section is on")),
             ], rounds: [round16], files: [components + "ExplorerDockCustomizationSheet.swift"]),
             SpecElement(number: "3.7", name: "Switching sections", summary: "The rows fade out, swap and fade in while the card's edge settles (S3).", groups: [
                 .motion(.row("Fade out", "ease in, 0.08s", token: "ObjectBrowserSidebarView.dockFadeOutDuration"),

@@ -14,7 +14,7 @@ enum TabsArea {
         summary: "Safari-style tabs on one line: a grey plate with a raised white active tab, a glass + at the end, and a tool's pages unfolding inside its own tab.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "2776c002", date: "2026-09-30",
+                level: .code, commit: "b1314d73", date: "2026-09-30",
                 note: "Read from QueryTabStrip, QueryTabButton (+Title, +CloseButton, +Appearance), TabPageChips and the tab tokens. The specimen is drawn with the same tokens and metrics."),
             stageHeight: 150,
             behaviours: [
@@ -178,7 +178,7 @@ enum TabsArea {
             ], rounds: ["ported.Round 14 · tab bar and pages"], files: [files + "TabPageChips.swift"]),
             SpecElement(number: "5.2", name: "Unfolded width", summary: "How wide the tool tab becomes.", groups: [
                 .layout(.row("Ideal width", "title + pages + 76pt chrome", token: "TabPageChipsMetrics.idealWidth"),
-                        .row("Largest share of the strip", "62%", token: "LayoutTokens.TabPages.maxShareOfStrip"),
+                        .row("Never narrower", "than its equal share of the strip"), .row("Largest share of the strip", "62%", token: "LayoutTokens.TabPages.maxShareOfStrip"),
                         .row("Other tabs", "share what is left equally")),
                 .motion(.row("Unfold", "snappy, extra bounce 0.06, 0.32s", token: "unfoldAnimation")),
             ], files: [files + "QueryTabStrip+Unfold.swift"]),

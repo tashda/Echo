@@ -29,7 +29,7 @@ enum ExplorerTreeArea {
         summary: "Each server sits on its own card: quiet 28pt rows, duotone icons, and a dock of section icons pinned under the server's name.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "30e73ffb", date: "2026-09-30",
+                level: .code, commit: "b1314d73", date: "2026-09-30",
                 note: "Read from SidebarRow, SidebarRowConstants, ExplorerDock, ExplorerDockRow, ObjectBrowserRowView+Headers, ObjectBrowserSidebarView+Dock, ExplorerTreeScrollState, ExplorerBlueprint+SQLServer and the tokens, as of round 19. The specimen is a self-contained copy of the server card."),
             stageHeight: 540,
             behaviours: [

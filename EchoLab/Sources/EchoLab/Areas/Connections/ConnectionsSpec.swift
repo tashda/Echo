@@ -116,7 +116,8 @@ enum ConnectionsSpec {
                 .layout(.row("Padding", "20pt in the sheet, 12pt inline"), .row("Above it", "a divider")),
             ], files: [editor + "ConnectionEditorView+TestToolbar.swift"]),
             SpecElement(number: "6.2", name: "Test", summary: "Tries the connection; one line of result (CR4).", groups: [
-                .behaviour(.row("Testing", "the button becomes Cancel Test; a small spinner and \"Testing\""),
+                .behaviour(.row("Log steps", "Resolving credentials, Connecting to host:port (or Opening database at the file), Authenticating as the user or Using identity or inherited credentials; then the result, Failed: reason, or Test cancelled."),
+                           .row("Testing", "the button becomes Cancel Test; a small spinner and \"Testing\""),
                            .row("Result", "the last log line, with an icon (✓ success, ✕ error, ⓘ info), truncated; click for the whole log in a popover"),
                            .row("Log", "monospaced 11pt, time, then the message; selectable")),
             ], rounds: [r14], files: [editor + "ConnectionEditorView+TestToolbar.swift", editor + "ConnectionEditorView+Testing.swift"]),

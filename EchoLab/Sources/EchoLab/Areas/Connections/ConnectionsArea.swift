@@ -11,7 +11,7 @@ enum ConnectionsArea {
         summary: "One short sheet for Quick Connect and New Connection; editing happens inside Manage Connections.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "30e73ffb", date: "2026-09-30",
+                level: .code, commit: "b1314d73", date: "2026-09-30",
                 note: "Read line by line from ConnectionEditorView (+Detail, +DetailSections, +SecuritySection, +TestToolbar, +Support, +Actions), ManageConnectionsView and the ManageConnections tokens. The specimen draws the form itself (a native grouped form with the same rows, in the three presentations); the Manage Connections window is the Round 14 mock and is approximate."),
             stageHeight: 620,
             behaviours: [
