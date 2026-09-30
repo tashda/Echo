@@ -11,6 +11,10 @@ import SwiftUI
     /// Ongoing pages carry their stage; other sections leave it nil.
     let status: LabStatus?
     let summary: String
+    /// True when the page draws its own header (round pages use `LabRoundInfoBox`).
+    var ownsHeader = false
+    /// Round pages describe how they are decided; it is shown in the right-hand panel.
+    var decision: (@MainActor () -> RoundDecision)?
     let content: () -> AnyView
 
     init<Content: View>(
@@ -21,6 +25,8 @@ import SwiftUI
         symbol: String,
         status: LabStatus? = nil,
         summary: String,
+        ownsHeader: Bool = false,
+        decision: (@MainActor () -> RoundDecision)? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.id = id
@@ -30,6 +36,8 @@ import SwiftUI
         self.symbol = symbol
         self.status = status
         self.summary = summary
+        self.ownsHeader = ownsHeader
+        self.decision = decision
         self.content = { AnyView(content()) }
     }
 }

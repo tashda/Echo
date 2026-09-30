@@ -12,11 +12,7 @@ struct LabAreaView: View {
 
     var body: some View {
         if let roundID = location.round, let page = LabRegistry.page(id: roundID) {
-            VStack(spacing: 0) {
-                breadcrumb(page)
-                Divider()
-                LabPageContainer(page: page)
-            }
+            LabPageContainer(page: page)
         } else {
             VStack(spacing: 0) {
                 header
@@ -32,12 +28,11 @@ struct LabAreaView: View {
             Spacer()
             Picker("View", selection: Binding(get: { location.tab }, set: { navigator.setTab($0) })) {
                 Text("Overview").tag(LabAreaTab.overview)
-                if area.spec != nil { Text("Spec").tag(LabAreaTab.spec) }
                 Text("Rounds · \(LabAreas.rounds(in: area).count)").tag(LabAreaTab.rounds)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: area.spec != nil ? 330 : 240)
+            .frame(width: 240)
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs)
@@ -47,22 +42,9 @@ struct LabAreaView: View {
     private var content: some View {
         switch location.tab {
         case .overview: AsBuiltView(area: area, page: area.asBuilt)
-        case .spec:
-            if let spec = area.spec { SpecView(area: area, spec: spec) } else { AsBuiltView(area: area, page: area.asBuilt) }
+        case .spec: AsBuiltView(area: area, page: area.asBuilt)
         case .rounds: LabRoundsList(area: area)
         }
-    }
-
-    /// A slim way back to the area's Rounds. The page's own title is shown once, below.
-    private func breadcrumb(_ page: LabPage) -> some View {
-        HStack(spacing: SpacingTokens.xs) {
-            Button("\(area.title) › Rounds", systemImage: "chevron.backward") { navigator.go(LabLocation(destination: .area(area.id), tab: .rounds)) }
-                .buttonStyle(.link)
-            Spacer()
-        }
-        .font(TypographyTokens.standard)
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.xs)
     }
 }
 

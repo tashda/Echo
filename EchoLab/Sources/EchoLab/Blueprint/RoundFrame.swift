@@ -1,0 +1,246 @@
+import SwiftUI
+
+/// The frame every round page uses: an info box, "Try it" (the live playground) on the left and
+/// "Your decision" on the right. Nothing else on the page repeats the title.
+struct LabRoundFrame<Play: View>: View {
+    let pageID: String
+    let decision: RoundDecision
+    /// The size the playground is laid out at; it is scaled down to fit the space it gets.
+    let playSize: CGSize
+    @ViewBuilder var play: Play
+
+    private var page: LabPage { LabRegistry.page(id: pageID) ?? LabRegistry.pages[0] }
+
+    var body: some View {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                LabRoundInfoBox(page: page, hint: true)
+                VStack(alignment: .leading, spacing: 0) {
+                    Label("Try it", systemImage: "hand.tap").font(TypographyTokens.headline)
+                        .padding(.horizontal, SpacingTokens.md).padding(.vertical, SpacingTokens.xs)
+                    Divider()
+                    LabFitToWidth(designWidth: playSize.width, designHeight: playSize.height) {
+                        play.environment(\.labInRoundFrame, true)
+                    }
+                    .padding(SpacingTokens.xs)
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+                .background(ColorTokens.Surface.rest, in: .rect(cornerRadius: 14, style: .continuous))
+            }
+            .padding(SpacingTokens.md)
+        }
+    }
+}
+
+/// The one header of a round page, in a box: which round, its status, what it asks, and how the
+/// page works.
+struct LabRoundInfoBox: View {
+    let page: LabPage
+    var hint = false
+    @Environment(LabStore.self) private var store
+
+    var body: some View {
+        let info = LabRounds.info(forPage: page.id)
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            HStack(spacing: SpacingTokens.xs) {
+                Text([info.map { "\($0.label) · \($0.date)" }, LabAreas.areaID(ofPage: page.id).flatMap { LabAreas.area(id: $0)?.title }]
+                    .compactMap { $0 }.joined(separator: " · "))
+                    .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
+                Spacer()
+                if let status = store.status(of: page) { LabStatusPill(status: status) }
+            }
+            Text(page.title).font(TypographyTokens.title2.weight(.semibold))
+            if !page.summary.isEmpty {
+                Text(page.summary).font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if hint {
+                HStack(spacing: SpacingTokens.md) {
+                    hintStep("1", "Try things here")
+                    hintStep("2", "Decide in the panel on the right")
+                    hintStep("3", "Accept, or send back, at the bottom of that panel")
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(SpacingTokens.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ColorTokens.Surface.rest, in: .rect(cornerRadius: 14, style: .continuous))
+    }
+
+    private func hintStep(_ number: String, _ text: String) -> some View {
+        HStack(spacing: 5) {
+            Text(number).font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
+                .frame(width: 16, height: 16).background(ColorTokens.accent, in: Circle())
+            Text(text).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+        }
+    }
+}
+
+/// Your decision: a card per topic, "Use what's selected in the preview", and the summary.
+struct RoundDecisionPanel: View {
+    let page: LabPage
+    let decision: RoundDecision
+    @Environment(LabStore.self) private var store
+
+    private var hasPreview: Bool { decision.topics.contains { $0.preview != nil } }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                HStack {
+                    Label("Your decision", systemImage: "checkmark.seal").font(TypographyTokens.headline)
+                    Spacer()
+                    Text("\(decided) of \(decision.topics.count)").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                }
+                if hasPreview {
+                    Button {
+                        for topic in decision.topics { if let value = topic.preview?() { store.setPick(page, topic: topic.id, option: value) } }
+                    } label: {
+                        Label("Use what's selected in the preview", systemImage: "wand.and.stars").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .help("Picks, for every topic that has a control in the playground, the choice you currently have set there")
+                }
+                ForEach(Array(decision.topics.enumerated()), id: \.element.id) { index, topic in
+                    RoundDecisionTopicCard(page: page, topic: topic, number: index + 1)
+                }
+                RoundDecisionSummary(page: page, decision: decision)
+            }
+            .padding(SpacingTokens.sm)
+        }
+        .background(ColorTokens.Background.secondary.opacity(0.5))
+    }
+
+    private var decided: Int { decision.topics.filter { store.pick(page, topic: $0.id) != nil }.count }
+}
+
+private struct RoundDecisionTopicCard: View {
+    let page: LabPage
+    let topic: RoundDecision.Topic
+    let number: Int
+    @Environment(LabStore.self) private var store
+    @State private var note = ""
+
+    var body: some View {
+        let picked = store.pick(page, topic: topic.id)
+        let needsMore = store.needsMore(page, topic: topic.id)
+        let previewChoice = topic.preview?()
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(number) · \(topic.title)").font(TypographyTokens.standard.weight(.semibold))
+                Spacer()
+                if needsMore { Text("Needs more").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Status.warning) }
+            }
+            Text(topic.question).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(topic.choices) { choice in
+                    Button {
+                        store.setPick(page, topic: topic.id, option: picked == choice.id ? nil : choice.id)
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Image(systemName: picked == choice.id ? "largecircle.fill.circle" : "circle")
+                                .foregroundStyle(picked == choice.id ? ColorTokens.accent : ColorTokens.Text.tertiary)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(choice.name).font(TypographyTokens.standard)
+                                if let summary = choice.summary {
+                                    Text(summary).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                            Spacer(minLength: 4)
+                            if previewChoice == choice.id {
+                                Text("in preview").font(.system(size: 10)).padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(ColorTokens.Surface.hover, in: Capsule()).foregroundStyle(ColorTokens.Text.secondary)
+                            }
+                        }
+                        .padding(.vertical, 2).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            HStack(spacing: 6) {
+                if let previewChoice, previewChoice != picked {
+                    Button("Use preview", systemImage: "wand.and.stars") { store.setPick(page, topic: topic.id, option: previewChoice) }
+                        .controlSize(.small)
+                }
+                Toggle(isOn: Binding(get: { needsMore }, set: { store.setNeedsMore(page, topic: topic.id, $0) })) {
+                    Text("Needs more options")
+                }
+                .toggleStyle(.button).controlSize(.small).tint(needsMore ? ColorTokens.Status.warning : nil)
+            }
+            TextField("", text: $note, prompt: Text(needsMore ? "What would you like to see instead?" : "Note"), axis: .vertical)
+                .textFieldStyle(.roundedBorder).lineLimit(1...4).font(TypographyTokens.standard)
+                .onChange(of: note) { _, new in store.setPickNote(page, topic: topic.id, note: new) }
+        }
+        .padding(SpacingTokens.sm)
+        .background(ColorTokens.Workspace.card, in: .rect(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .strokeBorder(needsMore ? ColorTokens.Status.warning : (picked != nil ? ColorTokens.Status.success : ColorTokens.Workspace.cardEdge.opacity(0.5)), lineWidth: picked != nil || needsMore ? 1.5 : 0.5))
+        .onAppear { note = store.pickNote(page, topic: topic.id) }
+    }
+}
+
+private struct RoundDecisionSummary: View {
+    let page: LabPage
+    let decision: RoundDecision
+    @Environment(LabStore.self) private var store
+    @State private var general = ""
+    @State private var copied = false
+
+    private var canAccept: Bool {
+        decision.topics.allSatisfy { store.pick(page, topic: $0.id) != nil } && !decision.topics.contains { store.needsMore(page, topic: $0.id) }
+    }
+
+    private var lines: [String] {
+        decision.topics.enumerated().map { index, topic in
+            var parts: [String] = []
+            if let picked = store.pick(page, topic: topic.id) { parts.append("picked \(topic.choices.first { $0.id == picked }?.name ?? picked)") }
+            for choice in topic.choices {
+                switch store.verdict(page, topic: topic.id, option: choice.id) {
+                case .maybe: parts.append("maybe \(choice.name)")
+                case .no: parts.append("no \(choice.name)")
+                default: break
+                }
+                let choiceNote = store.optionNote(page, topic: topic.id, option: choice.id)
+                if !choiceNote.isEmpty { parts.append("note on \(choice.name): \(choiceNote)") }
+            }
+            if store.needsMore(page, topic: topic.id) { parts.append("NEEDS MORE OPTIONS") }
+            let note = store.pickNote(page, topic: topic.id)
+            if !note.isEmpty { parts.append("note: \(note)") }
+            return "\(index + 1). \(topic.title): " + (parts.isEmpty ? "no answer yet" : parts.joined(separator: "; "))
+        }
+    }
+
+    private var summary: String {
+        var text = "Review of \(page.title)\n" + lines.joined(separator: "\n")
+        let general = store.generalNote(page)
+        if !general.isEmpty { text += "\nOverall: \(general)" }
+        return text
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            Text("Anything else").font(TypographyTokens.standard.weight(.semibold))
+            TextField("", text: $general, prompt: Text("Notes on the whole round"), axis: .vertical)
+                .textFieldStyle(.roundedBorder).lineLimit(2...6).font(TypographyTokens.standard)
+                .onChange(of: general) { _, new in store.setGeneralNote(page, new) }
+            HStack {
+                Button("Accept") { store.acceptPicks(page, summary: summary) }
+                    .buttonStyle(.borderedProminent).disabled(!canAccept)
+                    .help("Needs a pick in every topic and no topic marked Needs more options")
+                Button("Send back") { store.sendFeedback(page, comment: summary) }
+                    .help("Send your picks and notes to Claude as feedback")
+                Button(copied ? "Copied" : "Copy") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(summary, forType: .string)
+                    copied = true
+                }
+            }
+            Text("Saved as you go. Accept needs a pick in every topic.").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
+        }
+        .padding(SpacingTokens.sm)
+        .onAppear { general = store.generalNote(page) }
+    }
+}

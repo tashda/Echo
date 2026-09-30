@@ -12,22 +12,21 @@ enum PortedPages {
         inEcho.map { labPage($0, status: .inEcho) } + accepted.map { labPage($0, status: .accepted) }
 
     private static func labPage(_ page: DesignLabPage, status: LabStatus) -> LabPage {
-        // Pages already written in the round blueprint (see Blueprint/RoundBlueprint.swift).
+        let id = "ported.\(page.id)"
+        // Written as a `RoundSpec` (see Blueprint/RoundSpec.swift).
         if page == .round14Dock {
-            return LabPage(
-                id: "ported.\(page.id)", section: .ongoing, group: "Design Lab", title: page.rawValue,
-                symbol: page.symbol, status: status,
-                summary: "Icon style, dock labels and the edge under the dock."
-            ) { RoundView(pageID: "ported.\(page.id)", round: DockRound.blueprint) }
+            return LabPage.round(id: id, group: "Design Lab", title: page.rawValue, symbol: page.symbol, status: status,
+                                 summary: "Icon style, dock labels and the edge under the dock.", spec: DockRound.spec)
         }
+        // Playgrounds not yet rewritten as a `RoundSpec` are scaled into the round frame.
         return LabPage(
-            id: "ported.\(page.id)",
-            section: .ongoing,
-            group: "Design Lab",
-            title: page.rawValue,
-            symbol: page.symbol,
-            status: status,
-            summary: "Copied from the in-app Design Lab."
-        ) { DesignLabPageView(page: page) }
+            id: id, section: .ongoing, group: "Design Lab", title: page.rawValue,
+            symbol: page.symbol, status: status, summary: page.intro, ownsHeader: true,
+            decision: { .legacy(page) }
+        ) {
+            LabRoundFrame(pageID: id, decision: .legacy(page), playSize: CGSize(width: 1180, height: 1300)) {
+                DesignLabPlayground(page: page)
+            }
+        }
     }
 }

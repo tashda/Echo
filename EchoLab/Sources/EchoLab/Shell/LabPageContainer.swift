@@ -6,24 +6,13 @@ struct LabPageContainer: View {
     let page: LabPage
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                HStack(spacing: SpacingTokens.xs) {
-                    Text(page.title).font(TypographyTokens.title)
-                    if let status = store.status(of: page) {
-                        LabStatusPill(status: status)
-                    }
-                }
-                if page.summary != "Copied from the in-app Design Lab." {
-                    Text(page.summary)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+        if page.ownsHeader {
+            page.content().frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                LabRoundInfoBox(page: page).padding(SpacingTokens.md)
+                page.content().frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(SpacingTokens.md)
-            Divider()
-            page.content()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

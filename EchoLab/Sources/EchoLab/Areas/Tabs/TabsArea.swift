@@ -64,6 +64,7 @@ enum TabsArea {
             TabsSpecimen(model: model)
         }
         .controls { TabsSpecControls(model: model) }
+        .onState { model.forced = $0 }
     )
 
     private static let parts: [SpecPart] = [
@@ -104,7 +105,7 @@ enum TabsArea {
                       .row("Active colour", "label", token: "NSColor.labelColor"),
                       .row("Inactive colour", "secondary label", token: "NSColor.secondaryLabelColor")),
             ], files: [files + "QueryTabButton+Title.swift"]),
-            SpecElement(number: "2.4", name: "Active tab", summary: "The raised white tab. No glass.", groups: [
+            SpecElement(number: "2.4", name: "Active tab", summary: "The raised white tab. No glass.", states: [SpecState(key: "hoverActive", name: "Hovered")], groups: [
                 .material(.row("Fill", "vertical gradient, near white", token: "ColorTokens.TabStrip.ActiveTab.Light", swatch: ColorTokens.TabStrip.ActiveTab.Light.top),
                           .row("Dark appearance", "white 26% to 18%", token: "ActiveTab.Dark"),
                           .row("Edge", "hairline, light grey (dark: white 30%)", token: "Border.activeLight / activeDark"),
@@ -115,11 +116,11 @@ enum TabsArea {
             SpecElement(number: "2.5", name: "Inactive tab", summary: "No fill and no edge; the plate shows through.", groups: [
                 .material(.row("Fill", "none"), .row("Edge", "none"), .row("Title", "secondary label"), .row("Icon", "70%")),
             ], files: [files + "QueryTabButton+Appearance.swift"]),
-            SpecElement(number: "2.6", name: "Inactive tab, hovered", summary: "A soft grey gradient appears under the pointer.", groups: [
+            SpecElement(number: "2.6", name: "Inactive tab, hovered", summary: "A soft grey gradient appears under the pointer.", states: [SpecState(key: "hoverInactive", name: "Hovered")], defaultState: "hoverInactive", groups: [
                 .material(.row("Fill", "gradient light grey", token: "TabStrip.InactiveHover.Light", swatch: ColorTokens.TabStrip.InactiveHover.Light.top),
                           .row("Edge", "hairline, white 68% (dark 22%)", token: "Border.hoverLight / hoverDark")),
             ], files: [files + "QueryTabButton+Appearance.swift"]),
-            SpecElement(number: "2.7", name: "Close ×", summary: "Safari-style: at the tab's leading edge, and only while the tab is hovered.", groups: [
+            SpecElement(number: "2.7", name: "Close ×", summary: "Safari-style: at the tab's leading edge, and only while the tab is hovered.", states: [SpecState(key: "hoverActive", name: "Tab hovered"), SpecState(key: "hoverClose", name: "× hovered")], defaultState: "hoverActive", groups: [
                 .type(.row("Glyph", "xmark, 9pt bold", token: "TypographyTokens.compact")),
                 .layout(.row("Hit area", "12pt circle", token: "SpacingTokens.sm2"), .row("Position", "leading edge of the tab")),
                 .states(.row("Visible", "only while the tab is hovered; never on pinned tabs"),
@@ -127,7 +128,7 @@ enum TabsArea {
                         .row("Hovering the ×", "label colour on a circle: black 8% (dark: white 18%)")),
                 .behaviour(.row("Tooltip", "Close tab"), .row("Middle-click", "closes the tab")),
             ], files: [files + "QueryTabButton+CloseButton.swift"]),
-            SpecElement(number: "2.8", name: "Drop target", summary: "The tab a dragged item will land on.", groups: [
+            SpecElement(number: "2.8", name: "Drop target", summary: "The tab a dragged item will land on.", states: [SpecState(key: "dropTarget", name: "Drop target")], defaultState: "dropTarget", groups: [
                 .material(.row("Fill", "grey gradient (dark: white 24% to 18%)", token: "TabStrip.DropTarget"), .row("Title", "white")),
             ], files: [files + "QueryTabButton+Appearance.swift"]),
             SpecElement(number: "2.9", name: "Pinned tab", summary: "A narrow tab showing one letter. Turn on \"Pinned tab\" to see it.", groups: [

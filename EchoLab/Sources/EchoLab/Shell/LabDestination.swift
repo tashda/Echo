@@ -2,6 +2,7 @@
 enum LabDestination: Hashable, Codable {
     case inbox
     case rounds
+    case spec
     case area(String)
     case page(String)
 }

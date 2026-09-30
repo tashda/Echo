@@ -256,6 +256,35 @@ struct DesignLabPageView: View {
     }
 }
 
+/// A Design Lab page's playground on its own, without the judging panel.
+struct DesignLabPlayground: View {
+    let page: DesignLabPage
+
+    var body: some View {
+        switch page {
+        case .round15Run: LabRound15RunPlayground()
+        case .round15Inspector: LabRound15InspectorPlayground()
+        case .round15Notifications: LabRound15NotificationsPlayground()
+        case .round14Tabs: LabRound14TabsPlayground()
+        case .round14Dock: LabRound14DockPlayground()
+        case .round14Connections: LabRound14ManageConnections().padding(SpacingTokens.md)
+        case .round14Sense: LabRound14SensePlayground()
+        case .round13: LabRound13Playground()
+        case .treeCard: LabTreeCardPlayground()
+        case .round12: LabRound12Playground()
+        case .round11: LabRound11Playground()
+        case .round10: LabRound10Playground()
+        case .round9: LabRound9Playground()
+        case .window: LabWindowPlayground()
+        case .rail: LabRailPlayground()
+        case .tree: LabTreePlayground()
+        case .results: LabResultsPlayground()
+        case .floating: LabFloatingPlayground()
+        case .inspector: LabInspectorPlayground()
+        }
+    }
+}
+
 struct LabQuestionRow: View {
     let number: Int
     let question: LabQuestion

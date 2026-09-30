@@ -1,27 +1,10 @@
 import SwiftUI
 
-/// The sidebar stays short and fixed: the inbox, one row per area, then Test and Reference.
-/// Rounds live inside their area, not here.
+/// The sidebar is short and fixed: Inbox, Rounds, Spec (the whole design documentation, on one
+/// page), then the Test pages. Areas are inside Spec; a round opens inside its area.
 struct LabSidebar: View {
     @Environment(LabStore.self) private var store
     @Binding var selection: LabDestination?
-    @State private var open: Set<String> = Set(LabPrefs.load("sidebarOpen", default: ["Window", "Content"]))
-
-    /// A group opens when you go into one of its areas; you can still open or close it yourself.
-    private func expansion(_ title: String) -> Binding<Bool> {
-        Binding(get: { open.contains(title) }, set: {
-            if $0 { open.insert(title) } else { open.remove(title) }
-            LabPrefs.save(Array(open), key: "sidebarOpen")
-        })
-    }
-
-    private func rows(_ ids: [String]) -> some View {
-        ForEach(ids, id: \.self) { id in
-            if let area = LabAreas.area(id: id) {
-                Label(area.title, systemImage: area.symbol).tag(LabDestination.area(area.id))
-            }
-        }
-    }
 
     var body: some View {
         List(selection: $selection) {
@@ -30,23 +13,12 @@ struct LabSidebar: View {
                 .tag(LabDestination.inbox)
             Label("Rounds", systemImage: "clock.arrow.circlepath")
                 .tag(LabDestination.rounds)
-            ForEach(Array(LabAreas.groups.enumerated()), id: \.offset) { _, group in
-                if let title = group.title {
-                    Section(title, isExpanded: expansion(title)) { rows(group.ids) }
-                } else {
-                    Section("Echo, as built") { rows(group.ids) }
-                }
-            }
+            Label("Spec", systemImage: "list.bullet.rectangle")
+                .tag(LabDestination.spec)
             pageSection("Test", .test)
             pageSection("Reference", .reference)
         }
         .listStyle(.sidebar)
-        .onChange(of: selection) { _, new in
-            if case .area(let id) = new, let title = LabAreas.groupTitle(ofArea: id) {
-                open.insert(title)
-                LabPrefs.save(Array(open), key: "sidebarOpen")
-            }
-        }
     }
 
     @ViewBuilder

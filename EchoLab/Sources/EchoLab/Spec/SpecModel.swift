@@ -14,6 +14,9 @@ struct AreaSpec {
     let specimen: () -> AnyView
     var controls: (() -> AnyView)?
     var stageHeight: CGFloat = 200
+    /// Forces the specimen into a state (nil releases it); called when an element is selected
+    /// or a state chip is chosen.
+    var applyState: ((String?) -> Void)?
 
     init<Specimen: View>(code: String, stageHeight: CGFloat = 200, parts: [SpecPart], @ViewBuilder specimen: @escaping () -> Specimen) {
         self.code = code
@@ -25,6 +28,12 @@ struct AreaSpec {
     func controls<Controls: View>(@ViewBuilder _ controls: @escaping () -> Controls) -> AreaSpec {
         var copy = self
         copy.controls = { AnyView(controls()) }
+        return copy
+    }
+
+    func onState(_ apply: @escaping (String?) -> Void) -> AreaSpec {
+        var copy = self
+        copy.applyState = apply
         return copy
     }
 
@@ -48,12 +57,24 @@ struct SpecElement: Identifiable {
     let number: String
     let name: String
     let summary: String
+    /// States you can preview on the specimen (hover, dragging…).
+    var states: [SpecState] = []
+    /// The state applied automatically when the element is selected; nil shows it at rest.
+    var defaultState: String?
     var groups: [SpecGroup] = []
     /// Round pages that decided or shaped it (`LabPage.id`).
     var rounds: [String] = []
     var files: [String] = []
     var isRetired = false
     var id: String { number }
+}
+
+/// One state of an element that the specimen can be forced into, so hover and other
+/// transient states can be looked at without holding the pointer there.
+struct SpecState: Identifiable {
+    let key: String
+    let name: String
+    var id: String { key }
 }
 
 /// A block of properties: Type, Layout, Material, States, Motion, Behaviour, Accessibility.

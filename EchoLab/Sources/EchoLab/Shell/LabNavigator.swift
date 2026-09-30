@@ -36,7 +36,7 @@ final class LabNavigator {
 
     private static func isValid(_ location: LabLocation) -> Bool {
         switch location.destination {
-        case .inbox, .rounds: true
+        case .inbox, .rounds, .spec: true
         case .area(let id): LabAreas.area(id: id) != nil && (location.round.map { LabRegistry.page(id: $0) != nil } ?? true)
         case .page(let id): LabRegistry.page(id: id) != nil
         }

@@ -12,6 +12,8 @@ final class TabsSpecimenModel {
     var isRunning = true { didSet { save() } }
     var showsPages = true { didSet { save() } }
     var hasPinned = false { didSet { save() } }
+    /// A state forced from the Spec page: hoverInactive, hoverActive, hoverClose or dropTarget.
+    var forced: String?
 
     init() {
         if let saved: Saved = LabPrefs.load("tabsSpecimen", default: Optional<Saved>.none) {
@@ -65,6 +67,16 @@ struct TabsSpecimen: View {
     private var hairline: CGFloat { tabHairlineWidth() }
     private var isDark: Bool { scheme == .dark }
 
+    private var effectiveHovered: Int? {
+        switch model.forced {
+        case "hoverInactive": firstInactive >= 0 ? firstInactive : hovered
+        case "hoverActive", "hoverClose": model.active
+        default: hovered
+        }
+    }
+    private var effectiveClose: Bool { closeHovered || model.forced == "hoverClose" }
+    private var dropIndex: Int? { model.forced == "dropTarget" ? firstInactive : nil }
+
     var body: some View {
         GeometryReader { geo in
             let list = items
@@ -89,7 +101,7 @@ struct TabsSpecimen: View {
                                 tab(item, index: index, width: widths[index])
                                     .overlay(alignment: .trailing) {
                                         if index < list.count - 1 {
-                                            separator(hidden: index == model.active || index + 1 == model.active || index == hovered || index + 1 == hovered)
+                                            separator(hidden: index == model.active || index + 1 == model.active || index == effectiveHovered || index + 1 == effectiveHovered)
                                                 .specAnchorIf(index == 0, "3.1")
                                         }
                                     }
@@ -131,7 +143,8 @@ struct TabsSpecimen: View {
 
     private func tab(_ item: Item, index: Int, width: CGFloat) -> some View {
         let isActive = index == model.active
-        let isHover = hovered == index
+        let isHover = effectiveHovered == index
+        let isDrop = dropIndex == index
         let showsClose = isHover && !item.pinned
         return HStack(spacing: SpacingTokens.xxxs) {
             Group {
@@ -145,7 +158,7 @@ struct TabsSpecimen: View {
         .padding(.trailing, item.pinned ? 13 : SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xxxs)
         .frame(width: width, height: tabHeight)
-        .background(background(isActive: isActive, isHover: isHover))
+        .background(background(isActive: isActive, isHover: isHover, isDrop: isDrop))
         .overlay(stroke(isActive: isActive, isHover: isHover))
         .shadow(color: isActive ? shadowColor : .clear, radius: 2.5, y: 1.2)
         .specAnchorIf(isActive, "2.1")
@@ -192,13 +205,13 @@ struct TabsSpecimen: View {
     // MARK: Close ×
 
     private func closeButton(visible: Bool, isActive: Bool, anchored: Bool) -> some View {
-        let foreground: Color = closeHovered ? Color(nsColor: .labelColor)
+        let foreground: Color = effectiveClose ? Color(nsColor: .labelColor)
             : (isActive ? Color(nsColor: .secondaryLabelColor) : Color(nsColor: .tertiaryLabelColor))
         return Image(systemName: "xmark")
             .font(TypographyTokens.compact.weight(.bold))
             .foregroundStyle(foreground)
             .frame(width: SpacingTokens.sm2, height: SpacingTokens.sm2)
-            .background(Circle().fill(closeHovered && visible ? (isDark ? Color.white.opacity(0.18) : Color.black.opacity(0.08)) : .clear))
+            .background(Circle().fill(effectiveClose && visible ? (isDark ? Color.white.opacity(0.18) : Color.black.opacity(0.08)) : .clear))
             .opacity(visible ? 1 : 0)
             .contentShape(Circle())
             .onHover { closeHovered = $0 && visible }
@@ -208,10 +221,13 @@ struct TabsSpecimen: View {
 
     // MARK: Fills
 
-    private func background(isActive: Bool, isHover: Bool) -> some View {
+    private func background(isActive: Bool, isHover: Bool, isDrop: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: tabCorner, style: .continuous)
         return Group {
-            if isActive {
+            if isDrop {
+                shape.fill(LinearGradient(colors: isDark ? [ColorTokens.TabStrip.DropTarget.Dark.top, ColorTokens.TabStrip.DropTarget.Dark.bottom] : [ColorTokens.TabStrip.DropTarget.Light.top, ColorTokens.TabStrip.DropTarget.Light.bottom], startPoint: .top, endPoint: .bottom))
+                    .specAnchor("2.8")
+            } else if isActive {
                 shape.fill(LinearGradient(colors: isHover ? activeHover : activeIdle, startPoint: .top, endPoint: .bottom))
                     .specAnchor("2.4")
             } else if isHover {

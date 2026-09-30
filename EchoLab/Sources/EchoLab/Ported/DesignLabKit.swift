@@ -185,11 +185,12 @@ struct LabStage<Controls: View, Content: View>: View {
     let title: String
     @ViewBuilder var controls: () -> Controls
     @ViewBuilder var content: () -> Content
+    @Environment(\.labInRoundFrame) private var inRoundFrame
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(title).font(.headline)
+                if !inRoundFrame { Text(title).font(.headline) }
                 HStack(spacing: 14) { controls() }
                     .controlSize(.small)
             }

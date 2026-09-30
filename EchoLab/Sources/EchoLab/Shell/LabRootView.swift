@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LabRootView: View {
     @State private var store = LabStore()
-    @State private var navigator = LabNavigator(start: LabLocation(destination: .area("explorer-tree")))
+    @State private var navigator = LabNavigator(start: LabLocation(destination: .spec))
     @AppStorage("lab.showsFeedback") private var showsFeedback = false
     @State private var feedbackElement: (id: String, name: String)?
 
@@ -12,6 +12,7 @@ struct LabRootView: View {
     private var currentPageID: String? {
         switch location.destination {
         case .area(let id): location.round ?? LabAreas.area(id: id)?.asBuiltPageID
+        case .spec: LabSpecState.shared.area(forSelection: LabSpecState.shared.selected)?.asBuiltPageID
         case .page(let id): id
         default: nil
         }
@@ -26,9 +27,12 @@ struct LabRootView: View {
         } detail: {
             detail
                 .navigationTitle(title)
+                .navigationSubtitle(subtitle)
                 .inspector(isPresented: $showsFeedback) {
                     Group {
-                        if let page = LabRegistry.page(id: currentPageID) {
+                        if let page = LabRegistry.page(id: currentPageID), let decision = page.decision {
+                            RoundDecisionPanel(page: page, decision: decision())
+                        } else if let page = LabRegistry.page(id: currentPageID) {
                             LabFeedbackInspector(page: page, element: $feedbackElement)
                         } else {
                             ContentUnavailableView("Feedback", systemImage: "text.bubble",
@@ -45,7 +49,7 @@ struct LabRootView: View {
                             .disabled(!navigator.canGoForward).keyboardShortcut("]", modifiers: .command)
                     }
                     ToolbarItem {
-                        Button("Feedback", systemImage: "sidebar.trailing") { showsFeedback.toggle() }
+                        Button(LabRegistry.page(id: currentPageID)?.decision != nil ? "Decision" : "Feedback", systemImage: "sidebar.trailing") { showsFeedback.toggle() }
                     }
                 }
         }
@@ -56,22 +60,37 @@ struct LabRootView: View {
             feedbackElement = (id, name)
             showsFeedback = true
         }
+        .onChange(of: currentPageID) { _, new in
+            // Round pages keep their decision panel open.
+            if let page = LabRegistry.page(id: new), page.decision != nil { showsFeedback = true }
+        }
         .onAppear {
             // Launch straight onto a page: ECHOLAB_PAGE=<LabPage.id> (used for testing).
             // "area:<id>:<overview|spec|rounds>" opens an area on that tab.
             if let id = ProcessInfo.processInfo.environment["ECHOLAB_PAGE"] {
                 let parts = id.split(separator: ":").map(String.init)
-                if parts.count == 3, parts[0] == "area" {
+                if parts.first == "spec", parts.count == 2 {
+                    LabSpecState.shared.select(parts[1])
+                    navigator.go(LabLocation(destination: .spec))
+                } else if parts.count == 3, parts[0] == "area" {
                     navigator.go(LabLocation(destination: .area(parts[1]), tab: LabAreaTab(rawValue: parts[2].capitalized) ?? .overview))
                 } else { navigator.openPage(id) }
             }
         }
     }
 
+    /// The path, in the toolbar: where you are inside the area.
+    private var subtitle: String {
+        guard case .area = location.destination else { return "" }
+        if let round = location.round, let page = LabRegistry.page(id: round) { return "Rounds › \(page.title)" }
+        return location.tab.rawValue
+    }
+
     private var title: String {
         switch location.destination {
         case .inbox: "Inbox"
         case .rounds: "Rounds"
+        case .spec: "Spec"
         case .area(let id): LabAreas.area(id: id)?.title ?? ""
         case .page(let id): LabRegistry.page(id: id).map { $0.section == .test ? "Test" : $0.section.rawValue } ?? ""
         }
@@ -82,6 +101,7 @@ struct LabRootView: View {
         switch location.destination {
         case .inbox: LabInboxView()
         case .rounds: LabRoundsIndexView()
+        case .spec: LabSpecPage()
         case .area(let id):
             if let area = LabAreas.area(id: id) { LabAreaView(area: area, location: location) }
         case .page(let id):
