@@ -99,8 +99,9 @@ private struct WorkspaceBody: View {
     }
 
     private var connectionEditorSheet: some View {
+        // New Connection; existing connections are edited in Manage Connections (CN5).
         ConnectionEditorView(
-            connection: connectionStore.selectedConnection,
+            connection: nil,
             onSave: { connection, password, action in
                 appState.dismissSheet()
                 Task {
@@ -124,7 +125,12 @@ private struct WorkspaceBody: View {
                         await environmentState.upsertConnection(connection, password: password)
                         environmentState.connect(to: connection)
                     } else if action == .connect {
-                        environmentState.connect(to: connection)
+                        // Quick Connect keeps its password in the Keychain too (design board CR6).
+                        var quick = connection
+                        if let password, !password.isEmpty {
+                            try? environmentState.identityRepository.setPassword(password, for: &quick)
+                        }
+                        environmentState.connect(to: quick)
                     }
                 }
             }

@@ -7,8 +7,9 @@ import UniformTypeIdentifiers
 // MARK: - Security Section
 
 extension ConnectionEditorView {
-    var securitySection: some View {
-        Section("Security") {
+    /// The Security rows, shown inside the Security and timeouts disclosure.
+    var securityRows: some View {
+        Group {
             if selectedDatabaseType == .postgresql {
                 PropertyRow(title: "SSL Mode", info: "PostgreSQL SSL mode. Controls whether and how TLS is used.") {
                     Picker("", selection: $tlsMode) {

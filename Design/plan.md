@@ -258,9 +258,9 @@ Rules: `05-components` › Connections.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| C1 | **Short sheet (CN2)** for Quick Connect and New Connection: engine, server and port on one line, database, sign in, Keychain; Security and timeouts in one disclosure with a summary (CR7); name, folder and colour only while "Save to Connections" is on (CR5). Quick Connect saves its password in the Keychain too. | `ConnectionEditor/*` | Quick Connect needs only server and sign-in | ☐ |
-| C2 | **Rules:** the default button is never silently disabled; missing fields show inline messages and take focus (CR1); the port placeholder follows the engine (CR2); pasting a URL or connection string fills the form (CR3); the test result sits by the buttons (CR4). | Same | Each rule works | ☐ |
-| C3 | **Edit inside Manage Connections (CN5):** the detail pane is the editable form; + adds a new connection with the same form; Save and Revert; unsaved changes are marked. | `ManageConnections/*` | Editing never opens a sheet | ☐ |
+| C1 | **Short sheet (CN2)** for Quick Connect and New Connection: engine, server and port on one line, database, sign in, Keychain; Security and timeouts in one disclosure with a summary (CR7); name, folder and colour only while "Save to Connections" is on (CR5). Quick Connect saves its password in the Keychain too. | `ConnectionEditor/*` | Quick Connect needs only server and sign-in | ☑ built, 👁 pending |
+| C2 | **Rules:** the default button is never silently disabled; missing fields show inline messages and take focus (CR1); the port placeholder follows the engine (CR2); pasting a URL or connection string fills the form (CR3); the test result sits by the buttons (CR4). | Same | Each rule works | ☑ built, 👁 pending |
+| C3 | **Edit inside Manage Connections (CN5):** the detail pane is the editable form; + adds a new connection with the same form; Save and Revert; unsaved changes are marked. | `ManageConnections/*` | Editing never opens a sheet | ☑ built, 👁 pending |
 
 ## Phase 14 · Tab bar, one line
 

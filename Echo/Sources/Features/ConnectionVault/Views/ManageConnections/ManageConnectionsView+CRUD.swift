@@ -33,6 +33,7 @@ extension ManageConnectionsView {
                 connectionStore.selectedFolderID = connection.folderID
                 connectionSelection = [connection.id]
                 connectionEditorPresentation = nil
+                isCreatingConnection = false
             }
 
             if action == .saveAndConnect {
@@ -59,11 +60,14 @@ extension ManageConnectionsView {
     }
 
     func createNewConnection() {
-        connectionEditorPresentation = ConnectionEditorPresentation(connection: nil)
+        selectedSection = .connections
+        connectionSelection.removeAll()
+        isCreatingConnection = true
     }
 
     func editConnection(_ connection: SavedConnection) {
-        connectionEditorPresentation = ConnectionEditorPresentation(connection: connection)
+        isCreatingConnection = false
+        connectionSelection = [connection.id]
     }
 
     func duplicateConnection(_ connection: SavedConnection) {

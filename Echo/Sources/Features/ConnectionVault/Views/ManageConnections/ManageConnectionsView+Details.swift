@@ -81,6 +81,35 @@ extension ManageConnectionsView {
 
     @ViewBuilder
     var connectionsDetail: some View {
+        if filteredConnectionsForTable.isEmpty && !isCreatingConnection {
+            emptyState(for: .connections)
+        } else {
+            HSplitView {
+                connectionsTable
+                    .frame(minWidth: LayoutTokens.ManageConnections.listMinWidth)
+                connectionEditorPane
+                    .frame(minWidth: LayoutTokens.ManageConnections.editorMinWidth, idealWidth: LayoutTokens.ManageConnections.editorIdealWidth)
+            }
+            .onChange(of: connectionSelection) { _, selection in
+                if !selection.isEmpty { isCreatingConnection = false }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var connectionEditorPane: some View {
+        if isCreatingConnection {
+            ManageConnectionEditorPane(connection: nil, onSave: handleConnectionEditorSave)
+        } else if connectionSelection.count == 1, let id = connectionSelection.first,
+                  let connection = connectionStore.connections.first(where: { $0.id == id }) {
+            ManageConnectionEditorPane(connection: connection, onSave: handleConnectionEditorSave)
+        } else {
+            ManageConnectionEditorPlaceholder(onNewConnection: createNewConnection)
+        }
+    }
+
+    @ViewBuilder
+    private var connectionsTable: some View {
         if filteredConnectionsForTable.isEmpty {
             emptyState(for: .connections)
         } else {

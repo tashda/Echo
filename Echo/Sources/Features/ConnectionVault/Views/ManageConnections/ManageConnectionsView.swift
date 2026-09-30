@@ -21,6 +21,8 @@ struct ManageConnectionsView: View {
     @State internal var identityEditorState: IdentityEditorState?
     @State internal var pendingDeletion: DeletionTarget?
     @State internal var connectionEditorPresentation: ConnectionEditorPresentation?
+    /// Manage Connections is where connections are edited (CN5): + shows an empty form here.
+    @State internal var isCreatingConnection = false
     @State internal var pendingDuplicateConnection: SavedConnection?
     @State internal var pendingConnectionMove: SavedConnection?
     @State internal var pendingIdentityMove: SavedIdentity?

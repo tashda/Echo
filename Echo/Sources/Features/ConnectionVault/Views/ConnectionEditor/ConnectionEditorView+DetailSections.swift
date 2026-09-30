@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 
 extension ConnectionEditorView {
     var authenticationSection: some View {
-        Section("Authentication") {
+        Section("Sign In") {
             PropertyRow(title: "Method") {
                 Picker("", selection: $credentialSource) {
                     ForEach(availableCredentialSources, id: \.self) { source in
@@ -40,6 +40,7 @@ extension ConnectionEditorView {
             switch credentialSource {
             case .manual:
                 manualCredentialFields
+                validationRow(for: .password)
             case .identity:
                 identityPickerFields
             case .inherit:
@@ -67,7 +68,9 @@ extension ConnectionEditorView {
                 TextField("", text: $domain, prompt: Text("DOMAIN"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
+                    .focused($focusedField, equals: .domain)
             }
+            validationRow(for: .domain)
         }
 
         if authenticationMethod.usesAccessToken {
@@ -92,7 +95,9 @@ extension ConnectionEditorView {
                 TextField("", text: $username, prompt: Text("username"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
+                    .focused($focusedField, equals: .username)
             }
+            validationRow(for: .username)
 
             PropertyRow(title: "Password") {
                 SecureField(
@@ -152,8 +157,9 @@ extension ConnectionEditorView {
         }
     }
 
-    var advancedSection: some View {
-        Section("Advanced") {
+    /// The timeout rows, shown inside the Security and timeouts disclosure.
+    var advancedRows: some View {
+        Group {
             PropertyRow(title: "Connection Timeout") {
                 HStack(spacing: SpacingTokens.xs) {
                     TextField(

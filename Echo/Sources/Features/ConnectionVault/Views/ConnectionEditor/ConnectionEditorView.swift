@@ -7,6 +7,16 @@ struct ConnectionEditorView: View {
         case connect
     }
 
+    /// A sheet (Quick Connect, New Connection) or the detail pane of Manage Connections.
+    enum Presentation {
+        case sheet
+        case inline
+    }
+
+    enum EditorField: Hashable {
+        case host, port, username, domain, password, name
+    }
+
     static let colorPalette: [String] = [
         "5A9CDE", "6EAE72", "E8943A", "9B72CF", "D4687A"
     ]
@@ -50,15 +60,26 @@ struct ConnectionEditorView: View {
     @State internal var testTask: Task<Void, Never>?
     @State internal var testLogEntries: [TestLogEntry] = []
     @State internal var identityEditorState: IdentityEditorState?
+    @State internal var saveToConnections: Bool
+    @State internal var showsValidation = false
+    @State internal var isShowingTestLog = false
+    @FocusState internal var focusedField: EditorField?
+    @AppStorage("connectionEditor.optionsExpanded") internal var optionsExpanded = false
 
     internal let originalConnection: SavedConnection?
     internal let isQuickConnect: Bool
+    internal let presentation: Presentation
+    internal let onRevert: (() -> Void)?
     let onSave: (SavedConnection, String?, SaveAction) -> Void
 
-    init(connection: SavedConnection?, isQuickConnect: Bool = false, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
+    init(connection: SavedConnection?, isQuickConnect: Bool = false, presentation: Presentation = .sheet,
+         onRevert: (() -> Void)? = nil, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
         self.originalConnection = connection
         self.isQuickConnect = isQuickConnect
+        self.presentation = presentation
+        self.onRevert = onRevert
         self.onSave = onSave
+        _saveToConnections = State(initialValue: !isQuickConnect)
 
         let model = connection ?? SavedConnection(
             id: UUID(),
@@ -144,11 +165,15 @@ struct ConnectionEditorView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            detailView
+        Group {
+            if presentation == .sheet {
+                detailView
+                    .frame(width: 520)
+                    .frame(minHeight: 360, idealHeight: 520, maxHeight: 720)
+            } else {
+                detailView
+            }
         }
-        .frame(width: 520)
-        .frame(minHeight: 400, idealHeight: 580, maxHeight: 720)
         .onAppear {
             if originalConnection == nil && folderID == nil {
                 folderID = connectionStore.selectedFolderID
@@ -167,6 +192,7 @@ struct ConnectionEditorView: View {
         .onChange(of: selectedDatabaseType) { oldType, newType in
             handleDatabaseTypeChange(from: oldType, to: newType)
         }
+        .onChange(of: host) { _, newValue in applyPastedConnectionString(newValue) }
         .onChange(of: authenticationMethod) { _, newMethod in
             if newMethod == .windowsIntegrated {
                 credentialSource = .manual

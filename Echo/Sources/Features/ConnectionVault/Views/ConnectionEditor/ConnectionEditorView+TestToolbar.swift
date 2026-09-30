@@ -1,30 +1,68 @@
 import SwiftUI
 
-// MARK: - ConnectionEditorView Test Connection & Toolbar
+// MARK: - ConnectionEditorView footer: test result by the buttons (CR4)
 
 extension ConnectionEditorView {
 
-    var testConnectionSection: some View {
-        Section {
-            PropertyRow(title: "Test") {
-                Button(action: handleTestButton) {
-                    HStack(spacing: SpacingTokens.xxs2) {
-                        if isTestingConnection {
-                            ProgressView().controlSize(.small)
-                            Text("Cancel")
-                        } else {
-                            Image(systemName: "link.badge.plus")
-                            Text("Test Connection")
-                        }
-                    }
-                }
-                .buttonStyle(.bordered)
-                .disabled(!isTestingConnection && !isFormValid)
+    var toolbarView: some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Button(isTestingConnection ? "Cancel Test" : "Test") {
+                if isTestingConnection || isFormValid { handleTestButton() } else { submitValidationOnly() }
             }
+            testStatus
+            Spacer(minLength: SpacingTokens.xs)
+            actionButtons
+        }
+        .padding(presentation == .sheet ? SpacingTokens.md2 : SpacingTokens.sm)
+    }
 
-            if !testLogEntries.isEmpty || isTestingConnection {
-                testTranscript
+    @ViewBuilder
+    private var actionButtons: some View {
+        switch presentation {
+        case .sheet:
+            Button("Cancel", role: .cancel) { dismiss() }
+                .keyboardShortcut(.cancelAction)
+            if isQuickConnect {
+                Button(saveToConnections ? "Save and Connect" : "Connect") {
+                    submit(saveToConnections ? .saveAndConnect : .connect)
+                }
+                .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Save") { submit(.save) }
+                Button("Save and Connect") { submit(.saveAndConnect) }
+                    .keyboardShortcut(.defaultAction)
             }
+        case .inline:
+            if let onRevert {
+                Button("Revert", action: onRevert)
+            }
+            Button("Connect") { submit(.saveAndConnect) }
+            Button("Save") { submit(.save) }
+                .keyboardShortcut(.defaultAction)
+        }
+    }
+
+    /// One line: a spinner while testing, then the result in plain words. The full log is one
+    /// click away.
+    @ViewBuilder
+    private var testStatus: some View {
+        if isTestingConnection {
+            HStack(spacing: SpacingTokens.xxs2) {
+                ProgressView().controlSize(.small)
+                Text("Testing").foregroundStyle(ColorTokens.Text.secondary)
+            }
+            .font(TypographyTokens.formDescription)
+        } else if let entry = testLogEntries.last {
+            Button { isShowingTestLog = true } label: {
+                Label(entry.message, systemImage: entry.kind == .error ? "xmark.circle.fill" : entry.kind == .success ? "checkmark.circle.fill" : "info.circle")
+                    .foregroundStyle(logEntryColor(entry.kind))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .buttonStyle(.plain)
+            .font(TypographyTokens.formDescription)
+            .help("Show the test log")
+            .popover(isPresented: $isShowingTestLog, arrowEdge: .top) { testTranscript }
         }
     }
 
@@ -40,19 +78,9 @@ extension ConnectionEditorView {
                 }
                 .font(TypographyTokens.detail.monospaced())
             }
-
-            if isTestingConnection {
-                HStack(spacing: SpacingTokens.xxs2) {
-                    ProgressView().controlSize(.mini)
-                    Text("Waiting for response...")
-                        .font(TypographyTokens.detail.monospaced())
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(SpacingTokens.xs)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: SpacingTokens.xxs))
+        .frame(minWidth: LayoutTokens.FloatingSurface.mediumWidth, alignment: .leading)
+        .padding(SpacingTokens.sm)
     }
 
     private func logEntryColor(_ kind: TestLogEntry.Kind) -> Color {
@@ -63,39 +91,11 @@ extension ConnectionEditorView {
         }
     }
 
-    var toolbarView: some View {
-        HStack {
-            Spacer()
-
-            Button("Cancel", role: .cancel) {
-                dismiss()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            if isQuickConnect {
-                Button("Save & Connect") {
-                    handleSave(action: .saveAndConnect)
-                }
-                .disabled(!isFormValid)
-
-                Button("Connect") {
-                    handleSave(action: .connect)
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!isFormValid)
-            } else {
-                Button("Save") {
-                    handleSave(action: .save)
-                }
-                .disabled(!isFormValid)
-
-                Button("Save & Connect") {
-                    handleSave(action: .saveAndConnect)
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!isFormValid)
-            }
-        }
-        .padding(SpacingTokens.md2)
+    /// Test with missing fields shows the same inline messages as Save.
+    private func submitValidationOnly() {
+        let issues = validationIssues
+        withAnimation { showsValidation = true }
+        let order: [EditorField] = [.host, .port, .username, .domain, .password, .name]
+        focusedField = order.first { issues[$0] != nil }
     }
 }
