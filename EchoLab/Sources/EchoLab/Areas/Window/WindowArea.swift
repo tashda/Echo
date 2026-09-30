@@ -70,21 +70,23 @@ enum WindowArea {
             ]
         ) {
             WindowSpecimen()
-        }
+        },
+        spec: WindowSpec.spec()
     )
 }
 
-private struct WindowSpecimen: View {
+struct WindowSpecimen: View {
     @State private var selected: String? = LabServer.samples.first?.id
     @Environment(\.workspaceCardCornerRadius) private var corner
 
     var body: some View {
         HStack(alignment: .top, spacing: SpacingTokens.sm) {
             LabRailView(servers: LabServer.samples, selectedID: $selected, selection: .liquid, identity: .colorOnSelection)
-            LabRound14TreeStub().frame(width: 220)
+                .specAnchor("2.1")
+            LabRound14TreeStub().frame(width: 220).specAnchor("3.1")
             VStack(spacing: SpacingTokens.sm) {
-                card("Editor")
-                card("Results")
+                card("Editor").specAnchor("1.3")
+                card("Results").specAnchor("1.4")
             }
         }
         .padding(SpacingTokens.lg)
