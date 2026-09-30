@@ -372,6 +372,10 @@
       {
         "date" : "2026-09-30T20:26:49Z",
         "text" : "Built into Echo: labelled certificate rows, Key Password only for encrypted keys (Keychain), wrong password under the row, .p12\/.pfx for both rows (PF2, as in the review). Check in the running app."
+      },
+      {
+        "date" : "2026-09-30T20:36:28Z",
+        "text" : "Owner confirmed in chat: accept .p12\/.pfx files (PF2); the saved pick said PF1."
       }
     ],
     "needsMore" : [
@@ -386,7 +390,7 @@
     "picks" : {
       "exhibit" : "proposal",
       "label" : "KL1 · Key Password",
-      "p12" : "pem",
+      "p12" : "p12",
       "rows" : "KR1 · Label left, file name and Choose… right",
       "storage" : "KK1 · Saved in the Keychain, like the password",
       "when" : "KW1 · Only when the chosen key is encrypted",
