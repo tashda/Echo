@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -46,6 +46,20 @@
         status: .judging,
         summary: "How many sections a dock holds, how SQL Server's eight are grouped, and what happens to sections that don't fit; changes TREE-3.4, TREE-3.5.",
         spec: SectionDockSectionsRound.spec)
+
+    /// Round 20: Run button: look.
+    static let runButtonLook = LabPage.round(
+        id: "ongoing.run-button-look-r20", group: "Editor and running", title: "Run button: look · round 20", symbol: "play",
+        status: .judging,
+        summary: "How Run looks at rest: seven forms, eight icons, five colours, the selection signal, hover, when it can't run, where its other modes live and whether it remembers the last one. Changes EDT-4.1, 4.2 and 4.5.",
+        spec: RunButtonLookRound.spec)
+
+    /// Round 20: Run button: running.
+    static let runButtonRunning = LabPage.round(
+        id: "ongoing.run-button-running-r20", group: "Editor and running", title: "Run button: running · round 20", symbol: "stop.circle",
+        status: .judging,
+        summary: "How Run moves: seven running looks, the stop icon, motion while running, how it changes into running, the result, and how long the result stays. Changes EDT-4.3 and 4.4.",
+        spec: RunButtonRunningRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

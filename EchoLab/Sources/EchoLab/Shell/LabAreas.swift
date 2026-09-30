@@ -66,6 +66,8 @@ enum LabAreas {
         "ongoing.section-dock-switching-r19": "explorer-tree",
         "ongoing.section-dock-capsule-r19": "explorer-tree",
         "ongoing.section-dock-sections-r19": "explorer-tree",
+        "ongoing.run-button-look-r20": "editor",
+        "ongoing.run-button-running-r20": "editor",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
