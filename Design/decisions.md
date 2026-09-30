@@ -2,6 +2,19 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 19 accepted: the section dock
+
+Echo Labs › Explorer tree › Section dock (three pages), on the owner's feedback about round 16 as built. Replaces the round 16 rules below where they differ.
+
+- **Switching: S3 · Fade through.** The card's rows fade out quickly, swap, and fade in while the card's bottom edge settles (`settle`). Nothing slides in from the bottom. S0 (today), S1 card crossfade, S2 swap and settle, S4 slide and S5 instant were not chosen. → 05-components › Explorer tree, TREE-3.7
+- **Where the view goes: jump to where the section was left,** instantly, while the rows are faded; a section never seen before doesn't scroll. The animated glide goes. → TREE-3.7
+- **The other cards: N2.** A card animates only when its own place or height changes, and the view never scrolls back by itself when the list gets shorter: the room below the last card stays until you scroll up. Fixes the card above animating. → TREE-1.2
+- **Capsule: C5 · Glass with an edge:** Liquid Glass with a hairline edge and a soft shadow. **Medium** icon weight, today's sizes. The current section stays **accent colour only** (the pill was recommended but not chosen). **Hover: the icon grows.** Other styles (tinted, frosted, filled track, raised pill, glass pill, bar, floating, underline) were not chosen. → TREE-3.1 to 3.3
+- **Section name under the server's name:** "SQL Server 2022 · Security". → TREE-2.2
+- **SQL Server: G1 · SSMS five:** Databases (Database Snapshots at the end), Security, **Server Objects** (Linked Servers, Server Triggers), Agent Jobs, Management (with Integration Services Catalogs). G0 (eight) and G2 were not chosen. The section is named **Server Objects**. → blueprints
+- **Five at most:** the capsule shows up to five sections, and **no database type's blueprint has more than five** server-level sections; new tools go inside a section. → blueprints, TREE-3.5
+- **Sections that don't fit: M2 · More as a section:** » is a section whose card lists the left-out sections as ordinary folders, which open and right-click as usual. The » menu, submenus, scrolling, shrinking and a second row were not chosen. → TREE-3.4
+
 ## 2026-09-30 · Round 16 accepted: the server card
 
 Echo Labs › Explorer tree › Server card · round 16 (owner's bugs and feedback on the section dock as built).
