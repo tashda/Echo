@@ -64,6 +64,29 @@ struct LabStageControlBar: View {
     }
 }
 
+/// The same testing controls, stacked, for a narrow column.
+struct LabStageControlColumn: View {
+    @Bindable var settings: LabStageSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            Picker("Appearance", selection: $settings.appearance) {
+                ForEach(LabStageSettings.Appearance.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented).labelsHidden()
+            Picker("Card corners", selection: $settings.cornerRadius) {
+                ForEach([10.0, 12, 16, 20, 26], id: \.self) { Text("Corners \(Int($0))").tag(CGFloat($0)) }
+            }
+            HStack {
+                Toggle("Fast", isOn: $settings.fast)
+                Toggle("Reduce Motion", isOn: $settings.reduceMotion)
+            }
+            Button("Replay", systemImage: "arrow.counterclockwise") { settings.replay += 1 }
+        }
+        .controlSize(.small)
+    }
+}
+
 extension View {
     /// Gives a specimen the stage's card corners, motion and appearance, and recreates it on Replay.
     func labStage(_ settings: LabStageSettings) -> some View {

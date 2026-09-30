@@ -10,9 +10,13 @@ enum LabNHRound {
     static let spec = RoundSpec(
         controls: [
             .of("grouping", "Group", LabNHGrouping.self, default: .time,
-                question: "Group › By time or By server. Days read like a log; servers match the tree."),
+                question: "Group › By time or By server. Days read like a log; servers match the tree.",
+                recommend: .time,
+                why: "Notifications are looked at in the order they happened, and every row still names its server."),
             .of("motion", "Opening", LabNHExpandMotion.self, default: .grow,
-                question: "Opening › Grow or Fade in, at both speeds. Does the row grow smoothly, or should the message just appear?"),
+                question: "Opening › Grow or Fade in, at both speeds. Does the row grow smoothly, or should the message just appear?",
+                recommend: .grow,
+                why: "Motion should explain change: growing shows the message coming out of its row."),
             .of("speed", "Speed", LabSpeed.self, default: .standard),
         ],
         exhibits: [
@@ -30,9 +34,17 @@ enum LabNHRound {
         questions: [
             .init(id: "unread", title: "Unread",
                   question: "New events are bold (A, C) or carry a blue dot (B); the header counts them. Enough, or too much?",
-                  choices: [.init(id: "enough", name: "Enough"), .init(id: "tooMuch", name: "Too much"), .init(id: "notEnough", name: "Not enough")]),
+                  choices: [.init(id: "enough", name: "Enough"), .init(id: "tooMuch", name: "Too much"), .init(id: "notEnough", name: "Not enough")],
+                  recommended: "enough",
+                  why: "Bold plus the count in the header already says what is new; a dot adds a second signal for the same thing."),
         ],
-        exhibitTopic: ("Which history?", "Open the long Postgres error and the failed backup in each. Which reads and copies best, and which fits Echo?")
+        exhibitTopic: ("Which history?", "Open the long Postgres error and the failed backup in each. Which reads and copies best, and which fits Echo?",
+                       "timeline",
+                       "The timeline is the quietest and matches the tree's list style; a click expands the row in place to the whole, selectable message, so nothing else moves. Cards repeat a box inside the inspector's card, and list-and-detail halves the list to make room for the message."),
+        presets: [
+            .init(id: "log", name: "Log: by time, grow", summary: "My recommendation.", values: ["grouping": LabNHGrouping.time.rawValue, "motion": LabNHExpandMotion.grow.rawValue], isRecommended: true),
+            .init(id: "servers", name: "By server, fade in", values: ["grouping": LabNHGrouping.server.rawValue, "motion": LabNHExpandMotion.fade.rawValue]),
+        ]
     )
 }
 

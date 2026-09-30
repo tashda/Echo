@@ -1,13 +1,16 @@
 import SwiftUI
 
-/// A round page laid out from a `RoundSpec`: the info box, the controls, the exhibits (which wrap
-/// to the window, so nothing scrolls sideways), and "Your decision".
+/// A round page laid out from a `RoundSpec` as a workbench: controls (with presets) on the left,
+/// the exhibits in the middle where they stay put and wrap to the width, and the decision in the
+/// right-hand panel. Every part scrolls on its own, so you never lose the previews while you
+/// change a control. A round with only a few controls gets a slim bar above the exhibits instead.
 struct LabRoundPage: View {
     let pageID: String
     let spec: RoundSpec
 
     @State private var values: RoundValues
     @State private var settings = LabStageSettings.shared
+    @AppStorage("lab.round.showsControls") private var showsControls = true
 
     init(pageID: String, spec: RoundSpec) {
         self.pageID = pageID
@@ -16,49 +19,144 @@ struct LabRoundPage: View {
     }
 
     private var page: LabPage { LabRegistry.page(id: pageID) ?? LabRegistry.pages[0] }
+    private var usesColumn: Bool { spec.controls.count > 4 || !spec.presets.isEmpty }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            LabRoundInfoBox(page: page, hint: true).padding([.horizontal, .top], SpacingTokens.md).padding(.bottom, SpacingTokens.xs)
+            HStack(alignment: .top, spacing: 0) {
+                if usesColumn && showsControls {
+                    RoundControlsColumn(spec: spec, values: values, settings: settings).frame(width: 290)
+                    Divider()
+                }
+                canvas
+            }
+            .frame(maxHeight: .infinity)
+        }
+    }
+
+    private var canvas: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                if usesColumn {
+                    Button(showsControls ? "Hide controls" : "Controls", systemImage: "slider.horizontal.3") { showsControls.toggle() }
+                        .buttonStyle(.borderless).controlSize(.small)
+                }
+                Label("Try it", systemImage: "hand.tap").font(TypographyTokens.headline)
+                Spacer()
+            }
+            .padding(.horizontal, SpacingTokens.md).padding(.vertical, SpacingTokens.xs)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                    if !usesColumn { RoundControlsBar(spec: spec, values: values, settings: settings) }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320, maximum: 720), spacing: SpacingTokens.sm, alignment: .top)],
+                              alignment: .leading, spacing: SpacingTokens.sm) {
+                        ForEach(spec.exhibits) { exhibit in
+                            RoundExhibitCard(page: page, exhibit: exhibit, values: values, settings: settings, decides: spec.exhibitTopic != nil,
+                                     recommendation: spec.exhibitTopic.flatMap { $0.recommended == exhibit.id ? $0.why : nil })
+                        }
+                    }
+                }
+                .padding(SpacingTokens.md)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// A control as a labelled menu that shows its current choice and what it means.
+private struct RoundControlMenu: View {
+    let control: RoundSpec.Control
+    let values: RoundValues
+    var showsSummary = true
+
+    var body: some View {
+        let current = control.choices.first { $0.id == values[control.id] }
+        VStack(alignment: .leading, spacing: 3) {
+            Text(control.title).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
+            Menu {
+                Picker(control.title, selection: values.binding(control.id)) {
+                    ForEach(control.choices) { Text($0.name + ($0.id == control.recommended ? "  ★ recommended" : "")).tag($0.id) }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                HStack {
+                    Text(current?.name ?? control.defaultChoice).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 9)).foregroundStyle(ColorTokens.Text.tertiary)
+                }
+                .padding(.horizontal, 8).frame(height: 26)
+                .background(ColorTokens.Workspace.card, in: .rect(cornerRadius: 7, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(ColorTokens.Workspace.cardEdge.opacity(0.6), lineWidth: 0.5))
+                .contentShape(Rectangle())
+            }
+            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+            if let rec = control.recommended, current?.id != rec, let name = control.choices.first(where: { $0.id == rec })?.name {
+                Text("★ Recommended: \(name)").font(TypographyTokens.detail).foregroundStyle(ColorTokens.accent)
+            }
+            if showsSummary, let summary = current?.summary {
+                Text(summary).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// The left column: presets, every control, and the test controls.
+private struct RoundControlsColumn: View {
+    let spec: RoundSpec
+    let values: RoundValues
+    let settings: LabStageSettings
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                LabRoundInfoBox(page: page, hint: true)
-                tryIt
-            }
-            .padding(SpacingTokens.md)
-        }
-    }
-
-    // MARK: Try it
-
-    private var tryIt: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-            Label("Try it", systemImage: "hand.tap").font(TypographyTokens.headline)
-            controlsCard
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320, maximum: 720), spacing: SpacingTokens.sm, alignment: .top)],
-                      alignment: .leading, spacing: SpacingTokens.sm) {
-                ForEach(spec.exhibits) { exhibit in
-                    RoundExhibitCard(page: page, exhibit: exhibit, values: values, settings: settings, decides: spec.exhibitTopic != nil)
-                }
-            }
-        }
-    }
-
-    private var controlsCard: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            if !spec.controls.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: SpacingTokens.sm)], alignment: .leading, spacing: SpacingTokens.xs) {
-                    ForEach(spec.controls) { control in
-                        LabeledContent(control.title) {
-                            Menu {
-                                Picker(control.title, selection: values.binding(control.id)) {
-                                    ForEach(control.choices) { Text($0.name).tag($0.id) }
-                                }
-                                .pickerStyle(.inline)
-                            } label: {
-                                Text(control.choices.first { $0.id == values[control.id] }?.name ?? control.defaultChoice)
+            VStack(alignment: .leading, spacing: SpacingTokens.md) {
+                if !spec.presets.isEmpty {
+                    section("Presets") {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)], alignment: .leading, spacing: 6) {
+                            ForEach(spec.presets) { preset in
+                                Button(preset.name + (preset.isRecommended ? "  ★" : "")) { values.apply(preset) }
+                                    .buttonStyle(.bordered).controlSize(.small)
+                                    .tint(values.matches(preset) ? ColorTokens.accent : nil)
+                                    .help(preset.summary ?? "")
                             }
-                            .fixedSize()
                         }
                     }
+                }
+                section("Controls") {
+                    VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                        ForEach(spec.controls) { RoundControlMenu(control: $0, values: values) }
+                        Button("Reset controls", systemImage: "arrow.uturn.backward") { values.reset(spec.controls) }
+                            .buttonStyle(.borderless).controlSize(.small)
+                    }
+                }
+                section("Test") { LabStageControlColumn(settings: settings) }
+            }
+            .padding(SpacingTokens.sm)
+        }
+        .background(ColorTokens.Background.secondary.opacity(0.5))
+    }
+
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased()).font(.system(size: 10, weight: .semibold)).foregroundStyle(ColorTokens.Text.tertiary)
+            content()
+        }
+    }
+}
+
+/// The slim bar used when a round has only a few controls.
+private struct RoundControlsBar: View {
+    let spec: RoundSpec
+    let values: RoundValues
+    let settings: LabStageSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            if !spec.controls.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: SpacingTokens.sm)], alignment: .leading, spacing: SpacingTokens.xs) {
+                    ForEach(spec.controls) { RoundControlMenu(control: $0, values: values, showsSummary: false) }
                 }
             }
             LabStageControlBar(settings: settings)
@@ -77,6 +175,8 @@ private struct RoundExhibitCard: View {
     let values: RoundValues
     let settings: LabStageSettings
     let decides: Bool
+    /// The agent's reason, set when this exhibit is the recommended one.
+    var recommendation: String?
 
     @Environment(LabStore.self) private var store
     @State private var note = ""
@@ -93,7 +193,16 @@ private struct RoundExhibitCard: View {
                         .padding(.horizontal, SpacingTokens.xs).padding(.vertical, 1)
                         .background(ColorTokens.Surface.hover, in: Capsule())
                 }
+                if recommendation != nil {
+                    Label("Recommended", systemImage: "star.fill").font(TypographyTokens.detail.weight(.semibold))
+                        .padding(.horizontal, SpacingTokens.xs).padding(.vertical, 1)
+                        .background(ColorTokens.accent.opacity(0.14), in: Capsule()).foregroundStyle(ColorTokens.accent)
+                }
                 Spacer()
+            }
+            if let recommendation {
+                Text(recommendation).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if !exhibit.summary.isEmpty {
                 Text(exhibit.summary).font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)

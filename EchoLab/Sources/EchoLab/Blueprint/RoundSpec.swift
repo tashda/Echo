@@ -22,6 +22,9 @@ struct RoundSpec {
         var question: String?
         let choices: [RoundDecision.Choice]
         let defaultChoice: String
+        /// What the agent recommends for this control, and why. Required when there is a `question`.
+        var recommended: String?
+        var why: String?
     }
 
     /// One live specimen: a title, what makes it different, and the view.
@@ -56,6 +59,9 @@ struct RoundSpec {
         let title: String
         let question: String
         let choices: [RoundDecision.Choice]
+        /// The agent's recommendation (a choice id) and the reason. Both are required.
+        let recommended: String
+        let why: String
     }
 
     var controls: [Control] = []
@@ -63,7 +69,19 @@ struct RoundSpec {
     var questions: [Question] = []
     /// When set, the decision has a topic that picks between the exhibits, and each exhibit
     /// card gets Pick, Maybe and No.
-    var exhibitTopic: (title: String, question: String)?
+    var exhibitTopic: (title: String, question: String, recommended: String, why: String)?
+    /// Named combinations of control settings; one click sets them all.
+    var presets: [Preset] = []
+
+    /// A named combination: control id to choice id. Controls it doesn't mention stay as they are.
+    struct Preset: Identifiable {
+        let id: String
+        let name: String
+        var summary: String?
+        let values: [String: String]
+        /// The preset that matches the agent's recommendation.
+        var isRecommended = false
+    }
 
     /// The decision panel: the exhibit topic, then every control that has a question (its
     /// current value is what "Use what's selected in the preview" picks), then the questions.
@@ -71,15 +89,19 @@ struct RoundSpec {
         var topics: [RoundDecision.Topic] = []
         if let exhibitTopic {
             topics.append(.init(id: Self.exhibitTopicID, title: exhibitTopic.title, question: exhibitTopic.question,
-                                choices: exhibits.map { .init(id: $0.id, name: $0.title, summary: nil) }))
+                                choices: exhibits.map { .init(id: $0.id, name: $0.title, summary: nil) },
+                                recommended: exhibitTopic.recommended, why: exhibitTopic.why))
         }
         for control in controls {
             guard let question = control.question else { continue }
+            assert(control.recommended != nil && control.why != nil,
+                   "Control \(control.id) asks a question, so it needs a recommendation and a reason (see HOW_TO_WRITE_A_ROUND.md)")
             topics.append(.init(id: control.id, title: control.title, question: question, choices: control.choices,
-                                preview: { values[control.id] }))
+                                recommended: control.recommended, why: control.why, preview: { values[control.id] }))
         }
         for question in questions {
-            topics.append(.init(id: question.id, title: question.title, question: question.question, choices: question.choices))
+            topics.append(.init(id: question.id, title: question.title, question: question.question, choices: question.choices,
+                                recommended: question.recommended, why: question.why))
         }
         return RoundDecision(topics: topics)
     }
@@ -117,6 +139,20 @@ final class RoundValues {
         set { values[id] = newValue; LabPrefs.save(values, key: key) }
     }
 
+    func apply(_ preset: RoundSpec.Preset) {
+        for (key, value) in preset.values { values[key] = value }
+        LabPrefs.save(values, key: key)
+    }
+
+    func matches(_ preset: RoundSpec.Preset) -> Bool {
+        preset.values.allSatisfy { values[$0.key] == $0.value }
+    }
+
+    func reset(_ controls: [RoundSpec.Control]) {
+        for control in controls { values[control.id] = control.defaultChoice }
+        LabPrefs.save(values, key: key)
+    }
+
     /// A binding to one control, for views that change it themselves.
     func binding(_ id: String) -> Binding<String> {
         Binding(get: { self[id] }, set: { self[id] = $0 })
@@ -128,10 +164,11 @@ extension RoundSpec.Control {
     /// A control whose choices are the cases of an enum the exhibits already use.
     static func of<E: CaseIterable & RawRepresentable>(
         _ id: String, _ title: String, _ type: E.Type, default value: E, question: String? = nil,
-        summary: ((E) -> String)? = nil
+        recommend: E? = nil, why: String? = nil, summary: ((E) -> String)? = nil
     ) -> RoundSpec.Control where E.RawValue == String {
         RoundSpec.Control(id: id, title: title, question: question,
-                          choices: RoundDecision.choices(type, summary: summary), defaultChoice: value.rawValue)
+                          choices: RoundDecision.choices(type, summary: summary), defaultChoice: value.rawValue,
+                          recommended: recommend?.rawValue, why: why)
     }
 }
 

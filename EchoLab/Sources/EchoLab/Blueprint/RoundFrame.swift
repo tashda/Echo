@@ -38,6 +38,7 @@ struct LabRoundInfoBox: View {
     let page: LabPage
     var hint = false
     @Environment(LabStore.self) private var store
+    @AppStorage("lab.round.infoExpanded") private var expanded = true
 
     var body: some View {
         let info = LabRounds.info(forPage: page.id)
@@ -48,13 +49,17 @@ struct LabRoundInfoBox: View {
                     .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                 Spacer()
                 if let status = store.status(of: page) { LabStatusPill(status: status) }
+                if hint {
+                    Button(expanded ? "Collapse" : "Expand", systemImage: expanded ? "chevron.up" : "chevron.down") { expanded.toggle() }
+                        .labelStyle(.iconOnly).buttonStyle(.borderless).controlSize(.small)
+                }
             }
             Text(page.title).font(TypographyTokens.title2.weight(.semibold))
-            if !page.summary.isEmpty {
+            if !page.summary.isEmpty, expanded || !hint {
                 Text(page.summary).font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if hint {
+            if hint, expanded {
                 HStack(spacing: SpacingTokens.md) {
                     hintStep("1", "Try things here")
                     hintStep("2", "Decide in the panel on the right")
@@ -92,6 +97,15 @@ struct RoundDecisionPanel: View {
                     Label("Your decision", systemImage: "checkmark.seal").font(TypographyTokens.headline)
                     Spacer()
                     Text("\(decided) of \(decision.topics.count)").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                }
+                if decision.topics.contains(where: { $0.recommended != nil }) {
+                    Button {
+                        for topic in decision.topics { if let rec = topic.recommended { store.setPick(page, topic: topic.id, option: rec) } }
+                    } label: {
+                        Label("Use all recommendations", systemImage: "star.fill").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Picks the agent's recommendation for every topic; change any you disagree with")
                 }
                 if hasPreview {
                     Button {
@@ -134,6 +148,17 @@ private struct RoundDecisionTopicCard: View {
             }
             Text(topic.question).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if let rec = topic.recommended, let name = topic.choices.first(where: { $0.id == rec })?.name {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label("I recommend: \(name)", systemImage: "star.fill").font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.accent)
+                    if let why = topic.why {
+                        Text(why).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(SpacingTokens.xs)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(ColorTokens.accent.opacity(0.08), in: .rect(cornerRadius: 8, style: .continuous))
+            }
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(topic.choices) { choice in
                     Button {
@@ -150,6 +175,9 @@ private struct RoundDecisionTopicCard: View {
                                 }
                             }
                             Spacer(minLength: 4)
+                            if topic.recommended == choice.id {
+                                Image(systemName: "star.fill").font(.system(size: 10)).foregroundStyle(ColorTokens.accent).help("Recommended")
+                            }
                             if previewChoice == choice.id {
                                 Text("in preview").font(.system(size: 10)).padding(.horizontal, 5).padding(.vertical, 1)
                                     .background(ColorTokens.Surface.hover, in: Capsule()).foregroundStyle(ColorTokens.Text.secondary)
@@ -160,7 +188,11 @@ private struct RoundDecisionTopicCard: View {
                     .buttonStyle(.plain)
                 }
             }
-            HStack(spacing: 6) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 6, alignment: .leading)], alignment: .leading, spacing: 6) {
+                if let rec = topic.recommended, rec != picked {
+                    Button("Use recommendation", systemImage: "star") { store.setPick(page, topic: topic.id, option: rec) }
+                        .controlSize(.small)
+                }
                 if let previewChoice, previewChoice != picked {
                     Button("Use preview", systemImage: "wand.and.stars") { store.setPick(page, topic: topic.id, option: previewChoice) }
                         .controlSize(.small)
