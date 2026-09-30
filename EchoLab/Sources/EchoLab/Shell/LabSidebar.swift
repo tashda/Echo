@@ -11,6 +11,8 @@ struct LabSidebar: View {
             Label("Inbox", systemImage: "tray")
                 .badge(store.attentionCount)
                 .tag(LabDestination.inbox)
+            Label("Rounds", systemImage: "clock.arrow.circlepath")
+                .tag(LabDestination.rounds)
             Section("Echo, as built") {
                 ForEach(LabAreas.all) { area in
                     Label(area.title, systemImage: area.symbol)

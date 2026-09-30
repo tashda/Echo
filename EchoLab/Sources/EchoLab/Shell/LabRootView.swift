@@ -37,21 +37,20 @@ struct LabRootView: View {
             default: currentPageID = nil
             }
         }
-        .onAppear { currentPageID = LabAreas.area(id: "explorer-tree")?.asBuiltPageID }
+        .onAppear {
+            currentPageID = LabAreas.area(id: "explorer-tree")?.asBuiltPageID
+            // Launch straight onto a page: ECHOLAB_PAGE=<LabPage.id> (used for testing).
+            if let id = ProcessInfo.processInfo.environment["ECHOLAB_PAGE"] { openPage(id) }
+        }
     }
 
     @ViewBuilder
     private var detail: some View {
         switch destination {
         case .inbox:
-            LabInboxView { pageID in
-                if let areaID = LabAreas.areaID(ofPage: pageID) {
-                    destination = .area(areaID)
-                    openRound = pageID.hasPrefix("asbuilt.") ? nil : pageID
-                } else {
-                    destination = .page(pageID)
-                }
-            }
+            LabInboxView { pageID in openPage(pageID) }
+        case .rounds:
+            LabRoundsIndexView { pageID in openPage(pageID) }
         case .area(let id):
             if let area = LabAreas.area(id: id) {
                 LabAreaView(area: area, currentPageID: $currentPageID, openRound: $openRound)
@@ -61,6 +60,16 @@ struct LabRootView: View {
             if let page = LabRegistry.page(id: id) { LabPageContainer(page: page) }
         case nil:
             ContentUnavailableView("Choose a page", systemImage: "sidebar.left")
+        }
+    }
+
+    /// Opens a page inside its area (or on its own when it has none).
+    private func openPage(_ pageID: String) {
+        if let areaID = LabAreas.areaID(ofPage: pageID) {
+            destination = .area(areaID)
+            openRound = pageID.hasPrefix("asbuilt.") ? nil : pageID
+        } else {
+            destination = .page(pageID)
         }
     }
 }

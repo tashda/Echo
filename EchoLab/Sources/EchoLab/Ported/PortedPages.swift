@@ -12,7 +12,15 @@ enum PortedPages {
         inEcho.map { labPage($0, status: .inEcho) } + accepted.map { labPage($0, status: .accepted) }
 
     private static func labPage(_ page: DesignLabPage, status: LabStatus) -> LabPage {
-        LabPage(
+        // Pages already written in the round blueprint (see Blueprint/RoundBlueprint.swift).
+        if page == .round14Dock {
+            return LabPage(
+                id: "ported.\(page.id)", section: .ongoing, group: "Design Lab", title: page.rawValue,
+                symbol: page.symbol, status: status,
+                summary: "Icon style, dock labels and the edge under the dock."
+            ) { RoundView(pageID: "ported.\(page.id)", round: DockRound.blueprint) }
+        }
+        return LabPage(
             id: "ported.\(page.id)",
             section: .ongoing,
             group: "Design Lab",

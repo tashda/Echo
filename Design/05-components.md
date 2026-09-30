@@ -45,7 +45,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Row style: S4 Quiet** (revised tree card decision). *Decided.*
   - Rows are 28pt in a 29pt slot at the default density, so neighbouring highlights never touch; 13pt labels.
   - Symbols are 13pt light. **Duotone** by default (IC2, 2026-09-30): the outline in the role colour over its fill at low opacity; **mono line** (IC1) is the setting. A Recraft icon set is pinned for later. *Decided.*
-  - No separate chevron column: a folder's icon becomes a 10pt semibold chevron on hover.
+  - No separate chevron column: a folder's icon becomes an 11pt semibold chevron on hover.
   - 8pt between icon and label; 16pt indent per level; 8pt row corners. Folder counts appear on hover.
 - **Section dock** (TC1, 2026-09-30): under the server's name, a row of icon buttons (Databases, Security, Agent, Management, More) switches what the card shows; the tree shows one section at a time. Icons only, the current one on the grey selection fill. The dock and name stay pinned while the rows scroll under them, with **only a soft blur**: no background, no line. Each section keeps its scroll position and open folders, and the card remembers its section per connection. *Decided.*
 - **Server header:** the server's name heads its card in **bold 13pt**, primary, with its product and version (such as "PostgreSQL 18.1") in tertiary 11pt on the right. It scrolls with the rows. A chevron shows while collapsed or hovered. *Decided* (tree card round; the version is new).

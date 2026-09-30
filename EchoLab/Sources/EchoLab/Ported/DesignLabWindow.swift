@@ -189,15 +189,21 @@ struct DesignLabPageView: View {
     @State private var copied = false
 
     var body: some View {
-        ScrollView([.vertical, .horizontal]) {
-            VStack(alignment: .leading, spacing: 16) {
-                judgePanel
-                playground
+        ScrollView(.vertical) {
+            LabFitToWidth(designWidth: 1180, designHeight: legacyHeight) {
+                VStack(alignment: .leading, spacing: 16) {
+                    judgePanel
+                    playground
+                }
+                .frame(width: 1180, alignment: .topLeading)
             }
             .padding(24)
-            .frame(minWidth: 1180, alignment: .topLeading)
         }
     }
+
+    /// Legacy pages are laid out for a 1180pt-wide canvas; they scale down to fit the window
+    /// instead of scrolling sideways. (Rounds written in the round blueprint don't need this.)
+    private var legacyHeight: CGFloat { 2400 }
 
     private var judgePanel: some View {
         VStack(alignment: .leading, spacing: 12) {

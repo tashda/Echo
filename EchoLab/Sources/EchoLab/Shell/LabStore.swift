@@ -23,6 +23,20 @@ final class LabStore {
         var status: LabStatus
         var comments: [Comment] = []
         var history: [Event] = []
+        /// The owner's pick per topic on a round page: topic id to option id ("none" for none).
+        var picks: [String: String] = [:]
+        var pickNotes: [String: String] = [:]
+
+        init(status: LabStatus) { self.status = status }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            status = try container.decode(LabStatus.self, forKey: .status)
+            comments = try container.decodeIfPresent([Comment].self, forKey: .comments) ?? []
+            history = try container.decodeIfPresent([Event].self, forKey: .history) ?? []
+            picks = try container.decodeIfPresent([String: String].self, forKey: .picks) ?? [:]
+            pickNotes = try container.decodeIfPresent([String: String].self, forKey: .pickNotes) ?? [:]
+        }
     }
 
     private(set) var items: [String: Item] = [:]
@@ -97,6 +111,35 @@ final class LabStore {
 
     /// Moves a decided or in-Echo item back to New feedback without a comment.
     func reopen(_ page: LabPage) { move(page, to: .newFeedback, note: "Reopened") }
+
+    // MARK: Round picks
+
+    func pick(_ page: LabPage, topic: String) -> String? { items[page.id]?.picks[topic] }
+    func pickNote(_ page: LabPage, topic: String) -> String { items[page.id]?.pickNotes[topic] ?? "" }
+
+    func setPick(_ page: LabPage, topic: String, option: String?) {
+        var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
+        if let option { item.picks[topic] = option } else { item.picks.removeValue(forKey: topic) }
+        items[page.id] = item
+        save()
+    }
+
+    func setPickNote(_ page: LabPage, topic: String, note: String) {
+        var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
+        if note.isEmpty { item.pickNotes.removeValue(forKey: topic) } else { item.pickNotes[topic] = note }
+        items[page.id] = item
+        save()
+    }
+
+    /// Accepts the round with the picks written into a comment, so the agent reads them.
+    func acceptPicks(_ page: LabPage, summary: String) {
+        var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
+        item.status = .accepted
+        item.comments.append(Comment(date: .now, text: summary))
+        item.history.append(Event(date: .now, text: "Accepted with picks"))
+        items[page.id] = item
+        save()
+    }
 
     // MARK: Agent actions (also done by editing the JSON file)
 
