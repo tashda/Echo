@@ -23,10 +23,6 @@
         "text": "Feedback sent"
       },
       {
-        "date": "2026-09-30T14:42:06Z",
-        "text": "Status set to Accepted to match 'Accepted with picks' (recorded in Design/decisions.md)"
-      },
-      {
         "date": "2026-09-30T15:27:07Z",
         "text": "Built into Echo (057a797b): Mandatory default, menu says what is checked, Trust dims under Strict, Allow TLS 1.0 per connection, Test names the failed check with a fix button"
       }
@@ -116,14 +112,6 @@
         "text": "Accepted with picks"
       },
       {
-        "date": "2026-09-30T14:41:55Z",
-        "text": "Revision 2: Dropped connection: your chat choice, the Postgres Reconnect button (RC2) for both engines, replaces LC1"
-      },
-      {
-        "date": "2026-09-30T14:41:55Z",
-        "text": "Owner's chat choice recorded: LC4 (Postgres RC2 for both engines) replaces LC1"
-      },
-      {
         "date": "2026-09-30T17:09:29Z",
         "text": "Built into Echo (057a797b, c051c455, a5ed0ffb, 20688328): no 45 s limit, cancel keeps the session and looks like PostgreSQL, Transaction rolled back, APP_NAME Echo, dropped connection with Reconnect, extra result sets spooled"
       }
@@ -134,23 +122,13 @@
     "picks": {
       "background": "ship",
       "cancelLook": "same",
-      "dropped": "LC4 · A Reconnect button, as on the Postgres page",
+      "dropped": "LC1 · Reconnect on the next Run, and say what was lost",
       "exhibit": "proposal",
       "timeout": "TO1 · Follow the Postgres timeouts decision",
       "txn": "on"
     },
     "reviewedRevision": 1,
-    "revisions": [
-      {
-        "changes": [
-          "New option: LC4 · A Reconnect button, as on the Postgres page",
-          "Exhibit: Echo says at once what was lost and offers Reconnect"
-        ],
-        "date": "2026-09-30T14:41:55Z",
-        "number": 2,
-        "summary": "Dropped connection: your chat choice, the Postgres Reconnect button (RC2) for both engines, replaces LC1"
-      }
-    ],
+    "revisions": [],
     "status": "In Echo",
     "verdicts": {}
   },
@@ -353,9 +331,19 @@
     "verdicts": {}
   },
   "ongoing.pg-error-location-r21": {
-    "comments": [],
+    "comments": [
+      {
+        "date": "2026-09-30T14:43:48Z",
+        "id": "2CAD60BA-AD50-4D2E-A4A8-B76E1C48A102",
+        "text": "Review of Postgres: where the error is\n1. Point at the error?: picked Proposal\n2. Mark: picked EM5 · Squiggle, bubble on hover\n3. Hint: picked EH3 · With a Fix button when it names a column\n4. Clearing: picked EC3 · Whichever comes first\n5. The run note: picked RN1 · Keep it short: '! Error' — the mark carries the message; note: Needs to be configurable if it should show ! Error or the full message in Echo Settings\n6. Jump to the error: picked J1 · No, but clicking the error in Messages jumps there; note: Or clicking the error notification with a button \"Go to Error\" or something\n7. Errors inside functions: picked IF1 · Mark the call, show the function's line in the bubble"
+      }
+    ],
     "generalNote": "",
     "history": [
+      {
+        "date": "2026-09-30T14:43:48Z",
+        "text": "Accepted with picks"
+      },
       {
         "date": "2026-09-30T17:09:29Z",
         "text": "Built into Echo (d6cf8cf3) for PostgreSQL and SQL Server: squiggle with bubble, Fix, cleared by an edit or the next run, ! Error run note with a Settings choice, Go to Error on the notification"
@@ -363,9 +351,18 @@
     ],
     "needsMore": [],
     "optionNotes": {},
-    "pickNotes": {},
+    "pickNotes": {
+      "jump": "Or clicking the error notification with a button \"Go to Error\" or something",
+      "runNote": "Needs to be configurable if it should show ! Error or the full message in Echo Settings"
+    },
     "picks": {
-      "exhibit": "proposal"
+      "clearing": "EC3 · Whichever comes first",
+      "exhibit": "proposal",
+      "hint": "EH3 · With a Fix button when it names a column",
+      "internal": "call",
+      "jump": "click",
+      "mark": "EM5 · Squiggle, bubble on hover",
+      "runNote": "short"
     },
     "reviewedRevision": 1,
     "revisions": [],

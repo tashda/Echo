@@ -107,6 +107,7 @@
 		0AD219FA2F7BF4D2007CC30F /* Exceptions for "Echo" folder in "Echo" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Configuration/Secrets.xcconfig,
 				Info.plist,
 			);
 			target = 0ADF94942E78B95200E993F8 /* Echo */;
@@ -324,7 +325,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2630;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					0ADF94942E78B95200E993F8 = {
 						CreatedOnToolsVersion = 26.0;
