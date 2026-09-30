@@ -61,18 +61,37 @@ extension ScenarioReview {
     }
 }
 
-/// The left column's three filters, combined: a result, a review state and an area (nil = all).
-/// Remembered between launches.
+/// Where a scenario's feedback thread stands.
+enum ScenarioThreadState: String, CaseIterable, Hashable {
+    /// Your message is the last one: an agent should answer.
+    case waitingForAgent
+    /// An agent answered last: read it.
+    case answered
+
+    init?(_ scenario: CompletionScenario) {
+        guard let last = scenario.comments.last else { return nil }
+        self = last.author == .owner ? .waitingForAgent : .answered
+    }
+
+    var title: String { self == .waitingForAgent ? "Waiting for the agent" : "The agent answered" }
+    var symbol: String { self == .waitingForAgent ? "bubble.left" : "bubble.left.and.text.bubble.right" }
+}
+
+/// The left column's filters, combined: a result, a review state, a feedback state, an area and a
+/// rule (nil = all). Remembered between launches.
 struct ScenarioFilters: Equatable {
     var outcome: ScenarioOutcome?
     var review: ScenarioReview?
     var area: String?
+    var thread: ScenarioThreadState?
+    var rule: String?
 
     /// Where the owner starts: everything not reviewed yet.
     static let reviewQueue = ScenarioFilters(outcome: nil, review: .imported, area: nil)
 
     func admits(_ scenario: CompletionScenario, outcome scenarioOutcome: ScenarioOutcome) -> Bool {
         (outcome == nil || outcome == scenarioOutcome) && (review == nil || review == scenario.review) && (area == nil || area == scenario.group)
+            && (thread == nil || thread == ScenarioThreadState(scenario)) && (rule == nil || scenario.rules.contains(rule ?? ""))
     }
 }
 
@@ -85,9 +104,10 @@ extension ScenarioStore {
 
     func count(_ filters: ScenarioFilters) -> Int { scenarios.count { matches($0, filters) } }
 
-    /// Scenarios waiting for the agent: flagged ones (fix the scenario), and approved ones that fail (fix EchoSense).
-    var waitingForAgent: (flagged: Int, toFix: Int) {
-        (scenarios.count { $0.review == .flagged },
+    /// What waits for the agent: your messages, flagged scenarios, and approved ones that fail (fix EchoSense).
+    var waitingForAgent: (messages: Int, flagged: Int, toFix: Int) {
+        (scenarios.count { $0.waitsForAgent },
+         scenarios.count { $0.review == .flagged },
          scenarios.count { $0.review == .approved && outcome(for: $0.id) == .wrong })
     }
 

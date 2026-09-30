@@ -11,6 +11,9 @@ tells a running agent, so run this at the start of any design work and again aft
   Accepted     = the owner accepted the verdict: build it into Echo, then set In Echo.
 
 It also lists the owner's answers in Test › Scenarios (the EchoSense scenario files):
+  Messages     = the owner wrote feedback on a scenario (maybe about one check): act on it, then
+                 answer with `swift run echosense-scenarios comment <id> "what you did" [--reopen]`
+                 in the EchoSense checkout (--reopen asks the owner to review it again).
   Flagged      = "this is not what should happen": change the scenario from the note, then set
                  its review back to "imported" so the owner sees it again.
   Approved but failing (known issue) = the scenario is right: fix EchoSense, clear knownIssue.
@@ -47,8 +50,19 @@ scenario_dir = Path(os.environ.get("ECHOSENSE_SCENARIOS") or Path(__file__).reso
 scenarios = []
 for file in sorted(scenario_dir.glob("*.json")):
     scenarios += json.loads(file.read_text())
-flagged = [s for s in scenarios if s.get("review") == "flagged"]
+messages = [s for s in scenarios if s.get("comments") and s["comments"][-1].get("author") == "owner"]
+flagged = [s for s in scenarios if s.get("review") == "flagged" and s not in messages]
 to_fix = [s for s in scenarios if s.get("review") == "approved" and s.get("knownIssue")]
+if messages:
+    found = True
+    print(f"\n== SCENARIO FEEDBACK (answer with echosense-scenarios comment): {len(messages)}")
+    for s in messages:
+        print(f"\n- {s['id']} {s.get('title','')}  [{s.get('group','')}, review: {s.get('review','imported')}]")
+        print(f"  sql: {s.get('sql','')}")
+        answered = max((i for i, c in enumerate(s["comments"]) if c.get("author") == "agent"), default=-1)
+        for c in s["comments"][answered + 1:]:
+            about = f" (about check {c['about']})" if c.get("about") else ""
+            print(f"  owner{about}, {c.get('date','')[:16]}: {c.get('text','')}")
 if flagged:
     found = True
     print(f"\n== SCENARIOS FLAGGED (change the scenario from the note): {len(flagged)}")

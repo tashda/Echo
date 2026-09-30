@@ -7,7 +7,9 @@ struct ScenarioPopupPreview: View {
     let scenario: CompletionScenario
     let actual: ScenarioActual?
 
-    private static let visibleRows = 12
+    @State private var showsAll = false
+    private static let firstRows = 12
+    private var visibleRows: Int { showsAll ? Int.max : Self.firstRows }
 
     var body: some View {
         let (text, caret) = scenario.textAndCaret
@@ -43,12 +45,12 @@ struct ScenarioPopupPreview: View {
                 closedNote(actual)
             } else {
                 VStack(alignment: .leading, spacing: 1) {
-                    ForEach(Array(actual.titles.prefix(Self.visibleRows).enumerated()), id: \.offset) { _, title in row(title, actual: actual) }
-                    if actual.titles.count > Self.visibleRows {
-                        Text("and \(actual.titles.count - Self.visibleRows) more").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
-                            .padding(.horizontal, SpacingTokens.xxs2)
+                    ForEach(Array(actual.titles.prefix(visibleRows).enumerated()), id: \.offset) { index, title in row(index + 1, title, actual: actual) }
+                    if actual.titles.count > Self.firstRows {
+                        Button(showsAll ? "Show the first \(Self.firstRows)" : "Show all \(actual.titles.count)") { showsAll.toggle() }
+                            .buttonStyle(.borderless).font(TypographyTokens.detail).padding(.horizontal, SpacingTokens.xxs2)
                     }
-                    ForEach(missing(in: actual), id: \.self) { ghost($0) }
+                    ForEach(missing(in: actual), id: \.self) { title in ghost(title, expectedAt: (scenario.echoSense?.items.firstIndex(of: title) ?? 0) + 1) }
                     if actual.titles.isEmpty { closedNote(actual).padding(.top, SpacingTokens.xxs) }
                 }
                 .padding(SpacingTokens.xxxs)
@@ -59,15 +61,20 @@ struct ScenarioPopupPreview: View {
         }
     }
 
-    private func row(_ title: String, actual: ScenarioActual) -> some View {
+    private func row(_ rank: Int, _ title: String, actual: ScenarioActual) -> some View {
         let plain = CompletionScenarioRunner.unquoted(title)
         let forbidden = scenario.echoSense?.excludes.contains(plain) == true
-        let expected = scenario.echoSense?.items.contains(plain) == true
+        let expectedAt = scenario.echoSense?.items.firstIndex(of: plain).map { $0 + 1 }
+        let expected = expectedAt != nil
         let tint = forbidden ? ColorTokens.Status.error : (expected ? ColorTokens.Status.success : ColorTokens.Text.primary)
         return HStack(spacing: SpacingTokens.xxs2) {
+            Text("\(rank)").font(TypographyTokens.detail.monospacedDigit()).foregroundStyle(ColorTokens.Text.tertiary).frame(width: 20, alignment: .trailing)
             Image(systemName: forbidden ? "nosign" : (expected ? "checkmark" : "circle.fill"))
                 .font(TypographyTokens.label).frame(width: 12).opacity(forbidden || expected ? 1 : 0)
             Text(title).font(TypographyTokens.code)
+            if let expectedAt, expectedAt != rank {
+                Text("expected #\(expectedAt)").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Status.error)
+            }
             Spacer(minLength: SpacingTokens.md)
             if let insert = actual.insertText[title], insert != title {
                 Text("→ \(insert)").font(TypographyTokens.detailMono).foregroundStyle(ColorTokens.Text.tertiary)
@@ -80,12 +87,13 @@ struct ScenarioPopupPreview: View {
                     in: .rect(cornerRadius: 5))
     }
 
-    private func ghost(_ title: String) -> some View {
+    private func ghost(_ title: String, expectedAt: Int) -> some View {
         HStack(spacing: SpacingTokens.xxs2) {
+            Text("–").font(TypographyTokens.detail).frame(width: 20, alignment: .trailing)
             Image(systemName: "xmark").font(TypographyTokens.label).frame(width: 12)
             Text(title).font(TypographyTokens.code).strikethrough()
             Spacer(minLength: SpacingTokens.md)
-            Text("expected").font(TypographyTokens.detail)
+            Text("expected #\(expectedAt), not offered").font(TypographyTokens.detail)
         }
         .foregroundStyle(ColorTokens.Status.error)
         .padding(.horizontal, SpacingTokens.xxs2).padding(.vertical, SpacingTokens.xxxs)

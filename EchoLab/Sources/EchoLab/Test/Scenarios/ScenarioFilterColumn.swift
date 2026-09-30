@@ -7,6 +7,12 @@ import SwiftUI
 struct ScenarioFilterColumn: View {
     let store: ScenarioStore
     @Binding var filters: ScenarioFilters
+    /// The scenario "New area" moves.
+    let selectedID: String?
+
+    @State private var editingRule: ScenarioRule?
+    @State private var namingArea: String?
+    @State private var areaName = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,16 +33,56 @@ struct ScenarioFilterColumn: View {
                         row(review.title, symbol: review.symbol, tint: ColorTokens.Text.secondary, filter: \.review, value: review)
                     }
                 }
+                Section("Feedback") {
+                    row("Any", symbol: "bubble.left.and.bubble.right", tint: ColorTokens.Text.secondary, filter: \.thread, value: nil)
+                    ForEach(ScenarioThreadState.allCases, id: \.self) { state in
+                        row(state.title, symbol: state.symbol, tint: ColorTokens.accent, filter: \.thread, value: state)
+                    }
+                }
                 Section("Area") {
                     row("All areas", symbol: "square.grid.2x2", tint: ColorTokens.Text.secondary, filter: \.area, value: nil)
                     ForEach(store.groups, id: \.self) { group in
                         row(group, symbol: isReviewed(group) ? "checkmark.seal.fill" : "circle.dotted",
                             tint: isReviewed(group) ? ColorTokens.Status.success : ColorTokens.Text.tertiary, filter: \.area, value: group)
-                            .help(isReviewed(group) ? "You have reviewed every scenario here" : "\(unreviewed(group)) not reviewed yet")
+                            .help(isReviewed(group) ? "You have reviewed every scenario here. Drop a scenario here to move it." : "\(unreviewed(group)) not reviewed yet. Drop a scenario here to move it.")
+                            .dropDestination(for: String.self) { texts, _ in
+                                if case .scenario(let id)? = ScenarioDragItem.first(in: texts) { store.move(id, toArea: group) }
+                            }
                     }
+                    Button("New area", systemImage: "plus") { namingArea = selectedID; areaName = "" }
+                        .buttonStyle(.borderless).disabled(selectedID == nil)
+                        .help("Moves the selected scenario into a new area. You can also drop a scenario here.")
+                        .dropDestination(for: String.self) { texts, _ in
+                            if case .scenario(let id)? = ScenarioDragItem.first(in: texts) { namingArea = id; areaName = "" }
+                        }
+                }
+                Section("Rules") {
+                    row("Any", symbol: "link", tint: ColorTokens.Text.secondary, filter: \.rule, value: nil)
+                    ForEach(store.ruleLibrary.rules) { rule in
+                        row(rule.title, symbol: "link", tint: ColorTokens.accent, filter: \.rule, value: rule.id)
+                            .help("\(rule.id): \(rule.should.isEmpty ? rule.title : rule.should)\nDrop a scenario here to make it follow this rule; drag the rule onto a scenario to do the same.")
+                            .draggable(ScenarioDragItem.rule(rule.id).text)
+                            .dropDestination(for: String.self) { texts, _ in
+                                if case .scenario(let id)? = ScenarioDragItem.first(in: texts) { store.setFollows(rule.id, true, scenario: id) }
+                            }
+                            .contextMenu {
+                                Button("Edit rule") { editingRule = rule }
+                                Button("Delete rule", role: .destructive) { store.deleteRule(rule.id) }
+                            }
+                    }
+                    Button("New rule", systemImage: "plus") { editingRule = store.addRule(title: "New rule") }
+                        .buttonStyle(.borderless)
                 }
             }
             .listStyle(.sidebar)
+            .sheet(item: $editingRule) { rule in ScenarioRuleEditor(rule: rule, store: store) }
+            .alert("New area", isPresented: Binding(get: { namingArea != nil }, set: { if !$0 { namingArea = nil } })) {
+                TextField("", text: $areaName, prompt: Text("Area name, e.g. Lateral joins"))
+                Button("Move here") { if let id = namingArea { store.move(id, toArea: areaName); filters.area = areaName } }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("The scenario moves into it. An area is a file of scenarios in EchoSense.")
+            }
             if filters != .reviewQueue {
                 Divider()
                 Button("Show what's left to review", systemImage: "arrow.uturn.backward") { filters = .reviewQueue }
@@ -54,8 +100,8 @@ struct ScenarioFilterColumn: View {
             meter("\(right) of \(store.scenarios.count)", "do what they should",
                   [(ColorTokens.Status.success, right), (ColorTokens.Status.error, wrong)], total: total)
             meter("\(reviewed) of \(store.scenarios.count)", "reviewed by you", [(ColorTokens.accent, reviewed)], total: total)
-            if waiting.flagged + waiting.toFix > 0 {
-                Label("For the agent: \(waiting.flagged) to change, \(waiting.toFix) to fix in EchoSense", systemImage: "arrow.turn.up.right")
+            if waiting.messages + waiting.flagged + waiting.toFix > 0 {
+                Label("For the agent: \(waiting.messages) messages, \(waiting.flagged) to change, \(waiting.toFix) to fix in EchoSense", systemImage: "arrow.turn.up.right")
                     .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
                     .help("Tell the agent “work through my scenario reviews”. It finds them with lab-inbox.py.")
             }

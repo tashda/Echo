@@ -11,8 +11,10 @@ final class ScenarioStore {
     static let shared = ScenarioStore()
 
     private(set) var library = ScenarioLibrary(scenarios: [])
+    /// The shared rules (`Rules/rules.json` next to the scenarios).
+    var ruleLibrary = ScenarioRuleLibrary()
     private(set) var results: [String: ScenarioResult] = [:]
-    private(set) var loadError: String?
+    var loadError: String?
     private(set) var directory: URL
 
     init() {
@@ -28,11 +30,15 @@ final class ScenarioStore {
     }
 
     var scenarios: [CompletionScenario] { library.scenarios }
+    var rulesDirectory: URL { directory.deletingLastPathComponent().appending(path: "Rules") }
+    /// Runs scenarios with the rules as they are on disk now, not as the package was built.
+    var runner: CompletionScenarioRunner { CompletionScenarioRunner(rules: ruleLibrary.rules) }
     var groups: [String] { library.groups }
 
     func reload() {
         do {
             library = try ScenarioLibrary.load(directory: directory)
+            ruleLibrary = try ScenarioRuleLibrary.load(directory: rulesDirectory)
             loadError = nil
             runAll()
         } catch {
@@ -42,19 +48,19 @@ final class ScenarioStore {
     }
 
     func runAll() {
-        results = Dictionary(uniqueKeysWithValues: CompletionScenarioRunner().run(library.scenarios).map { ($0.id, $0) })
+        results = Dictionary(uniqueKeysWithValues: runner.run(library.scenarios).map { ($0.id, $0) })
     }
 
     func result(for id: String) -> ScenarioResult? { results[id] }
 
     /// Replaces a scenario (or adds it), runs it and saves the files.
-    func update(_ scenario: CompletionScenario, runner: CompletionScenarioRunner = CompletionScenarioRunner()) {
+    func update(_ scenario: CompletionScenario) {
         if let index = library.scenarios.firstIndex(where: { $0.id == scenario.id }) {
             library.scenarios[index] = scenario
         } else {
             library.scenarios.append(scenario)
         }
-        results[scenario.id] = CompletionScenarioRunner().run(scenario)
+        results[scenario.id] = runner.run(scenario)
         save()
     }
 
@@ -76,20 +82,5 @@ final class ScenarioStore {
             guard !Task.isCancelled, let self else { return }
             do { try self.library.write(to: self.directory) } catch { self.loadError = "Could not save: \(error)" }
         }
-    }
-
-    // MARK: Summary
-
-    struct Summary { var pass = 0, fail = 0, known = 0, unchecked = 0, error = 0 }
-
-    var summary: Summary {
-        var summary = Summary()
-        for scenario in library.scenarios {
-            guard let result = results[scenario.id] else { continue }
-            if result.isFailing {
-                if scenario.knownIssue != nil { summary.known += 1 } else { summary.fail += 1 }
-            } else if result.isPass { summary.pass += 1 } else { summary.unchecked += 1 }
-        }
-        return summary
     }
 }

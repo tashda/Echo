@@ -2,36 +2,29 @@ import EchoSenseScenarios
 import SwiftUI
 
 /// The bar under a scenario. Reviewing: the owner's answer to "is this what should happen?" (Right,
-/// Y; Wrong, N), what happens next because of it, and for Wrong a note with one-click reasons.
+/// Y; Wrong, N) and what happens next because of it; Wrong puts the cursor in the feedback thread.
 /// Editing: Cancel and Save, since the editor works on a draft.
 struct ScenarioReviewBar: View {
     let review: ScenarioReview
     let outcome: ScenarioOutcome
-    @Binding var note: String
+    /// Whether the thread has (or is getting) a message, so Wrong can ask for one.
+    let hasFeedback: Bool
     let isEditing: Bool
     let hasUnsavedChanges: Bool
     let answer: (ScenarioReview) -> Void
-    /// Return in the note: done with this one, go to the next.
-    let submitNote: () -> Void
     let edit: () -> Void
     let save: () -> Void
     let cancel: () -> Void
 
-    @FocusState private var noteFocused: Bool
     @State private var showsHelp = false
-
-    private static let reasons = ["Order doesn't matter", "Should offer more", "Should offer less",
-                                  "Nothing should appear here", "Inserts the wrong text", "Wrong setting (dialect, schema or trigger)"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             if isEditing { editingRow } else { reviewRow; nextStep }
-            if review == .flagged && !isEditing { noteField }
         }
         .padding(.horizontal, SpacingTokens.md).padding(.vertical, SpacingTokens.xs)
         .background(.bar)
         .overlay(alignment: .top) { Divider() }
-        .onChange(of: review) { _, new in if new == .flagged { noteFocused = true } }
     }
 
     private var reviewRow: some View {
@@ -45,7 +38,7 @@ struct ScenarioReviewBar: View {
                 .help("The checks and the text say what should happen, even if EchoSense doesn't do it yet. Moves to the next scenario.")
             Button { answer(.flagged) } label: { key("Wrong", "N", symbol: "hand.thumbsdown") }
                 .buttonStyle(LabPillButtonStyle(tint: ColorTokens.Status.error, isOn: review == .flagged))
-                .help("The checks or the text are not what should happen. Say why in the note.")
+                .help("The checks or the text are not what should happen. Say why in the feedback below.")
             if review != .imported {
                 Button("Not reviewed", systemImage: "arrow.uturn.backward") { answer(.imported) }
                     .labelStyle(.iconOnly).buttonStyle(.borderless).help("Undo your answer")
@@ -65,24 +58,10 @@ struct ScenarioReviewBar: View {
         case (.approved, .right): ("Done: this is right and EchoSense does it.", "checkmark.seal")
         case (.approved, .wrong): ("Next: the agent fixes EchoSense so it does this.", "wrench.and.screwdriver")
         case (.approved, _): ("Next: the agent writes the checks from what should happen.", "pencil.and.list.clipboard")
-        case (.flagged, _): (note.isEmpty ? "Add a note so the agent knows what to change." : "Next: the agent changes the scenario from your note.", "arrow.turn.up.right")
+        case (.flagged, _): (hasFeedback ? "Next: the agent changes the scenario from your feedback." : "Write feedback below so the agent knows what to change.", "arrow.turn.up.right")
         }
         return Label(text, systemImage: symbol).font(TypographyTokens.detail)
-            .foregroundStyle(review == .flagged && note.isEmpty ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
-    }
-
-    private var noteField: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-            TextField("", text: $note, prompt: Text("What should happen instead. Return moves on"))
-                .textFieldStyle(.roundedBorder).focused($noteFocused)
-                .onSubmit(submitNote)
-            LabFlowLayout {
-                ForEach(Self.reasons, id: \.self) { reason in
-                    Button(reason) { note = note.isEmpty ? reason : "\(note); \(reason)"; noteFocused = true }
-                        .buttonStyle(LabPillButtonStyle(tint: ColorTokens.Status.error, isOn: note.contains(reason)))
-                }
-            }
-        }
+            .foregroundStyle(review == .flagged && !hasFeedback ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
     }
 
     private var editingRow: some View {

@@ -16,6 +16,12 @@ struct ScenarioListRow: View {
                 HStack(spacing: SpacingTokens.xxs) {
                     Text(scenario.title).lineLimit(1)
                     Spacer(minLength: 0)
+                    if let thread = ScenarioThreadState(scenario) {
+                        Image(systemName: thread.symbol).foregroundStyle(ColorTokens.accent).help(thread.title)
+                    }
+                    if !scenario.rules.isEmpty {
+                        Image(systemName: "link").foregroundStyle(ColorTokens.Text.tertiary).help("Follows \(scenario.rules.joined(separator: ", "))")
+                    }
                     if scenario.review != .imported {
                         Image(systemName: scenario.review.symbol).foregroundStyle(ColorTokens.Text.secondary).help(scenario.review.title)
                     }

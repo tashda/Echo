@@ -9,8 +9,6 @@ struct ScenarioReviewPane: View {
     let store: ScenarioStore
     @Binding var isEditing: Bool
     let answer: (ScenarioReview) -> Void
-    /// Done with this scenario (Return in the note): the page moves on.
-    let next: () -> Void
     let select: (String) -> Void
 
     /// Settings being tried; nil while the pane shows the saved scenario.
@@ -18,6 +16,10 @@ struct ScenarioReviewPane: View {
     @State private var trialResult: ScenarioResult?
     /// The scenario being edited; written to the files only by Save.
     @State private var draft: CompletionScenario?
+    /// The next feedback message, and the check it is about.
+    @State private var message = ""
+    @State private var messageAbout: String?
+    @FocusState private var composerFocused: Bool
 
     var body: some View {
         if let saved = store.library.scenario(id: id) {
@@ -28,15 +30,16 @@ struct ScenarioReviewPane: View {
                     ScrollView { content(saved).padding(SpacingTokens.md).frame(maxWidth: 920, alignment: .leading).frame(maxWidth: .infinity) }
                 }
                 ScenarioReviewBar(
-                    review: saved.review, outcome: store.outcome(for: id), note: note(saved),
+                    review: saved.review, outcome: store.outcome(for: id), hasFeedback: !saved.comments.isEmpty || !message.isEmpty,
                     isEditing: isEditing, hasUnsavedChanges: draft.map { $0 != saved } ?? false,
-                    answer: answer, submitNote: next,
+                    answer: answer,
                     edit: { trial = nil; draft = saved; isEditing = true },
                     save: { if let draft { store.update(draft) }; draft = nil; isEditing = false },
                     cancel: { draft = nil; isEditing = false })
             }
             .onChange(of: trial) { _, new in trialResult = new.map { CompletionScenarioRunner().run($0) } }
             .onAppear { if isEditing { draft = saved } }
+            .onChange(of: saved.review) { _, review in if review == .flagged { composerFocused = true } }
             .onChange(of: isEditing) { _, editing in draft = editing ? (draft ?? store.library.scenario(id: id)) : nil }
         } else {
             LabMailEmpty(title: "Select a scenario", symbol: "checklist")
@@ -56,7 +59,11 @@ struct ScenarioReviewPane: View {
                 }
             }
             ScenarioPopupPreview(scenario: shown, actual: result?.actual)
-            ScenarioChecksCard(result: result, useActual: trial == nil ? { useActual(saved) } : nil)
+            ScenarioChecksCard(result: result, commented: Set(saved.comments.compactMap(\.about)),
+                               useActual: trial == nil ? { useActual(saved) } : nil,
+                               commentAbout: { check in messageAbout = check.id; composerFocused = true })
+            ScenarioThreadCard(comments: saved.comments, checks: result?.checks ?? [], draft: $message, about: $messageAbout,
+                               focus: $composerFocused, send: sendMessage, delete: { store.deleteComment($0, on: id) })
             footnotes(shown)
         }
     }
@@ -104,19 +111,19 @@ struct ScenarioReviewPane: View {
             Label("Known issue: \(issue)", systemImage: "exclamationmark.triangle")
                 .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Status.warning).textSelection(.enabled)
         }
-        if let notes = scenario.notes, scenario.review != .flagged {
+        if let notes = scenario.notes {
             Label(notes, systemImage: "note.text").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary).textSelection(.enabled)
         }
     }
 
     // MARK: Actions
 
-    private func note(_ saved: CompletionScenario) -> Binding<String> {
-        Binding(get: { store.library.scenario(id: id)?.notes ?? "" }, set: { new in
-            guard var scenario = store.library.scenario(id: id) else { return }
-            scenario.notes = new.isEmpty ? nil : new
-            store.update(scenario)
-        })
+    /// Sends the message to the thread; you stay on the scenario (Y moves on).
+    private func sendMessage() {
+        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        store.comment(message, about: messageAbout, on: id)
+        message = ""
+        messageAbout = nil
     }
 
     private func useActual(_ saved: CompletionScenario) {

@@ -7,7 +7,7 @@ import SwiftUI
 struct ScenarioEditorView: View {
     @Binding var scenario: CompletionScenario
     /// Live schemas are used by the playground; scenarios use their built-in schema.
-    var runner = CompletionScenarioRunner()
+    var runner = ScenarioStore.shared.runner
     var onChange: () -> Void = {}
 
     @State private var text = ""
@@ -24,10 +24,7 @@ struct ScenarioEditorView: View {
                 verdictBanner
                 shouldField
                 sqlField
-                HStack(alignment: .top, spacing: SpacingTokens.md) {
-                    expectedCard
-                    actualCard
-                }
+                ScenarioExpectationEditor(scenario: $scenario, actual: result?.actual)
                 echoCard
                 actions
             }
@@ -114,107 +111,6 @@ struct ScenarioEditorView: View {
         }
     }
 
-    // MARK: Expected
-
-    private var expected: EchoSenseExpectation? { scenario.echoSense }
-
-    private var expectedCard: some View {
-        card("Expected from EchoSense", symbol: "target") {
-            Picker("", selection: outcomeBinding) {
-                Text("Not set").tag(Optional<EchoSenseExpectation.Outcome>.none)
-                Text("Suggests").tag(Optional(EchoSenseExpectation.Outcome.suggests))
-                Text("Nothing").tag(Optional(EchoSenseExpectation.Outcome.nothing))
-                Text("Silent").tag(Optional(EchoSenseExpectation.Outcome.silent))
-            }.pickerStyle(.segmented).labelsHidden()
-            if let outcome = expected?.outcome, outcome == .suggests {
-                Picker("Match", selection: binding(\.order)) {
-                    Text("Exactly these").tag(EchoSenseExpectation.Order.exact)
-                    Text("These first").tag(EchoSenseExpectation.Order.leading)
-                    Text("These are in it").tag(EchoSenseExpectation.Order.includes)
-                }.controlSize(.small)
-                lines("Suggestions, one per line, in order", text: itemsBinding)
-                lines("Must not appear", text: excludesBinding, height: 44)
-                lines("Insert text, “title = text”", text: insertBinding, height: 44)
-            } else if let outcome = expected?.outcome, outcome == .nothing {
-                Text("Nothing should be offered, not even by hand.").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
-            } else if let outcome = expected?.outcome, outcome == .silent {
-                Text("Nothing while typing; a manual trigger may show something.").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
-            }
-            Button("Use actual as expected", systemImage: "equal.circle") { useActual() }
-                .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: false)).disabled(result?.actual == nil)
-        }
-    }
-
-    private func lines(_ title: String, text: Binding<String>, height: CGFloat = 130) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
-            TextEditor(text: text).font(.system(size: 12, design: .monospaced)).frame(height: height).scrollContentBackground(.hidden)
-                .padding(4).background(ColorTokens.Surface.hover, in: .rect(cornerRadius: 6))
-        }
-    }
-
-    // MARK: Actual
-
-    private var actualCard: some View {
-        card("Actual from EchoSense", symbol: "gearshape.2") {
-            if let actual = result?.actual {
-                HStack(spacing: SpacingTokens.md) {
-                    fact("Clause", actual.clause); fact("Token", actual.token.isEmpty ? "none" : "“\(actual.token)”"); fact("Results", "\(actual.titles.count)")
-                }
-                Text(actual.triggerNote).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
-                if let after = actual.textAfterAccepting {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("After accepting the first suggestion").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
-                        Text(after).font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
-                    }
-                }
-                if actual.titles.isEmpty {
-                    Text(actual.popupShown ? "Nothing offered." : "No popup.").font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
-                    if !actual.engineTitles.isEmpty {
-                        Text("If asked anyway, EchoSense would offer: \(actual.engineTitles.prefix(8).joined(separator: ", "))\(actual.engineTitles.count > 8 ? " and \(actual.engineTitles.count - 8) more" : "")")
-                            .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
-                    }
-                    if scenario.trigger == .typing, !actual.manualTitles.isEmpty {
-                        Text("By hand (⌘.): \(actual.manualTitles.prefix(10).joined(separator: ", "))\(actual.manualTitles.count > 10 ? " and \(actual.manualTitles.count - 10) more" : "")")
-                            .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
-                    }
-                } else {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(Array(actual.titles.prefix(60).enumerated()), id: \.offset) { index, title in
-                            HStack(spacing: 8) {
-                                Text("\(index + 1)").font(.system(size: 10, design: .monospaced)).foregroundStyle(ColorTokens.Text.tertiary).frame(width: 22, alignment: .trailing)
-                                Text(title).font(.system(size: 12, design: .monospaced))
-                                Spacer()
-                                if let insert = actual.insertText[title], insert != title {
-                                    Text("inserts \(insert)").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
-                                }
-                                Text(actual.kinds[title] ?? "").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
-                            }
-                            .background(rowTint(title))
-                        }
-                        if actual.titles.count > 60 { Text("and \(actual.titles.count - 60) more").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary) }
-                    }
-                }
-            } else {
-                Text("Not run.").foregroundStyle(ColorTokens.Text.secondary)
-            }
-        }
-    }
-
-    /// Titles the expectation names are tinted green; ones it forbids, red.
-    private func rowTint(_ title: String) -> Color {
-        if expected?.excludes.contains(title) == true { return ColorTokens.Status.error.opacity(0.14) }
-        if expected?.items.contains(title) == true { return ColorTokens.Status.success.opacity(0.12) }
-        return .clear
-    }
-
-    private func fact(_ name: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(name).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
-            Text(value).font(TypographyTokens.standard.monospacedDigit())
-        }
-    }
-
     // MARK: Echo
 
     private var echoCard: some View {
@@ -285,44 +181,6 @@ struct ScenarioEditorView: View {
     private func recompute() {
         result = runner.run(scenario)
         onChange()
-    }
-
-    private func useActual() {
-        guard let actual = result?.actual else { return }
-        scenario.echoSense = scenario.expectation(matching: actual)
-    }
-
-    private var outcomeBinding: Binding<EchoSenseExpectation.Outcome?> {
-        Binding(get: { scenario.echoSense?.outcome }, set: { new in
-            guard let new else { scenario.echoSense = nil; return }
-            var value = scenario.echoSense ?? EchoSenseExpectation(outcome: new)
-            value.outcome = new
-            scenario.echoSense = value
-        })
-    }
-
-    private func binding<T>(_ keyPath: WritableKeyPath<EchoSenseExpectation, T>) -> Binding<T> where T: Sendable {
-        Binding(get: { scenario.echoSense![keyPath: keyPath] }, set: { scenario.echoSense?[keyPath: keyPath] = $0 })
-    }
-
-    private var itemsBinding: Binding<String> { listBinding(\.items) }
-    private var excludesBinding: Binding<String> { listBinding(\.excludes) }
-
-    private func listBinding(_ keyPath: WritableKeyPath<EchoSenseExpectation, [String]>) -> Binding<String> {
-        Binding(get: { (scenario.echoSense?[keyPath: keyPath] ?? []).joined(separator: "\n") },
-                set: { scenario.echoSense?[keyPath: keyPath] = $0.split(separator: "\n", omittingEmptySubsequences: true).map { $0.trimmingCharacters(in: .whitespaces) } })
-    }
-
-    private var insertBinding: Binding<String> {
-        Binding(get: { (scenario.echoSense?.insertText ?? [:]).sorted { $0.key < $1.key }.map { "\($0.key) = \($0.value)" }.joined(separator: "\n") },
-                set: { text in
-                    var map: [String: String] = [:]
-                    for line in text.split(separator: "\n") {
-                        let parts = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
-                        if parts.count == 2 { map[parts[0]] = parts[1] }
-                    }
-                    scenario.echoSense?.insertText = map
-                })
     }
 
     private func echoBinding<T>(_ keyPath: WritableKeyPath<EchoExpectation, T?>) -> Binding<T?> {

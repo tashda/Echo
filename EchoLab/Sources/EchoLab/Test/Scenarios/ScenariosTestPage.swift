@@ -10,6 +10,8 @@ struct ScenariosTestPage: View {
     @AppStorage("lab.scenarios.filter.result") private var outcomeFilter = ""
     @AppStorage("lab.scenarios.filter.review") private var reviewFilter = ScenarioReview.imported.rawValue
     @AppStorage("lab.scenarios.filter.area") private var areaFilter = ""
+    @AppStorage("lab.scenarios.filter.thread") private var threadFilter = ""
+    @AppStorage("lab.scenarios.filter.rule") private var ruleFilter = ""
     @State private var search = ""
     @State private var isEditing = false
     /// Set when a new scenario is selected so it opens in the editor.
@@ -24,7 +26,7 @@ struct ScenariosTestPage: View {
                 ContentUnavailableView("No scenarios", systemImage: "exclamationmark.triangle", description: Text("\(error)\n\nExpected in \(store.directory.path). Set ECHOSENSE_SCENARIOS to another folder."))
             } else {
                 HSplitView {
-                    ScenarioFilterColumn(store: store, filters: filters).frame(minWidth: 200, idealWidth: 230, maxWidth: 300)
+                    ScenarioFilterColumn(store: store, filters: filters, selectedID: selectedID).frame(minWidth: 200, idealWidth: 230, maxWidth: 300)
                         .disabled(isEditing)
                     list.frame(minWidth: 260, idealWidth: 320, maxWidth: 480).disabled(isEditing)
                     detail.frame(minWidth: 520, maxWidth: .infinity)
@@ -42,8 +44,12 @@ struct ScenariosTestPage: View {
     private var filters: Binding<ScenarioFilters> {
         Binding(
             get: { ScenarioFilters(outcome: ScenarioOutcome(rawValue: outcomeFilter), review: ScenarioReview(rawValue: reviewFilter),
-                                   area: areaFilter.isEmpty ? nil : areaFilter) },
-            set: { outcomeFilter = $0.outcome?.rawValue ?? ""; reviewFilter = $0.review?.rawValue ?? ""; areaFilter = $0.area ?? "" })
+                                   area: areaFilter.isEmpty ? nil : areaFilter, thread: ScenarioThreadState(rawValue: threadFilter),
+                                   rule: ruleFilter.isEmpty ? nil : ruleFilter) },
+            set: {
+                outcomeFilter = $0.outcome?.rawValue ?? ""; reviewFilter = $0.review?.rawValue ?? ""; areaFilter = $0.area ?? ""
+                threadFilter = $0.thread?.rawValue ?? ""; ruleFilter = $0.rule ?? ""
+            })
     }
 
     // MARK: List
@@ -74,6 +80,11 @@ struct ScenariosTestPage: View {
                         Section {
                             ForEach(entry.scenarios) { scenario in
                                 ScenarioListRow(scenario: scenario, result: store.result(for: scenario.id)).tag(scenario.id)
+                                    .draggable(ScenarioDragItem.scenario(scenario.id).text)
+                                    .dropDestination(for: String.self) { texts, _ in
+                                        if case .rule(let rule)? = ScenarioDragItem.first(in: texts) { store.setFollows(rule, true, scenario: scenario.id) }
+                                    }
+                                    .contextMenu { ScenarioRowMenu(scenario: scenario, store: store, select: { selectedID = $0 }) }
                             }
                         } header: {
                             HStack { Text(entry.group); Text("\(entry.scenarios.count)").foregroundStyle(ColorTokens.Text.tertiary) }
@@ -101,7 +112,7 @@ struct ScenariosTestPage: View {
     @ViewBuilder
     private var detail: some View {
         if let id = selectedID, store.library.scenario(id: id) != nil {
-            ScenarioReviewPane(id: id, store: store, isEditing: $isEditing, answer: answer, next: goToNext, select: { selectedID = $0 })
+            ScenarioReviewPane(id: id, store: store, isEditing: $isEditing, answer: answer, select: { selectedID = $0 })
                 .id(id)
         } else {
             LabMailEmpty(title: "Select a scenario", symbol: "checklist")
