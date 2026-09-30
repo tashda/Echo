@@ -42,6 +42,9 @@ public enum ColorTokens {
         public static let tertiary = Color(nsColor: .tertiaryLabelColor)
         public static let quaternary = Color(nsColor: .quaternaryLabelColor)
         public static let placeholder = Color(nsColor: .placeholderTextColor)
+        /// Text and symbols on a solid coloured fill (Run's red capsule, round 24): the system's
+        /// colour for a selected control's text, white in both appearances.
+        public static let onFill = Color(nsColor: .alternateSelectedControlTextColor)
     }
     
     // Sidebar — Finder sidebar palette (macOS 26 Tahoe Figma reference)

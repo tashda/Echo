@@ -91,6 +91,11 @@ final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
     // MARK: - Native macOS
 
     private func sendNativeNotification(category: NotificationCategory, message: String) {
+        sendNativeNotification(title: category.group.displayName, body: message)
+    }
+
+    /// A macOS Notification Center banner, whatever the delivery preference says.
+    func sendNativeNotification(title: String, body: String) {
         let center = UNUserNotificationCenter.current()
 
         if !hasRequestedAuthorization {
@@ -99,8 +104,8 @@ final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
         }
 
         let content = UNMutableNotificationContent()
-        content.title = category.group.displayName
-        content.body = message
+        content.title = title
+        content.body = body
         content.sound = .default
 
         let request = UNNotificationRequest(

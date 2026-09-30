@@ -342,6 +342,19 @@ Rules: `decisions.md` › 2026-09-30 round 22 entries. Needs sqlserver-nio #11 (
 | S5 | **Dropped connection (LC4 = Postgres CW2, RC2, WD2):** detect the drop at once, say what was lost, offer Reconnect; shared with the Postgres implementation. | Tab session store, Messages | Matches the Postgres build 👁 | ☑ a5ed0ffb (told at once, Reconnect, runs wait; idle drops quiet; footer transaction pill; `MSSQLDedicatedSessionConnectionLossTests`), 👁 pending |
 | S6 | **Encryption (C4)**. | see C4 | see C4 | ☑ 057a797b |
 
+## Phase 19 · Run button (rounds 20 and 24)
+
+Rules: `decisions.md` › 2026-09-30 rounds 20 and 24.
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| RB1 | **Tooltip (T1, U1):** where Run runs, or why it can't; Stop (⌘↩) and Stopping while running. | `QueryRunToolbarControl`, `QueryRunButtonText` | `QueryRunButtonTests` 👁 | ☑ built, 👁 pending |
+| RB2 | **Never overflows (V1).** | `WorkspaceToolbarItems`, `ToolbarContent+Overflow` | Narrow the window: Run stays 👁 | ☑ built, 👁 pending |
+| RB3 | **⌘↩ toggles Run and Stop.** | `EchoApp+QueryMenu` | ⌘↩ while running stops 👁 | ☑ built, 👁 pending |
+| RB4 | **Timer K1, drawn ✓ (E1), Stopping (J1).** | `QueryRunToolbarControl`, `ElapsedTimeText` | 👁 | ☑ built, 👁 pending |
+| RB5 | **Long query notification (N1).** | `NotificationEngine+LongQuery`, `LongQueryNotice`, `QueryEditorState.runEndedHandler` | `QueryRunButtonTests` 👁 | ☑ built, 👁 pending |
+| RB6 | **▶ into ■ (round 24):** one button in its own glass; ■ replaces ▶ in place, the glass fades to red, then it grows and the time fades in; the red drains as the ✓ draws. | `QueryRunToolbarControl(+Components)`, `WorkspaceToolbarItems`, `LayoutTokens.Toolbar`, `ColorTokens.Text.onFill` | Matches the lab 👁 | ☑ built, 👁 pending: the glass Echo draws must match its neighbours' height and the red the system's prominent red |
+
 ## Phase 10 · Finish
 
 | ID | Task | Done when | Status |

@@ -75,6 +75,9 @@ struct WorkspaceToolbarItems: ToolbarContent {
             QueryRunToolbarItem()
         }
         .hidden(!toolbarContext.isQuery)
+        // Run draws its own glass so it can turn red without swapping buttons (round 24).
+        .sharedBackgroundVisibility(.hidden)
+        .keptOutOfOverflow()
 
         ToolbarSpacer(.fixed, placement: .primaryAction)
 

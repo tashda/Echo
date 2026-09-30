@@ -10,6 +10,33 @@ Echo Labs › Connections › round 23 (three pages), for what postgres-wire now
 - **Encrypted client key: KW1** the Key Password row appears only when the chosen key (or .p12 file) is protected by a password; **KK1** it is kept in the Keychain like the password; **KL1** it is called Key Password; **KR1** the certificate rows get labels on the left, the file name and Choose… on the right (the path on hover); **KE1** a wrong key password shows under the row and in the result line; **PF2** .p12/.pfx files are accepted: one file fills both certificate rows, unlocked by the key password. → CON-4.3, CON-6.2
 - **Several servers and failover: FH1** "+ Add Server" adds a row per server under Server; **FT1** Connect To in plain words (Any Server, Primary, Standby, Standby or Any if None Is Up; a pasted URL's read-write and read-only are kept); **FW1** Connect To appears under the servers once there are two; **FL1** load balancing is not in the sheet (a pasted URL can set it); **FS1** after a failover the footer shows a chip with the server (db2 · primary, where it moved from on hover) and a notification says so; **TS1** Test checks every server, one line each, and says where Echo would connect; **FR1** a query tab whose server went away shows Connection lost as round 21 decided, and Reconnect goes to the new server; **PU1** a pasted postgres://db1,db2/app URL fills a row per server and Connect To. → CON-2.3, CON-4.1, CON-6.2
 
+## 2026-09-30 · Round 24 accepted: ▶ into ■
+
+Echo Labs › Editor and running › Run: ▶ into ■ · round 24, on the owner's notes on round 20 (R1, R2 and R4 had "exactly the animation I want"; R0 and R3 did not). Replaces round 20's open item and its A2 glass morph.
+
+- **One button, never swapped.** Run draws its own glass (the toolbar item's shared glass is hidden) and draws the red itself (Y), so the plain ▶ never gives way to the system's prominent button sliding in. → 05-components › Toolbar, EDT-4.3
+- **Morph: M1 · ▶ is replaced by ■ in place** (SF Symbols' replace), as in round 20's R1. The shape morphs (corners slide, turn and square), magic replace, draw off and on, and squeeze were not chosen.
+- **Red: F1 · the glass fades to red** while ▶ turns into ■. The flood, plain glass (F3) and the swap were not chosen.
+- **Time: W1 · the capsule grows, then the time fades in,** once there is room. Sliding out, rolling digits and no time were not chosen.
+- **Curve: K2 · staged:** icon and colour first (0.25 s), then the width; no overshoot (`settle`). The house spring and unstaged smooth were not chosen.
+- **Ending: B0 · the red drains and the capsule shrinks as the ✓ draws.** Shrink first and reverse morph were not chosen.
+
+## 2026-09-30 · Round 20: the Run button
+
+Echo Labs › Editor and running › Run button: look (accepted) and Run button: running (answered; the change into running goes to a new round).
+
+- **At rest, unchanged:** F0 plain ▶ (play.fill) in its own capsule, label colour, accent with a selection, nothing on hover, other modes on right-click and in the Query menu, always Run (no last mode). Hidden on other tabs (O0). No extra press echo for ⌘↩ (D0). → 05-components › Toolbar, EDT-4.1, 4.2, 4.5
+- **When it can't run: U1 · dimmed, the tooltip says why** ("Type a query to run"). → EDT-4.1
+- **Tooltip: T1 · where it runs:** "Run in employees on Prod SQL (⌘↩)", "Run Selection in …". → EDT-4.1
+- **Narrow window: V1 · Run never goes into »;** its neighbours go first (toolbar visibility priority, macOS 26.1).
+- **⌘↩ toggles Run and Stop** (owner's note on W2): pressed while a query runs, it stops it, like clicking ■. The Query menu's Run item reads Stop Query meanwhile. ⌥⌘. still cancels too.
+- **Running, unchanged:** R0 red prominent capsule, ■ and the timer, at once (G0), still (P0), ■ stop.fill (X0). Nothing on Run for a query in another tab (B0); a cancel goes straight back to ▶ (Z0); no batch progress (Q0); every run, however started, shows the same running look (Y0).
+- **Timer: K1 · “5 s”, then “1:05”.** → EDT-4.3
+- **Result: E1 · the ✓ draws itself** (SF Symbols' Draw On), held 2.4 s (T1). → EDT-4.4
+- **A slow cancel: J1 · Stopping:** the capsule dims, ■ becomes a small spinner and the words say Stopping; it can't be clicked. → EDT-4.3
+- **Long query while away: N1 · a macOS notification** for a query of 30 s or more that ends while Echo isn't in front ("Query 1 finished in 2:14"). → 05-components › Notifications
+- **The change into running** went to round 24 (above): the owner wanted ▶ to transform into ■ and the capsule to grow much more smoothly for the timer; the glass morph (A2) was picked but "not really keen".
+
 ## 2026-09-30 · Round 21 accepted: query time limits
 
 Echo Labs › Connections › Postgres: statement timeouts · round 21 (revision 2). Chosen on the "Where the message goes" exhibit.

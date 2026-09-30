@@ -9,6 +9,7 @@ import AppKit
 
 /// The Query menu (plan K1, K3): every run mode, Cancel, EchoSense, Format and Validate. It owns
 /// their shortcuts, so the toolbar buttons bind none. Titles double as keys for custom shortcuts.
+/// Run's item becomes Stop Query while the tab runs, so ⌘↩ toggles (round 20).
 struct QueryMenuCommands: Commands {
     let tabStore: TabStore
     let navigationStore: NavigationStore
@@ -30,13 +31,17 @@ struct QueryMenuCommands: Commands {
     var body: some Commands {
         CommandMenu("Query") {
             ForEach(QueryRunMode.allCases) { mode in
-                Button {
-                    queryTab?.run(mode)
-                } label: {
-                    Label(mode.title, systemImage: mode.systemImage)
+                if mode == .run {
+                    runOrStopItem
+                } else {
+                    Button {
+                        queryTab?.run(mode)
+                    } label: {
+                        Label(mode.title, systemImage: mode.systemImage)
+                    }
+                    .shortcut(Self.shortcut(for: mode), custom: customShortcuts)
+                    .disabled(queryTab == nil || isRunning || (mode.needsPlans && !(queryTab?.supportsExecutionPlans ?? false)))
                 }
-                .shortcut(Self.shortcut(for: mode), custom: customShortcuts)
-                .disabled(queryTab == nil || isRunning || (mode.needsPlans && !(queryTab?.supportsExecutionPlans ?? false)))
             }
 
             if let tab = queryTab, tab.supportsRunAsOneTransaction {
@@ -79,6 +84,31 @@ struct QueryMenuCommands: Commands {
             .shortcut(Self.validate, custom: customShortcuts)
             .disabled(queryTab == nil)
         }
+    }
+}
+
+// MARK: - Run and Stop
+
+extension QueryMenuCommands {
+    /// ⌘↩ toggles (round 20, owner's note): Run, or Stop while the tab's query runs.
+    @ViewBuilder
+    var runOrStopItem: some View {
+        Button {
+            guard let tab = queryTab, let query = tab.query else { return }
+            if query.isExecuting {
+                if query.cancelPhase == nil { query.cancelExecution() }
+            } else {
+                tab.run(.run)
+            }
+        } label: {
+            if isRunning {
+                Label("Stop Query", systemImage: "stop.fill")
+            } else {
+                Label(QueryRunMode.run.title, systemImage: QueryRunMode.run.systemImage)
+            }
+        }
+        .shortcut(Self.shortcut(for: .run), custom: customShortcuts)
+        .disabled(queryTab == nil)
     }
 }
 
