@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 22 accepted: SQL Server values, errors, and cancel and sessions
+
+Echo Labs › round 22 (three pages). sqlserver-nio now formats values exactly, reports structured errors and cancels on the server; Echo follows.
+
+- **Values in the grid (Footer and results): DF1** SQL Server style dates (`2026-09-30 12:34:56.123`, the column's own precision); **DO1** datetimeoffset as stored with its offset; **MN1** money and smallmoney always with four decimals; **GE1** geography longitude first, as STAsText; **SS1** every spooled row (preview included) stored as wire bytes and formatted by the driver's `SQLServerCellFormatter`, so rows after 200 read like the preview. ISO dates, converted offsets, trimmed money and the mixed spool were not chosen. → 05-components › Results card, FTR-2.3
+- **Errors and messages (Editor and running): EM1** the SSMS line `Msg 547, Level 16, State 0, Line 3` over the message; **LL1** "Line 3" selects that line in the editor; **AM1** every message of the batch in the order the server sent it, PRINT output included; **CU1** a COMMIT with an unknown outcome says "The connection was lost during COMMIT. The transaction may or may not have been saved; check the data before running it again."; **FE1** severity 20 and above is handled as a lost connection, with the server's message; **ED1** the in-editor mark follows the Postgres error-location decision. → EDT-3.3, FTR-2.3
+- **Cancel, timeouts and lost connections (Editor and running): TO1** the query time limit follows the Postgres timeouts decision (TW2 Settings default with connection overrides, TD2 no limit unless set) and is the driver's request deadline; the hard-coded 45 s goes. **CL1** cancelling looks exactly as the Postgres cancel page decides; a cancel keeps the session. **XA1** tabs keep XACT_ABORT ON, and a cancel inside a transaction says "Transaction rolled back". **LC4 (owner's choice in chat, replaces LC1): a dropped connection follows the Postgres decision (CW2, RC2, WD2)** — Echo says at once what was lost (temporary tables, SET options, open transaction) and offers Reconnect; nothing reconnects or reruns by itself, for both engines. **BG1** ship the background changes: shared threads for tabs, APP_NAME() "Echo", extra result sets spooled instead of held in memory, one task at a time per tab session, pooled sidebar sessions reset and reused. → EDT-3.3, EDT-4.3/4.4, FTR-2.6, CON-4.5
+
 ## 2026-09-30 · Round 22 accepted: SQL Server encryption settings
 
 Echo Labs › Connections › SQL Server: encryption settings · round 22. With sqlserver-nio's hardening, no mode sends credentials unencrypted any more; the sheet now says what each mode checks.

@@ -320,6 +320,19 @@ Rules: `05-components` › Explorer tree.
 | Q5 | **Outline edge (QE5)** as a setting: statement ticks, errors and the visible area on the right edge. | Editor | Toggles in Settings | ☑ built, 👁 pending: Settings › Appearance › Editor › Outline Edge, off by default; replaces the scroll bar while on |
 | Q6 | **Helpful empty tab (QE6):** recent tables and snippets as faint starting points that vanish on typing. | Editor | 👁 | ☑ built, 👁 pending: Echo now remembers tables opened by Data, Structure, Diagram and search (`RecentTableStore`, per connection and database, 60 kept); the empty tab shows the last four as chips above the snippets, and a chip inserts the table's first-rows query |
 
+## Phase 18 · SQL Server driver integration (round 22)
+
+Rules: `decisions.md` › 2026-09-30 round 22 entries. Needs sqlserver-nio #11 (on `dev`), #12 (cell formatter, exact values) and #13 (TLS failure reasons) on `dev`, then `Package.resolved` updated.
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| S1 | **Driver on dev:** update `Package.resolved`; handle the new error cases (`commitOutcomeUnknown`, `tlsFailed`) in `DatabaseError.from(sqlServerError:)`. | `Package.resolved`, `DatabaseError.swift` | Echo builds against sqlserver-nio `dev` | ⏸ blocked: #12, #13 |
+| S2 | **Values (DF1, DO1, MN1, GE1, SS1):** store every MSSQL row as wire bytes with the column's `SQLServerCellType`; decode spooled rows with `SQLServerCellFormatter`; retire `TDSBinaryDecoder` and `canUseRawPath`. | `MSSQLDedicatedQuerySession+Queries`, `SQLServerSessionAdapter+Queries`, `ResultSpoolHandle+Codec`, `ResultSpoolTypes+TDSDecoding` | Rows 1, 200, 201 and 1,000 read the same; Cyrillic varchar after row 200 is right | ⏸ blocked: S1 |
+| S3 | **Errors (EM1, LL1, AM1, CU1, FE1, ED1):** Messages lists every message with the SSMS header; the line is a link; COMMIT outcome unknown wording; severity ≥ 20 goes to the lost-connection path. | MSSQL sessions, `ExecutionConsoleView`, execution error handling | Matches the lab 👁 | ⏸ blocked: S1 |
+| S4 | **Cancel and sessions (TO1, CL1, XA1, BG1):** remove the 45 s task-group timer and reconnect-after-cancel; cancel keeps the session; "Transaction rolled back" after a cancel inside one; the dedicated session becomes an actor; APP_NAME "Echo"; extra result sets spooled. | `MSSQLDedicatedQuerySession*`, `WorkspaceTabContainerView+Execution`, `MSSQLNIOFactory` | A cancel keeps #temp tables; no 45 s stop | ⏸ blocked: S1 |
+| S5 | **Dropped connection (LC4 = Postgres CW2, RC2, WD2):** detect the drop at once, say what was lost, offer Reconnect; shared with the Postgres implementation. | Tab session store, Messages | Matches the Postgres build 👁 | ⏸ blocked: S1 and the Postgres build of RC2 |
+| S6 | **Encryption (C4)**. | see C4 | see C4 | ⏸ blocked: S1 |
+
 ## Phase 10 · Finish
 
 | ID | Task | Done when | Status |
