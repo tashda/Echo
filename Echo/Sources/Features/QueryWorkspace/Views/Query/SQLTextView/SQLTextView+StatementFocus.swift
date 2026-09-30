@@ -1,4 +1,5 @@
 #if os(macOS)
+import EchoSense
 import AppKit
 
 /// QE1 (design board, 2026-09-30): when a script holds more than one statement, the statement at

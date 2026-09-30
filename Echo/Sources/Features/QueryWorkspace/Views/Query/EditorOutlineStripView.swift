@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import EchoSense
 
 /// QE5 (design board, 2026-09-30), a setting: a thin strip on the editor's right edge that
 /// marks where each statement starts, where errors are (red) and which part is on screen
