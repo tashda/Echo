@@ -13,8 +13,8 @@ enum NotificationsArea {
         summary: "Toasts stack at the top right of the tab's first card. The bell opens the history in the inspector's column.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "755f8254 + round 17", date: "2026-09-30",
-                note: "The specimen copies StatusToastStack, StatusToastPresenter and NotificationHistoryPanel as of 755f8254, with the column motion from 92d9b637. Awaiting your confirmation in the running app."),
+                level: .code, commit: "d4659ef6", date: "2026-09-30",
+                note: "Read from StatusToastRow, StatusToastStack, StatusToastPresenter, ToastOverlay, NotificationHistoryPanel and Card, NotificationBellToolbarButton, NotificationEngine, NotificationEvent, NotificationHistory, AppState and the Toast and Inspector tokens as of round 18. The specimen copies them."),
             stageHeight: 560,
             behaviours: [
                 .init(trigger: "An event happens", result: "A toast appears in the top-right corner of the tab's first card (inside the editor card on a query tab), below the tab bar and left of the inspector."),
@@ -22,7 +22,8 @@ enum NotificationsArea {
                 .init(trigger: "The same event again", result: "It counts up (×2, ×3) and moves to the top instead of stacking."),
                 .init(trigger: "Hover a toast", result: "It stays while hovered and opens in place to the whole reason, selectable, with small buttons (Open Tab or Show Server, Copy, Show All) and ×."),
                 .init(trigger: "An error", result: "It stays until dismissed; its × always shows."),
-                .init(trigger: "Other toasts", result: "They go after 3 seconds (5 for connection and switch failures)."),
+                .init(trigger: "Other toasts", result: "They go after 3 seconds; 5 for connection failures, database switch failures and job errors. A hovered toast waits until the pointer leaves."),
+                .init(trigger: "Delivery setting", result: "Each category can be off, and delivery is an in-app toast, a native macOS notification, or both. History records the event either way."),
                 .init(trigger: "Click the bell", result: "The history takes the inspector's column; the badge clears. Click again to put it away."),
                 .init(trigger: "Click the inspector button", result: "From the history it switches the column to the details."),
                 .init(trigger: "The history", result: "Compact cards grouped Today, Yesterday, then by date: an icon, the message's first part and the time on one line. What was new when the bell opened is bold and counted beside the title."),
@@ -30,7 +31,7 @@ enum NotificationsArea {
                 .init(trigger: "The ⋯ menu", result: "Filters (All, Errors, Connection, Queries, Jobs) and Clear All."),
                 .init(trigger: "Muted toast", result: "Every event is still recorded in history (500 kept, across launches)."),
                 .init(trigger: "A query fails", result: "Recorded in history; a toast only when its tab isn't in front (the results card shows the error)."),
-                .init(trigger: "Bell while the details show, then the bell again", result: "The column switches to the history, then closes; it never falls back to the details. The inspector button works the same way the other round."),
+                .init(trigger: "Bell while the details show, then the bell again", result: "The column switches to the history, then closes; it never falls back to the details. The inspector button (⌥⌘I) from the history switches to the details, otherwise it shows or hides the column."),
                 .init(trigger: "A toast's text", result: "A bold title (the message up to its first \": \") with the reason under it in two lines of secondary text."),
                 .init(trigger: "Flick a toast to the right", result: "It follows the pointer and fades; past 80pt it goes, otherwise it springs back."),
             ],
@@ -49,6 +50,7 @@ enum NotificationsArea {
                 .init(label: "Toast duration", value: "3s; errors stay", token: "NotificationEngine.post duration"),
                 .init(label: "Toast actions", value: "Small bordered buttons", token: ".bordered, .small"),
                 .init(label: "Column width", value: "300pt (260 to 640)", token: "LayoutTokens.Inspector"),
+                .init(label: "Bell badge", value: "the system badge with the unread count", token: ".badge(unreadCount)"),
                 .init(label: "History cards", value: "One line; 12pt sides, 8pt top and bottom, 6pt apart, 10pt corners", token: "LayoutTokens.FloatingSurface.rowCornerRadius"),
                 .init(label: "History actions", value: "Small bordered buttons", token: ".bordered, .small"),
                 .init(label: "History kept", value: "500 events", token: "NotificationHistory.capacity"),
@@ -80,6 +82,7 @@ enum NotificationsArea {
                 "Echo/Sources/Shared/Notifications/",
                 "Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/NotificationBellToolbarButton.swift",
                 "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceInspectorColumn.swift",
+                "Echo/Sources/Features/AppHost/Views/Notifications/StatusToastRow.swift",
             ]
         ) {
             NotificationsSpecimen(state: state)

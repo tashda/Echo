@@ -59,9 +59,11 @@ enum NotificationsSpec {
                 .motion(.row("In and out", "house spring, 0.45s: slides from the top and fades")),
             ], rounds: [r15], files: [presenter, views]),
             SpecElement(number: "2.2", name: "Timing", summary: "How long a toast stays.", states: [SpecState(key: "toast", name: "Toast showing")], defaultState: "toast", groups: [
-                .behaviour(.row("Most toasts", "3 seconds"), .row("Connection and switch failures", "5 seconds"),
-                           .row("Errors", "until dismissed"), .row("Hovered", "stays while hovered"),
-                           .row("A query fails", "a toast only when its tab isn't in front; the results card shows the error")),
+                .behaviour(.row("Most toasts", "3 seconds", token: "NotificationEngine.post duration"), .row("Connection failures, database switch failures, job errors", "5 seconds", token: "NotificationEvent.duration"),
+                           .row("Errors", "until dismissed", token: "Toast.staysUntilDismissed"), .row("Hovered", "waits until the pointer leaves"),
+                           .row("A query fails", "a toast only when its tab isn't in front; the results card shows the error"),
+                           .row("Delivery", "each category can be off; delivery is an in-app toast, a native macOS notification, or both", token: "NotificationDelivery"),
+                           .row("VoiceOver", "each toast is announced")),
             ], rounds: [r18], files: [presenter]),
         ]),
         SpecPart(number: "3", name: "History", summary: "Every event, in the inspector's column.", elements: [
@@ -79,7 +81,9 @@ enum NotificationsSpec {
                 .behaviour(.row("Why quiet", "accent text in the header looked odd; Clear lives in the ⋯ menu")),
             ], rounds: [r17], files: [views]),
             SpecElement(number: "3.4", name: "Menu", summary: "The ⋯ menu.", states: [SpecState(key: "history", name: "History open")], defaultState: "history", groups: [
-                .behaviour(.row("Items", "All, Errors, Connection, Queries, Jobs, then Clear All"), .row("Tooltip", "Filter and Clear")),
+                .behaviour(.row("Show", "an inline picker: All, Errors, Connection, Queries, Jobs; the title becomes, for example, Errors Notifications"),
+                           .row("Clear All", "destructive; disabled when the history is empty"), .row("Tooltip", "Filter and Clear"),
+                           .row("Empty", "\"No notifications\", or \"No errors notifications\" under a filter")),
             ], rounds: [r17], files: [views]),
             SpecElement(number: "3.5", name: "Card", summary: "One line: an icon, the message's first part and the time.", states: [SpecState(key: "history", name: "History open")], defaultState: "history", groups: [
                 .layout(.row("Padding", "12pt sides, 8pt top and bottom", token: "SpacingTokens.sm / xs"), .row("Spacing", "6pt between cards"),
@@ -88,7 +92,8 @@ enum NotificationsSpec {
                 .type(.row("Title", "13pt; semibold while new, regular after"), .row("Time", "11pt tertiary, relative")),
             ], rounds: [r17], files: [views]),
             SpecElement(number: "3.6", name: "Opened card", summary: "Click a card: it fades open to the whole message.", states: [SpecState(key: "history", name: "History open")], defaultState: "history", groups: [
-                .behaviour(.row("Shows", "the server, the rest of the message (selectable), small Open Tab or Show Server and Copy buttons")),
+                .behaviour(.row("Shows", "the server, the rest of the message (selectable, monospaced 11pt), small Open Tab or Show Server (when the tab or server still exists) and Copy buttons"),
+                           .row("Indent", "24pt", token: "SpacingTokens.lg")),
                 .motion(.row("Opens", "fade, 0.45s")),
             ], rounds: [r17], files: [views]),
             SpecElement(number: "3.7", name: "What is kept", summary: "Every event is recorded, muted or not.", states: [SpecState(key: "history", name: "History open")], defaultState: "history", groups: [
@@ -98,9 +103,10 @@ enum NotificationsSpec {
         ]),
         SpecPart(number: "4", name: "Bell", summary: "The toolbar button that opens the history.", elements: [
             SpecElement(number: "4.1", name: "Bell button", summary: "In the toolbar, with an unread badge.", groups: [
-                .type(.row("Badge", "the unread count in bold compact type on an error-coloured capsule")),
+                .type(.row("Badge", "the system badge with the unread count", token: ".badge(unreadCount)")),
+                .states(.row("History showing", "the filled bell")),
                 .behaviour(.row("Click", "the history takes the inspector's column and the badge clears; click again to put it away"),
-                           .row("Tooltip", "Notifications")),
+                           .row("Tooltip", "Notifications, with (N unread) when there are unread events")),
             ], rounds: [r15], files: [bell]),
             SpecElement(number: "4.2", name: "Bell and inspector button", summary: "They switch the column between history and details.", groups: [
                 .behaviour(.row("Bell, then the bell again", "the history, then the column closes; it never falls back to the details"),

@@ -3,6 +3,11 @@
 
     python3 EchoLab/Scripts/verify-labs.py [area-dir ...]      # e.g. Tabs Window; default: all
     python3 EchoLab/Scripts/verify-labs.py --stale-only        # just the areas whose code moved
+    python3 EchoLab/Scripts/verify-labs.py --stamp Tabs        # after you checked the page against the code
+
+`--stamp` records today's date and the current commit as the area's verification (`commit:`
+in its As built page). Only stamp an area after reading the drifted commits and updating the
+page (As built rows and spec elements) to match Echo; the stamp is a claim that it does.
 
 For every area (EchoLab/Sources/EchoLab/Areas/<Area>/) it reports:
   1. MISSING FILE    a code path the spec or As built page names that does not exist.
@@ -68,8 +73,23 @@ def verification_commit(text):
     h = re.search(r"\b[0-9a-f]{7,40}\b", m.group(1))
     return h.group(0) if h else None
 
+def stamp(directory: Path):
+    import datetime
+    sha = git("rev-parse", "--short", "HEAD").strip()
+    for path in directory.glob("*Area.swift"):
+        text = path.read_text()
+        new = re.sub(r'commit: "[^"]*", date: "[^"]*"', f'commit: "{sha}", date: "{datetime.date.today().isoformat()}"', text, count=1)
+        if new != text:
+            path.write_text(new)
+            print(f"{directory.name}: stamped {sha}")
+            return
+    print(f"{directory.name}: no verification line found in *Area.swift")
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if "--stamp" in sys.argv:
+        for a in args: stamp(AREAS / a)
+        return
     stale_only = "--stale-only" in sys.argv
     directories = [AREAS / a for a in args] if args else sorted(d for d in AREAS.iterdir() if d.is_dir())
     problems = 0
