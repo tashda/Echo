@@ -260,7 +260,17 @@ final class BulkImportViewModel {
             identityInsert: identityInsert
         )
 
-        let summary = try await adapter.client.bulk.copy(rows: bcpRows, options: options)
+        let batchSz = max(1, batchSize)
+        let total = bcpRows.count
+        let summary = try await adapter.client.bulk.copy(rows: bcpRows, options: options) { [weak self] _, batch in
+            try Task.checkCancellation()
+            await MainActor.run {
+                guard let self else { return }
+                self.completedBatches = batch
+                self.importedRowCount = min(batch * batchSz, total)
+                self.activityHandle?.updateProgress(Double(self.importedRowCount) / Double(max(total, 1)))
+            }
+        }
 
         timerTask?.cancel()
         importedRowCount = summary.totalRows
