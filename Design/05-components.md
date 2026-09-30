@@ -150,7 +150,8 @@ Decided 2026-09-30.
 - **One tool header** for every tool tab: the tool's icon, title, server and freshness ("updated 2 s ago"), and the tool's actions on the right. *Decided.*
 - **Panes are cards** on the canvas, a gutter apart, like the editor and results cards. *Decided.*
   - A tool whose pages mix one-pane and several-pane layouts keeps one card for the one-pane pages; the card steps aside when the page brings cards of its own. *Built 2026-09-30.*
-  - Once a tool's panes are cards, its toolbar row sits on the canvas under the tool header, lined up with it, and the status bar floats on the canvas under the cards. The bottom panel (Messages, Live Data) is a card of its own. *Built 2026-09-30.*
+  - Once a tool's panes are cards, its toolbar row sits on the canvas under the tool header, lined up with it. *Built 2026-09-30.*
+  - **A tool's bottom panel works like the query tab's results** (owner, 2026-09-30): the same cards (`ContentPanelCards`). Messages or Live Data grow up out of the status bar and fold back into it, the gap resizes, and a double-click on it (or View › Maximize Bottom Panel, ⌥⇧⌘Y) maximises the panel, leaving a one-line content card, the same everywhere. The status bar floats in the content card while the panel is closed; when the content is cards side by side, it rests on the canvas below them instead. *Built 2026-09-30.*
   - A pane that compares or lists two things of one object (a session's events and targets, the source and target DDL) keeps them in its one card.
 - **Monitoring tools** open on dashboard tiles: the key figures as cards with sparklines above the detail. *Decided.*
 - Configuration stays in the tab; read-only detail such as a job's history may use the Inspector. *Decided.*

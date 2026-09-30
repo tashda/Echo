@@ -60,7 +60,7 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("y", modifiers: [.command, .shift])
             .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
 
-            // Same as double-clicking the gap between the editor and results cards (plan E3).
+            // Same as double-clicking the gap between the content and panel cards (plan E3, TT1).
             Button {
                 guard let panelState = tabStore.activeTab?.panelState else { return }
                 if !panelState.isOpen {
@@ -71,13 +71,14 @@ struct ViewMenuCommands: Commands {
                 }
             } label: {
                 let isMaximized = tabStore.activeTab?.panelState.isResultsMaximized ?? false
+                let isQuery = tabStore.activeTab?.kind == .query
                 Label(
-                    isMaximized ? "Restore Editor" : "Maximize Results",
+                    isMaximized ? (isQuery ? "Restore Editor" : "Restore Bottom Panel") : (isQuery ? "Maximize Results" : "Maximize Bottom Panel"),
                     systemImage: isMaximized ? "rectangle.split.1x2" : "rectangle.bottomhalf.filled"
                 )
             }
             .keyboardShortcut("y", modifiers: [.command, .shift, .option])
-            .disabled(!navigationStore.isWorkspaceWindowKey || tabStore.activeTab?.kind != .query)
+            .disabled(!navigationStore.isWorkspaceWindowKey || tabStore.activeTab?.kind.hasBottomPanel != true)
 
             // Search lives in the toolbar and ⌘K now (plan K4); ⇧⌘F is Format Query (K3).
             Button {

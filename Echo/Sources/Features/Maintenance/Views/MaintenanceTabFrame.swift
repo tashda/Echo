@@ -14,30 +14,30 @@ struct MaintenanceTabFrame<SectionPicker: View, Content: View>: View {
     @Environment(ProjectStore.self) private var projectStore
 
     var body: some View {
-        TabContentWithPanel(
-            panelState: panelState,
-            statusBarConfiguration: statusBarConfig
-        ) {
-            if !isInitialized {
-                TabInitializingPlaceholder(
-                    icon: "wrench.and.screwdriver",
-                    title: "Initializing Maintenance",
-                    subtitle: "Loading database health data\u{2026}"
-                )
-            } else {
-                // TT1: the section toolbar sits on the canvas; the section is one card, or its
-                // own cards when it has several panes.
-                VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
-                    CenteredTabSectionToolbar { sectionPicker() }
-                        .tabSectionToolbarOnCanvas()
-                    content()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .adaptiveWorkspaceCard()
-                }
+        // TT1: the section toolbar sits on the canvas above the cards; the section is one card,
+        // or its own cards when it has several panes, with the Messages panel below.
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
+            if isInitialized {
+                CenteredTabSectionToolbar { sectionPicker() }
+                    .tabSectionToolbarOnCanvas()
             }
-        } panelContent: {
-            ExecutionConsoleView(executionMessages: panelState.messages) {
-                panelState.clearMessages()
+            TabContentWithPanel(
+                panelState: panelState,
+                statusBarConfiguration: statusBarConfig
+            ) {
+                if !isInitialized {
+                    TabInitializingPlaceholder(
+                        icon: "wrench.and.screwdriver",
+                        title: "Initializing Maintenance",
+                        subtitle: "Loading database health data\u{2026}"
+                    )
+                } else {
+                    content()
+                }
+            } panelContent: {
+                ExecutionConsoleView(executionMessages: panelState.messages) {
+                    panelState.clearMessages()
+                }
             }
         }
     }

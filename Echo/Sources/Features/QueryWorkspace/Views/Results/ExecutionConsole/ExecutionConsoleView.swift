@@ -7,6 +7,8 @@ struct ExecutionConsoleView: View {
 
     @State private var filter: MessageFilter = .all
     @State private var isAutoScrolling = true
+    /// The card's floating footer, so the last message scrolls clear of it.
+    @Environment(\.cardFooterOverlayHeight) private var footerOverlayHeight
 
     private var filteredMessages: [QueryExecutionMessage] {
         switch filter {
@@ -97,6 +99,7 @@ struct ExecutionConsoleView: View {
                     }
                 }
             }
+            .contentMargins(.bottom, footerOverlayHeight, for: .scrollContent)
             .onChange(of: executionMessages.count) {
                 if isAutoScrolling, let last = filteredMessages.last {
                     withAnimation(.easeOut(duration: 0.15)) {

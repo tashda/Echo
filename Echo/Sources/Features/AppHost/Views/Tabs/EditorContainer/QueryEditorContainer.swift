@@ -29,11 +29,11 @@ struct QueryEditorContainer: View {
     var body: some View {
         // Two cards, editor over results (plan E1–E3). The editor keeps its place in the view
         // tree when results open and close, so it's never rebuilt.
-        EditorResultsCards(
+        ContentPanelCards(
             panelState: panelState,
-            isResultsOnly: query.isResultsOnly,
-            minEditorFraction: minRatio,
-            maxEditorFraction: maxRatio
+            isPanelOnly: query.isResultsOnly,
+            minContentFraction: minRatio,
+            maxContentFraction: maxRatio
         ) {
             VStack(spacing: SpacingTokens.none) {
                 if tab.isDedicatedSessionFailed {
@@ -54,7 +54,7 @@ struct QueryEditorContainer: View {
                     tableStarts: emptyTabTableStarts
                 )
             }
-        } results: {
+        } panel: {
             resultsSection(isResizingResults: false)
         } footer: {
             queryStatusBar

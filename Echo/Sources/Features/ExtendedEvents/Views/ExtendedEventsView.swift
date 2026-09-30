@@ -7,7 +7,7 @@ struct ExtendedEventsView: View {
     let onPopout: ((String) -> Void)?
     var onDoubleClick: (() -> Void)?
     
-    @Environment(TabStore.self) private var tabStore
+    @Environment(TabStore.self) var tabStore
     @Environment(ProjectStore.self) private var projectStore
 
     init(
@@ -22,7 +22,7 @@ struct ExtendedEventsView: View {
         self.onDoubleClick = onDoubleClick
     }
 
-    private var isWatchingLiveData: Bool {
+    var isWatchingLiveData: Bool {
         panelState.isOpen && panelState.selectedSegment == .liveData
     }
 
@@ -30,13 +30,21 @@ struct ExtendedEventsView: View {
         @Bindable var viewModel = viewModel
         @Bindable var panelState = panelState
         
-        TabContentWithPanel(
-            panelState: panelState,
-            statusBarConfiguration: statusBarConfig
-        ) {
-            mainContent
-        } panelContent: {
-            panelContentView
+        // TT1: the toolbar on the canvas; the sessions and their details as cards, with the
+        // Live Data and Messages panel below.
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
+            if hasSessionsLoaded {
+                sectionToolbar
+                    .tabSectionToolbarOnCanvas()
+            }
+            TabContentWithPanel(
+                panelState: panelState,
+                statusBarConfiguration: statusBarConfig
+            ) {
+                mainContent
+            } panelContent: {
+                panelContentView
+            }
         }
         .task {
             await viewModel.loadSessions()
@@ -55,6 +63,13 @@ struct ExtendedEventsView: View {
         .tabContentFrame()
     }
 
+    /// The sessions are in (or failed with some already shown), so the toolbar applies.
+    private var hasSessionsLoaded: Bool {
+        if viewModel.loadingState == .loading && viewModel.sessions.isEmpty { return false }
+        if case .error = viewModel.loadingState, viewModel.sessions.isEmpty { return false }
+        return true
+    }
+
     @ViewBuilder
     private var mainContent: some View {
         if viewModel.loadingState == .loading && viewModel.sessions.isEmpty {
@@ -62,28 +77,19 @@ struct ExtendedEventsView: View {
         } else if case .error(let message) = viewModel.loadingState,
                   viewModel.sessions.isEmpty {
             errorPlaceholder(message)
+        } else if viewModel.sessions.isEmpty {
+            TabContentUnavailableView("No Extended Events Sessions", systemImage: "waveform.path.ecg") {
+                Text("Create a session to capture and inspect SQL Server events.")
+            } actions: {
+                Button("New Session") { viewModel.showCreateSheet = true }
+                    .buttonStyle(.bordered)
+            }
         } else {
-            // TT1: the toolbar on the canvas, the sessions and their details as cards.
-            VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
-                sectionToolbar
-                    .tabSectionToolbarOnCanvas()
-                if viewModel.sessions.isEmpty {
-                    TabContentUnavailableView("No Extended Events Sessions", systemImage: "waveform.path.ecg") {
-                        Text("Create a session to capture and inspect SQL Server events.")
-                    } actions: {
-                        Button("New Session") { viewModel.showCreateSheet = true }
-                            .buttonStyle(.bordered)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .workspaceCard()
-                } else {
-                    ExtendedEventsSessionList(viewModel: viewModel) { sessionName in
-                        viewModel.selectedSessionName = sessionName
-                        panelState.selectedSegment = .liveData
-                        panelState.isOpen = true
-                        Task { await viewModel.loadEventData() }
-                    }
-                }
+            ExtendedEventsSessionList(viewModel: viewModel) { sessionName in
+                viewModel.selectedSessionName = sessionName
+                panelState.selectedSegment = .liveData
+                panelState.isOpen = true
+                Task { await viewModel.loadEventData() }
             }
         }
     }
@@ -148,41 +154,6 @@ struct ExtendedEventsView: View {
         default:
             EmptyView()
         }
-    }
-
-    private var statusBarConfig: BottomPanelStatusBarConfiguration {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
-
-        var config = BottomPanelStatusBarConfiguration(
-            serverName: connText,
-            databaseName: nil,
-            availableSegments: panelState.availableSegments,
-            selectedSegment: panelState.selectedSegment,
-            onSelectSegment: { segment in
-                if panelState.isOpen && panelState.selectedSegment == segment {
-                    panelState.isOpen = false
-                } else {
-                    panelState.selectedSegment = segment
-                    if !panelState.isOpen { panelState.isOpen = true }
-                }
-            },
-            onTogglePanel: { panelState.isOpen.toggle() },
-            isPanelOpen: panelState.isOpen
-        )
-
-        if !viewModel.eventData.isEmpty {
-            config.metrics = .init(
-                rowCountText: "\(viewModel.eventData.count)",
-                rowCountLabel: viewModel.eventData.count == 1 ? "event" : "events",
-                durationText: nil
-            )
-        }
-
-        if isWatchingLiveData && viewModel.eventDataLoadingState == .loading {
-            config.statusBubble = .init(label: "Capturing", tint: .orange, isPulsing: true)
-        }
-
-        return config
     }
 
     private var loadingPlaceholder: some View {
