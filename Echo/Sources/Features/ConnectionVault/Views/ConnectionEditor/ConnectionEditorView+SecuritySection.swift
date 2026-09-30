@@ -37,7 +37,7 @@ extension ConnectionEditorView {
                 // no "Use SSL/TLS" gate because TDS PRELOGIN handles negotiation:
                 // Optional lets the server upgrade us to TLS if it requires it;
                 // Mandatory/Strict insists on TLS regardless.
-                PropertyRow(title: "Encryption", info: "Strict requires TDS 8.0 TLS-before-TDS (Azure SQL). Mandatory requires TLS but uses classic negotiation. Optional uses TLS only if the server requires it (default).") {
+                PropertyRow(title: "Encryption", info: "Every mode encrypts the password and the session. Mandatory and Strict check that the certificate is trusted and names this server; Strict (TDS 8.0, SQL Server 2022 and later, Azure SQL) starts TLS before anything else.") {
                     Picker("", selection: $mssqlEncryptionMode) {
                         ForEach(MSSQLEncryptionMode.allCases, id: \.self) { mode in
                             Text(mode.description).tag(mode)
@@ -47,10 +47,26 @@ extension ConnectionEditorView {
                     .pickerStyle(.menu)
                 }
 
-                PropertyRow(title: "Trust Server Certificate", info: "Skip server certificate validation. Use for self-signed certificates or internal-CA certificates not in the system trust store.") {
+                PropertyRow(title: "Trust Server Certificate", info: mssqlEncryptionMode == .strict
+                    ? "Under Strict the certificate is always checked."
+                    : "Skip server certificate validation. Use for self-signed certificates or internal-CA certificates not in the system trust store.") {
+                    // Round 22, ST1: Strict always checks, so the switch is off and dimmed.
                     Toggle("", isOn: $trustServerCertificate)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .disabled(mssqlEncryptionMode == .strict)
+                }
+                .onChange(of: mssqlEncryptionMode) { _, mode in
+                    if mode == .strict { trustServerCertificate = false }
+                }
+
+                if mssqlEncryptionMode != .strict {
+                    // Round 22, LT2: for servers without their TLS 1.2 update.
+                    PropertyRow(title: "Allow TLS 1.0", info: "For SQL Server 2008 R2 to 2014 without their TLS 1.2 update. TLS 1.0 and 1.1 are outdated and weak; leave this off unless the server cannot be updated.") {
+                        Toggle("", isOn: $allowLegacyTLS)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
                 }
 
                 PropertyRow(title: "Read-Only Intent", info: "Signal read-only application intent for AlwaysOn Availability Group secondary replica routing.") {
@@ -59,7 +75,7 @@ extension ConnectionEditorView {
                         .toggleStyle(.switch)
                 }
 
-                if !trustServerCertificate {
+                if !trustServerCertificate || mssqlEncryptionMode == .strict {
                     PropertyRow(title: "Host Name In Certificate", info: "Override the hostname used to validate the server certificate. Set this when connecting via IP, alias, or CNAME that differs from the name on the certificate.") {
                         TextField("", text: $hostNameInCertificate, prompt: Text("e.g. prod-sql-01.contoso.com"))
                             .textFieldStyle(.roundedBorder)

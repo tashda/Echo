@@ -64,6 +64,7 @@ extension ConnectionEditorView {
                 return trimmed.isEmpty ? nil : trimmed
             }(),
             readOnlyIntent: selectedDatabaseType == .microsoftSQL ? readOnlyIntent : false,
+            allowLegacyTLS: selectedDatabaseType == .microsoftSQL ? allowLegacyTLS : false,
             connectionTimeout: connectionTimeout,
             queryTimeout: queryTimeout,
             databaseType: selectedDatabaseType,

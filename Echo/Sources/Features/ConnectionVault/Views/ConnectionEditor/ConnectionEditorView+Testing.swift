@@ -53,6 +53,8 @@ extension ConnectionEditorView {
                 let trimmed = hostNameInCertificate.trimmingCharacters(in: .whitespacesAndNewlines)
                 return trimmed.isEmpty ? nil : trimmed
             }(),
+            readOnlyIntent: selectedDatabaseType == .microsoftSQL ? readOnlyIntent : false,
+            allowLegacyTLS: selectedDatabaseType == .microsoftSQL ? allowLegacyTLS : false,
             databaseType: selectedDatabaseType,
             serverVersion: nil,
             colorHex: colorHex,

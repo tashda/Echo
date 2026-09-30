@@ -144,6 +144,7 @@ extension EnvironmentState {
                 mssqlEncryptionMode: connection.mssqlEncryptionMode,
                 hostNameInCertificate: connection.hostNameInCertificate,
                 readOnlyIntent: connection.readOnlyIntent,
+                allowLegacyTLS: connection.allowLegacyTLS,
                 authentication: credentials,
                 connectTimeoutSeconds: connectTimeoutSeconds ?? Int(connection.connectionTimeout)
             )
@@ -155,7 +156,10 @@ extension EnvironmentState {
         } catch {
             let duration = Date().timeIntervalSince(startTime)
             let message = error.localizedDescription
-            return ConnectionTestResult(isSuccessful: false, message: message, responseTime: duration, serverVersion: nil)
+            let fix = connection.databaseType == .microsoftSQL
+                ? MSSQLConnectionTestFix.fix(for: error, encryptionMode: connection.mssqlEncryptionMode)
+                : nil
+            return ConnectionTestResult(isSuccessful: false, message: message, responseTime: duration, serverVersion: nil, fix: fix)
         }
     }
 
@@ -277,6 +281,7 @@ extension EnvironmentState {
             mssqlEncryptionMode: connection.mssqlEncryptionMode,
             hostNameInCertificate: connection.hostNameInCertificate,
             readOnlyIntent: connection.readOnlyIntent,
+            allowLegacyTLS: connection.allowLegacyTLS,
             authentication: credentials,
             connectTimeoutSeconds: 10
         )
@@ -313,6 +318,7 @@ extension EnvironmentState {
                 mssqlEncryptionMode: connection.mssqlEncryptionMode,
                 hostNameInCertificate: connection.hostNameInCertificate,
                 readOnlyIntent: connection.readOnlyIntent,
+                allowLegacyTLS: connection.allowLegacyTLS,
                 authentication: credentials,
                 connectTimeoutSeconds: 10
             )
@@ -357,6 +363,7 @@ extension EnvironmentState {
             mssqlEncryptionMode: connection.mssqlEncryptionMode,
             hostNameInCertificate: connection.hostNameInCertificate,
             readOnlyIntent: connection.readOnlyIntent,
+            allowLegacyTLS: connection.allowLegacyTLS,
             authentication: credentials,
             connectTimeoutSeconds: Int(connection.connectionTimeout)
         )

@@ -250,6 +250,7 @@ final class EnvironmentState {
                     mssqlEncryptionMode: connection.mssqlEncryptionMode,
                     hostNameInCertificate: connection.hostNameInCertificate,
                     readOnlyIntent: connection.readOnlyIntent,
+                    allowLegacyTLS: connection.allowLegacyTLS,
                     authentication: credentials,
                     connectTimeoutSeconds: Int(connection.connectionTimeout)
                 )

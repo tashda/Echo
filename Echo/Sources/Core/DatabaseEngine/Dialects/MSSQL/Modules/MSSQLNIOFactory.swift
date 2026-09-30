@@ -51,6 +51,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
         mssqlEncryptionMode: MSSQLEncryptionMode,
         hostNameInCertificate: String?,
         readOnlyIntent: Bool,
+        allowLegacyTLS: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) throws -> SQLServerClient.Configuration {
@@ -62,14 +63,11 @@ struct MSSQLNIOFactory: DatabaseFactory {
         }()
         let sqlServerAuth = try makeAuthentication(from: authentication)
 
-        // Matches SSMS 19+: the Encryption dropdown alone decides whether TLS
-        // happens. Optional = no TLS attempted (client advertises ENCRYPT_NOT_SUP);
-        // Mandatory/Strict = TLS required. We only hand a TLSConfiguration to
-        // the package when the user actually opted into TLS, so the legacy
-        // useTLS flag is irrelevant for SQL Server connections.
-        //
-        // Migration: a legacy connection saved with useTLS=false is treated as
-        // Optional, preserving its plain-TDS behavior.
+        // The Encryption menu alone decides the TLS settings. sqlserver-nio
+        // never sends credentials unencrypted: Optional encrypts without
+        // checking the certificate (no TLS configuration is passed), Mandatory
+        // and Strict check it unless Trust Server Certificate is on (not
+        // offered under Strict). A legacy useTLS=false connection is Optional.
         let effectiveMode: MSSQLEncryptionMode = tls ? mssqlEncryptionMode : .optional
         let tlsActuallyEnabled = effectiveMode != .optional
 
@@ -97,6 +95,9 @@ struct MSSQLNIOFactory: DatabaseFactory {
             )
         )
         config.connection.readOnlyIntent = readOnlyIntent
+        config.connection.allowLegacyTLS = allowLegacyTLS
+        // Shown to DBAs as APP_NAME() and program_name (round 22, BG1).
+        config.connection.applicationName = "Echo"
         config.connection.connectTimeoutSeconds = connectTimeoutSeconds
         return config
     }
@@ -111,6 +112,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
         mssqlEncryptionMode: MSSQLEncryptionMode,
         hostNameInCertificate: String?,
         readOnlyIntent: Bool,
+        allowLegacyTLS: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int
     ) throws -> SQLServerConnection.Configuration {
@@ -124,6 +126,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
             mssqlEncryptionMode: mssqlEncryptionMode,
             hostNameInCertificate: hostNameInCertificate,
             readOnlyIntent: readOnlyIntent,
+            allowLegacyTLS: allowLegacyTLS,
             authentication: authentication,
             connectTimeoutSeconds: connectTimeoutSeconds
         )
@@ -145,6 +148,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
         hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
+        allowLegacyTLS: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
@@ -166,6 +170,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
             mssqlEncryptionMode: mssqlEncryptionMode,
             hostNameInCertificate: hostNameInCertificate,
             readOnlyIntent: readOnlyIntent,
+            allowLegacyTLS: allowLegacyTLS,
             authentication: authentication,
             connectTimeoutSeconds: connectTimeoutSeconds
         )

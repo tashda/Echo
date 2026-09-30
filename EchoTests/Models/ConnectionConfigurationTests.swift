@@ -728,3 +728,30 @@ struct ConnectionConfigurationDefaultsTests {
         #expect(config1 != config2)
     }
 }
+
+struct MSSQLRound22ConnectionSettingsTests {
+    @Test func newConnectionsStartAtMandatory() {
+        #expect(ConnectionConfiguration(connectionName: "n", host: "h", port: 1433, database: "d", username: "u").mssqlEncryptionMode == .mandatory)
+    }
+
+    @Test func allowLegacyTLSIsSavedAndDecodedWithADefault() throws {
+        var saved = SavedConnection(connectionName: "n", host: "h", port: 1433, database: "d", username: "u",
+                                    databaseType: .microsoftSQL)
+        #expect(saved.allowLegacyTLS == false)
+        saved.allowLegacyTLS = true
+        let data = try JSONEncoder().encode(saved)
+        #expect(try JSONDecoder().decode(SavedConnection.self, from: data).allowLegacyTLS == true)
+
+        // A connection saved before the setting existed decodes with it off.
+        var object = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        object.removeValue(forKey: "allowLegacyTLS")
+        let old = try JSONSerialization.data(withJSONObject: object)
+        #expect(try JSONDecoder().decode(SavedConnection.self, from: old).allowLegacyTLS == false)
+    }
+
+    @Test func menuSaysWhatIsChecked() {
+        #expect(MSSQLEncryptionMode.optional.description.contains("don't check the certificate"))
+        #expect(MSSQLEncryptionMode.mandatory.description.contains("check the certificate"))
+        #expect(MSSQLEncryptionMode.strict.description.contains("TLS first"))
+    }
+}

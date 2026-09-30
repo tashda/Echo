@@ -49,6 +49,7 @@ struct ConnectionEditorView: View {
     @State internal var mssqlEncryptionMode: MSSQLEncryptionMode
     @State internal var hostNameInCertificate: String
     @State internal var readOnlyIntent: Bool
+    @State internal var allowLegacyTLS: Bool
     @State internal var connectionTimeout: TimeInterval
     @State internal var queryTimeout: TimeInterval
     @State internal var colorHex: String
@@ -123,6 +124,7 @@ struct ConnectionEditorView: View {
         _mssqlEncryptionMode = State(initialValue: model.mssqlEncryptionMode)
         _hostNameInCertificate = State(initialValue: model.hostNameInCertificate ?? "")
         _readOnlyIntent = State(initialValue: model.readOnlyIntent)
+        _allowLegacyTLS = State(initialValue: model.allowLegacyTLS)
         _connectionTimeout = State(initialValue: model.connectionTimeout)
         _queryTimeout = State(initialValue: model.queryTimeout)
         _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)

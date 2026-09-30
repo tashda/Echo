@@ -107,6 +107,7 @@ protocol DatabaseFactory: Sendable {
         mssqlEncryptionMode: MSSQLEncryptionMode,
         hostNameInCertificate: String?,
         readOnlyIntent: Bool,
+        allowLegacyTLS: Bool,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int
     ) async throws -> DatabaseSession

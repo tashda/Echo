@@ -122,6 +122,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var mssqlEncryptionMode: MSSQLEncryptionMode
     var hostNameInCertificate: String?
     var readOnlyIntent: Bool
+    var allowLegacyTLS: Bool
     var connectionTimeout: TimeInterval
     var queryTimeout: TimeInterval
     var databaseType: DatabaseType
@@ -168,6 +169,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case mssqlEncryptionMode
         case hostNameInCertificate
         case readOnlyIntent
+        case allowLegacyTLS
         case connectionTimeout
         case queryTimeout
         case databaseType
@@ -199,9 +201,10 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         sslRootCertPath: String? = nil,
         sslCertPath: String? = nil,
         sslKeyPath: String? = nil,
-        mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        mssqlEncryptionMode: MSSQLEncryptionMode = .mandatory,
         hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
+        allowLegacyTLS: Bool = false,
         connectionTimeout: TimeInterval = 30,
         queryTimeout: TimeInterval = 60,
         databaseType: DatabaseType = .postgresql,
@@ -233,6 +236,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         self.mssqlEncryptionMode = mssqlEncryptionMode
         self.hostNameInCertificate = hostNameInCertificate
         self.readOnlyIntent = readOnlyIntent
+        self.allowLegacyTLS = allowLegacyTLS
         self.connectionTimeout = connectionTimeout
         self.queryTimeout = queryTimeout
         self.databaseType = databaseType
@@ -267,6 +271,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         mssqlEncryptionMode = try container.decodeIfPresent(MSSQLEncryptionMode.self, forKey: .mssqlEncryptionMode) ?? .optional
         hostNameInCertificate = try container.decodeIfPresent(String.self, forKey: .hostNameInCertificate)
         readOnlyIntent = try container.decodeIfPresent(Bool.self, forKey: .readOnlyIntent) ?? false
+        allowLegacyTLS = try container.decodeIfPresent(Bool.self, forKey: .allowLegacyTLS) ?? false
         connectionTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .connectionTimeout) ?? 30
         queryTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .queryTimeout) ?? 60
         databaseType = try container.decodeIfPresent(DatabaseType.self, forKey: .databaseType) ?? .postgresql
@@ -302,6 +307,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encode(mssqlEncryptionMode, forKey: .mssqlEncryptionMode)
         try container.encodeIfPresent(hostNameInCertificate, forKey: .hostNameInCertificate)
         try container.encode(readOnlyIntent, forKey: .readOnlyIntent)
+        try container.encode(allowLegacyTLS, forKey: .allowLegacyTLS)
         try container.encode(connectionTimeout, forKey: .connectionTimeout)
         try container.encode(queryTimeout, forKey: .queryTimeout)
         try container.encode(databaseType, forKey: .databaseType)

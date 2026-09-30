@@ -19,6 +19,7 @@ struct MySQLNIOFactory: DatabaseFactory {
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
         hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
+        allowLegacyTLS: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {

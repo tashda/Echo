@@ -3,7 +3,10 @@ import SQLServerKit
 import OSLog
 
 nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSession, @unchecked Sendable {
-    private var connection: SQLServerConnection
+    /// Guards `connection` and `reconnectTask`, which several tasks of the
+    /// tab can reach (a run, a cancel, the explorer asking for the database).
+    private let lock = NSLock()
+    private var _connection: SQLServerConnection
     private let connectionConfiguration: SQLServerConnection.Configuration
     private var reconnectTask: Task<SQLServerConnection, Error>?
     let metadataSession: SQLServerSessionAdapter
@@ -14,9 +17,13 @@ nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSessio
         configuration: SQLServerConnection.Configuration,
         metadataSession: SQLServerSessionAdapter
     ) {
-        self.connection = connection
+        self._connection = connection
         self.connectionConfiguration = configuration
         self.metadataSession = metadataSession
+    }
+
+    private var connection: SQLServerConnection {
+        lock.withLock { _connection }
     }
 
     var database: String? {
@@ -24,10 +31,14 @@ nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSessio
     }
 
     func close() async {
-        reconnectTask?.cancel()
-        reconnectTask = nil
+        let (current, pending) = lock.withLock { () -> (SQLServerConnection, Task<SQLServerConnection, Error>?) in
+            let pending = reconnectTask
+            reconnectTask = nil
+            return (_connection, pending)
+        }
+        pending?.cancel()
         do {
-            try await connection.close()
+            try await current.close()
         } catch {
             logger.debug("Dedicated query connection close failed: \(error.localizedDescription)")
         }
@@ -38,29 +49,44 @@ nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSessio
         return try await connection.serverVersion()
     }
 
+    /// The tab's connection. A connection that has closed (the server or the
+    /// network dropped it) is replaced by a new session first; the old
+    /// session's temporary tables, SET options and transaction are gone.
     func readyConnection() async throws -> SQLServerConnection {
-        if let reconnectTask {
-            let reconnected = try await reconnectTask.value
-            connection = reconnected
-            self.reconnectTask = nil
+        let task: Task<SQLServerConnection, Error>? = lock.withLock {
+            if let reconnectTask { return reconnectTask }
+            guard _connection.isClosed else { return nil }
+            return startReconnectLocked()
         }
-        return connection
+        guard let task else { return connection }
+        let reconnected = try await task.value
+        lock.withLock {
+            _connection = reconnected
+            reconnectTask = nil
+        }
+        return reconnected
     }
 
+    /// Called after a cancelled run. The driver cancels the statement on the
+    /// server and keeps the session (round 22, cancel keeps the session), so
+    /// a new session is started only if the connection did not survive.
     func reconnectAfterCancellation() {
-        guard reconnectTask == nil else { return }
+        lock.withLock {
+            guard reconnectTask == nil, _connection.isClosed else { return }
+            _ = startReconnectLocked()
+        }
+    }
 
-        let previousConnection = connection
+    private func startReconnectLocked() -> Task<SQLServerConnection, Error> {
+        let previous = _connection
         let configuration = connectionConfiguration
-        let targetDatabase = connection.currentDatabase
-
-        reconnectTask = Task {
+        let targetDatabase = previous.currentDatabase
+        let task = Task { [logger] () throws -> SQLServerConnection in
             do {
-                try await previousConnection.close()
+                try await previous.close()
             } catch {
-                self.logger.debug("Dedicated query connection close before reconnect failed: \(error.localizedDescription)")
+                logger.debug("Closing the dropped connection before reconnecting failed: \(error.localizedDescription)")
             }
-
             let newConnection = try await SQLServerConnection.connect(configuration: configuration)
             if !targetDatabase.isEmpty,
                newConnection.currentDatabase.caseInsensitiveCompare(targetDatabase) != .orderedSame {
@@ -68,6 +94,8 @@ nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSessio
             }
             return newConnection
         }
+        reconnectTask = task
+        return task
     }
 
     var metadata: SQLServerMetadataNamespace { metadataSession.metadata }

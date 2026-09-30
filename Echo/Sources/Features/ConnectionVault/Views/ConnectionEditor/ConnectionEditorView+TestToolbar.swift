@@ -63,7 +63,24 @@ extension ConnectionEditorView {
             .font(TypographyTokens.formDescription)
             .help("Show the test log")
             .popover(isPresented: $isShowingTestLog, arrowEdge: .top) { testTranscript }
+            if let fix = testResult?.fix, testResult?.isSuccessful == false {
+                Button(fix.title) { apply(fix) }
+                    .controlSize(.small)
+            }
         }
+    }
+
+    /// Applies the fix a failed test offered, then tests again (round 22, TE1).
+    private func apply(_ fix: ConnectionTestFix) {
+        switch fix {
+        case .trustCertificate:
+            trustServerCertificate = true
+        case .hostNameInCertificate(let name):
+            hostNameInCertificate = name
+        case .allowLegacyTLS:
+            allowLegacyTLS = true
+        }
+        startConnectionTest()
     }
 
     private var testTranscript: some View {
