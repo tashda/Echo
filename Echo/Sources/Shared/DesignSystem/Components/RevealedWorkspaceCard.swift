@@ -19,6 +19,7 @@ struct CardRevealShape: InsettableShape {
 
     func path(in rect: CGRect) -> Path {
         let height = min(max(visibleHeight, 0), rect.height)
+        guard height > 0 else { return Path() }
         let visible = CGRect(
             x: rect.minX,
             y: anchor == .top ? rect.minY : rect.maxY - height,

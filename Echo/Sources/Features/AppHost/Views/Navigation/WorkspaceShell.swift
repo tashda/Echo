@@ -43,7 +43,7 @@ struct WorkspaceShell: View {
                 .accessibilityIdentifier("workspace-content")
                 .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
                 .padding(.leading, isTreeVisible ? SpacingTokens.none : gutter)
-                .padding(.trailing, appState.showInfoSidebar ? SpacingTokens.none : gutter)
+                .padding(.trailing, appState.isInspectorColumnVisible ? SpacingTokens.none : gutter)
                 .overlay {
                     if isPeeking {
                         // A click anywhere on the cards closes the peek.

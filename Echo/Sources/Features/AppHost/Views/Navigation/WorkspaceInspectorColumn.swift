@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The inspector as a column of cards on the canvas (plan I1, round 10 IN1): the tree's mirror on
 /// the trailing side, with its resize edge in the gutter before it and the tree's show/hide motion.
-/// JSON widens it with one spring and it returns to the chosen width after (I3).
+/// JSON widens it with one spring and it returns to the chosen width after (I3). The bell shows the
+/// notification history in the same column (round 15, option B).
 struct WorkspaceInspectorColumn: View {
     let gutter: CGFloat
 
@@ -13,10 +14,11 @@ struct WorkspaceInspectorColumn: View {
     @AppStorage("workspace.inspectorWidth") private var chosenWidth = Double(LayoutTokens.Inspector.idealWidth)
 
     var body: some View {
-        let isVisible = appState.showInfoSidebar
+        let isVisible = appState.isInspectorColumnVisible
+        let showsHistory = appState.isNotificationHistoryVisible
         let width = Self.displayedWidth(
             chosen: chosenWidth,
-            isJson: environmentState.dataInspectorContent?.isJson == true
+            isJson: !showsHistory && environmentState.dataInspectorContent?.isJson == true
         )
 
         HStack(spacing: SpacingTokens.none) {
@@ -30,9 +32,15 @@ struct WorkspaceInspectorColumn: View {
             )
             .allowsHitTesting(isVisible)
 
-            InfoSidebarView()
-                .frame(width: width)
-                .accessibilityIdentifier("workspace-inspector")
+            Group {
+                if showsHistory, let history = environmentState.notificationEngine?.history {
+                    NotificationHistoryPanel(history: history)
+                } else {
+                    InfoSidebarView()
+                }
+            }
+            .frame(width: width)
+            .accessibilityIdentifier("workspace-inspector")
         }
         // Hidden, it slides out past the trailing edge and fades. Reduce Motion fades only.
         .offset(x: isVisible || motion.reduceMotion ? 0 : width + gutter)

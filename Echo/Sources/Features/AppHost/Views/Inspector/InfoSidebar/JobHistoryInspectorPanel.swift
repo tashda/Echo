@@ -4,17 +4,15 @@ import SwiftUI
 struct JobHistoryInspectorPanel: View {
     let content: JobHistoryInspectorContent
 
-    @Environment(ProjectStore.self) private var projectStore
-
     var body: some View {
-        VStack(alignment: .leading, spacing: projectStore.globalSettings.workspaceGutter.points) {
-            InspectorCard(title: content.jobName, subtitle: "Job Execution", systemImage: "clock.arrow.circlepath") {
-                InspectorCardRow(label: "Step", value: "\(content.stepId) — \(content.stepName)")
-                InspectorCardRow(label: "Status", value: content.status)
-                InspectorCardRow(label: "Run Date", value: content.runDate)
-                InspectorCardRow(label: "Duration", value: content.duration, isLast: true)
+        VStack(alignment: .leading, spacing: SpacingTokens.md) {
+            InspectorSection(title: content.jobName, subtitle: "Job Execution", systemImage: "clock.arrow.circlepath") {
+                InspectorSectionRow(label: "Step", value: "\(content.stepId) — \(content.stepName)")
+                InspectorSectionRow(label: "Status", value: content.status)
+                InspectorSectionRow(label: "Run Date", value: content.runDate)
+                InspectorSectionRow(label: "Duration", value: content.duration, isLast: true)
             }
-            InspectorCard(title: "Message", systemImage: "text.alignleft") {
+            InspectorSection(title: "Message", systemImage: "text.alignleft") {
                 Button { copyToGeneralPasteboard(content.message) } label: { Label("Copy", systemImage: "doc.on.doc") }
             } content: {
                 Text(content.message)

@@ -8,11 +8,9 @@ struct InspectorPanelView: View {
     var systemImage = "cube"
 
     @Environment(EnvironmentState.self) private var environmentState
-    @Environment(ProjectStore.self) private var projectStore
-
     var body: some View {
-        VStack(alignment: .leading, spacing: projectStore.globalSettings.workspaceGutter.points) {
-            InspectorCard(title: content.title, subtitle: content.subtitle, systemImage: depth == 0 ? systemImage : "arrow.turn.down.right") {
+        VStack(alignment: .leading, spacing: SpacingTokens.md) {
+            InspectorSection(title: content.title, subtitle: content.subtitle, systemImage: depth == 0 ? systemImage : "arrow.turn.down.right") {
                 if let query = resolvedLookupQuery {
                     Button {
                         environmentState.openQueryTab(presetQuery: query, autoExecute: true)
@@ -38,7 +36,7 @@ struct InspectorPanelView: View {
                     .padding(.bottom, SpacingTokens.xxs)
                 }
                 ForEach(Array(content.fields.enumerated()), id: \.element.id) { index, field in
-                    InspectorCardRow(label: field.label, value: field.value, isLast: index == content.fields.count - 1)
+                    InspectorSectionRow(label: field.label, value: field.value, isLast: index == content.fields.count - 1)
                 }
             }
 

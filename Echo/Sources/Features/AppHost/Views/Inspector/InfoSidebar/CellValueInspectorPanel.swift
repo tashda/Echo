@@ -7,11 +7,9 @@ struct CellValueInspectorPanel: View {
     let content: CellValueInspectorContent
     @State private var showingExpandedEditor = false
 
-    @Environment(ProjectStore.self) private var projectStore
-
     var body: some View {
-        VStack(alignment: .leading, spacing: projectStore.globalSettings.workspaceGutter.points) {
-            InspectorCard(title: content.columnName, subtitle: typeLine, systemImage: "character.cursor.ibeam") {
+        VStack(alignment: .leading, spacing: SpacingTokens.md) {
+            InspectorSection(title: content.columnName, subtitle: typeLine, systemImage: "character.cursor.ibeam") {
                 Button { PlatformClipboard.copy(content.rawValue) } label: { Label("Copy", systemImage: "doc.on.doc") }
                     .help("Copy Value")
                 Button { showingExpandedEditor = true } label: { Label("Open in Editor", systemImage: "arrow.up.left.and.arrow.down.right") }
@@ -29,12 +27,12 @@ struct CellValueInspectorPanel: View {
 
             // Row detail (plan I4): every column of the selected cell's row.
             if !content.rowFields.isEmpty {
-                InspectorCard(title: content.rowNumber.map { "Row \($0)" } ?? "Row", systemImage: "tablecells") {
+                InspectorSection(title: content.rowNumber.map { "Row \($0)" } ?? "Row", systemImage: "tablecells") {
                     Button { PlatformClipboard.copy(rowAsText) } label: { Label("Copy Row", systemImage: "doc.on.doc") }
                         .help("Copy Row")
                 } content: {
                     ForEach(Array(content.rowFields.enumerated()), id: \.offset) { index, field in
-                        InspectorCardRow(label: field.name, value: field.value, isLast: index == content.rowFields.count - 1)
+                        InspectorSectionRow(label: field.name, value: field.value, isLast: index == content.rowFields.count - 1)
                     }
                 }
             }

@@ -117,11 +117,15 @@ struct WorkspaceTabContainerView: View {
                     // A zero minimum keeps tall content (a long list, a big dashboard) from pushing
                     // the window past its own edges; the card clips it instead.
                     .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
+                    // Toasts sit in the top-right corner of the tab's first card, below the tab
+                    // bar: inside the editor card on a query tab (round 15).
+                    .toastOverlay()
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
         }
         .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
+        .toastOverlay(isActive: showsCanvasPage)
         .animation(motion.standard, value: showsCanvasPage)
         .animation(.easeInOut(duration: 0.2), value: appState.showTabOverview)
         .onChange(of: tabStore.activeTabId) { _, _ in

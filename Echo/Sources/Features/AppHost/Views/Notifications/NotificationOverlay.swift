@@ -1,24 +1,25 @@
 import SwiftUI
 
-/// The toasts, in the top-trailing corner of the cards area (plan N2): below the tab strip and left
-/// of the inspector, so an open inspector never covers them.
+/// The toasts, in the top-right corner of the tab's first card, inset so they never cross its
+/// edge: inside the editor card on a query tab, below the tab bar, left of the inspector
+/// (round 15). With no tab open they take the same corner of the canvas page.
 struct ToastOverlay: ViewModifier {
-    @Environment(AppState.self) private var appState
+    var isActive = true
+
     @Environment(EnvironmentState.self) private var environmentState
 
     func body(content: Content) -> some View {
         content.overlay(alignment: .topTrailing) {
-            StatusToastStack(presenter: environmentState.toastPresenter) {
-                appState.isNotificationHistoryVisible = true
+            if isActive {
+                StatusToastStack(presenter: environmentState.toastPresenter)
+                    .padding(LayoutTokens.Toast.inset)
             }
-            .padding(.top, WorkspaceChromeMetrics.tabStripTotalHeight + SpacingTokens.xs)
-            .padding(.trailing, SpacingTokens.xs)
         }
     }
 }
 
 extension View {
-    func toastOverlay() -> some View {
-        modifier(ToastOverlay())
+    func toastOverlay(isActive: Bool = true) -> some View {
+        modifier(ToastOverlay(isActive: isActive))
     }
 }

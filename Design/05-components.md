@@ -66,7 +66,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 
 ## Search
 
-- **Toolbar search:** macOS 26 minimised toolbar search. A magnifier that expands into a field, with results in a glass card. *Decided.*
+- **No search field in the toolbar** (owner, 2026-09-30): a magnifier at the start of the right-hand capsule, and ⌥⌘F, open the ⌘K palette. The system field was wide and pushed the Inspector toggle off the far right. *Decided.*
 - **⌘K palette:** a centred glass palette. *Decided.*
 - Both find objects across all connected servers, open tabs, actions ("Connect to…", "New query in…", "Switch database", "Run") and history and snippets. *Decided.*
 - Find in Sidebar must move off ⇧⌘F, which clashes with Format SQL. *Decided.*
@@ -80,7 +80,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 
   Each bracket is one glass capsule.
 - **Tab-specific tools** (Structure add and apply, Activity Monitor pause and refresh rate, Job Queue controls, Error log cycle, maintenance database) form one contextual capsule next to Run. It appears only on tabs that need it and melts in and out as you switch tabs. *Decided.*
-- **Run** is the one tinted item: accent glass, turning red with a timer while running. *Decided.* A small chevron beside Run opens a menu of modes: Run statement at cursor, Run selection, Explain, Explain analyze. A plain click still runs as today. *Decided.*
+- **Run** (round 15, idea 1) is a plain ▶ like its neighbours, with no tint and no chevron, in a capsule of its own so changing it moves nothing else. Running, it becomes ■ and the timer in red; a click cancels. When the query ends it shows ✓ or ! for a moment and settles back. The other modes (statement at cursor, Explain, Explain analyze) are on right-click and in the Query menu. *Decided.* The accent-glass Run with a chevron was rejected as too loud.
 - Editor actions (Format, Validate, Context Help, Estimated Plan) stay in the toolbar. *Decided.* No floating capsule in the editor, whether always on, while typing or on selection. *Decided.*
 - EchoSense keeps ⌘. (owner: muscle memory; it can be rebound). Cancel Query is ⌥⌘. *Decided.*
 - Query shortcuts: Run ⌘↩, Run Statement at Cursor ⇧⌘↩, Explain ⌥⌘E, Explain Analyze ⌥⇧⌘E, Format ⇧⌘F, Validate ⇧⌘B, Search ⌥⌘F, Command Palette ⌘K. All can be rebound. *Decided.*
@@ -188,7 +188,7 @@ Decided 2026-09-30.
 
 ## Inspector
 
-- **A column of cards on the canvas** (round 10, IN1), mirroring the tree on the trailing side: each section is an opaque workspace card (header with icon, title and actions; label left, selectable value right), one gutter apart, with the tree's resize edge and show/hide motion. The window reads tree · cards · inspector. It replaces the native inspector column. *Decided.* A floating card (IN2), a pane inside the results card (IN3) and the restyled native column (IN4) were rejected.
+- **A column on the canvas** (round 10, IN1), mirroring the tree on the trailing side: **one workspace card** holding the sections as **grouped boxes** (round 15): a header (icon, title, actions) over a rounded inset group of rows, label left and selectable value right, like System Settings. It has the tree's resize edge and show/hide motion. A card per section (round 10) was replaced: the stacked shadows were cut off at the column's edges. The window reads tree · cards · inspector. It replaces the native inspector column. *Decided.* A floating card (IN2), a pane inside the results card (IN3) and the restyled native column (IN4) were rejected.
 - Its one job, once notifications move to the bell: the details of what you pointed at (object details, foreign-key records with related records, cell values, the JSON viewer, Agent job history, SQL keyword help). *Decided.*
 - Fixes: *Decided.*
   - one section style across every panel;
@@ -206,7 +206,8 @@ Decided 2026-09-30.
   - errors stay until dismissed.
 
   Bottom-centre toasts were rejected.
-- **History:** a bell in the toolbar with an unread badge. The history opens as a glass card below it, grouped by server, with filters, kept across launches, and each item links to its tab or server. *Decided.* The inspector notification tab goes away.
+- **History:** a bell in the toolbar with an unread badge. The history opens **in the inspector's column** (round 15, B): the same card and grouped boxes, a server's events per box, a filter menu and Clear, kept across launches. A row opens in place to the whole message, selectable, with Copy and a link to its tab or server; nothing is greyed out. The bell and the inspector button switch the column between the two. *Decided.* The popover under the bell was rejected: too small for long messages and not Echo's surface.
+- **Toasts sit** in the top-right corner of the tab's first card, below the tab bar and inset from its edges: inside the editor card on a query tab, left of the inspector. They keep one width (320pt) collapsed or expanded; their actions are quiet text links. A setting to move them (for example bottom-right) can come later. *Decided.*
 - Every event is recorded in history, even when its toast is muted in settings. *Decided.*
 
 ## Floating cards

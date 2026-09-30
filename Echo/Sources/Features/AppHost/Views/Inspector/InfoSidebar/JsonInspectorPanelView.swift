@@ -15,7 +15,7 @@ struct JsonInspectorPanelView: View {
     }
 
     var body: some View {
-        InspectorCard(title: content.title, subtitle: content.subtitle, systemImage: "curlybraces") {
+        InspectorSection(title: content.title, subtitle: content.subtitle, systemImage: "curlybraces") {
             Button {
                 PlatformClipboard.copy(viewModel?.formattedJSON ?? content.rawJSON)
             } label: {

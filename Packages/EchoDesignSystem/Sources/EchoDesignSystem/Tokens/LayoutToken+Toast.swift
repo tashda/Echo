@@ -1,9 +1,12 @@
 import CoreGraphics
 
 extension LayoutTokens {
-    /// Toasts (plan N2). An expanded toast takes the floating-surface medium width and corners.
+    /// Toasts (plan N2, round 15): one width whether collapsed or expanded, so hovering never
+    /// changes their size sideways, and the floating-surface corners.
     public enum Toast {
-        /// A collapsed toast is a pill-like rounded rectangle, so the stack melts smoothly.
-        public static let cornerRadius: CGFloat = 20
+        public static let width: CGFloat = FloatingSurface.mediumWidth
+        public static let cornerRadius: CGFloat = FloatingSurface.cornerRadius
+        /// Their inset from the top-right corner of the card they sit in.
+        public static let inset: CGFloat = SpacingTokens.xs
     }
 }

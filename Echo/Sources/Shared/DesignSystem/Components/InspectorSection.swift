@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// One inspector section (plan I2): an opaque workspace card with a header (icon, title, actions)
-/// over its rows. Every inspector panel is built from these, one gutter apart.
-struct InspectorCard<Content: View, Actions: View>: View {
+/// One inspector section (plan I2, round 15 "Grouped boxes"): a header (icon, title, actions)
+/// over a rounded inset group holding its rows, like System Settings. Sections sit inside the
+/// inspector's one card, so there are no stacked shadows.
+struct InspectorSection<Content: View, Actions: View>: View {
     let title: String
     var subtitle: String?
     let systemImage: String
@@ -32,25 +33,31 @@ struct InspectorCard<Content: View, Actions: View>: View {
                     .controlSize(.small)
                     .labelStyle(.iconOnly)
             }
+            .padding(.horizontal, SpacingTokens.xxs)
             VStack(alignment: .leading, spacing: SpacingTokens.none) {
                 content()
             }
+            .padding(.horizontal, LayoutTokens.Inspector.cardPadding)
+            .padding(.vertical, SpacingTokens.xxs)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                ColorTokens.Background.secondary,
+                in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous)
+            )
         }
-        .padding(LayoutTokens.Inspector.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .workspaceCard()
     }
 }
 
-extension InspectorCard where Actions == EmptyView {
+extension InspectorSection where Actions == EmptyView {
     init(title: String, subtitle: String? = nil, systemImage: String, @ViewBuilder content: @escaping () -> Content) {
         self.init(title: title, subtitle: subtitle, systemImage: systemImage, actions: { EmptyView() }, content: content)
     }
 }
 
-/// A row in an inspector card: the label left, the selectable value right. Long values wrap; NULL
+/// A row in an inspector section: the label left, the selectable value right. Long values wrap; NULL
 /// is italic and faint; a link row opens what it names.
-struct InspectorCardRow: View {
+struct InspectorSectionRow: View {
     let label: String
     let value: String
     var isLast = false

@@ -1,23 +1,29 @@
 import SwiftUI
 
-/// The notification history (plan N3): a floating card under the bell, grouped by server, with
-/// filters. A row whose tab or server is still around links to it.
-struct NotificationHistoryCard: View {
+/// The notification history in the inspector's column (plan N3, round 15 option B): one card with
+/// a server's events in a grouped box each. A row opens in place to the whole message, selectable,
+/// with Copy and a link back to its tab or server. Nothing is greyed out.
+struct NotificationHistoryPanel: View {
     let history: NotificationHistory
-    let onClose: () -> Void
 
-    @Environment(EnvironmentState.self) private var environmentState
     @State private var filter: NotificationHistoryFilter = .all
+    @State private var openRecordID: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             header
-            list
+                .padding([.horizontal, .top], LayoutTokens.Inspector.cardPadding)
+            ScrollView {
+                list
+                    .padding([.horizontal, .bottom], LayoutTokens.Inspector.cardPadding)
+            }
+            .scrollIndicators(.never)
         }
-        .floatingSurfaceContent(.large)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .workspaceCard()
     }
 
-    /// The title, a filter menu and Clear. The filter shows its name when it isn't All.
+    /// The title, a filter menu and Clear. The filter names itself when it isn't All.
     private var header: some View {
         HStack(spacing: SpacingTokens.xs) {
             Text(filter == .all ? "Notifications" : "\(filter.rawValue) Notifications")
@@ -30,9 +36,7 @@ struct NotificationHistoryCard: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             } label: {
-                Label("Filter", systemImage: filter == .all
-                    ? "line.3.horizontal.decrease.circle"
-                    : "line.3.horizontal.decrease.circle.fill")
+                Label("Filter", systemImage: "line.3.horizontal.decrease")
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
@@ -52,67 +56,87 @@ struct NotificationHistoryCard: View {
             Text(filter == .all ? "No notifications" : "No \(filter.rawValue.lowercased()) notifications")
                 .font(TypographyTokens.standard)
                 .foregroundStyle(ColorTokens.Text.secondary)
-                .frame(maxWidth: .infinity, minHeight: LayoutTokens.FloatingSurface.rowHeight * 2)
+                .padding(.top, SpacingTokens.xs)
         } else {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                    ForEach(groups, id: \.server) { group in
+            LazyVStack(alignment: .leading, spacing: SpacingTokens.md) {
+                ForEach(groups, id: \.server) { group in
+                    VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                         Text(group.server)
                             .font(TypographyTokens.detail.weight(.semibold))
                             .foregroundStyle(ColorTokens.Text.secondary)
-                            .padding(.top, SpacingTokens.xxs)
-                        ForEach(group.records) { record in
-                            NotificationHistoryRow(record: record, canReveal: environmentState.canReveal(record.context)) {
-                                environmentState.reveal(record.context)
-                                onClose()
+                            .padding(.horizontal, SpacingTokens.xxs)
+                        VStack(alignment: .leading, spacing: SpacingTokens.none) {
+                            ForEach(Array(group.records.enumerated()), id: \.element.id) { index, record in
+                                NotificationHistoryRow(
+                                    record: record,
+                                    isOpen: openRecordID == record.id,
+                                    isLast: index == group.records.count - 1
+                                ) {
+                                    openRecordID = openRecordID == record.id ? nil : record.id
+                                }
                             }
                         }
+                        .padding(.horizontal, LayoutTokens.Inspector.cardPadding)
+                        .background(
+                            ColorTokens.Background.secondary,
+                            in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous)
+                        )
                     }
                 }
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .frame(maxHeight: LayoutTokens.CommandPalette.listMaxHeight)
         }
     }
 }
 
-/// One event: its icon in the severity colour, the message, and when it happened.
+/// One event: icon, message and time; open, the whole message and its actions.
 private struct NotificationHistoryRow: View {
     let record: NotificationRecord
-    let canReveal: Bool
-    let onReveal: () -> Void
+    let isOpen: Bool
+    let isLast: Bool
+    let onToggle: () -> Void
 
-    @State private var isHovering = false
+    @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
-        Button(action: onReveal) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.xs) {
                 Image(systemName: record.category.defaultIcon)
                     .font(TypographyTokens.detail)
                     .foregroundStyle(record.severity.color)
-                VStack(alignment: .leading, spacing: SpacingTokens.micro) {
-                    Text(record.message)
-                        .font(TypographyTokens.detail.weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    Text(record.date, format: .relative(presentation: .named))
-                        .font(TypographyTokens.caption)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-                Spacer(minLength: SpacingTokens.none)
+                Text(record.message)
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(ColorTokens.Text.primary)
+                    .lineLimit(isOpen ? nil : 2)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: isOpen)
+                Spacer(minLength: SpacingTokens.xs)
+                Text(record.date, format: .relative(presentation: .named))
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
             }
-            .padding(SpacingTokens.xs)
-            .background(
-                isHovering && canReveal ? ColorTokens.Sidebar.hoverFill : .clear,
-                in: RoundedRectangle(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous)
-            )
-            .contentShape(Rectangle())
+            if isOpen { actions }
+        }
+        .padding(.vertical, SpacingTokens.xs)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onToggle)
+        .overlay(alignment: .bottom) {
+            if !isLast { Divider() }
+        }
+    }
+
+    private var actions: some View {
+        HStack(spacing: SpacingTokens.sm) {
+            if environmentState.canReveal(record.context) {
+                Button(record.context?.tabID != nil ? "Open Tab" : "Show Server") {
+                    environmentState.reveal(record.context)
+                }
+            }
+            Button("Copy") { copyToGeneralPasteboard(record.message) }
         }
         .buttonStyle(.plain)
-        .disabled(!canReveal)
-        .onHover { isHovering = $0 }
-        .help(canReveal ? (record.context?.tabID != nil ? "Open Tab" : "Show Server") : "")
+        .font(TypographyTokens.detail.weight(.medium))
+        .foregroundStyle(ColorTokens.accent)
+        .padding(.leading, SpacingTokens.lg)
     }
 }
 

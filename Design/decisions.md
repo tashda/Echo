@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 15 answers
+
+- **Run: idea 1, quiet glyph,** in its own toolbar capsule so it doesn't push the other icons. Ideas 2–5 (footer, editor corner, tab, only while running) rejected. → 05-components › Toolbar
+- **Inspector: grouped boxes** in one card. One card with hairlines and separate cards rejected. → 05-components › Inspector
+- **Notification history: B, the inspector's column.** Unfold from the stack (A) and a notifications tab (C) rejected; the bell popover is gone. → 05-components › Notifications
+- **Toasts below the tab bar,** and on a query tab inside the editor card's top-right corner, so they don't cross its edges. Customising the corner comes later. → 05-components › Notifications
+- **Search:** no toolbar field; the magnifier and ⌥⌘F open ⌘K. → 05-components › Search
+
 ## 2026-09-30 · Design board and round 14 answers
 
 Design board: https://claude.ai/artifact/8gQM8VJCknMvFRsCTTSnHJ (collections `verdicts`, `topics`, `notes`). Round 14 answered in the Design Lab.

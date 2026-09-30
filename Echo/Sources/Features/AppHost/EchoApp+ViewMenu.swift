@@ -38,10 +38,10 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("s", modifiers: [.command, .control])
 
             Button {
-                appState.showInfoSidebar.toggle()
+                appState.toggleInspector()
             } label: {
                 Label(
-                    appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
+                    appState.showInfoSidebar && !appState.isNotificationHistoryVisible ? "Hide Inspector" : "Show Inspector",
                     systemImage: "sidebar.trailing"
                 )
             }

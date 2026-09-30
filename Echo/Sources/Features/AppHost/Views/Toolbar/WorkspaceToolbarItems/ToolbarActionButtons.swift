@@ -8,17 +8,19 @@ import SwiftUI
 struct InspectorToolbarButton: View {
     @Environment(AppState.self) private var appState
 
+    private var showsDetails: Bool { appState.showInfoSidebar && !appState.isNotificationHistoryVisible }
+
     var body: some View {
         Button {
-            appState.showInfoSidebar.toggle()
+            appState.toggleInspector()
         } label: {
             Label("Inspector", systemImage: "sidebar.right")
-                .symbolVariant(appState.showInfoSidebar ? .fill : .none)
+                .symbolVariant(showsDetails ? .fill : .none)
         }
-        .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
+        .help(showsDetails ? "Hide Inspector" : "Show Inspector")
         .labelStyle(.iconOnly)
         .contentTransition(.identity)
-        .accessibilityLabel(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
+        .accessibilityLabel(showsDetails ? "Hide Inspector" : "Show Inspector")
     }
 }
 

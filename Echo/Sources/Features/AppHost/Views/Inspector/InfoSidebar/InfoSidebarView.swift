@@ -1,17 +1,19 @@
 import SwiftUI
 
-/// The inspector's content (plan I2): the details of what you pointed at, as a column of cards.
-/// Notifications moved to the toolbar bell (plan N3).
+/// The inspector's content (plan I2): the details of what you pointed at, as grouped sections in
+/// one card (round 15, "Grouped boxes").
 struct InfoSidebarView: View {
     @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
         ScrollView {
             content
+                .padding(LayoutTokens.Inspector.cardPadding)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .scrollIndicators(.never)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .workspaceCard()
     }
 
     @ViewBuilder
@@ -30,11 +32,14 @@ struct InfoSidebarView: View {
         case .sqlHelp(let helpContent):
             SQLHelpInspectorPanel(content: helpContent)
         case nil:
-            InspectorCard(title: "No Selection", systemImage: "sidebar.right") {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+                Text("No Selection")
+                    .font(TypographyTokens.standard.weight(.semibold))
                 Text("Select an object, a cell or a row to inspect its details.")
                     .font(TypographyTokens.standard)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
+            .padding(SpacingTokens.xxs)
         }
     }
 }

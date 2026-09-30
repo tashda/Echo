@@ -6,7 +6,7 @@ struct SQLHelpInspectorPanel: View {
     @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
-        InspectorCard(title: content.title, subtitle: content.category, systemImage: "text.book.closed") {
+        InspectorSection(title: content.title, subtitle: content.category, systemImage: "text.book.closed") {
             VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                 header
 
