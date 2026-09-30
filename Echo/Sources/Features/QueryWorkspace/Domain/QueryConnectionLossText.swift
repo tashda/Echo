@@ -1,8 +1,9 @@
 import Foundation
 
-/// What Echo says when a query tab's PostgreSQL connection drops (Echo Labs round 21, connection
-/// lost, WD2 · what it means for your work). Notifications split title and detail at the first ": ".
-nonisolated enum PostgresConnectionLossText {
+/// What Echo says when a query tab's connection drops (Echo Labs round 21, connection lost, WD2 ·
+/// what it means for your work; SQL Server follows it, round 22 LC4). Notifications split title
+/// and detail at the first ": ".
+nonisolated enum QueryConnectionLossText {
     /// In the tab's Messages, when the connection drops with a transaction open.
     static func droppedWithTransaction(database: String) -> String {
         "Connection lost: the connection to \(database) dropped while a transaction was open. The server rolled the transaction back; nothing since BEGIN was saved. Reconnect to start a new session. Details: the server or the network closed the connection."

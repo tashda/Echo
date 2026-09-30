@@ -45,6 +45,7 @@
         "MSSQLTransactionTests",
         "MSSQLDedicatedSessionCancelTests",
         "MSSQLDedicatedSessionErrorTests",
+        "MSSQLDedicatedSessionConnectionLossTests",
         "MSSQLTriggerTests",
         "MSSQLViewTests",
         "PGActivityMonitorTests",

@@ -14,13 +14,14 @@ extension EnvironmentState {
         Task {
             await store.setConnectionLostHandler { [weak self] database, transactionLost, isReminder in
                 Task { @MainActor in
-                    self?.postgresConnectionLost(tabID: tabID, database: database, transactionLost: transactionLost, isReminder: isReminder)
+                    self?.queryTabConnectionLost(tabID: tabID, database: database, transactionLost: transactionLost, isReminder: isReminder)
                 }
             }
         }
     }
 
-    private func postgresConnectionLost(tabID: UUID, database: String, transactionLost: Bool, isReminder: Bool) {
+    /// Shared by PostgreSQL and SQL Server tabs (round 22, LC4).
+    func queryTabConnectionLost(tabID: UUID, database: String, transactionLost: Bool, isReminder: Bool) {
         guard let tab = tabStore.tabs.first(where: { $0.id == tabID }), let query = tab.query else { return }
         query.transactionState = .none
         let context = NotificationContext(
@@ -33,19 +34,19 @@ extension EnvironmentState {
             query.connectionLoss = .idle(database: database)
             notificationEngine?.post(
                 category: .connectionDisconnected, icon: NotificationCategory.connectionDisconnected.defaultIcon,
-                message: PostgresConnectionLossText.droppedIdle(tabTitle: tab.title, database: database),
+                message: QueryConnectionLossText.droppedIdle(tabTitle: tab.title, database: database),
                 style: .info, context: context, showsToast: false
             )
             return
         }
         query.connectionLoss = .transactionLost(database: database)
         if !isReminder {
-            query.appendMessage(message: PostgresConnectionLossText.droppedWithTransaction(database: database), severity: .error, category: "Connection")
+            query.appendMessage(message: QueryConnectionLossText.droppedWithTransaction(database: database), severity: .error, category: "Connection")
         }
         // A run while waiting for Reconnect brings the notification (and its button) back.
         notificationEngine?.post(
             category: .connectionDisconnected, icon: "bolt.horizontal.circle.fill",
-            message: PostgresConnectionLossText.notification(tabTitle: tab.title, database: database),
+            message: QueryConnectionLossText.notification(tabTitle: tab.title, database: database),
             style: .error, duration: 8, context: context
         )
     }
@@ -64,7 +65,11 @@ extension EnvironmentState {
         switch action {
         case .reconnectTab:
             guard let tabID = context?.tabID else { return }
-            reconnectPostgresTab(tabID)
+            if tabStore.tabs.first(where: { $0.id == tabID })?.session is MSSQLDedicatedQuerySession {
+                reconnectSQLServerTab(tabID)
+            } else {
+                reconnectPostgresTab(tabID)
+            }
         }
     }
 
@@ -78,13 +83,13 @@ extension EnvironmentState {
             do {
                 try await store.reconnect(database: database)
                 tab.query?.connectionLoss = nil
-                tab.query?.appendMessage(message: PostgresConnectionLossText.reconnected(database: database), severity: .info, category: "Connection")
+                tab.query?.appendMessage(message: QueryConnectionLossText.reconnected(database: database), severity: .info, category: "Connection")
             } catch {
                 let reason = error.localizedDescription
-                tab.query?.appendMessage(message: PostgresConnectionLossText.reconnectFailed(database: database, reason: reason), severity: .error, category: "Connection")
+                tab.query?.appendMessage(message: QueryConnectionLossText.reconnectFailed(database: database, reason: reason), severity: .error, category: "Connection")
                 self?.notificationEngine?.post(
                     category: .connectionFailed,
-                    message: PostgresConnectionLossText.reconnectFailed(database: database, reason: reason),
+                    message: QueryConnectionLossText.reconnectFailed(database: database, reason: reason),
                     duration: 5.0
                 )
             }

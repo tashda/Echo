@@ -29,7 +29,8 @@ extension EnvironmentState {
         }
     }
 
-    private func remindAboutIdleTransaction(in tab: WorkspaceTab) {
+    /// Shared by PostgreSQL and SQL Server tabs.
+    func remindAboutIdleTransaction(in tab: WorkspaceTab) {
         guard let query = tab.query, query.transactionState != .none, !query.isExecuting, !query.transactionReminderSent,
               Date().timeIntervalSince(query.transactionLastActivity) >= QueryTransactionState.reminderIdleTime else { return }
         query.transactionReminderSent = true

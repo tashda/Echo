@@ -114,7 +114,7 @@ extension EnvironmentState {
                 await gate.signal()
                 handle.succeed()
                 tab.upgradeToDedicatedSession(dedicatedSession)
-                watchPostgresConnectionLoss(for: tab, session: dedicatedSession)
+                watchConnectionLoss(for: tab, session: dedicatedSession)
                 tab.query?.isEstablishingConnection = false
             } catch {
                 await gate.signal()
@@ -153,7 +153,7 @@ extension EnvironmentState {
                 )
                 handle.succeed()
                 tab.upgradeToDedicatedSession(dedicatedSession)
-                watchPostgresConnectionLoss(for: tab, session: dedicatedSession)
+                watchConnectionLoss(for: tab, session: dedicatedSession)
                 tab.query?.isEstablishingConnection = false
             } catch {
                 handle.fail(error.localizedDescription)

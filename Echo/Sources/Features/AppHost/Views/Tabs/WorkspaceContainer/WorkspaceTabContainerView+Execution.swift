@@ -341,15 +341,20 @@ extension WorkspaceTabContainerView {
     }
 
     /// SQL Server: cancelling the task cancels the statement on the server and keeps the session
-    /// (round 22, CL1). Tabs run with XACT_ABORT ON, so SQL Server rolls back a transaction the
-    /// cancelled statement was in; say so (XA1).
+    /// (round 22, CL1), and looks like the PostgreSQL cancel (Cancelling, Force Stop after 5 s).
+    /// Tabs run with XACT_ABORT ON, so SQL Server rolls back a transaction the cancelled statement
+    /// was in; say so (XA1).
     private func cancelSQLServerQuery(queryState: QueryEditorState, session: MSSQLDedicatedQuerySession) {
+        guard queryState.cancelPhase == nil else { return }
         let transactionWasOpen = session.isInTransaction
+        queryState.isCancellationRequested = true
+        queryState.cancelPhase = .cancelling
         queryState.cancelExecution()
-        guard transactionWasOpen else { return }
         Task { @MainActor in
-            while queryState.isExecuting { try? await Task.sleep(for: .milliseconds(100)) }
-            guard queryState.wasCancelled, !session.isInTransaction else { return }
+            await followCancel(queryState: queryState) { await session.forceStopRunningQuery() }
+            // After a Force Stop the connection is closed and still reports the transaction, so
+            // this note only follows a cancel that SQL Server acknowledged.
+            guard transactionWasOpen, queryState.wasCancelled, !session.isInTransaction else { return }
             queryState.appendMessage(
                 message: "Transaction rolled back: the cancelled statement was inside a transaction, and SQL Server rolled it back (XACT_ABORT is on).",
                 severity: .warning,
@@ -361,6 +366,20 @@ extension WorkspaceTabContainerView {
     /// Round 21, cancel: offers Force Stop when the server hasn't stopped within 5 s (CS2), and says
     /// when the cancelled statement left its transaction needing ROLLBACK (TX1).
     private func followPostgresCancel(queryState: QueryEditorState, session: DatabaseSession) async {
+        await followCancel(queryState: queryState) {
+            await (session as? PostgresSession)?.forceStopRunningQuery() ?? (stopped: false, transactionWasOpen: false)
+        }
+        if queryState.wasCancelled, await (session as? PostgresSession)?.isInFailedTransaction() == true {
+            queryState.noteCancelledInsideTransaction()
+        }
+    }
+
+    /// Waits for the cancelled run to end, offering Force Stop when the server hasn't stopped
+    /// within 5 s (round 21, CS2). `forceStop` closes the tab's connection.
+    private func followCancel(
+        queryState: QueryEditorState,
+        forceStop: @escaping @MainActor () async -> (stopped: Bool, transactionWasOpen: Bool)
+    ) async {
         let started = ContinuousClock.now
         while queryState.isExecuting {
             if queryState.cancelPhase == .cancelling, ContinuousClock.now - started >= QueryCancelPhase.forceStopDelay {
@@ -369,16 +388,13 @@ extension WorkspaceTabContainerView {
                     guard let queryState else { return }
                     queryState.forceStopHandler = nil
                     Task { @MainActor in
-                        let outcome = await (session as? PostgresSession)?.forceStopRunningQuery() ?? (stopped: false, transactionWasOpen: false)
+                        let outcome = await forceStop()
                         if outcome.stopped { queryState.noteForceStopped(transactionWasOpen: outcome.transactionWasOpen) }
                         queryState.cancelExecution()
                     }
                 }
             }
             try? await Task.sleep(for: .milliseconds(100))
-        }
-        if queryState.wasCancelled, await (session as? PostgresSession)?.isInFailedTransaction() == true {
-            queryState.noteCancelledInsideTransaction()
         }
     }
 

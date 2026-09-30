@@ -127,7 +127,7 @@ enum PostgresPinnedSessionError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .awaitingReconnect(let database):
-            PostgresConnectionLossText.awaitingReconnect(database: database)
+            QueryConnectionLossText.awaitingReconnect(database: database)
         }
     }
 }
