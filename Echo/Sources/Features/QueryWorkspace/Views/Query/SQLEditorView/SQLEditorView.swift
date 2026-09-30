@@ -25,6 +25,8 @@ struct SQLEditorView: View {
     var onAddBookmark: (String) -> Void
     var onRunStatement: () -> Void
     var runNote: QueryRunNote?
+    /// The statement of the result selected in a script's statement list (round 21, SK2).
+    var resultStatementRange: NSRange?
 
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
 
@@ -44,7 +46,8 @@ struct SQLEditorView: View {
         clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty,
         onAddBookmark: @escaping (String) -> Void = { _ in },
         onRunStatement: @escaping () -> Void = {},
-        runNote: QueryRunNote? = nil
+        runNote: QueryRunNote? = nil,
+        resultStatementRange: NSRange? = nil
     ) {
         _text = text
         self.theme = theme
@@ -62,6 +65,7 @@ struct SQLEditorView: View {
         self.onAddBookmark = onAddBookmark
         self.onRunStatement = onRunStatement
         self.runNote = runNote
+        self.resultStatementRange = resultStatementRange
     }
 
     var body: some View {
@@ -79,6 +83,7 @@ struct SQLEditorView: View {
             onAddBookmark: onAddBookmark,
             onRunStatement: onRunStatement,
             runNote: runNote,
+            resultStatementRange: resultStatementRange,
             completionContext: completionContext,
             ruleTraceConfig: ruleTraceConfig,
             onSchemaLoadNeeded: onSchemaLoadNeeded,

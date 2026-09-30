@@ -155,6 +155,8 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarAutoExpandSQLServer: Set<SidebarAutoExpandSection>?
     var sidebarAutoExpandMySQL: Set<SidebarAutoExpandSection>?
     var managedPostgresConsoleEnabled: Bool = true
+    /// Round 21, script results (E3): a PostgreSQL script stops at a failed statement unless this is on.
+    var postgresScriptsContinueAfterError: Bool = false
     var pgToolCustomPath: String?
     var mysqlToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
@@ -254,6 +256,7 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarAutoExpandSections, sidebarCustomizePerDatabaseType
         case sidebarAutoExpandPostgresql, sidebarAutoExpandSQLServer, sidebarAutoExpandMySQL
         case managedPostgresConsoleEnabled
+        case postgresScriptsContinueAfterError
         case pgToolCustomPath
         case mysqlToolCustomPath
         case sidebarIconColorMode
@@ -343,6 +346,7 @@ struct GlobalSettings: Codable, Hashable {
         sidebarAutoExpandSQLServer = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandSQLServer)
         sidebarAutoExpandMySQL = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandMySQL)
         managedPostgresConsoleEnabled = try container.decodeIfPresent(Bool.self, forKey: .managedPostgresConsoleEnabled) ?? true
+        postgresScriptsContinueAfterError = try container.decodeIfPresent(Bool.self, forKey: .postgresScriptsContinueAfterError) ?? false
         pgToolCustomPath = try container.decodeIfPresent(String.self, forKey: .pgToolCustomPath)
         mysqlToolCustomPath = try container.decodeIfPresent(String.self, forKey: .mysqlToolCustomPath)
 
@@ -457,6 +461,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(sidebarAutoExpandSQLServer, forKey: .sidebarAutoExpandSQLServer)
         try container.encodeIfPresent(sidebarAutoExpandMySQL, forKey: .sidebarAutoExpandMySQL)
         try container.encode(managedPostgresConsoleEnabled, forKey: .managedPostgresConsoleEnabled)
+        try container.encode(postgresScriptsContinueAfterError, forKey: .postgresScriptsContinueAfterError)
         try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
         try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)

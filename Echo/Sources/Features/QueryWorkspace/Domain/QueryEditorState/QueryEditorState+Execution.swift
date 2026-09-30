@@ -61,6 +61,9 @@ extension QueryEditorState {
         additionalResults.removeAll()
         selectedResultSetIndex = 0
         batchResultMetadata = nil
+        scriptEntries = nil
+        selectedScriptEntryID = nil
+        highlightedStatementRange = nil
         dataClassification = nil
         markResultDataChanged()
 

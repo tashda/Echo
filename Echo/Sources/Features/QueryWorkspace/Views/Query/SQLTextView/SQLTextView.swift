@@ -35,6 +35,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     /// QE1: the script's statements (kept between edits) and the one at the caret.
     var cachedStatements: [SQLStatementAtCaret.Match] = []
     var focusedStatementRange: NSRange?
+    /// Round 21, SK2: the statement of the result selected in a script's statement list.
+    var resultStatementRange: NSRange? { didSet { if oldValue != resultStatementRange { setNeedsDisplay(visibleRect) } } }
     var lastCurrentLineBandRect: NSRect?
     /// QE5: the outline strip, when the setting is on.
     weak var outlineStrip: EditorOutlineStripView?

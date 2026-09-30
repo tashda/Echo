@@ -31,7 +31,20 @@ extension QueryResultsSection {
         .background(platformBackground)
     }
 
+    @ViewBuilder
     var resultsView: some View {
+#if os(macOS)
+        if let entries = query.scriptEntries, entries.count > 1 {
+            scriptResultsView(entries)
+        } else {
+            standardResultsView
+        }
+#else
+        standardResultsView
+#endif
+    }
+
+    private var standardResultsView: some View {
         Group {
             if hasRows || !query.additionalResults.isEmpty {
 #if os(macOS)
@@ -119,7 +132,7 @@ extension QueryResultsSection {
         )
     }
 
-    private var multiResultSetView: some View {
+    var multiResultSetView: some View {
         return VStack(spacing: 0) {
             if query.selectedResultSetIndex == 0 && hasRows {
                 primaryResultsTable

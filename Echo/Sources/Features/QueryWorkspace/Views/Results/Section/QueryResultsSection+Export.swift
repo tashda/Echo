@@ -4,7 +4,12 @@ import SwiftUI
 extension QueryResultsSection {
     var resultsToolbar: some View {
         TabSectionToolbar(sectionPicker: {
-            if query.allResultSetsForDisplay.count > 1 {
+            if let entry = query.selectedScriptEntry {
+                Text(entry.label)
+                    .font(TypographyTokens.formValue)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+            } else if query.allResultSetsForDisplay.count > 1 {
                 resultSetTabBar(count: query.allResultSetsForDisplay.count)
             } else {
                 Text(resultsSummaryText)

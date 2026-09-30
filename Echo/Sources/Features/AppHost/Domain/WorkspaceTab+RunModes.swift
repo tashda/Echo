@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// Running a query tab in each `QueryRunMode`, shared by the toolbar's Run and the Query menu.
 extension WorkspaceTab {
@@ -8,6 +9,17 @@ extension WorkspaceTab {
     }
 
     var supportsExecutionPlans: Bool { session is ExecutionPlanProviding }
+
+    /// Query › Run as One Transaction (round 21, OT1) applies to PostgreSQL scripts.
+    var supportsRunAsOneTransaction: Bool { connection.databaseType == .postgresql && query != nil }
+
+    /// The Run as One Transaction toggle for menus: off by default, per tab.
+    var runAsOneTransactionBinding: Binding<Bool> {
+        Binding(
+            get: { [weak self] in self?.query?.runsScriptAsOneTransaction ?? false },
+            set: { [weak self] in self?.query?.runsScriptAsOneTransaction = $0 }
+        )
+    }
 
     func canRun(_ mode: QueryRunMode) -> Bool {
         guard canRunQuery, let query, !query.isExecuting else { return false }

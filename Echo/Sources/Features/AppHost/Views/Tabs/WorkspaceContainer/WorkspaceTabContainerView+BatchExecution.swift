@@ -22,6 +22,11 @@ extension WorkspaceTabContainerView {
         )
 
         let activityHandle = AppDirector.shared.activityEngine.begin("Executing batch query", connectionSessionID: tab.connectionSessionID)
+        let isPostgresScript = resolvedSession is PostgresSession
+        let scriptOptions = PostgresScriptOptions(
+            stopOnError: !projectStore.globalSettings.postgresScriptsContinueAfterError,
+            asOneTransaction: queryState.runsScriptAsOneTransaction
+        )
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
@@ -35,8 +40,10 @@ extension WorkspaceTabContainerView {
                     }
                 }
 
-                let batchResults = try await resolvedSession.executeBatches(batches) { [weak state] update in
+                // PostgreSQL scripts log one line per statement at the end instead (round 21, SP2).
+                let handler: BatchProgressHandler = { [weak state] update in
                     guard let state else { return }
+                    if isPostgresScript, !update.event.isStreamUpdate { return }
                     Task { @MainActor in
                         switch update.event {
                         case .started:
@@ -70,10 +77,24 @@ extension WorkspaceTabContainerView {
                     }
                 }
 
+                var scriptRun: PostgresScriptRun?
+                let batchResults: [BatchResult]
+                if let postgres = resolvedSession as? PostgresSession {
+                    let run = try await postgres.executeScript(batches, options: scriptOptions, progressHandler: handler)
+                    scriptRun = run
+                    batchResults = run.results
+                } else {
+                    batchResults = try await resolvedSession.executeBatches(batches, progressHandler: handler)
+                }
+
                 try Task.checkCancellation()
                 await MainActor.run {
                     activityHandle.succeed()
-                    consumeBatchResults(batchResults, into: state, batchStartLines: batchStartLines)
+                    if let scriptRun {
+                        consumePostgresScript(scriptRun, statements: batches, into: state)
+                    } else {
+                        consumeBatchResults(batchResults, into: state, batchStartLines: batchStartLines)
+                    }
                     state.finishExecution()
 
                     appState.addToQueryHistory(

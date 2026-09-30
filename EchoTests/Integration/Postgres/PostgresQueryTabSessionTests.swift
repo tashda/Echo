@@ -64,7 +64,7 @@ final class PostgresQueryTabSessionTests: XCTestCase {
         XCTAssertEqual(results[2].resultSets.first?.rows, [["1", "a;b"], ["2", "c"]])
         XCTAssertNotNil(results[3].error)
         XCTAssertTrue(results[3].error?.contains("missing_table_xyz") == true)
-        XCTAssertNil(results[4].error, "like psql, the script continues after a failed statement")
+        XCTAssertTrue(results[4].skipped, "a script stops at the failed statement by default (round 21, E3)")
     }
 
     func testCancelStopsTheStatementOnTheServer() async throws {

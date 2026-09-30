@@ -59,6 +59,7 @@ extension SQLTextView {
             theme.surfaces.currentLine.nsColor.setFill()
             NSBezierPath(roundedRect: band, xRadius: radius, yRadius: radius).fill()
         }
+        drawResultStatementBand(in: rect)
         guard let range = focusedStatementRange, let layoutManager else { return }
         let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
         var band = NSRect.null
@@ -70,6 +71,25 @@ extension SQLTextView {
         band.size.width = bounds.width
         band = band.offsetBy(dx: 0, dy: textContainerOrigin.y)
         NSColor.controlAccentColor.withAlphaComponent(LayoutTokens.EditorGutter.statementBandOpacity).setFill()
+        band.intersection(rect).fill()
+    }
+}
+extension SQLTextView {
+    /// Round 21, SK2: the selected script result's statement, a stronger band than the caret's
+    /// statement so the two can be told apart.
+    func drawResultStatementBand(in rect: NSRect) {
+        guard let range = resultStatementRange, let layoutManager,
+              NSMaxRange(range) <= (string as NSString).length else { return }
+        let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+        var band = NSRect.null
+        layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { fragment, _, _, _, _ in
+            band = band.union(fragment)
+        }
+        guard !band.isNull else { return }
+        band.origin.x = 0
+        band.size.width = bounds.width
+        band = band.offsetBy(dx: 0, dy: textContainerOrigin.y)
+        NSColor.controlAccentColor.withAlphaComponent(LayoutTokens.EditorGutter.statementBandOpacity * 2).setFill()
         band.intersection(rect).fill()
     }
 }

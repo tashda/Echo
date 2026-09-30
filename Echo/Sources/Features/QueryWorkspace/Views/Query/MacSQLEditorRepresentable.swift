@@ -18,6 +18,8 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var onRunStatement: () -> Void = {}
     /// QE2: rows and time (or the error) at the end of what last ran.
     var runNote: QueryRunNote?
+    /// Round 21, SK2: the selected script result's statement, drawn as a band.
+    var resultStatementRange: NSRange?
     var completionContext: SQLEditorCompletionContext?
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onSchemaLoadNeeded: ((String) -> Void)?
@@ -62,6 +64,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     func updateNSView(_ nsView: SQLScrollView, context: Context) {
         nsView.setFooterOverlay(height: context.environment.cardFooterOverlayHeight)
         if nsView.sqlTextView.runNote != runNote { nsView.sqlTextView.runNote = runNote }
+        if nsView.sqlTextView.resultStatementRange != resultStatementRange { nsView.sqlTextView.resultStatementRange = resultStatementRange }
         // A kept-alive tab coming back takes the keyboard again (KeptAliveTabsView).
         let isActiveTab = context.environment.isActiveWorkspaceTab
         if isActiveTab && !context.coordinator.wasActiveTab, let textView = context.coordinator.textView {

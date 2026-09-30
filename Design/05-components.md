@@ -168,6 +168,8 @@ Decided 2026-09-30.
 
 ## Results card
 
+- **PostgreSQL scripts** (round 21): the results show **a statement list at the left**, each row a status icon and the statement's first words ("SELECT … FROM customers"); commands are entries too, showing their tag ("INSERT 0 2"); statements that didn't run are left out. Selecting a statement shows its result and lights the statement in the editor (a stronger band than the caret's statement) until the text changes. Messages has one line per statement ("3 · UPDATE 3 · 12 ms") and says where a script stopped. A script **stops at a failed statement** unless Settings › Databases › PostgreSQL › Continue after a failed statement is on. **Run as One Transaction** (Run button menu, Query menu; off by default, per tab) wraps the script in BEGIN and COMMIT, rolling back on failure. *Decided.*
+
 - Echo's existing AppKit grid stays, improved in place. *Decided.*
 - **Cells:**
   - Numbers and dates are right-aligned with tabular digits. *Decided.*

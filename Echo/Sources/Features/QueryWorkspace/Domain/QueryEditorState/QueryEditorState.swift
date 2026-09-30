@@ -128,6 +128,14 @@ import OSLog
     var selectedResultSetIndex: Int = 0
     /// Batch labels for multi-batch (GO) results. Nil for single-batch execution.
     var batchResultMetadata: [BatchResultLabel]?
+    /// A PostgreSQL script's statements, for the statement list (round 21, script results).
+    var scriptEntries: [ScriptResultEntry]?
+    /// The statement selected in the list; its statement is highlighted in the editor (SK2).
+    var selectedScriptEntryID: Int?
+    /// The editor range of the selected statement, drawn as a band until the text changes.
+    var highlightedStatementRange: NSRange?
+    /// Query › Run as One Transaction (round 21, OT1): off by default, per tab.
+    var runsScriptAsOneTransaction = false
     var executionPlan: ExecutionPlanData?
     var isLoadingExecutionPlan: Bool = false
     var dataClassification: DataClassification?

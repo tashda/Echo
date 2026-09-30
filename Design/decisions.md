@@ -2,6 +2,18 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 21 accepted: PostgreSQL script results
+
+Echo Labs › Footer and results › Postgres: script results · round 21.
+
+- **Layout: SR4 · a statement list at the left** of the results, the selected statement's result beside it. Batch tabs (today), tabs named by statement (recommended), stacked sections and one timeline were not chosen. → 05-components › Results card
+- **Label: SL3 · the statement's first words** ("SELECT … FROM customers", "UPDATE orders SET"). → 05-components
+- **Commands: SC2 · entries with their tag** ("INSERT 0 2") in the list, in order with the results. → 05-components
+- **Messages: SP2 · one line per statement** ("3 · UPDATE 3 · 12 ms"); no started/completed lines. → 05-components
+- **Link: SK2 · the selected result lights its statement** in the editor, until the text changes. → 05-components, EDT-3.1
+- **A failed statement: E3 · stop by default,** "Stopped: statement 4 failed; statement 5 was not run."; Settings › Databases › PostgreSQL › Continue after a failed statement runs the rest. → 05-components
+- **All or nothing: OT1 · Run as One Transaction** in the Run button's menu and the Query menu, off by default, per tab: BEGIN before the script, COMMIT after it, ROLLBACK when a statement fails; a script with its own BEGIN or COMMIT runs as written. → 05-components
+
 ## 2026-09-30 · Round 21 accepted: a PostgreSQL connection lost
 
 Echo Labs › Notifications › Postgres: connection lost · round 21.

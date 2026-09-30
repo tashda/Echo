@@ -39,6 +39,11 @@ struct QueryMenuCommands: Commands {
                 .disabled(queryTab == nil || isRunning || (mode.needsPlans && !(queryTab?.supportsExecutionPlans ?? false)))
             }
 
+            if let tab = queryTab, tab.supportsRunAsOneTransaction {
+                Toggle("Run as One Transaction", isOn: tab.runAsOneTransactionBinding)
+                    .disabled(isRunning)
+            }
+
             Button {
                 queryTab?.query?.cancelExecution()
             } label: {

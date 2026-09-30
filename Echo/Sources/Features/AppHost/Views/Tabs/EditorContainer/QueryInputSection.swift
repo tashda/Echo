@@ -57,6 +57,7 @@ struct QueryInputSection: View {
                 if query.sql != newText {
                     query.sql = newText
                     query.runNote = nil
+                    query.highlightedStatementRange = nil
                 }
             },
             onSelectionChange: handleSelectionChange,
@@ -64,7 +65,8 @@ struct QueryInputSection: View {
             clipboardMetadata: query.clipboardMetadata,
             onAddBookmark: onAddBookmark,
             onRunStatement: onRunStatement,
-            runNote: query.runNote
+            runNote: query.runNote,
+            resultStatementRange: query.highlightedStatementRange
         )
         .padding(.leading, leadingPadding)
         .padding(.trailing, trailingPadding)

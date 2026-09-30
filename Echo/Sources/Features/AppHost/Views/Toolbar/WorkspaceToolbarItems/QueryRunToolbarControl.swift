@@ -56,6 +56,10 @@ struct QueryRunToolbarControl: View {
                 }
                 .disabled(!(tab?.canRun(mode) ?? false))
             }
+            if let tab, tab.supportsRunAsOneTransaction {
+                Divider()
+                Toggle("Run as One Transaction", isOn: tab.runAsOneTransactionBinding)
+            }
         }
         .animation(motion.standard, value: isRunning)
         .animation(motion.standard, value: result)
