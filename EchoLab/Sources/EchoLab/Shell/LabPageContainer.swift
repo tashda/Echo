@@ -7,7 +7,17 @@ struct LabPageContainer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                Text(page.title).font(TypographyTokens.title)
+                HStack(spacing: SpacingTokens.xs) {
+                    Text(page.title).font(TypographyTokens.title)
+                    if let status = page.status {
+                        Text(status.rawValue)
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                            .padding(.horizontal, SpacingTokens.xs)
+                            .padding(.vertical, SpacingTokens.xxxs)
+                            .background(ColorTokens.Surface.hover, in: Capsule())
+                    }
+                }
                 Text(page.summary)
                     .font(TypographyTokens.standard)
                     .foregroundStyle(ColorTokens.Text.secondary)

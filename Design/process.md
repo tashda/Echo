@@ -9,7 +9,7 @@ The loop every design question goes through. Anyone (a person or an agent) can p
 
 ## 2. Make it judgeable
 
-Anything visual or animated gets a page in the **Design Lab** (`Echo/Sources/Features/DesignLab/`, debug builds, Help › Design Lab).
+Anything visual or animated gets a page in **Echo Lab** (`EchoLab/`, Ongoing work; see the Echo Lab workflow in `CLAUDE.md`). Pages still in the old in-app Design Lab (`Echo/Sources/Features/DesignLab/`) are being ported.
 
 - A playground is a plain SwiftUI view with sample data and a control bar (see `LabStage`, `LabPicker` in `DesignLabKit.swift`). It must not depend on app state.
 - Register the page in `DesignLabWindow.swift`: add a `DesignLabPage` case, its intro, its questions (`LabQuestion`: title, how to try it, options) and its playground.
@@ -32,6 +32,7 @@ Either:
 - Add an entry at the top of `decisions.md`: what was decided and where the rule now lives. Never rewrite older entries; a changed rule gets a new entry.
 - If a Decided rule is replaced, say so in both places ("replaces the earlier … rule").
 - Update the lab's defaults to the decided values.
+- Set the Echo Lab page to `In Echo`. When the owner has confirmed it on the real app, freeze it into `Decided/Library/` as live code and remove it from Ongoing.
 
 ## 5. Build it
 

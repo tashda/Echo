@@ -8,6 +8,8 @@ struct LabPage: Identifiable {
     let group: String
     let title: String
     let symbol: String
+    /// Ongoing pages carry their stage; other sections leave it nil.
+    let status: LabStatus?
     let summary: String
     let content: () -> AnyView
 
@@ -17,6 +19,7 @@ struct LabPage: Identifiable {
         group: String,
         title: String,
         symbol: String,
+        status: LabStatus? = nil,
         summary: String,
         @ViewBuilder content: @escaping () -> Content
     ) {
@@ -25,6 +28,7 @@ struct LabPage: Identifiable {
         self.group = group
         self.title = title
         self.symbol = symbol
+        self.status = status
         self.summary = summary
         self.content = { AnyView(content()) }
     }

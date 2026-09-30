@@ -10,6 +10,7 @@ struct LabSidebar: View {
                     ForEach(groups(in: section), id: \.self) { group in
                         ForEach(LabRegistry.pages(in: section).filter { $0.group == group }) { page in
                             Label(page.title, systemImage: page.symbol)
+                                .badge(page.status == .inEcho ? Text("In Echo") : nil)
                                 .tag(page.id)
                         }
                     }
