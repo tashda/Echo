@@ -452,6 +452,11 @@
         "date": "2026-09-30T13:58:21Z",
         "id": "D14B3620-14DC-4F24-A997-4D07D32F37B8",
         "text": "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Proposal; note: It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere\n2. Where: picked TW2 · Settings default, connection overrides; note: Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab\n3. Default: picked TD2 · No limit unless set\n4. When it fires: picked TF2 · Explained, with Run Without Limit; NEEDS MORE OPTIONS; note: Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification\n5. Lock waits: picked TL2 · Separate field under Timeouts; NEEDS MORE OPTIONS; note: Should this be showing in the footer status?\n6. The 60 seconds already saved: picked M3 · Reset to No limit, mention it once in What's New\n7. The limit in the footer: picked FT1 · 0:12 / 0:30 while running\n8. Idle in transaction: picked IT1 · No, the transaction indicator covers it\n9. Scripts: picked SC1 · Each statement (how Postgres does it)"
+      },
+      {
+        "date": "2026-09-30T18:01:17Z",
+        "id": "D592CC78-76BF-463D-AB65-3D350178970F",
+        "text": "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Where the message goes\n2. Where: picked TW2 · Settings default, connection overrides\n3. Default: picked TD2 · No limit unless set\n4. When it fires: picked TF4 · Explained, plus a notification when you're elsewhere\n5. Lock waits: picked TL4 · No lock field; show the wait instead\n6. Lock wait in the footer: picked LF3 · Waiting for lock, who holds it on hover\n7. The 60 seconds already saved: picked M3 · Reset to No limit, mention it once in What's New\n8. The limit in the footer: picked FT1 · 0:12 / 0:30 while running\n9. A limit set on the server: picked SL1 · Names it: the server's limit of 30 s\n10. Idle in transaction: picked IT1 · No, the transaction indicator covers it\n11. Scripts: picked SC1 · Each statement (how Postgres does it)"
       }
     ],
     "generalNote": "",
@@ -463,31 +468,33 @@
       {
         "date": "2026-09-30T14:48:26Z",
         "text": "Revision 2: Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
+      },
+      {
+        "date": "2026-09-30T18:01:17Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T18:31:46Z",
+        "text": "Built into Echo (plan R12): Settings default + connection override, old 60 s reset with a one-time notice, statement_timeout per tab, footer 0:12 / 0:30, stop explained with Run Without Limit, server limit named, Waiting for lock with the holder on hover. Please check it in the running app."
       }
     ],
-    "needsMore": [
-      "locks",
-      "fired"
-    ],
+    "needsMore": [],
     "optionNotes": {},
-    "pickNotes": {
-      "exhibit": "It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere",
-      "fired": "Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification",
-      "locks": "Should this be showing in the footer status?",
-      "where": "Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab"
-    },
+    "pickNotes": {},
     "picks": {
       "default": "TD2 · No limit unless set",
-      "exhibit": "proposal",
-      "fired": "TF2 · Explained, with Run Without Limit",
+      "exhibit": "fired",
+      "fired": "TF4 · Explained, plus a notification when you're elsewhere",
       "idle": "no",
-      "locks": "TL2 · Separate field under Timeouts",
+      "lockStatus": "LF3 · Waiting for lock, who holds it on hover",
+      "locks": "TL4 · No lock field; show the wait instead",
       "migrate": "resetTell",
       "scripts": "each",
+      "serverLimit": "named",
       "timer": "fraction",
       "where": "TW2 · Settings default, connection overrides"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -505,7 +512,7 @@
         "summary": "Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
       }
     ],
-    "status": "Judging",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.pg-transaction-state-r21": {
