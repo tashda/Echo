@@ -125,6 +125,7 @@ struct GlobalSettings: Codable, Hashable {
     var editorEnableLiveValidation: Bool = true
     var editorStatementFocus: Bool = true
     var editorOutlineEdge: Bool = false
+    var editorGhostTextCompletion: Bool = false
     var accentColorSource: AccentColorSource
     var customAccentColorHex: String?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
@@ -233,6 +234,7 @@ struct GlobalSettings: Codable, Hashable {
         case editorEnableLiveValidation
         case editorStatementFocus
         case editorOutlineEdge
+        case editorGhostTextCompletion
         case useServerColorAsAccent, accentColorSource, customAccentColorHex
         case workspaceTabBarStyle, tabOverviewStyle
         case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides
@@ -299,6 +301,7 @@ struct GlobalSettings: Codable, Hashable {
         editorEnableLiveValidation = try container.decodeIfPresent(Bool.self, forKey: .editorEnableLiveValidation) ?? true
         editorStatementFocus = try container.decodeIfPresent(Bool.self, forKey: .editorStatementFocus) ?? true
         editorOutlineEdge = try container.decodeIfPresent(Bool.self, forKey: .editorOutlineEdge) ?? false
+        editorGhostTextCompletion = try container.decodeIfPresent(Bool.self, forKey: .editorGhostTextCompletion) ?? false
         if let source = try container.decodeIfPresent(AccentColorSource.self, forKey: .accentColorSource) {
             accentColorSource = source
         } else {
@@ -412,6 +415,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(editorEnableLiveValidation, forKey: .editorEnableLiveValidation)
         try container.encode(editorStatementFocus, forKey: .editorStatementFocus)
         try container.encode(editorOutlineEdge, forKey: .editorOutlineEdge)
+        try container.encode(editorGhostTextCompletion, forKey: .editorGhostTextCompletion)
         try container.encode(accentColorSource, forKey: .accentColorSource)
         try container.encodeIfPresent(customAccentColorHex, forKey: .customAccentColorHex)
         try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)

@@ -250,7 +250,7 @@ Rules: `05-components` › EchoSense. Ranking and the 78 scenarios in `AUTOCOMPL
 | P2 | **Details footer (ES4):** replaces the side panel and its 1 s delay (ESR6): full name, type, source, nullability and keys (EchoSense `columnFacts`, e10f0ee), key hints; an inset rounded panel, concentric with the popup. | `AutoCompletionDetailView` → footer | No timer; footer follows the selection | ☑ built, 👁 pending |
 | P3 | **Tint, then solid (ESR4):** tinted while typing, solid once the selection moves with ↑/↓. | Controller + list | Typing resets to tint | ☑ built, 👁 pending |
 | P4 | **Material and corners (ESR5):** card fill, card edge, floating shadow; the corner follows Card Corners, capped at 14pt; rows use it minus the padding. | List view | No hard-coded white | ☑ built, 👁 pending |
-| P5 | **Ghost text (ES3)** as a setting, off by default: the top match inline in grey, Tab accepts. | Controller, EchoSense settings | Setting toggles it | ☐ Not started: ghost text was removed from the editor earlier and needs drawing again |
+| P5 | **Ghost text (ES3)** as a setting, off by default: the top match inline in grey, Tab accepts. | Controller, EchoSense settings | Setting toggles it | ☑ built, 👁 pending: Settings › EchoSense › Ghost text instead of the list, off by default |
 
 ## Phase 13 · Connections
 

@@ -38,6 +38,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var lastCurrentLineBandRect: NSRect?
     /// QE5: the outline strip, when the setting is on.
     weak var outlineStrip: EditorOutlineStripView?
+    /// ES3: the suggestion shown as ghost text after the caret, with the response it came from.
+    var ghostSuggestion: (suggestion: SQLAutoCompletionSuggestion, response: SQLCompletionResponse)?
+    var ghostTextLabel: NSTextField?
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()
@@ -157,6 +160,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func keyDown(with event: NSEvent) {
+        if acceptGhostTextIfNeeded(event) { return }
         if event.keyCode == 48 && !event.modifierFlags.contains(.shift) && expandSelectStarShorthandIfNeeded() { return }
         if handleSnippetNavigation(event) || completionController?.handleKeyDown(event) == true { return }
         super.keyDown(with: event)
