@@ -25,6 +25,33 @@ enum LabStatus: String, Codable, CaseIterable {
 
     var section: LabSection { self == .decided ? .decided : .ongoing }
 
+    /// Whose move it is. Feedback the owner sends or a verdict they accept goes straight to the
+    /// agent, so the Inbox sorts by turn instead of showing a "New" queue that is always empty.
+    enum Turn: String, CaseIterable {
+        case you = "For you"
+        case agent = "With the agent"
+        case done = "Decided"
+    }
+
+    var turn: Turn {
+        switch self {
+        case .judging, .inEcho: .you
+        case .newFeedback, .accepted: .agent
+        case .decided: .done
+        }
+    }
+
+    /// What the owner reads. The state file keeps the stored names (`rawValue`).
+    var title: String {
+        switch self {
+        case .newFeedback: "Sent to agent"
+        case .judging: "To judge"
+        case .accepted: "Accepted"
+        case .inEcho: "To check in Echo"
+        case .decided: "Decided"
+        }
+    }
+
     /// The state file may spell a status as its display name ("In Echo") or as a key
     /// (`inEcho`); both read the same. It is written as the display name.
     init(from decoder: Decoder) throws {

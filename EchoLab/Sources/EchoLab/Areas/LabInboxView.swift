@@ -7,15 +7,13 @@ struct LabInboxView: View {
     @Environment(LabNavigator.self) private var navigator
 
     enum Filter: String, CaseIterable, Identifiable {
-        case all = "All", newFeedback = "New", judging = "Judging", accepted = "Accepted", inEcho = "In Echo"
+        case all = "All", you = "For you", agent = "With the agent"
         var id: String { rawValue }
-        var status: LabStatus? {
+        var turn: LabStatus.Turn? {
             switch self {
             case .all: nil
-            case .newFeedback: .newFeedback
-            case .judging: .judging
-            case .accepted: .accepted
-            case .inEcho: .inEcho
+            case .you: .you
+            case .agent: .agent
             }
         }
     }
@@ -24,13 +22,13 @@ struct LabInboxView: View {
     @AppStorage("lab.inbox.selected") private var selectedID: String?
     @State private var search = ""
 
-    private let waiting: [LabStatus] = [.newFeedback, .judging, .accepted, .inEcho]
+    private let turns: [LabStatus.Turn] = [.you, .agent]
 
     private var items: [LabPage] {
         LabRegistry.pages.filter { page in
-            guard let status = store.status(of: page), waiting.contains(status),
+            guard let status = store.status(of: page), turns.contains(status.turn),
                   page.section != .test, page.section != .reference else { return false }
-            if let wanted = filter.status, status != wanted { return false }
+            if let wanted = filter.turn, status.turn != wanted { return false }
             let query = search.trimmingCharacters(in: .whitespaces).lowercased()
             return query.isEmpty || page.title.lowercased().contains(query) || areaTitle(page).lowercased().contains(query)
                 || page.summary.lowercased().contains(query)
@@ -40,12 +38,13 @@ struct LabInboxView: View {
     var body: some View {
         HStack(spacing: 0) {
             VStack(spacing: 0) {
-                LabMailHeader(title: "Inbox", subtitle: "\(store.attentionCount) waiting", search: $search) {
-                    Picker("Filter", selection: $filter) {
-                        ForEach(Filter.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented).labelsHidden().controlSize(.small)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Inbox").font(TypographyTokens.title2.weight(.bold))
+                    Text("\(store.attentionCount) for you · \(store.agentCount) with the agent")
+                        .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                    Spacer()
                 }
+                .padding(SpacingTokens.sm)
                 Divider()
                 list
             }
@@ -54,19 +53,37 @@ struct LabInboxView: View {
             reading
         }
         .background(ColorTokens.Workspace.canvas)
+        .searchable(text: $search, placement: .toolbar, prompt: "Search the inbox")
+        .toolbar {
+            ToolbarItem {
+                Menu {
+                    Picker("Show", selection: $filter) {
+                        ForEach(Filter.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label("Filter", systemImage: filter == .all ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                }
+                .menuIndicator(.hidden)
+                .help("Show: \(filter.rawValue)")
+            }
+        }
     }
 
     private var list: some View {
         List(selection: $selectedID) {
-            ForEach(waiting, id: \.self) { status in
-                let group = items.filter { store.status(of: $0) == status }
+            ForEach(turns, id: \.self) { turn in
+                let group = items.filter { store.status(of: $0)?.turn == turn }
                 if !group.isEmpty {
                     Section {
-                        ForEach(group) { page in row(page, status: status).tag(page.id) }
+                        ForEach(group) { page in
+                            row(page, status: store.status(of: page) ?? .judging).tag(page.id)
+                                .contentShape(Rectangle())
+                                .onTapGesture(count: 2) { navigator.openPage(page.id) }
+                        }
                     } header: {
                         HStack(spacing: 6) {
-                            Image(systemName: status.symbol).foregroundStyle(status.tint)
-                            Text(status.rawValue).fontWeight(.semibold)
+                            Text(turn.rawValue).fontWeight(.semibold)
                             Text("\(group.count)").foregroundStyle(ColorTokens.Text.tertiary)
                         }
                         .font(TypographyTokens.detail)
@@ -79,7 +96,7 @@ struct LabInboxView: View {
             if items.isEmpty {
                 ContentUnavailableView(search.isEmpty ? "All caught up" : "No matches",
                                        systemImage: search.isEmpty ? "tray" : "magnifyingglass",
-                                       description: Text(search.isEmpty ? "Nothing is waiting for feedback or for the agent." : "Try a different search."))
+                                       description: Text(search.isEmpty ? "Nothing is waiting for you or the agent." : "Try a different search."))
             }
         }
         .onAppear { if selectedID == nil || !items.contains(where: { $0.id == selectedID }) { selectedID = items.first?.id } }
@@ -87,7 +104,7 @@ struct LabInboxView: View {
 
     private func row(_ page: LabPage, status: LabStatus) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Circle().fill(status == .newFeedback ? status.tint : .clear).frame(width: 8, height: 8).padding(.top, 5)
+            Image(systemName: status.symbol).font(.system(size: 11)).foregroundStyle(status.tint).frame(width: 14).padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     LabRoundTitle(text: page.title)

@@ -85,15 +85,15 @@ struct LabFeedbackInspector: View {
             EmptyView()
         case .inEcho:
             Button("Confirm in Echo") { store.confirm(page) }
-            Button("Move back to New feedback") { store.reopen(page) }
+            Button("Send back to the agent") { store.reopen(page) }
         case .decided:
-            Button("Move back to New feedback") { store.reopen(page) }
+            Button("Reopen with feedback") { store.reopen(page) }
         }
     }
 
     private func explanation(_ status: LabStatus) -> String {
         switch status {
-        case .newFeedback: "Your feedback is waiting for the agent."
+        case .newFeedback: "Sent. The agent picks it up next."
         case .judging: "Try the playground, then accept it or send feedback."
         case .accepted: "Accepted. The agent builds it into Echo next."
         case .inEcho: "Built into Echo. Check it in the running app, then confirm."

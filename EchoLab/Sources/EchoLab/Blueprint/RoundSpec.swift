@@ -114,8 +114,11 @@ struct RoundSpec {
         }
         for control in controls {
             guard let question = control.question else { continue }
-            assert(control.recommended != nil && control.why != nil,
-                   "Control \(control.id) asks a question, so it needs a recommendation and a reason (see HOW_TO_WRITE_A_ROUND.md)")
+            // A round written without a recommendation must not take Echo Labs down with it: say so
+            // in the log and keep going. The decision panel shows the choice without one.
+            if control.recommended == nil || control.why == nil {
+                NSLog("Echo Labs: control \(control.id) asks a question, so it needs a recommendation and a reason (see HOW_TO_WRITE_A_ROUND.md)")
+            }
             topics.append(.init(id: control.id, title: control.title, question: question, choices: control.choices,
                                 recommended: control.recommended, why: control.why, addedIn: control.addedIn, preview: { values[control.id] }))
         }

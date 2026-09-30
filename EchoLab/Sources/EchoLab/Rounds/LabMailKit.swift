@@ -30,7 +30,7 @@ extension LabStatus {
 struct LabStatusChip: View {
     let status: LabStatus
     var body: some View {
-        Label(status.rawValue, systemImage: status.symbol)
+        Label(status.title, systemImage: status.symbol)
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(status.tint)
             .padding(.horizontal, 8).frame(height: 20)

@@ -135,9 +135,14 @@ final class LabStore {
     }
     func history(for page: LabPage) -> [Event] { items[page.id]?.history ?? [] }
 
-    /// Items waiting for someone: new feedback, judging, accepted, or in Echo.
+    /// Items waiting for the owner: to judge, or to check in Echo.
     var attentionCount: Int {
-        LabRegistry.pages.filter { [.newFeedback, .judging, .accepted, .inEcho].contains(status(of: $0)) }.count
+        LabRegistry.pages.filter { [.judging, .inEcho].contains(status(of: $0)) }.count
+    }
+
+    /// Items the agent has to act on: feedback sent, or a verdict accepted.
+    var agentCount: Int {
+        LabRegistry.pages.filter { [.newFeedback, .accepted].contains(status(of: $0)) }.count
     }
 
     func count(in status: LabStatus) -> Int {

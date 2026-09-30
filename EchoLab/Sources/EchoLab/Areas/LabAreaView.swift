@@ -64,7 +64,7 @@ struct LabRoundsList: View {
                 ForEach(LabStatus.allCases, id: \.self) { status in
                     let items = rounds.filter { store.status(of: $0) == status }
                     if !items.isEmpty {
-                        Section(status.rawValue) {
+                        Section(status.title) {
                             ForEach(items) { page in
                                 Button { navigator.openPage(page.id) } label: {
                                     VStack(alignment: .leading, spacing: 2) {
