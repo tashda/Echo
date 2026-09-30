@@ -19,6 +19,18 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r23", label: "Round 23", title: "Postgres: several servers and failover", date: "30 Sep 2026",
+             asked: "The connection sheet's options for what postgres-wire now supports: Kerberos sign-in, an encrypted client key, several servers with failover.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.pg-failover-hosts-r23"]),
+        Info(id: "r23", label: "Round 23", title: "Postgres: encrypted client key", date: "30 Sep 2026",
+             asked: "The connection sheet's options for what postgres-wire now supports: Kerberos sign-in, an encrypted client key, several servers with failover.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.pg-client-key-password-r23"]),
+        Info(id: "r23", label: "Round 23", title: "Postgres: Kerberos sign-in", date: "30 Sep 2026",
+             asked: "The connection sheet's options for what postgres-wire now supports: Kerberos sign-in, an encrypted client key, several servers with failover.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.pg-kerberos-signin-r23"]),
         Info(id: "r22", label: "Round 22", title: "SQL Server: encryption settings", date: "30 Sep 2026",
              asked: "What do Optional, Mandatory and Strict mean now, which is the default, and how does the sheet explain them?",
              outcome: "Being judged.",

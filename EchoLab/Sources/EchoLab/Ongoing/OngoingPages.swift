@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -144,6 +144,27 @@
         status: .judging,
         summary: "What do Optional, Mandatory and Strict mean now, which is the default, and how does the sheet explain them?",
         spec: MssqlEncryptionRound.spec)
+
+    /// Round 23: Postgres: Kerberos sign-in.
+    static let pgKerberosSignin = LabPage.round(
+        id: "ongoing.pg-kerberos-signin-r23", group: "Connections", title: "Postgres: Kerberos sign-in · round 23", symbol: "person.badge.key",
+        status: .judging,
+        summary: "How a PostgreSQL connection signs in with the user's Kerberos ticket: where the choice sits, what it is called, the service name, and whether the sheet shows the ticket. Changes CON-3.1, CON-3.2 and CON-4.3.",
+        spec: PgKerberosSigninRound.spec)
+
+    /// Round 23: Postgres: encrypted client key.
+    static let pgClientKeyPassword = LabPage.round(
+        id: "ongoing.pg-client-key-password-r23", group: "Connections", title: "Postgres: encrypted client key · round 23", symbol: "key",
+        status: .judging,
+        summary: "Where the password for an encrypted client key goes, when it shows and whether it is kept in the Keychain. Changes CON-4.3.",
+        spec: PgClientKeyPasswordRound.spec)
+
+    /// Round 23: Postgres: several servers and failover.
+    static let pgFailoverHosts = LabPage.round(
+        id: "ongoing.pg-failover-hosts-r23", group: "Connections", title: "Postgres: several servers and failover · round 23", symbol: "server.rack",
+        status: .judging,
+        summary: "How a connection names several servers and which one to use (primary, standby), and whether Echo says when it moves to another. Changes CON-2.3 and CON-4.3.",
+        spec: PgFailoverHostsRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

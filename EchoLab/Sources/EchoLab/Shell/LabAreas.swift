@@ -80,6 +80,9 @@ enum LabAreas {
         "ongoing.mssql-errors-r22": "editor",
         "ongoing.mssql-sessions-r22": "editor",
         "ongoing.mssql-encryption-r22": "connections",
+        "ongoing.pg-kerberos-signin-r23": "connections",
+        "ongoing.pg-client-key-password-r23": "connections",
+        "ongoing.pg-failover-hosts-r23": "connections",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
