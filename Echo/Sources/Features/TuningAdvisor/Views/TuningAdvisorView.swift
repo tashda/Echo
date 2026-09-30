@@ -3,9 +3,12 @@ import SQLServerKit
 
 struct TuningAdvisorView: View {
     @Bindable var viewModel: TuningAdvisorViewModel
-    
+    @Environment(ProjectStore.self) private var projectStore
+    @State private var recommendationsFraction: CGFloat = 0.55
+
     var body: some View {
-        VStack(spacing: 0) {
+        // TT1: the toolbar on the canvas; recommendations and their detail are two cards.
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
             CenteredTabSectionToolbar {
                 TabSectionPicker(
                     "Tuning Section",
@@ -19,11 +22,12 @@ struct TuningAdvisorView: View {
             } controls: {
                 toolbarControls
             }
-            Divider()
+            .tabSectionToolbarOnCanvas()
 
             content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .adaptiveWorkspaceCard()
         }
-        .background(ColorTokens.Background.primary)
         .tabContentFrame()
         .onAppear {
             viewModel.refresh()
@@ -54,11 +58,10 @@ struct TuningAdvisorView: View {
             } else if viewModel.recommendations.isEmpty {
                 emptyState
             } else {
-                VSplitView {
+                CardSplitView(axis: .vertical, fraction: $recommendationsFraction, minFraction: 0.25) {
                     recommendationTable
-                        .frame(minHeight: LayoutTokens.SplitView.minimumPaneHeight)
+                } second: {
                     recommendationDetailView
-                        .frame(minHeight: LayoutTokens.SplitView.minimumPaneHeight)
                 }
             }
         case .indexUsage:

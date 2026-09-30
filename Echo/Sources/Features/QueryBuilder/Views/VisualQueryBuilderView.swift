@@ -11,20 +11,20 @@ struct VisualQueryBuilderView: View {
     @State private var isDraggingNode = false
     @State private var showAddJoinSheet = false
     @State private var showAddWhereSheet = false
+    @State private var tablesFraction: CGFloat = 0.2
+    @State private var canvasFraction: CGFloat = 0.7
 
     var body: some View {
-        HSplitView {
+        // TT1: the tables, the canvas and the SQL are three cards.
+        CardSplitView(axis: .horizontal, fraction: $tablesFraction, minFraction: 0.14, maxFraction: 0.35) {
             tablePicker
-                .frame(minWidth: 180, idealWidth: 200, maxWidth: 240)
-
-            VSplitView {
+        } second: {
+            CardSplitView(axis: .vertical, fraction: $canvasFraction, minFraction: 0.3, maxFraction: 0.85) {
                 canvas
-                    .frame(minHeight: 200)
+            } second: {
                 sqlPreview
-                    .frame(minHeight: 120, idealHeight: 180)
             }
         }
-        .background(ColorTokens.Background.primary)
         .task {
             await viewModel.loadSchemas()
         }

@@ -37,7 +37,7 @@ struct JobQueueView: View {
             PermissionBanner(message: "Job management requires the sysadmin or SQLAgentOperatorRole role.")
         }
         // TT1: Jobs, Details and History are three cards on the canvas, one gutter apart.
-        CardSplitView(axis: .vertical, fraction: $verticalFraction, minFraction: 0.2, cardsFirst: false) {
+        CardSplitView(axis: .vertical, fraction: $verticalFraction, minFraction: 0.2) {
             CardSplitView(axis: .horizontal, fraction: $horizontalFraction, minFraction: 0.25) {
                 JobListView(
                     viewModel: viewModel,

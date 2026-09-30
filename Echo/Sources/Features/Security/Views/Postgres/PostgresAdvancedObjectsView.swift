@@ -4,6 +4,7 @@ struct PostgresAdvancedObjectsView: View {
     @Bindable var viewModel: PostgresAdvancedObjectsViewModel
     @Environment(TabStore.self) private var tabStore
     @Environment(EnvironmentState.self) private var environmentState
+    @Environment(ProjectStore.self) private var projectStore
 
     @State private var showNewForeignServerSheet = false
     @State private var showNewEventTriggerSheet = false
@@ -20,26 +21,29 @@ struct PostgresAdvancedObjectsView: View {
     @State private var showNewCastSheet = false
 
     var body: some View {
-        VStack(spacing: 0) {
+        // TT1: the toolbar on the canvas; each section is one card, or its own cards.
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
             TabSectionToolbar {
                 sectionPicker
             } controls: {
                 addButton
             }
+            .tabSectionToolbarOnCanvas()
 
-            Divider()
-
-            if !viewModel.isInitialized {
-                TabInitializingPlaceholder(
-                    icon: "puzzlepiece.extension",
-                    title: "Loading Objects",
-                    subtitle: "Fetching advanced object metadata\u{2026}"
-                )
-            } else {
-                sectionContent
+            Group {
+                if !viewModel.isInitialized {
+                    TabInitializingPlaceholder(
+                        icon: "puzzlepiece.extension",
+                        title: "Loading Objects",
+                        subtitle: "Fetching advanced object metadata\u{2026}"
+                    )
+                } else {
+                    sectionContent
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .adaptiveWorkspaceCard()
         }
-        .background(ColorTokens.Background.primary)
         .task { await viewModel.initialize() }
         .onChange(of: viewModel.selectedSection) { _, _ in
             guard viewModel.isInitialized else { return }

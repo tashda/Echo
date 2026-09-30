@@ -1,13 +1,16 @@
 import SwiftUI
 
 /// Two panes as two workspace cards, one gutter apart on the canvas (Design/05-components ›
-/// Tool tabs: panes are cards). The gap between them is the resize handle.
+/// Tool tabs: panes are cards). The gap between them is the resize handle. A pane that is
+/// itself a split of cards has no card of its own.
 struct CardSplitView<First: View, Second: View>: View {
     let axis: Axis
     @Binding var fraction: CGFloat
     var minFraction: CGFloat = 0.2
-    /// False when the first pane is itself a split of cards.
-    var cardsFirst = true
+    /// The first pane's largest share; `1 - minFraction` when nil.
+    var maxFraction: CGFloat?
+    /// False hides the second pane and gives the first all the room, without rebuilding it.
+    var showsSecond = true
     @ViewBuilder let first: () -> First
     @ViewBuilder let second: () -> Second
 
@@ -15,22 +18,26 @@ struct CardSplitView<First: View, Second: View>: View {
     @State private var dragStartFraction: CGFloat?
     @State private var isHoveringGap = false
 
+    private var upperFraction: CGFloat { maxFraction ?? 1 - minFraction }
+
     var body: some View {
         GeometryReader { geometry in
             let gutter = projectStore.globalSettings.workspaceGutter.points
             let total = axis == .horizontal ? geometry.size.width : geometry.size.height
             let available = max(total - gutter, 0)
-            let firstLength = available * Self.clamped(fraction, min: minFraction)
+            let firstLength = showsSecond ? available * Self.clamped(fraction, min: minFraction, max: upperFraction) : total
 
             let layout = axis == .horizontal ? AnyLayout(HStackLayout(spacing: SpacingTokens.none)) : AnyLayout(VStackLayout(spacing: SpacingTokens.none))
             layout {
                 first()
-                    .modifier(OptionalWorkspaceCard(isCard: cardsFirst))
+                    .adaptiveWorkspaceCard()
                     .frame(width: axis == .horizontal ? firstLength : nil, height: axis == .vertical ? firstLength : nil)
-                gap(length: gutter, available: available)
-                second()
-                    .workspaceCard()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if showsSecond {
+                    gap(length: gutter, available: available)
+                    second()
+                        .adaptiveWorkspaceCard()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
     }
@@ -55,7 +62,7 @@ struct CardSplitView<First: View, Second: View>: View {
                         let start = dragStartFraction ?? fraction
                         if dragStartFraction == nil { dragStartFraction = fraction }
                         let delta = axis == .horizontal ? value.translation.width : value.translation.height
-                        fraction = Self.clamped(start + delta / available, min: minFraction)
+                        fraction = Self.clamped(start + delta / available, min: minFraction, max: upperFraction)
                     }
                     .onEnded { _ in dragStartFraction = nil }
             )
@@ -63,14 +70,10 @@ struct CardSplitView<First: View, Second: View>: View {
     }
 
     static func clamped(_ value: CGFloat, min minimum: CGFloat) -> CGFloat {
-        Swift.min(Swift.max(value, minimum), 1 - minimum)
+        clamped(value, min: minimum, max: 1 - minimum)
     }
-}
 
-private struct OptionalWorkspaceCard: ViewModifier {
-    let isCard: Bool
-
-    func body(content: Content) -> some View {
-        if isCard { content.workspaceCard() } else { content }
+    static func clamped(_ value: CGFloat, min minimum: CGFloat, max maximum: CGFloat) -> CGFloat {
+        Swift.min(Swift.max(value, minimum), maximum)
     }
 }

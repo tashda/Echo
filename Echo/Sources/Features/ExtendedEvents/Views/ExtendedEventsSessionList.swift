@@ -10,17 +10,11 @@ struct ExtendedEventsSessionList: View {
     @State private var dropSessionTarget: String?
 
     var body: some View {
-        NativeSplitView(
-            isVertical: true,
-            firstMinFraction: 0.3,
-            secondMinFraction: 0.3,
-            fraction: $splitFraction
-        ) {
+        CardSplitView(axis: .horizontal, fraction: $splitFraction, minFraction: 0.3) {
             sessionTable
         } second: {
             detailPane
         }
-        .background(ColorTokens.Background.primary)
         .alert(
             "Delete \"\(dropSessionTarget ?? "")\"?",
             isPresented: Binding(get: { dropSessionTarget != nil }, set: { if !$0 { dropSessionTarget = nil } })

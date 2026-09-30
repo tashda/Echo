@@ -8,6 +8,7 @@ struct ExtendedEventsView: View {
     var onDoubleClick: (() -> Void)?
     
     @Environment(TabStore.self) private var tabStore
+    @Environment(ProjectStore.self) private var projectStore
 
     init(
         viewModel: ExtendedEventsViewModel,
@@ -62,9 +63,10 @@ struct ExtendedEventsView: View {
                   viewModel.sessions.isEmpty {
             errorPlaceholder(message)
         } else {
-            VStack(spacing: 0) {
+            // TT1: the toolbar on the canvas, the sessions and their details as cards.
+            VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
                 sectionToolbar
-                Divider()
+                    .tabSectionToolbarOnCanvas()
                 if viewModel.sessions.isEmpty {
                     TabContentUnavailableView("No Extended Events Sessions", systemImage: "waveform.path.ecg") {
                         Text("Create a session to capture and inspect SQL Server events.")
@@ -72,6 +74,8 @@ struct ExtendedEventsView: View {
                         Button("New Session") { viewModel.showCreateSheet = true }
                             .buttonStyle(.bordered)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .workspaceCard()
                 } else {
                     ExtendedEventsSessionList(viewModel: viewModel) { sessionName in
                         viewModel.selectedSessionName = sessionName

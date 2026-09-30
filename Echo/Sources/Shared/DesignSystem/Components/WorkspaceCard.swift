@@ -11,13 +11,16 @@ struct WorkspaceCardModifier: ViewModifier {
     /// Fades the card's fill, shadow and edge (not its content), for a card dissolving into
     /// another, such as the results folding back into the footer.
     var chromeOpacity: Double = 1
+    /// False while the card has no chrome because its content lays out cards of its own, so
+    /// their shadows aren't cut off at its edge.
+    var clipsContent = true
 
     @Environment(\.workspaceCardCornerRadius) private var cornerRadius
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         content
-            .clipShape(shape)
+            .clipShape(WorkspaceCardClipShape(cornerRadius: cornerRadius, clips: clipsContent))
             // The shadow is drawn by the fill behind the content, so AppKit-backed content
             // (the editor, the grid) is never rendered offscreen for it.
             .background {
@@ -34,6 +37,7 @@ struct WorkspaceCardModifier: ViewModifier {
                 .opacity(chromeOpacity)
                 .allowsHitTesting(false)
             }
+            .preference(key: ContainsWorkspaceCardKey.self, value: true)
     }
 }
 

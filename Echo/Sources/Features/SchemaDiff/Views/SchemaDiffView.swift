@@ -7,6 +7,8 @@ struct SchemaDiffView: View {
     @Environment(TabStore.self) private var tabStore
     @Environment(EnvironmentState.self) private var environmentState
 
+    @State private var diffListFraction: CGFloat = 0.45
+
     var body: some View {
         MaintenanceTabFrame(
             panelState: panelState,
@@ -143,11 +145,11 @@ struct SchemaDiffView: View {
                 description: Text("Select source and target schemas, then click Compare to see differences.")
             )
         } else {
-            HSplitView {
+            // TT1: the diff list and the selected object's detail are two cards.
+            CardSplitView(axis: .horizontal, fraction: $diffListFraction, minFraction: 0.25) {
                 diffTable
-                    .frame(minWidth: 300)
+            } second: {
                 SchemaDiffDetailView(viewModel: viewModel)
-                    .frame(minWidth: 300, idealWidth: 400)
             }
         }
     }

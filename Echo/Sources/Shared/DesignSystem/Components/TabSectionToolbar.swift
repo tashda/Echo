@@ -1,10 +1,25 @@
 import SwiftUI
 
+extension EnvironmentValues {
+    /// A tab toolbar's side inset: roomy inside a card, the tool header's own inset once the
+    /// toolbar sits on the canvas above a tool's pane cards (TT1).
+    @Entry var tabSectionToolbarInset: CGFloat = SpacingTokens.lg
+}
+
+extension View {
+    /// Lines a tab toolbar up with the tool header, for a toolbar on the canvas.
+    func tabSectionToolbarOnCanvas() -> some View {
+        environment(\.tabSectionToolbarInset, SpacingTokens.xs)
+    }
+}
+
 /// Shared toolbar layout for tab content areas (Activity Monitor, Query Store, Maintenance, etc.)
 /// Provides a consistent horizontal bar with primary content on the left and controls on the right.
 struct TabSectionToolbar<SectionPicker: View, Controls: View>: View {
     @ViewBuilder let sectionPicker: () -> SectionPicker
     @ViewBuilder let controls: () -> Controls
+
+    @Environment(\.tabSectionToolbarInset) private var inset
 
     var body: some View {
         HStack(spacing: SpacingTokens.sm) {
@@ -14,7 +29,7 @@ struct TabSectionToolbar<SectionPicker: View, Controls: View>: View {
 
             controls()
         }
-        .padding(.horizontal, SpacingTokens.lg)
+        .padding(.horizontal, inset)
         .padding(.vertical, SpacingTokens.xs)
     }
 }
@@ -24,6 +39,8 @@ struct TabSectionToolbar<SectionPicker: View, Controls: View>: View {
 struct CenteredTabSectionToolbar<CenterContent: View, Controls: View>: View {
     @ViewBuilder let centerContent: () -> CenterContent
     @ViewBuilder let controls: () -> Controls
+
+    @Environment(\.tabSectionToolbarInset) private var inset
 
     init(
         @ViewBuilder _ centerContent: @escaping () -> CenterContent,
@@ -35,7 +52,7 @@ struct CenteredTabSectionToolbar<CenterContent: View, Controls: View>: View {
 
     var body: some View {
         CenteredTabSectionLayout(centerContent, controls: controls)
-            .padding(.horizontal, SpacingTokens.lg)
+            .padding(.horizontal, inset)
             .padding(.vertical, SpacingTokens.xs)
     }
 }

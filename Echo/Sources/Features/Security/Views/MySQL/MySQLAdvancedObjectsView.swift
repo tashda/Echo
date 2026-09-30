@@ -4,6 +4,7 @@ struct MySQLAdvancedObjectsView: View {
     @Bindable var viewModel: MySQLDatabaseSecurityViewModel
 
     @State private var draftKind: DraftKind?
+    @Environment(ProjectStore.self) private var projectStore
 
     enum DraftKind: String, Identifiable {
         case function
@@ -15,7 +16,7 @@ struct MySQLAdvancedObjectsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
             TabSectionToolbar {
                 HStack(spacing: SpacingTokens.sm) {
                     Picker("Object Type", selection: $viewModel.selectedAdvancedObjectSection) {
@@ -46,8 +47,7 @@ struct MySQLAdvancedObjectsView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
-
-            Divider()
+            .tabSectionToolbarOnCanvas()
 
             MySQLAdvancedObjectsContent(viewModel: viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
