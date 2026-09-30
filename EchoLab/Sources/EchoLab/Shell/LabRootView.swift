@@ -60,6 +60,10 @@ struct LabRootView: View {
             feedbackElement = (id, name)
             showsFeedback = true
         }
+        .onChange(of: location.destination) { _, new in
+            // The Spec page has its own inspector; feedback opens from "Feedback on <ID>".
+            if new == .spec { showsFeedback = false }
+        }
         .onChange(of: currentPageID) { _, new in
             // Round pages keep their decision panel open.
             if let page = LabRegistry.page(id: new), page.decision != nil { showsFeedback = true }
