@@ -5,11 +5,24 @@ import SwiftUI
 /// What the Tabs specimen shows; the spec's controls change it.
 @Observable @MainActor
 final class TabsSpecimenModel {
-    var count = 4
-    var active = 0
-    var isRunning = true
-    var showsPages = true
-    var hasPinned = false
+    private struct Saved: Codable { var count: Int; var active: Int; var isRunning: Bool; var showsPages: Bool; var hasPinned: Bool }
+
+    var count = 4 { didSet { save() } }
+    var active = 0 { didSet { save() } }
+    var isRunning = true { didSet { save() } }
+    var showsPages = true { didSet { save() } }
+    var hasPinned = false { didSet { save() } }
+
+    init() {
+        if let saved: Saved = LabPrefs.load("tabsSpecimen", default: Optional<Saved>.none) {
+            count = saved.count; active = saved.active; isRunning = saved.isRunning
+            showsPages = saved.showsPages; hasPinned = saved.hasPinned
+        }
+    }
+
+    private func save() {
+        LabPrefs.save(Saved(count: count, active: active, isRunning: isRunning, showsPages: showsPages, hasPinned: hasPinned), key: "tabsSpecimen")
+    }
 }
 
 /// Echo's tab strip drawn from the same tokens and metrics as `QueryTabStrip` and

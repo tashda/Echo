@@ -7,7 +7,7 @@ struct FoundationsSpecimen: View {
         var id: String { rawValue }
     }
 
-    @State private var sheet: Sheet = .colour
+    @AppStorage("lab.foundations.sheet") private var sheet: Sheet = .colour
 
     var body: some View {
         VStack(spacing: SpacingTokens.md) {

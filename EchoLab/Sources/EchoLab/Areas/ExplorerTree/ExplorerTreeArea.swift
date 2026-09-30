@@ -4,7 +4,9 @@ import SwiftUI
 /// Settings the Explorer tree specimen shares with its controls.
 @Observable @MainActor
 final class ExplorerTreeSpecimenSettings {
-    var iconMode: LabDockIconMode = .duotone
+    var iconMode: LabDockIconMode = LabPrefs.load("explorerTree.iconMode", default: LabDockIconMode.duotone) {
+        didSet { LabPrefs.save(iconMode, key: "explorerTree.iconMode") }
+    }
 }
 
 /// The Explorer tree as it is in Echo today: server cards with S4 Quiet rows, duotone icons and

@@ -7,8 +7,8 @@ struct SpecView: View {
     let spec: AreaSpec
 
     @State private var selected: String?
-    @State private var showsIDs = true
-    @State private var stageSettings = LabStageSettings()
+    @AppStorage("lab.spec.showIDs") private var showsIDs = true
+    @State private var stageSettings = LabStageSettings.shared
     @State private var search = ""
 
     var body: some View {
@@ -21,6 +21,8 @@ struct SpecView: View {
             SpecInspector(area: area, spec: spec, selected: selected)
                 .frame(width: 300)
         }
+        .onAppear { selected = LabPrefs.load("spec.selected." + spec.code, default: Optional<String>.none) }
+        .onChange(of: selected) { _, new in LabPrefs.save(new, key: "spec.selected." + spec.code) }
     }
 
     private var stageColumn: some View {

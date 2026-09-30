@@ -4,9 +4,9 @@ import SwiftUI
 /// Connect to a test server through the real driver packages, run SQL and load its schema.
 struct ConnectionsTestPage: View {
     @State private var session = LabLiveSession.shared
-    @State private var selectedName: String?
-    @State private var database = ""
-    @State private var sql = "SELECT 1 AS one"
+    @AppStorage("lab.connections.server") private var selectedName: String?
+    @AppStorage("lab.connections.database") private var database = ""
+    @AppStorage("lab.connections.sql") private var sql = "SELECT 1 AS one"
     @State private var output: LabLiveConnection.QueryOutput?
     @State private var queryError: String?
     @State private var isRunning = false

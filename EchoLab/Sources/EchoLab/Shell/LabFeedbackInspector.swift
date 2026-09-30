@@ -7,6 +7,7 @@ struct LabFeedbackInspector: View {
     /// The element the feedback is about (set from the Spec view), or nil for the whole page.
     @Binding var element: (id: String, name: String)?
     @State private var draft = ""
+    private var draftKey: String { "draft." + page.id }
 
     private var status: LabStatus? { store.status(of: page) }
 
@@ -70,6 +71,9 @@ struct LabFeedbackInspector: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { draft = LabPrefs.load(draftKey, default: "") }
+        .onChange(of: page.id) { _, _ in draft = LabPrefs.load(draftKey, default: "") }
+        .onChange(of: draft) { _, new in LabPrefs.save(new, key: draftKey) }
     }
 
     @ViewBuilder

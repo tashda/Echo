@@ -3,7 +3,7 @@ import SwiftUI
 struct LabRootView: View {
     @State private var store = LabStore()
     @State private var navigator = LabNavigator(start: LabLocation(destination: .area("explorer-tree")))
-    @State private var showsFeedback = false
+    @AppStorage("lab.showsFeedback") private var showsFeedback = false
     @State private var feedbackElement: (id: String, name: String)?
 
     private var location: LabLocation { navigator.current }
@@ -73,7 +73,7 @@ struct LabRootView: View {
         case .inbox: "Inbox"
         case .rounds: "Rounds"
         case .area(let id): LabAreas.area(id: id)?.title ?? ""
-        case .page(let id): LabRegistry.page(id: id)?.title ?? ""
+        case .page(let id): LabRegistry.page(id: id).map { $0.section == .test ? "Test" : $0.section.rawValue } ?? ""
         }
     }
 

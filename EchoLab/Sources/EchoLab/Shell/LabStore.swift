@@ -28,6 +28,13 @@ final class LabStore {
         /// The owner's pick per topic on a round page: topic id to option id ("none" for none).
         var picks: [String: String] = [:]
         var pickNotes: [String: String] = [:]
+        /// "topic/option" to "maybe" or "no". A pick is stored in `picks`.
+        var verdicts: [String: String] = [:]
+        /// "topic/option" to a note about that option.
+        var optionNotes: [String: String] = [:]
+        /// Topics where nothing fits and the owner wants more options.
+        var needsMore: [String] = []
+        var generalNote: String = ""
 
         init(status: LabStatus) { self.status = status }
 
@@ -38,6 +45,10 @@ final class LabStore {
             history = try container.decodeIfPresent([Event].self, forKey: .history) ?? []
             picks = try container.decodeIfPresent([String: String].self, forKey: .picks) ?? [:]
             pickNotes = try container.decodeIfPresent([String: String].self, forKey: .pickNotes) ?? [:]
+            verdicts = try container.decodeIfPresent([String: String].self, forKey: .verdicts) ?? [:]
+            optionNotes = try container.decodeIfPresent([String: String].self, forKey: .optionNotes) ?? [:]
+            needsMore = try container.decodeIfPresent([String].self, forKey: .needsMore) ?? []
+            generalNote = try container.decodeIfPresent(String.self, forKey: .generalNote) ?? ""
         }
     }
 
@@ -129,6 +140,58 @@ final class LabStore {
     func setPickNote(_ page: LabPage, topic: String, note: String) {
         var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
         if note.isEmpty { item.pickNotes.removeValue(forKey: topic) } else { item.pickNotes[topic] = note }
+        items[page.id] = item
+        save()
+    }
+
+    enum OptionVerdict: String { case pick, maybe, no }
+
+    func verdict(_ page: LabPage, topic: String, option: String) -> OptionVerdict? {
+        if items[page.id]?.picks[topic] == option { return .pick }
+        return items[page.id]?.verdicts["\(topic)/\(option)"].flatMap(OptionVerdict.init)
+    }
+
+    /// One pick per topic; choosing Pick on another option demotes the earlier one to Maybe.
+    func setVerdict(_ page: LabPage, topic: String, option: String, verdict: OptionVerdict?) {
+        var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
+        let key = "\(topic)/\(option)"
+        if item.picks[topic] == option { item.picks.removeValue(forKey: topic) }
+        item.verdicts.removeValue(forKey: key)
+        switch verdict {
+        case .pick:
+            if let previous = item.picks[topic], previous != "none" { item.verdicts["\(topic)/\(previous)"] = "maybe" }
+            item.picks[topic] = option
+        case .maybe, .no: item.verdicts[key] = verdict?.rawValue
+        case nil: break
+        }
+        items[page.id] = item
+        save()
+    }
+
+    func optionNote(_ page: LabPage, topic: String, option: String) -> String { items[page.id]?.optionNotes["\(topic)/\(option)"] ?? "" }
+
+    func setOptionNote(_ page: LabPage, topic: String, option: String, note: String) {
+        var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
+        if note.isEmpty { item.optionNotes.removeValue(forKey: "\(topic)/\(option)") } else { item.optionNotes["\(topic)/\(option)"] = note }
+        items[page.id] = item
+        save()
+    }
+
+    func needsMore(_ page: LabPage, topic: String) -> Bool { items[page.id]?.needsMore.contains(topic) ?? false }
+
+    func setNeedsMore(_ page: LabPage, topic: String, _ on: Bool) {
+        var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
+        item.needsMore.removeAll { $0 == topic }
+        if on { item.needsMore.append(topic) }
+        items[page.id] = item
+        save()
+    }
+
+    func generalNote(_ page: LabPage) -> String { items[page.id]?.generalNote ?? "" }
+
+    func setGeneralNote(_ page: LabPage, _ note: String) {
+        var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
+        item.generalNote = note
         items[page.id] = item
         save()
     }

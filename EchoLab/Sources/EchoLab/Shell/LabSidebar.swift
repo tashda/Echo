@@ -5,11 +5,14 @@ import SwiftUI
 struct LabSidebar: View {
     @Environment(LabStore.self) private var store
     @Binding var selection: LabDestination?
-    @State private var open: Set<String> = ["Window", "Content"]
+    @State private var open: Set<String> = Set(LabPrefs.load("sidebarOpen", default: ["Window", "Content"]))
 
     /// A group opens when you go into one of its areas; you can still open or close it yourself.
     private func expansion(_ title: String) -> Binding<Bool> {
-        Binding(get: { open.contains(title) }, set: { if $0 { open.insert(title) } else { open.remove(title) } })
+        Binding(get: { open.contains(title) }, set: {
+            if $0 { open.insert(title) } else { open.remove(title) }
+            LabPrefs.save(Array(open), key: "sidebarOpen")
+        })
     }
 
     private func rows(_ ids: [String]) -> some View {
@@ -39,7 +42,10 @@ struct LabSidebar: View {
         }
         .listStyle(.sidebar)
         .onChange(of: selection) { _, new in
-            if case .area(let id) = new, let title = LabAreas.groupTitle(ofArea: id) { open.insert(title) }
+            if case .area(let id) = new, let title = LabAreas.groupTitle(ofArea: id) {
+                open.insert(title)
+                LabPrefs.save(Array(open), key: "sidebarOpen")
+            }
         }
     }
 

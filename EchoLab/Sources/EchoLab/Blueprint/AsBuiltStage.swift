@@ -3,7 +3,7 @@ import SwiftUI
 /// The stage a specimen sits on, with the shared testing controls (`LabStageControlBar`).
 struct AsBuiltStage: View {
     let page: AsBuiltPage
-    @State private var settings = LabStageSettings()
+    @State private var settings = LabStageSettings.shared
 
     var body: some View {
         VStack(spacing: SpacingTokens.sm) {

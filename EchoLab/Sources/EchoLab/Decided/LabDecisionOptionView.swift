@@ -6,6 +6,7 @@ struct LabDecisionOptionView: View {
     let option: LabDecisionOption
     @State private var showsCode = false
 
+
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.sm) {
             HStack(spacing: SpacingTokens.xs) {

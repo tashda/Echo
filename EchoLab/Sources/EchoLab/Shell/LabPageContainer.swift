@@ -14,16 +14,17 @@ struct LabPageContainer: View {
                         LabStatusPill(status: status)
                     }
                 }
-                Text(page.summary)
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(ColorTokens.Text.secondary)
+                if page.summary != "Copied from the in-app Design Lab." {
+                    Text(page.summary)
+                        .font(TypographyTokens.standard)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             }
             .padding(SpacingTokens.md)
             Divider()
             page.content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationTitle(page.title)
     }
 }
 

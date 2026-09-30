@@ -34,7 +34,7 @@ enum LabDockSection: String, CaseIterable, Identifiable {
     var initiallyExpanded: Set<String> { LabDockSamples.expanded(for: self) }
 }
 
-enum LabDockIconMode: String, CaseIterable, Identifiable {
+enum LabDockIconMode: String, CaseIterable, Identifiable, Codable {
     case duotone = "IC2 · Duotone"
     case mono = "IC1 · Mono"
     var id: String { rawValue }

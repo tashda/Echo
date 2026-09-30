@@ -5,14 +5,19 @@ import Observation
 /// Drives one EchoSense engine from the page's controls and recomputes on every change.
 @Observable @MainActor
 final class EchoSenseTestModel {
-    var text = SampleSchema.defaultSQL { didSet { refresh() } }
-    var caret = SampleSchema.defaultSQL.utf16.count { didSet { refresh() } }
-    var databaseType: EchoSenseDatabaseType = .postgresql { didSet { refresh() } }
-    var aggressiveness: SQLCompletionAggressiveness = .balanced { didSet { refresh() } }
-    var includeSystemSchemas = false { didSet { refresh() } }
-    var qualifyTables = false { didSet { refresh() } }
-    var aliasShortcuts = false { didSet { refresh() } }
-    var manualTrigger = false { didSet { refresh() } }
+    private struct Saved: Codable {
+        var text: String; var caret: Int; var dialect: EchoSenseDatabaseType; var aggressiveness: SQLCompletionAggressiveness
+        var systemSchemas: Bool; var qualify: Bool; var alias: Bool; var manual: Bool
+    }
+
+    var text = SampleSchema.defaultSQL { didSet { changed() } }
+    var caret = SampleSchema.defaultSQL.utf16.count { didSet { changed() } }
+    var databaseType: EchoSenseDatabaseType = .postgresql { didSet { changed() } }
+    var aggressiveness: SQLCompletionAggressiveness = .balanced { didSet { changed() } }
+    var includeSystemSchemas = false { didSet { changed() } }
+    var qualifyTables = false { didSet { changed() } }
+    var aliasShortcuts = false { didSet { changed() } }
+    var manualTrigger = false { didSet { changed() } }
     /// A structure from a live connection; nil means the sample schema.
     var liveStructure: EchoSenseDatabaseStructure? { didSet { refresh() } }
     var liveSource: String?
@@ -29,7 +34,20 @@ final class EchoSenseTestModel {
     private(set) var elapsedMicroseconds = 0
     private let engine = SQLAutoCompletionEngine()
 
-    init() { refresh() }
+    init() {
+        if let saved: Saved = LabPrefs.load("echosense", default: Optional<Saved>.none) {
+            text = saved.text; caret = saved.caret; databaseType = saved.dialect; aggressiveness = saved.aggressiveness
+            includeSystemSchemas = saved.systemSchemas; qualifyTables = saved.qualify; aliasShortcuts = saved.alias; manualTrigger = saved.manual
+        }
+        refresh()
+    }
+
+    /// Recomputes, and remembers what you typed and chose.
+    private func changed() {
+        LabPrefs.save(Saved(text: text, caret: caret, dialect: databaseType, aggressiveness: aggressiveness,
+                            systemSchemas: includeSystemSchemas, qualify: qualifyTables, alias: aliasShortcuts, manual: manualTrigger), key: "echosense")
+        refresh()
+    }
 
     var structure: EchoSenseDatabaseStructure { liveStructure ?? SampleSchema.structure(for: databaseType) }
 

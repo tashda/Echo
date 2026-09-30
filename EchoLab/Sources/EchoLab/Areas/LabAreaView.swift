@@ -53,11 +53,11 @@ struct LabAreaView: View {
         }
     }
 
+    /// A slim way back to the area's Rounds. The page's own title is shown once, below.
     private func breadcrumb(_ page: LabPage) -> some View {
         HStack(spacing: SpacingTokens.xs) {
-            Button(area.title) { navigator.go(LabLocation(destination: .area(area.id), tab: .rounds)) }.buttonStyle(.link)
-            Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(ColorTokens.Text.tertiary)
-            Text(page.title).foregroundStyle(ColorTokens.Text.secondary)
+            Button("\(area.title) › Rounds", systemImage: "chevron.backward") { navigator.go(LabLocation(destination: .area(area.id), tab: .rounds)) }
+                .buttonStyle(.link)
             Spacer()
         }
         .font(TypographyTokens.standard)
