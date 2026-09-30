@@ -29,6 +29,14 @@ enum TestPages {
             summary: "Write a query on a sample or live schema, see what EchoSense does at the caret, write what you expected, and save it as a scenario."
         ) { ScenarioPlaygroundPage() },
         LabPage(
+            id: "test.servers",
+            section: .test,
+            group: "Databases",
+            title: "Servers",
+            symbol: "server.rack",
+            summary: "Start disposable database servers from echo-server-lab recipes on testlab, see what runs there and how much memory is used, and watch builds."
+        ) { ServersTestPage() },
+        LabPage(
             id: "test.connections",
             section: .test,
             group: "Databases",

@@ -8,7 +8,8 @@ let package = Package(
         .package(path: "../Packages/EchoDesignSystem"),
         .package(url: "https://github.com/tashda/EchoSense", branch: "dev"),
         .package(url: "https://github.com/tashda/postgres-wire", branch: "dev"),
-        .package(url: "https://github.com/tashda/sqlserver-nio", branch: "dev")
+        .package(url: "https://github.com/tashda/sqlserver-nio", branch: "dev"),
+        .package(url: "https://github.com/tashda/echo-server-lab", branch: "dev")
     ],
     targets: [
         .executableTarget(
@@ -19,6 +20,7 @@ let package = Package(
                 .product(name: "EchoSenseScenarios", package: "EchoSense"),
                 .product(name: "PostgresKit", package: "postgres-wire"),
                 .product(name: "SQLServerKit", package: "sqlserver-nio"),
+                .product(name: "ServerLabCatalog", package: "echo-server-lab"),
             ]
         )
     ]

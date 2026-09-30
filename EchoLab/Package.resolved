@@ -1,6 +1,15 @@
 {
-  "originHash" : "d39365b990ce40bfcdf37e8b669cf99be59448c0d928723be8eddcc08b640c80",
+  "originHash" : "153f9a4784f14f0673425574e74fadc03c7f6b3eb9e1bc14ee5d0edb0de68043",
   "pins" : [
+    {
+      "identity" : "echo-server-lab",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tashda/echo-server-lab",
+      "state" : {
+        "branch" : "dev",
+        "revision" : "f3107ee8c0bd594b633e86963364343ebb080868"
+      }
+    },
     {
       "identity" : "echosense",
       "kind" : "remoteSourceControl",
@@ -11,21 +20,12 @@
       }
     },
     {
-      "identity" : "postgres-nio",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/vapor/postgres-nio.git",
-      "state" : {
-        "revision" : "39ce38a93408937bcd27f521f3cdf88266136b80",
-        "version" : "1.33.1"
-      }
-    },
-    {
       "identity" : "postgres-wire",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "3b9f60b7a28948a991c91eafcba8af08458bd9c5"
+        "revision" : "ea3c1fc2947b898ab04fadd24c0ed8ed177ccd27"
       }
     },
     {
@@ -34,7 +34,16 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "9c77c428b1d5c50cf81b525d09e300f4df34977b"
+        "revision" : "60823967230182402de489c93e04f860e04f1aa0"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser.git",
+      "state" : {
+        "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
+        "version" : "1.8.2"
       }
     },
     {
