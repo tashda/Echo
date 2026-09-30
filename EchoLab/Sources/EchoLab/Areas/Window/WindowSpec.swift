@@ -4,7 +4,9 @@ import SwiftUI
 /// and `LayoutTokens.Rail`, `WorkspaceView` and the rail.
 @MainActor
 enum WindowSpec {
-    private static let workspace = "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceView.swift"
+    private static let workspace = "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceShell.swift"
+    private static let welcome = "Echo/Sources/Features/AppHost/Views/Tabs/WorkspaceContainer/WorkspaceWelcomeView.swift"
+    private static let serverPage = "Echo/Sources/Features/AppHost/Views/Tabs/EditorContainer/ConnectionDashboard/ConnectionDashboardView.swift"
     private static let rail = "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail.swift"
     private static let tokens = "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken.swift"
     private static let canvasRound = "decided.window-canvas-and-cards"
@@ -57,33 +59,42 @@ enum WindowSpec {
                 .motion(.row("A server joins or leaves", "grows and shrinks, house spring, 0.45s")),
             ], rounds: [railRound], files: [rail]),
             SpecElement(number: "2.3", name: "Server item", summary: "A two-letter monogram.", groups: [
-                .layout(.row("Size", "34pt (small and large are a setting)", token: "RailItemSize.points")),
+                .layout(.row("Size", "28 · 34 (default) · 40pt, a setting", token: "RailItemSize.points")),
                 .type(.row("Monogram", "37% of the size: 12.5pt at 34pt, rounded design", token: "LayoutTokens.Rail.monogramFontRatio"),
-                      .row("Unselected", "semibold, secondary"), .row("Selected", "bold, in the server's colour")),
-                .behaviour(.row("Tooltip", "the name and host"), .row("Why a monogram", "colour dots and engine badges were rejected")),
+                      .row("Unselected", "semibold, secondary; primary while hovered"), .row("Selected", "bold, in the server's colour")),
+                .behaviour(.row("Letters", "numbers-only words: the last two digits; two words: their initials; a name ending in two digits: those digits; otherwise its first two letters", token: "ServerRailMonogram.make"),
+                           .row("Tooltip", "name · host, then Connecting…, Connection lost: reason, or N queries running", token: "ServerRailEntry.tooltip"),
+                           .row("Why a monogram", "colour dots and engine badges were rejected")),
             ], rounds: [railRound], files: [rail]),
             SpecElement(number: "2.4", name: "Selection disc", summary: "An opaque capsule behind the selected monogram.", groups: [
-                .material(.row("Fill", "opaque, the card colour"), .row("Shadow", "black 16%, radius 1.5, y 0.5")),
-                .layout(.row("Inset", "3pt inside its item, so a single server never looks like a pill inside a pill", token: "LayoutTokens.Rail.selectionInset")),
+                .material(.row("Fill", "the text background: white in light, dark grey in dark", token: "ColorTokens.Workspace.railSelection", swatch: ColorTokens.Workspace.railSelection),
+                          .row("Shadow", "black 16%, radius 1.5, y 0.5", token: "ShadowTokens.railSelection")),
+                .layout(.row("Inset", "3pt inside its item on every side, so a single server never looks like a pill inside a pill", token: "LayoutTokens.Rail.selectionInset")),
+                .behaviour(.row("Follows", "a server just clicked, else the one at the top of the tree, else the selected connection, else the first")),
             ], rounds: [railRound], files: [rail]),
             SpecElement(number: "2.5", name: "Selection motion", summary: "The liquid stretch: the disc's leading edge races, the trailing edge follows.", groups: [
                 .motion(.row("Leading edge", "0.28s", token: "echoMotion.liquidLead"), .row("Trailing edge", "0.55s", token: "echoMotion.liquidTrail")),
             ], rounds: [railRound], files: [rail]),
             SpecElement(number: "2.6", name: "Connecting", summary: "The monogram breathes until the server connects.", groups: [
-                .motion(.row("Opacity", "breathes, 0.7s half cycle, down to 15%", token: "echoMotion.pulseHalfPeriod")),
-                .states(.row("Reduce Motion", "a steady 40%", token: "LayoutTokens.Rail.lostOpacity")),
+                .motion(.row("Opacity and size", "ease in-out, 0.7s half cycle, down to 15% and a slightly smaller monogram", token: "echoMotion.pulseHalfPeriod / EchoMotion.pulseMinimumOpacity")),
+                .states(.row("Reduce Motion", "still, at 40%", token: "LayoutTokens.Rail.lostOpacity")),
             ], files: [rail]),
             SpecElement(number: "2.7", name: "Connection lost", summary: "The monogram dims; the tooltip says why.", groups: [
                 .states(.row("Opacity", "40%", token: "LayoutTokens.Rail.lostOpacity")),
             ], files: [rail]),
             SpecElement(number: "2.8", name: "New connection button", summary: "A + at the end of the server pill.", groups: [
                 .type(.row("Glyph", "plus, 13pt medium, secondary")),
-                .behaviour(.row("Click", "opens the connections menu (New Connection, Quick Connect, Manage)"),
-                           .row("Never selected", "the disc never moves onto it"), .row("Tooltip", "Connections")),
+                .behaviour(.row("Click", "opens the connections menu: open sessions, saved connections by folder, Manage Connections, Quick Connect", token: "ConnectionsMenuContent"),
+                           .row("Never selected", "the disc never moves onto it"), .row("Tooltip", "Connect to a Server")),
             ], rounds: [railRound], files: [rail]),
-            SpecElement(number: "2.9", name: "Tool pill", summary: "A glass capsule of tool buttons at the bottom of the rail.", groups: [
-                .layout(.row("Button height", "30pt", token: "LayoutTokens.Rail.toolHeight"), .row("Spacing", "2pt", token: "LayoutTokens.Rail.toolSpacing")),
-                .type(.row("Symbols", "13pt", token: "LayoutTokens.Rail.toolSymbolSize")),
+            SpecElement(number: "2.9", name: "Tool pill", summary: "A glass capsule of four tool buttons at the bottom of the rail.", groups: [
+                .layout(.row("Tools", "Bookmarks, Snippets, History, Clipboard", token: "SidebarMenu.NavSection.railTools"),
+                        .row("Button", "the server pill's width, 30pt high", token: "LayoutTokens.Rail.toolHeight"), .row("Spacing", "2pt", token: "LayoutTokens.Rail.toolSpacing"),
+                        .row("Padding", "4pt on every side, like the server pill", token: "LayoutTokens.Rail.pillPadding")),
+                .type(.row("Symbols", "13pt; secondary, primary on hover", token: "LayoutTokens.Rail.toolSymbolSize")),
+                .states(.row("Showing", "the filled symbol in the accent colour")),
+                .behaviour(.row("Click", "its page shows in the tree's place and the tree opens if hidden"), .row("Click the one showing", "back to the tree"),
+                           .row("Tooltip", "the tool's name")),
             ], rounds: [railRound], files: [rail]),
         ]),
         SpecPart(number: "3", name: "Tree column", summary: "The Explorer's cards, between the rail and the content.", elements: [
@@ -92,23 +103,43 @@ enum WindowSpec {
                         .row("Resize handle", "8pt, invisible, on the trailing edge", token: "treeResizeHandleWidth")),
                 .motion(.row("Drag", "one smooth width change, no stepped jumps")),
             ], files: [workspace, tokens]),
-            SpecElement(number: "3.2", name: "Hide and show", summary: "⌃⌘S toggles the tree.", groups: [
-                .motion(.row("Hide", "smooth, no overshoot, 0.45s; the tree slides left behind the rail", token: "echoMotion.settle"),
-                        .row("Show", "house spring, 0.45s")),
-                .behaviour(.row("Nothing to show", "the tree hides and ⌃⌘S does nothing")),
+            SpecElement(number: "3.2", name: "Hide and show", summary: "⌃⌘S or the sidebar button toggles the tree.", groups: [
+                .motion(.row("Hide", "smooth, no overshoot, 0.45s: the tree slides left behind the rail as it fades and its space collapses so the cards grow", token: "echoMotion.settle"),
+                        .row("Show", "house spring, 0.45s", token: "echoMotion.standard"), .row("Reduce Motion", "fades only")),
+                .behaviour(.row("While hidden", "the tree stays alive: it keeps its rows, scroll position and open folders"),
+                           .row("Nothing to show", "the tree stays hidden and ⌃⌘S does nothing until a server connects or you pick a tool", token: "WorkspaceTreeAvailability.hasContent"),
+                           .row("Button", "Hide Sidebar or Show Sidebar (⌃⌘S); disabled, with a reason, while there is nothing to show")),
             ], files: [workspace]),
             SpecElement(number: "3.3", name: "Peek", summary: "Click a server with the tree hidden.", groups: [
-                .behaviour(.row("Plain click", "the tree slides out over the cards"), .row("Click away or Esc", "slides it back"),
-                           .row("⌘-click or double-click", "reopens the tree for good (a setting changes this)")),
+                .material(.row("Card", "glass, 18pt corners, over the cards", token: "LayoutTokens.FloatingSurface.cornerRadius")),
+                .behaviour(.row("Plain click", "the tree slides out over the cards, which don't move"),
+                           .row("Puts it away", "a click on the cards, Esc, opening a tab, showing the tree, or a plain click on the server that is peeking"),
+                           .row("⌘-click or double-click", "shows the tree for good"),
+                           .row("Setting", "Collapsed Server Click: peek and ⌘-click (default), always peek, always show the tree", token: "CollapsedServerClickBehavior")),
+                .motion(.row("Peek", "house spring, 0.45s")),
+            ], files: [workspace]),
+            SpecElement(number: "3.4", name: "Layout", summary: "How the rail, tree, cards and inspector share the window.", groups: [
+                .layout(.row("Order", "rail · tree · cards · inspector column, on the canvas"),
+                        .row("Top", "the rail and tree start half the tab strip's spare height below the toolbar, so the rail, tree and tab plate line up"),
+                        .row("Gutters", "the gutter setting on the outer edges; the tree's trailing gutter is its resize handle")),
+                .behaviour(.row("Tree width", "remembered", token: "workspace.treeWidth")),
             ], files: [workspace]),
         ]),
         SpecPart(number: "4", name: "Empty states", summary: "What the content area shows without a tab.", elements: [
             SpecElement(number: "4.1", name: "Welcome", summary: "No server and no tab. Sits on the canvas, with no card.", groups: [
-                .behaviour(.row("Content", "icon, Connect, Quick Connect, Manage, then the 5 latest connections"), .row("Why no card", "cards are only for content")),
-            ], rounds: [canvasRound], files: [workspace]),
+                .layout(.row("Width", "420pt", token: "LayoutTokens.Welcome.width"), .row("Icon", "32pt", token: "LayoutTokens.Welcome.iconSize"),
+                        .row("Title", "Echo, 26pt bold", token: "LayoutTokens.Welcome.titleSize")),
+                .behaviour(.row("Buttons", "Connect… (glass, prominent, opens the connections menu), Quick Connect and Manage (glass), large"),
+                           .row("Recent", "the latest five connections on one small card: monogram in its colour, name, host, how long ago; a click connects", token: "WorkspaceWelcomeView.maximumRecentCount"),
+                           .row("Why no card", "cards are only for content")),
+            ], rounds: [canvasRound], files: [welcome]),
             SpecElement(number: "4.2", name: "Server page", summary: "A server is active but no tab is open. Sits on the canvas, with no card.", groups: [
-                .behaviour(.row("Content", "the name, its version, glass tool buttons with New Query first, and a databases card")),
-            ], rounds: [canvasRound], files: [workspace]),
+                .layout(.row("Width", "600pt", token: "LayoutTokens.ServerPage.width"), .row("Name", "26pt bold", token: "LayoutTokens.ServerPage.nameSize"),
+                        .row("Top", "lines up with the rail's top")),
+                .type(.row("Version", "13pt secondary, one line")),
+                .behaviour(.row("Content", "the name (a Beta badge for beta engines), the version, the server's tools on glass buttons with New Query first, and a databases card with a filter"),
+                           .row("Tooltip", "the host")),
+            ], rounds: [canvasRound], files: [serverPage]),
         ]),
     ]
 }
