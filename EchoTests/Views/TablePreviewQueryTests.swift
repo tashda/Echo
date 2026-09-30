@@ -17,8 +17,8 @@ struct TablePreviewQueryTests {
     }
 
     @Test func escapesQuotesInsideNames() {
-        #expect(TablePreviewQuery.qualifiedName(schema: "a\"b", table: "c", databaseType: .postgresql) == "\"a\"\"b\".\"c\"")
-        #expect(TablePreviewQuery.qualifiedName(schema: "a`b", table: "c", databaseType: .mysql) == "`a``b`.`c`")
+        #expect(TablePreviewQuery.qualifiedName(schema: "a\"b", table: "c", databaseType: DatabaseType.postgresql) == "\"a\"\"b\".\"c\"")
+        #expect(TablePreviewQuery.qualifiedName(schema: "a`b", table: "c", databaseType: DatabaseType.mysql) == "`a``b`.`c`")
     }
 
     @Test func promptMentionsTablesOnlyWhenThereAreSome() {
