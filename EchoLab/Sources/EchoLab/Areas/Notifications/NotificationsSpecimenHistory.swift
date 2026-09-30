@@ -1,36 +1,26 @@
 import SwiftUI
 
-/// The history in the inspector's column, copied from NotificationHistoryPanel (commit 755f8254):
-/// one card, a grouped box per server, rows that open in place to the whole message.
+/// The history in the inspector's column, copied from NotificationHistoryPanel and
+/// NotificationHistoryCard (round 17: compact cards by day, fading in, count by the title with one
+/// ⋯ menu, small buttons).
 struct NotificationsSpecimenHistory: View {
     let state: NotificationsSpecimenState
     @State private var openID: UUID?
+    @Environment(\.echoMotion) private var motion
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            HStack(spacing: SpacingTokens.xs) {
-                Text("Notifications").font(TypographyTokens.headline)
-                Spacer(minLength: SpacingTokens.none)
-                Menu {
-                    Button("All") {}
-                    Button("Errors") {}
-                    Button("Connection") {}
-                    Button("Queries") {}
-                    Button("Jobs") {}
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease")
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                Button("Clear") { state.history.removeAll() }
-                    .buttonStyle(.borderless)
-            }
-            .padding([.horizontal, .top], LayoutTokens.Inspector.cardPadding)
+            header
+                .padding([.horizontal, .top], LayoutTokens.Inspector.cardPadding)
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: SpacingTokens.md) {
-                    ForEach(servers, id: \.self) { server in
-                        group(server)
+                LazyVStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+                    ForEach(days, id: \.0) { title, events in
+                        Text(title)
+                            .font(TypographyTokens.detail.weight(.semibold))
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                            .padding(.horizontal, SpacingTokens.xxs)
+                            .padding(.top, SpacingTokens.xs)
+                        ForEach(events) { card($0) }
                     }
                 }
                 .padding([.horizontal, .bottom], LayoutTokens.Inspector.cardPadding)
@@ -39,59 +29,89 @@ struct NotificationsSpecimenHistory: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .workspaceCard()
+        .animation(motion.standard, value: openID)
     }
 
-    private var servers: [String] {
-        state.history.map(\.server).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
-    }
-
-    private func group(_ server: String) -> some View {
-        let records = state.history.filter { $0.server == server }
-        return VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text(server)
-                .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .padding(.horizontal, SpacingTokens.xxs)
-            VStack(alignment: .leading, spacing: SpacingTokens.none) {
-                ForEach(Array(records.enumerated()), id: \.element.id) { index, record in
-                    row(record, isLast: index == records.count - 1)
-                }
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.xs) {
+            Text("Notifications").font(TypographyTokens.headline)
+            if !state.newIDs.isEmpty {
+                Text("\(state.newIDs.count)")
+                    .font(TypographyTokens.headline.monospacedDigit())
+                    .foregroundStyle(ColorTokens.Text.tertiary)
             }
-            .padding(.horizontal, LayoutTokens.Inspector.cardPadding)
-            .background(ColorTokens.Background.secondary, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
+            Spacer(minLength: SpacingTokens.none)
+            Menu {
+                Button("All") {}
+                Button("Errors") {}
+                Button("Connection") {}
+                Button("Queries") {}
+                Button("Jobs") {}
+                Divider()
+                Button("Clear All", role: .destructive) { state.history.removeAll() }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Filter and Clear")
         }
     }
 
-    private func row(_ record: NotificationsSpecimenState.Event, isLast: Bool) -> some View {
-        let isOpen = openID == record.id
-        return VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+    /// Today, Yesterday, then the date.
+    private var days: [(String, [NotificationsSpecimenState.Event])] {
+        var groups: [(String, [NotificationsSpecimenState.Event])] = []
+        for event in state.history {
+            let title = Calendar.current.isDateInToday(event.date) ? "Today"
+                : Calendar.current.isDateInYesterday(event.date) ? "Yesterday"
+                : event.date.formatted(.dateTime.weekday(.wide).day().month(.wide))
+            if groups.last?.0 == title { groups[groups.count - 1].1.append(event) } else { groups.append((title, [event])) }
+        }
+        return groups
+    }
+
+    private func card(_ event: NotificationsSpecimenState.Event) -> some View {
+        let isOpen = openID == event.id
+        let parts = event.message.components(separatedBy: ": ")
+        let headline = parts.first ?? event.message
+        let detail = parts.count > 1 ? parts.dropFirst().joined(separator: ": ") : nil
+        return VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.xs) {
-                Image(systemName: record.icon).font(TypographyTokens.detail).foregroundStyle(record.tint)
-                Text(record.message)
-                    .font(TypographyTokens.standard)
-                    .lineLimit(isOpen ? nil : 2)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: isOpen)
+                Image(systemName: event.icon).foregroundStyle(event.tint)
+                Text(headline)
+                    .font(TypographyTokens.standard.weight(state.newIDs.contains(event.id) ? .semibold : .regular))
+                    .lineLimit(1)
                 Spacer(minLength: SpacingTokens.xs)
-                Text(record.date, format: .relative(presentation: .named))
+                Text(event.date, format: .relative(presentation: .named))
                     .font(TypographyTokens.detail)
                     .foregroundStyle(ColorTokens.Text.tertiary)
             }
             if isOpen {
-                HStack(spacing: SpacingTokens.sm) {
-                    if let link = record.link { Button(link) {} }
-                    Button("Copy") {}
+                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+                    Text(event.server).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                    if let detail {
+                        Text(detail)
+                            .font(TypographyTokens.detail.monospaced())
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    HStack(spacing: SpacingTokens.xs) {
+                        if let link = event.link { Button(link) {} }
+                        Button("Copy") {}
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.plain)
-                .font(TypographyTokens.detail.weight(.medium))
-                .foregroundStyle(ColorTokens.accent)
                 .padding(.leading, SpacingTokens.lg)
+                .transition(.opacity)
             }
         }
+        .padding(.horizontal, SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xs)
+        .background(ColorTokens.Background.secondary, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
         .contentShape(Rectangle())
-        .onTapGesture { openID = isOpen ? nil : record.id }
-        .overlay(alignment: .bottom) { if !isLast { Divider() } }
+        .onTapGesture { openID = isOpen ? nil : event.id }
     }
 }
 

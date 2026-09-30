@@ -26,21 +26,44 @@ struct NotificationHistoryTests {
         #expect(history.records.last?.message == "1")
     }
 
-    @Test func groupsByServerWithAppEventsLast() {
+    @Test func groupsByDayNewestFirst() {
+        let calendar = Calendar(identifier: .gregorian)
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
         let history = NotificationHistory(fileURL: nil)
-        history.append(record("app"))
-        history.append(record("a1", server: "alpha"))
-        history.append(record("b1", server: "beta"))
-        let groups = history.groupedByServer(.all)
-        #expect(groups.map(\.server) == ["beta", "alpha", NotificationHistory.appGroupName])
+        history.append(NotificationRecord(date: now.addingTimeInterval(-3 * 86_400), category: .generalInfo, message: "old", severity: .info))
+        history.append(NotificationRecord(date: now.addingTimeInterval(-86_400), category: .generalInfo, message: "yesterday", severity: .info))
+        history.append(NotificationRecord(date: now, category: .generalInfo, message: "today", severity: .info))
+        let groups = history.groupedByDay(.all, now: now, calendar: calendar)
+        #expect(groups.map(\.records.count) == [1, 1, 1])
+        #expect(Array(groups.map(\.title).prefix(2)) == ["Today", "Yesterday"])
     }
 
     @Test func filtersErrorsAndQueries() {
         let history = NotificationHistory(fileURL: nil)
         history.append(record("ok"))
         history.append(record("failed", .queryFailed, severity: .error))
-        #expect(history.groupedByServer(.errors).flatMap(\.records).map(\.message) == ["failed"])
-        #expect(history.groupedByServer(.queries).flatMap(\.records).map(\.message) == ["failed"])
+        #expect(history.groupedByDay(.errors).flatMap(\.records).map(\.message) == ["failed"])
+        #expect(history.groupedByDay(.queries).flatMap(\.records).map(\.message) == ["failed"])
+    }
+
+    @Test func openingRemembersWhatWasNew() {
+        let history = NotificationHistory(fileURL: nil)
+        history.append(record("seen"))
+        history.markAllRead()
+        history.append(record("new one"))
+        history.append(record("new two"))
+        history.markAllRead()
+        #expect(history.unreadCount == 0)
+        #expect(Set(history.records.filter { history.newRecordIDs.contains($0.id) }.map(\.message)) == ["new one", "new two"])
+    }
+
+    @Test func splitsTheHeadlineFromTheDetail() {
+        let failed = record("Query 1 failed: relation \"x\" does not exist")
+        #expect(failed.headline == "Query 1 failed")
+        #expect(failed.detail == "relation \"x\" does not exist")
+        let plain = record("Connected to Test MSSQL")
+        #expect(plain.headline == "Connected to Test MSSQL")
+        #expect(plain.detail == nil)
     }
 
     @Test func survivesRelaunch() throws {

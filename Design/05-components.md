@@ -206,7 +206,7 @@ Decided 2026-09-30.
   - errors stay until dismissed.
 
   Bottom-centre toasts were rejected.
-- **History:** a bell in the toolbar with an unread badge. The history opens **in the inspector's column** (round 15, B): the same card and grouped boxes, a server's events per box, a filter menu and Clear, kept across launches. A row opens in place to the whole message, selectable, with Copy and a link to its tab or server; nothing is greyed out. The bell and the inspector button switch the column between the two. *Decided.* The popover under the bell was rejected: too small for long messages and not Echo's surface.
+- **History:** a bell in the toolbar with an unread badge. The history opens **in the inspector's column** (round 15, B) as one card of **compact cards grouped by day** (round 17, D): an icon, the message's first part and the time on one line, bold while new. A click fades the card open to the server, the rest of the message (selectable) and **small bordered buttons** (Open Tab or Show Server, Copy). The header is the title with a quiet count of what was new; filters and Clear All share **one ⋯ menu**. Kept across launches; nothing is greyed out. The bell and the inspector button switch the column between the two. *Decided.* The popover under the bell was rejected: too small for long messages and not Echo's surface.
 - **Toasts sit** in the top-right corner of the tab's first card, below the tab bar and inset from its edges: inside the editor card on a query tab, left of the inspector. They keep one width (320pt) collapsed or expanded; their actions are quiet text links. A setting to move them (for example bottom-right) can come later. *Decided.*
 - Every event is recorded in history, even when its toast is muted in settings. *Decided.*
 

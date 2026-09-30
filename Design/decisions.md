@@ -2,6 +2,13 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 17 accepted: the notification history
+
+- **D · Compact cards,** grouped by time (Today, Yesterday, then the date), opening with a fade: one line per event (icon, the message's first part, time); opened, the server, the rest of the message (selectable) and the actions. B · Cards was a maybe; A · Timeline, C · List and detail, E · Attention first and F · Stacked by server were not chosen. → 05-components › Notifications
+- **Header H3:** the count of what was new sits quietly beside the title; filters and Clear All share one ⋯ menu. The accent "2 new" and Clear looked odd. → 05-components › Notifications
+- **Actions A2:** Open Tab (or Show Server) and Copy are small native bordered buttons. → 05-components › Notifications
+- **Unread:** bold plus the count is enough; no dots.
+
 ## 2026-09-30 · Round 15 answers
 
 - **Run: idea 1, quiet glyph,** in its own toolbar capsule so it doesn't push the other icons. Ideas 2–5 (footer, editor corner, tab, only while running) rejected. → 05-components › Toolbar

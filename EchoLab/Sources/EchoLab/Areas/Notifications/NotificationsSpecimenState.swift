@@ -36,6 +36,8 @@ final class NotificationsSpecimenState {
     var hoveredID: UUID?
     var history: [Event] = []
     var unread = 0
+    /// What was new when the history last opened: bold, and counted beside the title.
+    var newIDs: Set<UUID> = []
     var column: Column = .closed
 
     private var nextSample = 0
@@ -99,6 +101,7 @@ final class NotificationsSpecimenState {
             column = .closed
         } else {
             column = .history
+            newIDs = Set(history.prefix(unread).map(\.id))
             unread = 0
         }
     }
