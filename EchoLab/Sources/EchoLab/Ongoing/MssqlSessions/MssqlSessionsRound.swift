@@ -34,7 +34,7 @@ enum MssqlSessionsRound {
             .of("timeout", "Query time limit", Timeout.self, default: .followPostgres,
                 question: "Pick 'A query that runs 50 seconds'. When should Echo stop a long query, and where is that set?",
                 recommend: .followPostgres,
-                why: "You already picked TW2 on the Postgres timeouts page (a Settings default that a connection can override); one rule for every engine is less to learn. The limit becomes the driver's request deadline, which cancels on the server. Today's 45 seconds is hard-coded, ignores the connection's Query Timeout and leaves the query running on the server."),
+                why: "On the Postgres timeouts page you picked TW2 (a Settings default a connection can override) and TD2 (no limit unless set); one rule for every engine is less to learn. The limit becomes the driver's request deadline, which cancels on the server. Today's 45 seconds is hard-coded, ignores the connection's Query Timeout and leaves the query running on the server."),
             .of("dropped", "Dropped connection", Dropped.self, default: .reconnectAndSay,
                 question: "Pick 'The server drops the connection', then Run again. What should happen?",
                 recommend: .reconnectAndSay,
@@ -132,7 +132,7 @@ struct MssqlSessionsExhibit: View {
     private var footerStatus: String {
         switch scenario {
         case .cancel: "Cancelled"
-        case .long: today || timeout != .none ? "Stopped" : "Done in 0:50"
+        case .long: today || timeout == .today ? "Stopped" : "Done in 0:50"
         case .dropped: today || dropped == .today ? "Failed" : "Reconnected"
         }
     }
@@ -157,10 +157,11 @@ struct MssqlSessionsExhibit: View {
                         Entry(sql: nil, text: "(the procedure keeps running on the server)", colour: warning)]
             }
             switch timeout {
-            case .none:
-                return [Entry(sql: sql, text: "Completed in 50 s.")]
-            case .followPostgres, .today:
-                return [Entry(sql: sql, text: "Stopped after 30 s: the query time limit (Settings, 30 s) was reached. SQL Server confirmed the stop.", colour: warning)]
+            case .none, .followPostgres:
+                return [Entry(sql: sql, text: "Completed in 50 s."),
+                        Entry(sql: nil, text: "(no limit is set; with a limit in Settings or on the connection, the statement is stopped on the server when it is reached)", colour: ColorTokens.Text.secondary)]
+            case .today:
+                return [Entry(sql: sql, text: "Stopped after 45 s.", colour: warning)]
             }
         case .dropped:
             let lost = Entry(sql: "SELECT * FROM #staging;", text: "The connection to sql01 was lost.", colour: error)
