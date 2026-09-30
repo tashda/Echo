@@ -56,6 +56,20 @@ struct BottomPanelStatusBarConfiguration {
         let label: String
         let tint: Color
         let isPulsing: Bool
+        /// Drawn in `tint` instead of the dot, with the label in `tint` too (round 21, TL2).
+        var icon: String?
+        /// Shows how long since this date after the label once it passes a minute (round 21, TT2).
+        var since: Date?
+        /// Clicking the status opens these (round 21, TA2).
+        var menu: [MenuItem] = []
+
+        struct MenuItem: Identifiable {
+            let title: String
+            let systemImage: String
+            var isDestructive = false
+            let action: () -> Void
+            var id: String { title }
+        }
     }
 
     struct ModeIndicator: Identifiable {

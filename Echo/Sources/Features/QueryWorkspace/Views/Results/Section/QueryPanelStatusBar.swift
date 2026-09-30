@@ -8,6 +8,8 @@ struct QueryPanelStatusBar: View {
     let databaseName: String?
     let availableDatabases: [String]
     let onSwitchDatabase: ((String) -> Void)?
+    /// Runs COMMIT or ROLLBACK from the transaction pill's menu (round 21, TA2).
+    var onRunCommand: ((String) -> Void)?
 
     @State private var showStatisticsPopover = false
     @State private var showDatabasePicker = false
@@ -18,7 +20,7 @@ struct QueryPanelStatusBar: View {
 
     private var hasActivity: Bool {
         query.hasExecutedAtLeastOnce || query.isExecuting || query.errorMessage != nil || query.isEstablishingConnection
-            || query.connectionLoss != nil
+            || query.connectionLoss != nil || query.transactionState != .none
     }
 
     private var visibleSegments: [PanelSegment] {
@@ -116,6 +118,20 @@ struct QueryPanelStatusBar: View {
         return indicators
     }
 
+    /// Commit and Roll Back one click from the pill (TA2); a failed transaction can only roll back.
+    private func transactionMenu(failed: Bool) -> [BottomPanelStatusBarConfiguration.StatusBubble.MenuItem] {
+        var items: [BottomPanelStatusBarConfiguration.StatusBubble.MenuItem] = []
+        if let onRunCommand {
+            if !failed { items.append(.init(title: "Commit", systemImage: "checkmark.circle") { onRunCommand("COMMIT") }) }
+            items.append(.init(title: "Roll Back", systemImage: "arrow.uturn.backward", isDestructive: !failed) { onRunCommand("ROLLBACK") })
+        }
+        items.append(.init(title: "Show in Messages", systemImage: "text.bubble") {
+            panelState.isOpen = true
+            panelState.selectedSegment = .messages
+        })
+        return items
+    }
+
     private func buildStatusBubble() -> BottomPanelStatusBarConfiguration.StatusBubble {
         if query.cancelPhase != nil {
             return .init(label: "Cancelling", tint: .orange, isPulsing: true)
@@ -125,6 +141,17 @@ struct QueryPanelStatusBar: View {
         }
         if query.connectionLoss != nil {
             return .init(label: "Disconnected", tint: .red, isPulsing: false)
+        }
+        // Round 21, transaction state: the status pill shows an open or failed transaction.
+        switch query.transactionState {
+        case .open(let since):
+            return .init(label: "Transaction", tint: ColorTokens.Status.warning, isPulsing: false,
+                         icon: "arrow.triangle.branch", since: since, menu: transactionMenu(failed: false))
+        case .failed:
+            return .init(label: "Failed — roll back", tint: ColorTokens.Status.error, isPulsing: false,
+                         icon: "exclamationmark.octagon", menu: transactionMenu(failed: true))
+        case .none:
+            break
         }
         if query.wasCancelled {
             return .init(label: "Cancelled", tint: .yellow, isPulsing: false)

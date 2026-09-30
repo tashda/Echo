@@ -150,6 +150,10 @@ struct QueryEditorContainer: View {
             availableDatabases: resolveDatabaseNames(),
             onSwitchDatabase: tab.connection.databaseType == .sqlite ? nil : { dbName in
                 switchDatabase(dbName)
+            },
+            onRunCommand: { [runQuery, query] sql in
+                query.lastRunRange = nil
+                Task { await runQuery(sql) }
             }
         )
     }

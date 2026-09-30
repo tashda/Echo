@@ -42,11 +42,22 @@ extension BottomPanelStatusBar {
             // The status always sits at the far right.
             if let bubble = configuration.statusBubble {
                 entry {
-                    HStack(spacing: SpacingTokens.xxs) {
-                        PulsingStatusDot(tint: bubble.tint, isPulsing: bubble.isPulsing)
-                        Text(bubble.label)
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.secondary)
+                    if bubble.menu.isEmpty {
+                        StatusBubbleLabel(bubble: bubble)
+                    } else {
+                        Menu {
+                            ForEach(bubble.menu) { item in
+                                Button(role: item.isDestructive ? .destructive : nil, action: item.action) {
+                                    Label(item.title, systemImage: item.systemImage)
+                                }
+                            }
+                        } label: {
+                            StatusBubbleLabel(bubble: bubble)
+                        }
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .fixedSize()
                     }
                 }
             }
@@ -85,6 +96,37 @@ private struct FooterPill: ViewModifier {
                 .glassEffect(.regular, in: .capsule)
         } else {
             content
+        }
+    }
+}
+
+/// The status: a pulsing dot and a word, or (round 21) an icon and a word in the tint, with the
+/// time since `since` once it passes a minute.
+private struct StatusBubbleLabel: View {
+    let bubble: BottomPanelStatusBarConfiguration.StatusBubble
+
+    var body: some View {
+        HStack(spacing: SpacingTokens.xxs) {
+            if let icon = bubble.icon {
+                Image(systemName: icon)
+                    .font(TypographyTokens.detail.weight(.semibold))
+                    .foregroundStyle(bubble.tint)
+            } else {
+                PulsingStatusDot(tint: bubble.tint, isPulsing: bubble.isPulsing)
+            }
+            Text(bubble.label)
+                .font(TypographyTokens.detail)
+                .foregroundStyle(bubble.icon == nil ? ColorTokens.Text.secondary : bubble.tint)
+            if let since = bubble.since {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let seconds = Int(context.date.timeIntervalSince(since))
+                    if seconds >= 60 {
+                        Text(String(format: "%d:%02d", seconds / 60, seconds % 60))
+                            .font(TypographyTokens.detail.monospacedDigit())
+                            .foregroundStyle(bubble.tint)
+                    }
+                }
+            }
         }
     }
 }

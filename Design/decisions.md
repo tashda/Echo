@@ -2,6 +2,19 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 21 accepted: PostgreSQL transaction state
+
+Echo Labs › Footer and results › Postgres: transaction state · round 21. The owner judged it on the gallery of all states.
+
+- **Where: TS3 · the footer's status pill.** The tab itself is not marked (TS4, recommended, was not chosen). → 05-components › Results card, FTR-2.6
+- **Look: TL2 · icon and word:** Transaction with a branch icon; Failed — roll back with an octagon. → FTR-2.6
+- **Colour: TC1 · orange, red when failed.**
+- **Time: TT2 · after a minute** the pill shows how long the transaction has been open ("Transaction 2:14").
+- **Actions: TA2 · Commit and Roll Back in the pill's menu,** with Show in Messages; a failed transaction offers only Roll Back.
+- **Failed: F1 · red, "Failed — roll back".**
+- **Long transaction: R3 · a notification after 15 minutes** with nothing run inside an open transaction (recommended was R2, the pill turning red).
+- **How the state is known: K1 · from the statements** (no extra round trip); the close prompt checks the server (with the open-transaction round).
+
 ## 2026-09-30 · Round 21 accepted: cancelling a query
 
 Echo Labs › Editor and running › Postgres: cancelling a query · round 21. Applies to SQL Server too (round 22, CL1).

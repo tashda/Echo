@@ -12,6 +12,11 @@ import OSLog
     var isEstablishingConnection: Bool = false
     /// Set when the tab's connection dropped (round 21); the footer then says Disconnected.
     var connectionLoss: QueryConnectionLoss?
+    /// The tab's transaction, shown in the footer's status pill (round 21, transaction state).
+    var transactionState: QueryTransactionState = .none
+    @ObservationIgnored var transactionStatusProvider: (@MainActor () async -> QueryTransactionStatus?)?
+    @ObservationIgnored var transactionLastActivity = Date()
+    @ObservationIgnored var transactionReminderSent = false
     /// True while a cross-database schema is being loaded for autocompletion.
     var isLoadingCrossDBSchema: Bool = false
     /// The database name currently being loaded for cross-DB autocompletion.

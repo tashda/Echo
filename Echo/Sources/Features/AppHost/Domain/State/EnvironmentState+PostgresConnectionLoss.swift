@@ -9,6 +9,7 @@ extension EnvironmentState {
     /// Starts watching the tab's pinned PostgreSQL connections. Call once the tab has its session.
     func watchPostgresConnectionLoss(for tab: WorkspaceTab, session: DatabaseSession) {
         guard let postgres = session as? PostgresSession, let store = postgres.pinnedStore else { return }
+        trackPostgresTransaction(for: tab, session: postgres)
         let tabID = tab.id
         Task {
             await store.setConnectionLostHandler { [weak self] database, transactionLost, isReminder in
@@ -21,6 +22,7 @@ extension EnvironmentState {
 
     private func postgresConnectionLost(tabID: UUID, database: String, transactionLost: Bool, isReminder: Bool) {
         guard let tab = tabStore.tabs.first(where: { $0.id == tabID }), let query = tab.query else { return }
+        query.transactionState = .none
         let context = NotificationContext(
             serverName: tab.connection.connectionName.isEmpty ? tab.connection.host : tab.connection.connectionName,
             connectionID: tab.connection.id,

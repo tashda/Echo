@@ -84,6 +84,7 @@ extension QueryEditorState {
         if let startTime = executionStartTime { lastExecutionTime = Date().timeIntervalSince(startTime) }
         isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
         cancelPhase = nil; forceStopHandler = nil
+        refreshTransactionState()
         executionTimer?.invalidate(); executionTimer = nil
         streamingMode = .completed
         let endTime = Date()
@@ -110,6 +111,7 @@ extension QueryEditorState {
     func failExecution(with error: String) {
         isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
         cancelPhase = nil; forceStopHandler = nil
+        refreshTransactionState()
         executionTimer?.invalidate(); executionTimer = nil
         let endTime = Date()
         if let startTime = executionStartTime { lastExecutionTime = endTime.timeIntervalSince(startTime) }
@@ -140,6 +142,7 @@ extension QueryEditorState {
     func markCancellationCompleted() {
         executingTask = nil; isExecuting = false; isCancellationRequested = false; executionTimer?.invalidate(); executionTimer = nil
         cancelPhase = nil; forceStopHandler = nil
+        refreshTransactionState()
         streamingMode = .completed
         let endTime = Date()
         if let startTime = executionStartTime { lastExecutionTime = endTime.timeIntervalSince(startTime) }
