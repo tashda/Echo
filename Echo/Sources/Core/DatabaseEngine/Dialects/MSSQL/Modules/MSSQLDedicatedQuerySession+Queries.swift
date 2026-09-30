@@ -75,9 +75,6 @@ extension MSSQLDedicatedQuerySession {
         let stream = connection.streamQuery(sql)
         var resultSetIndex = -1
         var primaryColumns: [ColumnInfo] = []
-        // Whether all primary columns can be decoded from raw TDS bytes at display time.
-        // If false (datetime/decimal columns present), use toStringArray() for all rows.
-        var canUseRawPath = true
         var primaryPreviewRows: [[String?]] = []
         primaryPreviewRows.reserveCapacity(initialPreviewBatch)
         var primaryRowCount = 0
@@ -110,13 +107,13 @@ extension MSSQLDedicatedQuerySession {
                         dataType: column.typeName,
                         isPrimaryKey: false,
                         isNullable: (column.flags & 0x01) != 0,
-                        maxLength: column.length > 0 ? column.length : nil
+                        maxLength: column.length > 0 ? column.length : nil,
+                        wireType: column.cellType.encoded
                     )
                 }
 
                 if resultSetIndex == 0 {
                     primaryColumns = columns
-                    canUseRawPath = columns.allSatisfy { TDSBinaryDecoder.canDecodeRaw($0.dataType) }
                     worker = ResultStreamBatchWorker(
                         label: "dev.echodb.echo.mssql.streamWorker",
                         columns: columns,
@@ -134,47 +131,29 @@ extension MSSQLDedicatedQuerySession {
                 if resultSetIndex == 0 {
                     primaryRowCount += 1
 
+                    // Every row, preview rows included, is spooled as wire bytes (zero-copy
+                    // buffer references); the spool formats them with the driver's
+                    // SQLServerCellFormatter from the column's wireType, exactly like the
+                    // preview strings below (round 22, DF1).
+                    var previewValues: [String?]?
                     if primaryRowCount <= initialPreviewBatch {
-                        // Preview rows: convert to strings for immediate display
                         let stringValues = row.toStringArray()
                         primaryPreviewRows.append(stringValues)
-                        pendingPayloads.append(
-                            ResultStreamBatchWorker.Payload(
-                                previewValues: stringValues,
-                                storage: .stringValues(stringValues),
-                                totalRowCount: primaryRowCount,
-                                decodeDuration: 0
-                            )
-                        )
-                    } else if canUseRawPath {
-                        // Fast path: capture raw ByteBuffer references (zero-copy).
-                        // String conversion happens at display time via TDSBinaryDecoder.
-                        let (buffers, lengths, totalLength) = row.rawColumnBuffers()
-                        pendingPayloads.append(
-                            ResultStreamBatchWorker.Payload(
-                                previewValues: nil,
-                                storage: .raw(ResultStreamBatchWorker.RawRow(
-                                    buffers: buffers,
-                                    lengths: lengths,
-                                    totalLength: totalLength
-                                )),
-                                totalRowCount: primaryRowCount,
-                                decodeDuration: 0
-                            )
-                        )
-                    } else {
-                        // Fallback for tables with datetime/decimal columns that
-                        // need scale metadata for correct decoding.
-                        let stringValues = row.toStringArray()
-                        pendingPayloads.append(
-                            ResultStreamBatchWorker.Payload(
-                                previewValues: nil,
-                                storage: .stringValues(stringValues),
-                                totalRowCount: primaryRowCount,
-                                decodeDuration: 0
-                            )
-                        )
+                        previewValues = stringValues
                     }
+                    let (buffers, lengths, totalLength) = row.rawColumnBuffers()
+                    pendingPayloads.append(
+                        ResultStreamBatchWorker.Payload(
+                            previewValues: previewValues,
+                            storage: .raw(ResultStreamBatchWorker.RawRow(
+                                buffers: buffers,
+                                lengths: lengths,
+                                totalLength: totalLength
+                            )),
+                            totalRowCount: primaryRowCount,
+                            decodeDuration: 0
+                        )
+                    )
 
                     if pendingPayloads.count >= batchEnqueueSize {
                         worker?.enqueueBatch(pendingPayloads)

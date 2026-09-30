@@ -102,7 +102,6 @@ extension SQLServerSessionAdapter {
 
             // Primary result set state (streamed progressively)
             var primaryColumns: [ColumnInfo] = []
-            var canUseRawPath = true
             var primaryPreviewRows: [[String?]] = []
             primaryPreviewRows.reserveCapacity(initialPreviewBatch)
             var primaryRowCount = 0
@@ -139,13 +138,13 @@ extension SQLServerSessionAdapter {
                             dataType: col.typeName,
                             isPrimaryKey: false,
                             isNullable: (col.flags & 0x01) != 0,
-                            maxLength: col.length > 0 ? col.length : nil
+                            maxLength: col.length > 0 ? col.length : nil,
+                            wireType: col.cellType.encoded
                         )
                     }
 
                     if resultSetIndex == 0 {
                         primaryColumns = columns
-                        canUseRawPath = columns.allSatisfy { TDSBinaryDecoder.canDecodeRaw($0.dataType) }
                         worker = ResultStreamBatchWorker(
                             label: "dev.echodb.echo.mssql.streamWorker",
                             columns: columns,
@@ -163,37 +162,26 @@ extension SQLServerSessionAdapter {
                     if resultSetIndex == 0 {
                         primaryRowCount += 1
 
+                        // Every row is spooled as wire bytes and formatted later by the
+                        // driver from the column's wireType, like the preview strings (DF1).
+                        var previewValues: [String?]?
                         if primaryRowCount <= initialPreviewBatch {
                             let stringValues = row.toStringArray()
                             primaryPreviewRows.append(stringValues)
-                            pendingPayloads.append(ResultStreamBatchWorker.Payload(
-                                previewValues: stringValues,
-                                storage: .stringValues(stringValues),
-                                totalRowCount: primaryRowCount,
-                                decodeDuration: 0
-                            ))
-                        } else if canUseRawPath {
-                            let (buffers, lengths, totalLength) = row.rawColumnBuffers()
-                            let encodedRow = ResultStreamBatchWorker.encodeBinaryRow(
-                                totalLength: totalLength,
-                                buffers: buffers,
-                                lengths: lengths
-                            )
-                            pendingPayloads.append(ResultStreamBatchWorker.Payload(
-                                previewValues: nil,
-                                storage: .encoded(encodedRow),
-                                totalRowCount: primaryRowCount,
-                                decodeDuration: 0
-                            ))
-                        } else {
-                            let stringValues = row.toStringArray()
-                            pendingPayloads.append(ResultStreamBatchWorker.Payload(
-                                previewValues: nil,
-                                storage: .stringValues(stringValues),
-                                totalRowCount: primaryRowCount,
-                                decodeDuration: 0
-                            ))
+                            previewValues = stringValues
                         }
+                        let (buffers, lengths, totalLength) = row.rawColumnBuffers()
+                        let encodedRow = ResultStreamBatchWorker.encodeBinaryRow(
+                            totalLength: totalLength,
+                            buffers: buffers,
+                            lengths: lengths
+                        )
+                        pendingPayloads.append(ResultStreamBatchWorker.Payload(
+                            previewValues: previewValues,
+                            storage: .encoded(encodedRow),
+                            totalRowCount: primaryRowCount,
+                            decodeDuration: 0
+                        ))
 
                         if pendingPayloads.count >= batchEnqueueSize {
                             worker?.enqueueBatch(pendingPayloads)

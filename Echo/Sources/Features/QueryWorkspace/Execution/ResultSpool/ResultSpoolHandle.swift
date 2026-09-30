@@ -1,4 +1,5 @@
 import Foundation
+import SQLServerKit
 import NIOCore
 import OSLog
 
@@ -27,6 +28,10 @@ actor ResultSpoolHandle {
     var cachedPostgresOIDs: CachedOIDs?
 
     struct CachedOIDs { let value: [UInt32]? }
+    /// SQL Server cell types, resolved on first decode (see `sqlServerCellTypes()`).
+    var cachedSQLServerCellTypes: CachedCellTypes?
+
+    struct CachedCellTypes { let value: [SQLServerCellType]? }
 
     func debugLog(_ message: String) {
         Logger.spool.debug("\(message)")

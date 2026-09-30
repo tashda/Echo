@@ -1,4 +1,5 @@
 import Foundation
+import SQLServerKit
 
 extension ResultSpoolHandle {
     func decodeRowData(_ data: Data) -> [String?] {
@@ -6,6 +7,10 @@ extension ResultSpoolHandle {
         // driver so rows after the preview read exactly like the preview rows.
         if metadata.rowEncoding == "binary_v1", let oids = postgresColumnOIDs() {
             return PostgresSpoolColumns.decodeRow(data, oids: oids)
+        }
+        // SQL Server spools hold wire bytes in every row too, formatted by the driver.
+        if metadata.rowEncoding == "binary_v1", let types = sqlServerCellTypes() {
+            return SQLServerSpoolColumns.decodeRow(data, types: types)
         }
         if metadata.rowEncoding == "binary_v1" {
             let binaryRow = ResultBinaryRow(data: data)
@@ -54,6 +59,14 @@ extension ResultSpoolHandle {
                 }
             }
         }
+    }
+
+    /// Cell types for a SQL Server spool (parsed once per spool), `nil` for other engines.
+    func sqlServerCellTypes() -> [SQLServerCellType]? {
+        if let cached = cachedSQLServerCellTypes { return cached.value }
+        let types = SQLServerSpoolColumns.cellTypes(for: metadata.columns)
+        if !metadata.columns.isEmpty { cachedSQLServerCellTypes = CachedCellTypes(value: types) }
+        return types
     }
 
     /// Column OIDs for a Postgres spool (computed once per spool), `nil` for other engines.

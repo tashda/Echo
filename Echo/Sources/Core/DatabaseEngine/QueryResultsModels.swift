@@ -91,6 +91,9 @@ public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
     public let maxLength: Int?
     public var foreignKey: ForeignKeyReference?
     public let comment: String?
+    /// The driver's description of the column's wire format, for formatting spooled cells later.
+    /// SQL Server stores `SQLServerCellType.encoded` here; other engines leave it nil.
+    public let wireType: String?
 
     public nonisolated init(
         name: String,
@@ -99,9 +102,10 @@ public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
         isNullable: Bool = true,
         maxLength: Int? = nil,
         foreignKey: ForeignKeyReference? = nil,
-        comment: String? = nil
+        comment: String? = nil,
+        wireType: String? = nil
     ) {
-        self.name = name; self.dataType = dataType; self.isPrimaryKey = isPrimaryKey; self.isNullable = isNullable; self.maxLength = maxLength; self.foreignKey = foreignKey; self.comment = comment
+        self.name = name; self.dataType = dataType; self.isPrimaryKey = isPrimaryKey; self.isNullable = isNullable; self.maxLength = maxLength; self.foreignKey = foreignKey; self.comment = comment; self.wireType = wireType
     }
 
     public struct ForeignKeyReference: Sendable, Codable, Hashable {
