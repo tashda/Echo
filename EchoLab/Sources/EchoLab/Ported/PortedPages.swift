@@ -1,15 +1,15 @@
 import SwiftUI
 
 /// Registers the Design Lab pages that are still ongoing. Rounds already decided live in
-/// `Decided/Library/` as frozen decisions. Round 14's verdicts are recorded and being built
-/// into Echo (plan phases 11 to 17), so they start as Accepted; round 15 is still being judged.
+/// `Decided/Library/` as frozen decisions. Round 15 and the section dock are built into Echo (commits 755f8254, 2a251b61, 843675d1) and
+/// wait for the owner's confirmation, so they start as In Echo; the other round 14 pages are Accepted.
 @MainActor
 enum PortedPages {
-    private static let judging: [DesignLabPage] = [.round15Run, .round15Inspector, .round15Notifications]
-    private static let accepted: [DesignLabPage] = [.round14Tabs, .round14Dock, .round14Connections, .round14Sense]
+    private static let inEcho: [DesignLabPage] = [.round15Run, .round15Inspector, .round15Notifications, .round14Dock]
+    private static let accepted: [DesignLabPage] = [.round14Tabs, .round14Connections, .round14Sense]
 
     static let ongoing: [LabPage] =
-        judging.map { labPage($0, status: .judging) } + accepted.map { labPage($0, status: .accepted) }
+        inEcho.map { labPage($0, status: .inEcho) } + accepted.map { labPage($0, status: .accepted) }
 
     private static func labPage(_ page: DesignLabPage, status: LabStatus) -> LabPage {
         LabPage(

@@ -15,7 +15,7 @@ struct LabSCDock: View {
 
     var body: some View {
         switch options.header {
-        case .today: tiles(height: LayoutTokensToday.buttonHeight, font: TypographyTokens.prominent, labelsCurrent: false)
+        case .today: tiles(height: LabSCToday.dockButtonHeight, font: TypographyTokens.prominent, labelsCurrent: false)
         case .labelled: tiles(height: options.density.dockHeight, font: options.density.dockIconFont, labelsCurrent: true)
         case .navigator: navigator
         case .segmented: segmented
@@ -195,9 +195,4 @@ struct LabSCDock: View {
             Button("Customize Dock", action: onCustomize)
         }
     }
-}
-
-/// Echo's current dock metrics, reproduced for H0.
-enum LayoutTokensToday {
-    static let buttonHeight: CGFloat = SpacingTokens.lg2
 }

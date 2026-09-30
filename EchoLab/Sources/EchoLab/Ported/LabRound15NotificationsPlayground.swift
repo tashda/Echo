@@ -36,7 +36,7 @@ struct LabRound15NotificationsPlayground: View {
     }
 }
 
-private struct LabNoticeWindow: View {
+struct LabNoticeWindow: View {
     let center: LabNoticeCenter
     let style: LabNoticeCenterStyle
     let top: LabToastTop

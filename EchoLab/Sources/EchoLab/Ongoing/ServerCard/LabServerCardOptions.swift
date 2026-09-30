@@ -180,3 +180,8 @@ struct LabSCOptions {
     /// The system edge needs the scroll view's own top bar, so the column shows one server.
     var showsOneServer: Bool { edge == .system }
 }
+
+/// Echo's current dock metrics, reproduced for H0: 30pt buttons whatever the sidebar size.
+enum LabSCToday {
+    static let dockButtonHeight: CGFloat = SpacingTokens.lg2
+}

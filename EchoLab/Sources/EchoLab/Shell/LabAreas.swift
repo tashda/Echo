@@ -6,12 +6,12 @@ enum LabAreas {
         ExplorerTreeArea.area,
         TabsArea.area,
         WindowArea.area,
-        pending("editor", "Editor and running", "curlybraces", "The editor card, gutter, fonts, statement focus and the Run controls."),
+        EditorArea.area,
         FooterResultsArea.area,
-        pending("inspector", "Inspector", "sidebar.right", "The column of cards on the canvas."),
-        pending("connections", "Connections", "externaldrive.connected.to.line.below", "Welcome, Quick Connect, New Connection and Manage Connections."),
-        pending("echosense", "EchoSense", "text.badge.star", "The completion popup: rows, selection, details and ghost text."),
-        pending("notifications", "Notifications", "bell", "Toasts, the bell and the notification history."),
+        InspectorArea.area,
+        ConnectionsArea.area,
+        EchoSenseArea.area,
+        NotificationsArea.area,
     ]
 
     private static func pending(_ id: String, _ title: String, _ symbol: String, _ summary: String) -> LabArea {

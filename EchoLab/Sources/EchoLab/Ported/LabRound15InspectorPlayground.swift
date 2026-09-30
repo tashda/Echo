@@ -27,7 +27,7 @@ struct LabRound15InspectorPlayground: View {
 }
 
 /// One inspector column on a patch of canvas.
-private struct LabInspectorColumn: View {
+struct LabInspectorColumn: View {
     let look: LabInspectorLook
 
     var body: some View {
