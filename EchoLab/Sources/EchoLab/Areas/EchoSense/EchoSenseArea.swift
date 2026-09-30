@@ -11,13 +11,14 @@ enum EchoSenseArea {
         summary: "A card of rows with a kind badge, the name in the editor's font with your letters highlighted, and a footer that explains the selected row.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "30e73ffb", date: "2026-09-30",
+                level: .code, commit: "ea0ee95b", date: "2026-09-30",
                 note: "Read from AutoCompletionListView, AutoCompletionRowView, AutoCompletionDetailFooter, SQLCompletionPanel, SQLAutoCompletionController, the EchoSense tokens and the Query menu. The specimen is Round 14's popup in a small editor; ghost text is a setting and is not drawn here."),
             stageHeight: 380,
             behaviours: [
                 .init(trigger: "Type", result: "Suggestions appear under the caret; the selected row is tinted. The popup never takes focus: typing stays in the editor."),
                 .init(trigger: "Press ↑ or ↓", result: "The selection moves (wrapping round) and turns solid, meaning Return inserts it."),
-                .init(trigger: "Press Return or Tab", result: "Inserts the selected suggestion. Shift-Tab moves the selection up."),
+                .init(trigger: "Press Return or Tab", result: "Inserts the selected suggestion. Shift-Tab moves the selection up. What gets replaced, the quoting of names that need it and the space after a keyword come from EchoSense's SQLEditorAcceptance, the same code the scenarios run."),
+                .init(trigger: "Type a space", result: "Opens the popup only after FROM, JOIN, UPDATE, CALL, EXEC, EXECUTE or INTO (EchoSense's SQLEditorTriggerPolicy). The spec also wants clause keywords and commas to open it; Test › Scenarios lists those as known issues."),
                 .init(trigger: "⌘.", result: "Triggers EchoSense by hand (Show EchoSense Suggestions in the Query menu; it can be rebound)."),
                 .init(trigger: "Same-named columns", result: "Show their qualifier (alias or table) as a chip after the name, so they are never ambiguous."),
                 .init(trigger: "Typed letters", result: "In each name the typed letters are bold in the accent colour: the first place the text appears, or, for a fuzzy match, each letter in order."),
@@ -66,6 +67,9 @@ enum EchoSenseArea {
                 "Echo/Sources/Features/QueryWorkspace/Views/Query/SQLTextView/Completion/",
                 "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken+EchoSense.swift",
                 "/Users/k/Development/EchoSense/AUTOCOMPLETE_SPEC.md (the EchoSense package)",
+                "/Users/k/Development/EchoSense/Sources/EchoSense/SQLEditorTriggerPolicy.swift (when typing opens the popup)",
+                "/Users/k/Development/EchoSense/Sources/EchoSense/SQLEditorAcceptance.swift (what accepting a suggestion inserts)",
+                "/Users/k/Development/EchoSense/Sources/EchoSenseScenarios/Scenarios/ (the expected behaviour, one JSON file per group)",
             ]
         ) {
             LabRound14SenseEditor(selection: .tintThenSolid, corners: .followCards)
