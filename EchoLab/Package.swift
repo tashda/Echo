@@ -6,9 +6,9 @@ let package = Package(
     platforms: [.macOS(.v26)],
     dependencies: [
         .package(path: "../Packages/EchoDesignSystem"),
-        .package(path: "../../EchoSense"),
-        .package(path: "../../postgres-wire"),
-        .package(path: "../../sqlserver-nio")
+        .package(url: "https://github.com/tashda/EchoSense", branch: "dev"),
+        .package(url: "https://github.com/tashda/postgres-wire", branch: "dev"),
+        .package(url: "https://github.com/tashda/sqlserver-nio", branch: "dev")
     ],
     targets: [
         .executableTarget(

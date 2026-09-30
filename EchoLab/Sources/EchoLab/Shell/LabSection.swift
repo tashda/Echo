@@ -2,6 +2,7 @@
 enum LabSection: String, CaseIterable, Identifiable {
     case ongoing = "Ongoing work"
     case decided = "Decided"
+    case areas = "Areas"
     case reference = "Reference"
     case test = "Test"
 

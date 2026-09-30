@@ -1,6 +1,7 @@
 /// Living references that always reflect the shipped design system.
 @MainActor enum ReferencePages {
-    static let all: [LabPage] = [
+    static let all: [LabPage] = []
+    static let retired: [LabPage] = [
         LabPage(
             id: "reference.tokens",
             section: .reference,

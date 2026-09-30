@@ -1,6 +1,15 @@
 {
-  "originHash" : "e22987b70543f6ce4ffbc7b005c156ea89479b3889d15bd055cb1946692dcc35",
+  "originHash" : "be2e12c3c91fd319ed856f843df6b84ca26a8b10539d094eff5a92d9e590edde",
   "pins" : [
+    {
+      "identity" : "echosense",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tashda/EchoSense",
+      "state" : {
+        "branch" : "dev",
+        "revision" : "e10f0eecaf086c58c4d920da993a865843d60ea9"
+      }
+    },
     {
       "identity" : "postgres-nio",
       "kind" : "remoteSourceControl",
@@ -8,6 +17,24 @@
       "state" : {
         "revision" : "39ce38a93408937bcd27f521f3cdf88266136b80",
         "version" : "1.33.1"
+      }
+    },
+    {
+      "identity" : "postgres-wire",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tashda/postgres-wire",
+      "state" : {
+        "branch" : "dev",
+        "revision" : "3b9f60b7a28948a991c91eafcba8af08458bd9c5"
+      }
+    },
+    {
+      "identity" : "sqlserver-nio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tashda/sqlserver-nio",
+      "state" : {
+        "branch" : "dev",
+        "revision" : "9c77c428b1d5c50cf81b525d09e300f4df34977b"
       }
     },
     {

@@ -66,6 +66,11 @@ final class LabStore {
     func comments(for page: LabPage) -> [Comment] { items[page.id]?.comments ?? [] }
     func history(for page: LabPage) -> [Event] { items[page.id]?.history ?? [] }
 
+    /// Items waiting for someone: new feedback, judging, accepted, or in Echo.
+    var attentionCount: Int {
+        LabRegistry.pages.filter { [.newFeedback, .judging, .accepted, .inEcho].contains(status(of: $0)) }.count
+    }
+
     func count(in status: LabStatus) -> Int {
         LabRegistry.pages.filter { self.status(of: $0) == status }.count
     }
