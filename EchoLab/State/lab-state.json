@@ -25,6 +25,10 @@
       {
         "date": "2026-09-30T14:42:06Z",
         "text": "Status set to Accepted to match 'Accepted with picks' (recorded in Design/decisions.md)"
+      },
+      {
+        "date": "2026-09-30T15:27:07Z",
+        "text": "Built into Echo (057a797b): Mandatory default, menu says what is checked, Trust dims under Strict, Allow TLS 1.0 per connection, Test names the failed check with a fix button"
       }
     ],
     "needsMore": [],
@@ -40,7 +44,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.mssql-errors-r22": {
