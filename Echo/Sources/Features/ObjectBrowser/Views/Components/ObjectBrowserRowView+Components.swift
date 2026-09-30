@@ -46,7 +46,8 @@ extension ObjectBrowserRowView {
                 iconColor: isEmptyObjectFolder ? ColorTokens.Text.quaternary : explorerIconColor(folder.kind.role.color),
                 labelColor: isEmptyObjectFolder ? ColorTokens.Text.tertiary : ColorTokens.Text.primary,
                 accentColor: resolvedAccentColor(for: folder.session.connection),
-                count: folder.count
+                // While the folder loads, its spinner takes the count's place.
+                count: folder.isLoading ? nil : folder.count
             ) {
                 if folder.isLoading {
                     ProgressView()

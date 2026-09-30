@@ -29,6 +29,11 @@ struct ExplorerDockTests {
 
     private var connectionID: UUID { session.connection.id }
 
+    private func dockLayout(_ roots: [ObjectBrowserNode]) -> ExplorerDockLayout? {
+        guard case .dock(_, let layout, _) = roots[0].children.first?.row else { return nil }
+        return layout
+    }
+
     @Test func serverShowsItsDockAndTheFirstSectionByDefault() {
         let roots = ExplorerDock.apply(to: [server([.databases, .serverSecurity, .agentJobs])], selections: [:])
         let children = roots[0].children
@@ -46,20 +51,42 @@ struct ExplorerDockTests {
         #expect(roots[0].children.dropFirst().map(\.id) == ["f0.a", "f0.b"])
     }
 
-    @Test func moreThanFiveSectionsShareMore() throws {
-        let kinds: [ExplorerNodeKind] = [.databases, .serverSecurity, .databaseSnapshots, .agentJobs, .management, .integrationServices, .linkedServers, .serverTriggers]
-        let items = try #require(ExplorerDock.items(for: server(kinds).children, connectionID: connectionID))
-        #expect(items.count == ExplorerDock.buttonLimit + 1)
-        #expect(items.last?.id == ExplorerDock.moreItemID(connectionID))
-        let roots = ExplorerDock.apply(to: [server(kinds)], selections: [connectionID: ExplorerDock.moreItemID(connectionID)])
-        #expect(roots[0].children.dropFirst().map(\.id) == ["f4", "f5", "f6", "f7"])
+    @Test func withNoChoiceEverySectionIsInTheCapsule() throws {
+        let kinds: [ExplorerNodeKind] = [.databases, .serverSecurity, .databaseSnapshots, .agentJobs, .management, .integrationServices]
+        let layout = try #require(dockLayout(ExplorerDock.apply(to: [server(kinds)], selections: [:])))
+        #expect(layout.shown.map(\.key) == kinds.map(\.rawValue))
+        #expect(layout.overflow.isEmpty)
     }
 
-    @Test func exactlyFiveSectionsNeedNoMore() throws {
-        let kinds: [ExplorerNodeKind] = [.databases, .serverSecurity, .databaseSnapshots, .agentJobs, .management]
-        let items = try #require(ExplorerDock.items(for: server(kinds).children, connectionID: connectionID))
-        #expect(items.count == 5)
-        #expect(!items.contains { $0.id == ExplorerDock.moreItemID(connectionID) })
+    @Test func aSavedDockSetsTheCapsuleAndTheRestGoUnderMore() throws {
+        let kinds: [ExplorerNodeKind] = [.databases, .serverSecurity, .agentJobs, .management]
+        let saved = [ExplorerNodeKind.agentJobs.rawValue, ExplorerNodeKind.databases.rawValue]
+        let layout = try #require(dockLayout(ExplorerDock.apply(to: [server(kinds)], selections: [:], savedKeys: { _ in saved })))
+        #expect(layout.shown.map(\.key) == saved)
+        #expect(layout.overflow.map(\.key) == [ExplorerNodeKind.serverSecurity.rawValue, ExplorerNodeKind.management.rawValue])
+    }
+
+    @Test func aSectionUnderMoreCanBeShown() {
+        let kinds: [ExplorerNodeKind] = [.databases, .serverSecurity, .agentJobs]
+        let roots = ExplorerDock.apply(to: [server(kinds)], selections: [connectionID: "f2"], savedKeys: { _ in [ExplorerNodeKind.databases.rawValue] })
+        #expect(roots[0].children.dropFirst().map(\.id) == ["f2.a", "f2.b"])
+    }
+
+    @Test func arrangeKeepsTheSavedOrderAndDropsUnknownKeys() {
+        let arranged = ExplorerDock.arrange(keys: ["a", "b", "c", "d"], saved: ["c", "gone", "a"], preferred: ["a", "b"])
+        #expect(arranged.shown == ["c", "a"])
+        #expect(arranged.overflow == ["b", "d"])
+    }
+
+    @Test func arrangeFallsBackToTheBlueprintThenToEverything() {
+        #expect(ExplorerDock.arrange(keys: ["a", "b", "c"], saved: nil, preferred: ["b"]).shown == ["b"])
+        #expect(ExplorerDock.arrange(keys: ["a", "b", "c"], saved: nil, preferred: nil).shown == ["a", "b", "c"])
+    }
+
+    @Test func theCapsuleIsNeverEmpty() {
+        let arranged = ExplorerDock.arrange(keys: ["a", "b"], saved: ["gone"], preferred: nil)
+        #expect(arranged.shown == ["a", "b"])
+        #expect(arranged.overflow.isEmpty)
     }
 
     @Test func aSingleSectionKeepsTheTree() {

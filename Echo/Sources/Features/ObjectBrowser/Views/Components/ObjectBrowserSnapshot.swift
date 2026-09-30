@@ -88,12 +88,15 @@ enum ObjectBrowserSnapshotBuilder {
                 id: "\(connectionID)#failed",
                 row: .message(message ?? "Failed to load", systemImage: "exclamationmark.triangle.fill")
             )]
-        case .idle:
-            return [ObjectBrowserNode(id: "\(connectionID)#server-loading", row: .loading("Loading server"))]
-        case .loading where session.databaseStructure == nil:
-            return [ObjectBrowserNode(id: "\(connectionID)#server-loading", row: .loading("Loading server"))]
         default:
-            let builder = ExplorerBlueprintWalker(session: session, settings: settings, viewModel: viewModel)
+            // Folders first (round 16): while the server's structure loads, its sections are
+            // already there and Databases says it is loading.
+            let isLoadingServer: Bool = switch session.structureLoadingState {
+            case .idle: true
+            case .loading: session.databaseStructure == nil
+            default: false
+            }
+            let builder = ExplorerBlueprintWalker(session: session, settings: settings, viewModel: viewModel, isLoadingServer: isLoadingServer)
             return builder.nodes(
                 for: ExplorerBlueprint.blueprint(for: session.connection.databaseType).server,
                 in: .server

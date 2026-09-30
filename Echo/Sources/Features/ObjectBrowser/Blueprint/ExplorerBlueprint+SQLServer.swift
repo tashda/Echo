@@ -2,7 +2,7 @@ import Foundation
 
 extension ExplorerBlueprint {
     /// Microsoft SQL Server, in SSMS's order.
-    nonisolated static let sqlServer = ExplorerBlueprint {
+    nonisolated static let sqlServer = ExplorerBlueprint(dock: [.databases, .serverSecurity, .agentJobs, .management]) {
         Databases()
         Folder(.serverSecurity, loading: .serverSecurity) {
             Folder(.logins) {

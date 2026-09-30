@@ -124,11 +124,12 @@ struct SidebarRow<Trailing: View>: View {
 
                 Spacer(minLength: SpacingTokens.xxxs)
 
+                // Always shown, quietly (round 16): a count that appeared on hover blinked
+                // whenever the row was rebuilt under the pointer.
                 if let count, count > 0 {
                     Text("\(count)")
                         .font(SidebarRowConstants.trailingFont)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                        .opacity(isHovering ? 1 : 0)
+                        .foregroundStyle(ColorTokens.Text.quaternary)
                         .accessibilityLabel("\(count) items")
                 }
                 trailing()

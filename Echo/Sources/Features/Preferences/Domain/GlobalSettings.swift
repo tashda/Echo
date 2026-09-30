@@ -172,6 +172,11 @@ struct GlobalSettings: Codable, Hashable {
     var railItemSize: RailItemSize = .medium
     var collapsedServerClick: CollapsedServerClickBehavior = .peekCommandReopens
     var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
+    /// The section dock's icons, apart from the tree's (round 16): mono by default.
+    var sidebarDockIconStyle: SidebarDockIconStyle = .mono
+    /// Each database type's dock (keyed by `DatabaseType.rawValue`): the sections shown, in
+    /// order, as section keys. A type missing here uses its blueprint's default.
+    var sidebarDockSections: [String: [String]] = [:]
     var editorGutterStyle: EditorGutterStyle = .subtle
     /// 1 once the editor moved to 13pt with 1.55 line spacing (design board, 2026-09-30).
     var editorTypographyRevision = 1
@@ -262,6 +267,8 @@ struct GlobalSettings: Codable, Hashable {
         case railItemSize
         case collapsedServerClick
         case sidebarMonochromeVariant
+        case sidebarDockIconStyle
+        case sidebarDockSections
         case editorGutterStyle
         case editorTypographyRevision
         case resultsMonospacedCells
@@ -376,6 +383,8 @@ struct GlobalSettings: Codable, Hashable {
         railItemSize = (try? container.decodeIfPresent(RailItemSize.self, forKey: .railItemSize)) ?? .medium
         collapsedServerClick = (try? container.decodeIfPresent(CollapsedServerClickBehavior.self, forKey: .collapsedServerClick)) ?? .peekCommandReopens
         sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
+        sidebarDockIconStyle = (try? container.decodeIfPresent(SidebarDockIconStyle.self, forKey: .sidebarDockIconStyle)) ?? .mono
+        sidebarDockSections = (try? container.decodeIfPresent([String: [String]].self, forKey: .sidebarDockSections)) ?? [:]
         editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
         // Settings still on the old defaults (12pt, single spacing) move to the new ones once.
         if (try container.decodeIfPresent(Int.self, forKey: .editorTypographyRevision) ?? 0) < 1 {
@@ -461,6 +470,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(railItemSize, forKey: .railItemSize)
         try container.encode(collapsedServerClick, forKey: .collapsedServerClick)
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
+        try container.encode(sidebarDockIconStyle, forKey: .sidebarDockIconStyle)
+        try container.encode(sidebarDockSections, forKey: .sidebarDockSections)
         try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
         try container.encode(editorTypographyRevision, forKey: .editorTypographyRevision)
         try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)

@@ -92,6 +92,10 @@
       {
         "date" : "2026-09-30T11:30:00Z",
         "text" : "Initial load note: switching sections and rows arriving after a load now use Echo's settle (no overshoot), folders use expand"
+      },
+      {
+        "date" : "2026-09-30T11:45:00Z",
+        "text" : "Built into Echo"
       }
     ],
     "needsMore" : [
@@ -123,7 +127,7 @@
     "revisions" : [
 
     ],
-    "status" : "Accepted",
+    "status" : "In Echo",
     "verdicts" : {
 
     }

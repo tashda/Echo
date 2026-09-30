@@ -7,11 +7,16 @@ import Foundation
 nonisolated struct ExplorerBlueprint: Sendable {
     let server: [ExplorerBlueprintNode]
     let database: [ExplorerBlueprintNode]
+    /// The server-level sections the section dock shows by default, in order; the rest sit under
+    /// More. Nil shows every section. Users change it per type or per server (round 16).
+    let dock: [ExplorerNodeKind]?
 
     init(
+        dock: [ExplorerNodeKind]? = nil,
         @ExplorerBlueprintBuilder server: () -> [ExplorerBlueprintNode],
         @ExplorerBlueprintBuilder database: () -> [ExplorerBlueprintNode]
     ) {
+        self.dock = dock
         self.server = server()
         self.database = database()
     }

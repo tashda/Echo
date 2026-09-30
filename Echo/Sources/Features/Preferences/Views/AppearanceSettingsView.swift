@@ -41,6 +41,17 @@ struct AppearanceSettingsView: View {
                 }
 
                 PropertyRow(
+                    title: "Section Dock Icons",
+                    subtitle: "The icons under each server's name, apart from the tree's."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.sidebarDockIconStyle)) {
+                        ForEach(SidebarDockIconStyle.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                PropertyRow(
                     title: "Toolbar Project Button",
                     subtitle: "Show your account avatar or the project icon in the toolbar."
                 ) {

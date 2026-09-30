@@ -130,6 +130,9 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var logo: Data?
     var cachedStructure: DatabaseStructure?
     var cachedStructureUpdatedAt: Date?
+    /// This server's own section dock (round 16): the sections shown, in order, as section
+    /// keys. Nil uses its database type's dock from Settings.
+    var explorerDockSections: [String]?
 
     static func == (lhs: SavedConnection, rhs: SavedConnection) -> Bool {
         lhs.id == rhs.id
@@ -173,6 +176,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case logo
         case cachedStructure
         case cachedStructureUpdatedAt
+        case explorerDockSections
     }
 
     init(
@@ -271,6 +275,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         logo = try container.decodeIfPresent(Data.self, forKey: .logo)
         cachedStructure = try container.decodeIfPresent(DatabaseStructure.self, forKey: .cachedStructure)
         cachedStructureUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .cachedStructureUpdatedAt)
+        explorerDockSections = try? container.decodeIfPresent([String].self, forKey: .explorerDockSections)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -305,6 +310,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encodeIfPresent(logo, forKey: .logo)
         try container.encodeIfPresent(cachedStructure, forKey: .cachedStructure)
         try container.encodeIfPresent(cachedStructureUpdatedAt, forKey: .cachedStructureUpdatedAt)
+        try container.encodeIfPresent(explorerDockSections, forKey: .explorerDockSections)
     }
 
     static let example = SavedConnection(

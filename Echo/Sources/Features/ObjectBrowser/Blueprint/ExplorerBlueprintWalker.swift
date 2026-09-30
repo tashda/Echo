@@ -25,6 +25,8 @@ struct ExplorerBlueprintWalker {
     let session: ConnectionSession
     let settings: GlobalSettings
     let viewModel: ObjectBrowserSidebarViewModel
+    /// The server's structure (its databases) hasn't arrived yet.
+    var isLoadingServer = false
 
     private var connectionID: UUID { session.connection.id }
     private var blueprint: ExplorerBlueprint { .blueprint(for: session.connection.databaseType) }
@@ -102,7 +104,9 @@ struct ExplorerBlueprintWalker {
             }
         }
         if viewModel.sourceState(key).isLoading {
-            return [ObjectBrowserNode(id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: parentID), row: .loading(kind.loadingTitle))]
+            // A section's first load is one spinner row; a database's folder, a skeleton.
+            let style: ExplorerLoadingStyle = place.database == nil ? .spinnerRow : .skeleton
+            return [ObjectBrowserNode(id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: parentID), row: .loading(kind.loadingTitle, style: style))]
         }
         return [ObjectBrowserNode(
             id: ObjectBrowserSidebarViewModel.infoNodeID(parentID: parentID, title: kind.emptyTitle),
@@ -143,19 +147,20 @@ struct ExplorerBlueprintWalker {
             settings: settings,
             hideOffline: viewModel.hideOfflineDatabasesBySession[connectionID] ?? false
         )
+        let folderID = ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: connectionID)
+        let isLoading = isLoadingServer && databases.isEmpty
         let folder = ExplorerFolder(
             kind: .databases,
             session: session,
             databaseName: nil,
-            count: databases.count,
-            isLoading: false,
+            count: isLoading ? nil : databases.count,
+            isLoading: isLoading,
             source: nil
         )
-        return ObjectBrowserNode(
-            id: ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: connectionID),
-            row: .folder(folder),
-            children: databases.map(databaseNode)
-        )
+        let children = isLoading
+            ? [ObjectBrowserNode(id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: folderID), row: .loading("Loading databases", style: .spinnerRow))]
+            : databases.map(databaseNode)
+        return ObjectBrowserNode(id: folderID, row: .folder(folder), children: children)
     }
 
     private func databaseNode(_ database: DatabaseInfo) -> ObjectBrowserNode {
@@ -169,7 +174,7 @@ struct ExplorerBlueprintWalker {
         // the database expandable.
         guard viewModel.expandedNodeIDs.contains(databaseID) else {
             return ObjectBrowserNode(id: databaseID, row: row, children: [
-                ObjectBrowserNode(id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: databaseID), row: .loading("Loading objects"))
+                ObjectBrowserNode(id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: databaseID), row: .loading("Loading objects", style: .skeleton))
             ])
         }
         return ObjectBrowserNode(id: databaseID, row: row, children: databaseChildren(database, databaseID: databaseID, isLoading: isLoading))
@@ -178,12 +183,12 @@ struct ExplorerBlueprintWalker {
     private func databaseChildren(_ database: DatabaseInfo, databaseID: String, isLoading: Bool) -> [ObjectBrowserNode] {
         let loadingID = ObjectBrowserSidebarViewModel.loadingNodeID(parentID: databaseID)
         if isLoading {
-            return [ObjectBrowserNode(id: loadingID, row: .loading("Loading schema"))]
+            return [ObjectBrowserNode(id: loadingID, row: .loading("Loading schema", style: .skeleton))]
         }
         guard session.hasLoadedSchema(forDatabase: database.name) else {
             let row: ObjectBrowserNode.Row = session.metadataFreshness(forDatabase: database.name) == .failed
                 ? .message("Schema refresh failed", systemImage: "exclamationmark.triangle")
-                : .loading("Loading objects")
+                : .loading("Loading objects", style: .skeleton)
             return [ObjectBrowserNode(id: loadingID, row: row)]
         }
 

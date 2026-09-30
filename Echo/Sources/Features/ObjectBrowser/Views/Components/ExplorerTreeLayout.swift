@@ -65,8 +65,8 @@ struct ExplorerTreeLayout {
         if case .topSpacer(let height) = row {
             return max(height, SpacingTokens.micro)
         }
-        if case .loading = row {
-            return baseRowHeight * CGFloat(LayoutTokens.Shimmer.explorerRowCount)
+        if case .loading(_, let style) = row {
+            return baseRowHeight * CGFloat(style.rowSlots)
         }
         return baseRowHeight + row.extraSlotHeight
     }

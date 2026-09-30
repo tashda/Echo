@@ -24,6 +24,21 @@ struct ExplorerItemRow {
     let item: ExplorerItem
 }
 
+/// How a loading row looks (round 16): a section's first load shows one spinner row (folders
+/// first); a folder or database loading its contents shows a quiet skeleton.
+enum ExplorerLoadingStyle {
+    case spinnerRow
+    case skeleton
+
+    /// How many row slots it takes.
+    var rowSlots: Int {
+        switch self {
+        case .spinnerRow: 1
+        case .skeleton: LayoutTokens.Shimmer.explorerRowCount
+        }
+    }
+}
+
 @MainActor
 final class ObjectBrowserNode: NSObject {
     enum Row {
@@ -40,10 +55,11 @@ final class ObjectBrowserNode: NSObject {
         case action(ConnectionSession, ExplorerNodeKind)
         /// Says a folder is empty ("No logins").
         case placeholder(String, kind: ExplorerNodeKind?)
-        case loading(String)
+        /// Something still loading: one spinner row, or skeleton rows (round 16).
+        case loading(String, style: ExplorerLoadingStyle)
         case message(String, systemImage: String)
         /// The section dock under a server's name (TC1): which of the server's sections it shows.
-        case dock(ConnectionSession, [ExplorerDockItem], selectedID: String)
+        case dock(ConnectionSession, ExplorerDockLayout, selectedID: String)
     }
 
     let id: String
@@ -58,13 +74,15 @@ final class ObjectBrowserNode: NSObject {
 }
 
 extension ObjectBrowserNode.Row {
-    /// Extra height of a server header row over an ordinary row.
-    static let serverHeaderExtraHeight: CGFloat = SpacingTokens.xs
+    /// Extra height of a server header row over an ordinary row: its top padding and the
+    /// product line under the name (round 16).
+    static let serverHeaderExtraHeight: CGFloat = SpacingTokens.xs + SpacingTokens.sm
 
     /// Extra row-slot height for connection group headers and server-level section headings.
     var extraSlotHeight: CGFloat {
         switch self {
-        case .server, .pendingConnection: return Self.serverHeaderExtraHeight
+        case .server: return Self.serverHeaderExtraHeight
+        case .pendingConnection: return SpacingTokens.xs
         case .section: return LayoutTokens.Workspace.treeSectionTopPadding
         case .dock: return LayoutTokens.ExplorerDock.extraHeight
         default: return 0

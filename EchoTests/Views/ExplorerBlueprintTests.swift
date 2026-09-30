@@ -36,8 +36,34 @@ struct ExplorerBlueprintTests {
         ])
     }
 
-    @Test func postgresFoldersAreDatabasesAndSecurity() {
-        #expect(serverFolderKinds(.postgreSQL) == [.databases, .serverSecurity])
+    /// Round 16: PostgreSQL's server tools became sections.
+    @Test func postgresHasActivityManagementAndTablespaces() {
+        #expect(serverFolderKinds(.postgreSQL) == [.databases, .serverSecurity, .activity, .management, .tablespaces])
+    }
+
+    @Test func sqlServerDocksItsFirstFourSectionsByDefault() {
+        #expect(ExplorerBlueprint.sqlServer.dock == [.databases, .serverSecurity, .agentJobs, .management])
+        #expect(ExplorerBlueprint.postgreSQL.dock == nil)
+    }
+
+    @Test func postgresActivityToolsOpenEveryMonitorPage() throws {
+        let nodes = build(makeSession(.postgresql), ObjectBrowserSidebarViewModel())
+        let activity = try #require(nodes.first { folder($0)?.kind == .activity })
+        let pages = activity.children.compactMap { node -> PostgresActivityMonitorView.PostgresActivitySection? in
+            guard case .action(_, let kind) = node.row else { return nil }
+            return ObjectBrowserSidebarView.postgresActivityPage(for: kind)
+        }
+        #expect(pages == PostgresActivityMonitorView.PostgresActivitySection.allCases.filter { pages.contains($0) })
+        #expect(Set(pages) == Set(PostgresActivityMonitorView.PostgresActivitySection.allCases))
+    }
+
+    @Test func postgresManagementHoldsTheServerTools() throws {
+        let nodes = build(makeSession(.postgresql), ObjectBrowserSidebarViewModel())
+        let management = try #require(nodes.first { folder($0)?.kind == .management })
+        let tools: [ExplorerNodeKind] = management.children.compactMap {
+            if case .action(_, let kind) = $0.row { kind } else { nil }
+        }
+        #expect(tools == [.maintenance, .backUpServer, .backUpGlobals, .psqlConsole])
     }
 
     @Test func mySQLAndSQLiteKeepToolsUnderManagement() {
@@ -159,7 +185,7 @@ struct ExplorerBlueprintTests {
         #expect(security.children[0].children.count == 1)
     }
 
-    @Test func aLoadingFolderShowsAShimmerAfterItsTools() throws {
+    @Test func aLoadingSectionShowsASpinnerRowAfterItsTools() throws {
         let session = makeSession(.microsoftSQL)
         let viewModel = ObjectBrowserSidebarViewModel()
         viewModel.beginLoading(ExplorerSourceKey(connectionID: session.connection.id, source: .agentJobs))
@@ -168,7 +194,25 @@ struct ExplorerBlueprintTests {
         #expect(folder(jobs)?.isLoading == true)
         #expect(jobs.children.count == 2)
         if case .action(_, let kind) = jobs.children[0].row { #expect(kind == .jobQueue) } else { Issue.record("Expected the job queue tool") }
-        if case .loading = jobs.children[1].row {} else { Issue.record("Expected a loading row") }
+        if case .loading(_, .spinnerRow) = jobs.children[1].row {} else { Issue.record("Expected a spinner row") }
+    }
+
+    /// Folders first (round 16): while a server connects, its sections are there and Databases
+    /// says it is loading.
+    @Test func aConnectingServerShowsItsSectionsWithDatabasesLoading() throws {
+        let session = makeSession(.microsoftSQL)
+        session.databaseStructure = nil
+        session.structureLoadingState = .loading(progress: 0)
+        let nodes = build(session, ObjectBrowserSidebarViewModel())
+        #expect(nodes.compactMap { folder($0)?.kind } == serverFolderKinds(.sqlServer))
+        let databases = try #require(nodes.first)
+        #expect(folder(databases)?.isLoading == true)
+        #expect(folder(databases)?.count == nil)
+        if case .loading(let title, .spinnerRow) = try #require(databases.children.first).row {
+            #expect(title == "Loading databases")
+        } else {
+            Issue.record("Expected a spinner row")
+        }
     }
 
     @Test func mySQLToolsSitUnderManagement() throws {

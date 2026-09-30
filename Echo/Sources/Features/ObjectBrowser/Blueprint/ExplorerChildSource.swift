@@ -10,6 +10,7 @@ nonisolated enum ExplorerChildSource: String, Sendable, CaseIterable {
     case integrationServices
     case linkedServers
     case serverTriggers
+    case tablespaces
     case databaseSecurity
     case databaseTriggers
     case serviceBroker

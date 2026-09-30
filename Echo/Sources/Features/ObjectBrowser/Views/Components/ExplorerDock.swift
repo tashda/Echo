@@ -1,35 +1,49 @@
 import SwiftUI
 
-/// One button in a server's section dock.
+/// One section a server's dock can show.
 struct ExplorerDockItem: Identifiable, Equatable {
+    /// The section node's ID.
     let id: String
+    /// The section's kind, the same for every server of a type; what dock choices are saved as.
+    let key: String
     let title: String
     let symbol: String
     let color: Color
     let count: Int?
 }
 
-/// TC1 (design board, round 14): under each server's name, a dock of its top-level sections
-/// (Databases, Security, Agent Jobs, Management…) switches what the card shows. The first four
-/// get their own button; the rest share More. Built from the tree the blueprints made, so it
-/// knows nothing about database types.
+/// The dock's sections: the ones in the capsule, in order, and the rest, which sit under More.
+struct ExplorerDockLayout: Equatable {
+    let shown: [ExplorerDockItem]
+    let overflow: [ExplorerDockItem]
+
+    var all: [ExplorerDockItem] { shown + overflow }
+}
+
+/// TC1 and round 16: under each server's name, a dock of its top-level sections (Databases,
+/// Security, Agent Jobs, Management…) switches what the card shows. Which sections the capsule
+/// shows comes from the server's own choice, then its type's (Settings), then the blueprint;
+/// the rest are listed under More. Built from the tree the blueprints made, so it knows nothing
+/// about database types.
 @MainActor
 enum ExplorerDock {
-    static let buttonLimit = 4
-
     static func dockNodeID(_ connectionID: UUID) -> String { "dock|\(connectionID.uuidString)" }
-    static func moreItemID(_ connectionID: UUID) -> String { "dock-more|\(connectionID.uuidString)" }
 
     /// The servers' children replaced by their dock and the chosen section's contents. Servers
     /// with fewer than two sections, or sections the dock can't describe, keep their tree.
-    static func apply(to roots: [ObjectBrowserNode], selections: [UUID: String]) -> [ObjectBrowserNode] {
+    /// `savedKeys` gives a server's saved dock (its own, or its type's), nil for the default.
+    static func apply(
+        to roots: [ObjectBrowserNode],
+        selections: [UUID: String],
+        savedKeys: (ConnectionSession) -> [String]? = { _ in nil }
+    ) -> [ObjectBrowserNode] {
         roots.map { root in
             guard case .server(let session) = root.row else { return root }
             let connectionID = session.connection.id
-            guard let items = items(for: root.children, connectionID: connectionID) else { return root }
-            let selected = selectedID(in: items, saved: selections[connectionID])
-            let dock = ObjectBrowserNode(id: dockNodeID(connectionID), row: .dock(session, items, selectedID: selected))
-            return ObjectBrowserNode(id: root.id, row: root.row, children: [dock] + content(of: root, selected: selected, connectionID: connectionID))
+            guard let layout = layout(for: root.children, session: session, saved: savedKeys(session)) else { return root }
+            let selected = selectedID(in: layout.all, saved: selections[connectionID])
+            let dock = ObjectBrowserNode(id: dockNodeID(connectionID), row: .dock(session, layout, selectedID: selected))
+            return ObjectBrowserNode(id: root.id, row: root.row, children: [dock] + content(of: root, selected: selected))
         }
     }
 
@@ -38,24 +52,33 @@ enum ExplorerDock {
         return items.first?.id ?? ""
     }
 
-    static func items(for sections: [ObjectBrowserNode], connectionID: UUID) -> [ExplorerDockItem]? {
+    /// The dock for a server's sections, or nil when it keeps its tree.
+    static func layout(for sections: [ObjectBrowserNode], session: ConnectionSession, saved: [String]?) -> ExplorerDockLayout? {
         let described = sections.compactMap(describe)
         guard described.count == sections.count, described.count >= 2 else { return nil }
-        guard described.count > buttonLimit + 1 else { return described }
-        let more = ExplorerDockItem(id: moreItemID(connectionID), title: "More", symbol: "ellipsis.circle",
-                                    color: ColorTokens.Text.secondary, count: nil)
-        return Array(described.prefix(buttonLimit)) + [more]
+        let blueprintDefault = ExplorerBlueprint.blueprint(for: session.connection.databaseType).dock?.map(\.rawValue)
+        let arranged = arrange(keys: described.map(\.key), saved: saved, preferred: blueprintDefault)
+        let byKey = Dictionary(described.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
+        return ExplorerDockLayout(shown: arranged.shown.compactMap { byKey[$0] }, overflow: arranged.overflow.compactMap { byKey[$0] })
     }
 
-    /// What the card shows below the dock: a folder's contents, a single tool, or, for More,
-    /// the remaining sections as folders.
-    static func content(of server: ObjectBrowserNode, selected: String, connectionID: UUID) -> [ObjectBrowserNode] {
-        if selected == moreItemID(connectionID) { return Array(server.children.dropFirst(buttonLimit)) }
+    /// Which section keys the capsule shows, in order, and which go under More. The saved order
+    /// wins, then the blueprint's; keys neither mentions go under More, and the capsule is never
+    /// empty.
+    nonisolated static func arrange(keys: [String], saved: [String]?, preferred: [String]?) -> (shown: [String], overflow: [String]) {
+        let wanted = (saved ?? preferred)?.filter(keys.contains) ?? keys
+        let shown = wanted.isEmpty ? keys : wanted
+        return (shown, keys.filter { !shown.contains($0) })
+    }
+
+    /// What the card shows below the dock: a section's contents, or the section itself when it
+    /// is a single tool.
+    static func content(of server: ObjectBrowserNode, selected: String) -> [ObjectBrowserNode] {
         guard let section = server.children.first(where: { $0.id == selected }) else { return [] }
         return section.children.isEmpty ? [section] : section.children
     }
 
-    /// The section node a dock item stands for, if it is one (More is not).
+    /// The section node a dock item stands for.
     static func section(for itemID: String, in roots: [ObjectBrowserNode]) -> ObjectBrowserNode? {
         for root in roots {
             if let match = root.children.first(where: { $0.id == itemID }) { return match }
@@ -66,36 +89,45 @@ enum ExplorerDock {
     private static func describe(_ node: ObjectBrowserNode) -> ExplorerDockItem? {
         switch node.row {
         case .folder(let folder), .section(let folder):
-            ExplorerDockItem(id: node.id, title: folder.kind.title, symbol: folder.kind.symbol, color: folder.kind.role.color, count: folder.count)
+            ExplorerDockItem(id: node.id, key: folder.kind.rawValue, title: folder.kind.title, symbol: folder.kind.symbol,
+                             color: folder.kind.role.color, count: folder.count)
         case .action(_, let kind):
-            ExplorerDockItem(id: node.id, title: kind.title, symbol: kind.symbol, color: kind.role.color, count: nil)
+            ExplorerDockItem(id: node.id, key: kind.rawValue, title: kind.title, symbol: kind.symbol, color: kind.role.color, count: nil)
         case .database(_, let database, _):
-            ExplorerDockItem(id: node.id, title: database.name, symbol: "cylinder", color: ExplorerIconRole.database.color, count: nil)
+            ExplorerDockItem(id: node.id, key: "database:\(database.name)", title: database.name, symbol: "cylinder",
+                             color: ExplorerIconRole.database.color, count: nil)
         default:
             nil
         }
     }
 }
 
-struct SelectExplorerDockSectionKey: EnvironmentKey {
-    static let defaultValue: @MainActor (UUID, String) -> Void = { _, _ in }
+/// What the dock's buttons and menus call back into the Explorer with.
+struct ExplorerDockActions {
+    /// Chooses a section: the server's connection and the item's ID.
+    var select: @MainActor (UUID, String) -> Void = { _, _ in }
+    /// The right-click menu for one section's icon, or for the capsule when the item is nil.
+    var menu: @MainActor (UUID, String?) -> NSMenu = { _, _ in NSMenu() }
 }
 
 extension EnvironmentValues {
-    /// Chooses a dock section: the server's connection and the item's ID.
-    var selectExplorerDockSection: @MainActor (UUID, String) -> Void {
-        get { self[SelectExplorerDockSectionKey.self] }
-        set { self[SelectExplorerDockSectionKey.self] = newValue }
-    }
+    @Entry var explorerDockActions = ExplorerDockActions()
 }
 
 extension LayoutTokens {
     /// The section dock under a server's name (Design/05-components › Explorer tree).
     enum ExplorerDock {
+        /// The dock row's slot over an ordinary row: room for the capsule's edge and shadow.
         static let extraHeight: CGFloat = SpacingTokens.xs
-        static let buttonHeight: CGFloat = 30
-        static let buttonCornerRadius: CGFloat = SpacingTokens.xs
-        /// How far the pinned blur fades out below the dock, so it has no hard edge.
-        static let blurFadeHeight: CGFloat = SpacingTokens.sm
+
+        /// The capsule's height, following the sidebar size.
+        static func capsuleHeight(for density: SidebarDensity) -> CGFloat {
+            switch density {
+            case .compact: SpacingTokens.md2 + SpacingTokens.xxxs
+            case .small: SpacingTokens.lg
+            case .medium: SpacingTokens.lg + SpacingTokens.xxs
+            case .large: SpacingTokens.xl
+            }
+        }
     }
 }

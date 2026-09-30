@@ -39,6 +39,7 @@ struct SyncAdapter: Sendable {
         fields["queryTimeout"] = try field(connection.queryTimeout, hlc: hlc)
         fields["databaseType"] = try field(connection.databaseType, hlc: hlc)
         fields["colorHex"] = try field(connection.colorHex, hlc: hlc)
+        fields["explorerDockSections"] = try field(connection.explorerDockSections, hlc: hlc)
 
         // Excluded from sync (Phase 2): keychainIdentifier, logo, cachedStructure,
         // cachedStructureUpdatedAt, serverVersion — these are local-only.
@@ -86,6 +87,7 @@ struct SyncAdapter: Sendable {
         if let v: TimeInterval = try value(doc, "queryTimeout") { conn.queryTimeout = v }
         if let v: DatabaseType = try value(doc, "databaseType") { conn.databaseType = v }
         if let v: String = try value(doc, "colorHex") { conn.colorHex = v }
+        if let v: [String]? = try optionalValue(doc, "explorerDockSections") { conn.explorerDockSections = v }
 
         return conn
     }

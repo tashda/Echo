@@ -36,7 +36,11 @@ struct ObjectBrowserSidebarView: View {
             selectedConnectionID: selectedConnectionID
         )
         // TC1: each server shows its dock and the chosen section.
-        let roots = ExplorerDock.apply(to: builtRoots, selections: viewModel.dockSelections(for: sessions.map(\.connection.id)))
+        let roots = ExplorerDock.apply(
+            to: builtRoots,
+            selections: viewModel.dockSelections(for: sessions.map(\.connection.id)),
+            savedKeys: savedDockKeys(for:)
+        )
 
         let mainContent = Group {
             if sessions.isEmpty && pendingConnections.isEmpty {
@@ -86,9 +90,7 @@ struct ObjectBrowserSidebarView: View {
                             .environment(environmentState)
                             .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
                             .environment(\.sidebarUsesDuotoneIcons, projectStore.globalSettings.sidebarIconColorMode == .colorful)
-                            .environment(\.selectExplorerDockSection) { connectionID, itemID in
-                                selectDockSection(itemID, connectionID: connectionID, builtRoots: builtRoots)
-                            }
+                            .environment(\.explorerDockActions, dockActions(builtRoots: builtRoots))
                         )
                     },
                     onExpansionChanged: { node, isExpanded in
@@ -149,7 +151,7 @@ struct ObjectBrowserSidebarView: View {
             revealConnection(connectionID)
         }
 
-        let withSheets = applySheets(to: mainContent)
+        let withSheets = applyServerToolSheets(to: applySheets(to: mainContent))
         let withAlerts = applyAlerts(to: withSheets)
         withAlerts
     }
@@ -337,7 +339,7 @@ struct ObjectBrowserSidebarView: View {
         case .jobQueue:
             environmentState.openJobQueueTab(for: session)
         default:
-            break
+            performServerTool(action, session: session)
         }
     }
 

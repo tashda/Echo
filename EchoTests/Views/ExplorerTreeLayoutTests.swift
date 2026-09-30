@@ -26,12 +26,19 @@ struct ExplorerTreeLayoutTests {
         #expect(layout.contentHeight == 49 + LayoutTokens.Workspace.treeCardBottomPadding)
     }
 
-    @Test func loadingRowReservesRoomForItsShimmerRows() {
-        let loading = ObjectBrowserNode(id: "loading", row: .loading("Loading objects"))
+    @Test func skeletonRowReservesRoomForItsPlaceholderRows() {
+        let loading = ObjectBrowserNode(id: "loading", row: .loading("Loading objects", style: .skeleton))
         let layout = ExplorerTreeLayout(roots: [leaf("a"), loading, leaf("b")], expandedNodeIDs: [], baseRowHeight: base)
-        let shimmerHeight = base * CGFloat(LayoutTokens.Shimmer.explorerRowCount)
-        #expect(layout.rows[1].height == shimmerHeight)
-        #expect(layout.rows[2].minY == base + shimmerHeight)
+        let skeletonHeight = base * CGFloat(LayoutTokens.Shimmer.explorerRowCount)
+        #expect(layout.rows[1].height == skeletonHeight)
+        #expect(layout.rows[2].minY == base + skeletonHeight)
+    }
+
+    @Test func spinnerRowTakesOneRow() {
+        let loading = ObjectBrowserNode(id: "loading", row: .loading("Loading databases", style: .spinnerRow))
+        let layout = ExplorerTreeLayout(roots: [leaf("a"), loading, leaf("b")], expandedNodeIDs: [], baseRowHeight: base)
+        #expect(layout.rows[1].height == base)
+        #expect(layout.rows[2].minY == base * 2)
     }
 
     @Test func spacersSplitCards() {

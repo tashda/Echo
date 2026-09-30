@@ -4,12 +4,23 @@ import SwiftUI
 /// sections under it (Databases, Security, Agent Jobs…), drawn as Finder-style headings whose
 /// children start at the card's left edge.
 extension ObjectBrowserRowView {
+    /// The server's name, bold and sized by the sidebar size, with its product and release under
+    /// it (round 16; the full build is in the tooltip).
     func connectionSectionHeader(session: ConnectionSession, showsDisclosure: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: SidebarRowConstants.iconTextSpacing) {
-            Text(serverDisplayName(session))
-                .font(SidebarRowConstants.serverHeaderFont)
-                .foregroundStyle(ColorTokens.Text.primary)
+        HStack(alignment: .top, spacing: SidebarRowConstants.iconTextSpacing) {
+            VStack(alignment: .leading, spacing: SpacingTokens.micro) {
+                Text(serverDisplayName(session))
+                    .font(serverNameFont)
+                    .foregroundStyle(ColorTokens.Text.primary)
+                    .lineLimit(1)
+                Text(ServerProductLabel.label(
+                    rawVersion: session.databaseStructure?.serverVersion ?? session.connection.serverVersion,
+                    databaseType: session.connection.databaseType
+                ))
+                .font(SidebarRowConstants.trailingFont)
+                .foregroundStyle(ColorTokens.Text.tertiary)
                 .lineLimit(1)
+            }
 
             Spacer(minLength: SpacingTokens.xxs)
 
@@ -19,11 +30,6 @@ extension ObjectBrowserRowView {
             } else if case .testing = session.connectionState {
                 ProgressView()
                     .controlSize(.mini)
-            } else if let product = serverProductLabel(session) {
-                Text(product)
-                    .font(SidebarRowConstants.trailingFont)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .lineLimit(1)
             }
 
             if showsDisclosure {
@@ -33,10 +39,19 @@ extension ObjectBrowserRowView {
         .padding(.leading, SpacingTokens.sm)
         .padding(.trailing, SidebarRowConstants.rowTrailingPadding + SidebarRowConstants.rowOuterHorizontalPadding)
         .padding(.top, SpacingTokens.sm)
-        .padding(.bottom, SpacingTokens.xxxs)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .contentShape(Rectangle())
         .onHover { isHeaderHovering = $0 }
+    }
+
+    /// Bold, one step with the sidebar size: 13pt at the default size.
+    private var serverNameFont: Font {
+        switch projectStore.globalSettings.sidebarDensity {
+        case .compact: TypographyTokens.detail.weight(.bold)
+        case .small: TypographyTokens.caption2.weight(.bold)
+        case .medium: TypographyTokens.standard.weight(.bold)
+        case .large: TypographyTokens.prominent.weight(.bold)
+        }
     }
 
     /// A server-level folder as a heading: small semibold grey title, its count, and a chevron at

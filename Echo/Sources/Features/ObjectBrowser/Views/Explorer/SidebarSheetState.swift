@@ -44,6 +44,10 @@ final class SidebarSheetState {
     var showPgRestoreSheet = false
     var pgBackupDatabaseName: String?
     var pgBackupConnectionID: UUID?
+    /// Back Up Server or Back Up Globals from the PostgreSQL Management section (round 16).
+    var pgServerBackup: PgServerBackupRequest?
+    /// Customize Dock for one server's section dock (round 16).
+    var dockCustomization: ExplorerDockCustomization?
 
     // MARK: - MySQL Backup/Restore
 

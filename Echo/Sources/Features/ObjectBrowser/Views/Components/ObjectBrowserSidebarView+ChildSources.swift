@@ -24,6 +24,8 @@ extension ObjectBrowserSidebarView {
             loadLinkedServers(session: session)
         case .serverTriggers:
             loadServerTriggers(session: session)
+        case .tablespaces:
+            loadTablespaces(session: session)
         case .databaseSecurity, .databaseTriggers, .serviceBroker, .externalResources:
             guard let database = session.databaseStructure?.databases.first(where: { $0.name == key.databaseName }) else { return }
             switch key.source {

@@ -17,25 +17,15 @@ struct ObjectBrowserRowView: View {
     @Environment(ProjectStore.self) var projectStore
     @Environment(EnvironmentState.self) var environmentState
     @State var isHeaderHovering = false
-    @Environment(\.selectExplorerDockSection) private var selectDockSection
 
     var depth: Int {
         max(0, outlineLevel)
     }
 
-    /// Headings sit on the card's edge; ordinary rows pull left to line their chevrons up with it.
-    private var leadingAlignmentCompensation: CGFloat {
-        switch node.row {
-        case .topSpacer, .server, .pendingConnection, .section, .dock:
-            0
-        default:
-            -(SidebarRowConstants.rowOuterHorizontalPadding + SpacingTokens.xxxs)
-        }
-    }
-
     var body: some View {
+        // Rows are inset equally on both sides (round 16): the 8pt pull to the left, left over
+        // from S1's chevron column, made the selection touch the card's left edge only.
         rowBody
-            .padding(.leading, leadingAlignmentCompensation)
             .overlay {
                 if shouldShowHighlightOverlay {
                     StatusWaveOverlay(
@@ -47,7 +37,13 @@ struct ObjectBrowserRowView: View {
                     .allowsHitTesting(false)
                 }
             }
-            .modifier(RowLazyContextMenu(menuBuilder: contextMenuBuilder))
+            // The dock gives each icon its own menu; a row-wide one would cover them.
+            .modifier(RowLazyContextMenu(menuBuilder: isDock ? nil : contextMenuBuilder))
+    }
+
+    private var isDock: Bool {
+        if case .dock = node.row { return true }
+        return false
     }
 
     private var shouldShowHighlightOverlay: Bool {
@@ -93,20 +89,27 @@ struct ObjectBrowserRowView: View {
                 labelColor: ColorTokens.Text.secondary,
                 labelFont: TypographyTokens.detail
             )
-        case .loading(let title):
-            // Shimmer rows at the child indent (plan T4); the real rows crossfade in over them.
-            ShimmerPlaceholderRows(
+        case .loading(let title, .spinnerRow):
+            SidebarSpinnerRow(depth: depth, title: title)
+        case .loading(let title, .skeleton):
+            // Skeleton rows at the child indent (round 16); the real rows fade in over them.
+            SkeletonPlaceholderRows(
                 count: LayoutTokens.Shimmer.explorerRowCount,
                 rowHeight: ObjectBrowserOutlineView.baseRowHeight(for: projectStore.globalSettings.sidebarDensity),
                 leadingInset: CGFloat(depth) * SidebarRowConstants.indentStep
-                    + SidebarRowConstants.chevronWidth
+                    + SidebarRowConstants.rowOuterHorizontalPadding
                     + SidebarRowConstants.rowLeadingPadding,
                 accessibilityLabel: title
             )
-        case .dock(let session, let items, let selectedID):
-            ExplorerDockRow(items: items, selectedID: selectedID, iconColor: explorerIconColor) { itemID in
-                selectDockSection(session.connection.id, itemID)
-            }
+        case .dock(let session, let layout, let selectedID):
+            ExplorerDockRow(
+                connectionID: session.connection.id,
+                layout: layout,
+                selectedID: selectedID,
+                style: projectStore.globalSettings.sidebarDockIconStyle,
+                accentColor: resolvedAccentColor(for: session.connection),
+                duotoneColor: { $0.mix(with: ColorTokens.Text.secondary, by: ColorTokens.Explorer.colorfulSoftening) }
+            )
         case .message(let title, let systemImage):
             SidebarRow(
                 depth: depth,

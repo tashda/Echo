@@ -9,10 +9,15 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
     case serverSecurity
     case logins, certificateLogins, serverRoles, credentials, loginRoles, groupRoles
     case databaseSnapshots, agentJobs, management, integrationServices, linkedServers, serverTriggers
+    case activity, tablespaces
 
     // Tools
     case maintenance, serverProperties, activityMonitor, extendedEvents, databaseMail, sqlProfiler
     case resourceGovernor, tuningAdvisor, policyManagement, sqlServerLogs, jobQueue
+    case backUpServer, backUpGlobals, psqlConsole
+    // PostgreSQL Activity Monitor pages, each a tool that opens the monitor on that page
+    case pgSessions, pgLocks, pgDatabaseStatistics, pgOperations, pgQueries, pgReplication
+    case pgIOStatistics, pgWAL, pgBackgroundWriter, pgPreparedTransactions, pgConfiguration
 
     // Database-level folders
     case tables, views, materializedViews, functions, procedures, triggers, sequences, types, extensions, synonyms
@@ -24,6 +29,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
     // Loaded items
     case login, serverRole, credential, databaseSnapshot, agentJob, ssisFolder, linkedServer, serverTrigger
     case user, databaseRole, applicationRole, schema, databaseTrigger, brokerObject, externalObject
+    case tablespace
 
     var title: String {
         if let objectType { return objectType.pluralDisplayName }
@@ -53,6 +59,23 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .policyManagement: return "Policy Management"
         case .sqlServerLogs: return "SQL Server Logs"
         case .jobQueue: return "Agent Jobs Overview"
+        case .activity: return "Activity"
+        case .tablespaces: return "Tablespaces"
+        case .tablespace: return "Tablespace"
+        case .backUpServer: return "Back Up Server"
+        case .backUpGlobals: return "Back Up Globals"
+        case .psqlConsole: return "PSQL Console"
+        case .pgSessions: return "Sessions"
+        case .pgLocks: return "Locks"
+        case .pgDatabaseStatistics: return "Database Statistics"
+        case .pgOperations: return "Operations"
+        case .pgQueries: return "Queries"
+        case .pgReplication: return "Replication"
+        case .pgIOStatistics: return "I/O Statistics"
+        case .pgWAL: return "WAL"
+        case .pgBackgroundWriter: return "Background Writer"
+        case .pgPreparedTransactions: return "Prepared Transactions"
+        case .pgConfiguration: return "Configuration"
         case .users: return "Users"
         case .databaseRoles: return "Database Roles"
         case .applicationRoles: return "Application Roles"
@@ -109,6 +132,22 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .serverTriggers: return "bolt.badge.clock"
         case .serverTrigger, .databaseTrigger: return "bolt"
         case .maintenance: return "wrench.and.screwdriver"
+        case .activity: return "gauge.high"
+        case .tablespaces, .tablespace: return "square.stack.3d.up"
+        case .backUpServer: return "externaldrive.badge.timemachine"
+        case .backUpGlobals: return "globe"
+        case .psqlConsole: return "terminal"
+        case .pgSessions: return "person.2.wave.2"
+        case .pgLocks: return "lock"
+        case .pgDatabaseStatistics: return "cylinder"
+        case .pgOperations: return "hourglass"
+        case .pgQueries: return "text.magnifyingglass"
+        case .pgReplication: return "arrow.triangle.2.circlepath"
+        case .pgIOStatistics: return "internaldrive"
+        case .pgWAL: return "doc.on.doc"
+        case .pgBackgroundWriter: return "square.and.pencil"
+        case .pgPreparedTransactions: return "checklist"
+        case .pgConfiguration: return "slider.horizontal.3"
         case .serverProperties: return "gearshape.2"
         case .activityMonitor: return "gauge.high"
         case .extendedEvents, .jobQueue: return "list.bullet.rectangle"
@@ -143,7 +182,10 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .sequences: .sequences
         case .types: .types
         case .extensions: .extensions
-        case .synonyms, .maintenance, .serverProperties: .neutral
+        case .synonyms, .maintenance, .serverProperties, .backUpServer, .backUpGlobals, .psqlConsole: .neutral
+        case .activity, .pgSessions, .pgLocks, .pgDatabaseStatistics, .pgOperations, .pgQueries, .pgReplication,
+             .pgIOStatistics, .pgWAL, .pgBackgroundWriter, .pgPreparedTransactions, .pgConfiguration: .activityMonitor
+        case .tablespaces, .tablespace: .extensions
         case .serverSecurity, .databaseSecurity: .security
         case .logins, .certificateLogins, .loginRoles, .login: .logins
         case .groupRoles, .databaseRoles, .applicationRoles, .schemas, .databaseRole, .applicationRole, .schema: .roles
@@ -213,6 +255,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .integrationServices: .ssisFolder
         case .linkedServers: .linkedServer
         case .serverTriggers: .serverTrigger
+        case .tablespaces: .tablespace
         case .users: .user
         case .databaseRoles: .databaseRole
         case .applicationRoles: .applicationRole

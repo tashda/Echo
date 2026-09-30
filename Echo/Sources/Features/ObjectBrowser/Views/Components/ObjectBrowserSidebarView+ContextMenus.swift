@@ -43,7 +43,8 @@ extension ObjectBrowserSidebarView {
         case .logins, .certificateLogins, .serverRoles, .credentials, .loginRoles, .groupRoles:
             return securitySectionMenu(kind: folder.kind, session: session)
         default:
-            return serverFolderMenu(kind: folder.kind, session: session)
+            return postgresServerSectionMenu(kind: folder.kind, session: session)
+                ?? serverFolderMenu(kind: folder.kind, session: session)
         }
     }
 

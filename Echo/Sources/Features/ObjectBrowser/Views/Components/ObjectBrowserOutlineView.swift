@@ -54,6 +54,10 @@ struct ObjectBrowserOutlineView: View {
         let baseRowHeight = Self.baseRowHeight(for: density)
         let layout = ExplorerTreeLayout(roots: roots, expandedNodeIDs: expandedNodeIDs, baseRowHeight: baseRowHeight)
         let rowIDs = layout.rows.map(\.id)
+        let dockSelections = layout.rows.compactMap { row -> String? in
+            if case .dock(_, _, let selectedID) = row.node.row { return selectedID }
+            return nil
+        }
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         ScrollView(.vertical) {
@@ -64,15 +68,18 @@ struct ObjectBrowserOutlineView: View {
                         rows(group.rows)
                     } else {
                         Section {
-                            rows(group.rows)
+                            rows(group.rows, underHeaderOf: group.header.reduce(SpacingTokens.none) { $0 + $1.height })
                         } header: {
                             VStack(spacing: SpacingTokens.none) { rows(group.header) }
-                                .background { ExplorerPinnedHeaderBlur(restingMinY: group.header[0].minY, scroll: scroll) }
+                                .background { ExplorerPinnedHeaderWash(restingMinY: group.header[0].minY, scroll: scroll) }
                         }
                     }
                 }
             }
             .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
+            // A dock switch settles without overshoot (round 16); it is the inner modifier, so it
+            // wins over `expand` when both change.
+            .animation(motion.settle, value: dockSelections)
             .animation(motion.expand, value: rowIDs)
         }
         .scrollPosition($position)
@@ -99,6 +106,7 @@ struct ObjectBrowserOutlineView: View {
         // window) taller than its space.
         .background(alignment: .top) {
             ExplorerTreeCardsLayer(cards: layout.cards, scroll: scroll)
+                .animation(motion.settle, value: dockSelections)
                 .animation(motion.expand, value: rowIDs)
         }
         .frame(minHeight: SpacingTokens.none)
@@ -114,13 +122,16 @@ struct ObjectBrowserOutlineView: View {
         }
     }
 
-    private func rows(_ rows: [ExplorerTreeLayout.Row]) -> some View {
+    /// Rows fade in and out while the rows below them move (round 16): a dock switch crossfades
+    /// the card's contents, and a folder opening pushes its neighbours down.
+    private func rows(_ rows: [ExplorerTreeLayout.Row], underHeaderOf headerHeight: CGFloat = 0) -> some View {
         ForEach(rows) { row in
             let node = row.node
             rowContent(node, expandedNodeIDs.contains(node.id), row.depth, 0, { activate(node) })
                 .frame(maxWidth: .infinity)
                 .frame(height: row.height)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .modifier(ExplorerRowEdgeBlur(headerHeight: headerHeight))
+                .transition(.opacity)
         }
     }
 
@@ -168,52 +179,5 @@ struct ObjectBrowserOutlineView: View {
         Task { @MainActor in
             onTopVisibleContextChanged(context)
         }
-    }
-}
-
-/// Scroll position and viewport size, read only by the cards layer so scrolling never
-/// re-renders the rows.
-@Observable @MainActor
-final class ExplorerTreeScrollState {
-    var offset: CGFloat = 0
-    var viewportHeight: CGFloat = 0
-    /// Width of the rows, which is narrower than the tree when scroll bars are always shown.
-    var contentWidth: CGFloat = 0
-    @ObservationIgnored var lastReportedContext: ObjectBrowserTopVisibleContext?
-    @ObservationIgnored var lastReportedTopRowID: String?
-}
-
-struct ExplorerTreeScrollMetrics: Equatable {
-    var offset: CGFloat
-    var viewportHeight: CGFloat
-    var contentWidth: CGFloat
-}
-
-/// One card per server behind the rows, each cut to the visible part of the tree. The cards use
-/// the editor card's modifier, so they match it exactly (tokens, corners setting, shadow, edge).
-struct ExplorerTreeCardsLayer: View {
-    let cards: [ExplorerTreeLayout.Card]
-    let scroll: ExplorerTreeScrollState
-
-    var body: some View {
-        let offset = scroll.offset
-        let viewport = scroll.viewportHeight
-
-        ZStack(alignment: .top) {
-            ForEach(cards) { card in
-                let top = max(card.minY - offset, 0)
-                let bottom = min(card.minY + card.height - offset, viewport)
-                if bottom - top > SpacingTokens.micro {
-                    Color.clear
-                        .frame(maxWidth: .infinity)
-                        .frame(height: bottom - top)
-                        .workspaceCard()
-                        .offset(y: top)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }
