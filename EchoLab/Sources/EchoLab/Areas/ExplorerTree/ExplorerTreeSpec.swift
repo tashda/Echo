@@ -7,9 +7,12 @@ import SwiftUI
 enum ExplorerTreeSpec {
     private static let rows = "Echo/Sources/Shared/DesignSystem/Components/SidebarRow.swift"
     private static let constants = "Echo/Sources/Features/ObjectBrowser/Views/Components/ExplorerRowModels.swift"
-    private static let dock = "Echo/Sources/Features/ObjectBrowser/Views/Components/ExplorerDock"
+    private static let components = "Echo/Sources/Features/ObjectBrowser/Views/Components/"
     private static let round14 = "ported.Round 14 · section dock"
     private static let round16 = "ongoing.server-card-r16"
+    private static let r19Switching = "ongoing.section-dock-switching-r19"
+    private static let r19Capsule = "ongoing.section-dock-capsule-r19"
+    private static let r19Sections = "ongoing.section-dock-sections-r19"
 
     static func spec(settings: ExplorerTreeSpecimenSettings) -> AreaSpec {
         AreaSpec(code: "TREE", stageHeight: 400, parts: parts) { ExplorerTreeSpecimen(settings: settings) }
@@ -28,8 +31,9 @@ enum ExplorerTreeSpec {
                         .row("Width", "260pt ideal, 200 to 480", token: "LayoutTokens.Workspace.treeIdealWidth / Min / Max")),
             ], rounds: ["decided.window-canvas-and-cards"], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ExplorerTreeCardsLayer.swift"]),
             SpecElement(number: "1.2", name: "One card per server", summary: "Servers are never merged into one list; a server's card is as tall as its rows.", groups: [
-                .behaviour(.row("Rail", "Clicking a server in the rail jumps to its card; the rail marks the card at the top while you scroll")),
-            ], rounds: ["decided.rail-servers"], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ExplorerTreeLayout.swift"]),
+                .behaviour(.row("Rail", "Clicking a server in the rail jumps to its card; the rail marks the card at the top while you scroll"),
+                           .row("Holding view (N2)", "when a card gets shorter, a spacer under the last card keeps the bottom where it was, so the cards above don't move; it gives the room back as you scroll up and can't be stretched by overscrolling", token: "ExplorerTreeHold.spacerHeight")),
+            ], rounds: ["decided.rail-servers", r19Switching], files: [components + "ExplorerTreeLayout.swift", components + "ExplorerTreeScrollState.swift"]),
         ]),
         SpecPart(number: "2", name: "Header", summary: "The server's name and version at the top of its card.", elements: [
             SpecElement(number: "2.1", name: "Server name", summary: "Bold, at the top left of the card, sized by the sidebar size.", groups: [
@@ -38,10 +42,11 @@ enum ExplorerTreeSpec {
                 .layout(.row("Padding", "12pt leading and top", token: "SpacingTokens.sm"), .row("Trailing", "8pt + 6pt")),
                 .states(.row("Connecting or testing", "a mini spinner at the trailing edge")),
             ], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserRowView+Headers.swift"]),
-            SpecElement(number: "2.2", name: "Version", summary: "The product and release under the name; the full build is in the tooltip.", groups: [
+            SpecElement(number: "2.2", name: "Product line", summary: "The product and release under the name, then the dock's current section (round 19).", groups: [
                 .type(.row("Font", "detail 11pt, monospaced digits", token: "SidebarRowConstants.trailingFont"), .row("Colour", "tertiary"), .row("Lines", "1")),
                 .layout(.row("Gap to the name", "1pt", token: "SpacingTokens.micro")),
-                .behaviour(.row("Text", "product and release, for example SQL Server 2022", token: "ServerProductLabel.label")),
+                .behaviour(.row("Text", "product and release, then · and the current section: SQL Server 2022 · Security", token: "ServerProductLabel.label / productLine"),
+                           .row("Tooltip", "the full build")),
             ], rounds: [round16], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserRowView+Headers.swift"]),
             SpecElement(number: "2.3", name: "Pinned header", summary: "The name and dock stay at the top while rows scroll under them.", groups: [
                 .material(.row("At rest", "nothing behind it"),
@@ -49,46 +54,59 @@ enum ExplorerTreeSpec {
                           .row("Rows", "blur and fade as they pass under it", token: "ExplorerRowEdgeBlur")),
                 .motion(.row("Wash in", "ease out, 0.12s")),
                 .behaviour(.row("No line and no grey material", "the soft blur is the only edge")),
-            ], rounds: ["decided.tree-sticky-header", round16], files: [dock + "../ExplorerPinnedHeaderWash.swift"]),
+            ], rounds: ["decided.tree-sticky-header", round16], files: [components + "ExplorerPinnedHeaderWash.swift"]),
         ]),
         SpecPart(number: "3", name: "Dock", summary: "The section icons under the server's name.", elements: [
-            SpecElement(number: "3.1", name: "Capsule", summary: "A Liquid Glass capsule as wide as the card. The only glass in the card.", groups: [
-                .material(.row("Glass", "Liquid Glass, regular, capsule")),
+            SpecElement(number: "3.1", name: "Capsule", summary: "A Liquid Glass capsule as wide as the card, with a hairline edge and a soft shadow (C5). The only glass in the card.", groups: [
+                .material(.row("Glass", "Liquid Glass, regular, capsule"),
+                          .row("Edge", "the card edge's colour at 80%, 0.5pt", token: "LayoutTokens.ExplorerDock.edgeOpacity"),
+                          .row("Shadow", "black 8%, radius 4, y 1", token: "LayoutTokens.ExplorerDock.shadowOpacity")),
                 .layout(.row("Height", "compact 22 · small 24 · medium 28 · large 32pt", token: "LayoutTokens.ExplorerDock.capsuleHeight(for:)"),
                         .row("Inner padding", "6pt horizontal", token: "SpacingTokens.xxs2"),
                         .row("Outer padding", "6pt", token: "SidebarRowConstants.rowOuterHorizontalPadding"),
                         .row("Row slot", "an ordinary row plus 8pt", token: "LayoutTokens.ExplorerDock.extraHeight")),
-            ], rounds: [round16, round14], files: [dock + "Row.swift"]),
+            ], rounds: [round16, round14, r19Capsule], files: [components + "ExplorerDockRow.swift"]),
             SpecElement(number: "3.2", name: "Current section icon", summary: "The section shown, in the accent colour. It has no fill.", groups: [
-                .type(.row("Symbol", "regular; medium 14pt (compact 11, small 10, large about 20)", token: "ExplorerDockRow.iconFont")),
+                .type(.row("Symbol", "medium weight; 14pt at the default size (compact 11, small 10, large: display medium)", token: "ExplorerDockRow.iconFont")),
                 .states(.row("Colour", "accent", token: "ColorTokens.accent"), .row("Fill", "none")),
                 .layout(.row("Slot", "equal share of the capsule, as tall as the capsule"), .row("Hit area", "the whole slot")),
-            ], rounds: [round16], files: [dock + "Row.swift"]),
+            ], rounds: [round16], files: [components + "ExplorerDockRow.swift"]),
             SpecElement(number: "3.3", name: "Other section icons", summary: "Duotone in the tree's colours; grey when the icon setting is mono.", groups: [
                 .material(.row("Duotone", "outline in the role colour over its fill variant at 22%", token: "SidebarDuotoneSymbols.fillOpacity"),
                           .row("Mono", "grey", token: "ColorTokens.Sidebar.symbol")),
                 .behaviour(.row("Tooltip", "Title · count")),
-            ], rounds: ["ported.Round 14 · section dock"], files: [dock + "Row.swift"]),
-            SpecElement(number: "3.4", name: "More", summary: "Sections left out of the capsule sit under a » menu.", groups: [
-                .type(.row("Glyph", "chevron.right.2, semibold, dock icon size")),
-                .states(.row("A left-out section is shown", "accent"), .row("Otherwise", "secondary")),
-                .behaviour(.row("Menu", "one item per left-out section, with its icon"), .row("Tooltip", "More sections"),
+                .motion(.row("Hover", "an icon that isn't the current one grows 12%", token: "LayoutTokens.ExplorerDock.hoverScale / echoMotion.hover")),
+            ], rounds: ["ported.Round 14 · section dock", r19Capsule], files: [components + "ExplorerDockRow.swift"]),
+            SpecElement(number: "3.4", name: "More", summary: "Sections left out of the capsule are the » section, listed as ordinary folders (round 19).", groups: [
+                .type(.row("Glyph", "chevron.right.2 at the dock icon size and weight")),
+                .states(.row("More is showing", "accent"), .row("Otherwise", "secondary")),
+                .behaviour(.row("Click", "shows the left-out sections as folders you can open and right-click, like any other section"), .row("Tooltip", "More sections"),
                            .row("Shown", "only when a section is left out")),
-                .layout(.row("Slot", "at least as wide as the capsule is tall")),
-            ], rounds: [round16], files: [dock + "Row.swift"]),
-            SpecElement(number: "3.5", name: "Which sections show", summary: "The server's own choice, then its type's setting, then the blueprint's.", groups: [
+            ], rounds: [round16, r19Sections], files: [components + "ExplorerDockRow.swift"]),
+            SpecElement(number: "3.5", name: "Which sections show", summary: "The server's own choice, then its type's setting, then the blueprint's; at most five.", groups: [
                 .behaviour(.row("Order", "saved order wins, then the blueprint's; keys neither names go under More"),
+                           .row("Capsule limit", "five sections; the rest go under More", token: "ExplorerDock.capsuleLimit"),
                            .row("Never empty", "if nothing matches, all sections show"),
                            .row("No dock", "a server with fewer than two sections, or sections the dock can't describe, keeps its plain tree")),
-            ], rounds: [round16], files: [dock + ".swift", "Echo/Sources/Features/ObjectBrowser/Blueprint/"]),
+            ], rounds: [round16, r19Sections], files: [components + "ExplorerDock.swift", "Echo/Sources/Features/ObjectBrowser/Blueprint/"]),
             SpecElement(number: "3.6", name: "Dock menus", summary: "Right-click the dock.", groups: [
                 .behaviour(.row("On an icon", "that section's menu and Dock"), .row("On the empty capsule", "Dock alone"),
                            .row("Dock", "opens the customising sheet (order, which sections show, per server or per type)")),
-            ], rounds: [round16], files: [dock + "CustomizationSheet.swift"]),
-            SpecElement(number: "3.7", name: "Switching sections", summary: "Each section keeps its scroll position and open folders.", groups: [
-                .motion(.row("Curve", "house spring, bounce 0.08", token: "echoMotion.standard"), .row("Duration", "0.45s"),
-                        .row("Content", "8pt slide and fade")),
-            ], rounds: ["ported.Round 14 · section dock", round16], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarViewModel+Dock.swift"]),
+            ], rounds: [round16], files: [components + "ExplorerDockCustomizationSheet.swift"]),
+            SpecElement(number: "3.7", name: "Switching sections", summary: "The rows fade out, swap and fade in while the card's edge settles (S3).", groups: [
+                .motion(.row("Fade out", "ease in, 0.08s", token: "ObjectBrowserSidebarView.dockFadeOutDuration"),
+                        .row("Fade in", "ease out, 0.18s", token: "dockFadeInDuration"),
+                        .row("Scaled by", "the Motion speed setting", token: "motion.durationScale"),
+                        .row("Card edge", "settles as the section changes, without overshoot")),
+                .behaviour(.row("Position", "each section keeps its scroll position and open folders; the view jumps, unanimated, to where the section was left"),
+                           .row("A section not shown before", "doesn't scroll"), .row("While fading", "another click is ignored")),
+            ], rounds: ["ported.Round 14 · section dock", round16, r19Switching], files: [components + "ObjectBrowserSidebarView+Dock.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarViewModel+Dock.swift"]),
+            SpecElement(number: "3.8", name: "SQL Server's five sections", summary: "Grouped as SSMS groups them (round 19).", groups: [
+                .behaviour(.row("Databases", "the databases, with Database Snapshots at the end"), .row("Security", "Logins, Server Roles, Credentials"),
+                           .row("Server Objects", "Linked Servers, Server Triggers"), .row("Agent Jobs", "Job Queue and the jobs"),
+                           .row("Management", "Extended Events, Database Mail, SQL Profiler, Resource Governor, Tuning Advisor, Policy Management, Activity Monitor, SQL Server Logs, Integration Services"),
+                           .row("Other engines", "no blueprint has more than five sections")),
+            ], rounds: [r19Sections], files: ["Echo/Sources/Features/ObjectBrowser/Blueprint/ExplorerBlueprint+SQLServer.swift"]),
         ]),
         SpecPart(number: "4", name: "Rows", summary: "Quiet rows: one icon slot, one label, an optional count.", elements: [
             SpecElement(number: "4.1", name: "Row", summary: "The shape every row shares (S4 Quiet).", groups: [

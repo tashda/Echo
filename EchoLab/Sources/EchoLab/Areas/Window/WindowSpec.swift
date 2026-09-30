@@ -6,7 +6,7 @@ import SwiftUI
 enum WindowSpec {
     private static let workspace = "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceView.swift"
     private static let rail = "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail.swift"
-    private static let tokens = "Packages/EchoDesignSystem/.../LayoutToken.swift"
+    private static let tokens = "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken.swift"
     private static let canvasRound = "decided.window-canvas-and-cards"
     private static let railRound = "decided.rail-servers"
 

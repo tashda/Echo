@@ -48,7 +48,7 @@ enum InspectorArea {
             code: [
                 "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceView.swift",
                 "Echo/Sources/Shared/DesignSystem/Components/InspectorSection.swift",
-                "Packages/EchoDesignSystem/.../LayoutToken+Inspector.swift",
+                "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken+Inspector.swift",
             ]
         ) {
             LabInspectorColumn(look: .groupedBoxes)

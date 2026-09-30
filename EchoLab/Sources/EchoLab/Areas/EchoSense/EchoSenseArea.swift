@@ -11,15 +11,19 @@ enum EchoSenseArea {
         summary: "A card of rows with a kind badge, the name in the editor's font with your letters highlighted, and a footer that explains the selected row.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "a24192df", date: "2026-09-30",
-                note: "Written from the decision log; the specimen is Round 14's popup in a small editor. Ghost text is a setting and is not drawn here."),
+                level: .code, commit: "30e73ffb", date: "2026-09-30",
+                note: "Read from AutoCompletionListView, AutoCompletionRowView, AutoCompletionDetailFooter, SQLCompletionPanel, SQLAutoCompletionController, the EchoSense tokens and the Query menu. The specimen is Round 14's popup in a small editor; ghost text is a setting and is not drawn here."),
             stageHeight: 380,
             behaviours: [
-                .init(trigger: "Type", result: "Suggestions appear; the selected row is tinted."),
-                .init(trigger: "Press ↑ or ↓", result: "The selection turns solid, meaning Return inserts it."),
-                .init(trigger: "⌘.", result: "Triggers EchoSense by hand (it can be rebound)."),
-                .init(trigger: "Same-named columns", result: "Always show their alias or table, so they are never ambiguous."),
-                .init(trigger: "Ghost text (setting, off)", result: "The top match shows inline in grey; Tab accepts it."),
+                .init(trigger: "Type", result: "Suggestions appear under the caret; the selected row is tinted. The popup never takes focus: typing stays in the editor."),
+                .init(trigger: "Press ↑ or ↓", result: "The selection moves (wrapping round) and turns solid, meaning Return inserts it."),
+                .init(trigger: "Press Return or Tab", result: "Inserts the selected suggestion. Shift-Tab moves the selection up."),
+                .init(trigger: "⌘.", result: "Triggers EchoSense by hand (Show EchoSense Suggestions in the Query menu; it can be rebound)."),
+                .init(trigger: "Same-named columns", result: "Show their qualifier (alias or table) as a chip after the name, so they are never ambiguous."),
+                .init(trigger: "Typed letters", result: "In each name the typed letters are bold in the accent colour: the first place the text appears, or, for a fuzzy match, each letter in order."),
+                .init(trigger: "The selected row", result: "The footer describes it straight away, with no timer: its name and type, where it comes from, then the keys ↩ Insert, ⇥ Complete, ↑↓ Choose, ⎋ Close."),
+                .init(trigger: "A status message", result: "Shown above the rows in secondary medium type when EchoSense has one."),
+                .init(trigger: "Ghost text (setting: Ghost text instead of the list, off)", result: "While typing, the top match shows inline in grey instead of the list; Tab accepts it."),
                 .init(trigger: "Esc", result: "Dismisses the popup."),
             ],
             motions: [
@@ -34,6 +38,12 @@ enum EchoSenseArea {
                 .init(label: "Kind badge", value: "16pt", token: "LayoutTokens.EchoSense.badgeSize"),
                 .init(label: "Selection (typing)", value: "accent at 16%", token: "ColorTokens.EchoSense.typingSelection"),
                 .init(label: "Selection (choosing)", value: "solid accent, reversed text", token: "choosingSelection / choosingText"),
+                .init(label: "Row spacing", value: "8pt between badge, name, chip and type; 8pt row padding", token: "LayoutTokens.EchoSense.rowSpacing / rowHorizontalPadding"),
+                .init(label: "Popup padding", value: "4pt", token: "LayoutTokens.EchoSense.padding"),
+                .init(label: "Qualifier chip", value: "11pt medium on primary 7%, 4pt corner", token: "ColorTokens.EchoSense.chip"),
+                .init(label: "Badge letter", value: "bold label size, on its kind colour at 16%", token: "TypographyTokens.label / badgeFillOpacity"),
+                .init(label: "Footer", value: "8pt padding, 2pt line spacing, primary 3.5% fill, keys 12pt apart", token: "footerPadding / footerLineSpacing / keyHintSpacing"),
+                .init(label: "Window", value: "borderless panel that never takes focus; the system draws the shadow", token: "SQLCompletionPanel"),
             ],
             rules: [
                 .init(text: "Rows show a badge, the name with typed letters in bold accent, the alias, and the type",
@@ -52,9 +62,10 @@ enum EchoSenseArea {
                       why: "ES3 was accepted only as an option."),
             ],
             code: [
-                "Echo/Sources/Features/QueryWorkspace/Views/Query/SQLTextView/",
-                "Packages/EchoDesignSystem/.../LayoutToken+EchoSense.swift",
-                "EchoSense/AUTOCOMPLETE_SPEC.md",
+                "Echo/Sources/Features/QueryWorkspace/Views/Query/Autocomplete/",
+                "Echo/Sources/Features/QueryWorkspace/Views/Query/SQLTextView/Completion/",
+                "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken+EchoSense.swift",
+                "/Users/k/Development/EchoSense/AUTOCOMPLETE_SPEC.md (the EchoSense package)",
             ]
         ) {
             LabRound14SenseEditor(selection: .tintThenSolid, corners: .followCards)

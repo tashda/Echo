@@ -56,7 +56,7 @@ struct ExplorerTreeSpecimen: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.micro) {
             Text("Test MSSQL").font(SidebarRowConstants.serverHeaderFont).lineLimit(1).specAnchor("2.1")
-            Text("SQL Server 2022").font(SidebarRowConstants.trailingFont).foregroundStyle(ColorTokens.Text.tertiary).lineLimit(1).specAnchor("2.2")
+            Text("SQL Server 2022 · Databases").font(SidebarRowConstants.trailingFont).foregroundStyle(ColorTokens.Text.tertiary).lineLimit(1).specAnchor("2.2")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.leading, SpacingTokens.sm)
@@ -70,18 +70,20 @@ struct ExplorerTreeSpecimen: View {
                 ForEach(Array(Self.dock.enumerated()), id: \.offset) { index, item in
                     let isCurrent = index == 0
                     LabDuotoneSymbol(name: item.symbol, color: isCurrent ? ColorTokens.accent : item.color, mode: settings.iconMode,
-                                     monoColor: isCurrent ? ColorTokens.accent : ColorTokens.Sidebar.symbol, font: TypographyTokens.prominent)
+                                     monoColor: isCurrent ? ColorTokens.accent : ColorTokens.Sidebar.symbol, font: TypographyTokens.prominent.weight(.medium))
                         .frame(maxWidth: .infinity).frame(height: 28)
                         .specAnchor(isCurrent ? "3.2" : "3.3")
                 }
                 Image(systemName: "chevron.right.2")
-                    .font(TypographyTokens.prominent.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
+                    .font(TypographyTokens.prominent.weight(.medium)).foregroundStyle(ColorTokens.Text.secondary)
                     .frame(minWidth: 28, minHeight: 28)
                     .specAnchor("3.4")
             }
             .padding(.horizontal, SpacingTokens.xxs2)
             .frame(height: 28)
             .glassEffect(.regular, in: .capsule)
+            .overlay(Capsule().strokeBorder(ColorTokens.Workspace.cardEdge.opacity(0.8), lineWidth: LayoutTokens.Workspace.cardEdgeWidth))
+            .shadow(color: .black.opacity(0.08), radius: SpacingTokens.xxs, y: SpacingTokens.micro)
             .specAnchor("3.1")
         }
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)

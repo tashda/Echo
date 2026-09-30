@@ -66,7 +66,7 @@ enum WindowArea {
             code: [
                 "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceView.swift",
                 "Echo/Sources/Shared/DesignSystem/Components/WorkspaceCard.swift",
-                "Packages/EchoDesignSystem/.../LayoutToken.swift (Workspace, Rail)",
+                "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken.swift",
             ]
         ) {
             WindowSpecimen()

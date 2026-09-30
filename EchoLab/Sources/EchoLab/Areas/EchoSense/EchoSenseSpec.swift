@@ -4,8 +4,9 @@ import SwiftUI
 /// EchoSense's AUTOCOMPLETE_SPEC.md and can be tried under Test.
 @MainActor
 enum EchoSenseSpec {
-    private static let tokens = "Packages/EchoDesignSystem/.../LayoutToken+EchoSense.swift"
-    private static let editor = "Echo/Sources/Features/QueryWorkspace/Views/Query/SQLTextView/"
+    private static let tokens = "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken+EchoSense.swift"
+    private static let list = "Echo/Sources/Features/QueryWorkspace/Views/Query/Autocomplete/"
+    private static let editor = "Echo/Sources/Features/QueryWorkspace/Views/Query/SQLTextView/Completion/"
     private static let r14 = "ported.Round 14 · EchoSense selection"
 
     static func spec<Specimen: View>(stageHeight: CGFloat, @ViewBuilder specimen: @escaping () -> Specimen) -> AreaSpec {
@@ -21,7 +22,9 @@ enum EchoSenseSpec {
                         .row("Corner", "follows Card Corners, capped at 14pt (floor 8)", token: "LayoutTokens.EchoSense.cornerRadius(cardCornerRadius:)"),
                         .row("Padding", "4pt", token: "LayoutTokens.EchoSense.padding"),
                         .row("Gap to the caret's line", "4pt", token: "LayoutTokens.EchoSense.caretGap")),
-            ], rounds: [r14], files: [tokens]),
+                .behaviour(.row("Window", "a borderless panel that never takes focus; the system draws the shadow", token: "SQLCompletionPanel"),
+                           .row("Width", "as wide as the longest name plus its badge, chip and type, within 300 to 480pt")),
+            ], rounds: [r14], files: [tokens, list + "AutoCompletionListView.swift", list + "SQLCompletionPanel.swift"]),
             SpecElement(number: "1.2", name: "Visible rows", summary: "Eight rows, then it scrolls.", groups: [
                 .layout(.row("Rows", "8", token: "LayoutTokens.EchoSense.visibleRows")),
             ], files: [tokens]),
@@ -39,9 +42,17 @@ enum EchoSenseSpec {
             SpecElement(number: "2.3", name: "Name", summary: "In the editor's font; the letters you typed are bold in the accent colour.", groups: [
                 .type(.row("Font", "the editor font"), .row("Match", "bold accent", token: "ColorTokens.EchoSense.match")),
             ], rounds: [r14], files: [editor]),
-            SpecElement(number: "2.4", name: "Same-named columns", summary: "Always show their alias or table.", groups: [
-                .behaviour(.row("Rule", "an ambiguous column is never shown without saying which table it is from")),
-            ], files: [editor]),
+            SpecElement(number: "2.4", name: "Qualifier chip", summary: "The alias or table, after the name, so same-named columns are never ambiguous.", groups: [
+                .type(.row("Font", "11pt medium", token: "TypographyTokens.detail")),
+                .material(.row("Fill", "primary at 7%", token: "ColorTokens.EchoSense.chip"), .row("Corner", "4pt", token: "badgeCornerRadius")),
+                .layout(.row("Padding", "5pt horizontal", token: "LayoutTokens.EchoSense.chipHorizontalPadding")),
+            ], files: [list + "AutoCompletionRowView.swift"]),
+            SpecElement(number: "2.5", name: "Trailing text", summary: "The type or schema at the right.", groups: [
+                .type(.row("Font", "11pt tertiary", token: "TypographyTokens.detail"), .row("Lines", "1")),
+            ], files: [list + "AutoCompletionRowView.swift"]),
+            SpecElement(number: "2.6", name: "Fuzzy matches", summary: "Typed letters in a name that isn't a plain prefix.", groups: [
+                .behaviour(.row("Highlight", "the first place the text appears; otherwise each typed letter in order")),
+            ], files: [list + "AutoCompletionRowView.swift"]),
         ]),
         SpecPart(number: "3", name: "Selection", summary: "Which row Return will insert.", elements: [
             SpecElement(number: "3.1", name: "Typing", summary: "The selected row is tinted while you type.", groups: [
@@ -58,15 +69,23 @@ enum EchoSenseSpec {
                 .material(.row("Fill", "primary at 3.5%", token: "ColorTokens.EchoSense.footer")),
                 .layout(.row("Padding", "8pt", token: "footerPadding"), .row("Line spacing", "2pt", token: "footerLineSpacing"),
                         .row("Concentric", "with the popup's corner")),
-                .behaviour(.row("Rejected", "a side panel and a one-second delay")),
-            ], rounds: [r14], files: [tokens]),
+                .type(.row("Name", "the editor font, semibold"), .row("Kind or type", "11pt secondary: a column's data type, otherwise its kind"),
+                      .row("Detail", "11pt secondary, up to 2 lines"), .row("Keys", "↩ Insert · ⇥ Complete · ↑↓ Choose · ⎋ Close, label size, tertiary, 12pt apart", token: "keyHintSpacing")),
+                .behaviour(.row("Timing", "straight away for the selected row, no delay"), .row("Rejected", "a side panel and a one-second delay")),
+            ], rounds: [r14], files: [tokens, list + "AutoCompletionDetailFooter.swift"]),
+            SpecElement(number: "4.2", name: "Status message", summary: "Above the rows, when EchoSense has something to say.", groups: [
+                .type(.row("Font", "11pt medium, secondary", token: "TypographyTokens.detail")),
+            ], files: [list + "AutoCompletionListView.swift"]),
         ]),
         SpecPart(number: "5", name: "Behaviour", summary: "How it is triggered and dismissed.", elements: [
-            SpecElement(number: "5.1", name: "Trigger", summary: "Typing, or ⌘. by hand (it can be rebound).", groups: [.behaviour(.row("Type", "suggestions appear"), .row("⌘.", "triggers by hand"))], files: [editor]),
-            SpecElement(number: "5.2", name: "Dismiss", summary: "Esc closes the popup.", groups: [.behaviour(.row("Esc", "dismisses"))], files: [editor]),
-            SpecElement(number: "5.3", name: "Ghost text", summary: "A setting, off by default (ES3).", groups: [
-                .behaviour(.row("On", "the top match shows inline in grey; Tab accepts it")),
-            ], rounds: [r14], files: [editor]),
+            SpecElement(number: "5.1", name: "Trigger", summary: "Typing, or ⌘. by hand (it can be rebound).", groups: [.behaviour(.row("Type", "suggestions appear"), .row("⌘.", "Show EchoSense Suggestions, in the Query menu"))], files: [editor, "Echo/Sources/Features/AppHost/EchoApp+QueryMenu.swift"]),
+            SpecElement(number: "5.2", name: "Keys", summary: "The editor forwards them; the popup never takes focus.", groups: [
+                .behaviour(.row("↑ ↓", "move the selection, wrapping round; the row turns solid"), .row("Return or Tab", "inserts the selected suggestion"),
+                           .row("Shift-Tab", "moves the selection up"), .row("Esc", "dismisses")),
+            ], files: [list + "SQLAutoCompletionController.swift"]),
+            SpecElement(number: "5.3", name: "Ghost text", summary: "A setting, off by default: Ghost text instead of the list (ES3).", groups: [
+                .behaviour(.row("On", "while typing, the top match shows inline in grey instead of the list; Tab accepts it")),
+            ], rounds: [r14], files: [editor + "SQLTextView+GhostText.swift", "Echo/Sources/Features/Preferences/Views/EchoSenseSettings/EchoSenseSettingsView.swift"]),
         ]),
     ]
 }

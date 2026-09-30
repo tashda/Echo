@@ -56,7 +56,7 @@ enum TabsArea {
                       why: "Replaces the segmented control at the top of tool tabs.",
                       rounds: ["ported.Round 14 · tab bar and pages"]),
             ],
-            code: [files, files + "QueryTabButton*.swift", files + "TabPageChips.swift", "Packages/EchoDesignSystem/.../ColorToken.swift (TabStrip)"]
+            code: [files, files + "QueryTabButton*.swift", files + "TabPageChips.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/ColorToken.swift"]
         ) {
             TabsSpecimen(model: model)
         },
