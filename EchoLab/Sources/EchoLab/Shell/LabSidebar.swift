@@ -5,6 +5,20 @@ import SwiftUI
 struct LabSidebar: View {
     @Environment(LabStore.self) private var store
     @Binding var selection: LabDestination?
+    @State private var open: Set<String> = ["Window", "Content"]
+
+    /// A group opens when you go into one of its areas; you can still open or close it yourself.
+    private func expansion(_ title: String) -> Binding<Bool> {
+        Binding(get: { open.contains(title) }, set: { if $0 { open.insert(title) } else { open.remove(title) } })
+    }
+
+    private func rows(_ ids: [String]) -> some View {
+        ForEach(ids, id: \.self) { id in
+            if let area = LabAreas.area(id: id) {
+                Label(area.title, systemImage: area.symbol).tag(LabDestination.area(area.id))
+            }
+        }
+    }
 
     var body: some View {
         List(selection: $selection) {
@@ -13,16 +27,20 @@ struct LabSidebar: View {
                 .tag(LabDestination.inbox)
             Label("Rounds", systemImage: "clock.arrow.circlepath")
                 .tag(LabDestination.rounds)
-            Section("Echo, as built") {
-                ForEach(LabAreas.all) { area in
-                    Label(area.title, systemImage: area.symbol)
-                        .tag(LabDestination.area(area.id))
+            ForEach(Array(LabAreas.groups.enumerated()), id: \.offset) { _, group in
+                if let title = group.title {
+                    Section(title, isExpanded: expansion(title)) { rows(group.ids) }
+                } else {
+                    Section("Echo, as built") { rows(group.ids) }
                 }
             }
             pageSection("Test", .test)
             pageSection("Reference", .reference)
         }
         .listStyle(.sidebar)
+        .onChange(of: selection) { _, new in
+            if case .area(let id) = new, let title = LabAreas.groupTitle(ofArea: id) { open.insert(title) }
+        }
     }
 
     @ViewBuilder

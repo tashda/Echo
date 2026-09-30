@@ -1,53 +1,68 @@
 import SwiftUI
 
-/// An area's page: Overview (As built) and Rounds, with round pages pushed on top so the
-/// sidebar never has to list them.
+/// An area's page. It has a header with the Overview, Spec and Rounds switcher (in the page,
+/// not the toolbar, so it can never appear twice); a round opened inside the area replaces it
+/// and Back in the toolbar returns to where you were.
 struct LabAreaView: View {
     let area: LabArea
-    @Binding var currentPageID: String?
-    @Binding var openRound: String?
+    let location: LabLocation
 
-    enum Tab: String, CaseIterable, Identifiable {
-        case overview = "Overview", rounds = "Rounds"
-        var id: String { rawValue }
-    }
-
+    @Environment(LabNavigator.self) private var navigator
     @Environment(LabStore.self) private var store
-    @State private var tab: Tab = .overview
-    @State private var path: [String] = []
 
     var body: some View {
-        NavigationStack(path: $path) {
-            Group {
-                switch tab {
-                case .overview: AsBuiltView(area: area, page: area.asBuilt)
-                case .rounds: LabRoundsList(area: area)
-                }
+        if let roundID = location.round, let page = LabRegistry.page(id: roundID) {
+            VStack(spacing: 0) {
+                breadcrumb(page)
+                Divider()
+                LabPageContainer(page: page)
             }
-            .navigationTitle(area.title)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Picker("View", selection: $tab) {
-                        Text("Overview").tag(Tab.overview)
-                        Text("Rounds · \(LabAreas.rounds(in: area).count)").tag(Tab.rounds)
-                    }
-                    .pickerStyle(.segmented)
-                }
-            }
-            .navigationDestination(for: String.self) { id in
-                if let page = LabRegistry.page(id: id) { LabPageContainer(page: page) }
+        } else {
+            VStack(spacing: 0) {
+                header
+                Divider()
+                content
             }
         }
-        .environment(\.labOpenRound) { id in path.append(id) }
-        .onChange(of: path) { _, new in currentPageID = new.last ?? area.asBuiltPageID }
-        .onChange(of: openRound) { _, id in consumeOpenRound(id) }
-        .onAppear { consumeOpenRound(openRound) }
     }
 
-    private func consumeOpenRound(_ id: String?) {
-        guard let id else { return }
-        path = [id]
-        openRound = nil
+    private var header: some View {
+        HStack(spacing: SpacingTokens.md) {
+            Label(area.title, systemImage: area.symbol).font(TypographyTokens.title3.weight(.semibold))
+            Spacer()
+            Picker("View", selection: Binding(get: { location.tab }, set: { navigator.setTab($0) })) {
+                Text("Overview").tag(LabAreaTab.overview)
+                if area.spec != nil { Text("Spec").tag(LabAreaTab.spec) }
+                Text("Rounds · \(LabAreas.rounds(in: area).count)").tag(LabAreaTab.rounds)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: area.spec != nil ? 330 : 240)
+        }
+        .padding(.horizontal, SpacingTokens.md)
+        .padding(.vertical, SpacingTokens.xs)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch location.tab {
+        case .overview: AsBuiltView(area: area, page: area.asBuilt)
+        case .spec:
+            if let spec = area.spec { SpecView(area: area, spec: spec) } else { AsBuiltView(area: area, page: area.asBuilt) }
+        case .rounds: LabRoundsList(area: area)
+        }
+    }
+
+    private func breadcrumb(_ page: LabPage) -> some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Button(area.title) { navigator.go(LabLocation(destination: .area(area.id), tab: .rounds)) }.buttonStyle(.link)
+            Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(ColorTokens.Text.tertiary)
+            Text(page.title).foregroundStyle(ColorTokens.Text.secondary)
+            Spacer()
+        }
+        .font(TypographyTokens.standard)
+        .padding(.horizontal, SpacingTokens.md)
+        .padding(.vertical, SpacingTokens.xs)
     }
 }
 
@@ -55,6 +70,7 @@ struct LabAreaView: View {
 struct LabRoundsList: View {
     let area: LabArea
     @Environment(LabStore.self) private var store
+    @Environment(LabNavigator.self) private var navigator
 
     var body: some View {
         let rounds = LabAreas.rounds(in: area)
@@ -68,13 +84,16 @@ struct LabRoundsList: View {
                     if !items.isEmpty {
                         Section(status.rawValue) {
                             ForEach(items) { page in
-                                NavigationLink(value: page.id) {
+                                Button { navigator.openPage(page.id) } label: {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(page.title).font(TypographyTokens.standard.weight(.medium))
                                         Text(page.summary).font(TypographyTokens.detail)
                                             .foregroundStyle(ColorTokens.Text.secondary).lineLimit(2)
                                     }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                     }

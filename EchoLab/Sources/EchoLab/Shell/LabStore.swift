@@ -12,6 +12,8 @@ final class LabStore {
         var id = UUID()
         var date: Date
         var text: String
+        /// The spec element it is about (such as "TABS-2.7"), if any.
+        var element: String?
     }
 
     struct Event: Codable, Equatable {
@@ -98,12 +100,12 @@ final class LabStore {
     func confirm(_ page: LabPage) { move(page, to: .decided, note: "Confirmed in Echo") }
 
     /// Feedback always sends the item back to New feedback, from any status.
-    func sendFeedback(_ page: LabPage, comment: String) {
+    func sendFeedback(_ page: LabPage, comment: String, element: String? = nil) {
         let text = comment.trimmingCharacters(in: .whitespacesAndNewlines)
         var item = items[page.id] ?? Item(status: status(of: page) ?? .newFeedback)
         let wasDecided = item.status == .decided
         item.status = .newFeedback
-        if !text.isEmpty { item.comments.append(Comment(date: .now, text: text)) }
+        if !text.isEmpty { item.comments.append(Comment(date: .now, text: text, element: element)) }
         item.history.append(Event(date: .now, text: wasDecided ? "Reopened with feedback" : "Feedback sent"))
         items[page.id] = item
         save()

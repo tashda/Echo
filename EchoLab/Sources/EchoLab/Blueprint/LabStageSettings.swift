@@ -82,3 +82,28 @@ struct LabFitToWidth<Content: View>: View {
             }
     }
 }
+
+/// Like `LabFitToWidth`, for content of unknown height: it is laid out at `designWidth`, then
+/// measured, and scaled down to the width it is given.
+struct LabFitToWidthAuto<Content: View>: View {
+    let designWidth: CGFloat
+    @ViewBuilder var content: Content
+    @State private var width: CGFloat = 0
+    @State private var measured = CGSize(width: 1, height: 1)
+
+    private var scale: CGFloat { width > 0 ? min(1, width / designWidth) : 1 }
+
+    var body: some View {
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: max(measured.height, 1) * scale)
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { width = $0 }
+            .overlay(alignment: .topLeading) {
+                content
+                    .frame(width: designWidth, alignment: .topLeading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .onGeometryChange(for: CGSize.self, of: { $0.size }) { measured = $0 }
+                    .scaleEffect(scale, anchor: .topLeading)
+            }
+    }
+}

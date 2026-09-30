@@ -4,6 +4,8 @@ import SwiftUI
 struct LabFeedbackInspector: View {
     @Environment(LabStore.self) private var store
     let page: LabPage
+    /// The element the feedback is about (set from the Spec view), or nil for the whole page.
+    @Binding var element: (id: String, name: String)?
     @State private var draft = ""
 
     private var status: LabStatus? { store.status(of: page) }
@@ -19,10 +21,17 @@ struct LabFeedbackInspector: View {
                     actions(status)
                 }
                 Section(status == .decided ? "Reopen with feedback" : "Feedback") {
+                    if let element {
+                        HStack {
+                            Label("\(element.id) · \(element.name)", systemImage: "scope").font(TypographyTokens.detail)
+                            Spacer()
+                            Button("Whole page") { self.element = nil }.buttonStyle(.link).font(TypographyTokens.detail)
+                        }
+                    }
                     TextField("", text: $draft, prompt: Text("What should change?"), axis: .vertical)
                         .lineLimit(3...8)
                     Button(status == .decided ? "Reopen with feedback" : "Send feedback") {
-                        store.sendFeedback(page, comment: draft)
+                        store.sendFeedback(page, comment: draft, element: element?.id)
                         draft = ""
                     }
                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -32,6 +41,7 @@ struct LabFeedbackInspector: View {
                     Section("Comments") {
                         ForEach(comments.reversed()) { comment in
                             VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+                                if let id = comment.element { Text(id).font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(ColorTokens.accent) }
                                 Text(comment.text)
                                 Text(comment.date.formatted(date: .abbreviated, time: .shortened))
                                     .font(TypographyTokens.detail)

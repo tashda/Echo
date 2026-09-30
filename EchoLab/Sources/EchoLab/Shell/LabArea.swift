@@ -9,6 +9,8 @@ struct LabArea: @MainActor Identifiable {
     let symbol: String
     let summary: String
     let asBuilt: AsBuiltPage
+    /// The detailed, numbered spec (Spec view), when the area has one.
+    var spec: AreaSpec?
 
     /// The `LabPage` that carries this area's status and feedback, so an As built page can be
     /// reopened with "this doesn't match the app".

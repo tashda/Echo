@@ -3,7 +3,7 @@ import SwiftUI
 /// Everything across all areas that is waiting for someone, newest need first.
 struct LabInboxView: View {
     @Environment(LabStore.self) private var store
-    let open: (String) -> Void
+    @Environment(LabNavigator.self) private var navigator
 
     private let waiting: [LabStatus] = [.newFeedback, .judging, .accepted, .inEcho]
 
@@ -20,7 +20,7 @@ struct LabInboxView: View {
                     if !pages.isEmpty {
                         Section(status.rawValue) {
                             ForEach(pages) { page in
-                                Button { open(page.id) } label: {
+                                Button { navigator.openPage(page.id) } label: {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 1) {
                                             Text(page.title).font(TypographyTokens.standard.weight(.medium))
@@ -38,7 +38,6 @@ struct LabInboxView: View {
                     }
                 }
             }
-            .navigationTitle("Inbox")
         }
     }
 }

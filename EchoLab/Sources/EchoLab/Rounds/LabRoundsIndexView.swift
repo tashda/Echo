@@ -3,7 +3,7 @@ import SwiftUI
 /// Every round in one place, newest first, with what it asked and what came of it.
 struct LabRoundsIndexView: View {
     @Environment(LabStore.self) private var store
-    let open: (String) -> Void
+    @Environment(LabNavigator.self) private var navigator
 
     var body: some View {
         ScrollView {
@@ -11,14 +11,13 @@ struct LabRoundsIndexView: View {
                 Text("Every design round, newest first. Open a page to try the options or read the decision.")
                     .font(TypographyTokens.prominent).foregroundStyle(ColorTokens.Text.secondary)
                 ForEach(LabRounds.all) { round in
-                    RoundIndexCard(round: round, open: open)
+                    RoundIndexCard(round: round) { navigator.openPage($0) }
                 }
             }
             .padding(SpacingTokens.lg)
             .frame(maxWidth: 900, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Rounds")
     }
 }
 

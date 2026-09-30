@@ -5,6 +5,7 @@ enum LabAreas {
         FoundationsArea.area,
         ExplorerTreeArea.area,
         TabsArea.area,
+        pending("tool-tabs", "Tool tabs", "square.grid.2x2", "The tool header, panes as cards, dashboard tiles and a tool's bottom panel."),
         WindowArea.area,
         EditorArea.area,
         FooterResultsArea.area,
@@ -17,6 +18,16 @@ enum LabAreas {
     private static func pending(_ id: String, _ title: String, _ symbol: String, _ summary: String) -> LabArea {
         LabArea(id: id, title: title, symbol: symbol, summary: summary, asBuilt: .pending(title))
     }
+
+    /// Sidebar groups, in order. Foundations stands alone.
+    static let groups: [(title: String?, ids: [String])] = [
+        (nil, ["foundations"]),
+        ("Window", ["window", "tabs"]),
+        ("Content", ["explorer-tree", "tool-tabs", "editor", "footer-results", "inspector"]),
+        ("Overlays", ["echosense", "notifications", "connections"]),
+    ]
+
+    static func groupTitle(ofArea id: String) -> String? { groups.first { $0.ids.contains(id) }?.title }
 
     static func area(id: String?) -> LabArea? { all.first { $0.id == id } }
 

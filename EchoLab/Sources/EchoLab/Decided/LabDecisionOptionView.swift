@@ -18,9 +18,8 @@ struct LabDecisionOptionView: View {
             Text(option.why)
                 .font(TypographyTokens.standard)
                 .foregroundStyle(ColorTokens.Text.secondary)
-            option.specimen()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(SpacingTokens.md)
+            LabFitToWidthAuto(designWidth: 1180) { option.specimen() }
+                .padding(SpacingTokens.sm)
                 .background(ColorTokens.Workspace.card, in: RoundedRectangle(cornerRadius: 12))
             if showsCode {
                 ForEach(option.sourcePaths, id: \.self) { path in
