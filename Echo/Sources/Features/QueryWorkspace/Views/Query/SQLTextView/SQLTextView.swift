@@ -35,6 +35,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     /// QE1: the script's statements (kept between edits) and the one at the caret.
     var cachedStatements: [SQLStatementAtCaret.Match] = []
     var focusedStatementRange: NSRange?
+    var lastCurrentLineBandRect: NSRect?
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()
@@ -239,7 +240,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
-        notifySelectionChanged(); updateStatementFocus(); let range = selectedLineRange()
+        notifySelectionChanged(); updateStatementFocus(); invalidateCurrentLineBand(); let range = selectedLineRange()
         if range.location != NSNotFound { lineNumberRuler?.highlightedLines = IndexSet(integersIn: range.location..<(range.location + range.length)) }
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)

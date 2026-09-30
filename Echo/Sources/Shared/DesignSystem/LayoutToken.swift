@@ -105,7 +105,11 @@ public enum LayoutTokens {
         public static let markerSize: CGFloat = 5
         public static let markerLeading: CGFloat = SpacingTokens.xxs
         public static let markerSpacing: CGFloat = SpacingTokens.xxxs
-        public static let numberTrailing: CGFloat = SpacingTokens.xs
+        /// QE4, room to breathe: more space between the numbers and the code.
+        public static let numberTrailing: CGFloat = SpacingTokens.sm
+        /// QE4: the current line is a rounded band inset from the card's edges.
+        public static let currentLineInset: CGFloat = SpacingTokens.xxs2
+        public static let currentLineCornerRadius: CGFloat = SpacingTokens.xxs2
         public static let edgeWidth: CGFloat = 0.5
         /// Tinted lane (GT2): inset from the card's edges, rounded, no edge line.
         public static let laneInset: CGFloat = SpacingTokens.xxs1

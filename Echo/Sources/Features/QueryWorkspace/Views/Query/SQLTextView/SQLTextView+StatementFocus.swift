@@ -3,6 +3,7 @@ import AppKit
 
 /// QE1 (design board, 2026-09-30): when a script holds more than one statement, the statement at
 /// the caret gets a faint band behind it and a Run arrow in the gutter that runs only it.
+/// QE4: the caret's line is a rounded band inset from the card's edges.
 extension SQLTextView {
     func refreshStatements() {
         cachedStatements = displayOptions.statementFocusEnabled ? SQLStatementAtCaret.statements(in: string) : []
@@ -24,8 +25,38 @@ extension SQLTextView {
         setNeedsDisplay(visibleRect)
     }
 
+    /// The caret's line, drawn as a rounded band; nil while text is selected.
+    var currentLineBandRect: NSRect? {
+        let selection = selectedRange()
+        guard selection.length == 0, selection.location != NSNotFound, let layoutManager else { return nil }
+        var lineRect: NSRect
+        if selection.location >= (string as NSString).length, layoutManager.extraLineFragmentTextContainer != nil {
+            lineRect = layoutManager.extraLineFragmentRect
+        } else {
+            let glyph = layoutManager.glyphIndexForCharacter(at: min(selection.location, max((string as NSString).length - 1, 0)))
+            guard glyph < layoutManager.numberOfGlyphs else { return nil }
+            lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+        }
+        guard lineRect.height > 0 else { return nil }
+        let inset = LayoutTokens.EditorGutter.currentLineInset
+        return NSRect(x: inset, y: lineRect.minY + textContainerOrigin.y, width: max(bounds.width - inset * 2, 0), height: lineRect.height)
+    }
+
+    /// Redraws only the old and new current-line bands when the caret moves.
+    func invalidateCurrentLineBand() {
+        let next = currentLineBandRect
+        if let lastCurrentLineBandRect { setNeedsDisplay(lastCurrentLineBandRect) }
+        if let next { setNeedsDisplay(next) }
+        lastCurrentLineBandRect = next
+    }
+
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
+        if let band = currentLineBandRect, band.intersects(rect) {
+            let radius = LayoutTokens.EditorGutter.currentLineCornerRadius
+            theme.surfaces.currentLine.nsColor.setFill()
+            NSBezierPath(roundedRect: band, xRadius: radius, yRadius: radius).fill()
+        }
         guard let range = focusedStatementRange, let layoutManager else { return }
         let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
         var band = NSRect.null
