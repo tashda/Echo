@@ -20,7 +20,7 @@ enum LabRounds {
     static let all: [Info] = [
         Info(id: "r17", label: "Round 17", title: "Notification history", date: "30 Sep 2026",
              asked: "How the notification history looks in the inspector's column, and how a notification opens to its whole, selectable message.",
-             outcome: "Being judged: Echo today beside a timeline, cards, and a list with the message below.",
+             outcome: "First look: cards (B), by time, fading in, and asked for more. Being judged again with compact cards, attention first and stacks, plus header (count and Clear) and action (Open Tab, Copy) styles.",
              pageIDs: ["ongoing.notification-history-r17"]),
         Info(id: "r16", label: "Round 16", title: "Server card", date: "30 Sep 2026",
              asked: "Your bugs and feedback on the section dock as built: header and dock styles, the edge under the pinned header, switching, loading, counts, selection, dock customising and PostgreSQL's sections.",

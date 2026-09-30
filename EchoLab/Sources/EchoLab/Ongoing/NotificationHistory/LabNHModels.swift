@@ -6,6 +6,9 @@ enum LabNHStyle: String, CaseIterable, Identifiable {
     case timeline = "A · Timeline"
     case cards = "B · Cards"
     case listDetail = "C · List and detail"
+    case compactCards = "D · Compact cards"
+    case attentionFirst = "E · Attention first"
+    case stacked = "F · Stacked by server"
     var id: String { rawValue }
 
     var summary: String {
@@ -13,8 +16,56 @@ enum LabNHStyle: String, CaseIterable, Identifiable {
         case .timeline: "One quiet list on a time line: a dot in the event's colour, the title, server and time. A click grows the row to the whole message in a selectable block."
         case .cards: "Each event is its own small rounded box, like Notification Center. A click grows the box; errors carry a thin red edge."
         case .listDetail: "Compact one-line rows on top; the selected event's whole message fills the bottom of the column, like Mail. Best for long errors."
+        case .compactCards: "B's cards on one line each (icon, title, time), closer together. A click grows the card to the message; nothing is repeated."
+        case .attentionFirst: "Errors that haven't been looked at stay pinned at the top as cards; everything else is a quiet list below."
+        case .stacked: "Like Notification Center: a server's events stack into one card with \"2 more\"; a click fans the stack out."
         }
     }
+}
+
+/// Round 17b: how the header shows the unread count and Clear.
+enum LabNHHeaderStyle: String, CaseIterable, Identifiable {
+    case accentText = "H1 · Accent text (today)"
+    case quietCount = "H2 · Quiet count, Clear on hover"
+    case titleMenu = "H3 · Count by the title, one menu"
+    case iconButtons = "H4 · Icon buttons"
+    case smallButtons = "H5 · Small buttons"
+    var id: String { rawValue }
+
+    var summary: String {
+        switch self {
+        case .accentText: "\"2 new\" and Clear in the accent colour, as in Echo now."
+        case .quietCount: "The count is a grey number in a capsule; Clear appears only while the pointer is over the header."
+        case .titleMenu: "The count sits quietly beside the title; filters and Clear share one ⋯ menu."
+        case .iconButtons: "Filter and Clear as plain icons (a funnel and a trash can), with tooltips; the count is grey."
+        case .smallButtons: "Filter and Clear as small native bordered buttons; the count is grey."
+        }
+    }
+}
+
+/// Round 17b: how Open Tab and Copy look on an opened notification.
+enum LabNHActionStyle: String, CaseIterable, Identifiable {
+    case textLinks = "A1 · Text links (today)"
+    case smallButtons = "A2 · Small buttons"
+    case glass = "A3 · Glass capsules"
+    case icons = "A4 · Icons"
+    case menu = "A5 · One ⋯ menu"
+    var id: String { rawValue }
+
+    var summary: String {
+        switch self {
+        case .textLinks: "Accent text links, as in Echo now."
+        case .smallButtons: "Small native bordered buttons, like Mail's and Finder's inline actions."
+        case .glass: "Small Liquid Glass capsules."
+        case .icons: "Icons only (open, copy) with tooltips, quiet until hovered."
+        case .menu: "One ⋯ button holding Open Tab, Copy and Copy Details."
+        }
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var labNHHeaderStyle: LabNHHeaderStyle = .accentText
+    @Entry var labNHActionStyle: LabNHActionStyle = .textLinks
 }
 
 enum LabNHGrouping: String, CaseIterable, Identifiable {

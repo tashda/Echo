@@ -1,35 +1,99 @@
 import SwiftUI
 
-/// The history's header: title, unread count, filter menu and Clear.
+/// The history's header: title, unread count, filters and Clear, in the round's header style.
 struct LabNHHeader: View {
     let unread: Int
+
+    @Environment(\.labNHHeaderStyle) private var style
+    @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
             Text("Notifications").font(TypographyTokens.headline)
-            if unread > 0 {
-                Text("\(unread) new")
-                    .font(TypographyTokens.detail.weight(.medium))
-                    .foregroundStyle(ColorTokens.accent)
-            }
+            count
             Spacer(minLength: SpacingTokens.none)
+            trailing
+        }
+        .font(TypographyTokens.standard)
+        .onHover { isHovering = $0 }
+    }
+
+    @ViewBuilder
+    private var count: some View {
+        if unread > 0 {
+            switch style {
+            case .accentText:
+                Text("\(unread) new").font(TypographyTokens.detail.weight(.medium)).foregroundStyle(ColorTokens.accent)
+            case .quietCount:
+                Text("\(unread)")
+                    .font(TypographyTokens.detail.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .padding(.horizontal, SpacingTokens.xxs2)
+                    .background(ColorTokens.Background.secondary, in: .capsule)
+            default:
+                Text("\(unread)")
+                    .font(TypographyTokens.headline.monospacedDigit())
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var trailing: some View {
+        switch style {
+        case .accentText:
+            filterMenu(symbol: "line.3.horizontal.decrease")
+            Button("Clear") {}.buttonStyle(.plain).foregroundStyle(ColorTokens.accent)
+        case .quietCount:
+            filterMenu(symbol: "line.3.horizontal.decrease")
+            Button("Clear") {}
+                .buttonStyle(.plain)
+                .foregroundStyle(ColorTokens.Text.secondary)
+                .opacity(isHovering ? 1 : 0)
+        case .titleMenu:
             Menu {
-                Button("All") {}
-                Button("Errors") {}
-                Button("Connections") {}
-                Button("Queries") {}
-                Button("Jobs") {}
+                filterItems
+                Divider()
+                Button("Clear All", role: .destructive) {}
             } label: {
-                Image(systemName: "line.3.horizontal.decrease")
+                Image(systemName: "ellipsis.circle")
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
+            .help("Filter and Clear")
+        case .iconButtons:
+            filterMenu(symbol: "line.3.horizontal.decrease.circle")
+            Button { } label: { Image(systemName: "trash") }
+                .buttonStyle(.borderless)
+                .help("Clear All")
+        case .smallButtons:
+            Menu("Filter") { filterItems }
+                .menuStyle(.button)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .fixedSize()
             Button("Clear") {}
-                .buttonStyle(.plain)
-                .foregroundStyle(ColorTokens.accent)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
         }
-        .font(TypographyTokens.standard)
+    }
+
+    private func filterMenu(symbol: String) -> some View {
+        Menu { filterItems } label: { Image(systemName: symbol) }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Filter")
+    }
+
+    @ViewBuilder
+    private var filterItems: some View {
+        Button("All") {}
+        Button("Errors") {}
+        Button("Connections") {}
+        Button("Queries") {}
+        Button("Jobs") {}
     }
 }
 
@@ -49,21 +113,74 @@ struct LabNHMessageBlock: View {
     }
 }
 
-/// Quiet text actions: the event's link (Open Tab, Show Server) and Copy.
+/// An opened notification's actions (its link, such as Open Tab, and Copy) in the round's
+/// action style.
 struct LabNHActions: View {
     let notice: LabNHNotice
 
+    @Environment(\.labNHActionStyle) private var style
+
     var body: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            if let link = notice.link { Button(link) {} }
-            Button("Copy") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString("\(notice.title)\n\(notice.message)", forType: .string)
+        switch style {
+        case .textLinks:
+            HStack(spacing: SpacingTokens.sm) { buttons }
+                .buttonStyle(.plain)
+                .font(TypographyTokens.detail.weight(.medium))
+                .foregroundStyle(ColorTokens.accent)
+        case .smallButtons:
+            HStack(spacing: SpacingTokens.xs) { buttons }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+        case .glass:
+            HStack(spacing: SpacingTokens.xs) { buttons }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+        case .icons:
+            HStack(spacing: SpacingTokens.xs) {
+                if let link = notice.link {
+                    LabNHIconAction(symbol: "arrow.up.right.square", help: link) {}
+                }
+                LabNHIconAction(symbol: "doc.on.doc", help: "Copy", action: copy)
             }
+        case .menu:
+            Menu {
+                if let link = notice.link { Button(link) {} }
+                Button("Copy Message", action: copy)
+                Button("Copy Details") {}
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
         }
-        .buttonStyle(.plain)
-        .font(TypographyTokens.detail.weight(.medium))
-        .foregroundStyle(ColorTokens.accent)
+    }
+
+    @ViewBuilder
+    private var buttons: some View {
+        if let link = notice.link { Button(link) {} }
+        Button("Copy", action: copy)
+    }
+
+    private func copy() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("\(notice.title)\n\(notice.message)", forType: .string)
+    }
+}
+
+/// A quiet icon that brightens under the pointer.
+private struct LabNHIconAction: View {
+    let symbol: String
+    let help: String
+    let action: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) { Image(systemName: symbol) }
+            .buttonStyle(.plain)
+            .foregroundStyle(isHovering ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+            .onHover { isHovering = $0 }
+            .help(help)
     }
 }
 
