@@ -7,7 +7,7 @@
       "location" : "https://github.com/tashda/echo-server-lab",
       "state" : {
         "branch" : "dev",
-        "revision" : "027f49a8fda8015fbe7eddb46d8a58bc9b100d2b"
+        "revision" : "6c7bc88e6942ea7a6028a85e508113cc0d1c4fdc"
       }
     },
     {
@@ -16,7 +16,7 @@
       "location" : "https://github.com/tashda/EchoSense",
       "state" : {
         "branch" : "dev",
-        "revision" : "5a49882a79182d4f7f294152f925f3cc7707323d"
+        "revision" : "b89527464916f2a5f02b33e03847750df4bbdb05"
       }
     },
     {

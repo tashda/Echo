@@ -26,6 +26,7 @@
 		0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557F2E8F10A9002279AE /* MySQLWire */; };
 		0AAD000300000000000000AD /* ActiveDirectory in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD000200000000000000AD /* ActiveDirectory */; };
 		0ADE5D00000000000000A003 /* EchoDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADE5D00000000000000A002 /* EchoDesignSystem */; };
+		EA74938A42BEA42306934B73 /* ServerLabClient in Frameworks */ = {isa = PBXBuildFile; productRef = FD3382FC2CB7A2B3917A4282 /* ServerLabClient */; };
 		PGT001000000000000000001 /* pg_dump in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000001 /* pg_dump */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		PGT001000000000000000002 /* pg_restore in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000002 /* pg_restore */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		PGT001000000000000000003 /* libpq.5.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000003 /* libpq.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -168,6 +169,7 @@
 		F6F7A37EFD91485785DAD8E5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				EA74938A42BEA42306934B73 /* ServerLabClient in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -313,6 +315,9 @@
 				A136718CC82746DC8CBC84F8 /* EchoTests */,
 			);
 			name = EchoTests;
+			packageProductDependencies = (
+				FD3382FC2CB7A2B3917A4282 /* ServerLabClient */,
+			);
 			productName = EchoTests;
 			productReference = C7719E187414448D93AD6120 /* EchoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -360,6 +365,7 @@
 				0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */,
 				0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */,
+				B396C6AF5D5149A2119B63A3 /* XCRemoteSwiftPackageReference "echo-server-lab" */,
 			);
 			preferredProjectObjectVersion = 100;
 			productRefGroup = 0ADF94962E78B95200E993F8 /* Products */;
@@ -871,6 +877,14 @@
 				kind = branch;
 			};
 		};
+		B396C6AF5D5149A2119B63A3 /* XCRemoteSwiftPackageReference "echo-server-lab" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tashda/echo-server-lab";
+			requirement = {
+				branch = dev;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -967,6 +981,11 @@
 		0ADE5D00000000000000A002 /* EchoDesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = EchoDesignSystem;
+		};
+		FD3382FC2CB7A2B3917A4282 /* ServerLabClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B396C6AF5D5149A2119B63A3 /* XCRemoteSwiftPackageReference "echo-server-lab" */;
+			productName = ServerLabClient;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
