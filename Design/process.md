@@ -9,7 +9,7 @@ The loop every design question goes through. Anyone (a person or an agent) can p
 
 ## 2. Make it judgeable
 
-Anything visual or animated gets a page in **Echo Lab** (`EchoLab/`, Ongoing work; see the Echo Lab workflow in `CLAUDE.md`). Pages still in the old in-app Design Lab (`Echo/Sources/Features/DesignLab/`) are being ported.
+Anything visual or animated gets a page in **Echo Lab** (`EchoLab/`, Ongoing work; see the Echo Lab workflow in `CLAUDE.md`). The old in-app Design Lab (`Echo/Sources/Features/DesignLab/`) has been copied over and will be deleted.
 
 - A playground is a plain SwiftUI view with sample data and a control bar (see `LabStage`, `LabPicker` in `DesignLabKit.swift`). It must not depend on app state.
 - Register the page in `DesignLabWindow.swift`: add a `DesignLabPage` case, its intro, its questions (`LabQuestion`: title, how to try it, options) and its playground.

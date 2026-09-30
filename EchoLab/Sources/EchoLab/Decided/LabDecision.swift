@@ -58,13 +58,15 @@ import SwiftUI
     }
 }
 
-/// One option that was considered. `sourcePath` is the file holding its specimen, so the
-/// library can show the code next to the rendering; pass `#filePath` from that file.
-@MainActor struct LabDecisionOption: @MainActor Identifiable {
+/// One option that was considered. `sourceFiles` are the files holding its specimen, so the
+/// library can show the code next to the rendering; they are looked up next to the file that
+/// declares the option (pass nothing for `directory`, it defaults to the caller's `#filePath`).
+@MainActor
+struct LabDecisionOption: @MainActor Identifiable {
     let name: String
     let isWinner: Bool
     let why: String
-    let sourcePath: String
+    let sourcePaths: [String]
     let specimen: () -> AnyView
 
     var id: String { name }
@@ -73,13 +75,15 @@ import SwiftUI
         name: String,
         isWinner: Bool = false,
         why: String,
-        sourcePath: String = #filePath,
+        sourceFiles: [String] = [],
+        directory: String = #filePath,
         @ViewBuilder specimen: @escaping () -> Specimen
     ) {
         self.name = name
         self.isWinner = isWinner
         self.why = why
-        self.sourcePath = sourcePath
+        let folder = URL(fileURLWithPath: directory).deletingLastPathComponent()
+        self.sourcePaths = sourceFiles.map { folder.appending(path: $0).path }
         self.specimen = { AnyView(specimen()) }
     }
 }

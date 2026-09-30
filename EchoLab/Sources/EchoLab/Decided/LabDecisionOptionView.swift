@@ -23,18 +23,25 @@ struct LabDecisionOptionView: View {
                 .padding(SpacingTokens.md)
                 .background(ColorTokens.Workspace.card, in: RoundedRectangle(cornerRadius: 12))
             if showsCode {
-                Text(source)
-                    .font(.system(.footnote, design: .monospaced))
-                    .textSelection(.enabled)
+                ForEach(option.sourcePaths, id: \.self) { path in
+                    VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+                        Text(URL(fileURLWithPath: path).lastPathComponent)
+                            .font(TypographyTokens.detail.weight(.semibold))
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                        Text(source(at: path))
+                            .font(.system(.footnote, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     .padding(SpacingTokens.sm)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(ColorTokens.Surface.rest, in: RoundedRectangle(cornerRadius: 8))
+                }
             }
         }
     }
 
-    /// The lab runs from a source checkout, so the specimen's file is on disk.
-    private var source: String {
-        (try? String(contentsOfFile: option.sourcePath, encoding: .utf8)) ?? "Source not found at \(option.sourcePath)"
+    /// The lab runs from a source checkout, so the specimen's files are on disk.
+    private func source(at path: String) -> String {
+        (try? String(contentsOfFile: path, encoding: .utf8)) ?? "Source not found at \(path)"
     }
 }

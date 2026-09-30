@@ -8,12 +8,19 @@ enum LabSection: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// Where a piece of design work is in its life. Only Ongoing pages have a status that moves;
-/// a page becomes Decided by being frozen into the library (see CLAUDE.md, Echo Lab workflow).
-enum LabStatus: String {
+/// Where a piece of design work is in its life (CLAUDE.md, Echo Lab workflow). The owner moves
+/// it with Accept, Confirm, comments and Reopen; the agent moves it to In Echo and freezes it.
+enum LabStatus: String, Codable, CaseIterable {
+    /// The owner has feedback the agent has not acted on yet. Agents read this first.
+    case newFeedback = "New feedback"
     /// A playground the owner is judging.
     case judging = "Judging"
-    /// The verdict is built into Echo; waiting for the owner's feedback on the real app.
+    /// The owner accepted the verdict; the agent builds it into Echo.
+    case accepted = "Accepted"
+    /// Built into Echo; waiting for the owner to check it in the running app.
     case inEcho = "In Echo"
+    /// Confirmed in the running app. The agent freezes it into the library.
     case decided = "Decided"
+
+    var section: LabSection { self == .decided ? .decided : .ongoing }
 }

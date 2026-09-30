@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Title and summary above a page's own content.
+/// Title, status and summary above a page's own content.
 struct LabPageContainer: View {
+    @Environment(LabStore.self) private var store
     let page: LabPage
 
     var body: some View {
@@ -9,13 +10,8 @@ struct LabPageContainer: View {
             VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                 HStack(spacing: SpacingTokens.xs) {
                     Text(page.title).font(TypographyTokens.title)
-                    if let status = page.status {
-                        Text(status.rawValue)
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                            .padding(.horizontal, SpacingTokens.xs)
-                            .padding(.vertical, SpacingTokens.xxxs)
-                            .background(ColorTokens.Surface.hover, in: Capsule())
+                    if let status = store.status(of: page) {
+                        LabStatusPill(status: status)
                     }
                 }
                 Text(page.summary)
@@ -28,5 +24,18 @@ struct LabPageContainer: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle(page.title)
+    }
+}
+
+struct LabStatusPill: View {
+    let status: LabStatus
+
+    var body: some View {
+        Text(status.rawValue)
+            .font(TypographyTokens.detail)
+            .foregroundStyle(status == .newFeedback ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
+            .padding(.horizontal, SpacingTokens.xs)
+            .padding(.vertical, SpacingTokens.xxxs)
+            .background(ColorTokens.Surface.hover, in: Capsule())
     }
 }
