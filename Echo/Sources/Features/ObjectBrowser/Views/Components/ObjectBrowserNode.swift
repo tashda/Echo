@@ -42,6 +42,8 @@ final class ObjectBrowserNode: NSObject {
         case placeholder(String, kind: ExplorerNodeKind?)
         case loading(String)
         case message(String, systemImage: String)
+        /// The section dock under a server's name (TC1): which of the server's sections it shows.
+        case dock(ConnectionSession, [ExplorerDockItem], selectedID: String)
     }
 
     let id: String
@@ -64,6 +66,7 @@ extension ObjectBrowserNode.Row {
         switch self {
         case .server, .pendingConnection: return Self.serverHeaderExtraHeight
         case .section: return LayoutTokens.Workspace.treeSectionTopPadding
+        case .dock: return LayoutTokens.ExplorerDock.extraHeight
         default: return 0
         }
     }

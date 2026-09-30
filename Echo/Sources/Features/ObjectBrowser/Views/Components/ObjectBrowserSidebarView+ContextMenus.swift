@@ -18,7 +18,7 @@ extension ObjectBrowserSidebarView {
             objectMenu(for: object, databaseName: databaseName, session: session)
         case .item(let row):
             itemMenu(row)
-        case .topSpacer, .column, .action, .placeholder, .loading, .message:
+        case .topSpacer, .column, .action, .placeholder, .loading, .message, .dock:
             nil
         }
     }

@@ -13,6 +13,12 @@ final class ObjectBrowserSidebarViewModel {
     var childSources: [ExplorerSourceKey: ExplorerSourceState] = [:]
 
     @ObservationIgnored var initializedConnectionIDs: Set<UUID> = []
+    /// The section each server's dock shows (TC1), by connection.
+    var dockSelections: [UUID: String] = [:]
+    /// The row at the top of each server's section when it was left, to return to it.
+    @ObservationIgnored var dockScrollAnchors: [String: String] = [:]
+    /// The row at the top of the tree right now, and its server's connection.
+    @ObservationIgnored var topVisibleRow: (id: String, connectionID: UUID?)?
 
     private static func hideOfflineKey(for connectionID: UUID) -> String {
         "echo.sidebar.hideOffline.\(connectionID.uuidString)"

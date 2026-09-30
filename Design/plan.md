@@ -287,7 +287,7 @@ Rules: `05-components` › Explorer tree.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| D1 | **Dock (TC1):** each server card gets an icon row (Databases, Security, Agent, Management, More) under its name; the tree shows one section at a time; the row stays pinned with only a soft blur; each section keeps its scroll position and open folders. The server's section is remembered per connection. | Blueprints, outline view, row headers | Matches Round 14 · section dock 👁 | ☐ |
+| D1 | **Dock (TC1):** each server card gets an icon row (Databases, Security, Agent, Management, More) under its name; the tree shows one section at a time; the row stays pinned with only a soft blur; each section keeps its scroll position and open folders. The server's section is remembered per connection. | Blueprints, outline view, row headers | Matches Round 14 · section dock 👁 | ☑ built, 👁 pending. Pinning uses LazyVStack section headers; the blur is `.ultraThinMaterial` faded out below the dock, shown only while pinned |
 | D2 | **Duotone icons (IC2)** as the default, mono line (IC1) as the setting. | `SidebarRow`, `ExplorerIconRole` | Both modes in light and dark 👁 | ☑ built, 👁 pending (the setting reads Duotone / Mono) |
 
 ## Phase 17 · Editor ideas

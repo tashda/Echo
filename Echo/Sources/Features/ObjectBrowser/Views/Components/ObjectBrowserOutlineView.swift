@@ -23,6 +23,8 @@ struct ObjectBrowserOutlineView: View {
     let onSelectionChanged: (ObjectBrowserNode?) -> Void
     let revealNodeID: String?
     let revealRequestID: Int
+    /// Called when the row at the top changes, with its server's connection (for the dock).
+    var onTopRowChanged: ((String?, UUID?) -> Void)? = nil
     /// Called when the server or database at the top of the visible area changes, e.g. while scrolling.
     var onTopVisibleContextChanged: ((ObjectBrowserTopVisibleContext) -> Void)? = nil
     /// Round 9, SB3: no scroll bar unless Settings › Sidebar › Show scroll bar is on.
@@ -55,13 +57,19 @@ struct ObjectBrowserOutlineView: View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         ScrollView(.vertical) {
-            LazyVStack(spacing: SpacingTokens.none) {
-                ForEach(layout.rows) { row in
-                    let node = row.node
-                    rowContent(node, expandedNodeIDs.contains(node.id), row.depth, 0, { activate(node) })
-                        .frame(maxWidth: .infinity)
-                        .frame(height: row.height)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+            // A server with a dock pins its name and dock while its rows scroll (TC1).
+            LazyVStack(spacing: SpacingTokens.none, pinnedViews: [.sectionHeaders]) {
+                ForEach(layout.groups) { group in
+                    if group.header.isEmpty {
+                        rows(group.rows)
+                    } else {
+                        Section {
+                            rows(group.rows)
+                        } header: {
+                            VStack(spacing: SpacingTokens.none) { rows(group.header) }
+                                .background { ExplorerPinnedHeaderBlur(restingMinY: group.header[0].minY, scroll: scroll) }
+                        }
+                    }
                 }
             }
             .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
@@ -85,6 +93,7 @@ struct ObjectBrowserOutlineView: View {
             scroll.viewportHeight = metrics.viewportHeight
             scroll.contentWidth = metrics.contentWidth
             reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
+            reportTopRow(in: layout, baseRowHeight: baseRowHeight)
         }
         // A background never sizes its view, so the cards can't make the tree (or the
         // window) taller than its space.
@@ -103,6 +112,24 @@ struct ObjectBrowserOutlineView: View {
             reveal(in: layout)
             reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
         }
+    }
+
+    private func rows(_ rows: [ExplorerTreeLayout.Row]) -> some View {
+        ForEach(rows) { row in
+            let node = row.node
+            rowContent(node, expandedNodeIDs.contains(node.id), row.depth, 0, { activate(node) })
+                .frame(maxWidth: .infinity)
+                .frame(height: row.height)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
+
+    private func reportTopRow(in layout: ExplorerTreeLayout, baseRowHeight: CGFloat) {
+        guard let onTopRowChanged else { return }
+        let top = layout.topRow(atOffset: scroll.offset, baseRowHeight: baseRowHeight)
+        guard top?.id != scroll.lastReportedTopRowID else { return }
+        scroll.lastReportedTopRowID = top?.id
+        onTopRowChanged(top?.id, top?.connectionID)
     }
 
     // MARK: - Actions
@@ -153,6 +180,7 @@ final class ExplorerTreeScrollState {
     /// Width of the rows, which is narrower than the tree when scroll bars are always shown.
     var contentWidth: CGFloat = 0
     @ObservationIgnored var lastReportedContext: ObjectBrowserTopVisibleContext?
+    @ObservationIgnored var lastReportedTopRowID: String?
 }
 
 struct ExplorerTreeScrollMetrics: Equatable {

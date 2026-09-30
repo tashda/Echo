@@ -26,7 +26,7 @@ struct ObjectBrowserSidebarView: View {
         let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
             expandOneConnectionAtATime: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
         )
-        let roots = ObjectBrowserSnapshotBuilder.buildRoots(
+        let builtRoots = ObjectBrowserSnapshotBuilder.buildRoots(
             pendingConnections: connectionLayoutMode.includesPendingConnectionsInOutline
                 ? pendingConnections
                 : [],
@@ -35,6 +35,8 @@ struct ObjectBrowserSidebarView: View {
             viewModel: viewModel,
             selectedConnectionID: selectedConnectionID
         )
+        // TC1: each server shows its dock and the chosen section.
+        let roots = ExplorerDock.apply(to: builtRoots, selections: viewModel.dockSelections(for: sessions.map(\.connection.id)))
 
         let mainContent = Group {
             if sessions.isEmpty && pendingConnections.isEmpty {
@@ -84,6 +86,9 @@ struct ObjectBrowserSidebarView: View {
                             .environment(environmentState)
                             .environment(\.sidebarDensity, projectStore.globalSettings.sidebarDensity)
                             .environment(\.sidebarUsesDuotoneIcons, projectStore.globalSettings.sidebarIconColorMode == .colorful)
+                            .environment(\.selectExplorerDockSection) { connectionID, itemID in
+                                selectDockSection(itemID, connectionID: connectionID, builtRoots: builtRoots)
+                            }
                         )
                     },
                     onExpansionChanged: { node, isExpanded in
@@ -97,6 +102,9 @@ struct ObjectBrowserSidebarView: View {
                     },
                     revealNodeID: viewModel.revealedNodeID,
                     revealRequestID: viewModel.revealRequestID,
+                    onTopRowChanged: { rowID, connectionID in
+                        viewModel.topVisibleRow = rowID.map { ($0, connectionID) }
+                    },
                     onTopVisibleContextChanged: { context in
                         if railBridge?.topVisibleConnectionID != context.connectionID {
                             railBridge?.topVisibleConnectionID = context.connectionID
@@ -232,7 +240,7 @@ struct ObjectBrowserSidebarView: View {
 
     // MARK: - Pinned path
 
-    private func reveal(nodeID: String) {
+    func reveal(nodeID: String) {
         viewModel.revealedNodeID = nodeID
         viewModel.revealRequestID &+= 1
     }
@@ -276,7 +284,7 @@ struct ObjectBrowserSidebarView: View {
         }
     }
 
-    private func handleExpansionChange(of node: ObjectBrowserNode, isExpanded: Bool) {
+    func handleExpansionChange(of node: ObjectBrowserNode, isExpanded: Bool) {
         withAnimation(.snappy(duration: 0.18, extraBounce: 0)) {
             if case .server(let session) = node.row {
                 viewModel.setServerExpanded(

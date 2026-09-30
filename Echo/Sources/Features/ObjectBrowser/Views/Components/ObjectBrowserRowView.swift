@@ -17,6 +17,7 @@ struct ObjectBrowserRowView: View {
     @Environment(ProjectStore.self) var projectStore
     @Environment(EnvironmentState.self) var environmentState
     @State var isHeaderHovering = false
+    @Environment(\.selectExplorerDockSection) private var selectDockSection
 
     var depth: Int {
         max(0, outlineLevel)
@@ -25,7 +26,7 @@ struct ObjectBrowserRowView: View {
     /// Headings sit on the card's edge; ordinary rows pull left to line their chevrons up with it.
     private var leadingAlignmentCompensation: CGFloat {
         switch node.row {
-        case .topSpacer, .server, .pendingConnection, .section:
+        case .topSpacer, .server, .pendingConnection, .section, .dock:
             0
         default:
             -(SidebarRowConstants.rowOuterHorizontalPadding + SpacingTokens.xxxs)
@@ -52,7 +53,7 @@ struct ObjectBrowserRowView: View {
     private var shouldShowHighlightOverlay: Bool {
         guard isHighlighted else { return false }
         switch node.row {
-        case .topSpacer, .pendingConnection, .server, .section:
+        case .topSpacer, .pendingConnection, .server, .section, .dock:
             return false
         default:
             return true
@@ -102,6 +103,10 @@ struct ObjectBrowserRowView: View {
                     + SidebarRowConstants.rowLeadingPadding,
                 accessibilityLabel: title
             )
+        case .dock(let session, let items, let selectedID):
+            ExplorerDockRow(items: items, selectedID: selectedID, iconColor: explorerIconColor) { itemID in
+                selectDockSection(session.connection.id, itemID)
+            }
         case .message(let title, let systemImage):
             SidebarRow(
                 depth: depth,
