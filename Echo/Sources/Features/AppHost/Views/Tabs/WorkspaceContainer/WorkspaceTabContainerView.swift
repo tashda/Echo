@@ -156,6 +156,8 @@ struct WorkspaceTabContainerView: View {
         .id(tab.id)
         if tab.drawsOwnCards {
             content
+        } else if tab.kind.isToolTab {
+            ToolTabContainer(tab: tab) { content }
         } else {
             content.workspaceCard()
         }
