@@ -10,6 +10,8 @@ import OSLog
     var isExecuting: Bool = false
     /// True while the query tab is establishing its dedicated database connection.
     var isEstablishingConnection: Bool = false
+    /// Set when the tab's connection dropped (round 21); the footer then says Disconnected.
+    var connectionLoss: QueryConnectionLoss?
     /// True while a cross-database schema is being loaded for autocompletion.
     var isLoadingCrossDBSchema: Bool = false
     /// The database name currently being loaded for cross-DB autocompletion.

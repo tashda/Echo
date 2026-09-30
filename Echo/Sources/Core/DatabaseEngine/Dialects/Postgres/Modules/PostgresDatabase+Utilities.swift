@@ -19,6 +19,9 @@ extension PostgresSession {
             os.Logger.postgres.error("PostgreSQL session error: \(message)")
             return DatabaseError.queryError(message)
         }
+        if let pinnedError = error as? PostgresPinnedSessionError {
+            return DatabaseError.queryError(pinnedError.errorDescription ?? String(describing: pinnedError))
+        }
         if let scriptError = error as? PostgresScriptError {
             return normalizeError(scriptError.underlying, contextSQL: scriptError.statement.text)
         }

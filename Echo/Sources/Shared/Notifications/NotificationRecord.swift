@@ -7,6 +7,20 @@ struct NotificationContext: Codable, Equatable, Sendable {
     var connectionID: UUID?
     /// The workspace tab; only meaningful while that tab is open.
     var tabID: UUID?
+    /// An extra button on the toast and history row, offered while it still applies.
+    var action: NotificationAction?
+}
+
+/// A button a notification can carry besides Open Tab and Copy.
+enum NotificationAction: String, Codable, Equatable, Sendable {
+    /// Reconnect a query tab whose connection dropped with a transaction open (round 21, RC2).
+    case reconnectTab
+
+    var title: String {
+        switch self {
+        case .reconnectTab: "Reconnect"
+        }
+    }
 }
 
 /// One event in the notification history. Every event is recorded, even when its toast is muted.

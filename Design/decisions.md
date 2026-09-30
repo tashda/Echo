@@ -2,6 +2,18 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 21 accepted: a PostgreSQL connection lost
+
+Echo Labs › Notifications › Postgres: connection lost · round 21.
+
+- **Where: CL1 · the error in Messages, and a notification** through the notification engine (owner's note). The banner on the editor (recommended), the footer and the run note were not chosen. → 05-components › Notifications
+- **When: CW2 · the moment it drops,** before any run. → 05-components
+- **Reconnect: RC2 · a Reconnect button** on the notification and its history row. Reconnecting is a new session (SET, temporary tables and the lost transaction are gone); runs are refused until you press it. Reconnecting on the next run and reconnecting at once were not chosen. → 05-components
+- **Wording: WD2 · what it means for your work:** the transaction was rolled back and nothing since BEGIN was saved; the technical cause follows. → 05-components
+- **Nothing open: I1 · quietly:** the footer says Disconnected and the next run reconnects (recorded in history without a toast).
+- **After reconnecting: RR3 · never offer Run again.**
+- **History: H1 · yes,** the drop is recorded.
+
 ## 2026-09-30 · Round 22 accepted: SQL Server values, errors, and cancel and sessions
 
 Echo Labs › round 22 (three pages). sqlserver-nio now formats values exactly, reports structured errors and cancels on the server; Echo follows.

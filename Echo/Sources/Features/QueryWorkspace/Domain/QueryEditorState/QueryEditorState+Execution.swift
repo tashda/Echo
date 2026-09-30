@@ -3,6 +3,8 @@ import OSLog
 
 extension QueryEditorState {
     func startExecution() {
+        // An idle drop reconnects on this run (round 21, I1); lost work waits for Reconnect.
+        if case .idle = connectionLoss { connectionLoss = nil }
         if rowDiagnosticsEnabled && !hasAnnouncedRowDiagnostics {
             hasAnnouncedRowDiagnostics = true
             Logger.query.debug("RowDiagnostics enabled for query '\(self.sql)'")

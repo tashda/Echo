@@ -18,6 +18,7 @@ struct QueryPanelStatusBar: View {
 
     private var hasActivity: Bool {
         query.hasExecutedAtLeastOnce || query.isExecuting || query.errorMessage != nil || query.isEstablishingConnection
+            || query.connectionLoss != nil
     }
 
     private var visibleSegments: [PanelSegment] {
@@ -116,6 +117,9 @@ struct QueryPanelStatusBar: View {
     private func buildStatusBubble() -> BottomPanelStatusBarConfiguration.StatusBubble {
         if query.isExecuting {
             return .init(label: "Executing", tint: .orange, isPulsing: true)
+        }
+        if query.connectionLoss != nil {
+            return .init(label: "Disconnected", tint: .red, isPulsing: false)
         }
         if query.wasCancelled {
             return .init(label: "Cancelled", tint: .yellow, isPulsing: false)

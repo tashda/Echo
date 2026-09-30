@@ -271,6 +271,10 @@
       {
         "date": "2026-09-30T14:35:33Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T14:45:57Z",
+        "text": "Built into Echo (plan N6): told at once in Messages and a notification with Reconnect; footer Disconnected; runs wait for Reconnect; idle drops quiet. Please check it in the running app."
       }
     ],
     "needsMore": [],
@@ -290,7 +294,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.pg-error-location-r21": {

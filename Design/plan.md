@@ -189,6 +189,7 @@ Rules: `03-materials`, `05-components` › Notifications, Floating cards.
 | N3 | **History under a toolbar bell** with an unread badge: grouped by server, filters, kept across launches, every event recorded even when its toast is muted, items link to their tab or server. Remove the inspector notification tab. | `NotificationEngine`, new `NotificationHistoryCard` | Badge clears on open; history survives relaunch | ☑ built; round 17 (compact cards by day, H3 header, A2 buttons) built, 👁 pending |
 | N4 | **Query errors** in the results card (message, line, "Show in editor", Messages one click away), a toast when the failing tab isn't in front, and a record in history. | Results section, engine | Error in a background tab raises a toast | ☑ built, 👁 pending |
 | N5 | Unify the remaining popovers on N1 or on the shared tokens. Autocomplete keeps its system popover. | Various | One width scale, one padding, one row style | ☑ built. Every remaining popover points at its control, so they keep the arrow and use the shared padding and width scale |
+| N6 | **A PostgreSQL connection lost (round 21):** told at once in Messages and a notification with Reconnect; footer Disconnected; runs refused until Reconnect; idle drops quiet. | `PostgresPinnedSessionStore`, `EnvironmentState+PostgresConnectionLoss`, `NotificationAction` | Killing the tab's backend shows it before any run 👁 | ☑ N6COMMIT, 👁 pending |
 
 ### Notes from building it (Phase 7)
 

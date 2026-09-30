@@ -225,6 +225,8 @@ Decided 2026-09-30.
 - **Toasts sit** in the top-right corner of the tab's first card, below the tab bar and inset from its edges: inside the editor card on a query tab, left of the inspector. They keep one width (320pt) collapsed or expanded; their actions are quiet text links. A setting to move them (for example bottom-right) can come later. *Decided.*
 - **A toast** (round 18) shows a bold title with the reason under it in two lines; hovering pauses it and shows the whole reason, selectable, with small bordered buttons (Open Tab or Show Server, Copy, Show All). A flick to the right dismisses it; × shows on hover and always on errors. Liquid Glass, dropping in from the top, three at most, 3 s. *Decided.*
 - Every event is recorded in history, even when its toast is muted in settings. *Decided.*
+- **A notification can carry one extra button** besides Open Tab and Copy (`NotificationAction`), shown on the toast and its history row while it still applies. *Decided* (round 21).
+- **A query tab's connection dropping** (PostgreSQL; round 21) is told the moment it drops. With a transaction open: an error in Messages and an error notification, "Connection lost: Query 1 (shop) had a transaction open. The server rolled it back; nothing since BEGIN was saved.", with **Reconnect**; the footer says Disconnected and runs are refused ("Not connected: … Press Reconnect") until you reconnect, each refused run bringing the notification back. Reconnect opens a new session and says so in Messages. With nothing open: only the footer says Disconnected, the history records it without a toast, and the next run reconnects. Run again is never offered. *Decided.*
 
 ## Floating cards
 

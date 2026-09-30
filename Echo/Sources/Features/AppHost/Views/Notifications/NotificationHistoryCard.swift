@@ -58,6 +58,9 @@ struct NotificationHistoryCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack(spacing: SpacingTokens.xs) {
+                if let action = record.context?.action, environmentState.canPerform(action, context: record.context) {
+                    Button(action.title) { environmentState.perform(action, context: record.context) }
+                }
                 if environmentState.canReveal(record.context) {
                     Button(record.context?.tabID != nil ? "Open Tab" : "Show Server") {
                         environmentState.reveal(record.context)

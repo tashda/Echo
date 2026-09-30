@@ -72,6 +72,12 @@ struct StatusToastRow: View {
     /// Small bordered buttons, as in the history (rounds 17 and 18).
     private var actions: some View {
         HStack(spacing: SpacingTokens.xs) {
+            if let action = toast.context?.action, environmentState.canPerform(action, context: toast.context) {
+                Button(action.title) {
+                    environmentState.perform(action, context: toast.context)
+                    presenter.dismiss(toast.id)
+                }
+            }
             if environmentState.canReveal(toast.context) {
                 Button(toast.context?.tabID != nil ? "Open Tab" : "Show Server") {
                     environmentState.reveal(toast.context)
