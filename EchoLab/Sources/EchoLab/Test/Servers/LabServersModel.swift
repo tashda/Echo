@@ -26,7 +26,7 @@ final class LabServersModel {
     private(set) var capturing: Set<String> = []
     private(set) var wire: [WireMessage] = []
     private(set) var wireServer: String?
-    /// The capture explained field by field by the lab's TDS decoder (SQL Server only).
+    /// The capture explained field by field by the lab's decoders (TDS or PostgreSQL).
     private(set) var explained: [ExplainedMessage] = []
     private(set) var explainedServer: String?
 
@@ -125,10 +125,9 @@ final class LabServersModel {
         started.append(server)
     }
 
-    /// Explains the recorded SQL Server traffic of a server started here.
+    /// Explains the recorded traffic of a server started here.
     func refreshExplained(for containerName: String) async {
-        guard let lab, let server = startedServer(named: containerName), capturing.contains(containerName),
-              server.engine == .sqlServer else { return }
+        guard let lab, let server = startedServer(named: containerName), capturing.contains(containerName) else { return }
         do {
             explained = try await lab.explainedWire(of: server)
             explainedServer = containerName

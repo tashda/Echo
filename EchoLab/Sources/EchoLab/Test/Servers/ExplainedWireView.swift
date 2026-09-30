@@ -3,8 +3,8 @@ import ServerLabKit
 import SwiftUI
 import TDSSpec
 
-/// A recorded SQL Server session explained by the lab's own TDS decoder: every message, every field,
-/// and what did not match MS-TDS. Sits next to Wire (Wireshark's decode).
+/// A recorded session explained by the lab's own decoders (TDS or PostgreSQL): every message, every
+/// field, and what did not match the protocol. Sits next to Wire (Wireshark's decode).
 struct ExplainedWireView: View {
     let model: LabServersModel
     @AppStorage("lab.servers.explainedServer") private var selected = ""
@@ -12,7 +12,7 @@ struct ExplainedWireView: View {
     @State private var sql = "SELECT name, database_id FROM sys.databases"
 
     private var recordable: [String] {
-        model.started.filter { $0.engine == .sqlServer && model.capturing.contains($0.containerName) }.map(\.containerName)
+        model.started.filter { model.capturing.contains($0.containerName) }.map(\.containerName)
     }
 
     private var messages: [ExplainedMessage] { model.explainedServer == selected ? model.explained : [] }
@@ -22,7 +22,7 @@ struct ExplainedWireView: View {
             toolbar
             if recordable.isEmpty {
                 ContentUnavailableView("Nothing recorded", systemImage: "list.bullet.indent",
-                                       description: Text("Start a SQL Server recipe with Record traffic on."))
+                                       description: Text("Start a server with Record traffic on."))
             } else {
                 HSplitView {
                     List(selection: $selectedMessage) {
@@ -52,16 +52,18 @@ struct ExplainedWireView: View {
             .labelsHidden()
             .frame(maxWidth: 280)
             let problems = messages.specProblems.count
-            Label(problems == 0 ? "All \(messages.count) messages match MS-TDS" : "\(problems) not in the spec",
+            Label(problems == 0 ? "All \(messages.count) messages match the protocol" : "\(problems) not in the protocol",
                   systemImage: problems == 0 ? "checkmark.seal" : "exclamationmark.triangle")
                 .foregroundStyle(problems == 0 ? ColorTokens.Status.success : ColorTokens.Status.warning)
             Spacer()
-            TextField("SQL", text: $sql, prompt: Text("SELECT 1"))
-                .frame(maxWidth: 320)
-                .onSubmit(send)
-            Button("Send with sqlcmd", action: send)
-                .disabled(selected.isEmpty || sql.isEmpty)
-                .help("Runs the SQL through Microsoft's sqlcmd with only the login encrypted, so the rest can be read here")
+            if model.startedServer(named: selected)?.engine == .sqlServer {
+                TextField("SQL", text: $sql, prompt: Text("SELECT 1"))
+                    .frame(maxWidth: 320)
+                    .onSubmit(send)
+                Button("Send with sqlcmd", action: send)
+                    .disabled(sql.isEmpty)
+                    .help("Runs the SQL through Microsoft's sqlcmd with only the login encrypted, so the rest can be read here")
+            }
         }
         .font(TypographyTokens.detail)
         .padding(SpacingTokens.sm)
@@ -93,7 +95,7 @@ struct ExplainedWireView: View {
             let explanation = messages[index].explanation
             List {
                 if !explanation.problems.isEmpty {
-                    Section("Not in the spec") {
+                    Section("Not in the protocol") {
                         ForEach(explanation.problems, id: \.self) { Text($0).foregroundStyle(ColorTokens.Status.warning) }
                     }
                 }

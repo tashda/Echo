@@ -1,5 +1,5 @@
 {
-  "originHash" : "153f9a4784f14f0673425574e74fadc03c7f6b3eb9e1bc14ee5d0edb0de68043",
+  "originHash" : "26bccd488f1671892ca78632ce42f6220913b354e1efebc78dccd9e4deb05efa",
   "pins" : [
     {
       "identity" : "echo-server-lab",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/tashda/echo-server-lab",
       "state" : {
         "branch" : "dev",
-        "revision" : "d59b5f85c8cad0c6627512454cfa5d9df0557455"
+        "revision" : "4e4f26c356d7c4b8144b5a701a25f40a236991b4"
       }
     },
     {
