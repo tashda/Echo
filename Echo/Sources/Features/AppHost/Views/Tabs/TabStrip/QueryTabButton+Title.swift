@@ -1,6 +1,8 @@
 import SwiftUI
 
-/// The tab's title, its database subtitle, and the running state (plan B2).
+/// The tab's one line (design board, 2026-09-30): its kind's icon, or a spinner while it runs,
+/// then the title. The database and running time are in the tooltip. An active tool tab with
+/// pages unfolds them after its title (ST2).
 extension QueryTabButton {
     @ViewBuilder
     var tabTitleContent: some View {
@@ -9,43 +11,46 @@ extension QueryTabButton {
                 .font(tabTitleFont)
                 .lineLimit(1)
                 .foregroundStyle(tabTitleColor)
-        } else if usesGlassTabs {
-            twoLineTitle
-        } else if let runningSince {
-            // A running query (plan B2): a spinner at the leading edge, and the timer in place
-            // of the subtitle. The timer text updates itself, so the tab doesn't re-render.
-            HStack(spacing: SpacingTokens.xxxs) {
-                ProgressView()
-                    .controlSize(.mini)
-                Text(displayedTitle)
-                    .font(tabTitleFont)
-                    .lineLimit(1)
-                    .foregroundStyle(tabTitleColor)
-                Text(runningSince, style: .timer)
-                    .font(TypographyTokens.detail.weight(.medium).monospacedDigit())
-                    .lineLimit(1)
-                    .foregroundStyle(tabTitleColor.opacity(0.55))
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(displayedTitle), running")
-        } else if let dbName = tab.tabSubtitle ?? tab.activeDatabaseName, !dbName.isEmpty {
-            HStack(spacing: SpacingTokens.xxxs) {
-                Text(displayedTitle)
-                    .font(tabTitleFont)
-                    .lineLimit(1)
-                    .foregroundStyle(tabTitleColor)
-
-                Text(dbName)
-                    .font(TypographyTokens.detail.weight(.medium))
-                    .lineLimit(1)
-                    .foregroundStyle(tabTitleColor.opacity(0.55))
-            }
+                .help(tabTooltip)
         } else {
-            Text(displayedTitle)
-                .font(tabTitleFont)
-                .lineLimit(1)
-                .foregroundStyle(tabTitleColor)
+            HStack(spacing: SpacingTokens.xxs2) {
+                Group {
+                    if runningSince != nil {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Image(systemName: tab.kind.icon)
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(tabTitleColor.opacity(isActive ? 0.8 : 0.7))
+                    }
+                }
+                .frame(width: SpacingTokens.sm2)
+                .accessibilityHidden(true)
+
+                Text(displayedTitle)
+                    .font(tabTitleFont)
+                    .lineLimit(1)
+                    .foregroundStyle(tabTitleColor)
+                    .layoutPriority(1)
+
+                if isActive, !tab.toolPages.isEmpty {
+                    TabPageChips(pages: tab.toolPages, selected: tab.currentToolPage) { tab.selectToolPage($0) }
+                        .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
+                }
+            }
+            .help(tabTooltip)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(runningSince == nil ? displayedTitle : "\(displayedTitle), running")
         }
+    }
+
+    /// Title, database, and when a running query started.
+    var tabTooltip: String {
+        var parts = [displayedTitle]
+        if let database = tab.tabSubtitle ?? tab.activeDatabaseName, !database.isEmpty { parts.append(database) }
+        if let runningSince {
+            parts.append("Running since \(runningSince.formatted(date: .omitted, time: .standard))")
+        }
+        return parts.joined(separator: " · ")
     }
 
     /// When the tab's query started, while it's running.
@@ -63,39 +68,5 @@ extension QueryTabButton {
             return "•"
         }
         return trimmed.isEmpty ? "Untitled" : trimmed
-    }
-
-    /// The glass tab bar's tab (round 11, T1 + T7, round 12 L2): the tab kind's icon (a spinner
-    /// while running), then the title over the database, or over the timer while running.
-    private var twoLineTitle: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            Group {
-                if runningSince != nil {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: tab.kind.icon)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
-            .frame(width: SpacingTokens.md)
-
-            VStack(alignment: .leading, spacing: SpacingTokens.none) {
-                Text(displayedTitle)
-                    .font(tabTitleFont)
-                    .foregroundStyle(tabTitleColor)
-                Group {
-                    if let runningSince {
-                        Text(runningSince, style: .timer)
-                    } else {
-                        Text(tab.tabSubtitle ?? tab.activeDatabaseName ?? "")
-                    }
-                }
-                .font(TypographyTokens.detail.monospacedDigit())
-                .foregroundStyle(ColorTokens.Text.secondary)
-            }
-            .lineLimit(1)
-        }
-        .accessibilityElement(children: .combine)
     }
 }

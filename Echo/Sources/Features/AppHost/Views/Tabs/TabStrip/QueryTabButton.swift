@@ -28,7 +28,6 @@ struct QueryTabButton: View {
     @State var isHovering = false
     @State var isHoveringClose = false
     @State private var isPressed = false
-    @Environment(\.tabStripUsesGlassTabs) var usesGlassTabs
 
     var shouldShowClose: Bool {
         guard !tab.isPinned else { return false }
@@ -63,7 +62,7 @@ struct QueryTabButton: View {
         .padding(.leading, tab.isPinned ? 13 : SpacingTokens.xs)
         .padding(.trailing, tab.isPinned ? 13 : SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xxxs)
-        .frame(minHeight: usesGlassTabs ? WorkspaceChromeMetrics.twoLineTabHeight : 24)
+        .frame(minHeight: WorkspaceChromeMetrics.tabHeight)
         .background(tabBackground)
         .overlay(tabStroke)
         .overlay(hoverOutline)

@@ -172,7 +172,6 @@ struct GlobalSettings: Codable, Hashable {
     var editorGutterStyle: EditorGutterStyle = .subtle
     /// 1 once the editor moved to 13pt with 1.55 line spacing (design board, 2026-09-30).
     var editorTypographyRevision = 1
-    var workspaceTabStripStyle: WorkspaceTabStripStyle = .glass
     var resultsMonospacedCells: Bool = false
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
@@ -259,7 +258,6 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarMonochromeVariant
         case editorGutterStyle
         case editorTypographyRevision
-        case workspaceTabStripStyle
         case resultsMonospacedCells
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
@@ -376,7 +374,6 @@ struct GlobalSettings: Codable, Hashable {
             if defaultEditorLineHeight == 1 { defaultEditorLineHeight = Double(SQLEditorTheme.defaultLineHeight) }
         }
         editorTypographyRevision = 1
-        workspaceTabStripStyle = (try? container.decodeIfPresent(WorkspaceTabStripStyle.self, forKey: .workspaceTabStripStyle)) ?? .glass
         resultsMonospacedCells = try container.decodeIfPresent(Bool.self, forKey: .resultsMonospacedCells) ?? false
 
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
@@ -454,7 +451,6 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
         try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
         try container.encode(editorTypographyRevision, forKey: .editorTypographyRevision)
-        try container.encode(workspaceTabStripStyle, forKey: .workspaceTabStripStyle)
         try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)

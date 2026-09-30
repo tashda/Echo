@@ -29,11 +29,6 @@ struct QueryTabStrip: View {
     @State private var measuredTabGroupWidth: CGFloat = 0
     @State private var databaseNamesBySessionID: [UUID: [String]] = [:]
 
-    /// Round 9, TB1: the glass capsule, unless Settings › Appearance › Tab Bar is Classic.
-    private var isGlass: Bool {
-        projectStore.globalSettings.workspaceTabStripStyle == .glass
-    }
-
     private var tabStripStyle: TabStripBackground.Style {
         .standard(colorScheme)
     }
@@ -65,9 +60,8 @@ struct QueryTabStrip: View {
     @State private var isNewTabHovered = false
 
     let tabReorderAnimation = Animation.interactiveSpring(response: 0.2, dampingFraction: 0.9, blendDuration: 0)
-    private var tabStripHeight: CGFloat {
-        WorkspaceChromeMetrics.tabStripTotalHeight + (isGlass ? WorkspaceChromeMetrics.twoLineTabExtraHeight : 0)
-    }
+    /// Round 9's strip on one line (design board, 2026-09-30).
+    private var tabStripHeight: CGFloat { WorkspaceChromeMetrics.tabStripTotalHeight }
     /// Equal to the plate's edge inset, so the plate lines up with the card's edge below it.
     private let baseHorizontalInset: CGFloat = 2
     private let basePlateExtension: CGFloat = 0
@@ -75,9 +69,7 @@ struct QueryTabStrip: View {
     private let basePlateCornerRadius: CGFloat = 14
     private let newTabButtonSize: CGFloat = 28
     private let newTabButtonGap: CGFloat = 6
-    private var basePlateHeight: CGFloat {
-        WorkspaceChromeMetrics.chromeBackgroundHeight + (isGlass ? WorkspaceChromeMetrics.twoLineTabExtraHeight : 0)
-    }
+    private var basePlateHeight: CGFloat { WorkspaceChromeMetrics.chromeBackgroundHeight }
     private var tabContentVerticalPadding: CGFloat {
         max((tabStripHeight - basePlateHeight) / 2, 0)
     }
@@ -95,6 +87,7 @@ struct QueryTabStrip: View {
             let separatorWidth = CGFloat(max(orderedTabs.count - 1, 0)) * tabHairlineWidth()
             let effectiveWidth = max(availableWidth - separatorWidth, 0)
             let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
+            let unfoldedWidths = tabWidths(for: orderedTabs, equalWidth: tabWidth, totalWidth: effectiveWidth)
             let tabContentWidth = max(tabWidth * CGFloat(orderedTabs.count), 0)
             let widthSource = measuredTabGroupWidth > 0 ? measuredTabGroupWidth : tabContentWidth
             let basePlateLeading = max(effectiveLeadingPadding - basePlateExtension - basePlateEdgeInset, 0)
@@ -107,18 +100,9 @@ struct QueryTabStrip: View {
             ZStack(alignment: .leading) {
 #if os(macOS)
                 if hasTabs {
-                    if isGlass {
-                        // TB1 (round 9): one glass capsule holding the tabs and the +.
-                        Capsule()
-                            .fill(.clear)
-                            .glassEffect(.regular, in: .capsule)
-                            .frame(width: max(geo.size.width - basePlateLeading - basePlateTrailing, 0), height: basePlateHeight)
-                            .offset(x: basePlateOffset)
-                    } else {
-                        TabStripBackground(style: tabStripStyle, height: basePlateHeight, cornerRadius: basePlateCornerRadius)
-                            .frame(width: basePlateWidth, height: basePlateHeight)
-                            .offset(x: basePlateOffset)
-                    }
+                    TabStripBackground(style: tabStripStyle, height: basePlateHeight, cornerRadius: basePlateCornerRadius)
+                        .frame(width: basePlateWidth, height: basePlateHeight)
+                        .offset(x: basePlateOffset)
                 }
 #endif
 
@@ -126,6 +110,7 @@ struct QueryTabStrip: View {
                     tabGroup(
                         orderedTabs: orderedTabs,
                         tabWidth: tabWidth,
+                        widths: unfoldedWidths,
                         databaseNamesBySessionID: databaseNamesBySessionID
                     )
                         .background(
@@ -142,8 +127,8 @@ struct QueryTabStrip: View {
                     }
                 }
                 .padding(.leading, effectiveLeadingPadding)
-                // Classic: the + ends at the card's trailing edge. Glass: it sits inside the capsule.
-                .padding(.trailing, hasTabs && !isGlass ? trailingPadding : effectiveTrailingPadding)
+                // The + ends at the card's trailing edge.
+                .padding(.trailing, hasTabs ? trailingPadding : effectiveTrailingPadding)
                 .padding(.vertical, tabContentVerticalPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(tabReorderAnimation, value: tabStore.tabs.map(\.id))
@@ -151,7 +136,6 @@ struct QueryTabStrip: View {
         }
         .frame(height: tabStripHeight)
         .clipped()
-        .environment(\.tabStripUsesGlassTabs, isGlass)
         .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
             measuredTabGroupWidth = width
         }
@@ -193,7 +177,7 @@ struct QueryTabStrip: View {
                 }
         }
         .buttonStyle(.plain)
-        .modifier(NewTabButtonGlass(isInsideCapsule: isGlass))
+        .glassEffect(.regular, in: .circle)
         .onHover { isNewTabHovered = $0 }
         .help("New Tab")
         .accessibilityLabel("New Tab")
@@ -202,6 +186,7 @@ struct QueryTabStrip: View {
     private func tabGroup(
         orderedTabs: [(WorkspaceTab, Bool)],
         tabWidth: CGFloat,
+        widths: [UUID: CGFloat],
         databaseNamesBySessionID: [UUID: [String]]
     ) -> some View {
         HStack(spacing: 0) {
@@ -210,7 +195,7 @@ struct QueryTabStrip: View {
 
                 tabButtonView(
                     tab: tab,
-                    targetWidth: tabWidth,
+                    targetWidth: widths[tab.id] ?? tabWidth,
                     index: index,
                     totalCount: orderedTabs.count,
                     appearance: nil,
@@ -237,6 +222,7 @@ struct QueryTabStrip: View {
             }
         }
         .fixedSize()
+        .animation(unfoldAnimation, value: tabStore.activeTabId)
     }
 
     private func databaseNameCacheSignature() -> String {

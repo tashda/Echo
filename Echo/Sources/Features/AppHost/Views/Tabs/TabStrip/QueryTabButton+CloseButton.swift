@@ -12,9 +12,6 @@ extension QueryTabButton {
         if let appearance {
             return isActive ? appearance.activeTitle : appearance.inactiveTitle
         }
-        if usesGlassTabs && !isActive {
-            return ColorTokens.TabStrip.glassInactiveTitle
-        }
         if tab.isPinned {
             return Color(nsColor: isActive ? .labelColor : .secondaryLabelColor.withAlphaComponent(0.75))
         }

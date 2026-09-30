@@ -268,8 +268,8 @@ Rules: `05-components` › Tabs. Replaces the glass capsule with two-line tabs (
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| B6 | **Round 9's strip as the only style:** the grey plate and white active tab, one line, the kind's icon (a spinner while running), the database in the tooltip. The bar returns to the Classic height. Remove the glass capsule and the Tab Bar setting. | `QueryTabStrip`, `QueryTabButton*`, `TabStripGlassTabs`, Appearance settings | One line everywhere 👁 | ☐ |
-| B7 | **Tool pages unfold in the tab (ST2):** a tool with pages (Activity Monitor first) shows them as small chips inside its active tab; the other tabs make room with the house spring. The tool's own segmented control goes. | Strip + tool tabs | Matches Round 14 · tab bar and pages 👁 | ☐ |
+| B6 | **Round 9's strip as the only style:** the grey plate and white active tab, one line, the kind's icon (a spinner while running), the database in the tooltip. The bar returns to the Classic height. Remove the glass capsule and the Tab Bar setting. | `QueryTabStrip`, `QueryTabButton*`, `TabStripGlassTabs`, Appearance settings | One line everywhere 👁 | ☑ built, 👁 pending |
+| B7 | **Tool pages unfold in the tab (ST2):** a tool with pages (Activity Monitor for SQL Server, Postgres and MySQL) shows them as small chips inside its active tab, scrolling sideways past 62% of the strip; the other tabs make room with the house spring. The tool's own segmented control goes. | Strip + tool tabs | Matches Round 14 · tab bar and pages 👁 | ☑ built, 👁 pending |
 
 ## Phase 15 · Tool tabs
 

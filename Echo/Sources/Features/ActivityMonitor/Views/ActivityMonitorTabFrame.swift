@@ -2,22 +2,20 @@ import SwiftUI
 
 /// Shared container for all activity monitor views. Provides the toolbar, loading/permission states,
 /// sparkline + section content layout, and SQL inspector sheet — so each database-specific activity
-/// monitor only needs to supply its section picker, sparklines, section content, and onChange handlers.
-struct ActivityMonitorTabFrame<SectionPicker: View, Sparklines: View, SectionContent: View>: View {
+/// monitor only needs to supply its sparklines, section content, and onChange handlers. Its pages are
+/// chosen in the tab (ST2).
+struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
     @Bindable var viewModel: ActivityMonitorViewModel
     let hasPermission: Bool
     let hasSnapshot: Bool
     @Binding var selectedSQLContext: SQLPopoutContext?
     let onOpenInQueryWindow: (_ sql: String, _ database: String?) -> Void
-    @ViewBuilder let sectionPicker: () -> SectionPicker
     @ViewBuilder let sparklines: () -> Sparklines
     @ViewBuilder let sectionContent: () -> SectionContent
 
     var body: some View {
+        // The pages are in the tab itself (ST2), so the frame starts with the content.
         VStack(spacing: 0) {
-            CenteredTabSectionToolbar { sectionPicker() }
-            Divider()
-
             if !hasPermission {
                 permissionDeniedView
             } else if !hasSnapshot {

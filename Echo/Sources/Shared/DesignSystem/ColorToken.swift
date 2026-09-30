@@ -116,12 +116,6 @@ public enum ColorTokens {
             )
         }
 
-        /// Inactive tab titles in the glass tab bar (round 11, T1): near full strength, unlike the
-        /// old light grey.
-        public static let glassInactiveTitle = Color.adaptive(
-            light: .black.withAlphaComponent(0.78), dark: .white.withAlphaComponent(0.8),
-            highContrastLight: .black, highContrastDark: .white
-        )
         // Background fills (standard, non-themed)
         public enum Background {
             public static let dark = Color(white: 0.22)
