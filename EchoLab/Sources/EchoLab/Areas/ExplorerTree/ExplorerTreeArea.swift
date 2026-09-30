@@ -6,8 +6,13 @@ import SwiftUI
 final class ExplorerTreeSpecimenSettings {
     /// The state the Spec page forces ("hoverRow", "hoverObject"); nil shows the rows at rest.
     var forced: String?
+    /// Settings › Appearance › Icon colour: Colourful (duotone rows, the default) or Monochrome.
     var iconMode: LabDockIconMode = LabPrefs.load("explorerTree.iconMode", default: LabDockIconMode.duotone) {
         didSet { LabPrefs.save(iconMode, key: "explorerTree.iconMode") }
+    }
+    /// Settings › Appearance › Dock icons: Mono (the default) or Duotone.
+    var dockMode: LabDockIconMode = LabPrefs.load("explorerTree.dockMode", default: LabDockIconMode.mono) {
+        didSet { LabPrefs.save(dockMode, key: "explorerTree.dockMode") }
     }
 }
 
@@ -60,10 +65,12 @@ enum ExplorerTreeArea {
                 .init(label: "Dock icons", value: "Medium weight, 14pt at the default size", token: "ExplorerDockRow.iconFont"),
                 .init(label: "Sections in the capsule", value: "at most five", token: "ExplorerDock.capsuleLimit"),
                 .init(label: "Folder chevron", value: "Semibold 11pt", token: "SidebarRowConstants.chevronFont"),
-                .init(label: "Row label", value: "13pt at the default density", token: "scales with the density setting"),
+                .init(label: "Row label", value: "13pt at the default density (compact 10, small 11, large 15)", token: "SidebarRow.densityLabelFont"),
+                .init(label: "Row icon", value: "13pt light in a 18 × 16pt frame at the default density", token: "SidebarRow.densityIconFont / densityIconFrameWidth"),
                 .init(label: "Card corners", value: "16pt (setting: 10 to 26)", token: "LayoutTokens.Workspace.cardCornerRadius"),
                 .init(label: "Card edge", value: "0.5pt at 35% separator", token: "cardEdgeWidth / cardEdgeOpacity"),
-                .init(label: "Icons", value: "Duotone by default; mono line is a setting", token: "IC2 / IC1"),
+                .init(label: "Row icons", value: "Colourful (duotone, softened 22%) by default; Monochrome is a setting; objects are always grey", token: "SidebarIconColorMode"),
+                .init(label: "Dock icons", value: "Mono by default; Duotone is a setting", token: "SidebarDockIconStyle"),
             ],
             rules: [
                 .init(text: "Every server has its own opaque card",
@@ -77,8 +84,8 @@ enum ExplorerTreeArea {
                       rounds: ["ported.Round 14 · section dock", "ongoing.server-card-r16", "ongoing.section-dock-capsule-r19"]),
                 .init(text: "Switching fades through instead of gliding (S3)", why: "Rows that slide past each other read as noise; a quick fade out and a gentler fade in keeps the place.", rounds: ["ongoing.section-dock-switching-r19"]),
                 .init(text: "SQL Server in five sections, as SSMS groups them", why: "The capsule holds at most five; Database Snapshots, Server Objects and Integration Services move into their SSMS homes.", rounds: ["ongoing.section-dock-sections-r19"]),
-                .init(text: "Duotone icons by default",
-                      why: "Tiles, letters and dots were rejected; a Recraft icon set is planned, with SF Symbols drawn duotone until then.",
+                .init(text: "Colourful duotone row icons by default, grey dock icons",
+                      why: "Tiles, letters and dots were rejected; a Recraft icon set is planned, with SF Symbols drawn duotone until then. The dock stays grey with an accent current icon unless you choose Duotone.",
                       rounds: ["ported.Round 14 · section dock"]),
                 .init(text: "No pinned path header",
                       why: "It cost space and added blur; the dock does the job of orientation.",
@@ -104,13 +111,19 @@ struct ExplorerTreeControls: View {
     @Bindable var settings: ExplorerTreeSpecimenSettings
 
     var body: some View {
-        HStack {
-            Picker("Icons", selection: $settings.iconMode) {
-                Text("Duotone (default)").tag(LabDockIconMode.duotone)
-                Text("Mono line (setting)").tag(LabDockIconMode.mono)
+        HStack(spacing: SpacingTokens.md) {
+            Picker("Row icons", selection: $settings.iconMode) {
+                Text("Colourful (default)").tag(LabDockIconMode.duotone)
+                Text("Monochrome").tag(LabDockIconMode.mono)
             }
             .pickerStyle(.segmented)
-            .frame(width: 320)
+            .frame(width: 360)
+            Picker("Dock icons", selection: $settings.dockMode) {
+                Text("Mono (default)").tag(LabDockIconMode.mono)
+                Text("Duotone").tag(LabDockIconMode.duotone)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 300)
             Spacer()
         }
     }

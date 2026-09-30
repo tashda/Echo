@@ -71,9 +71,10 @@ enum ExplorerTreeSpec {
                 .states(.row("Colour", "accent", token: "ColorTokens.accent"), .row("Fill", "none")),
                 .layout(.row("Slot", "equal share of the capsule, as tall as the capsule"), .row("Hit area", "the whole slot")),
             ], rounds: [round16], files: [components + "ExplorerDockRow.swift"]),
-            SpecElement(number: "3.3", name: "Other section icons", summary: "Duotone in the tree's colours; grey when the icon setting is mono.", groups: [
-                .material(.row("Duotone", "outline in the role colour over its fill variant at 22%", token: "SidebarDuotoneSymbols.fillOpacity"),
-                          .row("Mono", "grey", token: "ColorTokens.Sidebar.symbol")),
+            SpecElement(number: "3.3", name: "Other section icons", summary: "Grey by default; duotone in the tree's colours is a setting (Dock icons).", groups: [
+                .material(.row("Mono (default)", "grey", token: "ColorTokens.Sidebar.symbol"),
+                          .row("Duotone (setting)", "outline in the role colour over its fill variant at 22%", token: "SidebarDuotoneSymbols.fillOpacity"),
+                          .row("Setting", "Settings › Appearance › Dock icons", token: "SidebarDockIconStyle")),
                 .behaviour(.row("Tooltip", "Title · count")),
                 .motion(.row("Hover", "an icon that isn't the current one grows 12%", token: "LayoutTokens.ExplorerDock.hoverScale / echoMotion.hover")),
             ], rounds: ["ported.Round 14 · section dock", r19Capsule], files: [components + "ExplorerDockRow.swift"]),
@@ -111,6 +112,7 @@ enum ExplorerTreeSpec {
         SpecPart(number: "4", name: "Rows", summary: "Quiet rows: one icon slot, one label, an optional count.", elements: [
             SpecElement(number: "4.1", name: "Row", summary: "The shape every row shares (S4 Quiet).", groups: [
                 .layout(.row("Height", "28pt in a 29pt slot at the default density; vertical padding 3 · 4 · 6 · 7 by density", token: "SidebarRow.densityVerticalPadding"),
+                        .row("Densities", "Compact, Small, Default (medium), Large: the Sidebar Size setting", token: "SidebarDensity"),
                         .row("Indent", "16pt per level, outside the highlight", token: "SidebarRowConstants.indentStep"),
                         .row("Padding", "6pt leading · 8pt trailing inside; 6pt outside", token: "rowLeadingPadding / rowTrailingPadding / rowOuterHorizontalPadding"),
                         .row("Icon to label", "8pt", token: "SidebarRowConstants.iconTextSpacing"),
@@ -118,14 +120,16 @@ enum ExplorerTreeSpec {
                 .behaviour(.row("Density", "the Sidebar Size setting scales the label and the vertical padding")),
             ], rounds: ["decided.tree-card-s4-quiet"], files: [rows, constants]),
             SpecElement(number: "4.2", name: "Icon", summary: "One slot for a row's symbol.", groups: [
-                .layout(.row("Frame", "18 × 16pt", token: "SidebarRowConstants.iconFrameWidth / Height")),
-                .type(.row("Symbol", "regular 14pt", token: "SidebarRowConstants.iconFont")),
-                .material(.row("Duotone (default)", "outline in the role colour over its fill at 22%", token: "IC2"),
-                          .row("Mono line (setting)", "grey", token: "IC1")),
+                .layout(.row("Frame", "18 × 16pt at the default size (compact 14 × 12, small 16 × 14, large 20 × 18)", token: "SidebarRow.densityIconFrameWidth / Height"),
+                        .row("Scale", "medium")),
+                .type(.row("Symbol", "light weight: 13pt at the default size (compact 10, small 11, large 14)", token: "SidebarRow.densityIconFont")),
+                .material(.row("Colourful (default)", "outline in the role colour softened 22% towards secondary, over its fill variant at 22%, where the symbol has one", token: "ColorTokens.Explorer.colorfulSoftening / SidebarDuotoneSymbols.fillOpacity"),
+                          .row("Monochrome (setting)", "secondary grey; a folder that is open takes the accent colour with Accent on open, the default", token: "SidebarIconColorMode / SidebarMonochromeVariant"),
+                          .row("Objects", "tables, views and the like are always the grey symbol colour", token: "ColorTokens.Sidebar.symbol")),
                 .states(.row("Selected", "accent")),
             ], rounds: ["ported.Round 14 · section dock"], files: [rows]),
             SpecElement(number: "4.3", name: "Label", summary: "One line; a schema prefix is dimmed.", groups: [
-                .type(.row("Font", "13pt at the default density; scales with the size setting", token: "densityLabelFont"),
+                .type(.row("Font", "13pt at the default density (compact 10, small 11, large 15)", token: "SidebarRow.densityLabelFont"),
                       .row("Colour", "primary"), .row("Lines", "1, truncated at the end"),
                       .row("Schema prefix", "\"HumanResources.\" in tertiary on tables outside the default schema")),
             ], files: [rows]),
@@ -160,6 +164,32 @@ enum ExplorerTreeSpec {
                 .behaviour(.row("Items", "for that node kind, from the database type's blueprint"),
                            .row("Reveal in the tree", "smooth scroll, 0.40s", token: "echoMotion.reveal")),
             ], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarView+ContextMenus.swift"]),
+        ]),
+        SpecPart(number: "6", name: "Row kinds and loading", summary: "The other rows a card holds, and how a loading section looks.", elements: [
+            SpecElement(number: "6.1", name: "Database row", summary: "A cylinder, the name, and its state.", groups: [
+                .behaviour(.row("Offline or no access", "the row is at 50%; the state (OFFLINE and so on) or NO ACCESS shows in 9pt uppercase quaternary at the right"),
+                           .row("No access", "the label is secondary"), .row("Loading", "a mini spinner at the right")),
+            ], files: [components + "ObjectBrowserRowView+Components.swift"]),
+            SpecElement(number: "6.2", name: "Empty object folder", summary: "Kept, because its menu creates objects, but it steps back.", groups: [
+                .states(.row("Icon", "quaternary"), .row("Label", "tertiary"), .row("Count and chevron", "none")),
+            ], files: [components + "ObjectBrowserRowView+Components.swift"]),
+            SpecElement(number: "6.3", name: "Item and tool rows", summary: "A loaded item, or a tool the folder offers.", groups: [
+                .material(.row("Item icon", "secondary; quaternary when disabled"), .row("Item label", "primary; secondary when disabled"),
+                          .row("Tool icon", "its role colour, like a folder's")),
+                .type(.row("Detail", "11pt tertiary at the right, when the item has one")),
+            ], files: [components + "ObjectBrowserRowView+Components.swift"]),
+            SpecElement(number: "6.4", name: "Column rows", summary: "Under a table.", groups: [
+                .material(.row("Primary key", "a filled key in orange"), .row("Foreign key", "an arrow.turn.down.right in the info colour", token: "ColorTokens.Status.info"),
+                          .row("Other columns", "no icon")),
+                .type(.row("Type", "11pt tertiary at the right, abbreviated", token: "EchoFormatters.abbreviatedSQLType")),
+            ], files: [components + "ObjectBrowserRowView+Components.swift"]),
+            SpecElement(number: "6.5", name: "Loading a section", summary: "While a section's source loads.", groups: [
+                .behaviour(.row("Folders", "a mini spinner in the count's place"), .row("Item-only level", "one spinner row, such as Loading databases"),
+                           .row("Skeleton rows", "three placeholder rows at the child indent; the real rows fade in over them", token: "LayoutTokens.Shimmer.explorerRowCount")),
+            ], rounds: [round16], files: [components + "ObjectBrowserRowView.swift"]),
+            SpecElement(number: "6.6", name: "Selected server pulse", summary: "A wave of the success colour across the server's header when it is revealed.", groups: [
+                .material(.row("Colour", "success", token: "ColorTokens.Status.success"), .row("Corner", "8pt", token: "SidebarRowConstants.hoverCornerRadius")),
+            ], files: [components + "ObjectBrowserRowView+Components.swift"]),
         ]),
         SpecPart(number: "5", name: "Not built", summary: "Things that were tried or planned and are not in Echo.", elements: [
             SpecElement(number: "5.1", name: "Pinned path header", summary: "A sticky header that showed the path to the row at the top. Removed; the dock orients instead.", isRetired: true),

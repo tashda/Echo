@@ -69,7 +69,7 @@ struct ExplorerTreeSpecimen: View {
             HStack(spacing: SpacingTokens.none) {
                 ForEach(Array(Self.dock.enumerated()), id: \.offset) { index, item in
                     let isCurrent = index == 0
-                    LabDuotoneSymbol(name: item.symbol, color: isCurrent ? ColorTokens.accent : item.color, mode: settings.iconMode,
+                    LabDuotoneSymbol(name: item.symbol, color: isCurrent ? ColorTokens.accent : item.color, mode: settings.dockMode,
                                      monoColor: isCurrent ? ColorTokens.accent : ColorTokens.Sidebar.symbol, font: TypographyTokens.prominent.weight(.medium))
                         .frame(maxWidth: .infinity).frame(height: 28)
                         .specAnchor(isCurrent ? "3.2" : "3.3")
@@ -98,11 +98,11 @@ struct ExplorerTreeSpecimen: View {
             ExplorerSpecRow(title: "Tables", symbol: "folder", color: ColorTokens.Explorer.tables, depth: 1,
                             isFolder: true, isExpanded: true, count: 21, iconMode: settings.iconMode, forcedHover: forced == "hoverRow")
                 .specAnchor("4.4")
-            ExplorerSpecRow(title: "Department", prefix: "HumanResources", symbol: "tablecells", color: ColorTokens.Explorer.tables, depth: 2,
+            ExplorerSpecRow(title: "Department", prefix: "HumanResources", symbol: "tablecells", color: ColorTokens.Sidebar.symbol, depth: 2,
                             iconMode: settings.iconMode).specAnchor("4.3")
-            ExplorerSpecRow(title: "Employee", prefix: "HumanResources", symbol: "tablecells", color: ColorTokens.Explorer.tables, depth: 2,
+            ExplorerSpecRow(title: "Employee", prefix: "HumanResources", symbol: "tablecells", color: ColorTokens.Sidebar.symbol, depth: 2,
                             isSelected: true, iconMode: settings.iconMode).specAnchor("4.7")
-            ExplorerSpecRow(title: "Address", prefix: "Person", symbol: "tablecells", color: ColorTokens.Explorer.tables, depth: 2,
+            ExplorerSpecRow(title: "Address", prefix: "Person", symbol: "tablecells", color: ColorTokens.Sidebar.symbol, depth: 2,
                             iconMode: settings.iconMode, forcedHover: forced == "hoverObject").specAnchor("4.6")
             ExplorerSpecRow(title: "Views", symbol: "folder", color: ColorTokens.Explorer.views, depth: 1,
                             isFolder: true, isExpanded: false, count: 4, iconMode: settings.iconMode).specAnchor("4.5")
@@ -154,7 +154,7 @@ private struct ExplorerSpecRow: View {
             Image(systemName: "chevron.right").font(SidebarRowConstants.chevronFont).foregroundStyle(ColorTokens.Text.tertiary)
                 .rotationEffect(.degrees(isExpanded ? 90 : 0))
         } else {
-            LabDuotoneSymbol(name: symbol, color: isSelected ? ColorTokens.accent : color, mode: iconMode,
+            LabDuotoneSymbol(name: symbol, color: isSelected ? ColorTokens.accent : color.mix(with: ColorTokens.Text.secondary, by: ColorTokens.Explorer.colorfulSoftening), mode: iconMode,
                              monoColor: isSelected ? ColorTokens.accent : ColorTokens.Sidebar.symbol)
         }
     }
