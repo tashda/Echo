@@ -76,6 +76,8 @@ struct WorkspaceShell: View {
         // Showing the tree keeps the house bounce. Hiding it settles without overshoot, so the
         // cards growing toward the rail stop exactly at their place instead of bouncing into it.
         .animation(isTreeVisible ? motion.standard : motion.settle, value: isTreeVisible)
+        // The inspector moves as the tree does: the house spring out, settling back without overshoot.
+        .animation(appState.isInspectorColumnVisible ? motion.standard : motion.settle, value: appState.isInspectorColumnVisible)
         .animation(motion.standard, value: isPeeking)
         .onChange(of: isTreeVisible) { _, isVisible in
             if isVisible { appState.peekedServerID = nil }

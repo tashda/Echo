@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Run for query tabs (plan K1, round 15 idea 1): a plain ▶ like its toolbar neighbours, in a
-/// capsule of its own so nothing moves when it changes. Running, it becomes ■ with the elapsed
-/// time in red (a click cancels); when the query ends it shows ✓ or ! for a moment and settles
-/// back. Right-click for the other run modes, which are also in the Query menu.
+/// Run for query tabs (plan K1, round 15 idea 1): a standard toolbar button like its neighbours,
+/// in a capsule of its own. With a selection it turns accent, as it runs only the selection.
+/// Running, the whole capsule turns red (the system's prominent glass) with ■ and the elapsed time;
+/// a click cancels. When the query ends it shows ✓ or ! for a moment and settles back.
+/// Right-click for the other run modes, which are also in the Query menu.
 struct QueryRunToolbarControl: View {
     let tabStore: TabStore
 
@@ -19,51 +20,48 @@ struct QueryRunToolbarControl: View {
     private var tab: WorkspaceTab? { tabStore.activeTab }
     private var query: QueryEditorState? { tab?.query }
     private var isRunning: Bool { query?.isExecuting ?? false }
+    private var runsSelection: Bool { query?.hasActiveSelection ?? false }
 
     var body: some View {
-        Button(action: runOrCancel) { label }
-            .buttonStyle(.plain)
-            .disabled(!isRunning && !(tab?.canRun(.run) ?? false))
-            .help(helpText)
-            .accessibilityLabel(helpText)
-            .contextMenu {
-                ForEach(QueryRunMode.allCases) { mode in
-                    Button {
-                        tabStore.activeTab?.run(mode)
-                    } label: {
-                        Label(mode.title, systemImage: mode.systemImage)
+        Group {
+            if isRunning, let started = query?.executionStartTime {
+                Button(action: runOrCancel) {
+                    Label {
+                        Text(started, style: .timer).monospacedDigit()
+                    } icon: {
+                        Image(systemName: "stop.fill")
                     }
-                    .disabled(!(tab?.canRun(mode) ?? false))
                 }
+                .labelStyle(.titleAndIcon)
+                .buttonStyle(.glassProminent)
+                .tint(ColorTokens.Status.error)
+            } else {
+                Button(action: runOrCancel) {
+                    Label(runsSelection ? "Run Selection" : "Run", systemImage: symbol)
+                        .foregroundStyle(symbolColor)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .labelStyle(.iconOnly)
+                .disabled(!(tab?.canRun(.run) ?? false))
             }
-            .animation(motion.standard, value: isRunning)
-            .animation(motion.standard, value: result)
-            .onChange(of: isRunning) { wasRunning, running in
-                if running { showResult(nil) } else if wasRunning { showResultOfLastRun() }
+        }
+        .help(helpText)
+        .accessibilityLabel(helpText)
+        .contextMenu {
+            ForEach(QueryRunMode.allCases) { mode in
+                Button {
+                    tabStore.activeTab?.run(mode)
+                } label: {
+                    Label(mode.title, systemImage: mode.systemImage)
+                }
+                .disabled(!(tab?.canRun(mode) ?? false))
             }
-            .onChange(of: tab?.id) { _, _ in showResult(nil) }
-    }
-
-    @ViewBuilder
-    private var label: some View {
-        if isRunning, let started = query?.executionStartTime {
-            HStack(spacing: SpacingTokens.xxs) {
-                Image(systemName: "stop.fill")
-                Text(started, style: .timer).monospacedDigit()
-            }
-            .font(TypographyTokens.detail.weight(.semibold))
-            .foregroundStyle(ColorTokens.Status.error)
-            .padding(.horizontal, SpacingTokens.xs)
-            .frame(height: LayoutTokens.Toolbar.runGlyphSize)
-            .background(ColorTokens.Status.error.opacity(LayoutTokens.Toolbar.runningTintOpacity), in: .capsule)
-            .contentShape(.capsule)
-        } else {
-            Image(systemName: symbol)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(symbolColor)
-                .contentTransition(.symbolEffect(.replace))
-                .frame(width: LayoutTokens.Toolbar.runGlyphSize, height: LayoutTokens.Toolbar.runGlyphSize)
-                .contentShape(Rectangle())
+        }
+        .animation(motion.standard, value: isRunning)
+        .animation(motion.standard, value: result)
+        .animation(motion.hover, value: runsSelection)
+        .onChange(of: isRunning) { wasRunning, running in
+            if running { showResult(nil) } else if wasRunning { showResultOfLastRun() }
         }
     }
 
@@ -79,7 +77,7 @@ struct QueryRunToolbarControl: View {
         switch result {
         case .succeeded: ColorTokens.Status.success
         case .failed: ColorTokens.Status.error
-        case nil: (tab?.canRun(.run) ?? false) ? ColorTokens.Text.primary : ColorTokens.Text.tertiary
+        case nil: runsSelection ? ColorTokens.accent : ColorTokens.Text.primary
         }
     }
 

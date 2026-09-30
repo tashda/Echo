@@ -32,23 +32,28 @@ struct WorkspaceInspectorColumn: View {
             )
             .allowsHitTesting(isVisible)
 
-            Group {
+            ZStack {
                 if showsHistory, let history = environmentState.notificationEngine?.history {
                     NotificationHistoryPanel(history: history)
+                        .transition(.opacity)
                 } else {
                     InfoSidebarView()
+                        .transition(.opacity)
                 }
             }
             .frame(width: width)
+            // The window edge gets a gutter too, as the tree has on the rail's side.
+            .padding(.trailing, gutter)
             .accessibilityIdentifier("workspace-inspector")
         }
-        // Hidden, it slides out past the trailing edge and fades. Reduce Motion fades only.
-        .offset(x: isVisible || motion.reduceMotion ? 0 : width + gutter)
+        // Hidden, it slides out past the trailing edge and fades, exactly like the tree: the shell
+        // animates this and the cards' padding in one transaction. Reduce Motion fades only.
+        .offset(x: isVisible || motion.reduceMotion ? 0 : width + gutter * 2)
         .opacity(isVisible ? 1 : 0)
-        .frame(width: isVisible ? width + gutter : 0, alignment: .leading)
+        .frame(width: isVisible ? width + gutter * 2 : 0, alignment: .leading)
         .allowsHitTesting(isVisible)
         .accessibilityHidden(!isVisible)
-        .animation(motion.standard, value: isVisible)
+        .animation(motion.standard, value: showsHistory)
         .animation(motion.standard, value: width)
     }
 
