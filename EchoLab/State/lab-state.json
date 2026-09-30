@@ -316,6 +316,43 @@
     "status": "Judging",
     "verdicts": {}
   },
+  "ongoing.pg-script-results-r21": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:53:20Z",
+        "id": "717B31B5-D41F-4E90-ABEA-81099FD90172",
+        "text": "Review of Postgres: script results\n1. Script results: picked Proposal\n2. Layout: picked SR4 · Statement list at the left\n3. Label: picked SL3 · The statement's first words\n4. Commands: picked SC2 · Entries with their tag\n5. Messages: picked SP2 · One line per statement\n6. Link to the editor: picked SK2 · A result highlights its statement\n7. When a statement fails: picked E3 · Stop by default, a setting to continue\n8. All or nothing: picked OT1 · 'Run as one transaction' in the Run menu, off by default"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:53:20Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T15:34:34Z",
+        "text": "Built into Echo (plan R8): statement list at the left, first-word labels, command entries, one Messages line per statement, the selected result lights its statement, stop on a failed statement (setting to continue), Run as One Transaction. Please check it in the running app."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "commands": "SC2 · Entries with their tag",
+      "exhibit": "proposal",
+      "label": "SL3 · The statement's first words",
+      "layout": "SR4 · Statement list at the left",
+      "link": "SK2 · A result highlights its statement",
+      "onError": "setting",
+      "oneTransaction": "menu",
+      "progress": "SP2 · One line per statement"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.pg-timeouts-r21": {
     "comments": [
       {
