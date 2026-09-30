@@ -7,6 +7,7 @@ struct ServerRecipeList: View {
     let model: LabServersModel
     @Binding var selectedRecipe: String?
     @Binding var leaseMinutes: Int
+    @AppStorage("lab.servers.capture") private var capture = false
     @State private var search = ""
 
     private var filtered: [Recipe] {
@@ -67,10 +68,12 @@ struct ServerRecipeList: View {
             }
             Section {
                 Stepper("Remove after \(leaseMinutes) minutes", value: $leaseMinutes, in: 15...480, step: 15)
+                Toggle("Record traffic", isOn: $capture)
+                    .help("Records the server's traffic; see it decoded under Wire, or open it in Wireshark")
                 HStack {
                     Button("Build image") { Task { await model.build(recipe) } }
                         .disabled(model.busyRecipes.contains(recipe.name))
-                    Button("Start server") { Task { await model.start(recipe, leaseMinutes: leaseMinutes) } }
+                    Button("Start server") { Task { await model.start(recipe, leaseMinutes: leaseMinutes, capture: capture) } }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.busyRecipes.contains(recipe.name))
                 }

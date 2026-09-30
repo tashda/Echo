@@ -22,6 +22,10 @@ final class LabServersModel {
     private(set) var started: [LabDatabaseServer] = []
     private(set) var busyRecipes: Set<String> = []
     private(set) var log: [String] = []
+    /// Servers started here with traffic recording on.
+    private(set) var capturing: Set<String> = []
+    private(set) var wire: [WireMessage] = []
+    private(set) var wireServer: String?
 
     /// Echo Labs marks the servers it starts with this owner.
     static let owner = "echo-labs"
@@ -77,7 +81,7 @@ final class LabServersModel {
         await refresh()
     }
 
-    func start(_ recipe: Recipe, leaseMinutes: Int) async {
+    func start(_ recipe: Recipe, leaseMinutes: Int, capture: Bool) async {
         guard let lab, !busyRecipes.contains(recipe.name) else { return }
         busyRecipes.insert(recipe.name)
         defer { busyRecipes.remove(recipe.name) }
@@ -86,7 +90,11 @@ final class LabServersModel {
             let server = try await lab.start(recipe, owner: Self.owner, lease: .seconds(leaseMinutes * 60),
                                              log: { line in Task { @MainActor in LabServersModel.shared.append(line) } })
             started.append(server)
-            append("Started \(server.containerName) on \(server.host):\(server.port)")
+            if capture {
+                try await lab.startCapture(of: server)
+                capturing.insert(server.containerName)
+            }
+            append("Started \(server.containerName) on \(server.host):\(server.port)\(capture ? ", recording traffic" : "")")
         } catch {
             append("Start failed: \(error)")
         }
@@ -106,6 +114,31 @@ final class LabServersModel {
     }
 
     func clearLog() { log.removeAll() }
+
+    /// Decodes the traffic recorded for a server started here.
+    func refreshWire(for containerName: String) async {
+        guard let lab, let server = startedServer(named: containerName), capturing.contains(containerName) else { return }
+        do {
+            wire = try await lab.wireMessages(of: server)
+            wireServer = containerName
+        } catch {
+            append("Decoding the capture failed: \(error)")
+        }
+    }
+
+    /// Saves the capture next to the lab's other files and opens it in Wireshark.
+    func openInWireshark(_ containerName: String) async {
+        guard let lab, let server = startedServer(named: containerName) else { return }
+        do {
+            let folder = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".echo-testlab/captures")
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let file = folder.appending(path: "\(containerName).pcap")
+            try await lab.captureData(of: server).write(to: file)
+            LabWireshark.open(file)
+        } catch {
+            append("Could not open the capture: \(error)")
+        }
+    }
 
     func append(_ line: String) {
         log.append(line)

@@ -6,6 +6,7 @@ import SwiftUI
 /// What runs on the lab host now, the memory budget, and the build/start log.
 struct RunningServersPanel: View {
     let model: LabServersModel
+    @AppStorage("lab.servers.bottomPane") private var bottomPane = "log"
 
     var body: some View {
         VSplitView {
@@ -30,7 +31,18 @@ struct RunningServersPanel: View {
             .formStyle(.grouped)
             .frame(minHeight: 260)
 
-            logView.frame(minHeight: 140)
+            VStack(spacing: 0) {
+                Picker("Show", selection: $bottomPane) {
+                    Text("Log").tag("log")
+                    Text("Wire").tag("wire")
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 200)
+                .padding(.top, SpacingTokens.xs)
+                if bottomPane == "wire" { WireView(model: model) } else { logView }
+            }
+            .frame(minHeight: 180)
         }
     }
 
