@@ -53,7 +53,7 @@ struct ScenarioEditorView: View {
                 if let source = scenario.source { LabTag(text: source, symbol: "doc.text") }
                 Spacer()
                 Picker("", selection: $scenario.review) {
-                    ForEach(ScenarioReview.allCases, id: \.self) { Text($0 == .approved ? "Approved" : "Imported, not reviewed").tag($0) }
+                    ForEach(ScenarioReview.allCases, id: \.self) { Text($0.title).tag($0) }
                 }.labelsHidden().fixedSize()
             }
             TextField("", text: $scenario.title, prompt: Text("Scenario title")).textFieldStyle(.plain)

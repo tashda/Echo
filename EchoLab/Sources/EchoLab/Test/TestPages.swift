@@ -33,7 +33,8 @@ enum TestPages {
             group: "EchoSense",
             title: "Scenarios",
             symbol: "checklist",
-            summary: "Every scenario, one by one: what should happen, the expected result and the actual one from the real engine. The same scenarios run in the package's tests."
+            summary: "Every scenario, one by one: what should happen, the checks it makes and whether the real engine passes them. The same checks run in the package's tests.",
+            ownsHeader: true
         ) { ScenariosTestPage() },
         LabPage(
             id: "test.tryquery",
