@@ -30,6 +30,7 @@ enum NotificationsArea {
                 .init(trigger: "The ⋯ menu", result: "Filters (All, Errors, Connection, Queries, Jobs) and Clear All."),
                 .init(trigger: "Muted toast", result: "Every event is still recorded in history (500 kept, across launches)."),
                 .init(trigger: "A query fails", result: "Recorded in history; a toast only when its tab isn't in front (the results card shows the error)."),
+                .init(trigger: "Bell while the details show, then the bell again", result: "The column switches to the history, then closes; it never falls back to the details. The inspector button works the same way the other round."),
             ],
             motions: [
                 .init(name: "Toast in and out", curve: "house spring", duration: "0.45s", note: "Slides from the top and fades"),

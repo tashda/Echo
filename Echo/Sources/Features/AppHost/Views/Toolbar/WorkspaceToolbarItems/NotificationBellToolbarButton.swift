@@ -10,7 +10,7 @@ struct NotificationBellToolbarButton: View {
 
     var body: some View {
         Button {
-            appState.isNotificationHistoryVisible.toggle()
+            appState.toggleNotificationHistory()
         } label: {
             Label("Notifications", systemImage: appState.isNotificationHistoryVisible ? "bell.fill" : "bell")
         }

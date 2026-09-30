@@ -31,6 +31,22 @@ import SwiftUI
     /// Whether the trailing column is out, for the details or the history.
     var isInspectorColumnVisible: Bool { showInfoSidebar || isNotificationHistoryVisible }
 
+    /// The bell: shows the history in the column, or, if it is showing, closes the column. The
+    /// column holds one thing at a time, so closing it never falls back to the details.
+    func toggleNotificationHistory() {
+        if isNotificationHistoryVisible {
+            isNotificationHistoryVisible = false
+        } else {
+            showNotificationHistory()
+        }
+    }
+
+    /// Shows the history in the column in place of the details.
+    func showNotificationHistory() {
+        showInfoSidebar = false
+        isNotificationHistoryVisible = true
+    }
+
     /// The inspector button and ⌥⌘I: from the history they switch to the details, otherwise they
     /// show or hide the column.
     func toggleInspector() {

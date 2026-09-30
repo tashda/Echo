@@ -86,7 +86,7 @@ private struct StatusToastRow: View {
             Button("Copy") { copyToGeneralPasteboard(toast.message) }
             Button("Show All") {
                 presenter.dismiss(toast.id)
-                appState.isNotificationHistoryVisible = true
+                appState.showNotificationHistory()
             }
         }
         .buttonStyle(.plain)

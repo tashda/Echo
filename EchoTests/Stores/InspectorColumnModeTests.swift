@@ -6,14 +6,14 @@ import Testing
 struct InspectorColumnModeTests {
     @Test func bellShowsTheHistoryInTheColumn() {
         let state = AppState()
-        state.isNotificationHistoryVisible = true
+        state.toggleNotificationHistory()
         #expect(state.isInspectorColumnVisible)
         #expect(!state.showInfoSidebar)
     }
 
     @Test func inspectorButtonSwitchesFromHistoryToDetails() {
         let state = AppState()
-        state.isNotificationHistoryVisible = true
+        state.toggleNotificationHistory()
         state.toggleInspector()
         #expect(state.showInfoSidebar)
         #expect(!state.isNotificationHistoryVisible)
@@ -28,11 +28,12 @@ struct InspectorColumnModeTests {
         #expect(!state.isNotificationHistoryVisible)
     }
 
-    @Test func closingTheHistoryReturnsToTheDetails() {
+    @Test func bellFromTheDetailsSwitchesThenClosesTheColumn() {
         let state = AppState()
-        state.showInfoSidebar = true
-        state.isNotificationHistoryVisible = true
-        state.isNotificationHistoryVisible = false
-        #expect(state.isInspectorColumnVisible)
+        state.toggleInspector()
+        state.toggleNotificationHistory()
+        #expect(state.isNotificationHistoryVisible && !state.showInfoSidebar)
+        state.toggleNotificationHistory()
+        #expect(!state.isInspectorColumnVisible)
     }
 }
