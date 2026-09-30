@@ -14,11 +14,26 @@ struct DomainScenarioEditor: View {
             set: { scenario.expected = $0.isEmpty ? nil : $0.components(separatedBy: "\n——\n") })
     }
 
+    private var optionsText: Binding<String> {
+        Binding(
+            get: { scenario.options.sorted { $0.key < $1.key }.map { "\($0.key): \($0.value)" }.joined(separator: "\n") },
+            set: { text in
+                var options: [String: String] = [:]
+                for line in text.components(separatedBy: "\n") {
+                    guard let colon = line.firstIndex(of: ":") else { continue }
+                    let key = line[..<colon].trimmingCharacters(in: .whitespaces)
+                    if !key.isEmpty { options[key] = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces) }
+                }
+                scenario.options = options
+            })
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.md) {
                 header
                 field("Scenario", domain.inputLabel) { editor($scenario.input) }
+                field("Options", "One per line, as key: value") { editor(optionsText).frame(maxHeight: 70) }
                 HStack(alignment: .top, spacing: SpacingTokens.md) {
                     field("Expected", "\(domain.expectedLabel); separate lines with a row holding ——") { editor(expectedText) }
                     field("Actual", "What the real code gives now") {
