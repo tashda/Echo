@@ -10,8 +10,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "EchoLab",
-            dependencies: [.product(name: "EchoDesignSystem", package: "EchoDesignSystem")],
-            swiftSettings: [.defaultIsolation(MainActor.self)]
+            dependencies: [.product(name: "EchoDesignSystem", package: "EchoDesignSystem")]
         )
     ]
 )

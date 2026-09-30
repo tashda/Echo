@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Interactive pages that call the real packages: EchoSense, connections, drivers.
-enum TestPages {
+@MainActor enum TestPages {
     static let all: [LabPage] = [
         LabPage(
             id: "test.overview",

@@ -1,6 +1,6 @@
 /// Every page in the lab. Add a page to its area's list (`OngoingPages`, `DecidedPages`,
 /// `TestPages`); the sidebar builds itself from this.
-enum LabRegistry {
+@MainActor enum LabRegistry {
     static let pages: [LabPage] = OngoingPages.all + DecidedPages.all + ReferencePages.all + TestPages.all
 
     static func pages(in section: LabSection) -> [LabPage] {

@@ -4,7 +4,7 @@ import SwiftUI
 /// A frozen decision: what was asked, what won, why, and every option as live code.
 /// Options are self-contained specimens with their values written out, so a decision looks
 /// today exactly as it did when it was made, whatever the tokens do later.
-struct LabDecision: Identifiable {
+@MainActor struct LabDecision: @MainActor Identifiable {
     let id: String
     /// Sidebar group, for example "Tabs" or "EchoSense".
     let area: String
@@ -60,7 +60,7 @@ struct LabDecision: Identifiable {
 
 /// One option that was considered. `sourcePath` is the file holding its specimen, so the
 /// library can show the code next to the rendering; pass `#filePath` from that file.
-struct LabDecisionOption: Identifiable {
+@MainActor struct LabDecisionOption: @MainActor Identifiable {
     let name: String
     let isWinner: Bool
     let why: String

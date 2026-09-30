@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// One page in the lab. Pages are plain SwiftUI views with sample data and no app state.
-struct LabPage: Identifiable {
+@MainActor struct LabPage: @MainActor Identifiable {
     let id: String
     let section: LabSection
     /// Sidebar group inside the section, for example "Tabs" or "Explorer tree".
