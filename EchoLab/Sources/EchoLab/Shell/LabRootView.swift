@@ -48,6 +48,7 @@ struct LabRootView: View {
                         Button("Forward", systemImage: "chevron.forward") { navigator.forward() }
                             .disabled(!navigator.canGoForward).keyboardShortcut("]", modifiers: .command)
                     }
+                    ToolbarItem { LabBuildStatus(builder: .shared) }
                     ToolbarItem {
                         Button(LabRegistry.page(id: currentPageID)?.decision != nil ? "Decision" : "Feedback", systemImage: "sidebar.trailing") { showsFeedback.toggle() }
                     }
@@ -69,6 +70,14 @@ struct LabRootView: View {
             if let page = LabRegistry.page(id: new), page.decision != nil { showsFeedback = true }
         }
         .onAppear {
+            LabBuilder.shared.startWatching()
+            if ProcessInfo.processInfo.environment["ECHOLAB_ACTION"] == "rebuild" { LabBuilder.shared.rebuild() }   // for testing
+            // A rebuild waits for you when the page you're on has picks that aren't sent yet.
+            LabBuilder.shared.shouldAskBeforeRelaunch = { [store, navigator] in
+                guard let page = LabRegistry.page(id: { if case .page(let id) = navigator.current.destination { id } else { navigator.current.round }}()),
+                      page.decision != nil, store.status(of: page) == .judging else { return false }
+                return page.decision.map { !($0().topics.allSatisfy { store.pick(page, topic: $0.id) == nil }) } ?? false
+            }
             // Launch straight onto a page: ECHOLAB_PAGE=<LabPage.id> (used for testing).
             // "area:<id>:<overview|spec|rounds>" opens an area on that tab.
             if let id = ProcessInfo.processInfo.environment["ECHOLAB_PAGE"] {

@@ -38,5 +38,13 @@ struct EchoLabApp: App {
             LabRootView()
         }
         .defaultSize(width: 1280, height: 860)
+        .commands {
+            CommandMenu("Build") {
+                Button("Rebuild and Relaunch") { LabBuilder.shared.rebuild() }
+                    .keyboardShortcut("b", modifiers: [.command, .shift])
+                Button("Relaunch") { LabBuilder.shared.relaunch() }
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+            }
+        }
     }
 }

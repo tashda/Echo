@@ -16,6 +16,7 @@
 #
 # While it builds it shows live progress (in Raycast's output window, or the terminal) and posts
 # a notification when the build starts and when Echo Labs is ready. `--no-launch` builds only.
+# Echo Labs runs this itself for Rebuild and Relaunch (⌘⇧B), with ECHOLAB_QUIET=1.
 set -e
 cd "${0:A:h}/.."                      # EchoLab/
 
@@ -23,6 +24,7 @@ cd "${0:A:h}/.."                      # EchoLab/
 # before the first build with that support, fall back to a plain notification.
 bundle_dir=$(swift build --show-bin-path 2>/dev/null)
 notify() {
+  [[ -n "$ECHOLAB_QUIET" ]] && return 0   # set by the app's own Rebuild command, which shows progress itself
   local app="$bundle_dir/Echo Labs.app"
   if [[ -x "$app/Contents/MacOS/EchoLab" ]] && /usr/libexec/PlistBuddy -c "Print :EchoLabNotify" "$app/Contents/Info.plist" >/dev/null 2>&1; then
     "$app/Contents/MacOS/EchoLab" --notify "$1" >/dev/null 2>&1 || true
