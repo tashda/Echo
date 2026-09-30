@@ -64,7 +64,8 @@ enum FooterResultsArea {
             ]
         ) {
             FooterResultsSpecimen()
-        }
+        },
+        spec: FooterResultsSpec.spec(stageHeight: 480) { FooterResultsSpecimen() }
     )
 }
 

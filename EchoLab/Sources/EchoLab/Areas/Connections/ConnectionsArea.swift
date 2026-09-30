@@ -49,6 +49,7 @@ enum ConnectionsArea {
             ]
         ) {
             LabRound14ManageConnections()
-        }
+        },
+        spec: ConnectionsSpec.spec(stageHeight: 620) { LabRound14ManageConnections() }
     )
 }

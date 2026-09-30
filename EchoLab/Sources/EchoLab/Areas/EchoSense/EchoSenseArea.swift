@@ -58,6 +58,7 @@ enum EchoSenseArea {
             ]
         ) {
             LabRound14SenseEditor(selection: .tintThenSolid, corners: .followCards)
-        }
+        },
+        spec: EchoSenseSpec.spec(stageHeight: 380) { LabRound14SenseEditor(selection: .tintThenSolid, corners: .followCards) }
     )
 }

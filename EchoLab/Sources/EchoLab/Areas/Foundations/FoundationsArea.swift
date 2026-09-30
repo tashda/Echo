@@ -55,6 +55,7 @@ enum FoundationsArea {
             ]
         ) {
             FoundationsSpecimen()
-        }
+        },
+        spec: FoundationsSpec.spec(stageHeight: 480) { FoundationsSpecimen() }
     )
 }

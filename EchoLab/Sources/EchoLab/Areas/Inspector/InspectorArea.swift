@@ -52,6 +52,7 @@ enum InspectorArea {
             ]
         ) {
             LabInspectorColumn(look: .groupedBoxes)
-        }
+        },
+        spec: InspectorSpec.spec(stageHeight: 640) { LabInspectorColumn(look: .groupedBoxes) }
     )
 }

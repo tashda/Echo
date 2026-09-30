@@ -74,7 +74,8 @@ enum EditorArea {
         }
         .controls {
             EditorControls(state: runState)
-        }
+        },
+        spec: EditorSpec.spec(stageHeight: 520, specimen: { RunButtonSpecimen(state: runState) }, controls: { EditorControls(state: runState) })
     )
 }
 
