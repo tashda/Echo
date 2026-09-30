@@ -54,6 +54,7 @@ enum LabAreas {
         "ported.Round 14 · section dock": "explorer-tree",
         "ported.Round 14 · connections": "connections",
         "ported.Round 14 · EchoSense selection": "echosense",
+        // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
     /// The area a page belongs to: its As built id, the explicit map above, or, for a new round

@@ -24,4 +24,16 @@ enum LabStatus: String, Codable, CaseIterable {
     case decided = "Decided"
 
     var section: LabSection { self == .decided ? .decided : .ongoing }
+
+    /// The state file may spell a status as its display name ("In Echo") or as a key
+    /// (`inEcho`); both read the same. It is written as the display name.
+    init(from decoder: Decoder) throws {
+        let text = try decoder.singleValueContainer().decode(String.self)
+        let normalized = text.lowercased().replacingOccurrences(of: " ", with: "")
+        guard let status = Self.allCases.first(where: { $0.rawValue.lowercased().replacingOccurrences(of: " ", with: "") == normalized }) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                debugDescription: "Unknown status \"\(text)\". Use New feedback, Judging, Accepted, In Echo or Decided."))
+        }
+        self = status
+    }
 }

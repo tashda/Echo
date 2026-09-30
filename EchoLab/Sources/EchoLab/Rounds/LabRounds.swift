@@ -18,6 +18,7 @@ enum LabRounds {
     }
 
     static let all: [Info] = [
+        // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
         Info(id: "r17", label: "Round 17", title: "Notification history", date: "30 Sep 2026",
              asked: "How the notification history looks in the inspector's column, and how a notification opens to its whole, selectable message.",
              outcome: "First look: cards (B), by time, fading in, and asked for more. Being judged again with compact cards, attention first and stacks, plus header (count and Clear) and action (Open Tab, Copy) styles.",

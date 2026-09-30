@@ -2,7 +2,8 @@
 /// that is built into Echo and waiting for feedback (`.inEcho`). When the owner confirms it on
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
-    static let all: [LabPage] = [serverCard, notificationHistory] + PortedPages.ongoing
+    // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
+    static let all: [LabPage] = [serverCard, notificationHistory /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -17,4 +18,6 @@
         status: .judging,
         summary: "Echo today beside a timeline, cards, and a list with the message below it, each opening a notification to its whole, selectable message.",
         spec: LabNHRound.spec)
+
+    // ROUNDS-DEFINITIONS
 }

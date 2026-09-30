@@ -25,6 +25,8 @@ struct RoundSpec {
         /// What the agent recommends for this control, and why. Required when there is a `question`.
         var recommended: String?
         var why: String?
+        /// The revision this control was added in (2 or more).
+        var addedIn: Int?
     }
 
     /// One live specimen: a title, what makes it different, and the view.
@@ -36,6 +38,8 @@ struct RoundSpec {
         var isEchoToday = false
         /// A wide exhibit (a whole window) takes the full width of the canvas, on its own row.
         var isWide = false
+        /// The revision this exhibit was added in (2 or more), so it is marked New until reviewed.
+        var addedIn: Int?
         /// The size the specimen is designed at. It is scaled down if its card is narrower;
         /// keep it to about 340 to 700 wide so several fit side by side.
         let designWidth: CGFloat
@@ -43,13 +47,14 @@ struct RoundSpec {
         let build: (RoundValues) -> AnyView
 
         init<V: View>(id: String, title: String, summary: String = "", isEchoToday: Bool = false, isWide: Bool = false,
-                      designWidth: CGFloat, designHeight: CGFloat,
+                      addedIn: Int? = nil, designWidth: CGFloat, designHeight: CGFloat,
                       @ViewBuilder build: @escaping (RoundValues) -> V) {
             self.id = id
             self.title = title
             self.summary = summary
             self.isEchoToday = isEchoToday
             self.isWide = isWide
+            self.addedIn = addedIn
             self.designWidth = designWidth
             self.designHeight = designHeight
             self.build = { AnyView(build($0)) }
@@ -65,6 +70,8 @@ struct RoundSpec {
         /// The agent's recommendation (a choice id) and the reason. Both are required.
         let recommended: String
         let why: String
+        /// The revision this question was added in (2 or more).
+        var addedIn: Int?
     }
 
     /// A button that does something in the playground (post a notification, run the query).
@@ -102,7 +109,7 @@ struct RoundSpec {
         var topics: [RoundDecision.Topic] = []
         if let exhibitTopic {
             topics.append(.init(id: Self.exhibitTopicID, title: exhibitTopic.title, question: exhibitTopic.question,
-                                choices: exhibits.map { .init(id: $0.id, name: $0.title, summary: nil) },
+                                choices: exhibits.map { .init(id: $0.id, name: $0.title, summary: nil, addedIn: $0.addedIn) },
                                 recommended: exhibitTopic.recommended, why: exhibitTopic.why))
         }
         for control in controls {
@@ -110,11 +117,11 @@ struct RoundSpec {
             assert(control.recommended != nil && control.why != nil,
                    "Control \(control.id) asks a question, so it needs a recommendation and a reason (see HOW_TO_WRITE_A_ROUND.md)")
             topics.append(.init(id: control.id, title: control.title, question: question, choices: control.choices,
-                                recommended: control.recommended, why: control.why, preview: { values[control.id] }))
+                                recommended: control.recommended, why: control.why, addedIn: control.addedIn, preview: { values[control.id] }))
         }
         for question in questions {
             topics.append(.init(id: question.id, title: question.title, question: question.question, choices: question.choices,
-                                recommended: question.recommended, why: question.why))
+                                recommended: question.recommended, why: question.why, addedIn: question.addedIn))
         }
         return RoundDecision(topics: topics)
     }
@@ -177,11 +184,12 @@ extension RoundSpec.Control {
     /// A control whose choices are the cases of an enum the exhibits already use.
     static func of<E: CaseIterable & RawRepresentable>(
         _ id: String, _ title: String, _ type: E.Type, default value: E, question: String? = nil,
-        recommend: E? = nil, why: String? = nil, summary: ((E) -> String)? = nil
+        recommend: E? = nil, why: String? = nil, summary: ((E) -> String)? = nil,
+        addedIn: Int? = nil, newChoices: (revision: Int, choices: [E])? = nil
     ) -> RoundSpec.Control where E.RawValue == String {
         RoundSpec.Control(id: id, title: title, question: question,
-                          choices: RoundDecision.choices(type, summary: summary), defaultChoice: value.rawValue,
-                          recommended: recommend?.rawValue, why: why)
+                          choices: RoundDecision.choices(type, summary: summary, added: newChoices), defaultChoice: value.rawValue,
+                          recommended: recommend?.rawValue, why: why, addedIn: addedIn)
     }
 }
 

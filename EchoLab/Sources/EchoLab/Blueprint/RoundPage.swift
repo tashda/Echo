@@ -26,7 +26,7 @@ struct LabRoundPage: View {
             LabRoundInfoBox(page: page, hint: true).padding([.horizontal, .top], SpacingTokens.md).padding(.bottom, SpacingTokens.xs)
             HStack(alignment: .top, spacing: 0) {
                 if usesColumn && showsControls {
-                    RoundControlsColumn(spec: spec, values: values, settings: settings).frame(width: 290)
+                    RoundControlsColumn(page: page, spec: spec, values: values, settings: settings).frame(width: 290)
                     Divider()
                 }
                 canvas
@@ -56,7 +56,7 @@ struct LabRoundPage: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    if !usesColumn { RoundControlsBar(spec: spec, values: values, settings: settings) }
+                    if !usesColumn { RoundControlsBar(page: page, spec: spec, values: values, settings: settings) }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 320, maximum: 720), spacing: SpacingTokens.sm, alignment: .top)],
                               alignment: .leading, spacing: SpacingTokens.sm) {
                         ForEach(spec.exhibits) { exhibit in
@@ -74,17 +74,24 @@ struct LabRoundPage: View {
 
 /// A control as a labelled menu that shows its current choice and what it means.
 private struct RoundControlMenu: View {
+    let page: LabPage
     let control: RoundSpec.Control
     let values: RoundValues
     var showsSummary = true
+    @Environment(LabStore.self) private var store
 
     var body: some View {
         let current = control.choices.first { $0.id == values[control.id] }
         VStack(alignment: .leading, spacing: 3) {
-            Text(control.title).font(TypographyTokens.standard.weight(.semibold)).foregroundStyle(ColorTokens.Text.primary)
+            HStack(spacing: 5) {
+                Text(control.title).font(TypographyTokens.standard.weight(.semibold)).foregroundStyle(ColorTokens.Text.primary)
+                if store.isNew(page, addedIn: control.addedIn) { LabNewBadge() }
+            }
             Menu {
                 Picker(control.title, selection: values.binding(control.id)) {
-                    ForEach(control.choices) { Text($0.name + ($0.id == control.recommended ? "  ★ recommended" : "")).tag($0.id) }
+                    ForEach(control.choices) {
+                        Text($0.name + ($0.id == control.recommended ? "  ★ recommended" : "") + (store.isNew(page, addedIn: $0.addedIn) ? "  · new" : "")).tag($0.id)
+                    }
                 }
                 .pickerStyle(.inline)
             } label: {
@@ -112,6 +119,7 @@ private struct RoundControlMenu: View {
 
 /// The left column: presets, every control, and the test controls.
 private struct RoundControlsColumn: View {
+    let page: LabPage
     let spec: RoundSpec
     let values: RoundValues
     let settings: LabStageSettings
@@ -147,7 +155,7 @@ private struct RoundControlsColumn: View {
                 }
                 section("Controls", "slider.horizontal.3") {
                     VStack(alignment: .leading, spacing: SpacingTokens.md) {
-                        ForEach(spec.controls) { RoundControlMenu(control: $0, values: values) }
+                        ForEach(spec.controls) { RoundControlMenu(page: page, control: $0, values: values) }
                         Button { values.reset(spec.controls) } label: { Label("Reset controls", systemImage: "arrow.uturn.backward") }
                             .buttonStyle(LabPillButtonStyle())
                     }
@@ -170,6 +178,7 @@ private struct RoundControlsColumn: View {
 
 /// The slim bar used when a round has only a few controls.
 private struct RoundControlsBar: View {
+    let page: LabPage
     let spec: RoundSpec
     let values: RoundValues
     let settings: LabStageSettings
@@ -178,7 +187,7 @@ private struct RoundControlsBar: View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             if !spec.controls.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: SpacingTokens.sm)], alignment: .leading, spacing: SpacingTokens.xs) {
-                    ForEach(spec.controls) { RoundControlMenu(control: $0, values: values, showsSummary: false) }
+                    ForEach(spec.controls) { RoundControlMenu(page: page, control: $0, values: values, showsSummary: false) }
                 }
             }
             LabStageControlBar(settings: settings)
@@ -215,6 +224,7 @@ private struct RoundExhibitCard: View {
                         .padding(.horizontal, SpacingTokens.xs).padding(.vertical, 1)
                         .background(ColorTokens.Surface.hover, in: Capsule())
                 }
+                if store.isNew(page, addedIn: exhibit.addedIn) { LabNewBadge() }
                 if recommendation != nil {
                     Label("Recommended", systemImage: "star.fill").font(TypographyTokens.detail.weight(.semibold))
                         .padding(.horizontal, SpacingTokens.xs).padding(.vertical, 1)

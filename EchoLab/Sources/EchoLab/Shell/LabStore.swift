@@ -21,6 +21,15 @@ final class LabStore {
         var text: String
     }
 
+    /// One revision of a round: what the agent changed since the owner last looked.
+    struct Revision: Codable, Equatable, Identifiable {
+        var number: Int
+        var date: Date
+        var summary: String
+        var changes: [String] = []
+        var id: Int { number }
+    }
+
     struct Item: Codable, Equatable {
         var status: LabStatus
         var comments: [Comment] = []
@@ -35,6 +44,10 @@ final class LabStore {
         /// Topics where nothing fits and the owner wants more options.
         var needsMore: [String] = []
         var generalNote: String = ""
+        /// Revisions after the first look, oldest first. Revision 1 is the first version.
+        var revisions: [Revision] = []
+        /// The revision the owner last reviewed (sent feedback on, accepted, or marked as seen).
+        var reviewedRevision: Int = 1
 
         init(status: LabStatus) { self.status = status }
 
@@ -49,6 +62,8 @@ final class LabStore {
             optionNotes = try container.decodeIfPresent([String: String].self, forKey: .optionNotes) ?? [:]
             needsMore = try container.decodeIfPresent([String].self, forKey: .needsMore) ?? []
             generalNote = try container.decodeIfPresent(String.self, forKey: .generalNote) ?? ""
+            revisions = try container.decodeIfPresent([Revision].self, forKey: .revisions) ?? []
+            reviewedRevision = try container.decodeIfPresent(Int.self, forKey: .reviewedRevision) ?? 1
         }
     }
 
@@ -91,6 +106,33 @@ final class LabStore {
     }
 
     func comments(for page: LabPage) -> [Comment] { items[page.id]?.comments ?? [] }
+
+    // MARK: Revisions
+
+    /// The current revision number (1 until the agent records a revision).
+    func revision(of page: LabPage) -> Int { items[page.id]?.revisions.last?.number ?? 1 }
+    func revisions(of page: LabPage) -> [Revision] { items[page.id]?.revisions ?? [] }
+    func reviewedRevision(of page: LabPage) -> Int { items[page.id]?.reviewedRevision ?? 1 }
+
+    /// Revisions the owner has not reviewed yet: what to look for.
+    func revisionsSinceReview(of page: LabPage) -> [Revision] {
+        let reviewed = reviewedRevision(of: page)
+        return revisions(of: page).filter { $0.number > reviewed }
+    }
+
+    /// True when something in the round was added after the owner's last review.
+    func isNew(_ page: LabPage, addedIn revision: Int?) -> Bool {
+        guard let revision else { return false }
+        return revision > reviewedRevision(of: page)
+    }
+
+    /// The owner has now seen the current revision.
+    func markReviewed(_ page: LabPage) {
+        guard var item = items[page.id] else { return }
+        item.reviewedRevision = item.revisions.last?.number ?? 1
+        items[page.id] = item
+        save()
+    }
     func history(for page: LabPage) -> [Event] { items[page.id]?.history ?? [] }
 
     /// Items waiting for someone: new feedback, judging, accepted, or in Echo.
@@ -116,6 +158,7 @@ final class LabStore {
         var item = items[page.id] ?? Item(status: status(of: page) ?? .newFeedback)
         let wasDecided = item.status == .decided
         item.status = .newFeedback
+        item.reviewedRevision = item.revisions.last?.number ?? 1
         if !text.isEmpty { item.comments.append(Comment(date: .now, text: text, element: element)) }
         item.history.append(Event(date: .now, text: wasDecided ? "Reopened with feedback" : "Feedback sent"))
         items[page.id] = item
@@ -200,6 +243,7 @@ final class LabStore {
     func acceptPicks(_ page: LabPage, summary: String) {
         var item = items[page.id] ?? Item(status: status(of: page) ?? .judging)
         item.status = .accepted
+        item.reviewedRevision = item.revisions.last?.number ?? 1
         item.comments.append(Comment(date: .now, text: summary))
         item.history.append(Event(date: .now, text: "Accepted with picks"))
         items[page.id] = item
@@ -215,15 +259,24 @@ final class LabStore {
     private func move(_ page: LabPage, to status: LabStatus, note: String) {
         var item = items[page.id] ?? Item(status: status)
         item.status = status
+        item.reviewedRevision = item.revisions.last?.number ?? 1
         item.history.append(Event(date: .now, text: note))
         items[page.id] = item
         save()
     }
 
     func reload() {
-        guard let data = try? Data(contentsOf: fileURL),
-              let stored = try? Self.decoder.decode([String: Item].self, from: data) else { return }
-        if stored != items { items = stored }
+        guard let data = try? Data(contentsOf: fileURL) else { return }
+        do {
+            // One bad entry must not discard the rest: decode each page's entry on its own.
+            let entries = try Self.decoder.decode([String: Lossy<Item>].self, from: data)
+            let stored = entries.compactMapValues(\.value)
+            let bad = entries.filter { $0.value.value == nil }.keys.sorted()
+            if !bad.isEmpty { NSLog("Echo Labs skipped unreadable entries in lab-state.json: \(bad.joined(separator: ", "))") }
+            if stored != items { items = stored }
+        } catch {
+            NSLog("Echo Labs could not read lab-state.json: \(error)")
+        }
     }
 
     private func save() {
@@ -233,6 +286,12 @@ final class LabStore {
         } catch {
             NSLog("Echo Labs could not save feedback: \(error.localizedDescription)")
         }
+    }
+
+    /// Wraps a value so a decoding failure becomes nil instead of failing the whole file.
+    private struct Lossy<T: Decodable>: Decodable {
+        let value: T?
+        init(from decoder: Decoder) throws { value = try? T(from: decoder) }
     }
 
     private static let encoder: JSONEncoder = {

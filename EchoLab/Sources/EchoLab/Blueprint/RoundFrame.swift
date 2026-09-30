@@ -63,6 +63,7 @@ struct RoundDecisionPanel: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                RoundWhatsNew(page: page, decision: decision)
                 HStack {
                     Label("Your decision", systemImage: "checkmark.seal").font(TypographyTokens.headline)
                     Spacer()
@@ -114,6 +115,7 @@ private struct RoundDecisionTopicCard: View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             HStack(alignment: .firstTextBaseline) {
                 Text("\(number) · \(topic.title)").font(TypographyTokens.standard.weight(.semibold))
+                if store.isNew(page, addedIn: topic.addedIn) { LabNewBadge() }
                 Spacer()
                 if needsMore { Text("Needs more").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Status.warning) }
             }
@@ -139,7 +141,10 @@ private struct RoundDecisionTopicCard: View {
                             Image(systemName: picked == choice.id ? "largecircle.fill.circle" : "circle")
                                 .foregroundStyle(picked == choice.id ? ColorTokens.accent : ColorTokens.Text.tertiary)
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(choice.name).font(TypographyTokens.standard)
+                                HStack(spacing: 5) {
+                                    Text(choice.name).font(TypographyTokens.standard)
+                                    if store.isNew(page, addedIn: choice.addedIn) { LabNewBadge() }
+                                }
                                 if let summary = choice.summary {
                                     Text(summary).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
                                         .fixedSize(horizontal: false, vertical: true)

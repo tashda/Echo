@@ -8,6 +8,8 @@ struct RoundDecision {
         let id: String
         let name: String
         var summary: String?
+        /// The revision this choice was added in (2 or more), so it is marked New until reviewed.
+        var addedIn: Int?
     }
 
     struct Topic: Identifiable {
@@ -19,6 +21,8 @@ struct RoundDecision {
         /// The choice the agent recommends, and why. Every deciding topic has one.
         var recommended: String?
         var why: String?
+        /// The revision this whole topic was added in.
+        var addedIn: Int?
         /// The choice currently selected in the playground, if this topic has a control there;
         /// it powers "Use what's selected in the preview".
         var preview: (@MainActor () -> String?)?
@@ -27,9 +31,13 @@ struct RoundDecision {
     var topics: [Topic]
 
     /// The choices of an enum the playground already has (every case, named by its raw value).
-    static func choices<E: CaseIterable & RawRepresentable>(_ type: E.Type, summary: ((E) -> String)? = nil) -> [Choice]
+    static func choices<E: CaseIterable & RawRepresentable>(_ type: E.Type, summary: ((E) -> String)? = nil,
+                                                             added: (revision: Int, choices: [E])? = nil) -> [Choice]
     where E.RawValue == String {
-        E.allCases.map { Choice(id: $0.rawValue, name: $0.rawValue, summary: summary?($0)) }
+        E.allCases.map { value in
+            Choice(id: value.rawValue, name: value.rawValue, summary: summary?(value),
+                   addedIn: added.flatMap { $0.choices.contains(where: { $0.rawValue == value.rawValue }) ? $0.revision : nil })
+        }
     }
 }
 

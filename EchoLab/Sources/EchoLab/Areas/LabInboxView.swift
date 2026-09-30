@@ -94,7 +94,14 @@ struct LabInboxView: View {
                     Spacer(minLength: 4)
                     Text(dateText(page)).font(TypographyTokens.detail).foregroundStyle(.secondary)
                 }
-                Text(areaTitle(page)).font(TypographyTokens.detail).foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    Text(areaTitle(page)).font(TypographyTokens.detail).foregroundStyle(.secondary)
+                    LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
+                    if store.revision(of: page) > store.reviewedRevision(of: page) {
+                        Text("New since rev \(store.reviewedRevision(of: page))")
+                            .font(.system(size: 11, weight: .semibold)).foregroundStyle(ColorTokens.accent)
+                    }
+                }
                 Text(preview(page)).font(TypographyTokens.detail).foregroundStyle(.secondary).lineLimit(2)
             }
         }
@@ -120,9 +127,12 @@ struct LabInboxView: View {
         LabRounds.info(forPage: page.id)?.date.replacingOccurrences(of: " 2026", with: "") ?? ""
     }
 
-    /// The latest comment if there is one, otherwise what the page is about.
+    /// What changed since your last review, else your latest comment, else what the page is about.
     private func preview(_ page: LabPage) -> String {
-        store.comments(for: page).last?.text ?? page.summary
+        if let change = store.revisionsSinceReview(of: page).flatMap({ $0.changes.isEmpty ? [$0.summary] : $0.changes }).first, !change.isEmpty {
+            return "Since your review: " + change
+        }
+        return store.comments(for: page).last?.text ?? page.summary
     }
 }
 
@@ -143,11 +153,13 @@ struct LabMailPageDetail: View {
                     Text(page.title).font(.system(size: 26, weight: .bold))
                     HStack(spacing: 6) {
                         if let status = store.status(of: page) { LabStatusChip(status: status) }
+                        LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
                         if let areaTitle { LabTag(text: areaTitle, symbol: "square.grid.2x2") }
                     }
                     Button { navigator.openPage(page.id) } label: { Label("Open", systemImage: "arrow.up.right.square") }
                         .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true)).padding(.top, 4)
                 }
+                sinceReview
                 if !page.summary.isEmpty {
                     LabReadingCard(title: "What it's about", symbol: "text.alignleft") {
                         Text(page.summary).font(TypographyTokens.prominent).fixedSize(horizontal: false, vertical: true)
@@ -168,6 +180,35 @@ struct LabMailPageDetail: View {
         }
     }
 
+    /// What to look for: the revisions since the owner last reviewed this page.
+    @ViewBuilder
+    private var sinceReview: some View {
+        let unseen = store.revisionsSinceReview(of: page)
+        if !unseen.isEmpty {
+            LabReadingCard(title: "Since your last review · rev \(store.reviewedRevision(of: page)) → rev \(store.revision(of: page))", symbol: "sparkles") {
+                ForEach(unseen) { revision in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Revision \(revision.number) · \(revision.date.formatted(date: .abbreviated, time: .omitted))")
+                            .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.accent)
+                        if !revision.summary.isEmpty {
+                            Text(revision.summary).font(TypographyTokens.prominent).fixedSize(horizontal: false, vertical: true)
+                        }
+                        ForEach(revision.changes, id: \.self) { change in
+                            Label { Text(change).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "eye") .foregroundStyle(ColorTokens.accent) }
+                                .font(TypographyTokens.standard)
+                        }
+                    }
+                }
+                HStack {
+                    Button { navigator.openPage(page.id) } label: { Label("Open and look", systemImage: "arrow.up.right.square") }
+                        .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent))
+                    Button { store.markReviewed(page) } label: { Label("Mark as reviewed", systemImage: "checkmark") }
+                        .buttonStyle(LabPillButtonStyle())
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private var feedback: some View {
         let comments = store.comments(for: page)
@@ -184,6 +225,19 @@ struct LabMailPageDetail: View {
                             .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
                     }
                     if comment.id != comments.reversed().prefix(4).last?.id { Divider() }
+                }
+            }
+        }
+        let revisions = store.revisions(of: page)
+        if !revisions.isEmpty {
+            LabReadingCard(title: "Revisions", symbol: "arrow.triangle.2.circlepath") {
+                ForEach(revisions.reversed()) { revision in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Revision \(revision.number) · \(revision.date.formatted(date: .abbreviated, time: .omitted))")
+                            .font(TypographyTokens.detail.weight(.semibold))
+                        if !revision.summary.isEmpty { Text(revision.summary).font(TypographyTokens.standard) }
+                        ForEach(revision.changes, id: \.self) { Text("• " + $0).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary) }
+                    }
                 }
             }
         }
