@@ -1,9 +1,24 @@
+import EchoSenseScenarios
 import SwiftUI
 
 /// Interactive pages that call the real packages: EchoSense, connections, drivers.
 @MainActor
 enum TestPages {
-    static let all: [LabPage] = [
+    /// One page per kind of scenario (statements, GO batches, ...), from the package's domain list.
+    static let domainPages: [LabPage] = ScenarioDomains.all.map { domain in
+        LabPage(
+            id: "test.domain.\(domain.id)",
+            section: .test,
+            group: "Scripts and results",
+            title: domain.title,
+            symbol: "checklist",
+            summary: domain.summary + " The same scenarios run in EchoSense's tests."
+        ) { DomainScenariosPage(domain: domain) }
+    }
+
+    static let all: [LabPage] = base + domainPages
+
+    private static let base: [LabPage] = [
         LabPage(
             id: "test.echosense",
             section: .test,
