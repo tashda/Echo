@@ -93,7 +93,9 @@ struct QueryPanelStatusBar: View {
             isExecuting: query.isExecuting,
             compact: EchoFormatters.compactNumber
         )
-        let rowLabel = query.rowProgress.displayCount == 1 ? "row" : "rows"
+        var rowLabel = query.rowProgress.displayCount == 1 ? "row" : "rows"
+        // Round 21, cancel CP1: rows kept after a cancel are marked as partial.
+        if query.wasCancelled, !query.isExecuting, query.rowProgress.displayCount > 0 { rowLabel += ", partial" }
         let elapsed = query.isExecuting ? query.currentExecutionTime : (query.lastExecutionTime ?? 0)
         let hasDuration = query.isExecuting || query.lastExecutionTime != nil
         let durationText = hasDuration ? EchoFormatters.duration(seconds: Int(elapsed.rounded())) : nil
@@ -115,6 +117,9 @@ struct QueryPanelStatusBar: View {
     }
 
     private func buildStatusBubble() -> BottomPanelStatusBarConfiguration.StatusBubble {
+        if query.cancelPhase != nil {
+            return .init(label: "Cancelling", tint: .orange, isPulsing: true)
+        }
         if query.isExecuting {
             return .init(label: "Executing", tint: .orange, isPulsing: true)
         }

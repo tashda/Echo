@@ -325,11 +325,38 @@ extension WorkspaceTabContainerView {
         // PostgreSQL: stop the statement on the server first (otherwise it keeps running and the
         // connection stays busy draining rows), then cancel the task. The "canceling statement"
         // error that follows is treated as a cancellation because the request flag is already set.
+        guard queryState.cancelPhase == nil else { return }
         queryState.isCancellationRequested = true
+        queryState.cancelPhase = .cancelling
         let session = tab.session
         Task { @MainActor in
             _ = await session.cancelRunningQuery()
             queryState.cancelExecution()
+            await followPostgresCancel(queryState: queryState, session: session)
+        }
+    }
+
+    /// Round 21, cancel: offers Force Stop when the server hasn't stopped within 5 s (CS2), and says
+    /// when the cancelled statement left its transaction needing ROLLBACK (TX1).
+    private func followPostgresCancel(queryState: QueryEditorState, session: DatabaseSession) async {
+        let started = ContinuousClock.now
+        while queryState.isExecuting {
+            if queryState.cancelPhase == .cancelling, ContinuousClock.now - started >= QueryCancelPhase.forceStopDelay {
+                queryState.cancelPhase = .notStopping
+                queryState.forceStopHandler = { [weak queryState] in
+                    guard let queryState else { return }
+                    queryState.forceStopHandler = nil
+                    Task { @MainActor in
+                        let outcome = await (session as? PostgresSession)?.forceStopRunningQuery() ?? (stopped: false, transactionWasOpen: false)
+                        if outcome.stopped { queryState.noteForceStopped(transactionWasOpen: outcome.transactionWasOpen) }
+                        queryState.cancelExecution()
+                    }
+                }
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        if queryState.wasCancelled, await (session as? PostgresSession)?.isInFailedTransaction() == true {
+            queryState.noteCancelledInsideTransaction()
         }
     }
 

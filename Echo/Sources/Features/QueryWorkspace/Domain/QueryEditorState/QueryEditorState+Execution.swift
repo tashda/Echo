@@ -83,6 +83,7 @@ extension QueryEditorState {
     func finishExecution() {
         if let startTime = executionStartTime { lastExecutionTime = Date().timeIntervalSince(startTime) }
         isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
+        cancelPhase = nil; forceStopHandler = nil
         executionTimer?.invalidate(); executionTimer = nil
         streamingMode = .completed
         let endTime = Date()
@@ -108,6 +109,7 @@ extension QueryEditorState {
 
     func failExecution(with error: String) {
         isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
+        cancelPhase = nil; forceStopHandler = nil
         executionTimer?.invalidate(); executionTimer = nil
         let endTime = Date()
         if let startTime = executionStartTime { lastExecutionTime = endTime.timeIntervalSince(startTime) }
@@ -137,6 +139,7 @@ extension QueryEditorState {
 
     func markCancellationCompleted() {
         executingTask = nil; isExecuting = false; isCancellationRequested = false; executionTimer?.invalidate(); executionTimer = nil
+        cancelPhase = nil; forceStopHandler = nil
         streamingMode = .completed
         let endTime = Date()
         if let startTime = executionStartTime { lastExecutionTime = endTime.timeIntervalSince(startTime) }
@@ -148,7 +151,10 @@ extension QueryEditorState {
             rowProgress = RowProgress(materialized: count, reported: max(rowProgress.reported, count), received: max(streamedRowCount, count))
             visibleRowLimit = count; materializedHighWaterMark = count
         }
-        appendMessage(message: "Query execution canceled", severity: .warning, timestamp: endTime, duration: executionStartTime.map { endTime.timeIntervalSince($0) })
+        // Round 21, cancel CR2 (and round 22 CL1 for SQL Server): the run note and Messages.
+        let cancelledRows = streamingRows.isEmpty ? (results?.rows.count ?? 0) : streamingRows.count
+        appendMessage(message: QueryRunNote.cancelledText(duration: lastExecutionTime, rows: cancelledRows), severity: .warning, timestamp: endTime, duration: executionStartTime.map { endTime.timeIntervalSince($0) })
+        runNote = QueryRunNote.cancelled(range: lastRunRange, duration: lastExecutionTime, rows: cancelledRows)
         executionStartTime = nil; streamingColumns.removeAll(); streamingRows.removeAll()
         if results == nil { visibleRowLimit = nil; materializedHighWaterMark = 0; rowProgress = RowProgress() }
         if isResultsOnly, var preview = dataPreviewState { preview.isFetching = false; dataPreviewState = preview }

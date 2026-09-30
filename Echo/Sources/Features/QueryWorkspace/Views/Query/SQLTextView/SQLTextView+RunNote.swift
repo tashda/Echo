@@ -18,7 +18,7 @@ extension SQLTextView {
 
         let label = runNoteLabel ?? makeRunNoteLabel()
         label.stringValue = note.text
-        label.textColor = note.isError ? .systemRed : .systemGreen
+        label.textColor = note.isError ? .systemRed : note.isWarning ? .systemOrange : .systemGreen
         label.toolTip = note.detail
         label.sizeToFit()
         label.frame.origin = NSPoint(

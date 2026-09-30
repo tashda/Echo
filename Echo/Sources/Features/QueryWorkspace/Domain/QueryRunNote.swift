@@ -8,6 +8,8 @@ nonisolated struct QueryRunNote: Equatable, Sendable {
     /// The whole message, for the tooltip.
     let detail: String
     let isError: Bool
+    /// Cancelled: drawn in orange (round 21, cancel CR2).
+    var isWarning = false
 
     static func success(range: NSRange?, rows: Int, hasResults: Bool, duration: TimeInterval?) -> QueryRunNote? {
         guard let range else { return nil }
@@ -23,6 +25,26 @@ nonisolated struct QueryRunNote: Equatable, Sendable {
         let limit = 80
         let short = firstLine.count > limit ? String(firstLine.prefix(limit)).trimmingCharacters(in: .whitespaces) : firstLine
         return QueryRunNote(range: range, text: short, detail: message, isError: true)
+    }
+
+    /// CR2: `Cancelled after 3.2 s · 1,200 rows`, at the statement.
+    static func cancelled(range: NSRange?, duration: TimeInterval?, rows: Int) -> QueryRunNote? {
+        guard let range else { return nil }
+        let text = cancelledText(duration: duration, rows: rows)
+        return QueryRunNote(range: range, text: text, detail: text, isError: false, isWarning: true)
+    }
+
+    static func cancelledText(duration: TimeInterval?, rows: Int) -> String {
+        var text = "Cancelled"
+        if let duration { text += " after \(formatted(duration))" }
+        if rows > 0 { text += " · \(rows.formatted(.number)) \(rows == 1 ? "row" : "rows")" }
+        return text
+    }
+
+    /// TX1: the cancelled statement was inside a transaction, which is now aborted.
+    func needingRollback() -> QueryRunNote {
+        let suffix = " · The transaction now needs ROLLBACK"
+        return QueryRunNote(range: range, text: text + suffix, detail: detail + suffix, isError: isError, isWarning: isWarning)
     }
 
     static func formatted(_ duration: TimeInterval) -> String {

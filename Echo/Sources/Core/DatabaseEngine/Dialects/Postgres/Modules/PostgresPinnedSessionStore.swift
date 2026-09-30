@@ -71,6 +71,27 @@ actor PostgresPinnedSessionStore {
         return sent
     }
 
+    /// Force Stop (round 21, cancel CS2): closes the connections still running a statement after a
+    /// cancel the server did not answer. The next run opens a new session.
+    func forceStopRunning() async -> (stopped: Bool, transactionWasOpen: Bool) {
+        var stopped = false
+        var transactionWasOpen = false
+        for (key, session) in sessions where session.isQueryInFlight {
+            closing.insert(ObjectIdentifier(session))
+            if session.transactionStatus != .idle { transactionWasOpen = true }
+            await session.close()
+            sessions[key] = nil
+            stopped = true
+        }
+        return (stopped, transactionWasOpen)
+    }
+
+    /// The transaction state of the session for `database`, if it is open.
+    func transactionStatus(for database: String) -> PostgresTransactionStatus? {
+        guard let session = sessions[database.lowercased()], !session.isClosed else { return nil }
+        return session.transactionStatus
+    }
+
     /// Databases whose session is inside a transaction block.
     func databasesWithOpenTransaction() -> [String] {
         sessions.filter { !$0.value.isClosed && $0.value.transactionStatus != .idle }.map(\.key)

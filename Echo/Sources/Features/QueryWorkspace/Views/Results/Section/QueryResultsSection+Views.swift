@@ -29,6 +29,9 @@ extension QueryResultsSection {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(platformBackground)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if query.cancelPhase == .notStopping { forceStopBanner }
+        }
     }
 
     @ViewBuilder

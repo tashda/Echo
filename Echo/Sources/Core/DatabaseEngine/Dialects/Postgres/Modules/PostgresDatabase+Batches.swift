@@ -59,6 +59,22 @@ extension PostgresSession {
         return await pinnedStore.cancelRunning(using: client)
     }
 
+    /// Force Stop: closes the tab's connection that is still running a statement.
+    func forceStopRunningQuery() async -> (stopped: Bool, transactionWasOpen: Bool) {
+        guard let pinnedStore else { return (false, false) }
+        return await pinnedStore.forceStopRunning()
+    }
+
+    /// The tab's transaction state for this session's database (nil outside query tabs).
+    func pinnedTransactionStatus() async -> PostgresTransactionStatus? {
+        await pinnedStore?.transactionStatus(for: databaseName)
+    }
+
+    /// Whether the tab's transaction failed (a statement in it errored or was cancelled).
+    func isInFailedTransaction() async -> Bool {
+        await pinnedTransactionStatus() == .failed
+    }
+
     // MARK: - Internals
 
     private enum StatementOutput {

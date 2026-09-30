@@ -2,6 +2,17 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 21 accepted: cancelling a query
+
+Echo Labs › Editor and running › Postgres: cancelling a query · round 21. Applies to SQL Server too (round 22, CL1).
+
+- **While stopping: CX3 · in the footer.** The status says **Cancelling**, pulsing, with no dots (owner's note): the verb matches Cancel Query and the Cancelled result, SSMS says the same, and the footer's other states (Executing, Connecting) have no dots either. How Run itself looks while stopping stays with the Run button round. → 05-components › Results card
+- **Rows already fetched: CP1 · kept, marked as partial:** the footer's count reads "1 200 rows, partial". → 05-components
+- **Server doesn't stop: CS2 · Force Stop after 5 s:** a banner in the results, "The server hasn't stopped the query.", with Force Stop, which closes the connection (an open transaction is rolled back; the next run uses a new session). → 05-components
+- **Reported: CR2 · the run note at the statement and Messages:** "Cancelled after 3.2 s · 1 200 rows", in orange. → 05-components, EDT-3.3
+- **Shortcut: K2 · ⌥⌘. only;** ⌘. stays EchoSense (owner's note).
+- **Inside a transaction: TX1:** the note adds "The transaction now needs ROLLBACK", with a line in Messages.
+
 ## 2026-09-30 · Round 21 accepted: PostgreSQL script results
 
 Echo Labs › Footer and results › Postgres: script results · round 21.

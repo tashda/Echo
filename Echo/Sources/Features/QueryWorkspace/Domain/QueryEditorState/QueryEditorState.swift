@@ -88,6 +88,10 @@ import OSLog
     @ObservationIgnored var lastMessageTimestamp: Date?
     @ObservationIgnored var executingTask: Task<Void, Never>?
     @ObservationIgnored var isCancellationRequested: Bool = false
+    /// Between pressing Cancel and the query ending (round 21, cancel): the footer says Cancelling,
+    /// and after 5 s without an answer the results offer Force Stop.
+    var cancelPhase: QueryCancelPhase?
+    @ObservationIgnored var forceStopHandler: (() -> Void)?
     var streamingColumns: [ColumnInfo] = []
     var streamingRows: [[String?]] = []
     var resultChangeToken: UInt64 = 0
