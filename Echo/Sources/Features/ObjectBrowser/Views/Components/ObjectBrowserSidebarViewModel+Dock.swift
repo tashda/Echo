@@ -1,7 +1,7 @@
 import Foundation
 
-/// The section each server's dock shows, remembered per connection, and where each section was
-/// scrolled to, so coming back to a section returns to the same place.
+/// The section each server's dock shows, remembered per connection. Where each section was
+/// scrolled to is kept by the outline (ObjectBrowserOutlineView).
 extension ObjectBrowserSidebarViewModel {
     private static func dockSelectionKey(for connectionID: UUID) -> String {
         "echo.sidebar.dockSection.\(connectionID.uuidString)"
@@ -9,7 +9,7 @@ extension ObjectBrowserSidebarViewModel {
 
     func dockSelection(for connectionID: UUID) -> String? {
         if let selected = dockSelections[connectionID] { return selected }
-        return UserDefaults.standard.string(forKey: Self.dockSelectionKey(for: connectionID))
+        return ExplorerStateStore.string(forKey: Self.dockSelectionKey(for: connectionID))
     }
 
     /// Every connection's saved choice, for building the tree.
@@ -23,14 +23,6 @@ extension ObjectBrowserSidebarViewModel {
 
     func setDockSelection(_ itemID: String, for connectionID: UUID) {
         dockSelections[connectionID] = itemID
-        UserDefaults.standard.set(itemID, forKey: Self.dockSelectionKey(for: connectionID))
-    }
-
-    func dockScrollAnchor(connectionID: UUID, itemID: String) -> String? {
-        dockScrollAnchors["\(connectionID.uuidString)|\(itemID)"]
-    }
-
-    func setDockScrollAnchor(_ rowID: String?, connectionID: UUID, itemID: String) {
-        dockScrollAnchors["\(connectionID.uuidString)|\(itemID)"] = rowID
+        ExplorerStateStore.set(itemID, forKey: Self.dockSelectionKey(for: connectionID))
     }
 }

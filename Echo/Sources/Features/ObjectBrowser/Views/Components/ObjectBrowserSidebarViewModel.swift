@@ -11,6 +11,11 @@ final class ObjectBrowserSidebarViewModel {
     var revealAnimated = true
     /// Servers whose rows are faded out while their dock switches sections (round 19, S3).
     var dockFadingConnectionIDs: Set<UUID> = []
+    /// Servers mid-switch: their rows swap without transitions of their own, so the old section
+    /// can never show again while it is removed.
+    var dockSwitchingConnectionIDs: Set<UUID> = []
+    /// Servers whose new rows wait, invisible, until the card has its new size.
+    var dockHiddenRowsConnectionIDs: Set<UUID> = []
     var highlightedNodeID: String?
     var highlightPulse = false
     /// Everything loaded for folders beyond the schema (logins, jobs, queues…), by source.
@@ -19,10 +24,6 @@ final class ObjectBrowserSidebarViewModel {
     @ObservationIgnored var initializedConnectionIDs: Set<UUID> = []
     /// The section each server's dock shows (TC1), by connection.
     var dockSelections: [UUID: String] = [:]
-    /// The row at the top of each server's section when it was left, to return to it.
-    @ObservationIgnored var dockScrollAnchors: [String: String] = [:]
-    /// The row at the top of the tree right now, and its server's connection.
-    @ObservationIgnored var topVisibleRow: (id: String, connectionID: UUID?)?
 
     private static func hideOfflineKey(for connectionID: UUID) -> String {
         "echo.sidebar.hideOffline.\(connectionID.uuidString)"
@@ -30,7 +31,7 @@ final class ObjectBrowserSidebarViewModel {
 
     func setHideOffline(_ hidden: Bool, for connectionID: UUID) {
         hideOfflineDatabasesBySession[connectionID] = hidden
-        UserDefaults.standard.set(hidden, forKey: Self.hideOfflineKey(for: connectionID))
+        ExplorerStateStore.set(hidden, forKey: Self.hideOfflineKey(for: connectionID))
     }
 
     func synchronizeDefaults(
@@ -50,7 +51,7 @@ final class ObjectBrowserSidebarViewModel {
 
             // Load per-connection hide offline state from UserDefaults, falling back to global default
             let key = Self.hideOfflineKey(for: session.connection.id)
-            if let saved = UserDefaults.standard.object(forKey: key) as? Bool {
+            if let saved = ExplorerStateStore.bool(forKey: key) {
                 hideOfflineDatabasesBySession[session.connection.id] = saved
             } else {
                 hideOfflineDatabasesBySession[session.connection.id] = hideOfflineDefault

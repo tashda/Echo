@@ -28,7 +28,14 @@ final class TabStore {
     /// Stored properties mirroring `TabDirector` so `@Observable` can track them.
     private(set) var tabs: [WorkspaceTab] = []
     var hasTabs: Bool = false
-    private var _activeTabId: UUID?
+    private var _activeTabId: UUID? {
+        didSet { refreshToolbarContext() }
+    }
+
+    /// Which toolbar groups the active tab needs. Stored, and set only when it changes, so the
+    /// toolbar's content isn't rebuilt on every tab switch (rebuilding it re-creates the window's
+    /// toolbar items, about 60 ms).
+    private(set) var activeTabToolbarContext = WorkspaceToolbarContext(kind: nil, databaseType: nil)
 
     /// Alert state for confirming close of tabs with pending changes.
     var showPendingChangesAlert = false
@@ -135,6 +142,13 @@ final class TabStore {
     private func syncTabs() {
         tabs = tabDirector.tabs
         hasTabs = !tabs.isEmpty
+        refreshToolbarContext()
+    }
+
+    private func refreshToolbarContext() {
+        let tab = activeTab
+        let context = WorkspaceToolbarContext(kind: tab?.kind, databaseType: tab?.connection.databaseType)
+        if context != activeTabToolbarContext { activeTabToolbarContext = context }
     }
 }
 

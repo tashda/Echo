@@ -46,9 +46,17 @@ extension ExplorerTreeLayout {
         return groups
     }
 
-    /// The row at the top of the view and its server's connection, for returning to a dock section.
-    func topRow(atOffset offset: CGFloat, baseRowHeight: CGFloat) -> (id: String, connectionID: UUID?)? {
-        guard let index = rowIndex(at: offset + baseRowHeight / 2) else { return nil }
-        return (rows[index].id, topVisibleContext(atOffset: offset, baseRowHeight: baseRowHeight)?.connectionID)
+    /// Each docked server's current section, by connection.
+    var dockSelections: [UUID: String] {
+        var selections: [UUID: String] = [:]
+        for row in rows {
+            if case .dock(let session, _, let selectedID) = row.node.row { selections[session.connection.id] = selectedID }
+        }
+        return selections
+    }
+
+    /// Where a server's card starts: the top of its name row.
+    func serverTop(_ connectionID: UUID) -> CGFloat? {
+        rows.first { if case .server(let session) = $0.node.row { session.connection.id == connectionID } else { false } }?.minY
     }
 }

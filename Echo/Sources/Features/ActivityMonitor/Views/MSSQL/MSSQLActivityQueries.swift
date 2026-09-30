@@ -66,7 +66,9 @@ struct MSSQLActivityQueries: View {
 
             TableColumn("Last Run", value: \.sortableLastRun) { query in
                 if let date = query.lastExecutionTime {
-                    Text(date, style: .relative)
+                    // Formatted when the row renders (every refresh), not a live relative date: a
+                    // live one in every row ticks each second, even in a hidden tab.
+                    Text(date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
                         .font(TypographyTokens.Table.date)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 } else {

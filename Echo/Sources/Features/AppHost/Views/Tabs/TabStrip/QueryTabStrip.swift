@@ -222,7 +222,10 @@ struct QueryTabStrip: View {
             }
         }
         .fixedSize()
-        .animation(unfoldAnimation, value: tabStore.activeTabId)
+        // Only a tool tab's pages unfolding or folding animate. A plain switch changes the highlight
+        // at once, as native tab bars do; springing every tab's colours re-resolved the strip for
+        // ~0.7 s. Keyed on the unfolded tab, so resizing the window doesn't animate either.
+        .animation(unfoldAnimation, value: widths.isEmpty ? nil : tabStore.activeTabId)
     }
 
     private func databaseNameCacheSignature() -> String {

@@ -19,11 +19,14 @@ extension AppDirector {
         let start = Date()
         print("automation-script start \(String(format: "%.3f", start.timeIntervalSince1970))")
         for (index, step) in script.steps.enumerated() {
-            if let action = step.action, let server = step.server {
-                let label = step.label ?? "\(action) \(step.target ?? server)"
-                Self.scriptSignposter.emitEvent("step", "\(index) \(label, privacy: .public)")
-                print("automation-step \(String(format: "%.3f", Date().timeIntervalSince1970)) \(index) \(label)")
-                fflush(stdout)
+            if step.action == "scroll" {
+                announce(index: index, label: step.label ?? "scroll \(step.target ?? "")")
+                await performAutomationScroll(target: step.target ?? "sidebar", distance: step.distance ?? 800, seconds: step.seconds ?? 1)
+            } else if let action = step.action, Self.appAutomationActions.contains(action) {
+                announce(index: index, label: step.label ?? "\(action) \(step.target ?? step.server ?? "")")
+                performAppAutomationStep(step, connections: connections)
+            } else if let action = step.action, let server = step.server {
+                announce(index: index, label: step.label ?? "\(action) \(step.target ?? server)")
                 NotificationCenter.default.post(
                     name: ExplorerAutomationCommand.notification, object: nil,
                     userInfo: ExplorerAutomationCommand(action: action, server: server, target: step.target).userInfo
@@ -34,6 +37,12 @@ extension AppDirector {
         print("automation-script end \(String(format: "%.3f", Date().timeIntervalSince1970))")
         fflush(stdout)
         Self.scriptLogger.info("Automation script finished")
+    }
+
+    private func announce(index: Int, label: String) {
+        Self.scriptSignposter.emitEvent("step", "\(index) \(label, privacy: .public)")
+        print("automation-step \(String(format: "%.3f", Date().timeIntervalSince1970)) \(index) \(label)")
+        fflush(stdout)
     }
 
     private func waitForDatabases(of connection: SavedConnection) async {

@@ -27,6 +27,8 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var onSchemaLoadNeeded: ((String) -> Void)?
     var validationRequestGeneration: Int = 0
     var editorLineRequest: EditorLineRequest?
+    /// False while its tab is kept mounted but not shown (`KeptAliveTabsView`).
+    var isActiveTab = true
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -69,7 +71,6 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         if nsView.sqlTextView.errorMark != errorMark { nsView.sqlTextView.errorMark = errorMark }
         if nsView.sqlTextView.resultStatementRange != resultStatementRange { nsView.sqlTextView.resultStatementRange = resultStatementRange }
         // A kept-alive tab coming back takes the keyboard again (KeptAliveTabsView).
-        let isActiveTab = context.environment.isActiveWorkspaceTab
         if isActiveTab && !context.coordinator.wasActiveTab, let textView = context.coordinator.textView {
             Task { @MainActor [weak textView] in
                 guard let textView else { return }

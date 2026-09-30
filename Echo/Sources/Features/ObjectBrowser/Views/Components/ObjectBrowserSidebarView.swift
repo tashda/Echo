@@ -81,7 +81,6 @@ struct ObjectBrowserSidebarView: View {
                                 outlineOffset: outlineOffset,
                                 isHighlighted: viewModel.highlightedNodeID == node.id,
                                 highlightPulse: viewModel.highlightPulse,
-                                contextMenuBuilder: { contextMenu(for: node) },
                                 onActivate: onActivate
                             )
                             // Cells are recycled while scrolling; a new identity per node keeps a
@@ -107,9 +106,6 @@ struct ObjectBrowserSidebarView: View {
                     },
                     revealNodeID: viewModel.revealedNodeID,
                     revealRequestID: viewModel.revealRequestID,
-                    onTopRowChanged: { rowID, connectionID in
-                        viewModel.topVisibleRow = rowID.map { ($0, connectionID) }
-                    },
                     onTopVisibleContextChanged: { context in
                         if railBridge?.topVisibleConnectionID != context.connectionID {
                             railBridge?.topVisibleConnectionID = context.connectionID
@@ -118,6 +114,9 @@ struct ObjectBrowserSidebarView: View {
                     },
                     showsScrollBar: projectStore.globalSettings.sidebarShowsScrollBar,
                     fadingConnectionIDs: viewModel.dockFadingConnectionIDs,
+                    switchingConnectionIDs: viewModel.dockSwitchingConnectionIDs,
+                    hiddenRowsConnectionIDs: viewModel.dockHiddenRowsConnectionIDs,
+                    contextMenu: { contextMenu(for: $0) },
                     revealAnimated: viewModel.revealAnimated
                 )
                 .background(Color.clear)
@@ -138,8 +137,9 @@ struct ObjectBrowserSidebarView: View {
         .onChange(of: sessions.map(\.connection.id)) { _, _ in
             synchronizeDefaults()
         }
-        .onChange(of: viewModel.expandedNodeIDs) { _, _ in
-            guard !sessions.isEmpty else { return }
+        // Saved a second after the last change, never mid-animation.
+        .task(id: viewModel.expandedNodeIDs) {
+            guard !sessions.isEmpty, (try? await Task.sleep(for: .seconds(1))) != nil else { return }
             viewModel.persistExpansionState(projectID: projectStore.selectedProject?.id)
         }
         .onChange(of: sessions.map(\.id)) { oldIDs, newIDs in
@@ -248,6 +248,7 @@ struct ObjectBrowserSidebarView: View {
     // MARK: - Pinned path
 
     func reveal(nodeID: String, animated: Bool = true) {
+        if animated { WindowDragPause.pauseWorkspace(for: 0.4 * motion.durationScale + 0.1) }
         viewModel.revealAnimated = animated
         viewModel.revealedNodeID = nodeID
         viewModel.revealRequestID &+= 1
@@ -292,8 +293,11 @@ struct ObjectBrowserSidebarView: View {
         }
     }
 
-    func handleExpansionChange(of node: ObjectBrowserNode, isExpanded: Bool) {
-        withAnimation(.snappy(duration: 0.18, extraBounce: 0)) {
+    /// Opens or closes a row. Folders and servers animate with `expand`, the same animation the
+    /// list uses for rows arriving after a load, so everything that moves shares one curve.
+    func handleExpansionChange(of node: ObjectBrowserNode, isExpanded: Bool, animated: Bool = true) {
+        if animated { WindowDragPause.pauseWorkspace(for: 0.22 * motion.durationScale + 0.1) }
+        withAnimation(animated ? motion.expand : nil) {
             if case .server(let session) = node.row {
                 viewModel.setServerExpanded(
                     isExpanded,

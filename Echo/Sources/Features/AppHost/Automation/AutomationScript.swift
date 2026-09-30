@@ -30,6 +30,9 @@ nonisolated struct AutomationScript: Codable, Sendable {
         var wait: Double?
         /// A name for the step in traces and logs.
         var label: String?
+        /// `scroll`: points to scroll (negative scrolls up) and over how long.
+        var distance: Double?
+        var seconds: Double?
     }
 
     var connect: [String]?

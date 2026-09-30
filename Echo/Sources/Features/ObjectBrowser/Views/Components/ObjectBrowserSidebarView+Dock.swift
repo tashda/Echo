@@ -12,43 +12,53 @@ extension ObjectBrowserSidebarView {
         )
     }
 
-    /// Switching a server's dock section (round 19, S3 and jump): remembers where the old section
-    /// was scrolled to, fades the card's rows out, swaps in the new section (loading its items like
-    /// expanding a folder would) while the card's edge settles, jumps back to where that section
-    /// was left, and fades the rows in. A section never shown before doesn't scroll.
+    /// Switching a server's dock section (round 19, S3 and jump), as one choreography:
+    /// 1. a veil in the card's colour fades in over the rows (ExplorerTreeVeilLayer);
+    /// 2. under it, the new section swaps in with no row transitions and its rows stay invisible
+    ///    while the card's edge moves to the new size (`dockEdge`), so no row shows outside the
+    ///    card; the outline returns to where this section was scrolled, if anywhere;
+    /// 3. the rows appear under the veil, and the veil fades out.
+    /// Only the veil and the card's edge animate, so the switch costs almost nothing per frame.
     func selectDockSection(_ itemID: String, connectionID: UUID, builtRoots: [ObjectBrowserNode]) {
         guard let (server, session) = serverNode(connectionID, in: builtRoots),
               let layout = ExplorerDock.layout(for: server.children, session: session, saved: savedDockKeys(for: session))
         else { return }
         let current = ExplorerDock.selectedID(in: layout, connectionID: connectionID, saved: viewModel.dockSelection(for: connectionID))
-        guard current != itemID, !viewModel.dockFadingConnectionIDs.contains(connectionID) else { return }
+        guard current != itemID, !viewModel.dockSwitchingConnectionIDs.contains(connectionID) else { return }
+        ExplorerMotionLog.mark("dock switch requested", connectionID)
 
-        if let top = viewModel.topVisibleRow, top.connectionID == connectionID {
-            viewModel.setDockScrollAnchor(top.id, connectionID: connectionID, itemID: current)
+        let timing = ExplorerDockSwitchTiming(motion: motion)
+        WindowDragPause.pauseWorkspace(for: timing.totalDuration + 0.1)
+        // Open the section now, while the old rows fade: it shows nothing until it is selected, it
+        // starts loading sooner, and the swap then changes one thing instead of two.
+        if let section = ExplorerDock.section(for: itemID, in: builtRoots) {
+            handleExpansionChange(of: section, isExpanded: true, animated: false)
         }
-        let fadeOut = Self.dockFadeOutDuration * motion.durationScale
-        withAnimation(.easeIn(duration: fadeOut)) {
+        withAnimation(timing.fadeOut) {
+            _ = viewModel.dockSwitchingConnectionIDs.insert(connectionID)
             _ = viewModel.dockFadingConnectionIDs.insert(connectionID)
-        }
-        Task(name: "explorer-dock-switch") { @MainActor in
-            try? await Task.sleep(for: .seconds(fadeOut))
-            // The list settles the card's edge (ObjectBrowserOutlineView animates dock switches).
-            viewModel.setDockSelection(itemID, for: connectionID)
-            if let section = ExplorerDock.section(for: itemID, in: builtRoots) {
-                handleExpansionChange(of: section, isExpanded: true)
+        } completion: {
+            ExplorerMotionLog.mark("dock switch swap", connectionID)
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) {
+                _ = viewModel.dockHiddenRowsConnectionIDs.insert(connectionID)
             }
-            if let anchor = viewModel.dockScrollAnchor(connectionID: connectionID, itemID: itemID) {
-                reveal(nodeID: anchor, animated: false)
-            }
-            withAnimation(.easeOut(duration: Self.dockFadeInDuration * motion.durationScale)) {
-                _ = viewModel.dockFadingConnectionIDs.remove(connectionID)
+            withAnimation(motion.dockEdge) {
+                viewModel.setDockSelection(itemID, for: connectionID)
+            } completion: {
+                withTransaction(still) {
+                    _ = viewModel.dockHiddenRowsConnectionIDs.remove(connectionID)
+                }
+                withAnimation(timing.fadeIn) {
+                    _ = viewModel.dockFadingConnectionIDs.remove(connectionID)
+                } completion: {
+                    viewModel.dockSwitchingConnectionIDs.remove(connectionID)
+                    ExplorerMotionLog.mark("dock switch done", connectionID)
+                }
             }
         }
     }
-
-    /// S3's timing (round 19): a quick fade out, then a gentler fade in.
-    static let dockFadeOutDuration: Double = 0.08
-    static let dockFadeInDuration: Double = 0.18
 
     /// The server's own dock, or else its type's; nil for the blueprint's default.
     func savedDockKeys(for session: ConnectionSession) -> [String]? {

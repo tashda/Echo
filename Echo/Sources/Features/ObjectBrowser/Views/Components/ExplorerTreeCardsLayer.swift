@@ -5,6 +5,10 @@ import SwiftUI
 struct ExplorerTreeCardsLayer: View {
     let cards: [ExplorerTreeLayout.Card]
     let scroll: ExplorerTreeScrollState
+    /// Cards mid dock switch: their edge moves with `edgeAnimation`; every other card moves with
+    /// its rows (Design/05-components › Explorer tree › Switching).
+    var switchingCardIDs: Set<String> = []
+    var edgeAnimation: Animation? = nil
 
     var body: some View {
         let offset = scroll.offset
@@ -20,6 +24,7 @@ struct ExplorerTreeCardsLayer: View {
                         .frame(height: bottom - top)
                         .workspaceCard()
                         .offset(y: top)
+                        .animation(switchingCardIDs.contains(card.id) ? edgeAnimation : nil, value: card.height)
                 }
             }
         }

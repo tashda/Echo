@@ -110,10 +110,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
         }
     }
 
-    /// Reads only the active tab's kind and database type, so the toolbar content re-evaluates on a
-    /// tab change and not while a tab's own state changes.
-    private var toolbarContext: WorkspaceToolbarContext {
-        let tab = tabStore.activeTab
-        return WorkspaceToolbarContext(kind: tab?.kind, databaseType: tab?.connection.databaseType)
-    }
+    /// Changes only when the active tab needs other groups, so the toolbar content isn't rebuilt on
+    /// every tab switch or while a tab's own state changes.
+    private var toolbarContext: WorkspaceToolbarContext { tabStore.activeTabToolbarContext }
 }

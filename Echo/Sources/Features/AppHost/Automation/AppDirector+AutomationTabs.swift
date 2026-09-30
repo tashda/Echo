@@ -1,0 +1,78 @@
+#if DEBUG
+import Foundation
+
+/// Script steps the app performs itself rather than the Explorer: opening and switching tabs,
+/// and showing or hiding the window's columns. Each calls the same code a menu item or click does.
+///
+///     { "action": "query", "server": "Test MSSQL", "target": "SELECT TOP 500 * FROM sys.objects" }
+///     { "action": "tool", "server": "Test MSSQL", "target": "activity" }
+///     { "action": "tab", "target": "next" }        // or "previous", "first", "last", or an index
+///     { "action": "closeTab" }
+///     { "action": "window", "target": "sidebar" }  // or "inspector", "overview"
+extension AppDirector {
+    static let appAutomationActions: Set<String> = ["query", "tool", "tab", "closeTab", "window"]
+
+    /// Performs an app step; the server is looked up by its automation name.
+    func performAppAutomationStep(_ step: AutomationScript.Step, connections: [String: SavedConnection]) {
+        let connectionID = step.server.flatMap { connections[$0]?.id }
+        switch step.action {
+        case "query":
+            guard let connectionID, let session = environmentState.sessionGroup.sessionForConnection(connectionID) else { return }
+            environmentState.openQueryTab(for: session, presetQuery: step.target, autoExecute: step.target != nil)
+        case "tool":
+            guard let connectionID, let target = step.target else { return }
+            openAutomationTool(target, connectionID: connectionID)
+        case "tab":
+            selectAutomationTab(step.target ?? "next")
+        case "closeTab":
+            if let id = tabStore.activeTabId { tabStore.closeTab(id: id) }
+        case "window":
+            switch step.target {
+            case "sidebar": appState.isWorkspaceTreeVisible.toggle()
+            case "inspector": appState.showInfoSidebar.toggle()
+            case "overview": appState.showTabOverview.toggle()
+            default: break
+            }
+        default:
+            break
+        }
+    }
+
+    private func openAutomationTool(_ tool: String, connectionID: UUID) {
+        switch tool {
+        case "activity": environmentState.openActivityMonitorTab(connectionID: connectionID)
+        case "maintenance": environmentState.openMaintenanceTab(connectionID: connectionID)
+        case "serverSecurity": environmentState.openServerSecurityTab(connectionID: connectionID)
+        case "serverProperties": environmentState.openServerPropertiesTab(connectionID: connectionID)
+        case "errorLog": environmentState.openErrorLogTab(connectionID: connectionID)
+        case "extendedEvents": environmentState.openExtendedEventsTab(connectionID: connectionID)
+        case "profiler": environmentState.openProfilerTab(connectionID: connectionID)
+        case "resourceGovernor": environmentState.openResourceGovernorTab(connectionID: connectionID)
+        case "tuningAdvisor": environmentState.openTuningAdvisorTab(connectionID: connectionID)
+        case "policyManagement": environmentState.openPolicyManagementTab(connectionID: connectionID)
+        case "availabilityGroups": environmentState.openAvailabilityGroupsTab(connectionID: connectionID)
+        case "advancedObjects": environmentState.openAdvancedObjectsTab(connectionID: connectionID)
+        case "queryBuilder": environmentState.openQueryBuilderTab(connectionID: connectionID)
+        case "psql":
+            environmentState.openPSQLTab(for: environmentState.sessionGroup.sessionForConnection(connectionID))
+        case "jobs":
+            if let session = environmentState.sessionGroup.sessionForConnection(connectionID) {
+                environmentState.openJobQueueTab(for: session)
+            }
+        default:
+            break
+        }
+    }
+
+    private func selectAutomationTab(_ target: String) {
+        switch target {
+        case "next": tabStore.activateNextTab()
+        case "previous": tabStore.activatePreviousTab()
+        case "first": if let tab = tabStore.tabs.first { tabStore.selectTab(tab) }
+        case "last": if let tab = tabStore.tabs.last { tabStore.selectTab(tab) }
+        default:
+            if let index = Int(target), tabStore.tabs.indices.contains(index) { tabStore.selectTab(tabStore.tabs[index]) }
+        }
+    }
+}
+#endif

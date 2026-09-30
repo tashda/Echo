@@ -240,7 +240,8 @@ struct MaintenanceDateCell: View {
 
     var body: some View {
         if let date = latest {
-            Text(date, style: .relative)
+            // Formatted when the row renders, not a live relative date that ticks every second in every row.
+            Text(date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
                 .font(TypographyTokens.Table.date)
                 .foregroundStyle(isStale(date) ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
         } else {

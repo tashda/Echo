@@ -11,7 +11,6 @@ final class ExplorerTreeScrollState {
     /// The scroll content's height last time it was laid out, spacer included (round 19, N2).
     var totalHeight: CGFloat = 0
     @ObservationIgnored var lastReportedContext: ObjectBrowserTopVisibleContext?
-    @ObservationIgnored var lastReportedTopRowID: String?
 }
 
 struct ExplorerTreeScrollMetrics: Equatable {

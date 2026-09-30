@@ -52,6 +52,10 @@ final class AppDirector {
 
     // MARK: - Initialization State
     private(set) var isInitialized = false
+    /// Set as soon as `initialize()` starts: the window's content can appear twice at launch, and
+    /// both calls used to pass the `isInitialized` check before the first one finished, so
+    /// everything (stores, sign-in, sync, observers, automation) started twice.
+    private var isInitializing = false
 
     // MARK: - Private Init (Singleton)
     private init() {
@@ -203,7 +207,8 @@ final class AppDirector {
 
     // MARK: - Public Methods
     func initialize() async {
-        guard !isInitialized else { return }
+        guard !isInitialized, !isInitializing else { return }
+        isInitializing = true
 
         // Load foundational stores
         do {

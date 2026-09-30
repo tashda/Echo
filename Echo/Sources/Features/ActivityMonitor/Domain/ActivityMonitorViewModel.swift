@@ -16,6 +16,9 @@ final class ActivityMonitorViewModel {
     @ObservationIgnored private let mysqlSession: MySQLSession?
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored var activityEngine: ActivityEngine?
+    /// False while the tab is kept mounted but not shown; snapshots wait in `heldSnapshots`.
+    @ObservationIgnored var isShown = true
+    @ObservationIgnored var heldSnapshots: [DatabaseActivitySnapshot] = []
     let connectionSessionID: UUID
     let connectionID: UUID
     let databaseType: DatabaseType
@@ -60,7 +63,7 @@ final class ActivityMonitorViewModel {
     var deadTuplesHistory: [GraphPoint] = []
     var outgoingTrafficHistory: [GraphPoint] = []
 
-    private let maxHistoryItems = 60
+    let maxHistoryItems = 60
 
     init(
         monitor: any DatabaseActivityMonitoring,
@@ -87,9 +90,9 @@ final class ActivityMonitorViewModel {
             do {
                 let stream = monitor.streamSnapshots(every: refreshInterval)
                 for try await snapshot in stream {
-                    self.latestSnapshot = snapshot
-                    updateHistory(with: snapshot)
+                    receive(snapshot)
                 }
+                showHeldSnapshots()
                 // Stream ended naturally (not cancelled) — check if it's because of permission denial
                 if latestSnapshot == nil || isEmptySnapshot(latestSnapshot) {
                     permissionDenied = true
@@ -122,8 +125,7 @@ final class ActivityMonitorViewModel {
     func refresh() {
         Task {
             if let snap = try? await monitor.snapshot() {
-                self.latestSnapshot = snap
-                updateHistory(with: snap)
+                receive(snap)
             }
         }
     }
@@ -232,7 +234,7 @@ final class ActivityMonitorViewModel {
         try await mysqlReplicationClient?.primaryStatus()
     }
 
-    private func updateHistory(with snapshot: DatabaseActivitySnapshot) {
+    func updateHistory(with snapshot: DatabaseActivitySnapshot) {
         let now = snapshot.capturedAt
 
         switch snapshot {

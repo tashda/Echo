@@ -14,6 +14,8 @@ extension ObjectBrowserRowView {
                     .foregroundStyle(ColorTokens.Text.primary)
                     .lineLimit(1)
                 Text(productLine(session))
+                    // The section name swaps with the rows; morphing the text redraws it on the CPU.
+                    .contentTransition(.identity)
                 .font(SidebarRowConstants.trailingFont)
                 .foregroundStyle(ColorTokens.Text.tertiary)
                 .lineLimit(1)
@@ -95,7 +97,7 @@ extension ObjectBrowserRowView {
             .rotationEffect(.degrees(isExpanded ? 90 : 0))
             .frame(width: SidebarRowConstants.chevronWidth)
             .opacity(isHeaderHovering || !isExpanded ? 1 : 0)
-            .animation(.snappy(duration: 0.2), value: isExpanded)
+            .animation(motion.expand, value: isExpanded)
             .animation(.easeInOut(duration: 0.15), value: isHeaderHovering)
     }
 }

@@ -15,9 +15,23 @@ struct KeptAliveTabsTests {
     }
 
     @Test func keepsOnlyTheMostRecentTabs() {
-        let ids = Host.recentTabIDs([a, b, c], activating: d, openIDs: [a, b, c, d])
-        #expect(ids == [d, a, b])
+        let open = (0..<(Host.keptTabCount + 2)).map { _ in UUID() }
+        let newest = UUID()
+        let ids = Host.recentTabIDs(open, activating: newest, openIDs: Set(open + [newest]))
+        #expect(ids == [newest] + open.prefix(Host.keptTabCount - 1))
         #expect(ids.count == Host.keptTabCount)
+    }
+
+    @Test func onlyTheActiveKeptTabIsActive() {
+        let activity = KeptAliveTabsActivity()
+        activity.activeTabID = a
+        #expect(KeptAliveTabsActivity.isActive(a, in: activity))
+        #expect(!KeptAliveTabsActivity.isActive(b, in: activity))
+    }
+
+    @Test func aTabOutsideKeptTabsIsAlwaysActive() {
+        #expect(KeptAliveTabsActivity.isActive(nil, in: KeptAliveTabsActivity()))
+        #expect(KeptAliveTabsActivity.isActive(a, in: nil))
     }
 
     @Test func closedTabsDropOut() {

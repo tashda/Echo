@@ -48,7 +48,9 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
         let prefix = server.isEmpty ? "" : "\(server) · "
         if !viewModel.isRunning { return Text("\(prefix)Paused") }
         guard let lastUpdate else { return Text("\(prefix)Waiting for the first snapshot") }
-        return Text("\(prefix)Updated \(Text(lastUpdate, style: .relative)) ago")
+        // The snapshot's time, not a live "5 sec ago": a live relative date ticks every second, even
+        // in a hidden tab, and each tick re-lays out the window (about 100 ms a second).
+        return Text("\(prefix)Updated \(lastUpdate.formatted(date: .omitted, time: .standard))")
     }
 
     private var permissionDeniedView: some View {

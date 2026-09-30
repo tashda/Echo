@@ -11,13 +11,13 @@ struct ObjectBrowserRowView: View {
     let outlineOffset: CGFloat
     let isHighlighted: Bool
     let highlightPulse: Bool
-    let contextMenuBuilder: (() -> NSMenu?)?
     let onActivate: () -> Void
 
     @Environment(ProjectStore.self) var projectStore
     @Environment(EnvironmentState.self) var environmentState
     @State var isHeaderHovering = false
     @Environment(\.explorerDockSectionTitles) var dockSectionTitles
+    @Environment(\.echoMotion) var motion
 
     var depth: Int {
         max(0, outlineLevel)
@@ -38,13 +38,6 @@ struct ObjectBrowserRowView: View {
                     .allowsHitTesting(false)
                 }
             }
-            // The dock gives each icon its own menu; a row-wide one would cover them.
-            .modifier(RowLazyContextMenu(menuBuilder: isDock ? nil : contextMenuBuilder))
-    }
-
-    private var isDock: Bool {
-        if case .dock = node.row { return true }
-        return false
     }
 
     private var shouldShowHighlightOverlay: Bool {
@@ -120,20 +113,6 @@ struct ObjectBrowserRowView: View {
                 labelColor: ColorTokens.Text.secondary,
                 labelFont: TypographyTokens.detail
             )
-        }
-    }
-}
-
-private struct RowLazyContextMenu: ViewModifier {
-    let menuBuilder: (() -> NSMenu?)?
-
-    func body(content: Content) -> some View {
-        if let menuBuilder {
-            content.lazyContextMenu {
-                menuBuilder() ?? NSMenu()
-            }
-        } else {
-            content
         }
     }
 }

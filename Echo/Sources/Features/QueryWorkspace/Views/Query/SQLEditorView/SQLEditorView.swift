@@ -31,6 +31,8 @@ struct SQLEditorView: View {
     var resultStatementRange: NSRange?
 
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
+    @Environment(\.keptAliveTabsActivity) private var tabsActivity
+    @Environment(\.keptAliveTabID) private var tabID
 
     init(
         text: Binding<String>,
@@ -93,7 +95,8 @@ struct SQLEditorView: View {
             ruleTraceConfig: ruleTraceConfig,
             onSchemaLoadNeeded: onSchemaLoadNeeded,
             validationRequestGeneration: validationRequestGeneration,
-            editorLineRequest: editorLineRequest
+            editorLineRequest: editorLineRequest,
+            isActiveTab: KeptAliveTabsActivity.isActive(tabID, in: tabsActivity)
         )
 #else
         IOSSQLEditorRepresentable(

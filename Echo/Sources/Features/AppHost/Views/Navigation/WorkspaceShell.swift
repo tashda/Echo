@@ -80,7 +80,15 @@ struct WorkspaceShell: View {
         .animation(appState.isInspectorColumnVisible ? motion.standard : motion.settle, value: appState.isInspectorColumnVisible)
         .animation(motion.standard, value: isPeeking)
         .onChange(of: isTreeVisible) { _, isVisible in
+            WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
             if isVisible { appState.peekedServerID = nil }
+        }
+        // The columns sliding would otherwise recompute the window's drag regions every frame.
+        .onChange(of: appState.isInspectorColumnVisible) { _, _ in
+            WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
+        }
+        .onChange(of: isPeeking) { _, _ in
+            WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
         }
         .onChange(of: tabStore.activeTabId) { _, _ in
             // Opening something from the peek puts it away.

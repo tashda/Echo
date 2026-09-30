@@ -60,8 +60,14 @@ struct QueryRunToolbarControl: View {
         .animation(motion.settle, value: result)
         .animation(motion.settle, value: isStopping)
         .animation(motion.hover, value: runsSelection)
-        .onChange(of: isRunning) { wasRunning, running in
-            if running { begin() } else if wasRunning { end() }
+        .onChange(of: RunState(tabID: tab?.id, isRunning: isRunning)) { old, new in
+            if old.tabID != new.tabID {
+                show(new)
+            } else if new.isRunning {
+                begin()
+            } else if old.isRunning {
+                end()
+            }
         }
     }
 
@@ -92,6 +98,23 @@ struct QueryRunToolbarControl: View {
     }
 
     // MARK: Stages
+
+    /// The active tab and whether it runs: a new tab is shown as it is, a run starting or ending animates.
+    struct RunState: Equatable {
+        let tabID: UUID?
+        let isRunning: Bool
+    }
+
+    /// Another tab became active: show where its run is, without animating.
+    private func show(_ state: RunState) {
+        task?.cancel()
+        var still = Transaction()
+        still.disablesAnimations = true
+        withTransaction(still) {
+            result = nil
+            stage = state.isRunning ? .grown : .rest
+        }
+    }
 
     /// ■ and the red at once, then the width and the time.
     private func begin() {

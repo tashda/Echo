@@ -8,8 +8,9 @@ struct QueryRunToolbarItem: View {
 
     var body: some View {
         if let tab = tabStore.activeTab, tab.query != nil {
+            // No `.id(tab.id)`: a new identity per tab re-creates the window's toolbar items on
+            // every tab switch. The control takes the new tab's state itself.
             QueryRunToolbarControl(tabStore: tabStore)
-                .id(tab.id)
         }
     }
 }
@@ -29,7 +30,6 @@ struct QueryEditorEnhanceToolbarControls: View {
                     EstimatedPlanButton(tabStore: tabStore)
                 }
             }
-            .id(tab.id)
         }
     }
 }

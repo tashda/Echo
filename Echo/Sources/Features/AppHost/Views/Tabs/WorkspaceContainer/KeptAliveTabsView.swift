@@ -1,10 +1,27 @@
 import SwiftUI
 import AppKit
 
+/// Which kept-mounted tab is showing (`KeptAliveTabsView`), so views such as the SQL editor can
+/// take the keyboard back when their tab returns. One object for all the kept tabs: switching
+/// tabs changes a property that only its readers observe. Switching an environment value
+/// instead re-resolves every text and colour in both tabs.
+@Observable
+final class KeptAliveTabsActivity {
+    var activeTabID: UUID?
+}
+
+extension KeptAliveTabsActivity {
+    /// False for a tab that is kept mounted but not shown. Read it in a body so the switch is observed.
+    static func isActive(_ tabID: UUID?, in activity: KeptAliveTabsActivity?) -> Bool {
+        guard let activity, let tabID else { return true }
+        return activity.activeTabID == tabID
+    }
+}
+
 extension EnvironmentValues {
-    /// False inside a tab that is kept mounted but not shown (`KeptAliveTabsView`), so views such
-    /// as the SQL editor can hand keyboard focus over when their tab comes back.
-    @Entry var isActiveWorkspaceTab = true
+    @Entry var keptAliveTabsActivity: KeptAliveTabsActivity?
+    /// The kept-mounted tab a view belongs to.
+    @Entry var keptAliveTabID: UUID?
 }
 
 /// Keeps the most recently used tabs mounted and shows only the active one, so switching back
@@ -17,9 +34,10 @@ struct KeptAliveTabsView<Content: View>: View {
     @ViewBuilder let content: (WorkspaceTab) -> Content
 
     /// How many tabs stay mounted, the active one included. Each costs an editor and a grid.
-    static var keptTabCount: Int { 3 }
+    static var keptTabCount: Int { 6 }
 
     @State private var recentTabIDs: [UUID] = []
+    @State private var activity = KeptAliveTabsActivity()
 
     var body: some View {
         ZStack {
@@ -30,12 +48,17 @@ struct KeptAliveTabsView<Content: View>: View {
                     .allowsHitTesting(isActive)
                     .accessibilityHidden(!isActive)
                     .zIndex(isActive ? 1 : 0)
-                    .environment(\.isActiveWorkspaceTab, isActive)
+                    .environment(\.keptAliveTabID, tab.id)
             }
         }
-        .onAppear { remember(activeTab.id) }
+        .environment(\.keptAliveTabsActivity, activity)
+        .onAppear {
+            activity.activeTabID = activeTab.id
+            remember(activeTab.id)
+        }
         .onChange(of: activeTab.id) { _, newID in
             NSApp.keyWindow?.makeFirstResponder(nil)
+            activity.activeTabID = newID
             remember(newID)
         }
     }

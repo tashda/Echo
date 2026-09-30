@@ -172,6 +172,10 @@ extension ObjectBrowserRowView {
             content()
         }
         .buttonStyle(.plain)
-        .animation(.snappy(duration: 0.18, extraBounce: 0), value: isExpanded)
+        // Not a focus stop: the tree has its own selection, and hundreds of focusable rows made
+        // SwiftUI's focus walk run on every animation frame.
+        .focusable(false)
+        // The chevron and the open-folder accent move with the tree's own `expand` curve.
+        .animation(motion.expand, value: isExpanded)
     }
 }

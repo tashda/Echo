@@ -128,6 +128,12 @@ struct WorkspaceTabContainerView: View {
         .toastOverlay(isActive: showsCanvasPage)
         .animation(motion.standard, value: showsCanvasPage)
         .animation(.easeInOut(duration: 0.2), value: appState.showTabOverview)
+        .onChange(of: appState.showTabOverview) { _, _ in
+            WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
+        }
+        .onChange(of: showsCanvasPage) { _, _ in
+            WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
+        }
         .onChange(of: tabStore.activeTabId) { _, _ in
             if appState.showTabOverview {
                 appState.showTabOverview = false
