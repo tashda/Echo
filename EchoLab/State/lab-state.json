@@ -60,6 +60,10 @@
       {
         "date": "2026-09-30T14:39:38Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T17:09:29Z",
+        "text": "Built into Echo (8e8ea135, d6cf8cf3): every message in order under the SSMS header, Line N selects the line, COMMIT outcome unknown wording, severity 20 as a lost connection, and the shared error mark"
       }
     ],
     "needsMore": [],
@@ -76,7 +80,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.mssql-sessions-r22": {
@@ -118,6 +122,10 @@
       {
         "date": "2026-09-30T14:41:55Z",
         "text": "Owner's chat choice recorded: LC4 (Postgres RC2 for both engines) replaces LC1"
+      },
+      {
+        "date": "2026-09-30T17:09:29Z",
+        "text": "Built into Echo (057a797b, c051c455, a5ed0ffb, 20688328): no 45 s limit, cancel keeps the session and looks like PostgreSQL, Transaction rolled back, APP_NAME Echo, dropped connection with Reconnect, extra result sets spooled"
       }
     ],
     "needsMore": [],
@@ -143,7 +151,7 @@
         "summary": "Dropped connection: your chat choice, the Postgres Reconnect button (RC2) for both engines, replaces LC1"
       }
     ],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.mssql-values-r22": {
@@ -347,7 +355,12 @@
   "ongoing.pg-error-location-r21": {
     "comments": [],
     "generalNote": "",
-    "history": [],
+    "history": [
+      {
+        "date": "2026-09-30T17:09:29Z",
+        "text": "Built into Echo (d6cf8cf3) for PostgreSQL and SQL Server: squiggle with bubble, Fix, cleared by an edit or the next run, ! Error run note with a Settings choice, Go to Error on the notification"
+      }
+    ],
     "needsMore": [],
     "optionNotes": {},
     "pickNotes": {},
@@ -356,7 +369,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Judging",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.pg-script-results-r21": {
