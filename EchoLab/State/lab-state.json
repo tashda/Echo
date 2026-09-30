@@ -458,6 +458,47 @@
     "status": "Judging",
     "verdicts": {}
   },
+  "ongoing.pg-transaction-state-r21": {
+    "comments": [
+      {
+        "date": "2026-09-30T15:00:38Z",
+        "id": "EC0408ED-FF9E-4B99-B128-028EEA3D8084",
+        "text": "Review of Postgres: transaction state\n1. Show the state?: picked All states; no Echo today; no Proposal\n2. Where: picked TS3 · Footer pill\n3. Look: picked TL2 · Icon and word\n4. Colour: picked TC1 · Orange, red when failed\n5. Time: picked TT2 · After a minute\n6. Actions: picked TA2 · Commit and Roll Back in the pill's menu\n7. Failed transaction: picked F1 · Red, 'Failed — roll back'\n8. Long transaction: picked R3 · A notification after 15 minutes idle\n9. How the state is known: picked K1 · From the statements, check the server before closing"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T15:00:38Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T15:56:46Z",
+        "text": "Built into Echo (plan R10): footer status pill Transaction (orange, time after a minute) or Failed — roll back (red), Commit and Roll Back in its menu, a notification after 15 minutes idle, state from the statements. Please check it in the running app."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "accuracy": "statements",
+      "actions": "TA2 · Commit and Roll Back in the pill's menu",
+      "colour": "TC1 · Orange, red when failed",
+      "exhibit": "gallery",
+      "failed": "red-word",
+      "look": "TL2 · Icon and word",
+      "place": "TS3 · Footer pill",
+      "reminder": "toast",
+      "timer": "TT2 · After a minute"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {
+      "exhibit/proposal": "no",
+      "exhibit/today": "no"
+    }
+  },
   "ongoing.pg-value-display-r21": {
     "comments": [
       {
