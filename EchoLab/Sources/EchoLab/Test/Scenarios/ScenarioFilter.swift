@@ -61,50 +61,34 @@ extension ScenarioReview {
     }
 }
 
-/// The left column's selection: everything, one result, one review state or one area.
-enum ScenarioFilter: Hashable, RawRepresentable {
-    case all
-    case outcome(ScenarioOutcome)
-    case review(ScenarioReview)
-    case area(String)
+/// The left column's three filters, combined: a result, a review state and an area (nil = all).
+/// Remembered between launches.
+struct ScenarioFilters: Equatable {
+    var outcome: ScenarioOutcome?
+    var review: ScenarioReview?
+    var area: String?
 
-    init?(rawValue: String) {
-        let parts = rawValue.split(separator: ".", maxSplits: 1).map(String.init)
-        switch (parts.first, parts.count == 2 ? parts[1] : nil) {
-        case ("all", _): self = .all
-        case ("outcome", let value?): guard let outcome = ScenarioOutcome(rawValue: value) else { return nil }; self = .outcome(outcome)
-        case ("review", let value?): guard let review = ScenarioReview(rawValue: value) else { return nil }; self = .review(review)
-        case ("area", let value?): self = .area(value)
-        default: return nil
-        }
-    }
+    /// Where the owner starts: everything not reviewed yet.
+    static let reviewQueue = ScenarioFilters(outcome: nil, review: .imported, area: nil)
 
-    var rawValue: String {
-        switch self {
-        case .all: "all"
-        case .outcome(let outcome): "outcome.\(outcome.rawValue)"
-        case .review(let review): "review.\(review.rawValue)"
-        case .area(let group): "area.\(group)"
-        }
+    func admits(_ scenario: CompletionScenario, outcome scenarioOutcome: ScenarioOutcome) -> Bool {
+        (outcome == nil || outcome == scenarioOutcome) && (review == nil || review == scenario.review) && (area == nil || area == scenario.group)
     }
 }
 
 extension ScenarioStore {
     func outcome(for id: String) -> ScenarioOutcome { ScenarioOutcome(result(for: id)) }
 
-    func matches(_ scenario: CompletionScenario, filter: ScenarioFilter) -> Bool {
-        switch filter {
-        case .all: true
-        case .outcome(let outcome): outcome == self.outcome(for: scenario.id)
-        case .review(let review): scenario.review == review
-        case .area(let group): scenario.group == group
-        }
+    func matches(_ scenario: CompletionScenario, _ filters: ScenarioFilters) -> Bool {
+        filters.admits(scenario, outcome: outcome(for: scenario.id))
     }
 
-    func count(_ filter: ScenarioFilter) -> Int { scenarios.count { matches($0, filter: filter) } }
+    func count(_ filters: ScenarioFilters) -> Int { scenarios.count { matches($0, filters) } }
 
-    func count(_ outcome: ScenarioOutcome, in group: String) -> Int {
-        library.scenarios(in: group).count { self.outcome(for: $0.id) == outcome }
+    /// Scenarios waiting for the agent: flagged ones (fix the scenario), and approved ones that fail (fix EchoSense).
+    var waitingForAgent: (flagged: Int, toFix: Int) {
+        (scenarios.count { $0.review == .flagged },
+         scenarios.count { $0.review == .approved && outcome(for: $0.id) == .wrong })
     }
 
     /// Records the owner's answer without touching anything else in the scenario.

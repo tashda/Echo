@@ -3,30 +3,41 @@ import SwiftUI
 
 /// The right column: one scenario to judge. Its settings as tags (try others without saving), what
 /// should happen, the SQL with the popup under the caret, the checks, and the review bar. Edit (⌘E)
-/// swaps in the full editor.
+/// swaps in the full editor on a draft: nothing is written until Save.
 struct ScenarioReviewPane: View {
     let id: String
     let store: ScenarioStore
     @Binding var isEditing: Bool
     let answer: (ScenarioReview) -> Void
+    /// Done with this scenario (Return in the note): the page moves on.
+    let next: () -> Void
     let select: (String) -> Void
 
     /// Settings being tried; nil while the pane shows the saved scenario.
     @State private var trial: CompletionScenario?
     @State private var trialResult: ScenarioResult?
+    /// The scenario being edited; written to the files only by Save.
+    @State private var draft: CompletionScenario?
 
     var body: some View {
         if let saved = store.library.scenario(id: id) {
             VStack(spacing: 0) {
-                if isEditing {
-                    ScenarioEditorView(scenario: Binding(get: { store.library.scenario(id: id) ?? saved }, set: { store.update($0) }))
+                if isEditing, draft != nil {
+                    ScenarioEditorView(scenario: Binding(get: { draft ?? saved }, set: { draft = $0 }))
                 } else {
                     ScrollView { content(saved).padding(SpacingTokens.md).frame(maxWidth: 920, alignment: .leading).frame(maxWidth: .infinity) }
                 }
-                ScenarioReviewBar(review: saved.review, note: note(saved), isEditing: isEditing, answer: answer,
-                                  toggleEditing: { trial = nil; isEditing.toggle() })
+                ScenarioReviewBar(
+                    review: saved.review, outcome: store.outcome(for: id), note: note(saved),
+                    isEditing: isEditing, hasUnsavedChanges: draft.map { $0 != saved } ?? false,
+                    answer: answer, submitNote: next,
+                    edit: { trial = nil; draft = saved; isEditing = true },
+                    save: { if let draft { store.update(draft) }; draft = nil; isEditing = false },
+                    cancel: { draft = nil; isEditing = false })
             }
             .onChange(of: trial) { _, new in trialResult = new.map { CompletionScenarioRunner().run($0) } }
+            .onAppear { if isEditing { draft = saved } }
+            .onChange(of: isEditing) { _, editing in draft = editing ? (draft ?? store.library.scenario(id: id)) : nil }
         } else {
             LabMailEmpty(title: "Select a scenario", symbol: "checklist")
         }

@@ -2,7 +2,8 @@ import EchoSenseScenarios
 import SwiftUI
 
 /// One scenario in the middle column: its result, its title and, when it is wrong, what is wrong in
-/// a few words ("missing invoices"), so the list can be read without opening anything.
+/// a few words ("missing invoices"), so the list can be read without opening anything. Your answer
+/// shows on the right; the known-issue flag doesn't (it only tells the tests what fails today).
 struct ScenarioListRow: View {
     let scenario: CompletionScenario
     let result: ScenarioResult?
@@ -15,9 +16,6 @@ struct ScenarioListRow: View {
                 HStack(spacing: SpacingTokens.xxs) {
                     Text(scenario.title).lineLimit(1)
                     Spacer(minLength: 0)
-                    if scenario.knownIssue != nil {
-                        Image(systemName: "exclamationmark.triangle").foregroundStyle(ColorTokens.Status.warning).help("Known issue")
-                    }
                     if scenario.review != .imported {
                         Image(systemName: scenario.review.symbol).foregroundStyle(ColorTokens.Text.secondary).help(scenario.review.title)
                     }

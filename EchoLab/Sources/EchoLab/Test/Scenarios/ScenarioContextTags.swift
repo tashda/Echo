@@ -9,7 +9,7 @@ struct ScenarioContextTags: View {
     @Binding var shown: CompletionScenario
 
     var body: some View {
-        HStack(spacing: SpacingTokens.xxs2) {
+        LabFlowLayout(spacing: SpacingTokens.xxs2) {
             tag("Dialect", shown.dialect.title, changed: shown.dialect != saved.dialect) {
                 Picker("Dialect", selection: $shown.dialect) {
                     ForEach(ScenarioDialect.allCases, id: \.self) { Text($0.title).tag($0) }

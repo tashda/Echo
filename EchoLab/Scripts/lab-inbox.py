@@ -9,7 +9,13 @@ tells a running agent, so run this at the start of any design work and again aft
   New feedback = the owner sent feedback: read the comment, change the round, then use
                  lab-revise.py (it records the revision and sets the status back to Judging).
   Accepted     = the owner accepted the verdict: build it into Echo, then set In Echo.
+
+It also lists the owner's answers in Test › Scenarios (the EchoSense scenario files):
+  Flagged      = "this is not what should happen": change the scenario from the note, then set
+                 its review back to "imported" so the owner sees it again.
+  Approved but failing (known issue) = the scenario is right: fix EchoSense, clear knownIssue.
 """
+import os
 import json, sys
 from pathlib import Path
 
@@ -35,5 +41,25 @@ for status, title in groups.items():
             if item.get(key): print(f"  {key}: {item[key]}")
         history = item.get("history", [])
         if history: print(f"  history: {history[-1].get('text','')} ({history[-1].get('date','')[:16]})")
+
+# Scenario reviews, from the EchoSense checkout next to this repository.
+scenario_dir = Path(os.environ.get("ECHOSENSE_SCENARIOS") or Path(__file__).resolve().parents[3] / "EchoSense/Sources/EchoSenseScenarios/Scenarios")
+scenarios = []
+for file in sorted(scenario_dir.glob("*.json")):
+    scenarios += json.loads(file.read_text())
+flagged = [s for s in scenarios if s.get("review") == "flagged"]
+to_fix = [s for s in scenarios if s.get("review") == "approved" and s.get("knownIssue")]
+if flagged:
+    found = True
+    print(f"\n== SCENARIOS FLAGGED (change the scenario from the note): {len(flagged)}")
+    for s in flagged:
+        print(f"\n- {s['id']} {s.get('title','')}  [{s.get('group','')}]")
+        print(f"  sql: {s.get('sql','')}")
+        print("  note: " + (s.get("notes") or "(no note)"))
+if to_fix:
+    found = True
+    print(f"\n== SCENARIOS APPROVED BUT FAILING (fix EchoSense, then clear knownIssue): {len(to_fix)}")
+    for s in to_fix:
+        print(f"- {s['id']} {s.get('title','')}: {s['knownIssue']}")
 if not found:
     print("Nothing is waiting for the agent.")
