@@ -84,6 +84,7 @@ enum LabAreas {
         "ongoing.pg-client-key-password-r23": "connections",
         "ongoing.pg-failover-hosts-r23": "connections",
         "ongoing.run-into-running-r24": "editor",
+        "ongoing.mssql-import-r25": "explorer-tree",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

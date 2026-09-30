@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r25", label: "Round 25", title: "SQL Server: importing a file", date: "30 Sep 2026",
+             asked: "Imports into SQL Server now use the TDS bulk load; which of its options should the Import Data sheet offer, and what should a failed import leave behind?",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.mssql-import-r25"]),
         Info(id: "r24", label: "Round 24", title: "Run: ▶ into ■", date: "30 Sep 2026",
              asked: "How ▶ transforms into ■ when a query starts, and how the capsule turns red and grows for the timer, smoothly (owner's notes on round 20)",
              outcome: "Accepted: one button in its own glass; ▶ replaced by ■ in place (as round 20's R1), the glass fades to red, then it grows and the time fades in, staged; the red drains as the ✓ draws. Built into Echo; waiting for your check in the running app.",

@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -172,6 +172,13 @@
         status: .judging,
         summary: "The icon itself turns ▶ into ■ (seven ways, led by round 20 R1's in-place replace, with a slow-motion scrubber), then how the red arrives, how the capsule grows and the timer appears, the curve, and how it ends. Changes EDT-4.3; round 20's A2 glass morph is replaced by this.",
         spec: RunIntoRunningRound.spec)
+
+    /// Round 25: SQL Server: importing a file.
+    static let mssqlImport = LabPage.round(
+        id: "ongoing.mssql-import-r25", group: "Explorer tree", title: "SQL Server: importing a file · round 25", symbol: "square.and.arrow.down",
+        status: .judging,
+        summary: "Imports now use the TDS bulk load. Which of its options the Import Data sheet offers (constraints, triggers, empty cells as the column default, table lock), the batch size, and whether a failed import undoes everything. No Spec element covers the sheet yet. Already fixed: SQL Server imports never moved the progress bar.",
+        spec: MssqlImportRound.spec)
 
     // ROUNDS-DEFINITIONS
 }
