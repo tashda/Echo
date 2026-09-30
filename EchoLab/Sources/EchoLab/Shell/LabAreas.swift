@@ -63,6 +63,9 @@ enum LabAreas {
         "ported.Round 14 · connections": "connections",
         "ported.Round 14 · EchoSense selection": "echosense",
         "ongoing.notification-toast-r18": "notifications",
+        "ongoing.section-dock-switching-r19": "explorer-tree",
+        "ongoing.section-dock-capsule-r19": "explorer-tree",
+        "ongoing.section-dock-sections-r19": "explorer-tree",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

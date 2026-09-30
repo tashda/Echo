@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r19", label: "Round 19", title: "Section dock", date: "30 Sep 2026",
+             asked: "Three pages on the dock as built in round 16: how a card switches sections (and why the card above moves), how the capsule looks, and how many sections a dock holds and what happens to the rest. Changes TREE-1.2 and TREE-3.1 to TREE-3.7.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.section-dock-switching-r19", "ongoing.section-dock-capsule-r19", "ongoing.section-dock-sections-r19"]),
         Info(id: "r18", label: "Round 18", title: "Notification toast", date: "30 Sep 2026",
              asked: "Everything about the toast itself: its layout, actions, dismissing, material, how it arrives, how several stack, and how long it stays.",
              outcome: "Title and detail, small buttons, swipe right to dismiss; glass, drop from the top, a list of three and 3 s kept. Built into Echo; waiting for your check in the running app.",
