@@ -11,7 +11,7 @@ struct LabRoundsIndexView: View {
     private var rounds: [LabRounds.Info] {
         let query = search.trimmingCharacters(in: .whitespaces).lowercased()
         return LabRounds.all.filter { round in
-            query.isEmpty || round.title.lowercased().contains(query) || round.label.lowercased().contains(query)
+            query.isEmpty || round.title.lowercased().contains(query) || round.label.lowercased().contains(query) || LabRoundName.split(round.label).tag?.contains(query) == true
                 || round.asked.lowercased().contains(query) || round.outcome.lowercased().contains(query)
         }
     }
@@ -58,7 +58,7 @@ struct LabRoundsIndexView: View {
                 HStack {
                     Text(round.title).font(TypographyTokens.standard.weight(.semibold)).lineLimit(1)
                     Spacer(minLength: 4)
-                    Text(round.label).font(TypographyTokens.detail).foregroundStyle(.secondary)
+                    LabRoundLabel(round: round)
                 }
                 Text(round.asked).font(TypographyTokens.detail).foregroundStyle(.secondary).lineLimit(2)
             }
@@ -88,7 +88,7 @@ private struct RoundReadingPane: View {
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.md) {
                 VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                    Text("\(round.label) · \(round.date)")
+                    HStack(spacing: 6) { LabRoundLabel(round: round); Text(round.date) }
                         .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                     Text(round.title).font(.system(size: 26, weight: .bold))
                     HStack(spacing: 6) {
@@ -121,7 +121,7 @@ private struct RoundReadingPane: View {
                             Button { navigator.openPage(id) } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 1) {
-                                        Text(page.title).font(TypographyTokens.standard.weight(.medium))
+                                        LabRoundTitle(text: page.title, font: TypographyTokens.standard.weight(.medium))
                                         Text(LabAreas.area(id: LabAreas.areaID(ofPage: id))?.title ?? "")
                                             .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
                                     }

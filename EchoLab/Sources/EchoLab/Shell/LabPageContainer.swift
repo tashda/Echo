@@ -21,11 +21,6 @@ struct LabStatusPill: View {
     let status: LabStatus
 
     var body: some View {
-        Text(status.rawValue)
-            .font(TypographyTokens.detail)
-            .foregroundStyle(status == .newFeedback ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
-            .padding(.horizontal, SpacingTokens.xs)
-            .padding(.vertical, SpacingTokens.xxxs)
-            .background(ColorTokens.Surface.hover, in: Capsule())
+        LabStatusChip(status: status)
     }
 }

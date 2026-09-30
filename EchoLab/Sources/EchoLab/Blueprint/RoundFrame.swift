@@ -12,7 +12,8 @@ struct LabRoundInfoBox: View {
         let info = LabRounds.info(forPage: page.id)
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             HStack(spacing: SpacingTokens.xs) {
-                Text([info.map { "\($0.label) · \($0.date)" }, LabAreas.areaID(ofPage: page.id).flatMap { LabAreas.area(id: $0)?.title }]
+                if let tag = info.flatMap({ LabRoundName.split($0.label).tag }) { LabRoundBadge(tag: tag) }
+                Text([info?.date, LabAreas.areaID(ofPage: page.id).flatMap { LabAreas.area(id: $0)?.title }]
                     .compactMap { $0 }.joined(separator: " · "))
                     .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                 Spacer()
@@ -22,7 +23,7 @@ struct LabRoundInfoBox: View {
                         .labelStyle(.iconOnly).buttonStyle(.borderless).controlSize(.small)
                 }
             }
-            Text(page.title).font(TypographyTokens.title2.weight(.semibold))
+            Text(LabRoundName.split(page.title).name).font(TypographyTokens.title2.weight(.semibold))
             if !page.summary.isEmpty, expanded || !hint {
                 Text(page.summary).font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -8,8 +8,8 @@ extension LabStatus {
     var tint: Color {
         switch self {
         case .newFeedback: ColorTokens.Status.warning
-        case .judging: ColorTokens.accent
-        case .accepted: ColorTokens.Status.success
+        case .judging: .teal
+        case .accepted: ColorTokens.accent
         case .inEcho: .purple
         case .decided: ColorTokens.Text.tertiary
         }

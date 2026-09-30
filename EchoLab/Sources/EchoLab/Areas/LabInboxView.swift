@@ -90,7 +90,7 @@ struct LabInboxView: View {
             Circle().fill(status == .newFeedback ? status.tint : .clear).frame(width: 8, height: 8).padding(.top, 5)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(page.title).font(TypographyTokens.standard.weight(.semibold)).lineLimit(1)
+                    LabRoundTitle(text: page.title)
                     Spacer(minLength: 4)
                     Text(dateText(page)).font(TypographyTokens.detail).foregroundStyle(.secondary)
                 }
@@ -148,9 +148,9 @@ struct LabMailPageDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.md) {
                 VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                    Text([info.map { "\($0.label) · \($0.date)" }, areaTitle].compactMap { $0 }.joined(separator: " · "))
+                    Text([info?.date, areaTitle].compactMap { $0 }.joined(separator: " · "))
                         .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
-                    Text(page.title).font(.system(size: 26, weight: .bold))
+                    LabRoundTitle(text: page.title, font: .system(size: 26, weight: .bold), badgeSize: 16)
                     HStack(spacing: 6) {
                         if let status = store.status(of: page) { LabStatusChip(status: status) }
                         LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
