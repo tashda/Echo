@@ -94,7 +94,6 @@ struct EchoApp: App {
             AutocompleteInspectorCommands()
             PerformanceMonitorCommands()
             StreamingTestHarnessCommands()
-            DesignLabCommands()
 #endif
         }
         JobQueueWindow()
@@ -121,7 +120,6 @@ struct EchoApp: App {
         AutocompleteInspectorWindow()
         PerformanceMonitorWindow()
         StreamingTestHarnessWindow()
-        DesignLabWindow()
 #endif
     }
 
