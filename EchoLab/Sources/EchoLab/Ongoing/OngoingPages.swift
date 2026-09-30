@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -60,6 +60,62 @@
         status: .judging,
         summary: "How Run moves: seven running looks, a delay so quick queries never make it expand, the timer format, the stop icon, motion while running, how it changes into running, the result and how long it stays, with scenario buttons from 0.2 s to until stopped. Changes EDT-4.3 and 4.4.",
         spec: RunButtonRunningRound.spec)
+
+    /// Round 21: Postgres: transaction state.
+    static let pgTransactionState = LabPage.round(
+        id: "ongoing.pg-transaction-state-r21", group: "Footer and results", title: "Postgres: transaction state · round 21", symbol: "arrow.triangle.branch",
+        status: .judging,
+        summary: "Where and how a query tab shows that it is inside a transaction, failed inside one, or lost its connection.",
+        spec: PgTransactionStateRound.spec)
+
+    /// Round 21: Postgres: open transaction on close.
+    static let pgOpenTransactionGuard = LabPage.round(
+        id: "ongoing.pg-open-transaction-guard-r21", group: "Tabs", title: "Postgres: open transaction on close · round 21", symbol: "exclamationmark.shield",
+        status: .judging,
+        summary: "What happens when a tab with an open transaction is closed, switched to another database, disconnected or Echo quits.",
+        spec: PgOpenTransactionGuardRound.spec)
+
+    /// Round 21: Postgres: connection lost.
+    static let pgConnectionLost = LabPage.round(
+        id: "ongoing.pg-connection-lost-r21", group: "Notifications", title: "Postgres: connection lost · round 21", symbol: "bolt.horizontal.circle",
+        status: .judging,
+        summary: "How Echo says a tab's connection dropped (and whether a transaction was rolled back), and how it reconnects.",
+        spec: PgConnectionLostRound.spec)
+
+    /// Round 21: Postgres: cancelling a query.
+    static let pgCancel = LabPage.round(
+        id: "ongoing.pg-cancel-r21", group: "Editor and running", title: "Postgres: cancelling a query · round 21", symbol: "stop.circle",
+        status: .judging,
+        summary: "What cancelling means now that it stops the query on the server: the wait, the rows already fetched, a stuck cancel and what is reported.",
+        spec: PgCancelRound.spec)
+
+    /// Round 21: Postgres: script results.
+    static let pgScriptResults = LabPage.round(
+        id: "ongoing.pg-script-results-r21", group: "Footer and results", title: "Postgres: script results · round 21", symbol: "list.number",
+        status: .judging,
+        summary: "How the results of a script with several statements are shown.",
+        spec: PgScriptResultsRound.spec)
+
+    /// Round 21: Postgres: where the error is.
+    static let pgErrorLocation = LabPage.round(
+        id: "ongoing.pg-error-location-r21", group: "Editor and running", title: "Postgres: where the error is · round 21", symbol: "exclamationmark.triangle",
+        status: .judging,
+        summary: "How Echo points at the place in the SQL where Postgres reports an error, with its hint.",
+        spec: PgErrorLocationRound.spec)
+
+    /// Round 21: Postgres: values in the grid.
+    static let pgValueDisplay = LabPage.round(
+        id: "ongoing.pg-value-display-r21", group: "Footer and results", title: "Postgres: values in the grid · round 21", symbol: "tablecells",
+        status: .judging,
+        summary: "How PostgreSQL arrays, JSON, binary data, intervals, ranges and other types read in the results grid.",
+        spec: PgValueDisplayRound.spec)
+
+    /// Round 21: Postgres: statement timeouts.
+    static let pgTimeouts = LabPage.round(
+        id: "ongoing.pg-timeouts-r21", group: "Connections", title: "Postgres: statement timeouts · round 21", symbol: "timer",
+        status: .judging,
+        summary: "Whether and where a statement or lock timeout is set, and what Echo says when one fires.",
+        spec: PgTimeoutsRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

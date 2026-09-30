@@ -68,6 +68,14 @@ enum LabAreas {
         "ongoing.section-dock-sections-r19": "explorer-tree",
         "ongoing.run-button-look-r20": "editor",
         "ongoing.run-button-running-r20": "editor",
+        "ongoing.pg-transaction-state-r21": "footer-results",
+        "ongoing.pg-open-transaction-guard-r21": "tabs",
+        "ongoing.pg-connection-lost-r21": "notifications",
+        "ongoing.pg-cancel-r21": "editor",
+        "ongoing.pg-script-results-r21": "footer-results",
+        "ongoing.pg-error-location-r21": "editor",
+        "ongoing.pg-value-display-r21": "footer-results",
+        "ongoing.pg-timeouts-r21": "connections",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
