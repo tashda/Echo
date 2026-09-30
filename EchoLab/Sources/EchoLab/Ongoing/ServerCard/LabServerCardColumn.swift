@@ -16,7 +16,10 @@ struct LabSCTreeColumn: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.workspaceCardCornerRadius) private var cornerRadius
 
-    private var animation: Animation { options.speed.spring(reduceMotion: reduceMotion) }
+    private var motion: EchoMotion { options.speed.motion(reduceMotion: reduceMotion) }
+    /// Switching sections and rows arriving after a load: no overshoot, so the card's bottom
+    /// edge glides to its new height instead of bouncing past it (owner, round 16).
+    private var animation: Animation { motion.settle }
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: cornerRadius, style: .continuous) }
     /// Pinned › Icons only: the name scrolls away and only the dock stays.
     private var pinsIconsOnly: Bool { options.pinning == .iconsOnly && LabSCHeaderView.canSplit(options.header) }
@@ -74,7 +77,7 @@ struct LabSCTreeColumn: View {
 
     private func cardBody(for server: LabSCServer) -> some View {
         let headerHeight = headerHeights[server.id] ?? 0
-        return LabSCCardBody(server: server, state: state, options: options, animation: animation, headerHeight: headerHeight)
+        return LabSCCardBody(server: server, state: state, options: options, animation: motion.expand, headerHeight: headerHeight)
             .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
             .background(ColorTokens.Workspace.card, in: UnevenRoundedRectangle(
                 bottomLeadingRadius: cornerRadius, bottomTrailingRadius: cornerRadius, style: .continuous))
@@ -131,7 +134,7 @@ struct LabSCTreeColumn: View {
     private var oneServer: some View {
         let server = servers.first { $0.id == focusedServerID } ?? servers[0]
         return ScrollView {
-            LabSCCardBody(server: server, state: state, options: options, animation: animation)
+            LabSCCardBody(server: server, state: state, options: options, animation: motion.expand)
                 .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
         }
         .scrollIndicators(.never)

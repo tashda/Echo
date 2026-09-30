@@ -7,6 +7,7 @@ struct LabSCCardBody: View {
     let server: LabSCServer
     let state: LabSCState
     let options: LabSCOptions
+    /// Folders opening and closing: Echo's `expand` (rows slide and fade, no bounce).
     let animation: Animation
     /// The pinned header's height: rows blur and fade as they pass under it.
     var headerHeight: CGFloat = 0
