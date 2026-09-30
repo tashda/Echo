@@ -10,7 +10,10 @@ extension WorkspaceTabContainerView {
             icon: NotificationCategory.queryFailed.defaultIcon,
             message: "\(tab.title) failed: \(message)",
             style: .error,
-            context: NotificationContext(serverName: serverName, connectionID: tab.connection.id, tabID: tab.id),
+            context: NotificationContext(
+                serverName: serverName, connectionID: tab.connection.id, tabID: tab.id,
+                action: tab.query?.errorMark != nil ? .goToError : nil
+            ),
             showsToast: tabStore.activeTabId != tab.id
         )
     }

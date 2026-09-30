@@ -58,6 +58,9 @@ extension EnvironmentState {
             guard let tabID = context?.tabID, let tab = tabStore.tabs.first(where: { $0.id == tabID }) else { return false }
             if case .transactionLost = tab.query?.connectionLoss { return true }
             return false
+        case .goToError:
+            guard let tabID = context?.tabID, let query = tabStore.tabs.first(where: { $0.id == tabID })?.query else { return false }
+            return query.errorMark != nil
         }
     }
 
@@ -70,6 +73,10 @@ extension EnvironmentState {
             } else {
                 reconnectPostgresTab(tabID)
             }
+        case .goToError:
+            guard let tabID = context?.tabID, let tab = tabStore.tabs.first(where: { $0.id == tabID }) else { return }
+            tabStore.activeTabId = tabID
+            tab.query?.goToError()
         }
     }
 

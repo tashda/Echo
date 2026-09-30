@@ -165,6 +165,11 @@ import OSLog
     /// What the last run covered, and the note shown at its end once it finishes (QE2).
     @ObservationIgnored var lastRunRange: NSRange?
     var runNote: QueryRunNote?
+    /// Where the last run's error is, marked in the editor (round 21 EM5, round 22 ED1). Cleared by
+    /// an edit or the next run (EC3).
+    var errorMark: QueryErrorMark?
+    /// Maps a server message's line (in the SQL that was sent) to the editor line (LL1, J1).
+    @ObservationIgnored var messageLineMapper: ((Int) -> Int?)?
 
     // MARK: - Debug Session State
 

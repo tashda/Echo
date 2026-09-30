@@ -173,6 +173,7 @@ extension WorkspaceTabContainerView {
         let foreignKeySource = resolveSchemaAndTable(for: inferredObject, connection: tab.connection)
 
         let activityHandle = AppDirector.shared.activityEngine.begin("Executing query", connectionSessionID: tab.connectionSessionID)
+        let sentSQL = effectiveSQL
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
@@ -299,7 +300,9 @@ extension WorkspaceTabContainerView {
                     } else {
                         activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
+                        presentServerMessages(of: error, sentSQL: sentSQL, state: state)
                         state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
+                        presentErrorLocation(of: error, sentSQL: sentSQL, tab: tab, state: state)
                         reportQueryFailure(error.localizedDescription, tab: tab)
                     }
                 }
@@ -439,22 +442,7 @@ extension WorkspaceTabContainerView {
         var emittedServerResponse = false
         for serverMsg in result.serverMessages {
             emittedServerResponse = true
-            let severity: QueryExecutionMessage.Severity = serverMsg.kind == .error ? .error : .info
-            var metadata = serverMsg.metadata
-            if serverMsg.number != 0 {
-                metadata["messageNumber"] = "\(serverMsg.number)"
-            }
-            if let serverName = serverMsg.serverName, !serverName.isEmpty {
-                metadata["server"] = serverName
-            }
-            state.appendMessage(
-                message: serverMsg.message,
-                severity: severity,
-                category: serverMsg.category ?? "Server Response",
-                procedure: serverMsg.procedureName,
-                line: serverMsg.lineNumber.map(Int.init),
-                metadata: metadata
-            )
+            state.appendServerMessage(serverMsg)
         }
 
         if isMessageOnlyStatement,

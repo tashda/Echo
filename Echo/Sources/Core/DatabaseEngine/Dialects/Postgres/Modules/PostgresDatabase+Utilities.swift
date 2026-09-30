@@ -32,7 +32,8 @@ extension PostgresSession {
                 hint: kitError.hint,
                 sqlState: kitError.sqlState,
                 position: kitError.position,
-                contextSQL: contextSQL
+                contextSQL: contextSQL,
+                underlying: kitError
             )
         }
         guard let pgError = error as? PSQLError else { return error }
@@ -42,7 +43,8 @@ extension PostgresSession {
             hint: pgError.serverInfo?[.hint],
             sqlState: pgError.serverInfo?[.sqlState],
             position: pgError.serverInfo?[.position].flatMap { Int($0) },
-            contextSQL: contextSQL
+            contextSQL: contextSQL,
+            underlying: pgError
         )
     }
 
@@ -54,7 +56,8 @@ extension PostgresSession {
         hint: String?,
         sqlState: String?,
         position: Int?,
-        contextSQL: String?
+        contextSQL: String?,
+        underlying: any Error & Sendable
     ) -> Error {
         var lines: [String] = [message.isEmpty ? "PostgreSQL error" : message]
         if let detail, !detail.isEmpty { lines.append(detail) }
@@ -69,7 +72,8 @@ extension PostgresSession {
         }
         let joined = lines.joined(separator: "\n")
         os.Logger.postgres.error("PostgreSQL error: \(joined)")
-        return DatabaseError.queryError(joined)
+        // The server's error stays underneath, so the editor can mark where it is (round 21, EM5).
+        return DatabaseError.queryError(joined, underlyingError: underlying)
     }
 
     func simpleQueryFastPathLimit(for sql: String) -> Int? {

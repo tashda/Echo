@@ -57,6 +57,7 @@ struct QueryInputSection: View {
                 if query.sql != newText {
                     query.sql = newText
                     query.runNote = nil
+                    query.errorMark = nil
                     query.highlightedStatementRange = nil
                 }
             },
@@ -66,6 +67,7 @@ struct QueryInputSection: View {
             onAddBookmark: onAddBookmark,
             onRunStatement: onRunStatement,
             runNote: query.runNote,
+            errorMark: query.errorMark,
             resultStatementRange: query.highlightedStatementRange
         )
         .padding(.leading, leadingPadding)

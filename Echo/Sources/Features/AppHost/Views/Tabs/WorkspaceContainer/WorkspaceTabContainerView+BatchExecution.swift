@@ -27,6 +27,8 @@ extension WorkspaceTabContainerView {
             stopOnError: !projectStore.globalSettings.postgresScriptsContinueAfterError,
             asOneTransaction: queryState.runsScriptAsOneTransaction
         )
+        // Which batch failed, so the editor can mark the error inside it (round 21 EM5, round 22 ED1).
+        let failedBatch = FailedBatchIndex()
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
@@ -43,6 +45,7 @@ extension WorkspaceTabContainerView {
                 // PostgreSQL scripts log one line per statement at the end instead (round 21, SP2).
                 let handler: BatchProgressHandler = { [weak state] update in
                     guard let state else { return }
+                    if case .failed = update.event { failedBatch.set(update.batchIndex) }
                     if isPostgresScript, !update.event.isStreamUpdate { return }
                     Task { @MainActor in
                         switch update.event {
@@ -136,7 +139,10 @@ extension WorkspaceTabContainerView {
                     } else {
                         activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
+                        let failedSQL = failedBatch.value.flatMap { batches.indices.contains($0) ? batches[$0] : nil }
+                        if let failedSQL { presentServerMessages(of: error, sentSQL: failedSQL, state: state) }
                         state.failExecution(with: "Batch execution failed: \(error.localizedDescription)")
+                        if let failedSQL { presentErrorLocation(of: error, sentSQL: failedSQL, tab: tab, state: state) }
                         reportQueryFailure(error.localizedDescription, tab: tab)
                     }
                 }

@@ -25,6 +25,8 @@ struct SQLEditorView: View {
     var onAddBookmark: (String) -> Void
     var onRunStatement: () -> Void
     var runNote: QueryRunNote?
+    /// Where the last run's error is (round 21 EM5, round 22 ED1).
+    var errorMark: QueryErrorMark?
     /// The statement of the result selected in a script's statement list (round 21, SK2).
     var resultStatementRange: NSRange?
 
@@ -47,6 +49,7 @@ struct SQLEditorView: View {
         onAddBookmark: @escaping (String) -> Void = { _ in },
         onRunStatement: @escaping () -> Void = {},
         runNote: QueryRunNote? = nil,
+        errorMark: QueryErrorMark? = nil,
         resultStatementRange: NSRange? = nil
     ) {
         _text = text
@@ -65,6 +68,7 @@ struct SQLEditorView: View {
         self.onAddBookmark = onAddBookmark
         self.onRunStatement = onRunStatement
         self.runNote = runNote
+        self.errorMark = errorMark
         self.resultStatementRange = resultStatementRange
     }
 
@@ -83,6 +87,7 @@ struct SQLEditorView: View {
             onAddBookmark: onAddBookmark,
             onRunStatement: onRunStatement,
             runNote: runNote,
+            errorMark: errorMark,
             resultStatementRange: resultStatementRange,
             completionContext: completionContext,
             ruleTraceConfig: ruleTraceConfig,

@@ -4,6 +4,8 @@ import AppKit
 struct ExecutionConsoleView: View {
     let executionMessages: [QueryExecutionMessage]
     var onClear: (() -> Void)?
+    /// Round 22 LL1 / round 21 J1: a message's line link, or a click on an error.
+    var onGoToLine: ((QueryExecutionMessage) -> Void)?
 
     @State private var filter: MessageFilter = .all
     @State private var isAutoScrolling = true
@@ -92,7 +94,7 @@ struct ExecutionConsoleView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(filteredMessages) { message in
-                        ConsoleMessageRow(message: message)
+                        ConsoleMessageRow(message: message, onGoToLine: onGoToLine)
                             .id(message.id)
                         Divider()
                             .padding(.leading, SpacingTokens.md)

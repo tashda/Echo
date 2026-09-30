@@ -7,7 +7,12 @@ struct QueryFailureView: View {
     let query: QueryEditorState
     let panelState: BottomPanelState
 
-    private var line: Int? { QueryErrorLocation.line(in: message) }
+    /// The editor line: the marked error's, or the reported line mapped from what was sent.
+    private var line: Int? {
+        if let mark = query.errorMark { return mark.line }
+        guard let reported = QueryErrorLocation.line(in: message) else { return nil }
+        return query.messageLineMapper?(reported) ?? reported
+    }
 
     var body: some View {
         VStack(spacing: SpacingTokens.sm) {
@@ -25,7 +30,11 @@ struct QueryFailureView: View {
             HStack(spacing: SpacingTokens.xs) {
                 if let line {
                     Button("Show in Editor") {
-                        query.editorLineRequest = EditorLineRequest(line: line)
+                        if let mark = query.errorMark {
+                            query.editorLineRequest = EditorLineRequest(line: mark.line, range: mark.range)
+                        } else {
+                            query.editorLineRequest = EditorLineRequest(line: line)
+                        }
                     }
                     .keyboardShortcut(.defaultAction)
                 }

@@ -53,6 +53,8 @@ extension QueryEditorState {
 
         messages.removeAll()
         runNote = nil
+        errorMark = nil
+        messageLineMapper = nil
         streamingColumns.removeAll(keepingCapacity: false)
         streamingRows.removeAll(keepingCapacity: false)
         rowProgress = RowProgress()

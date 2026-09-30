@@ -64,6 +64,17 @@ struct QueryResultsSettingsView: View {
                 }
             }
 
+            Section("Errors") {
+                PropertyRow(
+                    title: "Full message at the statement",
+                    info: "Off: a failed statement shows “! Error” where it ends, and the red squiggle carries the message. On: the statement shows the message itself."
+                ) {
+                    Toggle("", isOn: projectStore.globalSettingBinding(\.editorErrorRunNoteShowsMessage))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
+
             Section("Bottom Panel") {
                 PropertyRow(
                     title: "Auto-open on activity",

@@ -78,6 +78,16 @@ struct QueryExecutionMessage: Identifiable, Hashable {
         self.metadata = metadata
     }
 
+    /// EM1: what SSMS prints above an error, without the line (shown as a link):
+    /// `Msg 547, Level 16, State 0` or `Msg 50000, Level 16, State 1, Procedure dbo.load_orders`.
+    var ssmsHeader: String? {
+        guard severity == .error, let number = metadata["messageNumber"],
+              let level = metadata["level"], let state = metadata["state"] else { return nil }
+        var parts = ["Msg \(number)", "Level \(level)", "State \(state)"]
+        if let procedure, !procedure.isEmpty { parts.append("Procedure \(procedure)") }
+        return parts.joined(separator: ", ")
+    }
+
     var formattedTimestamp: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"

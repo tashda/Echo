@@ -46,6 +46,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     /// QE2: the note at the end of what last ran.
     var runNote: QueryRunNote? { didSet { showRunNote() } }
     var runNoteLabel: NSTextField?
+    /// Round 21 EM5 / round 22 ED1: the last run's error, as a squiggle with a bubble on hover.
+    var errorMark: QueryErrorMark? { didSet { showErrorMark() } }
+    var errorMarkView: QueryErrorMarkView?
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()

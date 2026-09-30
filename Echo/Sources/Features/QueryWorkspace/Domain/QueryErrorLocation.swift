@@ -14,5 +14,7 @@ nonisolated enum QueryErrorLocation {
 /// the same line twice works.
 struct EditorLineRequest: Equatable {
     let line: Int
+    /// Selects this text instead of putting the caret at the line start (the error's word, J1).
+    var range: NSRange? = nil
     let id = UUID()
 }

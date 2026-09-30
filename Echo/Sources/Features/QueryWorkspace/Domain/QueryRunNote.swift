@@ -27,6 +27,13 @@ nonisolated struct QueryRunNote: Equatable, Sendable {
         return QueryRunNote(range: range, text: short, detail: message, isError: true)
     }
 
+    /// RN1 (round 21, accepted): `! Error` at the statement; the mark carries the message, and the
+    /// tooltip the whole of it. Settings can show the full message instead (owner's note).
+    static func shortFailure(range: NSRange?, message: String) -> QueryRunNote? {
+        guard let range else { return nil }
+        return QueryRunNote(range: range, text: "! Error", detail: message, isError: true)
+    }
+
     /// CR2: `Cancelled after 3.2 s · 1,200 rows`, at the statement.
     static func cancelled(range: NSRange?, duration: TimeInterval?, rows: Int) -> QueryRunNote? {
         guard let range else { return nil }

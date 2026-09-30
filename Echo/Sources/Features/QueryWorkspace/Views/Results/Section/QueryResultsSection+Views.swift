@@ -214,9 +214,11 @@ extension QueryResultsSection {
     }
 
     var messagesView: some View {
-        ExecutionConsoleView(executionMessages: query.messages) {
-            query.messages.removeAll()
-        }
+        ExecutionConsoleView(
+            executionMessages: query.messages,
+            onClear: { query.messages.removeAll() },
+            onGoToLine: { query.goToLine(of: $0) }
+        )
     }
 
 

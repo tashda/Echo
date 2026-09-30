@@ -15,10 +15,13 @@ struct NotificationContext: Codable, Equatable, Sendable {
 enum NotificationAction: String, Codable, Equatable, Sendable {
     /// Reconnect a query tab whose connection dropped with a transaction open (round 21, RC2).
     case reconnectTab
+    /// Put the failed tab's editor on the error (round 21 J1, owner's note).
+    case goToError
 
     var title: String {
         switch self {
         case .reconnectTab: "Reconnect"
+        case .goToError: "Go to Error"
         }
     }
 }
