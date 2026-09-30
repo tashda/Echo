@@ -12,7 +12,7 @@ struct LabRoundInfoBox: View {
         let info = LabRounds.info(forPage: page.id)
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             HStack(spacing: SpacingTokens.xs) {
-                if let tag = info.flatMap({ LabRoundName.split($0.label).tag }) { LabRoundBadge(tag: tag) }
+                if let tag = LabRoundName.tag(forPage: page.id, title: page.title) { LabRoundBadge(tag: tag) }
                 Text([info?.date, LabAreas.areaID(ofPage: page.id).flatMap { LabAreas.area(id: $0)?.title }]
                     .compactMap { $0 }.joined(separator: " · "))
                     .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)

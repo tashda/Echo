@@ -121,7 +121,7 @@ private struct RoundReadingPane: View {
                             Button { navigator.openPage(id) } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 1) {
-                                        LabRoundTitle(text: page.title, font: TypographyTokens.standard.weight(.medium))
+                                        LabRoundTitle(text: page.title, pageID: page.id, font: TypographyTokens.standard.weight(.medium))
                                         Text(LabAreas.area(id: LabAreas.areaID(ofPage: id))?.title ?? "")
                                             .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
                                     }

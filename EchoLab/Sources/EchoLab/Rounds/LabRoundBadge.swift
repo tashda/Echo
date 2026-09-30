@@ -10,6 +10,27 @@ enum LabRoundName {
         text.replacing(#/ · [Rr]ound \d+/#, with: "").replacing(#/Round \d+ · /#, with: "")
     }
 
+    /// A page's identifier: its round's number, with the page's place in the round when the round
+    /// has several pages ("#21.3" is the third page of round 21). The place is the page's position in
+    /// `LabRounds.Info.pageIDs`, so pages are only ever appended there.
+    @MainActor
+    static func tag(forPage id: String, title: String) -> String? {
+        guard let base = split(title).tag ?? LabRounds.info(forPage: id).flatMap({ split($0.label).tag }), !base.contains("–") else {
+            return split(title).tag
+        }
+        let siblings: [String]
+        if let info = LabRounds.info(forPage: id) {
+            // Entries that share a round's label are one round (newest listed first), so its pages
+            // are numbered oldest first across them.
+            siblings = LabRounds.all.filter { $0.label == info.label }.reversed().flatMap(\.pageIDs)
+        } else {
+            // A round without a history entry yet: its pages are the ones that share its number.
+            siblings = LabRegistry.pages.filter { split($0.title).tag == base && $0.section != .decided }.map(\.id)
+        }
+        guard siblings.count > 1, let index = siblings.firstIndex(of: id) else { return base }
+        return "\(base).\(index + 1)"
+    }
+
     /// The identifier ("#17", "#3–8") and the name with the round words taken out.
     static func split(_ text: String) -> (tag: String?, name: String) {
         if let match = text.firstMatch(of: /^Rounds? (\d+)(?: to (\d+))?(?: · )?(.*)$/) {
@@ -39,13 +60,15 @@ struct LabRoundBadge: View {
 /// A page or round title with its round identifier as a badge in front.
 struct LabRoundTitle: View {
     let text: String
+    /// The page this title is for; with it a round that has several pages numbers them #21.1, #21.2.
+    var pageID: String?
     var font: Font = TypographyTokens.standard.weight(.semibold)
     var badgeSize: CGFloat = 11
 
     var body: some View {
         let parts = LabRoundName.split(text)
         HStack(spacing: 6) {
-            if let tag = parts.tag { LabRoundBadge(tag: tag, size: badgeSize) }
+            if let tag = pageID.flatMap({ LabRoundName.tag(forPage: $0, title: text) }) ?? parts.tag { LabRoundBadge(tag: tag, size: badgeSize) }
             Text(parts.name.isEmpty ? text : parts.name).font(font).lineLimit(1)
         }
     }

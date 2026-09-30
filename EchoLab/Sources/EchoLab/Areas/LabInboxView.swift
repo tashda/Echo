@@ -123,7 +123,7 @@ struct LabInboxView: View {
             Image(systemName: status.symbol).font(.system(size: 11)).foregroundStyle(status.tint).frame(width: 14).padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    LabRoundTitle(text: page.title)
+                    LabRoundTitle(text: page.title, pageID: page.id)
                     Spacer(minLength: 4)
                     Text(dateText(page)).font(TypographyTokens.detail).foregroundStyle(.secondary)
                 }
@@ -183,7 +183,7 @@ struct LabMailPageDetail: View {
                 VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                     Text([info?.date, areaTitle].compactMap { $0 }.joined(separator: " · "))
                         .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
-                    LabRoundTitle(text: page.title, font: .system(size: 26, weight: .bold), badgeSize: 16)
+                    LabRoundTitle(text: page.title, pageID: page.id, font: .system(size: 26, weight: .bold), badgeSize: 16)
                     HStack(spacing: 6) {
                         if let status = store.status(of: page) { LabStatusChip(status: status) }
                         LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
