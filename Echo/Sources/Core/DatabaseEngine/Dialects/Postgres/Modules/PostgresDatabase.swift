@@ -8,6 +8,7 @@ typealias PostgresQueryResult = PostgresRowSequence
 
 struct PostgresNIOFactory: DatabaseFactory {
     private let packageLogger = Logging.Logger(label: "dev.echodb.echo.postgres")
+    var packageLoggerForConnections: Logging.Logger { packageLogger }
 
     func connect(
         host: String,
@@ -26,7 +27,7 @@ struct PostgresNIOFactory: DatabaseFactory {
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
-        guard authentication.method == .sqlPassword else {
+        guard authentication.method == .sqlPassword || authentication.method == .kerberos else {
             throw DatabaseError.authenticationFailed("Windows authentication is not supported for PostgreSQL")
         }
         let effectiveDatabase = (database?.isEmpty == false) ? database : "postgres"
@@ -47,7 +48,7 @@ struct PostgresNIOFactory: DatabaseFactory {
             port: port,
             database: effectiveDatabase ?? "postgres",
             username: authentication.username,
-            password: authentication.password,
+            password: authentication.method == .kerberos ? nil : authentication.password,
             sslMode: wireSslMode,
             sslRootCertPath: sslRootCertPath,
             sslCertPath: sslCertPath,

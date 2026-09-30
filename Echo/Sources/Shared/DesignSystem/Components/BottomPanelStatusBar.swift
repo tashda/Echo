@@ -78,6 +78,7 @@ struct BottomPanelStatusBarConfiguration {
         let id: String
         let label: String
         let icon: String
+        var help: String?
     }
 }
 
@@ -225,6 +226,7 @@ struct BottomPanelStatusBar: View {
             .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
             .frame(height: LayoutTokens.Footer.chipHeight)
             .background(ColorTokens.Sidebar.hoverFill, in: Capsule())
+            .help(indicator.help ?? "")
         }
     }
 }

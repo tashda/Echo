@@ -73,6 +73,15 @@ extension ConnectionEditorView {
     /// Applies the fix a failed test offered, then tests again (round 22, TE1).
     private func apply(_ fix: ConnectionTestFix) {
         switch fix {
+        case .openTicketViewer:
+            // The test runs again when the user comes back with a ticket and presses Test.
+            KerberosTicketStatus.openTicketViewer()
+            return
+        case .usePassword:
+            authenticationMethod = .sqlPassword
+            testResult = nil
+            focusedField = .password
+            return
         case .trustCertificate:
             trustServerCertificate = true
         case .hostNameInCertificate(let name):

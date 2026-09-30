@@ -291,6 +291,42 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.pg-client-key-password-r23": {
+    "comments": [
+      {
+        "date": "2026-09-30T19:36:17Z",
+        "id": "4444FC60-02BD-4408-A623-9E0EBA692635",
+        "text": "Review of Postgres: encrypted client key\n1. Can you sign in with it?: picked Proposal\n2. When shown: picked KW1 · Only when the chosen key is encrypted\n3. Kept: picked KK1 · Saved in the Keychain, like the password\n4. Label: picked KL1 · Key Password\n5. Certificate rows: picked KR1 · Label left, file name and Choose… right\n6. A wrong key password: picked KE1 · Under the Key Password row, and in the result line\n7. Certificates from IT as .p12 or .pfx: picked PF2 · Also .p12/.pfx: one file for both rows, unlocked by the same password"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T19:36:17Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T20:26:49Z",
+        "text": "Built into Echo: labelled certificate rows, Key Password only for encrypted keys (Keychain), wrong password under the row, .p12/.pfx for both rows (PF2, as in the review). Check in the running app."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "exhibit": "proposal",
+      "label": "KL1 · Key Password",
+      "p12": "pem",
+      "rows": "KR1 · Label left, file name and Choose… right",
+      "storage": "KK1 · Saved in the Keychain, like the password",
+      "when": "KW1 · Only when the chosen key is encrypted",
+      "wrongPassword": "inline"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.pg-connection-lost-r21": {
     "comments": [
       {
@@ -363,6 +399,82 @@
       "jump": "click",
       "mark": "EM5 · Squiggle, bubble on hover",
       "runNote": "short"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.pg-failover-hosts-r23": {
+    "comments": [
+      {
+        "date": "2026-09-30T19:35:41Z",
+        "id": "C6466A80-FA0A-4450-B78B-F2ED03489B46",
+        "text": "Review of Postgres: several servers and failover\n1. Ready for a cluster?: picked Proposal\n2. Servers: picked FH1 · '+ Add Server': one row per server\n3. Connect to words: picked FT1 · Plain words (Any server, Primary, Standby…)\n4. Connect to place: picked FW1 · Under the servers, once there are two\n5. Load balancing: picked FL1 · Not shown (a pasted URL can still set it)\n6. After a failover: picked FS1 · Footer chip names the server, and a notification when it changes\n7. Test with several servers: picked TS1 · Every server, one line each (db1 ✓ primary · db2 ✓ standby)\n8. Query tabs during a failover: picked FR1 · 'Connection lost' as round 21 decided; Reconnect goes to the new primary\n9. Pasting a URL with several servers: picked PU1 · Yes: fill a row per server and set Connect to"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T19:35:41Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T20:26:49Z",
+        "text": "Built into Echo: + Add Server rows, Connect To, Test checks every server, pasted multi-server URLs, footer chip and notification after a failover. Check in the running app."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "balance": "FL1 · Not shown (a pasted URL can still set it)",
+      "exhibit": "proposal",
+      "hosts": "FH1 · '+ Add Server': one row per server",
+      "moved": "FS1 · Footer chip names the server, and a notification when it changes",
+      "openTabs": "lost",
+      "paste": "fill",
+      "target": "FT1 · Plain words (Any server, Primary, Standby…)",
+      "targetPlace": "FW1 · Under the servers, once there are two",
+      "test": "each"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.pg-kerberos-signin-r23": {
+    "comments": [
+      {
+        "date": "2026-09-30T19:39:13Z",
+        "id": "D618212D-F482-4497-9C92-E105E6023EB3",
+        "text": "Review of Postgres: Kerberos sign-in\n1. Clear enough to set up?: picked Proposal\n2. Where: picked KP1 · Mechanism menu: Password or Kerberos\n3. Name: picked KN1 · Kerberos\n4. Ticket line: picked KT1 · Show whose ticket, and when it expires\n5. Service name: picked KS1 · In Security and timeouts, only for Kerberos\n6. User name: picked KU1 · Filled in from the ticket (alice), editable\n7. Test without a ticket: picked NT1 · 'No Kerberos ticket' and an Open Ticket Viewer button\n8. The server asks for a password instead: picked KF1 · Fail: 'The server asks for a password, not Kerberos', with a Use Password button\n9. A Password connection to a Kerberos server: picked PK1 · Yes, use the ticket (libpq does)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T19:39:13Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T20:26:49Z",
+        "text": "Built into Echo: Mechanism Password or Kerberos, ticket line with Open Ticket Viewer, Kerberos Service in the disclosure, user name from the ticket, Test fixes (NT1, KF1). Check in the running app."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "exhibit": "proposal",
+      "naming": "KN1 · Kerberos",
+      "noTicket": "viewer",
+      "passwordMode": "useTicket",
+      "placement": "KP1 · Mechanism menu: Password or Kerberos",
+      "service": "KS1 · In Security and timeouts, only for Kerberos",
+      "ticket": "KT1 · Show whose ticket, and when it expires",
+      "username": "KU1 · Filled in from the ticket (alice), editable",
+      "wrongMethod": "explain"
     },
     "reviewedRevision": 1,
     "revisions": [],

@@ -37,7 +37,7 @@ extension ConnectionEditorView {
         let sanitizedUseTLS = selectedDatabaseType == .sqlite ? false : useTLS
         let sanitizedDomain = selectedDatabaseType == .sqlite ? "" : trimmedDomain
 
-        let connection = SavedConnection(
+        var connection = SavedConnection(
             id: originalConnection?.id ?? UUID(),
             projectID: originalConnection?.projectID ?? projectStore.selectedProject?.id,
             connectionName: resolvedConnectionName(host: trimmedHost),
@@ -76,10 +76,13 @@ extension ConnectionEditorView {
             cachedStructureUpdatedAt: originalConnection?.cachedStructureUpdatedAt
         )
 
+        applyPostgresOptions(to: &connection)
+        persistKeyPassword(for: connection.id)
+
         let passwordToPersist: String?
         if selectedDatabaseType == .sqlite {
             passwordToPersist = nil
-        } else if sanitizedCredentialSource == .manual && passwordDirty && !password.isEmpty {
+        } else if sanitizedCredentialSource == .manual && passwordDirty && !password.isEmpty && sanitizedAuthenticationMethod.usesPassword {
             passwordToPersist = password
         } else {
             passwordToPersist = nil

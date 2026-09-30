@@ -38,6 +38,8 @@ struct MSSQLNIOFactory: DatabaseFactory {
                 throw DatabaseError.authenticationFailed("Access token is required for Entra ID authentication")
             }
             return .accessToken(token: token)
+        case .kerberos:
+            throw DatabaseError.authenticationFailed("Kerberos sign-in is only available for PostgreSQL")
         }
     }
 

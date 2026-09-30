@@ -17,6 +17,10 @@ extension ConnectionEditorView {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+            .onAppear { refreshKeyNeedsPassword() }
+            .onChange(of: sslCertPath) { _, _ in refreshKeyNeedsPassword() }
+            .onChange(of: sslKeyPath) { _, _ in refreshKeyNeedsPassword() }
+            .onChange(of: selectedDatabaseType) { _, _ in refreshKeyNeedsPassword() }
 
             Divider()
 
@@ -68,6 +72,7 @@ extension ConnectionEditorView {
                 }
                 validationRow(for: .host)
                 validationRow(for: .port)
+                additionalServerRows
                 PropertyRow(title: "Database") {
                     TextField("", text: $database, prompt: Text("Default"))
                         .textFieldStyle(.plain)
@@ -99,7 +104,7 @@ extension ConnectionEditorView {
         let timeout = "\(Int(connectionTimeout)) s"
         switch selectedDatabaseType {
         case .microsoftSQL: return "\(mssqlEncryptionMode.shortName) · \(timeout)"
-        case .postgresql: return "TLS \(tlsMode.shortName.lowercased()) · \(timeout)"
+        case .postgresql: return postgresSummary(timeout: timeout)
         case .mysql: return "\(useTLS ? "TLS" : "No TLS") · \(timeout)"
         case .sqlite: return timeout
         }

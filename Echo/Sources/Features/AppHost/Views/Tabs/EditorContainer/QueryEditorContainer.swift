@@ -154,7 +154,8 @@ struct QueryEditorContainer: View {
             onRunCommand: { [runQuery, query] sql in
                 query.lastRunRange = nil
                 Task { await runQuery(sql) }
-            }
+            },
+            serverMove: connectionSession?.serverMove
         )
     }
 

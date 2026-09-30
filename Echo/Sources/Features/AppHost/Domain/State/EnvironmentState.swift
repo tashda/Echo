@@ -239,19 +239,8 @@ final class EnvironmentState {
                     : (connection.database.isEmpty ? nil : connection.database)
 
                 let session = try await factory!.connect(
-                    host: connection.host,
-                    port: connection.port,
+                    to: connection,
                     database: connectDatabase,
-                    tls: connection.useTLS,
-                    trustServerCertificate: connection.trustServerCertificate,
-                    tlsMode: connection.tlsMode,
-                    sslRootCertPath: connection.sslRootCertPath,
-                    sslCertPath: connection.sslCertPath,
-                    sslKeyPath: connection.sslKeyPath,
-                    mssqlEncryptionMode: connection.mssqlEncryptionMode,
-                    hostNameInCertificate: connection.hostNameInCertificate,
-                    readOnlyIntent: connection.readOnlyIntent,
-                    allowLegacyTLS: connection.allowLegacyTLS,
                     authentication: credentials,
                     connectTimeoutSeconds: Int(connection.connectionTimeout)
                 )
@@ -286,6 +275,9 @@ final class EnvironmentState {
                 startStructureLoadTask(for: connectionSession)
                 Task { await connectionSession.refreshPermissions() }
                 connectionSession.startHealthCheck()
+                connectionSession.startServerWatch { [weak self] move in
+                    self?.announceServerMove(move, for: connectionSession)
+                }
                 connectionStates[connection.id] = .connected
                 recordRecentConnection(for: connection, databaseName: connectionSession.sidebarFocusedDatabase)
                 notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")

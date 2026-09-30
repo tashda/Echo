@@ -111,6 +111,43 @@ protocol DatabaseFactory: Sendable {
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int
     ) async throws -> DatabaseSession
+
+    /// Connects with everything a saved connection holds. Engines with options beyond the
+    /// parameters above (PostgreSQL: several servers, Kerberos, a key password) implement this;
+    /// the others get the default, which passes the common settings on.
+    func connect(
+        to connection: SavedConnection,
+        database: String?,
+        authentication: DatabaseAuthenticationConfiguration,
+        connectTimeoutSeconds: Int
+    ) async throws -> DatabaseSession
+}
+
+extension DatabaseFactory {
+    func connect(
+        to connection: SavedConnection,
+        database: String?,
+        authentication: DatabaseAuthenticationConfiguration,
+        connectTimeoutSeconds: Int
+    ) async throws -> DatabaseSession {
+        try await connect(
+            host: connection.host,
+            port: connection.port,
+            database: database,
+            tls: connection.useTLS,
+            trustServerCertificate: connection.trustServerCertificate,
+            tlsMode: connection.tlsMode,
+            sslRootCertPath: connection.sslRootCertPath,
+            sslCertPath: connection.sslCertPath,
+            sslKeyPath: connection.sslKeyPath,
+            mssqlEncryptionMode: connection.mssqlEncryptionMode,
+            hostNameInCertificate: connection.hostNameInCertificate,
+            readOnlyIntent: connection.readOnlyIntent,
+            allowLegacyTLS: connection.allowLegacyTLS,
+            authentication: authentication,
+            connectTimeoutSeconds: connectTimeoutSeconds
+        )
+    }
 }
 
 public protocol DatabaseMetadataSession: DatabaseSession {

@@ -55,7 +55,7 @@ extension ConnectionEditorView {
             PropertyRow(title: "Mechanism") {
                 Picker("", selection: $authenticationMethod) {
                     ForEach(availableAuthenticationMethods, id: \.self) { method in
-                        Text(method.displayName).tag(method)
+                        Text(method.displayName(for: selectedDatabaseType)).tag(method)
                     }
                 }
                 .labelsHidden()
@@ -99,19 +99,26 @@ extension ConnectionEditorView {
             }
             validationRow(for: .username)
 
-            PropertyRow(title: "Password") {
-                SecureField(
-                    "",
-                    text: $password,
-                    prompt: Text(hasSavedPassword && !passwordDirty
-                        ? "••••••••"
-                        : (authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
-                )
-                .textFieldStyle(.plain)
-                .multilineTextAlignment(.trailing)
-                .onChange(of: password) { _, newValue in
-                    if !newValue.isEmpty {
-                        passwordDirty = true
+            if authenticationMethod == .kerberos {
+                kerberosTicketRow
+            }
+
+            if authenticationMethod.usesPassword {
+                PropertyRow(title: "Password") {
+                    SecureField(
+                        "",
+                        text: $password,
+                        prompt: Text(hasSavedPassword && !passwordDirty
+                            ? "••••••••"
+                            : (authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
+                    )
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .focused($focusedField, equals: .password)
+                    .onChange(of: password) { _, newValue in
+                        if !newValue.isEmpty {
+                            passwordDirty = true
+                        }
                     }
                 }
             }

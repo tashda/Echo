@@ -14,7 +14,9 @@ struct ConnectionEditorView: View {
     }
 
     enum EditorField: Hashable {
-        case host, port, username, domain, password, name
+        case host, port, username, domain, password, name, keyPassword
+        /// An extra PostgreSQL server row (round 23, FH1), by position.
+        case additionalHost(Int)
     }
 
     static let colorPalette: [String] = [
@@ -54,6 +56,20 @@ struct ConnectionEditorView: View {
     /// The query time limit override in seconds (round 21, TW2): empty uses the Settings default.
     @State internal var queryTimeLimit: TimeInterval?
     @State internal var colorHex: String
+    /// Round 23: several PostgreSQL servers (FH1), which to use (FT1), and load balancing from a
+    /// pasted URL (FL1).
+    @State internal var additionalHosts: [ConnectionHost]
+    @State internal var targetSessionAttributes: PostgresConnectTo
+    @State internal var loadBalanceHosts: Bool
+    /// Round 23, Kerberos: the service name (KS1; empty means postgres) and the ticket line (KT1).
+    @State internal var kerberosServiceName: String
+    @State internal var kerberosTicket: KerberosTicketStatus?
+    /// Round 23, client key: the key password (KW1, KK1).
+    @State internal var keyPassword = ""
+    @State internal var keyPasswordDirty = false
+    @State internal var hasSavedKeyPassword = false
+    /// Whether the chosen key or .p12 file is protected by a password (read from the file).
+    @State internal var keyNeedsPassword = false
 
     @State internal var passwordDirty = false
     @State internal var hasSavedPassword = false
@@ -128,6 +144,10 @@ struct ConnectionEditorView: View {
         _allowLegacyTLS = State(initialValue: model.allowLegacyTLS)
         _connectionTimeout = State(initialValue: model.connectionTimeout)
         _queryTimeLimit = State(initialValue: model.queryTimeLimit)
+        _additionalHosts = State(initialValue: model.additionalHosts)
+        _targetSessionAttributes = State(initialValue: model.targetSessionAttributes)
+        _loadBalanceHosts = State(initialValue: model.loadBalanceHosts)
+        _kerberosServiceName = State(initialValue: model.kerberosServiceName ?? "")
         _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)
     }
 
@@ -184,6 +204,10 @@ struct ConnectionEditorView: View {
             if let conn = originalConnection, conn.credentialSource == .manual {
                 hasSavedPassword = environmentState.identityRepository.password(for: conn) != nil
             }
+            if let conn = originalConnection, conn.sslCertPath != nil {
+                hasSavedKeyPassword = ConnectionKeyPasswordStore.password(for: conn.id) != nil
+            }
+            if authenticationMethod == .kerberos { refreshKerberosTicket() }
         }
         .onDisappear { cancelActiveTest() }
         .sheet(item: $identityEditorState) { state in
@@ -200,6 +224,7 @@ struct ConnectionEditorView: View {
             if newMethod == .windowsIntegrated {
                 credentialSource = .manual
             }
+            if newMethod == .kerberos { kerberosMethodChosen() }
         }
     }
 

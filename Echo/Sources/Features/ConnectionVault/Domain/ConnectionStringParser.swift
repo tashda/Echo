@@ -14,6 +14,12 @@ nonisolated enum ConnectionStringParser {
         var database: String?
         var username: String?
         var password: String?
+        /// PostgreSQL: the servers after the first (postgres://db1,db2:5433/app), and the
+        /// target_session_attrs, load_balance_hosts and krbsrvname parameters (round 23, PU1).
+        var additionalHosts: [ConnectionHost] = []
+        var targetSessionAttributes: PostgresConnectTo?
+        var loadBalanceHosts = false
+        var kerberosServiceName: String?
     }
 
     static func parse(_ text: String) -> Result? {
@@ -43,11 +49,16 @@ nonisolated enum ConnectionStringParser {
             return parseSQLServerURL(String(value[schemeEnd.upperBound...]))
         }
 
-        guard let components = URLComponents(string: "\(scheme == "mssql" ? "sqlserver" : scheme)://\(value[schemeEnd.upperBound...])"),
+        var rest = String(value[schemeEnd.upperBound...])
+        var additionalHosts: [ConnectionHost] = []
+        if type == .postgresql {
+            (rest, additionalHosts) = splitHosts(rest)
+        }
+        guard let components = URLComponents(string: "\(scheme == "mssql" ? "sqlserver" : scheme)://\(rest)"),
               let host = components.host, !host.isEmpty else { return nil }
         let path = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let queryDatabase = components.queryItems?.first { ["database", "databasename", "dbname"].contains($0.name.lowercased()) }?.value
-        return Result(
+        var result = Result(
             databaseType: type,
             host: host,
             port: components.port,
@@ -55,6 +66,33 @@ nonisolated enum ConnectionStringParser {
             username: components.user?.removingPercentEncoding,
             password: components.password?.removingPercentEncoding
         )
+        if type == .postgresql {
+            let query = Dictionary((components.queryItems ?? []).map { ($0.name.lowercased(), $0.value ?? "") }, uniquingKeysWith: { first, _ in first })
+            result.additionalHosts = additionalHosts
+            result.targetSessionAttributes = query["target_session_attrs"].flatMap(PostgresConnectTo.init(rawValue:))
+            result.loadBalanceHosts = query["load_balance_hosts"] == "random"
+            result.kerberosServiceName = query["krbsrvname"].flatMap { $0.isEmpty ? nil : $0 }
+        }
+        return result
+    }
+
+    /// `user@db1:5432,db2:5433/app` → `user@db1:5432/app` and the other servers, as libpq reads them.
+    private static func splitHosts(_ rest: String) -> (String, [ConnectionHost]) {
+        let authorityEnd = rest.firstIndex { $0 == "/" || $0 == "?" } ?? rest.endIndex
+        let authority = rest[..<authorityEnd]
+        let userEnd = authority.lastIndex(of: "@").map { authority.index(after: $0) } ?? authority.startIndex
+        let hostList = authority[userEnd...]
+        guard hostList.contains(",") else { return (rest, []) }
+        let entries = hostList.split(separator: ",", omittingEmptySubsequences: true).map(String.init)
+        guard let first = entries.first else { return (rest, []) }
+        let others = entries.dropFirst().map { entry -> ConnectionHost in
+            // "[::1]:5433", "db2:5433", "db2"
+            if let colon = entry.lastIndex(of: ":"), !entry.hasSuffix("]"), let port = Int(entry[entry.index(after: colon)...]) {
+                return ConnectionHost(host: String(entry[..<colon]).trimmingCharacters(in: CharacterSet(charactersIn: "[]")), port: port)
+            }
+            return ConnectionHost(host: entry.trimmingCharacters(in: CharacterSet(charactersIn: "[]")), port: nil)
+        }
+        return (String(authority[..<userEnd]) + first + String(rest[authorityEnd...]), others)
     }
 
     /// `sqlserver://host[\instance][:port];databaseName=db;user=u;password=p`

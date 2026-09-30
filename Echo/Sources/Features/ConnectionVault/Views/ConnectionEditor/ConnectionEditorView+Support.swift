@@ -74,6 +74,12 @@ extension ConnectionEditorView {
         if let value = parsed.database { database = value }
         if let value = parsed.username { username = value; credentialSource = .manual }
         if let value = parsed.password { password = value; passwordDirty = true }
+        if parsed.databaseType == .postgresql {
+            additionalHosts = parsed.additionalHosts
+            if let target = parsed.targetSessionAttributes { targetSessionAttributes = target }
+            loadBalanceHosts = parsed.loadBalanceHosts
+            if let service = parsed.kerberosServiceName { kerberosServiceName = service }
+        }
     }
 
     internal func handleDatabaseTypeChange(from oldType: DatabaseType, to newType: DatabaseType) {

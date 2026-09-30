@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 23 accepted: PostgreSQL connection sheet for companies
+
+Echo Labs › Connections › round 23 (three pages), for what postgres-wire now supports: Kerberos, encrypted client keys, several servers with failover.
+
+- **Kerberos sign-in: KP1 · a Mechanism menu, Password or Kerberos** (as SQL Server's sign-in, CON-3.2); **KN1** it is called Kerberos; **KT1** under Username a line says whose ticket signs in and until when, or that there is none or it expired, with Open Ticket Viewer; **KS1** the Kerberos Service row sits in Security and timeouts, only for Kerberos (empty is postgres); **KU1** choosing Kerberos with no user name fills in the ticket's name without the realm. Test without a ticket: **NT1** "No Kerberos ticket" with Open Ticket Viewer. The server asks for a password instead: **KF1** fail with "The server asks for a password, not Kerberos" and a Use Password button. A Password connection to a Kerberos server: **PK1** the ticket is used, as with libpq. → CON-3.1, CON-3.2, CON-4.3, CON-6.2
+- **Encrypted client key: KW1** the Key Password row appears only when the chosen key (or .p12 file) is protected by a password; **KK1** it is kept in the Keychain like the password; **KL1** it is called Key Password; **KR1** the certificate rows get labels on the left, the file name and Choose… on the right (the path on hover); **KE1** a wrong key password shows under the row and in the result line; **PF2** .p12/.pfx files are accepted: one file fills both certificate rows, unlocked by the key password. → CON-4.3, CON-6.2
+- **Several servers and failover: FH1** "+ Add Server" adds a row per server under Server; **FT1** Connect To in plain words (Any Server, Primary, Standby, Standby or Any if None Is Up; a pasted URL's read-write and read-only are kept); **FW1** Connect To appears under the servers once there are two; **FL1** load balancing is not in the sheet (a pasted URL can set it); **FS1** after a failover the footer shows a chip with the server (db2 · primary, where it moved from on hover) and a notification says so; **TS1** Test checks every server, one line each, and says where Echo would connect; **FR1** a query tab whose server went away shows Connection lost as round 21 decided, and Reconnect goes to the new server; **PU1** a pasted postgres://db1,db2/app URL fills a row per server and Connect To. → CON-2.3, CON-4.1, CON-6.2
+
 ## 2026-09-30 · Round 21 accepted: query time limits
 
 Echo Labs › Connections › Postgres: statement timeouts · round 21 (revision 2). Chosen on the "Where the message goes" exhibit.

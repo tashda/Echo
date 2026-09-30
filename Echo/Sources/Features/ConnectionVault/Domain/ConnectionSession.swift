@@ -40,6 +40,9 @@ final class ConnectionSession: Identifiable {
     @ObservationIgnored var preWarmedDedicatedSession: DatabaseSession?
     @ObservationIgnored var preWarmTask: Task<Void, Never>?
     @ObservationIgnored var healthCheckTask: Task<Void, Never>?
+    /// Where a PostgreSQL connection with several servers moved after a failover (round 23, FS1).
+    var serverMove: ConnectionServerMove?
+    @ObservationIgnored var serverWatchTask: Task<Void, Never>?
 
     @ObservationIgnored var defaultInitialBatchSize: Int
     @ObservationIgnored var defaultBackgroundStreamingThreshold: Int
@@ -123,6 +126,8 @@ final class ConnectionSession: Identifiable {
     func stopHealthCheck() {
         healthCheckTask?.cancel()
         healthCheckTask = nil
+        serverWatchTask?.cancel()
+        serverWatchTask = nil
     }
 }
 

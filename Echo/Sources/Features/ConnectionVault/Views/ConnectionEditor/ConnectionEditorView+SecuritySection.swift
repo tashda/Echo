@@ -24,13 +24,9 @@ extension ConnectionEditorView {
                     useTLS = newValue.requiresTLS
                 }
 
-                if tlsMode == .verifyCA || tlsMode == .verifyFull {
-                    caCertificatePathPicker
-                }
-
-                if tlsMode != .disable {
-                    clientCertificateSection
-                }
+                // Round 23: labelled certificate rows, the key password, the Kerberos service.
+                postgresCertificateRows
+                kerberosServiceRow
             } else if selectedDatabaseType == .microsoftSQL {
                 // SQL Server: encryption is always available — the dropdown alone
                 // controls behavior, matching the SSMS connection dialog. There is
@@ -88,41 +84,6 @@ extension ConnectionEditorView {
                     Toggle("", isOn: $useTLS)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                }
-            }
-        }
-    }
-
-    private var clientCertificateSection: some View {
-        Group {
-            certFilePathPicker(
-                label: "Client Certificate",
-                path: Binding(
-                    get: { sslCertPath ?? "" },
-                    set: { sslCertPath = $0.isEmpty ? nil : $0 }
-                )
-            )
-            certFilePathPicker(
-                label: "Client Key",
-                path: Binding(
-                    get: { sslKeyPath ?? "" },
-                    set: { sslKeyPath = $0.isEmpty ? nil : $0 }
-                )
-            )
-        }
-        .help("PEM-encoded client certificate and private key for mutual TLS (mTLS) authentication.")
-    }
-
-    private func certFilePathPicker(label: String, path: Binding<String>) -> some View {
-        HStack {
-            TextField(label, text: path)
-            Button("Browse") {
-                let panel = NSOpenPanel()
-                panel.allowedContentTypes = [.init(filenameExtension: "pem")!, .init(filenameExtension: "crt")!, .init(filenameExtension: "key")!, .item]
-                panel.allowsMultipleSelection = false
-                panel.canChooseDirectories = false
-                if panel.runModal() == .OK, let url = panel.url {
-                    path.wrappedValue = url.path
                 }
             }
         }
