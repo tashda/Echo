@@ -1,4 +1,5 @@
 #if os(macOS)
+import EchoSense
 import AppKit
 
 /// QE2: the run note after the last line of what ran, in green for results, red for an error.

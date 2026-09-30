@@ -1,3 +1,4 @@
+import EchoSense
 import Foundation
 
 /// Between pressing Cancel and the query ending (Echo Labs round 21, cancelling a query).

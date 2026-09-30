@@ -1,3 +1,4 @@
+import EchoSense
 import Foundation
 
 /// A query tab's transaction (Echo Labs round 21, transaction state, accepted), as Echo follows it

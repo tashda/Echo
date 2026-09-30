@@ -113,6 +113,7 @@ extension QueryEditorState {
         finalizeSpoolOnCompletion(cancelled: false)
         finalizePerformanceMetrics(cancelled: false)
         runNote = QueryRunNote.success(range: lastRunRange, rows: finalMat, hasResults: results != nil || !streamingColumns.isEmpty, duration: lastExecutionTime)
+        runEndedHandler?(true)
     }
 
     func failExecution(with error: String) {
@@ -135,6 +136,7 @@ extension QueryEditorState {
         markResultDataChanged()
         finalizePerformanceMetrics(cancelled: true)
         runNote = QueryRunNote.failure(range: lastRunRange, message: error)
+        runEndedHandler?(false)
     }
 
     func setExecutingTask(_ task: Task<Void, Never>) {

@@ -113,6 +113,8 @@ import OSLog
     @ObservationIgnored var lockWaitProvider: (@MainActor () async -> QueryLockWait?)?
     @ObservationIgnored var lockWaitTask: Task<Void, Never>?
     @ObservationIgnored var forceStopHandler: (() -> Void)?
+    /// Told when a run ends, succeeded or not (not on a cancel), after `lastExecutionTime` is set.
+    @ObservationIgnored var runEndedHandler: ((_ succeeded: Bool) -> Void)?
     var streamingColumns: [ColumnInfo] = []
     var streamingRows: [[String?]] = []
     var resultChangeToken: UInt64 = 0
