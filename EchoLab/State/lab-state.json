@@ -159,6 +159,10 @@
       {
         "date": "2026-09-30T14:41:07Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T15:48:44Z",
+        "text": "Built into Echo (ce98d8e4): every row is spooled as wire bytes and formatted by the driver, so rows after 200 read like the preview (dates, datetimeoffset, money, geography, code-page varchar)"
       }
     ],
     "needsMore": [],
@@ -174,7 +178,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.notification-history-r17": {
