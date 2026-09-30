@@ -32,6 +32,7 @@ struct SpecOutline: View {
                 .padding(.horizontal, SpacingTokens.xs).padding(.bottom, SpacingTokens.sm)
             }
         }
+        .labScrollSizing()
         .background(ColorTokens.Background.secondary.opacity(0.5))
     }
 

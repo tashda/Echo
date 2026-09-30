@@ -19,7 +19,7 @@ struct LabRoundPage: View {
     }
 
     private var page: LabPage { LabRegistry.page(id: pageID) ?? LabRegistry.pages[0] }
-    private var usesColumn: Bool { spec.controls.count > 4 || !spec.presets.isEmpty }
+    private var usesColumn: Bool { (spec.controls.count > 4 || !spec.presets.isEmpty) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -61,7 +61,7 @@ struct LabRoundPage: View {
                 .padding(SpacingTokens.md)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .labScrollSizing()
     }
 }
 
@@ -135,6 +135,7 @@ private struct RoundControlsColumn: View {
             }
             .padding(SpacingTokens.sm)
         }
+        .labScrollSizing()
         .background(ColorTokens.Background.secondary.opacity(0.5))
     }
 

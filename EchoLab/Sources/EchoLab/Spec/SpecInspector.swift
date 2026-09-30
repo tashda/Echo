@@ -30,6 +30,7 @@ struct SpecInspector: View {
             .padding(SpacingTokens.md)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .labScrollSizing()
         .background(ColorTokens.Background.secondary.opacity(0.5))
     }
 

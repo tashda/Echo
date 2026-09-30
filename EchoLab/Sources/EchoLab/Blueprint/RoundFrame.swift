@@ -69,7 +69,9 @@ struct LabRoundInfoBox: View {
             }
         }
         .padding(SpacingTokens.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // Wrapping text asked for its minimum size is measured at zero width, one word per line,
+        // which made the window's minimum height thousands of points. A minimum width prevents it.
+        .frame(minWidth: 420, maxWidth: .infinity, alignment: .leading)
         .background(ColorTokens.Surface.rest, in: .rect(cornerRadius: 14, style: .continuous))
     }
 
@@ -123,6 +125,7 @@ struct RoundDecisionPanel: View {
             }
             .padding(SpacingTokens.sm)
         }
+        .labScrollSizing()
         .background(ColorTokens.Background.secondary.opacity(0.5))
     }
 
