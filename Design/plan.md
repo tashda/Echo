@@ -277,9 +277,9 @@ Rules: `05-components` › Tool tabs.
 
 | ID | Task | Where | Done when | Status |
 |---|---|---|---|---|
-| TL1 | **Tool header (TT2):** one component with the tool's icon, title, server and freshness, and its actions on the right. | New `ToolTabHeader` | Used by every tool tab | ☐ |
-| TL2 | **Panes become cards (TT1):** every pane of a tool tab is its own card on the canvas, a gutter apart. Agent Jobs first (Jobs, Details, History), then the rest. | Tool tab views | No unframed panes left 👁 | ☐ |
-| TL3 | **Dashboard tiles (TT3)** for monitoring tools: Activity Monitor's figures as cards with sparklines. | `ActivityMonitor/*` | 👁 | ☐ |
+| TL1 | **Tool header (TT2):** one component with the tool's icon, title, server and freshness, and its actions on the right. | New `ToolTabHeader` | Used by every tool tab | ☑ built for Activity Monitor (`ToolTabHeader`), 👁 pending; the other tool tabs still to adopt it |
+| TL2 | **Panes become cards (TT1):** every pane of a tool tab is its own card on the canvas, a gutter apart. Agent Jobs first (Jobs, Details, History), then the rest. | Tool tab views | No unframed panes left 👁 | ☑ built for Agent Jobs (`CardSplitView`), 👁 pending; other multi-pane tools still to move |
+| TL3 | **Dashboard tiles (TT3)** for monitoring tools: Activity Monitor's figures as cards with sparklines. | `ActivityMonitor/*` | 👁 | ☑ built, 👁 pending |
 
 ## Phase 16 · Section dock
 

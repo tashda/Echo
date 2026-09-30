@@ -87,7 +87,7 @@ struct WorkspaceContentView: View {
             }
         case .jobQueue:
             if let vm = tab.jobQueue {
-                JobQueueView(viewModel: vm).background(ColorTokens.Background.primary)
+                JobQueueView(viewModel: vm)
             }
         case .psql:
             if let vm = tab.psql {
@@ -103,7 +103,7 @@ struct WorkspaceContentView: View {
             }
         case .activityMonitor:
             if let vm = tab.activityMonitor {
-                ActivityMonitorView(viewModel: vm).background(ColorTokens.Background.primary)
+                ActivityMonitorView(viewModel: vm)
             }
         case .maintenance, .mssqlMaintenance:
             MaintenanceView(tab: tab).background(ColorTokens.Background.primary)

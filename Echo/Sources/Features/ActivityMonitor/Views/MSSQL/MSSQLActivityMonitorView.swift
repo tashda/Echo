@@ -45,9 +45,13 @@ struct MSSQLActivityMonitorView: View {
     var body: some View {
         if selectedSection == .xevents {
             xeventsContent
+                .background(ColorTokens.Background.primary)
+                .workspaceCard()
                 .tabContentFrame()
         } else if selectedSection == .profiler {
             profilerContent
+                .background(ColorTokens.Background.primary)
+                .workspaceCard()
                 .tabContentFrame()
         } else {
             ActivityMonitorTabFrame(

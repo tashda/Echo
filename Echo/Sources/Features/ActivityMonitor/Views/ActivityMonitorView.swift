@@ -17,6 +17,7 @@ struct ActivityMonitorView: View {
             } description: {
                 Text("Activity monitoring is not available for SQLite.")
             }
+            .workspaceCard()
         }
     }
 }
