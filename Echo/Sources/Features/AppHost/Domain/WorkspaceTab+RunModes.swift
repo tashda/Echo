@@ -23,10 +23,12 @@ extension WorkspaceTab {
         case .run:
             let sql = query.hasActiveSelection ? query.selectedText : query.sql
             guard let action = executeQueryAction else { return }
+            query.lastRunRange = query.hasActiveSelection ? query.selectionRange : NSRange(location: 0, length: (query.sql as NSString).length)
             Task { await action(sql) }
         case .statementAtCursor:
             guard let statement = SQLStatementAtCaret.statement(in: query.sql, caret: query.caretLocation),
                   let action = executeQueryAction else { return }
+            query.lastRunRange = statement.range
             Task { await action(statement.text) }
         case .explain:
             let sql = query.hasActiveSelection ? query.selectedText : query.sql

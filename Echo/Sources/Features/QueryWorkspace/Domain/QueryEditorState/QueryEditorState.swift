@@ -138,6 +138,11 @@ import OSLog
     @ObservationIgnored var selectedText: String = ""
     /// The caret's UTF-16 offset, for Run Statement at Cursor (plan K1).
     @ObservationIgnored var caretLocation: Int = 0
+    /// The selected range, for placing the note after Run Selection (QE2).
+    @ObservationIgnored var selectionRange = NSRange(location: 0, length: 0)
+    /// What the last run covered, and the note shown at its end once it finishes (QE2).
+    @ObservationIgnored var lastRunRange: NSRange?
+    var runNote: QueryRunNote?
 
     // MARK: - Debug Session State
 

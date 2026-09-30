@@ -118,6 +118,8 @@ public enum LayoutTokens {
         public static let runArrowSize: CGFloat = 8
         /// QE1: the band behind the statement at the caret.
         public static let statementBandOpacity: CGFloat = 0.06
+        /// QE2: the gap between a statement's last character and its run note.
+        public static let runNoteGap: CGFloat = SpacingTokens.md2
     }
 
     /// Placeholder rows while a list loads (`ShimmerPlaceholderRows`).

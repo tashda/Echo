@@ -41,6 +41,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     /// ES3: the suggestion shown as ghost text after the caret, with the response it came from.
     var ghostSuggestion: (suggestion: SQLAutoCompletionSuggestion, response: SQLCompletionResponse)?
     var ghostTextLabel: NSTextField?
+    /// QE2: the note at the end of what last ran.
+    var runNote: QueryRunNote? { didSet { showRunNote() } }
+    var runNoteLabel: NSTextField?
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()

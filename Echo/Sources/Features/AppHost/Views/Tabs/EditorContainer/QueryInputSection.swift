@@ -54,13 +54,15 @@ struct QueryInputSection: View {
             onTextChange: { newText in
                 if query.sql != newText {
                     query.sql = newText
+                    query.runNote = nil
                 }
             },
             onSelectionChange: handleSelectionChange,
             onSelectionPreviewChange: handleSelectionChange,
             clipboardMetadata: query.clipboardMetadata,
             onAddBookmark: onAddBookmark,
-            onRunStatement: onRunStatement
+            onRunStatement: onRunStatement,
+            runNote: query.runNote
         )
         .padding(.leading, leadingPadding)
         .padding(.trailing, trailingPadding)
@@ -85,6 +87,7 @@ struct QueryInputSection: View {
             currentSelection = selection
             query.selectedText = selection.selectedText
             query.caretLocation = selection.range.location
+            query.selectionRange = selection.range
             // Always sync to QueryEditorState so toolbar stays correct
             query.hasActiveSelection = hasSelection
             syncSQLHelpInspector(using: trimmed)

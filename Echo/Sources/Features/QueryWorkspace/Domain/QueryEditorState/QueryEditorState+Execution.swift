@@ -50,6 +50,7 @@ extension QueryEditorState {
         executingTask?.cancel(); executingTask = nil
 
         messages.removeAll()
+        runNote = nil
         streamingColumns.removeAll(keepingCapacity: false)
         streamingRows.removeAll(keepingCapacity: false)
         rowProgress = RowProgress()
@@ -97,6 +98,7 @@ extension QueryEditorState {
 
         finalizeSpoolOnCompletion(cancelled: false)
         finalizePerformanceMetrics(cancelled: false)
+        runNote = QueryRunNote.success(range: lastRunRange, rows: finalMat, hasResults: results != nil || !streamingColumns.isEmpty, duration: lastExecutionTime)
     }
 
     func failExecution(with error: String) {
@@ -114,6 +116,7 @@ extension QueryEditorState {
         rowProgress = RowProgress(); materializedHighWaterMark = 0
         markResultDataChanged()
         finalizePerformanceMetrics(cancelled: true)
+        runNote = QueryRunNote.failure(range: lastRunRange, message: error)
     }
 
     func setExecutingTask(_ task: Task<Void, Never>) {

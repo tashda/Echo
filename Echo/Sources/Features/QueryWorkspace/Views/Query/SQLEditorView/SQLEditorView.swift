@@ -24,6 +24,7 @@ struct SQLEditorView: View {
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata
     var onAddBookmark: (String) -> Void
     var onRunStatement: () -> Void
+    var runNote: QueryRunNote?
 
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
 
@@ -42,7 +43,8 @@ struct SQLEditorView: View {
         onSelectionPreviewChange: @escaping (SQLEditorSelection) -> Void,
         clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty,
         onAddBookmark: @escaping (String) -> Void = { _ in },
-        onRunStatement: @escaping () -> Void = {}
+        onRunStatement: @escaping () -> Void = {},
+        runNote: QueryRunNote? = nil
     ) {
         _text = text
         self.theme = theme
@@ -59,6 +61,7 @@ struct SQLEditorView: View {
         self.clipboardMetadata = clipboardMetadata
         self.onAddBookmark = onAddBookmark
         self.onRunStatement = onRunStatement
+        self.runNote = runNote
     }
 
     var body: some View {
@@ -75,6 +78,7 @@ struct SQLEditorView: View {
             clipboardMetadata: clipboardMetadata,
             onAddBookmark: onAddBookmark,
             onRunStatement: onRunStatement,
+            runNote: runNote,
             completionContext: completionContext,
             ruleTraceConfig: ruleTraceConfig,
             onSchemaLoadNeeded: onSchemaLoadNeeded,
