@@ -372,6 +372,43 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.pg-open-transaction-guard-r21": {
+    "comments": [
+      {
+        "date": "2026-09-30T18:02:30Z",
+        "id": "FA6FAACB-AD3A-43C4-9C23-E7F260BC1329",
+        "text": "Review of Postgres: open transaction on close\n1. Guard open transactions?: picked Proposal\n2. Form: picked G2 · Alert\n3. Default button: picked D1 · Commit\n4. Detail: picked DT2 · Sentence, time and statements\n5. When to ask: picked W1 · Close tab, switch database, disconnect, quit\n6. A failed transaction: picked FT1 · Roll Back and Cancel, saying it failed\n7. Quitting: picked Q1 · One alert listing the tabs: Review, Roll Back All, Cancel\n8. Don't ask again: picked N1 · No"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T18:02:30Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T18:22:07Z",
+        "text": "Built into Echo (plan R11): alert before closing, switching database, disconnecting and quitting; Commit default; time and statements; failed offers Roll Back; quitting lists the tabs. Please check it in the running app."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "default": "D1 · Commit",
+      "detail": "DT2 · Sentence, time and statements",
+      "exhibit": "proposal",
+      "failed": "rollback-cancel",
+      "form": "G2 · Alert",
+      "quit": "one-list",
+      "remember": "no",
+      "when": "all"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.pg-script-results-r21": {
     "comments": [
       {
