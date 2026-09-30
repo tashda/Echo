@@ -18,6 +18,10 @@ extension QueryResultsTableView {
         var menuColumnIndex: Int?
         var cachedColumnIDs: [String] = []
         var cachedColumnKinds: [ResultGridValueKind] = []
+        /// How each column draws its values (ResultCellValueForm), and its widest fraction so far.
+        var cachedColumnForms: [ResultCellValueForm] = []
+        var cachedFractionDigits: [Int] = []
+        var fractionRefreshScheduled = false
         var cachedRowOrder: [Int] = []
         var cachedSort: SortCriteria?
         var lastRowCount: Int = 0
@@ -127,6 +131,8 @@ extension QueryResultsTableView {
             // Clear column caches
             cachedColumnIDs.removeAll()
             cachedColumnKinds.removeAll()
+            cachedColumnForms.removeAll()
+            cachedFractionDigits.removeAll()
 
             // Clear row state
             cachedRowOrder.removeAll()

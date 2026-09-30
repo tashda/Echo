@@ -86,6 +86,20 @@ final class ResultTableDataCellView: NSTableCellView {
         }
     }
 
+    /// Draws the first `length` characters (an array's element count) in `color`.
+    func applyCountEmphasis(length: Int, color: NSColor) {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = contentTextField.alignment
+        paragraph.lineBreakMode = .byTruncatingTail
+        let text = NSMutableAttributedString(string: contentTextField.stringValue, attributes: [
+            .font: contentTextField.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
+            .foregroundColor: currentTextColor,
+            .paragraphStyle: paragraph,
+        ])
+        text.addAttribute(.foregroundColor, value: color, range: NSRange(location: 0, length: min(length, text.length)))
+        contentTextField.attributedStringValue = text
+    }
+
     func configureIcon(_ handler: (() -> Void)?) {
         configureIcon(symbolName: "arrow.up.right.square", handler: handler)
     }

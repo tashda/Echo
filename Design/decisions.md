@@ -2,6 +2,19 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-09-30 · Round 21 accepted: values in the grid
+
+Echo Labs › Footer and results › Postgres: values in the grid · round 21. Drawing only: copy, export and the inspector keep the server's text.
+
+- **Arrays: VA4 · Count, then the first items:** `3  new, gift, express`, the count in secondary text. The server form, a plain list and chips were not chosen. → 05-components › Results card
+- **JSON: VJ3 · Summary:** `{ 4 keys }`, `[ 12 items ]`; the full value opens in the inspector. Recommended was VJ2 (one line with key colour). → 05-components
+- **Binary: VB3 · Kind and size:** `PNG image · 12 KB`, `Binary · 20 bytes`. → 05-components
+- **Numbers: VN2 · Aligned on the decimal point,** without digit grouping. → 05-components
+- **Copy: CP3.** ⌘C copies the server's text; **Copy as Shown** in the menu copies what is drawn. → 05-components
+- **Empty text and NULL: EN1** (today): NULL in grey, an empty string shows nothing.
+- **Ranges, intervals and infinity: SP1** keep the server's form.
+- **Other databases: SC1** by kind: JSON, binary and numbers are drawn the same for SQL Server and MySQL; arrays exist only in PostgreSQL.
+
 ## 2026-09-30 · Round 19 accepted: the section dock
 
 Echo Labs › Explorer tree › Section dock (three pages), on the owner's feedback about round 16 as built. Replaces the round 16 rules below where they differ.

@@ -119,6 +119,12 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
         copyHeadersItem.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(copyHeadersItem)
 
+        let copyShownItem = NSMenuItem(title: "Copy as Shown", action: #selector(copySelectionAsShown), keyEquivalent: "")
+        copyShownItem.target = self
+        copyShownItem.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
+        copyShownItem.isEnabled = hasSelection
+        menu.addItem(copyShownItem)
+
         menu.addItem(.separator())
         menu.addItem(buildCopyAsSubmenuItem())
         menu.addItem(buildSaveAsSubmenuItem())

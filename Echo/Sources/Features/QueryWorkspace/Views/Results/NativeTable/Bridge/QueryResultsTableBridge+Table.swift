@@ -104,9 +104,11 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         let style = cachedResultGridStyles[kind] ?? { let s = fallbackResultGridStyle(for: kind); cachedResultGridStyles[kind] = s; return s }()
         // Plan R1: right-aligned tabular numbers and dates, ✓/✗ booleans (ResultCellPresentation).
         let font = resolvedFont(for: style, tabularDigits: ResultCellPresentation.usesTabularDigits(kind))
-        let displayText = ResultCellPresentation.displayText(rawValue, kind: kind)
+        // Round 21 (values in the grid): arrays, JSON, binary and decimals drawn by ResultCellValueForm.
+        let shown = shownValue(rawValue, kind: kind, dataIndex: dataIndex, tableView: tableView)
         let baseTextColor = cachedTextColors[kind] ?? { let c = dynamicNSColor(for: kind, style: style); cachedTextColors[kind] = c; return c }()
-        cellView.apply(text: displayText, font: font, textColor: baseTextColor, alignment: ResultCellPresentation.alignment(for: kind))
+        cellView.apply(text: shown.text, font: font, textColor: baseTextColor, alignment: ResultCellPresentation.alignment(for: kind))
+        if shown.countLength > 0 { cellView.applyCountEmphasis(length: shown.countLength, color: .secondaryLabelColor) }
         let cellPosition = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
         if shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue) {
             cellView.configureIcon(symbolName: "arrow.up.right.square") { [weak self] in self?.activateForeignKey(at: cellPosition) }

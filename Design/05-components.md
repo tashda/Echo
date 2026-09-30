@@ -173,6 +173,11 @@ Decided 2026-09-30.
   - Booleans show as ✓ / ✗ symbols. *Decided.*
   - Monospaced cells are available as a setting (accepted in the Echo Labs). *Decided.*
   - NULL keeps today's italic grey text; a badge was rejected. *Decided.*
+  - PostgreSQL arrays show their element count (secondary text), then the elements without braces or quotes: `3  new, gift, express`. *Decided* (round 21).
+  - JSON objects and arrays show a summary, `{ 4 keys }` / `[ 12 items ]`; scalars show as sent. *Decided* (round 21).
+  - Hex binary (`\x…`, `0x…`) shows kind and size, `PNG image · 12 KB`. *Decided* (round 21).
+  - Numbers line up on the decimal point (padding with figure spaces, no digit grouping). *Decided* (round 21).
+  - These apply by value kind to every database. Copy, export and the inspector keep the server's text; the cell menu's **Copy as Shown** copies what is drawn. *Decided* (round 21).
 - **Header: name + type line.** Column name in 12pt semibold with the data type underneath in grey monospace. A sort arrow appears on hover and clicking it sorts; clicking elsewhere still selects the column. *Decided.* The name-only header and the type-chip-with-keys header were rejected.
 - **Selection:**
   - One rounded outline around the whole selected range, instead of today's per-row outline that shows seams, plus a stronger ring on the active cell. *Decided* (accepted in the Echo Labs).

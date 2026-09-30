@@ -147,6 +147,7 @@ Rules: `05-components` › Results card.
 | R4 | **Row hover:** a faint rounded tint, and the row number turns accent. | Table + row number view | Smooth while scrolling | ☑ c9f823e, 👁 pending |
 | R5 | **One footer in the results card.** Left: the server › database picker (colour dot, chevron, search field in the picker) and the pane switcher. Right: rows loaded of total (`RowProgress.materialized` of `totalReported`), the selection summary, the duration and the status. Remove the window-wide status bar. The editor card shows a slim footer (picker + status) while there are no results. | `QueryPanelStatusBar`, `BottomPanelStatusBar` | Only one footer on screen; the picker is clearly clickable 👁 | ☑ c8f4808, 👁 pending |
 | R6 | Feed extra result sets through the main grid and retire `AdditionalResultSetTableView`. | Results section | All result sets look and behave the same | ☑ e4efb70 |
+| R7 | **Values in the grid (round 21):** array count and items, JSON summary, binary kind and size, decimal-point alignment, Copy as Shown. | `ResultCellValueForm`, bridge `+ValueForms` | Matches the lab 👁 | ☑ R7COMMIT, 👁 pending |
 
 ### Notes from building it (Phase 5)
 
@@ -155,6 +156,7 @@ Rules: `05-components` › Results card.
 - **Selection and hover (R3, R4):** rows stroke an open outline so ranges have no seams; the anchor cell gets a ring when the range has more than one cell. Hover uses the tree's hover fill; selected and hovered row numbers turn accent through `ResultTableContainerView.setAccentRows`.
 - **Footer (R5):** "12K of 1.2M" while streaming, and a selection summary (`GridSelectionSummary`, capped at 50,000 cells). There was no window-wide status bar left to remove.
 - **Extra result sets (R6):** `QueryEditorState.additionalResultState(at:)` and `AdditionalResultSetGrid`; each set sorts on its own.
+- **Values (R7):** `ResultCellValueForm` holds the rules and is chosen per column (`cachedColumnForms`). It runs only when a visible cell is configured. A decimal with more fraction digits than the column has shown so far widens the column's fraction (capped at 6) and reloads the visible rows once. Array counts are drawn by `ResultTableDataCellView.applyCountEmphasis`. Column auto-width measures the drawn text.
 
 ## Phase 6 · Toolbar and search
 

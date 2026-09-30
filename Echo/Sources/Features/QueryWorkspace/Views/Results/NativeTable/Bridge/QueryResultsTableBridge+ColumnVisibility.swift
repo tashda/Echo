@@ -79,6 +79,7 @@ extension QueryResultsTableView.Coordinator {
         applyHeaderStyle(to: tableView)
         cachedColumnIDs = allColumns.map(\.id)
         cachedColumnKinds = allColumns.map { ResultGridValueClassifier.kind(for: $0, value: "") }
+        refreshColumnForms(allColumns)
         tableView.reloadData()
         refreshVisibleRowBackgrounds(tableView)
     }

@@ -32,6 +32,7 @@ extension QueryResultsTableView.Coordinator {
         tableView.headerView?.needsDisplay = true
         if headerNeedsRefresh { applyHeaderStyle(to: tableView) }
         cachedColumnKinds = parent.displayedColumns.map { ResultGridValueClassifier.kind(for: $0, value: "") }
+        refreshColumnForms(parent.displayedColumns)
         cachedColumnIDs = columnIDs
         return columnsChanged
     }
@@ -147,7 +148,9 @@ extension QueryResultsTableView.Coordinator {
             let value = queryState.valueForDisplay(row: sourceRow, column: column)
             let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
             let style = fallbackResultGridStyle(for: kind)
-            let displayString = (value ?? (kind == .null ? "NULL" : "")) as NSString
+            let form = column < cachedColumnForms.count ? cachedColumnForms[column] : .plain
+            let shown = value.map { form == .decimal ? $0 : ResultCellValueForm.shown($0, form: form).text }
+            let displayString = (shown ?? (kind == .null ? "NULL" : "")) as NSString
             let measured = displayString.size(withAttributes: [.font: resolvedFont(for: style)]).width
             maxWidth = max(maxWidth, measured)
         }

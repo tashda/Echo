@@ -1,423 +1,357 @@
 {
-  "ongoing.notification-history-r17" : {
-    "comments" : [
+  "ongoing.notification-history-r17": {
+    "comments": [
       {
-        "date" : "2026-09-30T10:03:19Z",
-        "id" : "ACDED792-1049-4F73-AC90-7581D7E4C4C1",
-        "text" : "Review of Notification history · round 17\n1. Which history?: picked B · Cards; NEEDS MORE OPTIONS\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Unread: picked Enough\nOverall: I am not a fan of the \"2 new\" and \"Clear\" in the top of the notifications center. They look quite odd with their accent. Please show me different styles of how the count of notifications \"Clear\" can be shown. Also the \"Open Tab\" \/ \"Copy\" on each notification - should this be beautiful buttons? Give me more options."
+        "date": "2026-09-30T10:03:19Z",
+        "id": "ACDED792-1049-4F73-AC90-7581D7E4C4C1",
+        "text": "Review of Notification history \u00b7 round 17\n1. Which history?: picked B \u00b7 Cards; NEEDS MORE OPTIONS\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Unread: picked Enough\nOverall: I am not a fan of the \"2 new\" and \"Clear\" in the top of the notifications center. They look quite odd with their accent. Please show me different styles of how the count of notifications \"Clear\" can be shown. Also the \"Open Tab\" / \"Copy\" on each notification - should this be beautiful buttons? Give me more options."
       },
       {
-        "date" : "2026-09-30T11:11:16Z",
-        "id" : "6C46BF59-91B4-4458-803E-BE82F9C54CB9",
-        "text" : "Review of Notification history · round 17\n1. Which history?: picked D · Compact cards; maybe B · Cards\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Header: picked H3 · Count by the title, one menu\n5. Actions: picked A2 · Small buttons\n6. Unread: picked Enough"
+        "date": "2026-09-30T11:11:16Z",
+        "id": "6C46BF59-91B4-4458-803E-BE82F9C54CB9",
+        "text": "Review of Notification history \u00b7 round 17\n1. Which history?: picked D \u00b7 Compact cards; maybe B \u00b7 Cards\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Header: picked H3 \u00b7 Count by the title, one menu\n5. Actions: picked A2 \u00b7 Small buttons\n6. Unread: picked Enough"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T10:03:19Z",
-        "text" : "Feedback sent"
+        "date": "2026-09-30T10:03:19Z",
+        "text": "Feedback sent"
       },
       {
-        "date" : "2026-09-30T10:07:00Z",
-        "text" : "More options added: D · Compact cards, E · Attention first, F · Stacked by server; Header styles H1–H5 and Action styles A1–A5 for every proposal"
+        "date": "2026-09-30T10:07:00Z",
+        "text": "More options added: D \u00b7 Compact cards, E \u00b7 Attention first, F \u00b7 Stacked by server; Header styles H1\u2013H5 and Action styles A1\u2013A5 for every proposal"
       },
       {
-        "date" : "2026-09-30T11:11:16Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T11:11:16Z",
+        "text": "Accepted with picks"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "actions": "A2 \u00b7 Small buttons",
+      "exhibit": "compactCards",
+      "grouping": "By time",
+      "header": "H3 \u00b7 Count by the title, one menu",
+      "motion": "Fade in",
+      "unread": "enough"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "actions" : "A2 · Small buttons",
-      "exhibit" : "compactCards",
-      "grouping" : "By time",
-      "header" : "H3 · Count by the title, one menu",
-      "motion" : "Fade in",
-      "unread" : "enough"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "Accepted",
-    "verdicts" : {
-      "exhibit\/cards" : "maybe"
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {
+      "exhibit/cards": "maybe"
     }
   },
-  "ongoing.notification-toast-r18" : {
-    "comments" : [
+  "ongoing.notification-toast-r18": {
+    "comments": [
       {
-        "date" : "2026-09-30T12:20:51Z",
-        "id" : "004D889F-5ACC-48AA-8843-0F45CA3369A5",
-        "text" : "Review of Notification toast\n1. Which toast?: picked Proposal; note: What I have answered, so no stack.\n2. Layout: picked L2 · Title and detail\n3. Actions: picked A2 · Small buttons\n4. Dismiss: picked D3 · Swipe right\n5. Material: picked M1 · Liquid Glass (today)\n6. Arrival: picked E1 · Drop from the top (today)\n7. Stacking: picked S1 · List of three (today)\n8. Duration: picked T1 · 3 s (today)"
+        "date": "2026-09-30T12:20:51Z",
+        "id": "004D889F-5ACC-48AA-8843-0F45CA3369A5",
+        "text": "Review of Notification toast\n1. Which toast?: picked Proposal; note: What I have answered, so no stack.\n2. Layout: picked L2 \u00b7 Title and detail\n3. Actions: picked A2 \u00b7 Small buttons\n4. Dismiss: picked D3 \u00b7 Swipe right\n5. Material: picked M1 \u00b7 Liquid Glass (today)\n6. Arrival: picked E1 \u00b7 Drop from the top (today)\n7. Stacking: picked S1 \u00b7 List of three (today)\n8. Duration: picked T1 \u00b7 3 s (today)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T12:20:51Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:20:51Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T12:26:04Z",
-        "text" : "Built into Echo (arrival and the proposal confirmed in chat)"
+        "date": "2026-09-30T12:26:04Z",
+        "text": "Built into Echo (arrival and the proposal confirmed in chat)"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "exhibit": "What I have answered, so no stack."
     },
-    "pickNotes" : {
-      "exhibit" : "What I have answered, so no stack."
+    "picks": {
+      "actions": "A2 \u00b7 Small buttons",
+      "arrival": "E1 \u00b7 Drop from the top (today)",
+      "dismiss": "D3 \u00b7 Swipe right",
+      "duration": "T1 \u00b7 3 s (today)",
+      "exhibit": "proposal",
+      "layout": "L2 \u00b7 Title and detail",
+      "material": "M1 \u00b7 Liquid Glass (today)",
+      "stacking": "S1 \u00b7 List of three (today)"
     },
-    "picks" : {
-      "actions" : "A2 · Small buttons",
-      "arrival" : "E1 · Drop from the top (today)",
-      "dismiss" : "D3 · Swipe right",
-      "duration" : "T1 · 3 s (today)",
-      "exhibit" : "proposal",
-      "layout" : "L2 · Title and detail",
-      "material" : "M1 · Liquid Glass (today)",
-      "stacking" : "S1 · List of three (today)"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.pg-timeouts-r21" : {
-    "comments" : [
+  "ongoing.pg-timeouts-r21": {
+    "comments": [
       {
-        "date" : "2026-09-30T13:58:21Z",
-        "id" : "D14B3620-14DC-4F24-A997-4D07D32F37B8",
-        "text" : "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Proposal; note: It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere\n2. Where: picked TW2 · Settings default, connection overrides; note: Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab\n3. Default: picked TD2 · No limit unless set\n4. When it fires: picked TF2 · Explained, with Run Without Limit; NEEDS MORE OPTIONS; note: Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification\n5. Lock waits: picked TL2 · Separate field under Timeouts; NEEDS MORE OPTIONS; note: Should this be showing in the footer status?\n6. The 60 seconds already saved: picked M3 · Reset to No limit, mention it once in What's New\n7. The limit in the footer: picked FT1 · 0:12 \/ 0:30 while running\n8. Idle in transaction: picked IT1 · No, the transaction indicator covers it\n9. Scripts: picked SC1 · Each statement (how Postgres does it)"
+        "date": "2026-09-30T13:58:21Z",
+        "id": "D14B3620-14DC-4F24-A997-4D07D32F37B8",
+        "text": "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Proposal; note: It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere\n2. Where: picked TW2 \u00b7 Settings default, connection overrides; note: Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab\n3. Default: picked TD2 \u00b7 No limit unless set\n4. When it fires: picked TF2 \u00b7 Explained, with Run Without Limit; NEEDS MORE OPTIONS; note: Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification\n5. Lock waits: picked TL2 \u00b7 Separate field under Timeouts; NEEDS MORE OPTIONS; note: Should this be showing in the footer status?\n6. The 60 seconds already saved: picked M3 \u00b7 Reset to No limit, mention it once in What's New\n7. The limit in the footer: picked FT1 \u00b7 0:12 / 0:30 while running\n8. Idle in transaction: picked IT1 \u00b7 No, the transaction indicator covers it\n9. Scripts: picked SC1 \u00b7 Each statement (how Postgres does it)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T13:58:21Z",
-        "text" : "Feedback sent"
+        "date": "2026-09-30T13:58:21Z",
+        "text": "Feedback sent"
       }
     ],
-    "needsMore" : [
+    "needsMore": [
       "locks",
       "fired"
     ],
-    "optionNotes" : {
-
+    "optionNotes": {},
+    "pickNotes": {
+      "exhibit": "It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere",
+      "fired": "Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification",
+      "locks": "Should this be showing in the footer status?",
+      "where": "Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab"
     },
-    "pickNotes" : {
-      "exhibit" : "It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere",
-      "fired" : "Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification",
-      "locks" : "Should this be showing in the footer status?",
-      "where" : "Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab"
+    "picks": {
+      "default": "TD2 \u00b7 No limit unless set",
+      "exhibit": "proposal",
+      "fired": "TF2 \u00b7 Explained, with Run Without Limit",
+      "idle": "no",
+      "locks": "TL2 \u00b7 Separate field under Timeouts",
+      "migrate": "resetTell",
+      "scripts": "each",
+      "timer": "fraction",
+      "where": "TW2 \u00b7 Settings default, connection overrides"
     },
-    "picks" : {
-      "default" : "TD2 · No limit unless set",
-      "exhibit" : "proposal",
-      "fired" : "TF2 · Explained, with Run Without Limit",
-      "idle" : "no",
-      "locks" : "TL2 · Separate field under Timeouts",
-      "migrate" : "resetTell",
-      "scripts" : "each",
-      "timer" : "fraction",
-      "where" : "TW2 · Settings default, connection overrides"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "New feedback",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "New feedback",
+    "verdicts": {}
   },
-  "ongoing.pg-value-display-r21" : {
-    "comments" : [
+  "ongoing.pg-value-display-r21": {
+    "comments": [
       {
-        "date" : "2026-09-30T14:07:00Z",
-        "id" : "C7897230-9444-4677-BD57-D5FEA18CB22C",
-        "text" : "Review of Postgres: values in the grid\n1. Easier to read?: picked Proposal\n2. Arrays: picked VA4 · Count, then the first items\n3. JSON: picked VJ3 · Summary: { 4 keys }\n4. Binary: picked VB3 · Kind and size\n5. Numbers: picked VN2 · Aligned on the decimal point\n6. What copy copies: picked CP3 · The server's text; Copy as Shown in the menu\n7. Empty text and NULL: picked EN1 · NULL in grey, empty shows nothing (today)\n8. Ranges, intervals and infinity: picked SP1 · Keep the server's form\n9. Other databases: picked SC1 · Yes, by kind (binary, JSON, numbers)"
+        "date": "2026-09-30T14:07:00Z",
+        "id": "C7897230-9444-4677-BD57-D5FEA18CB22C",
+        "text": "Review of Postgres: values in the grid\n1. Easier to read?: picked Proposal\n2. Arrays: picked VA4 \u00b7 Count, then the first items\n3. JSON: picked VJ3 \u00b7 Summary: { 4 keys }\n4. Binary: picked VB3 \u00b7 Kind and size\n5. Numbers: picked VN2 \u00b7 Aligned on the decimal point\n6. What copy copies: picked CP3 \u00b7 The server's text; Copy as Shown in the menu\n7. Empty text and NULL: picked EN1 \u00b7 NULL in grey, empty shows nothing (today)\n8. Ranges, intervals and infinity: picked SP1 \u00b7 Keep the server's form\n9. Other databases: picked SC1 \u00b7 Yes, by kind (binary, JSON, numbers)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T14:07:00Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T14:07:00Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T14:17:25Z",
+        "text": "Built into Echo (plan R7): array count and items, JSON summary, binary kind and size, decimal-point alignment, Copy as Shown. Please check it in the running app."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "arrays": "VA4 \u00b7 Count, then the first items",
+      "binary": "VB3 \u00b7 Kind and size",
+      "copy": "both",
+      "emptyNull": "today",
+      "exhibit": "proposal",
+      "json": "VJ3 \u00b7 Summary: { 4 keys }",
+      "numbers": "VN2 \u00b7 Aligned on the decimal point",
+      "scope": "all",
+      "special": "keep"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "arrays" : "VA4 · Count, then the first items",
-      "binary" : "VB3 · Kind and size",
-      "copy" : "both",
-      "emptyNull" : "today",
-      "exhibit" : "proposal",
-      "json" : "VJ3 · Summary: { 4 keys }",
-      "numbers" : "VN2 · Aligned on the decimal point",
-      "scope" : "all",
-      "special" : "keep"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "Accepted",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.section-dock-capsule-r19" : {
-    "comments" : [
+  "ongoing.section-dock-capsule-r19": {
+    "comments": [
       {
-        "date" : "2026-09-30T12:42:35Z",
-        "id" : "5E613BD9-EF39-4027-8F0F-2155C794FBFC",
-        "text" : "Review of Section dock: capsule\n1. Capsule: picked C5 · Glass with an edge\n2. Icon weight: picked Medium\n3. Icon size: picked Today\n4. Current section: picked Accent colour (today)\n5. Section name: picked Under the server's name\n6. Hover: picked Icon grows"
+        "date": "2026-09-30T12:42:35Z",
+        "id": "5E613BD9-EF39-4027-8F0F-2155C794FBFC",
+        "text": "Review of Section dock: capsule\n1. Capsule: picked C5 \u00b7 Glass with an edge\n2. Icon weight: picked Medium\n3. Icon size: picked Today\n4. Current section: picked Accent colour (today)\n5. Section name: picked Under the server's name\n6. Hover: picked Icon grows"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T12:42:35Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:42:35Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T13:00:00Z",
-        "text" : "Built into Echo"
+        "date": "2026-09-30T13:00:00Z",
+        "text": "Built into Echo"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "capsule": "C5 \u00b7 Glass with an edge",
+      "currentMark": "Accent colour (today)",
+      "hover": "Icon grows",
+      "sectionName": "Under the server's name",
+      "size": "Today",
+      "weight": "Medium"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "capsule" : "C5 · Glass with an edge",
-      "currentMark" : "Accent colour (today)",
-      "hover" : "Icon grows",
-      "sectionName" : "Under the server's name",
-      "size" : "Today",
-      "weight" : "Medium"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.section-dock-sections-r19" : {
-    "comments" : [
+  "ongoing.section-dock-sections-r19": {
+    "comments": [
       {
-        "date" : "2026-09-30T12:36:49Z",
-        "id" : "E98A51A0-F775-46F1-B0C9-4F7A836830FD",
-        "text" : "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+        "date": "2026-09-30T12:36:49Z",
+        "id": "E98A51A0-F775-46F1-B0C9-4F7A836830FD",
+        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 \u00b7 SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 \u00b7 More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
       },
       {
-        "date" : "2026-09-30T12:36:51Z",
-        "id" : "89E05383-45DC-4C70-96EA-DCD74CF1EABC",
-        "text" : "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+        "date": "2026-09-30T12:36:51Z",
+        "id": "89E05383-45DC-4C70-96EA-DCD74CF1EABC",
+        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 \u00b7 SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 \u00b7 More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
       },
       {
-        "date" : "2026-09-30T12:36:52Z",
-        "id" : "5FDD8082-5428-4596-BF19-F448C1AF3D07",
-        "text" : "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+        "date": "2026-09-30T12:36:52Z",
+        "id": "5FDD8082-5428-4596-BF19-F448C1AF3D07",
+        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 \u00b7 SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 \u00b7 More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T12:36:49Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:36:49Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T12:36:51Z",
-        "text" : "Feedback sent"
+        "date": "2026-09-30T12:36:51Z",
+        "text": "Feedback sent"
       },
       {
-        "date" : "2026-09-30T12:36:52Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:36:52Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T13:00:00Z",
-        "text" : "Built into Echo"
+        "date": "2026-09-30T13:00:00Z",
+        "text": "Built into Echo"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "groupName": "serverObjects",
+      "grouping": "G1 \u00b7 SSMS five",
+      "limit": "5",
+      "overflow": "M2 \u00b7 More as a section",
+      "rule": "yes"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "groupName" : "serverObjects",
-      "grouping" : "G1 · SSMS five",
-      "limit" : "5",
-      "overflow" : "M2 · More as a section",
-      "rule" : "yes"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.section-dock-switching-r19" : {
-    "comments" : [
+  "ongoing.section-dock-switching-r19": {
+    "comments": [
       {
-        "date" : "2026-09-30T12:39:10Z",
-        "id" : "D0B7BE8C-185F-4F26-B61C-1E36E35781C0",
-        "text" : "Review of Section dock: switching\n1. Switching: picked S3 · Fade through\n2. Where the view goes: picked Jump to where it was\n3. The other cards: picked N2 · Only the changed card, view holds"
+        "date": "2026-09-30T12:39:10Z",
+        "id": "D0B7BE8C-185F-4F26-B61C-1E36E35781C0",
+        "text": "Review of Section dock: switching\n1. Switching: picked S3 \u00b7 Fade through\n2. Where the view goes: picked Jump to where it was\n3. The other cards: picked N2 \u00b7 Only the changed card, view holds"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T12:39:10Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:39:10Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T13:00:00Z",
-        "text" : "Built into Echo"
+        "date": "2026-09-30T13:00:00Z",
+        "text": "Built into Echo"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "neighbours": "N2 \u00b7 Only the changed card, view holds",
+      "scroll": "Jump to where it was",
+      "switch": "S3 \u00b7 Fade through"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "neighbours" : "N2 · Only the changed card, view holds",
-      "scroll" : "Jump to where it was",
-      "switch" : "S3 · Fade through"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.server-card-r16" : {
-    "comments" : [
+  "ongoing.server-card-r16": {
+    "comments": [
       {
-        "date" : "2026-09-30T10:00:33Z",
-        "id" : "EF06491D-D320-4DB4-B60E-E806FF3BA3BC",
-        "text" : "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it\n2. Version: picked Under the name\n3. Edge under the header: picked Blur rows; note: Needs to look like native\n4. Switching sections: picked Crossfade\n5. Loading: picked Quiet skeleton; NEEDS MORE OPTIONS; note: I like the spinner but the \"loading rows\" is not a good fit for the \"initial load\". Please try some more options with the spinner and then what shows inside the card\n6. Counts: picked Always\n7. Selection: picked Symmetric\n8. Customising: picked Works as intended\n9. PostgreSQL: picked Looks right"
+        "date": "2026-09-30T10:00:33Z",
+        "id": "EF06491D-D320-4DB4-B60E-E806FF3BA3BC",
+        "text": "Review of Server card \u00b7 round 16\n1. Header style: picked H5 \u00b7 Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it\n2. Version: picked Under the name\n3. Edge under the header: picked Blur rows; note: Needs to look like native\n4. Switching sections: picked Crossfade\n5. Loading: picked Quiet skeleton; NEEDS MORE OPTIONS; note: I like the spinner but the \"loading rows\" is not a good fit for the \"initial load\". Please try some more options with the spinner and then what shows inside the card\n6. Counts: picked Always\n7. Selection: picked Symmetric\n8. Customising: picked Works as intended\n9. PostgreSQL: picked Looks right"
       },
       {
-        "date" : "2026-09-30T11:17:03Z",
-        "id" : "FDCF1724-BCEE-4A9A-BF46-55DBDF632BFD",
-        "text" : "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 · Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
+        "date": "2026-09-30T11:17:03Z",
+        "id": "FDCF1724-BCEE-4A9A-BF46-55DBDF632BFD",
+        "text": "Review of Server card \u00b7 round 16\n1. Header style: picked H5 \u00b7 Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 \u00b7 Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
       },
       {
-        "date" : "2026-09-30T11:17:05Z",
-        "id" : "21CD2918-45AA-4D6C-95FB-8EBF12467D3F",
-        "text" : "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 · Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
+        "date": "2026-09-30T11:17:05Z",
+        "id": "21CD2918-45AA-4D6C-95FB-8EBF12467D3F",
+        "text": "Review of Server card \u00b7 round 16\n1. Header style: picked H5 \u00b7 Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 \u00b7 Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T10:00:33Z",
-        "text" : "Feedback sent"
+        "date": "2026-09-30T10:00:33Z",
+        "text": "Feedback sent"
       },
       {
-        "date" : "2026-09-30T10:14:42Z",
-        "text" : "More options added: Initial load I1–I5 (spinner in the icon, spinner row, centred spinner, folders first, spinner by the name), Spinner on the icon, Pinned (name and icons \/ icons only); H5 reworked as Xcode navigator icons in a glass capsule with rows blurred under it; Blur rows reworked after the system soft edge, with a System edge reference exhibit; your picks are the new defaults"
+        "date": "2026-09-30T10:14:42Z",
+        "text": "More options added: Initial load I1\u2013I5 (spinner in the icon, spinner row, centred spinner, folders first, spinner by the name), Spinner on the icon, Pinned (name and icons / icons only); H5 reworked as Xcode navigator icons in a glass capsule with rows blurred under it; Blur rows reworked after the system soft edge, with a System edge reference exhibit; your picks are the new defaults"
       },
       {
-        "date" : "2026-09-30T11:17:03Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T11:17:03Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T11:17:05Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T11:17:05Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T11:30:00Z",
-        "text" : "Initial load note: switching sections and rows arriving after a load now use Echo's settle (no overshoot), folders use expand"
+        "date": "2026-09-30T11:30:00Z",
+        "text": "Initial load note: switching sections and rows arriving after a load now use Echo's settle (no overshoot), folders use expand"
       },
       {
-        "date" : "2026-09-30T11:45:00Z",
-        "text" : "Built into Echo"
+        "date": "2026-09-30T11:45:00Z",
+        "text": "Built into Echo"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "edge": "Needs to look like native",
+      "header": "Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+",
+      "initialLoad": "I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation"
     },
-    "pickNotes" : {
-      "edge" : "Needs to look like native",
-      "header" : "Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+",
-      "initialLoad" : "I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation"
+    "picks": {
+      "counts": "Always",
+      "customising": "works",
+      "edge": "Blur rows",
+      "header": "H5 \u00b7 Glass capsule",
+      "iconSpinner": "Keep the icon still",
+      "initialLoad": "I4 \u00b7 Folders first",
+      "loading": "Quiet skeleton",
+      "pinning": "Name and icons",
+      "postgres": "right",
+      "selection": "Symmetric",
+      "switch": "Crossfade",
+      "version": "Under the name"
     },
-    "picks" : {
-      "counts" : "Always",
-      "customising" : "works",
-      "edge" : "Blur rows",
-      "header" : "H5 · Glass capsule",
-      "iconSpinner" : "Keep the icon still",
-      "initialLoad" : "I4 · Folders first",
-      "loading" : "Quiet skeleton",
-      "pinning" : "Name and icons",
-      "postgres" : "right",
-      "selection" : "Symmetric",
-      "switch" : "Crossfade",
-      "version" : "Under the name"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   }
 }
