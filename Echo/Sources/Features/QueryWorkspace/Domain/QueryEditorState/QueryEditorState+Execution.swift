@@ -59,6 +59,7 @@ extension QueryEditorState {
         streamingMode = .preview
         results = nil
         additionalResults.removeAll()
+        streamedAdditionalStates.removeAll()
         selectedResultSetIndex = 0
         batchResultMetadata = nil
         scriptEntries = nil

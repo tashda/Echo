@@ -6,6 +6,10 @@ extension QueryEditorState {
     @MainActor
     func applyStreamUpdate(_ update: QueryStreamUpdate) {
         guard !update.columns.isEmpty else { return }
+        if update.resultSetIndex > 0 {
+            applyAdditionalStreamUpdate(update)
+            return
+        }
         if streamingMode == .idle { streamingMode = .preview }
         if streamingColumns.isEmpty { streamingColumns = update.columns }
 
@@ -205,6 +209,7 @@ extension QueryEditorState {
         if streamingRows.count < truncated.count { streamingRows = truncated } else { for i in 0..<truncated.count { streamingRows[i] = truncated[i] } }
         results = QueryResultSet(columns: result.columns, rows: truncated, totalRowCount: total, commandTag: result.commandTag, additionalResults: result.additionalResults, dataClassification: result.dataClassification)
         additionalResults = result.additionalResults
+        finishStreamedAdditionalResults(result.additionalResults)
         selectedResultSetIndex = 0
         dataClassification = result.dataClassification
         // Use the authoritative total — don't preserve inflated streaming estimates.

@@ -197,9 +197,12 @@ public struct QueryStreamUpdate: Sendable {
     public let totalRowCount: Int
     public let metrics: QueryStreamMetrics?
     public let rowRange: Range<Int>?
+    /// Which result set of the run these rows belong to: 0 for the first, 1 and up for extra sets,
+    /// which the tab streams into their own results (round 22, BG1).
+    public var resultSetIndex: Int
 
-    public nonisolated init(columns: [ColumnInfo], appendedRows: [[String?]], encodedRows: [ResultBinaryRow] = [], rawRows: [ResultRowPayload] = [], totalRowCount: Int, metrics: QueryStreamMetrics? = nil, rowRange: Range<Int>? = nil) {
-        self.columns = columns; self.appendedRows = appendedRows; self.encodedRows = encodedRows; self.rawRows = rawRows; self.totalRowCount = totalRowCount; self.metrics = metrics; self.rowRange = rowRange
+    public nonisolated init(columns: [ColumnInfo], appendedRows: [[String?]], encodedRows: [ResultBinaryRow] = [], rawRows: [ResultRowPayload] = [], totalRowCount: Int, metrics: QueryStreamMetrics? = nil, rowRange: Range<Int>? = nil, resultSetIndex: Int = 0) {
+        self.columns = columns; self.appendedRows = appendedRows; self.encodedRows = encodedRows; self.rawRows = rawRows; self.totalRowCount = totalRowCount; self.metrics = metrics; self.rowRange = rowRange; self.resultSetIndex = resultSetIndex
     }
 }
 

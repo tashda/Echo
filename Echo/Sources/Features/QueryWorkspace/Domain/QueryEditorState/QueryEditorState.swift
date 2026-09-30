@@ -134,6 +134,9 @@ import OSLog
     }
     /// Results-only states for the extra result sets, made on first view (plan R6).
     @ObservationIgnored var additionalResultStates: [Int: QueryEditorState] = [:]
+    /// Extra result sets streaming into their own states while the run goes (round 22, BG1): each
+    /// spools like the first set instead of holding every row in memory. Keyed like `additionalResults`.
+    @ObservationIgnored var streamedAdditionalStates: [Int: QueryEditorState] = [:]
     var selectedResultSetIndex: Int = 0
     /// Batch labels for multi-batch (GO) results. Nil for single-batch execution.
     var batchResultMetadata: [BatchResultLabel]?

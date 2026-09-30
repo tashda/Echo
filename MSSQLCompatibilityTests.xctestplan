@@ -38,6 +38,7 @@
         "MSSQLDedicatedSessionCancelTests",
         "MSSQLDedicatedSessionErrorTests",
         "MSSQLDedicatedSessionConnectionLossTests",
+        "MSSQLDedicatedSessionResultSetTests",
         "MSSQLTriggerTests",
         "MSSQLViewTests"
       ],

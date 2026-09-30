@@ -45,7 +45,19 @@ extension QueryResultsSection {
 
         let additionalIndex = query.selectedResultSetIndex - 1
         guard query.additionalResults.indices.contains(additionalIndex) else { return nil }
-        return query.additionalResults[additionalIndex]
+        let set = query.additionalResults[additionalIndex]
+        // A streamed extra set holds only its preview in `additionalResults`; its rows are in its
+        // own (possibly spooled) state, exported the same way as the first set.
+        guard (set.totalRowCount ?? set.rows.count) > set.rows.count,
+              let state = query.additionalResultState(at: additionalIndex) else { return set }
+        let rows = (0..<state.displayedRowCount).compactMap { state.displayedRow(at: $0) }
+        return QueryResultSet(
+            columns: set.columns,
+            rows: rows,
+            totalRowCount: rows.count,
+            commandTag: set.commandTag,
+            dataClassification: set.dataClassification
+        )
     }
 
     var exportedPrimaryRows: [[String?]] {

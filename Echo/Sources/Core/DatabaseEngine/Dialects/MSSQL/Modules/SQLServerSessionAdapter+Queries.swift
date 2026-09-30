@@ -84,10 +84,6 @@ extension SQLServerSessionAdapter {
         progressHandler: @escaping QueryProgressHandler
     ) async throws -> QueryResultSet {
         let operationStart = CFAbsoluteTimeGetCurrent()
-        let initialPreviewBatch = 200
-        let maxFlushLatency: TimeInterval = 0.015
-        let batchEnqueueSize = 512
-
         let bridgedHandler: QueryProgressHandler = { update in
             Task { @MainActor in
                 progressHandler(update)
@@ -96,25 +92,11 @@ extension SQLServerSessionAdapter {
 
         return try await client.withConnection { [self] connection in
             let stream = connection.streamQuery(sql)
-
-            // Track which result set we're on (0 = primary, 1+ = additional)
-            var resultSetIndex = -1
-
-            // Primary result set state (streamed progressively)
-            var primaryColumns: [ColumnInfo] = []
-            var primaryPreviewRows: [[String?]] = []
-            primaryPreviewRows.reserveCapacity(initialPreviewBatch)
-            var primaryRowCount = 0
-            var worker: ResultStreamBatchWorker?
-            var pendingPayloads: [ResultStreamBatchWorker.Payload] = []
-            pendingPayloads.reserveCapacity(batchEnqueueSize)
-            var firstRowLogged = false
-
-            // Additional result sets (accumulated, not streamed)
+            // One sink per result set; extra sets stream into their own results (round 22, BG1).
+            var primary: SQLServerResultSetSink?
+            var current: SQLServerResultSetSink?
+            var resultSetCount = 0
             var additionalResults: [QueryResultSet] = []
-            var currentAdditionalColumns: [ColumnInfo] = []
-            var currentAdditionalRows: [[String?]] = []
-
             // Every message of the batch in order (EM1): PRINT and informational messages, then errors.
             var streamMessages: [SQLServerStreamMessage] = []
 
@@ -123,79 +105,21 @@ extension SQLServerSessionAdapter {
 
                 switch event {
                 case .metadata(let columnDescriptions):
-                    if resultSetIndex > 0 && !currentAdditionalColumns.isEmpty {
-                        additionalResults.append(QueryResultSet(
-                            columns: currentAdditionalColumns,
-                            rows: currentAdditionalRows,
-                            totalRowCount: currentAdditionalRows.count
-                        ))
+                    if let current, current !== primary {
+                        additionalResults.append(await current.finish())
                     }
-
-                    resultSetIndex += 1
-                    let columns = columnDescriptions.map { col in
-                        ColumnInfo(
-                            name: col.name,
-                            dataType: col.typeName,
-                            isPrimaryKey: false,
-                            isNullable: (col.flags & 0x01) != 0,
-                            maxLength: col.length > 0 ? col.length : nil,
-                            wireType: col.cellType.encoded
-                        )
-                    }
-
-                    if resultSetIndex == 0 {
-                        primaryColumns = columns
-                        worker = ResultStreamBatchWorker(
-                            label: "dev.echodb.echo.mssql.streamWorker",
-                            columns: columns,
-                            streamingPreviewLimit: initialPreviewBatch,
-                            maxFlushLatency: maxFlushLatency,
-                            operationStart: operationStart,
-                            progressHandler: bridgedHandler
-                        )
-                    } else {
-                        currentAdditionalColumns = columns
-                        currentAdditionalRows = []
-                    }
+                    let sink = SQLServerResultSetSink(
+                        columnDescriptions: columnDescriptions,
+                        resultSetIndex: resultSetCount,
+                        operationStart: operationStart,
+                        progressHandler: bridgedHandler
+                    )
+                    resultSetCount += 1
+                    if primary == nil { primary = sink }
+                    current = sink
 
                 case .row(let row):
-                    if resultSetIndex == 0 {
-                        primaryRowCount += 1
-
-                        // Every row is spooled as wire bytes and formatted later by the
-                        // driver from the column's wireType, like the preview strings (DF1).
-                        var previewValues: [String?]?
-                        if primaryRowCount <= initialPreviewBatch {
-                            let stringValues = row.toStringArray()
-                            primaryPreviewRows.append(stringValues)
-                            previewValues = stringValues
-                        }
-                        let (buffers, lengths, totalLength) = row.rawColumnBuffers()
-                        let encodedRow = ResultStreamBatchWorker.encodeBinaryRow(
-                            totalLength: totalLength,
-                            buffers: buffers,
-                            lengths: lengths
-                        )
-                        pendingPayloads.append(ResultStreamBatchWorker.Payload(
-                            previewValues: previewValues,
-                            storage: .encoded(encodedRow),
-                            totalRowCount: primaryRowCount,
-                            decodeDuration: 0
-                        ))
-
-                        if pendingPayloads.count >= batchEnqueueSize {
-                            worker?.enqueueBatch(pendingPayloads)
-                            pendingPayloads.removeAll(keepingCapacity: true)
-                        }
-
-                        if !firstRowLogged {
-                            firstRowLogged = true
-                            let latency = CFAbsoluteTimeGetCurrent() - operationStart
-                            self.logger.debug("[MSSQLStream] first-row latency=\(String(format: "%.3f", latency))s")
-                        }
-                    } else {
-                        currentAdditionalRows.append(row.toStringArray())
-                    }
+                    current?.append(row)
 
                 case .message(let msg):
                     streamMessages.append(msg)
@@ -205,12 +129,8 @@ extension SQLServerSessionAdapter {
                 }
             }
 
-            if resultSetIndex > 0 && !currentAdditionalColumns.isEmpty {
-                additionalResults.append(QueryResultSet(
-                    columns: currentAdditionalColumns,
-                    rows: currentAdditionalRows,
-                    totalRowCount: currentAdditionalRows.count
-                ))
+            if let current, current !== primary {
+                additionalResults.append(await current.finish())
             }
 
             // The driver's structured error keeps number, severity, line, procedure and every
@@ -219,37 +139,19 @@ extension SQLServerSessionAdapter {
                 throw DatabaseError.from(sqlServerError: failure)
             }
 
-            if !pendingPayloads.isEmpty {
-                worker?.enqueueBatch(pendingPayloads)
-            }
-
-            if let worker {
-                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                    worker.finish(totalRowCount: primaryRowCount) {
-                        Task { @MainActor in
-                            continuation.resume()
-                        }
-                    }
-                }
-            }
-
-            let classification = self.extractClassification(from: connection, columnCount: primaryColumns.count)
+            let first = await primary?.finish()
+            let columns = first?.columns ?? []
+            let classification = self.extractClassification(from: connection, columnCount: columns.count)
             let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
-            self.logger.debug("[MSSQLStream] completed sets=\(resultSetIndex + 1) primaryRows=\(primaryRowCount) additionalSets=\(additionalResults.count) elapsed=\(String(format: "%.3f", totalElapsed))s")
-
-            let resolvedColumns = primaryColumns.isEmpty
-                ? [ColumnInfo(name: "result", dataType: "text")]
-                : primaryColumns
-
-            let serverMessages = streamMessages.map(\.echoServerMessage)
+            self.logger.debug("[MSSQLStream] completed sets=\(resultSetCount) primaryRows=\(first?.totalRowCount ?? 0) additionalSets=\(additionalResults.count) elapsed=\(String(format: "%.3f", totalElapsed))s")
 
             return QueryResultSet(
-                columns: resolvedColumns,
-                rows: primaryPreviewRows,
-                totalRowCount: primaryRowCount,
+                columns: columns.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columns,
+                rows: first?.rows ?? [],
+                totalRowCount: first?.totalRowCount ?? 0,
                 additionalResults: additionalResults,
                 dataClassification: classification,
-                serverMessages: serverMessages
+                serverMessages: streamMessages.map(\.echoServerMessage)
             )
         }
     }

@@ -694,7 +694,9 @@ struct ConnectionConfigurationDefaultsTests {
         #expect(config.trustServerCertificate == false)
         #expect(config.tlsMode == .prefer)
         #expect(config.verifySSLCertificate == true)
-        #expect(config.mssqlEncryptionMode == .optional)
+        // Round 22, ED1: new SQL Server connections encrypt and check the certificate.
+        #expect(config.mssqlEncryptionMode == .mandatory)
+        #expect(config.allowLegacyTLS == false)
         #expect(config.readOnlyIntent == false)
         #expect(config.connectionTimeout == 30)
         #expect(config.queryTimeout == 60)
