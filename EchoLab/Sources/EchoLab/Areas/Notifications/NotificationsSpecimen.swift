@@ -38,6 +38,7 @@ struct NotificationsSpecimen: View {
                     RunSpecimenGlyph(symbol: state.column == .history ? "bell.fill" : "bell")
                         .overlay(alignment: .topTrailing) { badge }
                 }
+                .specAnchor("4.1")
                 .buttonStyle(.plain)
                 .help("Notifications")
                 Button(action: state.toggleInspector) {
@@ -103,6 +104,7 @@ struct NotificationsSpecimen: View {
             }
         }
         .frame(width: width)
+        .specAnchor("3.1")
         .padding(.horizontal, gutter)
         .offset(x: isVisible || motion.reduceMotion ? 0 : width + gutter * 2)
         .opacity(isVisible ? 1 : 0)
@@ -121,10 +123,12 @@ private struct NotificationsSpecimenToasts: View {
             VStack(alignment: .trailing, spacing: SpacingTokens.xs) {
                 ForEach(state.toasts) { toast in
                     NotificationsSpecimenToast(toast: toast, state: state)
+                        .specAnchor("1.1")
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
         }
+        .specAnchor("2.1")
         .animation(motion.standard, value: state.toasts)
         .animation(motion.standard, value: state.hoveredID)
     }
@@ -153,6 +157,7 @@ private struct NotificationsSpecimenToast: View {
                     Text(parts.first ?? toast.message)
                         .font(TypographyTokens.standard.weight(.semibold))
                         .lineLimit(1)
+                        .specAnchor("1.2")
                     if let detail {
                         Text(detail)
                             .font(TypographyTokens.detail)
@@ -160,6 +165,7 @@ private struct NotificationsSpecimenToast: View {
                             .lineLimit(isExpanded ? nil : 2)
                             .fixedSize(horizontal: false, vertical: isExpanded)
                             .textSelection(.enabled)
+                            .specAnchor("1.3")
                     }
                 }
                 if toast.count > 1 {
@@ -186,6 +192,7 @@ private struct NotificationsSpecimenToast: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .padding(.leading, SpacingTokens.lg)
+                .specAnchor("1.4")
             }
         }
         .padding(.horizontal, SpacingTokens.sm)

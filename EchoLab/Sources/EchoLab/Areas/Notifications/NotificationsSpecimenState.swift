@@ -18,6 +18,8 @@ final class NotificationsSpecimenState {
         var date = Date()
         var count = 1
 
+        func copy() -> Event { Event(kind: kind, icon: icon, message: message, server: server, link: link) }
+
         var tint: Color {
             switch kind {
             case .success: ColorTokens.Status.success
@@ -93,6 +95,20 @@ final class NotificationsSpecimenState {
     func dismiss(_ id: UUID) {
         toasts.removeAll { $0.id == id }
         if hoveredID == id { hoveredID = nil }
+    }
+
+    /// The Spec page forces the specimen into a state: "toast" (an error toast showing), "toastOpen"
+    /// (the same, hovered open) or "history" (the history in the column); nil leaves it alone.
+    func force(_ key: String?) {
+        switch key {
+        case "toast", "toastOpen":
+            if toasts.isEmpty { show(Self.samples[1].copy()) }
+            hoveredID = key == "toastOpen" ? toasts.first?.id : nil
+        case "history":
+            if column != .history { toggleHistory() }
+        default:
+            break
+        }
     }
 
     /// The bell: shows the history in the column, or puts it away.

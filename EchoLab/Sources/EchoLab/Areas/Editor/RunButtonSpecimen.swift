@@ -50,6 +50,7 @@ struct RunButtonSpecimen: View {
                 if case .succeeded(let rows, let seconds) = state.simulation.phase {
                     Text("✓ \(rows.formatted()) rows · \(seconds.formatted(.number.precision(.fractionLength(1)))) s")
                         .foregroundStyle(ColorTokens.Status.success)
+                        .specAnchor("3.3")
                         .transition(.opacity)
                 }
             }
@@ -59,13 +60,15 @@ struct RunButtonSpecimen: View {
         .padding(SpacingTokens.md)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .workspaceCard()
+        .specAnchor("1.1")
     }
 
     private func line(_ number: Int, _ text: String, selected: Bool) -> some View {
         HStack(spacing: SpacingTokens.md) {
-            Text("\(number)").foregroundStyle(ColorTokens.Text.tertiary)
+            Text("\(number)").foregroundStyle(ColorTokens.Text.tertiary).specAnchor("2.2")
             Text(text)
                 .background(selected ? ColorTokens.accent.opacity(0.25) : .clear)
+                .specAnchor(number == 2 ? "3.1" : "1.2")
         }
     }
 }
@@ -112,8 +115,18 @@ private struct RunSpecimenButton: View {
             Button("Explain", systemImage: "flowchart") {}
             Button("Explain Analyze", systemImage: "flowchart.fill") {}
         }
+        .specAnchor(runNumber)
         .animation(motion.standard, value: phase)
         .animation(motion.hover, value: state.hasSelection)
+    }
+
+    /// The Spec element the button is showing right now.
+    private var runNumber: String {
+        switch phase {
+        case .running: "4.3"
+        case .succeeded, .failed: "4.4"
+        default: state.hasSelection ? "4.2" : "4.1"
+        }
     }
 
     private var symbol: String {

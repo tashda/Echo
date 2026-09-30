@@ -86,7 +86,8 @@ enum NotificationsArea {
         }
         .controls {
             NotificationsControls(state: state)
-        }
+        },
+        spec: NotificationsSpec.spec(stageHeight: 560, specimen: { NotificationsSpecimen(state: state) }, controls: { NotificationsControls(state: state) }).onState { state.force($0) }
     )
 }
 

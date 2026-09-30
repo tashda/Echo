@@ -11,6 +11,7 @@ struct NotificationsSpecimenHistory: View {
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             header
+                .specAnchor("3.3")
                 .padding([.horizontal, .top], LayoutTokens.Inspector.cardPadding)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
@@ -20,6 +21,7 @@ struct NotificationsSpecimenHistory: View {
                             .foregroundStyle(ColorTokens.Text.secondary)
                             .padding(.horizontal, SpacingTokens.xxs)
                             .padding(.top, SpacingTokens.xs)
+                            .specAnchor("3.2")
                         ForEach(events) { card($0) }
                     }
                 }
@@ -55,6 +57,7 @@ struct NotificationsSpecimenHistory: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
+            .specAnchor("3.4")
             .help("Filter and Clear")
         }
     }
@@ -110,6 +113,7 @@ struct NotificationsSpecimenHistory: View {
         .padding(.horizontal, SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xs)
         .background(ColorTokens.Workspace.groupFill, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
+        .specAnchor(isOpen ? "3.6" : "3.5")
         .contentShape(Rectangle())
         .onTapGesture { openID = isOpen ? nil : event.id }
     }

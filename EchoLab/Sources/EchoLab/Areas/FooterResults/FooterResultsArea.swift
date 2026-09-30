@@ -79,10 +79,13 @@ private struct FooterResultsSpecimen: View {
             LabAppKitGrid(
                 isDrifting: false, bottomInset: footerZone,
                 blurHeight: footerZone + LayoutTokens.EdgeBlur.fade, blurRadii: LayoutTokens.EdgeBlur.radii)
+                .specAnchor("4.1")
             BottomPanelStatusBar(configuration: configuration)
                 .padding(.bottom, LayoutTokens.Footer.bottomLift)
+                .specAnchor("2.1")
         }
         .workspaceCard()
+        .specAnchor("1.1")
         .frame(maxWidth: 760)
         .padding(SpacingTokens.lg)
     }
