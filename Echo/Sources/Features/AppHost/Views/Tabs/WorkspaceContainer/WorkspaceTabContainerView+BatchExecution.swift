@@ -77,7 +77,7 @@ extension WorkspaceTabContainerView {
                     state.finishExecution()
 
                     appState.addToQueryHistory(
-                        batches.joined(separator: "\nGO\n"),
+                        batches.joined(separator: tab.connection.databaseType == .postgresql ? ";\n" : "\nGO\n"),
                         connectionID: tab.connection.id,
                         databaseName: tab.activeDatabaseName ?? tab.connection.database,
                         resultCount: state.results?.rows.count ?? 0,

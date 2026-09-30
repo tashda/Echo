@@ -69,6 +69,8 @@ public protocol DatabaseSession: Sendable {
 
     // Multi-batch execution (GO batch separator support)
     func executeBatches(_ batches: [String], progressHandler: BatchProgressHandler?) async throws -> [BatchResult]
+    /// Cancels the running statement on the server. Returns whether a cancel was sent.
+    func cancelRunningQuery() async -> Bool
 
     /// Checks whether the connection to the database is still alive.
     /// Returns `true` if a lightweight query succeeds, `false` otherwise.
@@ -322,6 +324,8 @@ public extension DatabaseSession {
     func executeBatches(_ batches: [String], progressHandler: BatchProgressHandler?) async throws -> [BatchResult] {
         throw DatabaseError.queryError("Batch execution is not supported for this database type")
     }
+
+    func cancelRunningQuery() async -> Bool { false }
 }
 
 protocol ExecutionPlanProviding: DatabaseSession {

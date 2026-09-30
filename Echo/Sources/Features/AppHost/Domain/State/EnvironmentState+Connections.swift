@@ -344,7 +344,7 @@ extension EnvironmentState {
             connectDatabase = nil
         }
 
-        return try await factory.connect(
+        let session = try await factory.connect(
             host: connection.host,
             port: connection.port,
             database: connectDatabase,
@@ -360,5 +360,11 @@ extension EnvironmentState {
             authentication: credentials,
             connectTimeoutSeconds: Int(connection.connectionTimeout)
         )
+        // PostgreSQL query tabs run every statement on one pinned connection per database, so
+        // BEGIN … COMMIT, SET and temporary tables behave as in psql (metadata stays on the pool).
+        if let postgres = session as? PostgresSession {
+            return postgres.withPinnedQueries()
+        }
+        return session
     }
 }

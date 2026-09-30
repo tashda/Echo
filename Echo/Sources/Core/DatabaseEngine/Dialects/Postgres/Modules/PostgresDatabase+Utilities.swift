@@ -14,39 +14,59 @@ extension PostgresSession {
     }
 
     nonisolated func normalizeError(_ error: Error, contextSQL: String? = nil) -> Error {
+        if let sessionError = error as? PostgresSessionError {
+            let message = sessionError.errorDescription ?? String(describing: sessionError)
+            os.Logger.postgres.error("PostgreSQL session error: \(message)")
+            return DatabaseError.queryError(message)
+        }
+        if let scriptError = error as? PostgresScriptError {
+            return normalizeError(scriptError.underlying, contextSQL: scriptError.statement.text)
+        }
+        if let kitError = error as? PostgresKit.PostgresError {
+            return formatServerError(
+                message: kitError.serverMessage ?? kitError.message,
+                detail: kitError.detail,
+                hint: kitError.hint,
+                sqlState: kitError.sqlState,
+                position: kitError.position,
+                contextSQL: contextSQL
+            )
+        }
         guard let pgError = error as? PSQLError else { return error }
+        return formatServerError(
+            message: pgError.serverInfo?[.message] ?? pgError.localizedDescription,
+            detail: pgError.serverInfo?[.detail],
+            hint: pgError.serverInfo?[.hint],
+            sqlState: pgError.serverInfo?[.sqlState],
+            position: pgError.serverInfo?[.position].flatMap { Int($0) },
+            contextSQL: contextSQL
+        )
+    }
 
-        var lines: [String] = []
-        if let message = pgError.serverInfo?[.message], !message.isEmpty {
-            lines.append(message)
-        } else {
-            lines.append(pgError.localizedDescription)
-        }
-        if let detail = pgError.serverInfo?[.detail], !detail.isEmpty {
-            lines.append(detail)
-        }
-        if let hint = pgError.serverInfo?[.hint], !hint.isEmpty {
-            lines.append("Hint: \(hint)")
-        }
-        if let sqlState = pgError.serverInfo?[.sqlState], !sqlState.isEmpty {
-            lines.append("SQLSTATE: \(sqlState)")
-        }
-        if
-            let positionString = pgError.serverInfo?[.position],
-            let position = Int(positionString),
-            position > 0,
-            let sql = contextSQL
-        {
+    /// Message, detail, hint, SQLSTATE and — when the server reports a position — the statement
+    /// with a caret under the error.
+    private nonisolated func formatServerError(
+        message: String,
+        detail: String?,
+        hint: String?,
+        sqlState: String?,
+        position: Int?,
+        contextSQL: String?
+    ) -> Error {
+        var lines: [String] = [message.isEmpty ? "PostgreSQL error" : message]
+        if let detail, !detail.isEmpty { lines.append(detail) }
+        if let hint, !hint.isEmpty { lines.append("Hint: \(hint)") }
+        if let sqlState, !sqlState.isEmpty { lines.append("SQLSTATE: \(sqlState)") }
+        if let position, position > 0, let sql = contextSQL {
             let limitedSQL = sql.prefix(2_000)
             lines.append(String(limitedSQL))
             let caretPosition = min(position - 1, limitedSQL.count - 1)
             let pointer = String(repeating: " ", count: max(0, caretPosition)) + "^"
             lines.append(pointer)
         }
-
-        let message = lines.joined(separator: "\n")
-        os.Logger.postgres.error("PostgreSQL error: \(message)")
-        return DatabaseError.queryError(message)
+        let joined = lines.joined(separator: "\n")
+        os.Logger.postgres.error("PostgreSQL error: \(joined)")
+        return DatabaseError.queryError(joined)
     }
 
     func simpleQueryFastPathLimit(for sql: String) -> Int? {

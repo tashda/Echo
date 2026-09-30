@@ -1,5 +1,6 @@
 import SwiftUI
 import EchoSense
+import PostgresWire
 
 extension WorkspaceTabContainerView {
     func runQuery(tabId: UUID, sql: String) async {
@@ -102,6 +103,34 @@ extension WorkspaceTabContainerView {
             effectiveSQL = baseSQL
         }
 
+        // PostgreSQL runs one statement per query: a script with several statements goes through the
+        // multi-batch path, one statement per batch, on the tab's connection.
+        if tab.connection.databaseType == .postgresql {
+            let statements = PostgresSQLSplitter.split(baseSQL)
+            if statements.count > 1 {
+                let session: DatabaseSession
+                do {
+                    session = try await resolvePostgresExecutionSession(for: tab)
+                } catch {
+                    queryState.errorMessage = "No dedicated connection. Click \"Retry Connection\" to reconnect."
+                    return
+                }
+                let startLines = statements.map { statement in
+                    baseSQL[..<statement.range.lowerBound].reduce(0) { $1 == "\n" ? $0 + 1 : $0 }
+                }
+                await runBatchQuery(
+                    tabId: tabId,
+                    batches: statements.map(\.text),
+                    batchStartLines: startLines,
+                    queryState: queryState,
+                    resolvedSession: session,
+                    tab: tab,
+                    trimmedSQL: trimmedSQL
+                )
+                return
+            }
+        }
+
         // Resolve the execution session — for PostgreSQL, route through database-specific session.
         // MSSQL dedicated session wait is deferred to inside the Task so startExecution() runs immediately.
         let executionSession: DatabaseSession
@@ -159,7 +188,14 @@ extension WorkspaceTabContainerView {
                 // Wait for dedicated session if still connecting
                 let resolvedSession: DatabaseSession
                 if needsDedicatedSessionWait {
-                    resolvedSession = try await tab.awaitDedicatedSession()
+                    let dedicated = try await tab.awaitDedicatedSession()
+                    // PostgreSQL: run against the tab's active database, not the one the session opened with.
+                    if tab.connection.databaseType == .postgresql,
+                       let activeDB = tab.activeDatabaseName, !activeDB.isEmpty {
+                        resolvedSession = try await dedicated.sessionForDatabase(activeDB)
+                    } else {
+                        resolvedSession = dedicated
+                    }
                 } else {
                     resolvedSession = executionSession
                 }
@@ -282,7 +318,29 @@ extension WorkspaceTabContainerView {
     func cancelQuery(tabId: UUID) {
         guard let tab = tabStore.tabs.first(where: { $0.id == tabId }),
               let queryState = tab.query else { return }
-        queryState.cancelExecution()
+        guard tab.connection.databaseType == .postgresql else {
+            queryState.cancelExecution()
+            return
+        }
+        // PostgreSQL: stop the statement on the server first (otherwise it keeps running and the
+        // connection stays busy draining rows), then cancel the task. The "canceling statement"
+        // error that follows is treated as a cancellation because the request flag is already set.
+        queryState.isCancellationRequested = true
+        let session = tab.session
+        Task { @MainActor in
+            _ = await session.cancelRunningQuery()
+            queryState.cancelExecution()
+        }
+    }
+
+    /// The session a PostgreSQL tab runs on: its dedicated session (waiting for it if it is still
+    /// connecting), switched to the tab's active database.
+    func resolvePostgresExecutionSession(for tab: WorkspaceTab) async throws -> DatabaseSession {
+        let base = tab.isAwaitingDedicatedSession ? try await tab.awaitDedicatedSession() : tab.session
+        if let activeDB = tab.activeDatabaseName, !activeDB.isEmpty {
+            return try await base.sessionForDatabase(activeDB)
+        }
+        return base
     }
 
     /// Returns true if the SQL begins with a DDL statement that modifies schema objects.

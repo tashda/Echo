@@ -23,6 +23,10 @@ actor ResultSpoolHandle {
     var lastTransientEmission: UInt64 = 0
     let transientDispatchInterval: UInt64 = 80_000_000 // 80 ms trailing flush
     let transientImmediateInterval: UInt64 = 25_000_000  // 25 ms (~40 Hz)
+    /// Postgres column OIDs, resolved on first decode (see `postgresColumnOIDs()`).
+    var cachedPostgresOIDs: CachedOIDs?
+
+    struct CachedOIDs { let value: [UInt32]? }
 
     func debugLog(_ message: String) {
         Logger.spool.debug("\(message)")

@@ -2,6 +2,11 @@ import Foundation
 
 extension ResultSpoolHandle {
     func decodeRowData(_ data: Data) -> [String?] {
+        // Postgres spools hold binary cells in every row (preview rows included): format them with the
+        // driver so rows after the preview read exactly like the preview rows.
+        if metadata.rowEncoding == "binary_v1", let oids = postgresColumnOIDs() {
+            return PostgresSpoolColumns.decodeRow(data, oids: oids)
+        }
         if metadata.rowEncoding == "binary_v1" {
             let binaryRow = ResultBinaryRow(data: data)
             let columnCount = max(metadata.columns.count, 1)
@@ -49,5 +54,13 @@ extension ResultSpoolHandle {
                 }
             }
         }
+    }
+
+    /// Column OIDs for a Postgres spool (computed once per spool), `nil` for other engines.
+    func postgresColumnOIDs() -> [UInt32]? {
+        if let cached = cachedPostgresOIDs { return cached.value }
+        let oids = PostgresSpoolColumns.oids(for: metadata.columns)
+        if !metadata.columns.isEmpty { cachedPostgresOIDs = CachedOIDs(value: oids) }
+        return oids
     }
 }

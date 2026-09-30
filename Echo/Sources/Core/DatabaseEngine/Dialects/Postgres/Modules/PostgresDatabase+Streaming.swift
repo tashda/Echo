@@ -22,6 +22,36 @@ extension PostgresSession {
         progressHandler: @escaping QueryProgressHandler,
         previewLimit: Int? = nil
     ) async throws -> QueryResultSet {
+        // Query tabs run on their pinned connection (transactions and session state survive between
+        // runs); other sessions lease a pooled connection. Only the source of the rows differs.
+        let pinned: PostgresSessionConnection?
+        do {
+            pinned = try await pinnedSession()
+        } catch {
+            throw normalizeError(error, contextSQL: sanitizedSQL)
+        }
+        if let pinned {
+            return try await consumeStreamedRows(
+                sanitizedSQL: sanitizedSQL,
+                progressHandler: progressHandler,
+                makeRows: { try await pinned.query(sanitizedSQL) }
+            )
+        }
+        return try await self.client.withConnection { connection in
+            try await self.consumeStreamedRows(
+                sanitizedSQL: sanitizedSQL,
+                progressHandler: progressHandler,
+                makeRows: { try await connection.simpleQuery(sanitizedSQL) }
+            )
+        }
+    }
+
+    /// Streams rows into the result worker: 200 formatted preview rows, the rest as raw bytes.
+    private func consumeStreamedRows<Rows: AsyncSequence>(
+        sanitizedSQL: String,
+        progressHandler: @escaping QueryProgressHandler,
+        makeRows: () async throws -> Rows
+    ) async throws -> QueryResultSet where Rows.Element == PostgresRow {
         let operationStart = CFAbsoluteTimeGetCurrent()
 
         let initialPreviewBatch = 200
@@ -38,7 +68,7 @@ extension PostgresSession {
             }
         }
 
-        return try await self.client.withConnection { connection in
+        do {
             var columns: [ColumnInfo] = []
             var previewRows: [[String?]] = []
             previewRows.reserveCapacity(initialPreviewBatch)
@@ -51,7 +81,7 @@ extension PostgresSession {
             var columnCount = 0
 
             do {
-                let rowSequence = try await connection.simpleQuery(sanitizedSQL)
+                let rowSequence = try await makeRows()
 
                 for try await row in rowSequence {
                     if Task.isCancelled {

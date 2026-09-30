@@ -123,8 +123,7 @@ struct ResultBinaryRowCodec {
         }
     }
 
-    /// Type-aware decode: formats each cell using direct binary interpretation.
-    /// Avoids creating ByteBuffer/PostgresCell per cell — ~10x faster than PostgresPayloadFormatter path.
+    /// Type-aware decode: TDS columns via TDSBinaryDecoder, Postgres `NAME(OID)` columns via the driver.
     nonisolated static func decode(_ binaryRow: ResultBinaryRow, columns: [ColumnInfo]) -> [String?] {
         let data = binaryRow.data
         var result: [String?] = []
@@ -165,15 +164,10 @@ struct ResultBinaryRowCodec {
                 } else {
                     result.append(String(data: Data(cellData), encoding: .utf8))
                 }
+            } else if let oid = PostgresSpoolColumns.oid(for: colType) {
+                result.append(PostgresCellFormatter().stringValue(oid: oid, data: Data(cellData)))
             } else {
-                let oid = PostgresDataTypeOIDMap.oid(for: colType) ?? 25
-                if let formatted = DirectBinaryDecoder.format(cellData, oid: oid) {
-                    result.append(formatted)
-                } else {
-                    let slowFormatter = PostgresPayloadFormatter()
-                    let payload = ResultCellPayload(dataTypeOID: oid, format: .binary, bytes: Data(cellData))
-                    result.append(slowFormatter.stringValue(for: payload, columnIndex: columnIndex))
-                }
+                result.append(String(data: Data(cellData), encoding: .utf8))
             }
             columnIndex += 1
         }
