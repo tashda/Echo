@@ -17,9 +17,9 @@ struct ScenariosTestPage: View {
         let result = store.result(for: scenario.id)
         switch filter {
         case .all: break
-        case .failing: guard result?.verdict.isFail == true, scenario.knownIssue == nil else { return false }
+        case .failing: guard result?.isFailing == true, scenario.knownIssue == nil else { return false }
         case .known: guard scenario.knownIssue != nil else { return false }
-        case .unchecked: guard result?.verdict == .unchecked else { return false }
+        case .unchecked: guard result.map({ !$0.isFailing && !$0.isPass }) == true else { return false }
         case .imported: guard scenario.review == .imported else { return false }
         }
         let query = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -109,12 +109,9 @@ struct ScenariosTestPage: View {
         let result = store.result(for: scenario.id)
         let (symbol, tint): (String, Color) = {
             guard let result else { return ("circle", ColorTokens.Text.tertiary) }
-            switch result.verdict {
-            case .pass: return (scenario.knownIssue != nil ? "exclamationmark.circle" : "checkmark.circle.fill", scenario.knownIssue != nil ? ColorTokens.Status.warning : ColorTokens.Status.success)
-            case .fail: return scenario.knownIssue != nil ? ("exclamationmark.triangle.fill", ColorTokens.Status.warning) : ("xmark.octagon.fill", ColorTokens.Status.error)
-            case .unchecked: return ("questionmark.circle", ColorTokens.Text.tertiary)
-            case .error: return ("exclamationmark.octagon", ColorTokens.Status.error)
-            }
+            if result.isFailing { return scenario.knownIssue != nil ? ("exclamationmark.triangle.fill", ColorTokens.Status.warning) : ("xmark.octagon.fill", ColorTokens.Status.error) }
+            if result.isPass { return (scenario.knownIssue != nil ? "exclamationmark.circle" : "checkmark.circle.fill", scenario.knownIssue != nil ? ColorTokens.Status.warning : ColorTokens.Status.success) }
+            return ("questionmark.circle", ColorTokens.Text.tertiary)
         }()
         return HStack(spacing: 8) {
             Image(systemName: symbol).foregroundStyle(tint).frame(width: 16)

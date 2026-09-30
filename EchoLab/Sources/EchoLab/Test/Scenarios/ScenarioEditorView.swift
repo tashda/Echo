@@ -76,18 +76,15 @@ struct ScenarioEditorView: View {
     private var verdictBanner: some View {
         if let result {
             let known = scenario.knownIssue != nil
-            switch result.verdict {
-            case .pass:
+            if result.isFailing {
+                banner(known ? "Known issue: it fails as noted" : "Fails", symbol: known ? "exclamationmark.triangle.fill" : "xmark.octagon.fill",
+                       tint: known ? ColorTokens.Status.warning : ColorTokens.Status.error, lines: result.failureReasons + (known ? ["Noted: \(scenario.knownIssue ?? "")"] : []))
+            } else if result.isPass {
                 banner(known ? "Passes now, but it is listed as a known issue: remove the flag." : "Passes", symbol: "checkmark.circle.fill",
                        tint: known ? ColorTokens.Status.warning : ColorTokens.Status.success, lines: [])
-            case .fail(let reasons):
-                banner(known ? "Known issue: it fails as noted" : "Fails", symbol: known ? "exclamationmark.triangle.fill" : "xmark.octagon.fill",
-                       tint: known ? ColorTokens.Status.warning : ColorTokens.Status.error, lines: reasons + (known ? ["Noted: \(scenario.knownIssue ?? "")"] : []))
-            case .unchecked:
+            } else {
                 banner("No expected result yet", symbol: "questionmark.circle", tint: ColorTokens.Text.secondary,
                        lines: ["Write what should come back, or press “Use actual as expected” if what the engine does now is right."])
-            case .error(let message):
-                banner("Could not run", symbol: "exclamationmark.octagon", tint: ColorTokens.Status.error, lines: [message])
             }
         }
     }
@@ -164,8 +161,19 @@ struct ScenarioEditorView: View {
                 HStack(spacing: SpacingTokens.md) {
                     fact("Clause", actual.clause); fact("Token", actual.token.isEmpty ? "none" : "“\(actual.token)”"); fact("Results", "\(actual.titles.count)")
                 }
+                Text(actual.triggerNote).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                if let after = actual.textAfterAccepting {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("After accepting the first suggestion").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
+                        Text(after).font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
+                    }
+                }
                 if actual.titles.isEmpty {
-                    Text("Nothing offered.").font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
+                    Text(actual.popupShown ? "Nothing offered." : "No popup.").font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
+                    if !actual.engineTitles.isEmpty {
+                        Text("If asked anyway, EchoSense would offer: \(actual.engineTitles.prefix(8).joined(separator: ", "))\(actual.engineTitles.count > 8 ? " and \(actual.engineTitles.count - 8) more" : "")")
+                            .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
+                    }
                     if scenario.trigger == .typing, !actual.manualTitles.isEmpty {
                         Text("By hand (⌘.): \(actual.manualTitles.prefix(10).joined(separator: ", "))\(actual.manualTitles.count > 10 ? " and \(actual.manualTitles.count - 10) more" : "")")
                             .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
@@ -221,7 +229,7 @@ struct ScenarioEditorView: View {
             }
             TextField("", text: echoTextBinding(\.textAfterAccepting), prompt: Text("Text after accepting the selected suggestion, with | for the caret"), axis: .vertical)
                 .textFieldStyle(.roundedBorder).lineLimit(1...3)
-            Label("Echo's editor rules are being moved into EchoSense so they run here too. Until then this is written down but not checked.", systemImage: "info.circle")
+            Label("Checked: whether the popup opens, the selected suggestion, and the text after accepting it (the rules are EchoSense's, shared with Echo's editor). Ghost text and suppression after accepting are written down but not checked yet.", systemImage: "info.circle")
                 .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
         }
     }

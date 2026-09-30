@@ -86,12 +86,9 @@ final class ScenarioStore {
         var summary = Summary()
         for scenario in library.scenarios {
             guard let result = results[scenario.id] else { continue }
-            switch result.verdict {
-            case .pass: summary.pass += 1
-            case .unchecked: summary.unchecked += 1
-            case .error: summary.error += 1
-            case .fail: if scenario.knownIssue != nil { summary.known += 1 } else { summary.fail += 1 }
-            }
+            if result.isFailing {
+                if scenario.knownIssue != nil { summary.known += 1 } else { summary.fail += 1 }
+            } else if result.isPass { summary.pass += 1 } else { summary.unchecked += 1 }
         }
         return summary
     }
