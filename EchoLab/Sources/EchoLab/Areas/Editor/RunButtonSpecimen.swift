@@ -6,6 +6,28 @@ import SwiftUI
 final class RunSpecimenState {
     let simulation = LabRunSimulation()
     var hasSelection = false
+    /// Settings › Appearance › Line Number Gutter.
+    var gutter: EditorGutterLook = .subtle
+    /// Settings › Appearance › Statement Focus (on by default).
+    var statementFocus = true
+    /// A failing line shows a red dot beside its number.
+    var showsError = false
+
+    /// The Spec page forces a state: a gutter style, or the error dot.
+    func force(_ key: String?) {
+        switch key {
+        case "column": gutter = .column
+        case "lane": gutter = .lane
+        case "subtle": gutter = .subtle
+        case "error": showsError = true
+        default: break
+        }
+    }
+}
+
+enum EditorGutterLook: String, CaseIterable, Identifiable {
+    case subtle = "Subtle (default)", column = "Column", lane = "Lane"
+    var id: String { rawValue }
 }
 
 /// Run as Echo has it today (QueryRunToolbarControl, commit 92d9b637), copied so the page stays a
@@ -41,34 +63,76 @@ struct RunButtonSpecimen: View {
         }
     }
 
-    /// The editor, with line 2 selected when Selection is on, and the inline result after a run.
+    /// The editor card as `SQLTextView` and `LineNumberRulerView` draw it: the gutter in its
+    /// chosen style, the caret's line as a rounded band, the statement band and Run arrow when the
+    /// script has more than one statement, an error dot, and the run note after a run.
     private var editorCard: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            line(1, "select *", selected: false)
-            HStack(spacing: SpacingTokens.md) {
-                line(2, "from employees.employee", selected: state.hasSelection)
-                if case .succeeded(let rows, let seconds) = state.simulation.phase {
-                    Text("✓ \(rows.formatted()) rows · \(seconds.formatted(.number.precision(.fractionLength(1)))) s")
-                        .foregroundStyle(ColorTokens.Status.success)
-                        .specAnchor("3.3")
-                        .transition(.opacity)
+        let lines = ["select *", "from employees.employee", "where hire_date > '2020-01-01';", "", "select count(*) from departments;"]
+        let gutterWidth: CGFloat = 4 + 5 + 2 + 2 * 6.7 + 12
+        return ZStack(alignment: .topLeading) {
+            gutterBackground(width: gutterWidth)
+            // The caret's line: a band inset 6pt, corner 6pt.
+            RoundedRectangle(cornerRadius: LayoutTokens.EditorGutter.currentLineCornerRadius, style: .continuous)
+                .fill(ColorTokens.Text.primary.opacity(0.05))
+                .frame(height: 20).padding(.horizontal, LayoutTokens.EditorGutter.currentLineInset)
+                .offset(y: 8 + 20 * 1).specAnchor("2.4")
+            if state.statementFocus {
+                Rectangle().fill(ColorTokens.accent.opacity(LayoutTokens.EditorGutter.statementBandOpacity))
+                    .frame(height: 60).offset(y: 8).specAnchor("3.1")
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { index, text in
+                    HStack(spacing: 0) {
+                        ZStack(alignment: .leading) {
+                            if state.showsError && index == 2 {
+                                Circle().fill(ColorTokens.Status.error).frame(width: 5, height: 5).offset(x: LayoutTokens.EditorGutter.markerLeading).specAnchor("2.3")
+                            } else if state.statementFocus && index == 0 {
+                                Image(systemName: "arrowtriangle.right.fill").font(.system(size: 8)).foregroundStyle(ColorTokens.accent)
+                                    .offset(x: LayoutTokens.EditorGutter.markerLeading).specAnchor("3.2")
+                            }
+                            Text("\(index + 1)").font(.system(size: 11, weight: index == 1 ? .semibold : .regular).monospacedDigit())
+                                .foregroundStyle(index == 1 ? ColorTokens.accent : ColorTokens.Text.tertiary)
+                                .frame(width: gutterWidth - LayoutTokens.EditorGutter.numberTrailing, alignment: .trailing)
+                                .optionalSpecAnchor(index == 0 ? "2.2" : nil)
+                        }
+                        .frame(width: gutterWidth, alignment: .leading)
+                        HStack(spacing: LayoutTokens.EditorGutter.runNoteGap) {
+                            Text(text).background(index == 1 && state.hasSelection ? ColorTokens.accent.opacity(0.25) : .clear)
+                            if index == 2, case .succeeded(let rows, let seconds) = state.simulation.phase {
+                                Text("✓ \(rows.formatted()) rows · \(seconds.formatted(.number.precision(.fractionLength(1)))) s")
+                                    .font(TypographyTokens.detail).foregroundStyle(.green).transition(.opacity).specAnchor("3.3")
+                            }
+                        }
+                    }
+                    .frame(height: 20)
                 }
             }
-            Spacer(minLength: SpacingTokens.none)
+            .padding(.top, 8)
         }
         .font(TypographyTokens.code)
-        .padding(SpacingTokens.md)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .workspaceCard()
         .specAnchor("1.1")
     }
 
-    private func line(_ number: Int, _ text: String, selected: Bool) -> some View {
-        HStack(spacing: SpacingTokens.md) {
-            Text("\(number)").foregroundStyle(ColorTokens.Text.tertiary).specAnchor("2.2")
-            Text(text)
-                .background(selected ? ColorTokens.accent.opacity(0.25) : .clear)
-                .specAnchor(number == 2 ? "3.1" : "1.2")
+    @ViewBuilder
+    private func gutterBackground(width: CGFloat) -> some View {
+        switch state.gutter {
+        case .subtle: EmptyView()
+        case .column:
+            HStack(spacing: 0) {
+                Rectangle().fill(ColorTokens.Text.primary.opacity(0.04)).frame(width: width)
+                    .overlay(alignment: .trailing) { Rectangle().fill(.separator).frame(width: LayoutTokens.EditorGutter.edgeWidth) }
+                Spacer()
+            }.specAnchor("2.1")
+        case .lane:
+            HStack(spacing: 0) {
+                RoundedRectangle(cornerRadius: LayoutTokens.EditorGutter.laneCornerRadius, style: .continuous)
+                    .fill(ColorTokens.Text.primary.opacity(0.04))
+                    .frame(width: max(width - LayoutTokens.EditorGutter.laneInset * 2, 0))
+                    .padding(LayoutTokens.EditorGutter.laneInset)
+                Spacer()
+            }.specAnchor("2.1")
         }
     }
 }
@@ -168,5 +232,12 @@ struct RunSpecimenGlyph: View {
             .font(TypographyTokens.standard)
             .foregroundStyle(ColorTokens.Text.primary)
             .frame(width: Self.size, height: Self.size)
+    }
+}
+
+private extension View {
+    /// `specAnchor` only when there is a number.
+    @ViewBuilder func optionalSpecAnchor(_ number: String?) -> some View {
+        if let number { specAnchor(number) } else { self }
     }
 }

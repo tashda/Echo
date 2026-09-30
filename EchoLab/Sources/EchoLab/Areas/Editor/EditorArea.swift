@@ -14,7 +14,7 @@ enum EditorArea {
         asBuilt: AsBuiltPage(
             verification: .init(
                 level: .code, commit: "30e73ffb", date: "2026-09-30",
-                note: "Read from QueryRunToolbarControl, WorkspaceTab+RunModes, QueryRunMode, LineNumberRulerView, SQLTextView+StatementFocus and +RunNote, EmptyQueryHints, SQLEditorTheme and the editor settings. The specimen is a copy of the Run control (native button, accent with a selection, red while running) beside a plain editor card; the gutter styles and statement focus are not drawn in it."),
+                note: "Read from QueryRunToolbarControl, WorkspaceTab+RunModes, QueryRunMode, LineNumberRulerView, SQLTextView+StatementFocus and +RunNote, EmptyQueryHints, SQLEditorTheme and the editor settings. The specimen is a copy of the Run control (native button, accent with a selection, red while running) beside an editor card that draws the gutter styles, caret line, statement focus, error dot and run note."),
             stageHeight: 520,
             behaviours: [
                 .init(trigger: "Idle", result: "Run is a standard toolbar button, a plain ▶ in a capsule of its own, like its neighbours: no tint, no chevron. It is disabled while the script is empty or a query is running."),
@@ -86,7 +86,7 @@ enum EditorArea {
         .controls {
             EditorControls(state: runState)
         },
-        spec: EditorSpec.spec(stageHeight: 520, specimen: { RunButtonSpecimen(state: runState) }, controls: { EditorControls(state: runState) })
+        spec: EditorSpec.spec(stageHeight: 520, specimen: { RunButtonSpecimen(state: runState) }, controls: { EditorControls(state: runState) }).onState { runState.force($0) }
     )
 }
 
@@ -99,6 +99,11 @@ private struct EditorControls: View {
         @Bindable var simulation = state.simulation
         HStack(spacing: SpacingTokens.md) {
             Toggle("Text selected", isOn: $state.hasSelection)
+            Picker("Gutter", selection: $state.gutter) {
+                ForEach(EditorGutterLook.allCases) { Text($0.rawValue).tag($0) }
+            }.frame(width: 200)
+            Toggle("Statement focus", isOn: $state.statementFocus)
+            Toggle("Error line", isOn: $state.showsError)
             Button(simulation.phase.isRunning ? "Cancel" : "Run (⌘↩)") { simulation.toggle() }
                 .keyboardShortcut(.return, modifiers: .command)
             Button("Finish now") { simulation.finish(outcome: simulation.outcome) }

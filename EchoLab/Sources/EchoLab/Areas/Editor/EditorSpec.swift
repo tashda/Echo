@@ -34,7 +34,7 @@ enum EditorSpec {
             ], files: [textView]),
         ]),
         SpecPart(number: "2", name: "Gutter", summary: "The strip of line numbers at the left.", elements: [
-            SpecElement(number: "2.1", name: "Style", summary: "Subtle (the default), Column or Lane (a setting).", groups: [
+            SpecElement(number: "2.1", name: "Style", summary: "Subtle (the default), Column or Lane (a setting).", states: [SpecState(key: "column", name: "Column"), SpecState(key: "lane", name: "Lane"), SpecState(key: "subtle", name: "Subtle")], defaultState: "column", groups: [
                 .material(.row("Subtle", "numbers only"),
                           .row("Column", "a faint full-height column in the theme's gutter colour with a 0.5pt separator edge towards the text", token: "LayoutTokens.EditorGutter.edgeWidth"),
                           .row("Lane (GT2)", "the same colour as a rounded lane inset 5pt, corner 8pt, no edge", token: "laneInset / laneCornerRadius")),
@@ -47,7 +47,7 @@ enum EditorSpec {
                         .row("Gap to the code", "12pt", token: "LayoutTokens.EditorGutter.numberTrailing")),
                 .behaviour(.row("Wrapped lines", "one number per logical line; continuations stay blank"), .row("After a final newline", "the empty line is numbered")),
             ], files: [textView, tokens]),
-            SpecElement(number: "2.3", name: "Validation marker", summary: "A red dot on a failing line.", groups: [
+            SpecElement(number: "2.3", name: "Validation marker", summary: "A red dot on a failing line.", states: [SpecState(key: "error", name: "Error line")], defaultState: "error", groups: [
                 .layout(.row("Size", "5pt", token: "LayoutTokens.EditorGutter.markerSize"), .row("Leading", "4pt", token: "markerLeading")),
                 .material(.row("Colour", "error", token: "ColorTokens.Status.error")),
                 .behaviour(.row("Wins over the Run arrow", "a line with an error dot shows no Run arrow")),

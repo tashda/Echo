@@ -3,6 +3,7 @@ import SwiftUI
 /// Connections as they are in Echo today (plan Phase 13, decisions 2026-09-30).
 @MainActor
 enum ConnectionsArea {
+    private static let state = ConnectionsSpecimenState()
     static let area = LabArea(
         id: "connections",
         title: "Connections",
@@ -11,7 +12,7 @@ enum ConnectionsArea {
         asBuilt: AsBuiltPage(
             verification: .init(
                 level: .code, commit: "30e73ffb", date: "2026-09-30",
-                note: "Read line by line from ConnectionEditorView (+Detail, +DetailSections, +SecuritySection, +TestToolbar, +Support, +Actions), ManageConnectionsView and the ManageConnections tokens. The specimen is the Round 14 mock of Manage Connections and does not draw every row."),
+                note: "Read line by line from ConnectionEditorView (+Detail, +DetailSections, +SecuritySection, +TestToolbar, +Support, +Actions), ManageConnectionsView and the ManageConnections tokens. The specimen draws the form itself (a native grouped form with the same rows, in the three presentations); the Manage Connections window is the Round 14 mock and is approximate."),
             stageHeight: 620,
             behaviours: [
                 .init(trigger: "Quick Connect (the rail's + menu)", result: "The connection sheet with Save to Connections off: Connect uses the connection once and keeps its password in the Keychain; with it on, the button is Save and Connect."),
@@ -67,8 +68,9 @@ enum ConnectionsArea {
                 "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken+ManageConnections.swift",
             ]
         ) {
-            LabRound14ManageConnections()
-        },
-        spec: ConnectionsSpec.spec(stageHeight: 620) { LabRound14ManageConnections() }
+            ConnectionsSpecimen(state: state)
+        }
+        .controls { ConnectionsSpecimenControls(state: state) },
+        spec: ConnectionsSpec.spec(stageHeight: 640, specimen: { ConnectionsSpecimen(state: state) }, controls: { ConnectionsSpecimenControls(state: state) }).onState { state.force($0) }
     )
 }

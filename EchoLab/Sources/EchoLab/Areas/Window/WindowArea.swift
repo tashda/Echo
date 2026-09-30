@@ -12,7 +12,7 @@ enum WindowArea {
         asBuilt: AsBuiltPage(
             verification: .init(
                 level: .code, commit: "d359a536", date: "2026-09-30",
-                note: "Read from WorkspaceShell, ServerRail, ServerRailEntry, ServerRailMonogram, WorkspaceWelcomeView, ConnectionDashboardView and the workspace, rail and welcome tokens. The specimen is the Echo Labs rail with a stand-in tree and two cards; it has no tool pill."),
+                note: "Read from WorkspaceShell, ServerRail, ServerRailEntry, ServerRailMonogram, WorkspaceWelcomeView, ConnectionDashboardView and the workspace, rail and welcome tokens. The specimen is the Echo Labs rail (servers and the tool pill) with a stand-in tree and two cards."),
             stageHeight: 520,
             behaviours: [
                 .init(trigger: "Click a server in the rail", result: "With the tree showing, the tree glides to that server and the rail keeps it selected while it does. While you scroll, the rail marks the server whose card is at the top."),

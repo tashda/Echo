@@ -10,23 +10,23 @@ enum ConnectionsSpec {
     private static let tokens = "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken+ManageConnections.swift"
     private static let r14 = "ported.Round 14 · connections"
 
-    static func spec<Specimen: View>(stageHeight: CGFloat, @ViewBuilder specimen: @escaping () -> Specimen) -> AreaSpec {
-        AreaSpec(code: "CON", stageHeight: stageHeight, parts: parts, specimen: specimen)
+    static func spec<Specimen: View, Controls: View>(stageHeight: CGFloat, @ViewBuilder specimen: @escaping () -> Specimen, @ViewBuilder controls: @escaping () -> Controls) -> AreaSpec {
+        AreaSpec(code: "CON", stageHeight: stageHeight, parts: parts, specimen: specimen).controls(controls)
     }
 
     private static let parts: [SpecPart] = [
         SpecPart(number: "1", name: "Presentations", summary: "One form, shown three ways.", elements: [
-            SpecElement(number: "1.1", name: "Quick Connect sheet", summary: "For a one-off connection. Opened from the rail's + menu.", groups: [
+            SpecElement(number: "1.1", name: "Quick Connect sheet", summary: "For a one-off connection. Opened from the rail's + menu.", states: [SpecState(key: "quick", name: "Quick Connect")], defaultState: "quick", groups: [
                 .layout(.row("Width", "520pt", token: "ConnectionEditorView.body"), .row("Height", "360pt minimum, 520 ideal, 720 maximum")),
                 .behaviour(.row("Save to Connections", "off at first; name, folder and colour stay hidden"),
                            .row("Connect", "connects once; the password is still saved in the Keychain (CR6)"),
                            .row("Save to Connections on", "the button reads Save and Connect")),
             ], rounds: [r14], files: [editor + "ConnectionEditorView.swift", workspace]),
-            SpecElement(number: "1.2", name: "New Connection sheet", summary: "The same sheet, for a connection to keep.", groups: [
+            SpecElement(number: "1.2", name: "New Connection sheet", summary: "The same sheet, for a connection to keep.", states: [SpecState(key: "new", name: "New Connection")], defaultState: "new", groups: [
                 .behaviour(.row("Save to Connections", "always on: no toggle; a \"Saved As\" section holds name, folder and colour"),
                            .row("Buttons", "Cancel, Save, Save and Connect (default)")),
             ], rounds: [r14], files: [editor + "ConnectionEditorView.swift", workspace]),
-            SpecElement(number: "1.3", name: "Inline pane", summary: "The form beside the list in Manage Connections.", groups: [
+            SpecElement(number: "1.3", name: "Inline pane", summary: "The form beside the list in Manage Connections.", states: [SpecState(key: "inline", name: "In Manage Connections")], defaultState: "inline", groups: [
                 .behaviour(.row("Buttons", "Revert (rebuilds from the saved connection), Connect, Save (default)"),
                            .row("Editing", "existing connections are edited only here")),
                 .layout(.row("Button row padding", "12pt (the sheet's is 20pt)", token: "SpacingTokens.sm / md2")),
@@ -72,44 +72,44 @@ enum ConnectionsSpec {
             ], files: [editor + "ConnectionEditorView+DetailSections.swift"]),
         ]),
         SpecPart(number: "4", name: "Security and timeouts", summary: "One disclosure; closed at first.", elements: [
-            SpecElement(number: "4.1", name: "Disclosure", summary: "Its right side summarises the values.", groups: [
+            SpecElement(number: "4.1", name: "Disclosure", summary: "Its right side summarises the values.", states: [SpecState(key: "options", name: "Disclosure open")], defaultState: "options", groups: [
                 .behaviour(.row("Summary", "SQL Server: Optional · 30 s. PostgreSQL: TLS prefer · 30 s. MySQL: TLS or No TLS · 30 s. SQLite: 30 s"),
                            .row("Remembers", "whether you opened it (connectionEditor.optionsExpanded)")),
                 .motion(.row("Disclosure", "system")),
             ], files: [editor + "ConnectionEditorView+Detail.swift"]),
-            SpecElement(number: "4.2", name: "SQL Server rows", summary: "Encryption, certificate and intent.", groups: [
+            SpecElement(number: "4.2", name: "SQL Server rows", summary: "Encryption, certificate and intent.", states: [SpecState(key: "options", name: "Disclosure open")], defaultState: "options", groups: [
                 .behaviour(.row("Encryption", "a menu: Optional (default), Mandatory, Strict (TDS 8.0)"), .row("Trust Server Certificate", "a switch"),
                            .row("Read-Only Intent", "a switch, for AlwaysOn replica routing"),
                            .row("Host Name In Certificate", "a field, only while not trusting the certificate"),
                            .row("CA Certificate Path", "a field with Browse, only while not trusting")),
             ], files: [editor + "ConnectionEditorView+SecuritySection.swift"]),
-            SpecElement(number: "4.3", name: "PostgreSQL rows", summary: "SSL mode and certificates.", groups: [
+            SpecElement(number: "4.3", name: "PostgreSQL rows", summary: "SSL mode and certificates.", states: [SpecState(key: "options", name: "Disclosure open")], defaultState: "options", groups: [
                 .behaviour(.row("SSL Mode", "a menu"), .row("CA Certificate Path", "for verify-ca and verify-full"),
                            .row("Client Certificate and Client Key", "unless the mode is disable")),
             ], files: [editor + "ConnectionEditorView+SecuritySection.swift"]),
-            SpecElement(number: "4.4", name: "MySQL row", summary: "Use SSL/TLS, a switch.", groups: [.behaviour(.row("Use SSL/TLS", "a switch"))], files: [editor + "ConnectionEditorView+SecuritySection.swift"]),
-            SpecElement(number: "4.5", name: "Timeouts", summary: "Connection and query timeouts, in seconds.", groups: [
+            SpecElement(number: "4.4", name: "MySQL row", summary: "Use SSL/TLS, a switch.", states: [SpecState(key: "options", name: "Disclosure open")], defaultState: "options", groups: [.behaviour(.row("Use SSL/TLS", "a switch"))], files: [editor + "ConnectionEditorView+SecuritySection.swift"]),
+            SpecElement(number: "4.5", name: "Timeouts", summary: "Connection and query timeouts, in seconds.", states: [SpecState(key: "options", name: "Disclosure open")], defaultState: "options", groups: [
                 .layout(.row("Fields", "60pt wide, right-aligned, followed by \"seconds\"")),
                 .behaviour(.row("Prompts", "30 for connection, 60 for query")),
             ], files: [editor + "ConnectionEditorView+DetailSections.swift"]),
         ]),
         SpecPart(number: "5", name: "Saved as", summary: "Only while saving.", elements: [
-            SpecElement(number: "5.1", name: "Save to Connections", summary: "A toggle in Quick Connect.", groups: [
+            SpecElement(number: "5.1", name: "Save to Connections", summary: "A toggle in Quick Connect.", states: [SpecState(key: "saving", name: "Saving")], defaultState: "saving", groups: [
                 .behaviour(.row("Off", "name, folder and colour are hidden"), .row("On", "they appear")),
                 .motion(.row("Toggle", "animated")),
             ], files: [editor + "ConnectionEditorView+Detail.swift"]),
-            SpecElement(number: "5.2", name: "Name and folder", summary: "Optional name; a folder menu.", groups: [
+            SpecElement(number: "5.2", name: "Name and folder", summary: "Optional name; a folder menu.", states: [SpecState(key: "saving", name: "Saving")], defaultState: "saving", groups: [
                 .behaviour(.row("Name prompt", "the server, or My Connection"), .row("Left empty", "the connection is named after its server (or SQLite file)"),
                            .row("Folder", "a menu of folders by path (None first)")),
             ], files: [editor + "ConnectionEditorView+Detail.swift", editor + "ConnectionEditorView+Actions.swift"]),
-            SpecElement(number: "5.3", name: "Colour", summary: "Five swatches and a colour picker.", groups: [
+            SpecElement(number: "5.3", name: "Colour", summary: "Five swatches and a colour picker.", states: [SpecState(key: "saving", name: "Saving")], defaultState: "saving", groups: [
                 .layout(.row("Swatch", "20pt circle", token: "SpacingTokens.md2"), .row("Selected ring", "accent, 2pt, 3pt outside", token: "ColorTokens.accent")),
                 .behaviour(.row("Palette", "5A9CDE, 6EAE72, E8943A, 9B72CF, D4687A", token: "ConnectionEditorView.colorPalette")),
                 .motion(.row("Select", "ease in-out, 0.15s")),
             ], files: [editor + "ConnectionEditorView+Detail.swift"]),
         ]),
         SpecPart(number: "6", name: "Footer and checks", summary: "The button row, testing and validation.", elements: [
-            SpecElement(number: "6.1", name: "Buttons", summary: "What the row holds depends on the presentation.", groups: [
+            SpecElement(number: "6.1", name: "Buttons", summary: "What the row holds depends on the presentation.", states: [SpecState(key: "new", name: "Buttons")], defaultState: "new", groups: [
                 .behaviour(.row("Quick Connect", "Test … Cancel, Connect or Save and Connect (default)"),
                            .row("New Connection", "Test … Cancel, Save, Save and Connect (default)"),
                            .row("Inline", "Test … Revert, Connect, Save (default)")),
@@ -120,7 +120,7 @@ enum ConnectionsSpec {
                            .row("Result", "the last log line, with an icon (✓ success, ✕ error, ⓘ info), truncated; click for the whole log in a popover"),
                            .row("Log", "monospaced 11pt, time, then the message; selectable")),
             ], rounds: [r14], files: [editor + "ConnectionEditorView+TestToolbar.swift", editor + "ConnectionEditorView+Testing.swift"]),
-            SpecElement(number: "6.3", name: "Validation", summary: "Buttons are never disabled; missing fields are named (CR1).", groups: [
+            SpecElement(number: "6.3", name: "Validation", summary: "Buttons are never disabled; missing fields are named (CR1).", states: [SpecState(key: "missing", name: "Missing fields")], defaultState: "missing", groups: [
                 .behaviour(.row("Server", "Enter the server's host name or address. (SQLite: Choose a database file.)"), .row("Port", "Enter a port between 1 and 65535."),
                            .row("User", "Enter a user name. / Choose an identity. / The folder has no identity to inherit."),
                            .row("Windows", "Enter the Windows domain. / Enter the Windows password."), .row("Token", "Enter an access token."),
