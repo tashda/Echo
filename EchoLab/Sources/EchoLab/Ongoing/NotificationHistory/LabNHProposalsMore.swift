@@ -29,7 +29,7 @@ struct LabNHCompactCard: View {
         }
         .padding(.horizontal, SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xs)
-        .background(ColorTokens.Background.secondary, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
+        .background(ColorTokens.Workspace.groupFill, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture { openID = isOpen ? nil : notice.id }
     }
@@ -146,7 +146,7 @@ struct LabNHStacked: View {
                         LabNHCompactCard(notice: notice, motion: motion, openID: .constant(nil))
                     } else {
                         RoundedRectangle(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous)
-                            .fill(ColorTokens.Background.secondary)
+                            .fill(ColorTokens.Workspace.groupFill)
                             .overlay(RoundedRectangle(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous)
                                 .strokeBorder(ColorTokens.Workspace.cardEdge.opacity(LayoutTokens.Workspace.cardEdgeOpacity), lineWidth: LayoutTokens.Workspace.cardEdgeWidth))
                             .frame(height: LayoutTokens.FloatingSurface.rowHeight + SpacingTokens.xs)

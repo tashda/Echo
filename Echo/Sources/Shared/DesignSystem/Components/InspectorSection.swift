@@ -41,7 +41,7 @@ struct InspectorSection<Content: View, Actions: View>: View {
             .padding(.vertical, SpacingTokens.xxs)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                ColorTokens.Background.secondary,
+                ColorTokens.Workspace.groupFill,
                 in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous)
             )
         }

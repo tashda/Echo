@@ -21,6 +21,10 @@ public enum ColorTokens {
         public static let card = Color(nsColor: .textBackgroundColor)
         /// The separator edge around a card, at `LayoutTokens.Workspace.cardEdgeOpacity`.
         public static let cardEdge = Color(nsColor: .separatorColor)
+        /// A grouped box or a compact card inside a workspace card (the inspector's sections, the
+        /// notification history's cards). The system's fill for group boxes, so it shows on a white
+        /// card in light mode and adapts to dark and Increase Contrast.
+        public static let groupFill = Color(nsColor: .quaternarySystemFill)
         /// The disc under the selected server in the rail.
         public static let railSelection = Color(nsColor: .textBackgroundColor)
     }

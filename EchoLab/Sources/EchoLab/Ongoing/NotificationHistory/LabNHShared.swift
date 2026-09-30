@@ -29,7 +29,7 @@ struct LabNHHeader: View {
                     .font(TypographyTokens.detail.weight(.semibold).monospacedDigit())
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .padding(.horizontal, SpacingTokens.xxs2)
-                    .background(ColorTokens.Background.secondary, in: .capsule)
+                    .background(ColorTokens.Workspace.groupFill, in: .capsule)
             default:
                 Text("\(unread)")
                     .font(TypographyTokens.headline.monospacedDigit())
@@ -109,7 +109,7 @@ struct LabNHMessageBlock: View {
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(SpacingTokens.xs)
-            .background(ColorTokens.Background.secondary, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius / 2, style: .continuous))
+            .background(ColorTokens.Workspace.groupFill, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius / 2, style: .continuous))
     }
 }
 
@@ -239,7 +239,7 @@ struct LabNHTodayColumn: View {
                     }
                 }
                 .padding(.horizontal, SpacingTokens.sm)
-                .background(ColorTokens.Background.secondary, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius))
+                .background(ColorTokens.Workspace.groupFill, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius))
             }
         }
     }

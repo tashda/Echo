@@ -109,7 +109,7 @@ struct NotificationsSpecimenHistory: View {
         }
         .padding(.horizontal, SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xs)
-        .background(ColorTokens.Background.secondary, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
+        .background(ColorTokens.Workspace.groupFill, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture { openID = isOpen ? nil : event.id }
     }
@@ -133,7 +133,7 @@ struct NotificationsSpecimenDetails: View {
                 }
             }
             .padding(.horizontal, LayoutTokens.Inspector.cardPadding)
-            .background(ColorTokens.Background.secondary, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
+            .background(ColorTokens.Workspace.groupFill, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
             Spacer(minLength: SpacingTokens.none)
         }
         .padding(LayoutTokens.Inspector.cardPadding)

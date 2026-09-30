@@ -111,7 +111,7 @@ struct LabNHCards: View {
             }
         }
         .padding(SpacingTokens.sm)
-        .background(ColorTokens.Background.secondary, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
+        .background(ColorTokens.Workspace.groupFill, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
         .overlay(alignment: .leading) {
             if notice.kind == .error {
                 Capsule().fill(ColorTokens.Status.error)

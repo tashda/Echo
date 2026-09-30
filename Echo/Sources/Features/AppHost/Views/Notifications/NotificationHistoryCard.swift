@@ -33,7 +33,7 @@ struct NotificationHistoryCard: View {
         .padding(.horizontal, SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xs)
         .background(
-            ColorTokens.Background.secondary,
+            ColorTokens.Workspace.groupFill,
             in: .rect(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous)
         )
         .contentShape(Rectangle())
