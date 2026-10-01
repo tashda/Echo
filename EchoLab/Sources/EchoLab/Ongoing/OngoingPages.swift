@@ -310,7 +310,7 @@
     static let serverHeaderLook = LabPage.round(
         id: "ongoing.server-header-look-r30", group: "Explorer tree", title: "Server card: the header · round 30", symbol: "rectangle.topthird.inset.filled",
         status: .judging,
-        summary: "The server's name, product line and dock at the top of its card, beside eight headers with more presence and four colour sources (none, the server's colour, accent, custom). Changes TREE-1.x (server header).",
+        summary: "The server's name, product line and dock at the top of its card. Rev 2: the five headers you kept (HD0 plain, HD4 wash, HD5 line, HD7 plate, HD8 banner) and eight variations on them, and plain, the header's colour and the dock icon's colour as settings. Changes TREE-2.1 and TREE-2.2 (server header).",
         spec: ServerHeaderLookRound.spec)
 
     /// Round 30: Server card: collapsing.

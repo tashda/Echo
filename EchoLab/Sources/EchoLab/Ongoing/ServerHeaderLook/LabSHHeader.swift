@@ -1,99 +1,106 @@
 import SwiftUI
 
 /// The top of a server card in one of round 30.1's styles: name, second line and, where the style
-/// has them, a tile, a status dot or colour behind it. The dock is drawn by the card.
+/// has them, a bar, a plate or a pill. Colour that reaches past the header (washes, banners, the
+/// top line) is drawn by the card (`LabSHTopBackdrop`, `LabSHCardEdge`); the dock by the card too.
 struct LabSHHeader: View {
     let server: LabSHServer
     let look: LabSHLook
     var section = "Databases"
     /// The collapse chevron, shown on hover (round 30.2 decides where it sits).
     var showsChevron = false
+    @Environment(\.workspaceCardCornerRadius) private var cornerRadius
 
     private var tint: Color { look.color(for: server) }
-    private var onBanner: Bool { look.style == .banner }
+    private var onFill: Bool { look.style.isOnFill }
 
     var body: some View {
         HStack(alignment: .center, spacing: SpacingTokens.xs) {
-            leadingTile
-            VStack(alignment: .leading, spacing: look.style == .larger ? SpacingTokens.xxxs : SpacingTokens.micro) {
-                nameLine
-                Text(look.secondLine.text(server, section: section))
-                    .font(SidebarRowConstants.trailingFont)
-                    .foregroundStyle(onBanner ? AnyShapeStyle(ColorTokens.Text.onFill.opacity(0.85)) : AnyShapeStyle(ColorTokens.Text.tertiary))
-                    .lineLimit(1)
-            }
+            textBlock
             Spacer(minLength: SpacingTokens.xxs)
             if showsChevron {
                 Image(systemName: "chevron.down")
                     .font(SidebarRowConstants.sectionChevronFont)
-                    .foregroundStyle(onBanner ? AnyShapeStyle(ColorTokens.Text.onFill) : AnyShapeStyle(ColorTokens.Text.tertiary))
+                    .foregroundStyle(onFill ? AnyShapeStyle(ColorTokens.Text.onFill) : AnyShapeStyle(ColorTokens.Text.tertiary))
             }
         }
-        .padding(.leading, SpacingTokens.sm)
-        .padding(.trailing, SpacingTokens.sm)
+        .padding(.horizontal, SpacingTokens.sm)
         .padding(.top, SpacingTokens.sm)
-        .padding(.bottom, onBanner ? SpacingTokens.sm : SpacingTokens.none)
-        .background(alignment: .top) { backdrop }
+        .padding(.bottom, onFill ? SpacingTokens.sm : SpacingTokens.none)
+        .background(alignment: .top) {
+            switch look.style {
+            case .banner:
+                LinearGradient(colors: [tint.opacity(0.92), tint], startPoint: .top, endPoint: .bottom)
+                    .allowsHitTesting(false)
+            case .insetBanner:
+                insetBanner
+            default:
+                EmptyView()
+            }
+        }
     }
 
     @ViewBuilder
-    private var leadingTile: some View {
+    private var textBlock: some View {
+        let lines = VStack(alignment: .leading, spacing: SpacingTokens.micro) {
+            nameLine
+            Text(look.secondLine.text(server, section: section))
+                .font(SidebarRowConstants.trailingFont)
+                .foregroundStyle(onFill ? AnyShapeStyle(ColorTokens.Text.onFill.opacity(0.85)) : AnyShapeStyle(ColorTokens.Text.tertiary))
+                .lineLimit(1)
+        }
         switch look.style {
-        case .monogram:
-            Text(server.monogram)
-                .font(TypographyTokens.caption2.weight(.bold))
-                .foregroundStyle(look.isColoured ? tint : ColorTokens.Text.secondary)
-                .frame(width: SpacingTokens.lg2, height: SpacingTokens.lg2)
-                .background(tint.opacity(look.isColoured ? 0.14 : 0.1), in: .rect(cornerRadius: SpacingTokens.xs, style: .continuous))
-        case .engine:
-            Image(systemName: server.product.hasPrefix("PostgreSQL") ? "externaldrive.connected.to.line.below" : "cylinder.split.1x2.fill")
-                .font(TypographyTokens.prominent.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.onFill)
-                .frame(width: SpacingTokens.lg2, height: SpacingTokens.lg2)
-                .background(LinearGradient(colors: [tint.opacity(0.85), tint], startPoint: .top, endPoint: .bottom),
-                            in: .rect(cornerRadius: SpacingTokens.xs, style: .continuous))
-                .shadow(color: tint.opacity(0.3), radius: 2, y: 1)
+        case .bar:
+            // The bar sits in the header's leading padding, so the name stays where today's is.
+            lines.overlay(alignment: .leading) {
+                Capsule().fill(tint)
+                    .frame(width: SpacingTokens.nano)
+                    .padding(.vertical, SpacingTokens.micro)
+                    .offset(x: -(SpacingTokens.xxs1 + SpacingTokens.nano))
+            }
+        case .onePlate:
+            lines
+                .padding(.horizontal, SpacingTokens.xs)
+                .padding(.vertical, SpacingTokens.xxs2)
+                .glassEffect(.regular.tint(tint.opacity(look.isColoured ? 0.24 : 0.08)),
+                             in: .rect(cornerRadius: max(cornerRadius - SpacingTokens.xxs1, SpacingTokens.xxs2), style: .continuous))
+                .padding(.leading, -SpacingTokens.xs)
+                .padding(.vertical, -SpacingTokens.xxs2)
         default:
-            EmptyView()
+            lines
         }
     }
 
     @ViewBuilder
     private var nameLine: some View {
         let name = Text(server.name)
-            .font(look.style == .larger ? TypographyTokens.title3.weight(.semibold) : SidebarRowConstants.serverHeaderFont)
-            .foregroundStyle(onBanner ? AnyShapeStyle(ColorTokens.Text.onFill) : AnyShapeStyle(ColorTokens.Text.primary))
+            .font(SidebarRowConstants.serverHeaderFont)
             .lineLimit(1)
         switch look.style {
-        case .status:
-            HStack(spacing: SpacingTokens.xxs2) {
-                name
-                Circle().fill(ColorTokens.Status.success).frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
-            }
         case .plate:
-            name
+            name.foregroundStyle(ColorTokens.Text.primary)
                 .padding(.horizontal, SpacingTokens.xs2)
                 .padding(.vertical, SpacingTokens.xxxs)
                 .glassEffect(.regular.tint(tint.opacity(look.isColoured ? 0.28 : 0.08)), in: .capsule)
                 .padding(.leading, -SpacingTokens.xxs)
+        case .pill:
+            name.foregroundStyle(look.isColoured ? AnyShapeStyle(tint) : AnyShapeStyle(ColorTokens.Text.primary))
+                .padding(.horizontal, SpacingTokens.xs)
+                .padding(.vertical, SpacingTokens.xxxs)
+                .background(tint.opacity(look.isColoured ? 0.15 : 0.1), in: .capsule)
+                .padding(.leading, -SpacingTokens.xxs)
         default:
-            name
+            name.foregroundStyle(onFill ? AnyShapeStyle(ColorTokens.Text.onFill) : AnyShapeStyle(ColorTokens.Text.primary))
         }
     }
 
-    @ViewBuilder
-    private var backdrop: some View {
-        switch look.style {
-        case .wash:
-            LinearGradient(colors: [tint.opacity(look.isColoured ? 0.2 : 0.08), tint.opacity(0)], startPoint: .top, endPoint: .bottom)
-                .frame(height: SpacingTokens.xxxl + SpacingTokens.xl)
-                .allowsHitTesting(false)
-        case .banner:
-            LinearGradient(colors: [tint.opacity(0.92), tint], startPoint: .top, endPoint: .bottom)
-                .allowsHitTesting(false)
-        default:
-            EmptyView()
-        }
+    /// HD15: the banner 5pt in from the card's edges, its corners concentric with the card's.
+    private var insetBanner: some View {
+        RoundedRectangle(cornerRadius: max(cornerRadius - SpacingTokens.xxs1, SpacingTokens.xxs2), style: .continuous)
+            .fill(LinearGradient(colors: [tint.opacity(0.9), tint], startPoint: .top, endPoint: .bottom))
+            .padding(.horizontal, SpacingTokens.xxs1)
+            .padding(.top, SpacingTokens.xxs1)
+            .allowsHitTesting(false)
     }
 }
 

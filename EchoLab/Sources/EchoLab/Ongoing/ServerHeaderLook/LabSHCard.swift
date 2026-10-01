@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// A server card as the tree draws it: the header in one of round 30.1's looks, the dock and the
+/// A server card as the tree draws it: the header in one of round 30.1's looks (colour that reaches
+/// past the header behind the header and dock together, a top line on the card's edge), the dock and the
 /// Databases section's rows (S4 Quiet: a blue cylinder and the name, 29pt slots at the default size).
 struct LabSHCard: View {
     let server: LabSHServer
@@ -14,20 +15,22 @@ struct LabSHCard: View {
     @State private var isHovering = false
 
     var body: some View {
+        let tint = look.color(for: server)
         VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
-            LabSHHeader(server: server, look: look, showsChevron: isHovering)
-            LabSHDock(tint: look.dockTint == .header && look.isColoured ? look.color(for: server) : ColorTokens.accent)
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+                LabSHHeader(server: server, look: look, showsChevron: isHovering)
+                LabSHDock(tint: look.dockColor(for: server))
+            }
+            // A cap or a fading banner ends a little below the dock, not on its edge.
+            .padding(.bottom, look.style == .cap || look.style == .fadingBanner ? SpacingTokens.xxs2 : SpacingTokens.none)
+            .background { LabSHTopBackdrop(look: look, tint: tint).allowsHitTesting(false) }
             VStack(spacing: SpacingTokens.none) {
                 ForEach(rows, id: \.self) { LabSHRow(title: $0, isSelected: $0 == selectedRow) }
             }
             .padding(.bottom, SpacingTokens.xxs)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .top) {
-            if look.style == .edge {
-                look.color(for: server).frame(height: SpacingTokens.nano).allowsHitTesting(false)
-            }
-        }
+        .overlay { LabSHCardEdge(look: look, tint: tint).allowsHitTesting(false) }
         .modifier(LabSHCardSurface(surfaces: surfaces))
         .onHover { isHovering = $0 }
     }

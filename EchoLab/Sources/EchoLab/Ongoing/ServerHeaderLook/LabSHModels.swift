@@ -1,59 +1,84 @@
 import SwiftUI
 
-/// Round 30.1's choices: how the top of a server card looks, and where its colour comes from.
+/// Round 30.1's headers. Rev 2 keeps the five the owner liked (HD0, HD4, HD5, HD7, HD8; HD1, HD2,
+/// HD3 and HD6 are gone at their request) and adds variations on each family. Numbers are never reused.
 enum LabSHStyle: String, CaseIterable {
     case today = "HD0 · Name and product line (today)"
-    case larger = "HD1 · A larger name"
-    case monogram = "HD2 · The rail's monogram beside the name"
-    case engine = "HD3 · The engine's icon on a coloured tile"
     case wash = "HD4 · A wash of colour behind the header"
+    case cap = "HD9 · A tinted cap down to the dock"
+    case glow = "HD10 · A glow from the leading corner"
     case edge = "HD5 · A line of colour along the top"
-    case status = "HD6 · Name with its connection status"
+    case fadingLine = "HD11 · A short line that fades at both ends"
+    case bar = "HD12 · A bar of colour beside the name"
     case plate = "HD7 · The name on a tinted glass plate"
+    case onePlate = "HD13 · Name and product on one glass plate"
+    case pill = "HD14 · The name in a soft pill of colour"
     case banner = "HD8 · A coloured banner"
+    case insetBanner = "HD15 · An inset banner, concentric with the card"
+    case fadingBanner = "HD16 · A banner that fades into the card"
+
+    var family: LabSHFamily {
+        switch self {
+        case .today: .plain
+        case .wash, .cap, .glow: .wash
+        case .edge, .fadingLine, .bar: .line
+        case .plate, .onePlate, .pill: .plate
+        case .banner, .insetBanner, .fadingBanner: .banner
+        }
+    }
+
+    /// White text on a filled header.
+    var isOnFill: Bool { family == .banner }
+
+    /// "HD4" from "HD4 · A wash…".
+    var number: String { rawValue.components(separatedBy: " · ").first ?? rawValue }
+    var name: String { rawValue.components(separatedBy: " · ").last ?? rawValue }
 
     var summary: String {
         switch self {
         case .today: "Bold 13pt name, grey product line, nothing else."
-        case .larger: "The name at 17pt semibold; the product line stays."
-        case .monogram: "The same monogram as the rail, on a soft tile in the colour: the card and the rail read as one server."
-        case .engine: "A rounded tile in the colour with the database engine's symbol, like an app icon."
         case .wash: "The colour fades from the card's top edge to clear behind the name and dock."
-        case .edge: "A 3pt band of colour along the card's top edge; the header itself stays as today."
-        case .status: "A status dot after the name and the login and response time on the second line."
+        case .cap: "A flat, soft tint behind the name and the dock, ending in a hairline of the colour above the rows."
+        case .glow: "A soft radial glow from the top leading corner, strongest behind the name; the dock and rows stay plain."
+        case .edge: "Redrawn: a 2.5pt line that follows the card's top edge and corners and fades down the sides, instead of a flat band cut off by the corners."
+        case .fadingLine: "A 2.5pt line inset from the corners, clear at both ends and full colour in the middle, with a faint glow."
+        case .bar: "A 3pt rounded bar of colour beside the name and product line, like a bookmark; the header is otherwise today's."
         case .plate: "The name sits in a capsule of glass tinted with the colour."
+        case .onePlate: "Both lines share one tinted glass plate, its corners concentric with the card's."
+        case .pill: "The name in the colour on a soft pill of the same colour; no glass."
         case .banner: "The whole header is filled with the colour, white text on top."
+        case .insetBanner: "The banner as a panel 5pt in from the card's edges, corners concentric with the card's (as the editor's lane)."
+        case .fadingBanner: "Full colour behind the name, fading to clear through the dock, so the card has no hard edge between header and rows."
         }
     }
 }
 
+/// The four ideas the owner kept, plus today's plain header.
+enum LabSHFamily: String, CaseIterable {
+    case plain = "Plain", wash = "Wash", line = "Line", plate = "Plate", banner = "Banner"
+    var styles: [LabSHStyle] { LabSHStyle.allCases.filter { $0.family == self } }
+}
+
+/// Where the header's colour comes from. Rev 2: this is a setting (Settings › Appearance › Server
+/// Header Colour); CS3 is gone because SC1 already sets the server's own colour from the header.
 enum LabSHColourSource: String, CaseIterable {
     case none = "CS0 · No colour"
     case server = "CS1 · The server's colour"
     case accent = "CS2 · The accent colour"
-    case custom = "CS3 · A colour you choose per server"
+
+    var settingName: String {
+        switch self {
+        case .none: "None"
+        case .server: "Server's Colour"
+        case .accent: "Accent Colour"
+        }
+    }
 
     var summary: String {
         switch self {
-        case .none: "Grey: the header gains presence from shape and size only."
-        case .server: "The colour set on the connection (Manage Connections), the one the rail's monogram turns when selected."
+        case .none: "Grey: the header gains presence from shape only."
+        case .server: "The colour set on the connection (Manage Connections, or the header's menu with SC1)."
         case .accent: "The system accent colour on every server."
-        case .custom: "A colour picked from the header's menu, remembered for the server; the swatches below stand in for it."
-        }
-    }
-}
-
-/// The swatches standing in for a colour picked in CS3.
-enum LabSHCustomColour: String, CaseIterable {
-    case purple = "Purple", pink = "Pink", orange = "Orange", teal = "Teal", graphite = "Graphite"
-
-    var color: Color {
-        switch self {
-        case .purple: Color(nsColor: .systemPurple)
-        case .pink: Color(nsColor: .systemPink)
-        case .orange: ColorTokens.Status.warning
-        case .teal: Color(nsColor: .systemTeal)
-        case .graphite: ColorTokens.Text.secondary
         }
     }
 }
@@ -74,10 +99,17 @@ enum LabSHSecondLine: String, CaseIterable {
     }
 }
 
-/// Which colour the dock's current icon takes.
+/// Which colour the dock's current icon takes. Rev 2: a setting beside Section Dock Icons.
 enum LabSHDockTint: String, CaseIterable {
     case accent = "DK0 · Accent, as today"
     case header = "DK1 · The header's colour"
+
+    var settingName: String {
+        switch self {
+        case .accent: "Accent Colour"
+        case .header: "Header's Colour"
+        }
+    }
 }
 
 /// Which sample server the Proposal shows.
@@ -122,26 +154,23 @@ struct LabSHServer: Identifiable {
 struct LabSHLook {
     var style: LabSHStyle
     var source: LabSHColourSource
-    var custom: LabSHCustomColour
     var secondLine: LabSHSecondLine
     var dockTint: LabSHDockTint
 
-    static let today = LabSHLook(style: .today, source: .none, custom: .purple, secondLine: .productSection, dockTint: .accent)
+    static let today = LabSHLook(style: .today, source: .none, secondLine: .productSection, dockTint: .accent)
 
-    init(style: LabSHStyle, source: LabSHColourSource, custom: LabSHCustomColour, secondLine: LabSHSecondLine, dockTint: LabSHDockTint) {
+    init(style: LabSHStyle, source: LabSHColourSource, secondLine: LabSHSecondLine, dockTint: LabSHDockTint) {
         self.style = style
         self.source = source
-        self.custom = custom
         self.secondLine = secondLine
         self.dockTint = dockTint
     }
 
     @MainActor init(_ values: RoundValues) {
-        style = LabSHStyle(rawValue: values["style"]) ?? .monogram
+        style = LabSHStyle(rawValue: values["style"]) ?? .glow
         source = LabSHColourSource(rawValue: values["source"]) ?? .server
-        custom = LabSHCustomColour(rawValue: values["custom"]) ?? .purple
         secondLine = LabSHSecondLine(rawValue: values["secondLine"]) ?? .productSection
-        dockTint = LabSHDockTint(rawValue: values["dockTint"]) ?? .accent
+        dockTint = LabSHDockTint(rawValue: values["dockTint"]) ?? .header
     }
 
     func color(for server: LabSHServer) -> Color {
@@ -149,11 +178,15 @@ struct LabSHLook {
         case .none: ColorTokens.Text.secondary
         case .server: server.color
         case .accent: ColorTokens.accent
-        case .custom: custom.color
         }
     }
 
     var isColoured: Bool { source != .none }
+
+    /// The dock's current icon: the header's colour with DK1 when there is one, else the accent.
+    func dockColor(for server: LabSHServer) -> Color {
+        dockTint == .header && isColoured ? color(for: server) : ColorTokens.accent
+    }
 
     func with(_ style: LabSHStyle) -> LabSHLook {
         var copy = self
