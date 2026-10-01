@@ -222,7 +222,10 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
             .background(alignment: .bottom) {
                 ColorTokens.Workspace.card
                     .opacity(LayoutTokens.EdgeBlur.tintOpacity)
-                    .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom))
+                    // An S curve, so the tint has no edge where it starts.
+                    .mask(LinearGradient(stops: BackdropEdgeBlurLayerView.fadeAlphas.reversed().enumerated().map { index, alpha in
+                        .init(color: .black.opacity(Double(alpha)), location: CGFloat(index) / CGFloat(BackdropEdgeBlurLayerView.fadeAlphas.count - 1))
+                    }, startPoint: .top, endPoint: .bottom))
                     .frame(height: footerZone + LayoutTokens.EdgeBlur.fade)
                     .allowsHitTesting(false)
             }

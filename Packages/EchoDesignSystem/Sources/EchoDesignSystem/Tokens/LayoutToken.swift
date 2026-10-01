@@ -108,13 +108,26 @@ public enum LayoutTokens {
         /// How far the blur keeps fading beyond the control it sits under (round 27: longer, so
         /// the blur meets the sharp rows gradually instead of at a line).
         public static let fade: CGFloat = SpacingTokens.lg
-        /// Blur radii from where it meets the sharp content to the edge. The steps stack, so
-        /// near-equal radii with long, overlapping fades make the blur grow evenly from sharp to
-        /// strongest (about 12pt) over the whole fade, instead of jumping within one row (owner,
-        /// after round 27: it read as a line; was 0.75 · 1.5 · 3 · 5 · 7.5 · 10 with 0.45 fades).
-        public static let radii: [CGFloat] = [4, 4.25, 4.5, 5, 5.25, 5.5]
-        /// Share of each step's reach over which it fades out, along a smooth S curve.
-        public static let step: CGFloat = 0.9
+        /// The blur at the edge, and how many steps it takes to get there from sharp.
+        public static let strongest: CGFloat = 12
+        public static let levels = 10
+        /// How the blur eases in from sharp: level k is strongest × (k / levels)^1.5, so it starts
+        /// with the smallest steps, where the eye notices them most.
+        public static let curve: CGFloat = 1.5
+        /// Blur radii from where it meets the sharp content to the edge. The steps stack (each
+        /// blurs what the ones before it made), so each adds just enough to reach the next level,
+        /// and where one fades in it only ever mixes two nearly equal blurs. That reads as one
+        /// smooth blur, not a frosted bar (owner, after round 27: six large steps read as a bar).
+        public static var radii: [CGFloat] {
+            (1...levels).map { k in (pow(level(k), 2) - pow(level(k - 1), 2)).squareRoot() }
+        }
+        /// Share of the blur's reach over which each step fades in: one and a half bands, so
+        /// neighbouring steps overlap.
+        public static var band: CGFloat { 1.5 / CGFloat(levels) }
+
+        private static func level(_ k: Int) -> CGFloat {
+            strongest * pow(CGFloat(k) / CGFloat(levels), curve)
+        }
         /// The blur rising past a horizontal scroll bar while it shows, and settling back after
         /// (round 27, U5).
         public static let raiseDuration: Double = 0.32

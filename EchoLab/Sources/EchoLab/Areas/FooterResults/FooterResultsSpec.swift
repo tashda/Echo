@@ -36,9 +36,9 @@ enum FooterResultsSpec {
                 .behaviour(.row("Empty space", "click to open or close the panel"), .row("Order", "chip · segments · mode chips · space · metrics")),
             ], rounds: [r9], files: [bar]),
             SpecElement(number: "2.2", name: "Soft blur behind", summary: "Rows scroll under the footer and blur away softly (FB1).", groups: [
-                .material(.row("Blur radii", "4 · 4.25 · 4.5 · 5 · 5.25 · 5.5pt, stacked so the blur grows evenly from sharp to about 12pt at the edge, a real blur of the AppKit content (owner, after round 27: the old 0.75 to 10pt steps jumped within one row and read as a line)", token: "LayoutTokens.EdgeBlur.radii"),
+                .material(.row("Blur", "ten small steps from sharp to 12pt at the edge, easing in (level k is 12 × (k/10)^1.5); each step adds just enough blur to reach its level, so where it fades in only two nearly equal blurs mix; a real blur of the AppKit content (owner, after round 27: six larger steps read as a frosted bar)", token: "LayoutTokens.EdgeBlur.strongest / levels / curve"),
                           .row("Fades beyond the footer", "24pt (round 27, was 16)", token: "LayoutTokens.EdgeBlur.fade"),
-                          .row("Step fade", "90% of each step's reach, along an S curve, so the steps overlap", token: "LayoutTokens.EdgeBlur.step"),
+                          .row("Step fade", "each step fades in over 15% of the reach (one and a half bands), along an S curve, so neighbours overlap; the card tint under the footer eases in along the same curve", token: "LayoutTokens.EdgeBlur.band"),
                           .row("Card tint", "the card colour at 35%, a gradient growing towards the bottom, so the footer stays readable", token: "LayoutTokens.EdgeBlur.tintOpacity")),
                 .behaviour(.row("SwiftUI content", "isn't blurred: only the grid and the editor"),
                            .row("Where it lives", "in the scroll view's clip view, under the scroll bars, following the visible area (round 27)")),

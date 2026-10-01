@@ -2201,6 +2201,10 @@
       {
         "date": "2026-10-01T14:36:51Z",
         "text": "Fixed in Echo (f756a13b), the owner's note that the blur cut in a straight line: near-equal radii with overlapping fades, so it grows evenly from sharp to about 12pt"
+      },
+      {
+        "date": "2026-10-01T15:07:42Z",
+        "text": "Changed in Echo, the owner's note that the blur was still a bar: ten small steps from sharp to 12pt, easing in, overlapping fades; the tint eases in too"
       }
     ],
     "needsMore": [],

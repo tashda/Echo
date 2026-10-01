@@ -156,6 +156,15 @@ final class BackdropEdgeBlurLayerView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
+    /// The mask follows the view's size at once, so it never covers a stale part of the view.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        mask.frame = bounds
+        CATransaction.commit()
+    }
+
     /// Decoration only: clicks and scrolling go to the content underneath.
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
@@ -190,11 +199,12 @@ final class BackdropEdgeBlurLayerView: NSView {
     }
 
     /// Where the mask's stops sit, as shares of the view's height from the edge: solid up to where
-    /// this step starts fading, then the S curve to clear at `share` of `reach`.
+    /// this step starts fading, then the S curve to clear at `share` of `reach`, over one
+    /// `EdgeBlur.band` of the reach.
     nonisolated static func locations(reach: CGFloat, of height: CGFloat, share: CGFloat) -> [CGFloat] {
         guard height > 0 else { return Array(repeating: 0, count: fadeAlphas.count) }
         let top = min(max(reach * share / height, 0), 1)
-        let start = top * (1 - LayoutTokens.EdgeBlur.step)
+        let start = max(top - reach * LayoutTokens.EdgeBlur.band / height, 0)
         let span = top - start
         return [0, start, start + span * 0.25, start + span * 0.5, start + span * 0.75, top]
     }

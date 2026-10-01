@@ -51,7 +51,7 @@ struct ScrollBarBlurTests {
         #expect(stops.first == 0)
         #expect(stops.last == 0.5)
         #expect(stops == stops.sorted())
-        #expect(stops[1] == 0.5 * (1 - LayoutTokens.EdgeBlur.step))
+        #expect(stops[1] == 0.5 - 0.5 * LayoutTokens.EdgeBlur.band)
     }
 
     @Test func weakerStepsReachLess() {

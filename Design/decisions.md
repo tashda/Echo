@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · The blur under the footer: ten small steps instead of a frosted bar
+
+Round 27 (U5), the owner's note on the running app: the blur was "a bar of blur", not smoothing to clear as it goes up. The blur is stacked layers, each a real blur of what is under it, faded in by a mask; a layer that fades in shows a mix of two blurs, and when they differ a lot the mix reads as haze with an edge. It is now **ten small steps from sharp to 12pt**, easing in (level k is 12 × (k/10)^1.5, so the smallest steps are at the top), each adding just enough to reach its level and fading in over one and a half bands so neighbours overlap. The card tint under the footer eases in along the same S curve instead of a straight ramp. Replaces the six near-equal radii of f756a13b and the six 0.75 to 10pt steps before it. → FTR blur, `LayoutTokens.EdgeBlur`
+
 ## 2026-10-01 · Round 34 follow-up: no long operation ends silently
 
 Asked in chat ("fix the open points"). A long operation shown on the bell (5 s or more, not cancelled) that posted no notification of its own within 2 s of its end now gets one: "Backup shop finished in 1:12" or "Backup shop failed: reason" (`OperationFinishNotifier`, hooked to `ActivityEngine.onFinish`). Operations that post their own are not doubled. → Echo Labs › Notifications NTF-2.2
