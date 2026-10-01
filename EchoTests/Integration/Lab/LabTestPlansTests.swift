@@ -52,6 +52,25 @@ struct LabTestPlansTests {
         #expect(missing.isEmpty, "add to LabTests.xctestplan: \(missing.sorted().map { "\($0) (\(suites[$0] ?? ""))" })")
     }
 
+    /// Swift Testing ignores the plans' time allowances, so a lab suite carries its own limit:
+    /// without one, a hung test runs until CI's job limit instead of failing in minutes.
+    @Test func everySwiftTestingLabSuiteHasATimeLimit() throws {
+        let testsFolder = Self.repository.appending(path: "EchoTests")
+        let files = FileManager.default.enumerator(at: testsFolder, includingPropertiesForKeys: nil)?
+            .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" } ?? []
+        let suiteTraits = try Regex(#"@Suite\((?:[^@]|@MainActor)*?\n\s*(?:final\s+)?(?:struct|class)\s+(\w+)"#)
+        var unlimited: [String] = []
+        for file in files {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            for match in source.matches(of: suiteTraits) {
+                let declaration = String(source[match.range])
+                guard declaration.contains(".server("), !declaration.contains(".timeLimit(") else { continue }
+                unlimited.append("\(match.output[1].substring ?? "") (\(file.lastPathComponent))")
+            }
+        }
+        #expect(unlimited.isEmpty, "add .timeLimit(.minutes(10)) to: \(unlimited.sorted())")
+    }
+
     @Test func everySQLServerLabSuiteIsInSQLServerVersions() throws {
         let sqlServer = try Self.labSuites().keys.filter { $0.hasPrefix("MSSQL") }
         let missing = Set(sqlServer).subtracting(try Self.selectedTests(of: "SQLServerVersions"))

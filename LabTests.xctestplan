@@ -26,6 +26,7 @@
       "selectedTests" : [
         "FactoryConnectionTests",
         "LabPostgresSessionTests",
+        "LabSQLServerAlwaysEncryptedTests",
         "LabSQLServerImportTests",
         "LabSQLServerSessionTests",
         "MSSQLActivityMonitorTests",

@@ -20,12 +20,14 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
   - **EchoTests:** everything, lab suites on (local use).
   - **LabTests:** only the suites that use lab servers, in one process, with time limits (CI's
     lab job). `LabTestPlansTests` (a unit test) fails when a lab suite is missing from it or, for
-    SQL Server suites, from SQLServerVersions.
+    SQL Server suites, from SQLServerVersions, and when a Swift Testing lab suite has no
+    `.timeLimit`. Adding a lab suite therefore means: add it to LabTests (and SQLServerVersions
+    for `MSSQL*` suites) and give a `@Suite(.server(...))` a `.timeLimit(.minutes(10))`.
   - **SQLServerVersions:** the SQL Server suites in 8 configurations (2017, 2019, 2022, 2025, and
     2017 at compatibility levels 100, 110, 120 and 130).
 - **CI:**
   - **CI (Light)**, pushes to `dev`: UnitTests.
-  - **CI (Full)**, pull requests to `main` and by hand: UnitTests, then EchoTests against testlab
+  - **CI (Full)**, pull requests to `main` and by hand: UnitTests, then LabTests against testlab
     over Tailscale.
   - **Nightly**, by hand: SQLServerVersions.
 
@@ -38,7 +40,9 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
   `.timeLimit(.minutes(10))`. Every CI test step runs through `.github/scripts/run-test-plan.sh`:
   the job log shows test results and a progress line every five minutes, the full log is uploaded
   with the results, and if nothing finishes for 15 minutes it names the tests still running,
-  samples the test processes (`diagnostics/`) and stops the run.
+  samples the test processes (`diagnostics/`) and stops the run. It understands both XCTest and
+  Swift Testing output; the final totals and the failures (as GitHub error annotations) come from
+  the `.xcresult`, not the log.
 - **Locally:** run the EchoTests plan; testlab must be reachable (home network), or set
   `SERVERLAB_HOST=local` for Docker on the Mac.
 

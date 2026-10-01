@@ -6,7 +6,7 @@ import Testing
 
 /// Round 29 against the lab's EncryptedLab.dbo.Patients (SSN deterministic, Salary randomized):
 /// Echo's SQL Server sessions describe the encrypted columns, streamed or not.
-@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("mssql-2022-encryption"))
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("mssql-2022-encryption"), .timeLimit(.minutes(10)))
 @MainActor
 struct LabSQLServerAlwaysEncryptedTests {
     @Test func encryptedColumnsAreDescribedInEveryResultPath() async throws {

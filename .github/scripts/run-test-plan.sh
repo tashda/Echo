@@ -29,9 +29,12 @@ xcodebuild test -project Echo.xcodeproj \
   > "$log" 2>&1 &
 build_pid=$!
 
+# A finished test, in XCTest's format ("Test Case '-[Suite test]' passed (0.1 seconds).") or in
+# Swift Testing's ("✔ Test name() passed after 0.1 seconds.", "✘ Test name() failed after …").
+finished_test="Test [Cc]ase .*' (passed|failed|skipped)|Test .*(passed|failed) after [0-9.]+ seconds|Test [^ ]+ skipped"
 # Lines worth showing: test results, failures, errors, the lab's own lines, the final verdict.
-interesting='Test [Cc]ase .*(passed|failed|skipped)|Test [Ss]uite .*(started|passed|failed)|error:|recorded an issue|\[serverlab\]|\*\* TEST|Testing (started|cancelled|failed)'
-progress='Test [Cc]ase .*(passed|failed|skipped)|\[serverlab\]'
+interesting="$finished_test|Test [Ss]uite .*(started|passed|failed)|Suite .*(passed|failed) after|error:|recorded an issue|\\[serverlab\\]|\\*\\* TEST|Testing (started|cancelled|failed)"
+progress="$finished_test|\\[serverlab\\]"
 
 printed=0
 started=""
@@ -45,9 +48,9 @@ report_stall() {
 import re, sys
 started, finished = {}, set()
 for line in open(sys.argv[1], errors="replace"):
-    m = re.search(r"Test [Cc]ase '(?:-\[\S+ )?([^'\]]+)\]?' started", line)
+    m = re.search(r"Test [Cc]ase '(?:-\[\S+ )?([^'\]]+)\]?' started", line) or re.search(r"Test (\S.*?) started\.", line)
     if m: started[m.group(1)] = line.strip()
-    m = re.search(r"Test [Cc]ase '(?:-\[\S+ )?([^'\]]+)\]?' (passed|failed|skipped)", line)
+    m = re.search(r"Test [Cc]ase '(?:-\[\S+ )?([^'\]]+)\]?' (passed|failed|skipped)", line) or re.search(r"Test (\S.*?) (?:passed|failed) after", line)
     if m: finished.add(m.group(1))
 running = [name for name in started if name not in finished]
 print("\n".join(f"  {name}" for name in running) or "  (none reported as started)")
@@ -82,8 +85,8 @@ while kill -0 "$build_pid" 2>/dev/null; do
     fi
   fi
   if [ $((now - last_heartbeat)) -ge 300 ]; then
-    done_count=$(grep -cE "Test [Cc]ase .*(passed|failed|skipped)" "$log" || true)
-    failed_count=$(grep -cE "Test [Cc]ase .* failed" "$log" || true)
+    done_count=$(grep -cE "$finished_test" "$log" || true)
+    failed_count=$(grep -cE "Test [Cc]ase .*' failed|Test .* failed after" "$log" || true)
     echo "… $(date -u +%H:%M) ${done_count} tests finished, ${failed_count} failed$([ -z "$started" ] && echo ', still building')"
     last_heartbeat=$now
   fi
@@ -98,9 +101,24 @@ wait "$build_pid"
 status=$?
 total=$(wc -l < "$log" | tr -d ' ')
 [ "$total" -gt "$printed" ] && sed -n "$((printed + 1)),${total}p" "$log" | grep -E "$interesting" | cut -c1-300
-echo "Finished: $(grep -cE "Test [Cc]ase .*passed" "$log" || true) passed, $(grep -cE "Test [Cc]ase .*failed" "$log" || true) failed, $(grep -cE "Test [Cc]ase .*skipped" "$log" || true) skipped (exit $status)"
+# The totals and failures come from the result bundle, which counts XCTest and Swift Testing alike;
+# the log is only the fallback when there is no bundle (the build failed or the run was stopped).
+if xcrun xcresulttool get test-results summary --path "$name.xcresult" > "$name.summary.json" 2>/dev/null; then
+  python3 - "$name.summary.json" "$status" <<'SUMMARY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+print("Finished: %s passed, %s failed, %s skipped, %s expected failures of %s (%s, exit %s)" % (
+    d.get("passedTests", 0), d.get("failedTests", 0), d.get("skippedTests", 0),
+    d.get("expectedFailures", 0), d.get("totalTestCount", 0), d.get("result", "?"), sys.argv[2]))
+for failure in d.get("testFailures", [])[:60]:
+    text = " ".join(failure.get("failureText", "").split())[:400]
+    print("::error title=%s::%s" % (failure.get("testIdentifierString", "?"), text))
+SUMMARY
+else
+  echo "Finished without a result bundle (exit $status): $(grep -cE "$finished_test" "$log" || true) tests reported in the log"
+fi
 if [ "$status" -ne 0 ]; then
-  echo "Failures:"
-  grep -E "Test [Cc]ase .* failed|error: " "$log" | cut -c1-300 | head -60
+  echo "Failures and errors in the log:"
+  grep -E "Test [Cc]ase .*' failed|Test .* failed after|recorded an issue|error: |\\*\\* TEST .*FAILED" "$log" | cut -c1-300 | head -60
 fi
 exit "$status"
