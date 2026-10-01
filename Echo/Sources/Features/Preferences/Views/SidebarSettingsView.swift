@@ -14,7 +14,9 @@ struct SidebarSettingsView: View {
             preview: { SidebarSettingsPreview(settings: settings) }
         ) {
             Section {
-                Toggle("Expand one connection at a time", isOn: expandOneConnectionToggle)
+                PropertyRow(title: "Expand one connection at a time", resetAction: projectStore.resetAction(\.sidebarExpandOneConnectionAtATime)) {
+                    Toggle("", isOn: expandOneConnectionToggle).labelsHidden().toggleStyle(.switch)
+                }
             } header: {
                 Text("Object Browser")
             } footer: {
@@ -22,13 +24,17 @@ struct SidebarSettingsView: View {
             }
 
             Section {
-                Toggle("Show scroll bar", isOn: scrollBarToggle)
+                PropertyRow(title: "Show scroll bar", resetAction: projectStore.resetAction(\.sidebarShowsScrollBar)) {
+                    Toggle("", isOn: scrollBarToggle).labelsHidden().toggleStyle(.switch)
+                }
             } footer: {
                 Text("The scroll bar is hidden unless shown here; the rail shows which server you're in.")
             }
 
             Section("Databases") {
-                Toggle("Hide offline databases by default", isOn: hideOfflineToggle)
+                PropertyRow(title: "Hide offline databases by default", resetAction: projectStore.resetAction(\.sidebarHideOfflineDatabasesByDefault)) {
+                    Toggle("", isOn: hideOfflineToggle).labelsHidden().toggleStyle(.switch)
+                }
             }
 
             Section("General") {
