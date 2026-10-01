@@ -1985,6 +1985,10 @@
       {
         "date": "2026-10-01T14:48:57Z",
         "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60): a banner at the top left with Failed on line N, the message, Msg/Level/State chips, Show in Editor, Messages, Copy Error; Running, No rows and Cancelled use the same banner; the editor's red pill unchanged (HL0)."
       }
     ],
     "needsMore": [],
@@ -1998,12 +2002,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "results-agent",
-      "date": "2026-10-01T14:48:57Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.results-header-lines-r41": {
@@ -2023,6 +2022,10 @@
       {
         "date": "2026-10-01T14:48:57Z",
         "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60): ResultTableHeaderView no longer draws its own line; the system header's hairline is the only one; the column dividers stay. Please check: one line under the header, and the row-number column's line meets it."
       }
     ],
     "needsMore": [],
@@ -2034,12 +2037,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "results-agent",
-      "date": "2026-10-01T14:48:57Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.results-messages-r41": {
@@ -2059,6 +2057,10 @@
       {
         "date": "2026-10-01T14:51:52Z",
         "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60): grouped by statement (Line N heading), red symbol and semibold errors, counts that filter, copy and clear in a \u22ef menu; Echo's own lines and the metrics row gone. SQL Server GO batches share the run's heading for now."
       }
     ],
     "needsMore": [],
@@ -2073,12 +2075,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "results-agent",
-      "date": "2026-10-01T14:51:52Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.results-pill-popovers-r41": {
@@ -2098,6 +2095,10 @@
       {
         "date": "2026-10-01T14:51:52Z",
         "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60): selection, rows, time and status each open their own popover with their actions; the status's Commit/Roll Back moved from its menu into the popover. Not yet: server CPU and the session (SPID); the drivers don't report them."
       }
     ],
     "needsMore": [],
@@ -2111,12 +2112,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "results-agent",
-      "date": "2026-10-01T14:51:52Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.results-scrollers-r27": {
@@ -2290,6 +2286,10 @@
       {
         "date": "2026-10-01T14:48:58Z",
         "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60, EchoSense 2aa1815): the pill is only the count; clicking it opens the figures (Count, Sum, Average, Min, Max, Median, Distinct, Empty; text: Count, Distinct, Empty), exact, with Copy per line and Copy All."
       }
     ],
     "needsMore": [],
@@ -2303,12 +2303,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "results-agent",
-      "date": "2026-10-01T14:48:58Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.run-button-look-r20": {

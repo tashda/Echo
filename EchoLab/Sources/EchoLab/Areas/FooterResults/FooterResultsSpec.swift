@@ -11,6 +11,14 @@ enum FooterResultsSpec {
     private static let grid = "Echo/Sources/Features/QueryWorkspace/Views/Results/NativeTable/"
     private static let r9 = "decided.round9-footer-scroller-tabs"
     private static let r10 = "decided.round10-footer-and-switcher"
+    private static let r41Header = "ongoing.results-header-lines-r41"
+    private static let r41Selection = "ongoing.results-selection-summary-r41"
+    private static let r41Error = "ongoing.results-error-page-r41"
+    private static let r41Messages = "ongoing.results-messages-r41"
+    private static let r41Pills = "ongoing.results-pill-popovers-r41"
+    private static let section = "Echo/Sources/Features/QueryWorkspace/Views/Results/Section/"
+    private static let popovers = section + "FooterPopovers/"
+    private static let console = "Echo/Sources/Features/QueryWorkspace/Views/Results/ExecutionConsole/"
 
     static func spec<Specimen: View>(stageHeight: CGFloat, @ViewBuilder specimen: @escaping () -> Specimen) -> AreaSpec {
         AreaSpec(code: "FTR", stageHeight: stageHeight, parts: parts, specimen: specimen)
@@ -27,6 +35,17 @@ enum FooterResultsSpec {
                 .motion(.row("Curve", "smooth, no overshoot", token: "echoMotion.settle"), .row("Duration", "0.45s"),
                         .row("Card chrome", "fades out while it folds")),
             ], rounds: [r10], files: [panels]),
+            SpecElement(number: "1.3", name: "State banner", summary: "What the card says when it has no rows: a banner at the top left (round 41.3, EP1).", groups: [
+                .layout(.row("Place", "top left of the card, 16pt padding; symbol, then title and detail, then chips and actions", token: "SpacingTokens.md"),
+                        .row("Symbol", "title 3, in the state's tint; a small spinner while running", token: "TypographyTokens.title3")),
+                .type(.row("Title", "13pt semibold", token: "TypographyTokens.standard"), .row("Detail", "13pt secondary, selectable")),
+                .states(.row("Failed", "red octagon, \"Failed on line 7\", the message; SQL Server's Msg · Level · State as quiet chips (ED0)", token: "ColorTokens.Sidebar.hoverFill"),
+                        .row("Running", "spinner, \"Running\", Waiting for the first rows."), .row("No rows", "\"No rows\" and the command tag, or The query ran and returned nothing."),
+                        .row("Cancelled", "orange stop, \"Cancelled\", You stopped the query after 4 s.")),
+                .behaviour(.row("Actions on a failure", "Show in Editor (default), Messages, Copy Error, small (EA1); Copy Error copies the numbers' line and the message"),
+                           .row("In the editor", "unchanged: the red pill on the statement's first word (HL0)"),
+                           .row("Rejected", "the centred poster (EP0), no page (EP2), the Messages row (EP3)")),
+            ], rounds: [r41Error], files: [section + "ResultsStateBanner.swift", section + "QueryFailureView.swift"]),
         ]),
         SpecPart(number: "2", name: "Footer", summary: "The floating strip at the bottom of the card.", elements: [
             SpecElement(number: "2.1", name: "Footer", summary: "Floats on the card rather than fixing to its edge (FP1).", groups: [
@@ -69,9 +88,31 @@ enum FooterResultsSpec {
                 .layout(.row("Spacing", "4pt between pills", token: "SpacingTokens.xxs"), .row("Order", "selection summary, rows, time, then the status at the far right")),
                 .type(.row("Selection summary", "11pt tabular digits, secondary"), .row("Rows", "the count in 11pt monospaced medium, its label tertiary"),
                       .row("Time", "11pt monospaced medium, secondary")),
-                .behaviour(.row("Click", "opens or closes the panel, or toggles the statistics popover when the tab has one"),
+                .behaviour(.row("Click", "a pill opens its own popover above it (round 41.5, PP2); a pill without one, or the space between, opens or closes the panel"),
                            .row("Why one each", "one big pill and plain text were rejected"), .row("Style", "pill per entry", token: "FooterMetricsStyle.pillPerEntry")),
-            ], rounds: [r10], files: [bar]),
+            ], rounds: [r10, r41Pills], files: [bar, "Echo/Sources/Shared/DesignSystem/Components/BottomPanelStatusBar+Metrics.swift"]),
+            SpecElement(number: "2.8", name: "Selection pill", summary: "Only the count, \"89 cells\"; the exact figures in its popover (round 41.2).", groups: [
+                .type(.row("Pill", "11pt tabular digits, secondary: \"89 cells\" (SP3)")),
+                .layout(.row("Popover", "260pt: the title (\"89 cells in bagno\" for one column) and Copy All, then a line per figure", token: "LayoutTokens.FloatingSurface.smallWidth")),
+                .behaviour(.row("Figures, numbers", "Count, Sum, Average, Min, Max, Median, Distinct, Empty (FG1); exact, with the selection's decimals", token: "GridSelectionSummary.figures"),
+                           .row("Figures, text", "Count, Distinct, Empty (TX0)"), .row("Copy", "a Copy button on the line under the pointer; Copy All as label–tab–value lines (PO1)"),
+                           .row("Shown", "for two cells or more; over 50,000 cells only counted", token: "GridSelectionSummary.maximumSummedCells")),
+            ], rounds: [r41Selection], files: [popovers + "SelectionSummaryPopover.swift", popovers + "FooterPopoverContent.swift"]),
+            SpecElement(number: "2.9", name: "Rows popover", summary: "What the rows are and what to do with them (round 41.5, PR0).", groups: [
+                .layout(.row("Width", "260pt", token: "LayoutTokens.FloatingSurface.smallWidth"), .row("Title", "1,204 rows · 3 columns")),
+                .behaviour(.row("Lines", "Result 1 of 3 (with several sets), Loaded 1,204 of 1,204, In memory"), .row("Actions", "Export… (the export sheet) and Copy All (every row with the column names, tab-separated), small")),
+            ], rounds: [r41Pills], files: [popovers + "RowsPillPopover.swift"]),
+            SpecElement(number: "2.10", name: "Time popover", summary: "Where the time went (round 41.5, PT0).", groups: [
+                .layout(.row("Width", "320pt", token: "LayoutTokens.FloatingSurface.mediumWidth"), .row("Bar", "8pt capsule: sending (tertiary), waiting for the first row (orange), reading rows (accent)", token: "QueryRunTimeline")),
+                .behaviour(.row("Lines", "Started, Finished, Last runs (this tab's previous runs, newest first, up to 4)"), .row("Action", "Run Again"),
+                           .row("Not yet", "server CPU: Echo doesn't get it from the drivers")),
+            ], rounds: [r41Pills], files: [popovers + "TimePillPopover.swift"]),
+            SpecElement(number: "2.11", name: "Status popover", summary: "What happened and when, and what to do next (round 41.5, PS0).", groups: [
+                .layout(.row("Width", "320pt", token: "LayoutTokens.FloatingSurface.mediumWidth"), .row("Title", "Completed at 15:34:51, Failed on line 7, Running, Cancelled at …")),
+                .behaviour(.row("Lines", "the error message, Transaction (None open, Open since, Failed), Messages (count)"),
+                           .row("Actions", "Cancel while running; Commit and Roll Back in a transaction (round 21, TA2, now in the popover); Show in Editor, Messages, Run Again"),
+                           .row("Not yet", "the session (SPID): Echo doesn't get it from the drivers")),
+            ], rounds: [r41Pills, "ongoing.pg-transaction-state-r21"], files: [popovers + "StatusPillPopover.swift"]),
             SpecElement(number: "2.6", name: "Status", summary: "A dot and a word: Ready, Running, Error; or an icon and a word in a tint.", groups: [
                 .type(.row("Font", "detail 11pt, secondary", token: "TypographyTokens.detail"),
                       .row("With an icon", "the icon 11pt semibold and the word both in the tint (round 21, TL2)")),
@@ -118,9 +159,11 @@ enum FooterResultsSpec {
             SpecElement(number: "4.2", name: "Column header", summary: "The column's name over its type, on two lines.", groups: [
                 .type(.row("Name", "12pt semibold"), .row("Type", "10pt monospaced, under the name")),
                 .layout(.row("Height", "36pt", token: "ResultsGridMetrics.headerHeight")),
+                .material(.row("Line under it", "one hairline, the system header's own; Echo draws none (round 41.1, HL1; it drew a second line 4pt away)"),
+                          .row("Column dividers", "short separators between columns, kept: they mark where to drag a width (VD0)", token: "NSColor.separatorColor")),
                 .behaviour(.row("Sort arrow", "a 14pt box at the trailing edge, shown while hovered or sorted; click it to sort, click elsewhere to select the column",
                                 token: "ResultsGridMetrics.sortIndicatorSize")),
-            ], rounds: ["decided.results-grid"], files: [grid + "Cells/ResultTableHeaderCell.swift", grid + "Cells/ResultTableHeaderView.swift"]),
+            ], rounds: ["decided.results-grid", r41Header], files: [grid + "Cells/ResultTableHeaderCell.swift", grid + "Cells/ResultTableHeaderView.swift"]),
             SpecElement(number: "4.3", name: "Row hover", summary: "A faint rounded tint on the row under the pointer.", groups: [
                 .material(.row("Fill", "hover fill", token: "ColorTokens.Sidebar.hoverFill")),
                 .layout(.row("Inset", "2pt by 1pt", token: "ResultsGridMetrics.hoverHorizontalInset / hoverVerticalInset"), .row("Corner", "5pt", token: "ResultsGridMetrics.hoverCornerRadius")),
@@ -151,6 +194,24 @@ enum FooterResultsSpec {
                files: [grid + "ResultTableContainerView.swift", "Echo/Sources/Shared/DesignSystem/Components/FooterScrollOverlay.swift",
                        "Echo/Sources/Shared/DesignSystem/Components/ScrollBarBlur.swift", "Echo/Sources/Shared/DesignSystem/Components/ScrollSideFades.swift",
                        "Echo/Sources/Shared/DesignSystem/Components/FooterScrollRoom.swift"]),
+        ]),
+        SpecPart(number: "5", name: "Messages", summary: "What the server said, by statement (round 41.4).", elements: [
+            SpecElement(number: "5.1", name: "Top", summary: "No strip: the counts, which filter, and a ⋯ menu (MT1).", groups: [
+                .type(.row("Counts", "11pt: \"1 error\" semibold red, \"2 warnings\" orange, \"3 messages\" secondary; only those there are", token: "TypographyTokens.detail")),
+                .behaviour(.row("Click a count", "shows only those, on a selected capsule; click again for all", token: "ColorTokens.Sidebar.selectedFill"),
+                           .row("⋯ menu", "Copy All Messages, Clear Messages")),
+            ], rounds: [r41Messages], files: [console + "ExecutionConsoleView+Counts.swift"]),
+            SpecElement(number: "5.2", name: "Statement groups", summary: "Each statement a heading, its messages under it (ML1).", groups: [
+                .type(.row("Heading", "\"Line 7\" 11pt semibold, the statement's first line 11pt monospaced, both secondary; the time at the right, tertiary")),
+                .layout(.row("Messages", "12pt in from the heading", token: "SpacingTokens.sm"), .row("Between groups", "8pt", token: "SpacingTokens.xs")),
+                .behaviour(.row("Line 7", "puts the editor on that line"), .row("Scripts", "a PostgreSQL script's statements each head their own line"),
+                           .row("No statement", "a connection's or a maintenance task's messages have no heading")),
+            ], rounds: [r41Messages], files: [console + "ExecutionConsoleView.swift", console + "ExecutionConsoleView+Messages.swift", "Echo/Sources/Features/QueryWorkspace/Domain/QueryMessageStatement.swift"]),
+            SpecElement(number: "5.3", name: "Message", summary: "A symbol and the text; errors red symbol, semibold text, no fill (EE1).", groups: [
+                .type(.row("Text", "13pt primary; an error's semibold", token: "TypographyTokens.standard"),
+                      .row("SQL Server's numbers", "under an error: Msg 248, Level 16, State 1, Line 7 in 11pt tertiary, the line a link (EM1, LL1)")),
+                .behaviour(.row("Time", "on hover"), .row("Gone", "the category and delta columns, Echo's own started/finished/failed lines (EM0), the execution metrics row (DM1: in the time popover)")),
+            ], rounds: [r41Messages], files: [console + "ExecutionConsoleView+Messages.swift"]),
         ]),
     ]
 }

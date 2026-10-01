@@ -5,6 +5,8 @@ import SwiftUI
 /// count, sum and average in full ("89 cells · Sum 34.630.054.833.231 · Avg 389.101.739.699,22"),
 /// which pushes the other pills and can't be copied. Tapping any right-hand pill opens the one
 /// statistics popover (41.5).
+///
+/// Accepted 2026-10-01: SP3 (the owner's pick over SP1), PO1, FG1 and TX0. Built into Echo as FTR-2.8.
 @MainActor
 enum ResultsSelectionSummaryRound {
     enum Pill: String, CaseIterable {
@@ -31,7 +33,7 @@ enum ResultsSelectionSummaryRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("pill", "Pill", Pill.self, default: .compact,
+            .of("pill", "Pill", Pill.self, default: .countOnly,
                 question: "Select the column in each exhibit and compare the pill.",
                 recommend: .compact,
                 why: "You asked for 'Sum 34m'-like text: the count says how many you picked (which catches a wrong selection) and Σ with the locale's compact number says the size. Both fit in about 120pt where today's takes 420pt.",

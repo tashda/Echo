@@ -2,6 +2,16 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 41 accepted: the results card's header line, selection pill, error banner, Messages and pill popovers
+
+Echo Labs › Footer and results › round 41, five pages. Asked: double lines under the column header, a selection pill too wide to read, the error page, a noisy Messages panel, and one popover for every footer pill.
+
+- **41.1 Header line (HL1, VD0):** one hairline under the column header, the system header's own; Echo's extra full-width line is gone. The short column dividers stay (they show where to drag a width). → FTR-4.2
+- **41.2 Selection (SP3, the owner's pick over SP1; PO1, FG1, TX0):** the pill is **only the count** ("89 cells"). Clicking it opens a popover with the exact figures: Count, Sum, Average, Min, Max, Median, Distinct and Empty (NULL) for numbers; Count, Distinct and Empty for text. Each line has a Copy button under the pointer; Copy All copies label–tab–value lines. Figures are exact (decimal arithmetic), keeping the selection's decimals. → FTR-2.8
+- **41.3 Error page (EP1, HL0, ED0, EA1):** a failure is **a banner at the top left of the card**: the red symbol, "Failed on line 7", the message, SQL Server's Msg · Level · State as quiet chips, and Show in Editor, Messages and **Copy Error**. Running, No rows and Cancelled use the same banner. The editor keeps its red pill on the statement's first word (the owner's pick over HL2). → FTR-1.3
+- **41.4 Messages (ML1, EE1, DM1, MT1, EM0):** grouped **by statement** (a "Line 7 · select …" heading, its messages under it); errors are a red symbol and a semibold message with no fill; the counts at the top ("1 error · 2 messages") filter, copy and clear are in a ⋯ menu; the grey strip, category and delta columns, Echo's own started/finished/failed lines and the execution metrics row are gone (the metrics moved to the time popover). → FTR-5.1 to 5.3
+- **41.5 Pill popovers (PP2, PR0, PT0, PS0):** **each pill opens its own popover with its actions.** Rows: rows and columns, result set N of M, loaded of total, memory; Export… and Copy All. Time: a timeline (sending, waiting for the first row, reading rows), started and finished, this tab's last runs; Run Again. Status: what happened and when, the transaction; Cancel, Commit / Roll Back (round 21's status menu, now in the popover), Show in Editor, Messages, Run Again. **Not yet:** server CPU and the session (SPID): the drivers don't report them to Echo. → FTR-2.5, 2.9 to 2.11
+
 ## 2026-10-01 · Round 38 accepted: Security Overview, and a ↗ on rows that open a tab
 
 Echo Labs › Explorer tree › Tree rows that open a tab · round 38. Built in 9498ca2b.

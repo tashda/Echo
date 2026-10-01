@@ -4,6 +4,9 @@ import SwiftUI
 /// tapping anywhere on the right-hand pills toggles one statistics popover (First row, Total, Rows,
 /// Memory), the same for the rows, time and status pills. The owner wants each pill to open its own
 /// popover with what that pill is about.
+///
+/// Accepted 2026-10-01: PP2, PR0, PT0 and PS0. Built into Echo as FTR-2.5 and 2.9 to 2.11. Server CPU
+/// and the session (SPID) are not shown yet: Echo doesn't get them from the drivers.
 @MainActor
 enum ResultsPillPopoversRound {
     enum Style: String, CaseIterable {

@@ -7,6 +7,9 @@ import SwiftUI
 /// Yet"; QueryResultsSection+Views). In the editor, the error mark puts a red pill on the first word of
 /// the statement (SQL Server reports the batch's line, so the mark lands on SELECT), with the Error
 /// bubble after the statement and the hover popover, which the owner likes.
+///
+/// Accepted 2026-10-01: EP1, HL0 (the owner's pick over HL2: the editor stays as it is), ED0 and
+/// EA1. Built into Echo as FTR-1.3 (the banner also serves Running, No rows and Cancelled).
 @MainActor
 enum ResultsErrorPageRound {
     enum Page: String, CaseIterable {
@@ -54,9 +57,9 @@ enum ResultsErrorPageRound {
                 recommend: .banner,
                 why: "A results card is read from the top left; a banner puts the message where your eye already is and leaves room for what ran before the failure (a batch's earlier results). The same banner form serves 'Cancelled' and '12 rows changed', so the card has one pattern instead of five posters. EP2 is tempting but a failed batch can have partial results.",
                 summary: \.summary),
-            .of("highlight", "In the editor", Highlight.self, default: .none,
+            .of("highlight", "In the editor", Highlight.self, default: .firstWord,
                 question: "Look at the editor above each card. How should the failing statement be marked in the text?",
-                recommend: .none,
+                recommend: Highlight.none,
                 why: "You don't like SELECT highlighted, and it is wrong: SQL Server reports the line the statement starts on, not the word that failed. The gutter dot, the Error bubble and its hover say everything without painting the code.",
                 summary: \.summary),
             .of("state", "State", State.self, default: .error),

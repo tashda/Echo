@@ -4,6 +4,9 @@ import SwiftUI
 /// line under the header (229) and a 0.5pt line about 4pt below it (230). ResultTableHeaderView.draw
 /// fills a full-width `separatorColor` rect "because the native header doesn't always draw it", and
 /// the system's own header separator is still drawn. Changes FTR (results grid header).
+///
+/// Accepted 2026-10-01: HL1 and VD0. Built into Echo: ResultTableHeaderView no longer draws its own
+/// line (FTR-4.2).
 @MainActor
 enum ResultsHeaderLinesRound {
     enum Rule: String, CaseIterable {

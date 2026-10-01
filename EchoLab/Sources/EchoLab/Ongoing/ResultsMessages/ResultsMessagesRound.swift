@@ -6,6 +6,8 @@ import SwiftUI
 /// a symbol, a category (Query Execution, Server Response, Performance), the time, "+104 ms" since the
 /// previous message, then the message. Errors are pink rows with red text, the header in red
 /// monospaced type; a Performance row prints developer metrics ("dispatch 55 ms, rss 367,7 MB…").
+///
+/// Accepted 2026-10-01: ML1, EE1, DM1, MT1 and EM0. Built into Echo as FTR-5.1 to 5.3.
 @MainActor
 enum ResultsMessagesRound {
     enum Layout: String, CaseIterable {

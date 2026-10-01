@@ -10,14 +10,17 @@ enum FooterResultsArea {
         summary: "The results grow up out of the footer. The footer floats on a soft blur with a glass pill per entry; the database switcher is a card above its chip.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "86d17abd", date: "2026-10-01",
-                note: "Read from BottomPanelStatusBar (+Metrics), DatabaseSwitcherCard, BackdropEdgeBlur, ContentPanelCards, ResultsGridMetrics, ResultTableRowView, ResultTableHeaderCell, ResultCellPresentation and the Footer and EdgeBlur tokens. The specimen uses Echo's real BottomPanelStatusBar over a sample grid."),
+                level: .code, commit: "6e4a0e60", date: "2026-10-01",
+                note: "Read from BottomPanelStatusBar (+Metrics), DatabaseSwitcherCard, BackdropEdgeBlur, ContentPanelCards, ResultsGridMetrics, ResultTableRowView, ResultTableHeaderCell/View, ResultCellPresentation, the results Section (state banner, footer popovers), ExecutionConsoleView and the Footer and EdgeBlur tokens. The specimen uses Echo Labs' copy of BottomPanelStatusBar over a sample grid (its pills don't open popovers)."),
             stageHeight: 480,
             behaviours: [
                 .init(trigger: "Run a query", result: "The results grow up out of the footer: the editor card grows back to full height while the results card lands on its bottom edge."),
                 .init(trigger: "Close the results", result: "They fold back into the footer smoothly, the card's chrome fading out."),
                 .init(trigger: "Click a segment (Results, Messages, Execution Plan)", result: "Shows that panel, or hides it when it is the one showing; the tooltip says Show or Hide. A segment that can't be used is at 30% and disabled."),
-                .init(trigger: "Click empty footer space", result: "Opens or closes the panel. Clicking the metrics does the same, unless the tab has a statistics popover, which it toggles instead."),
+                .init(trigger: "Click empty footer space", result: "Opens or closes the panel."),
+                .init(trigger: "Click a pill on the right", result: "Its own popover rises above it (round 41.5): the selection's exact figures with Copy and Copy All; the rows with Export… and Copy All; where the time went with Run Again; the status with Cancel, Commit or Roll Back, Show in Editor, Messages and Run Again."),
+                .init(trigger: "A query fails, or returns no rows", result: "A banner at the top left of the card: symbol, title, the message, SQL Server's numbers as chips, and Show in Editor, Messages, Copy Error (round 41.3). Running, No rows and Cancelled use the same banner."),
+                .init(trigger: "Open Messages", result: "The counts at the top filter (\"1 error · 2 messages\"), copy and clear are in ⋯; each statement is a heading with its messages under it; errors are a red symbol and semibold text (round 41.4)."),
                 .init(trigger: "Click the server · database chip", result: "A system popover rises above the chip with a filter field (prompt \"Filter N databases\") and the databases; type to narrow, ↑ ↓ and Return, or click; Esc or a click away closes it. The chip is disabled, with the name as its tooltip, when the tab can't switch database."),
                 .init(trigger: "Hover a result row", result: "A faint rounded tint on the row and its row number turns accent."),
                 .init(trigger: "Hover a column header", result: "The sort arrow appears at its trailing edge (it also stays while the column is sorted); clicking the arrow sorts, clicking elsewhere selects the column."),
@@ -39,13 +42,15 @@ enum FooterResultsArea {
                 .init(label: "Segment pill", value: "glass capsule, 2pt padding; segments 28 × 20pt", token: "LayoutTokens.Footer.pillPadding / segmentWidth"),
                 .init(label: "Active segment", value: "a card-coloured capsule with the rail disc's shadow", token: "ShadowTokens.railSelection"),
                 .init(label: "Footer lift", value: "4pt above the bottom edge", token: "LayoutTokens.Footer.bottomLift"),
-                .init(label: "Right-hand side", value: "A glass pill per entry, 4pt apart: selection summary, rows, time, status", token: "FooterMetricsStyle.pillPerEntry"),
-                .init(label: "Behind the footer", value: "Soft blur radii 0.75 · 1.5 · 3 · 5 · 7.5 · 10pt over 24pt beyond the footer, each step fading along an S curve, and a card tint at 35%", token: "LayoutTokens.EdgeBlur"),
+                .init(label: "Right-hand side", value: "A glass pill per entry, 4pt apart: the selection's count, rows, time, status", token: "FooterMetricsStyle.pillPerEntry"),
+                .init(label: "Pill popovers", value: "260pt for the selection and rows, 320pt for time and status; 16pt padding", token: "LayoutTokens.FloatingSurface.smallWidth / mediumWidth"),
+                .init(label: "Behind the footer", value: "Ten small stacked steps from sharp to 12pt, easing in (level k is 12 × (k/10)^1.5), over 24pt beyond the footer; each fades in over one and a half bands along an S curve; a card tint at 35% easing in the same way", token: "LayoutTokens.EdgeBlur.strongest / levels / curve / band"),
                 .init(label: "Scroll bars", value: "the system's, on the footer's top edge and as wide as the footer: the thumb 9pt above the pills, 42pt above the card's edge; the vertical bar down to it", token: "LayoutTokens.Footer.scrollBarBottom"),
                 .init(label: "Blur behind the bar", value: "rises past the bar in 0.32s while it shows, settles in 0.5s 0.9s after the last scroll; every horizontal bar in Echo", token: "LayoutTokens.EdgeBlur.raiseDuration / settleDuration / raisedHold"),
                 .init(label: "Soft side edges", value: "32pt into the card's colour where more columns wait", token: "LayoutTokens.EdgeBlur.sideFadeWidth"),
                 .init(label: "Switcher card", value: "260pt wide, 12pt padding, 28pt rows, list up to 280pt", token: "LayoutTokens.FloatingSurface.smallWidth / Footer.switcherListMaxHeight"),
-                .init(label: "Header", value: "36pt: name 12pt semibold over the type in 10pt monospaced", token: "ResultsGridMetrics.headerHeight"),
+                .init(label: "Header", value: "36pt: name 12pt semibold over the type in 10pt monospaced; one hairline under it, the system's", token: "ResultsGridMetrics.headerHeight"),
+                .init(label: "State banner", value: "top left, 16pt padding, a title-3 symbol, 13pt semibold title over 13pt secondary detail", token: "SpacingTokens.md / TypographyTokens.title3"),
                 .init(label: "Cells", value: "12pt, 10pt side padding, columns 56 to 420pt; monospaced cells are a setting", token: "ResultsGridMetrics"),
                 .init(label: "Row numbers", value: "12pt monospaced digits, at least 6 digits wide", token: "ResultsGridMetrics.rowNumberFontSize / minimumRowNumberDigits"),
                 .init(label: "Row hover", value: "2pt by 1pt inset, 5pt corner", token: "ResultsGridMetrics.hoverCornerRadius"),
@@ -73,6 +78,21 @@ enum FooterResultsArea {
                 .init(text: "The results grow up out of the footer",
                       why: "It should look as if the footer itself expands. Splitting the editor in place and a crossfade were rejected.",
                       rounds: ["decided.round10-footer-and-switcher"]),
+                .init(text: "One line under the column header, the system's (round 41.1, HL1)",
+                      why: "Echo drew a second full-width line 4pt from the system's. The column dividers stay: they show where to drag a width (VD0).",
+                      rounds: ["ongoing.results-header-lines-r41"]),
+                .init(text: "The selection pill is only the count; the figures are in its popover (round 41.2)",
+                      why: "The full sum and average pushed the other pills aside and couldn't be copied. The owner chose the count (SP3) over a compact sum; the popover lists every figure, exact, each copyable (PO1, FG1, TX0).",
+                      rounds: ["ongoing.results-selection-summary-r41"]),
+                .init(text: "Each pill opens its own popover with its actions (round 41.5, PP2)",
+                      why: "One shared statistics popover answered none of them. Rows, time and status each say what they are about and offer what goes with it (PR0, PT0, PS0).",
+                      rounds: ["ongoing.results-pill-popovers-r41"]),
+                .init(text: "States are a banner at the top of the card (round 41.3, EP1)",
+                      why: "A card is read from the top left; a centred poster left a long grey line on wide windows. The editor keeps its red pill (HL0); SQL Server's numbers are quiet chips (ED0); Copy Error joins the actions (EA1).",
+                      rounds: ["ongoing.results-error-page-r41"]),
+                .init(text: "Messages are grouped by statement, with no strip (round 41.4)",
+                      why: "Which statement said what is what Messages is for (ML1). Category and delta columns, pink rows, Echo's own lines and the metrics row were distractions (EE1, EM0, DM1); counts that filter replace the segmented control and its overlapping trash (MT1).",
+                      rounds: ["ongoing.results-messages-r41"]),
                 .init(text: "Selection is one outline around the range",
                       why: "Per-row outlines showed seams.",
                       rounds: ["decided.results-grid"]),
@@ -86,6 +106,8 @@ enum FooterResultsArea {
                 "Echo/Sources/Shared/DesignSystem/Components/ScrollSideFades.swift",
                 "Echo/Sources/Shared/DesignSystem/Components/ContentPanelCards.swift",
                 "Echo/Sources/Features/QueryWorkspace/Views/Results/NativeTable/",
+                "Echo/Sources/Features/QueryWorkspace/Views/Results/Section/",
+                "Echo/Sources/Features/QueryWorkspace/Views/Results/ExecutionConsole/",
             ]
         ) {
             FooterResultsSpecimen()
@@ -121,7 +143,7 @@ private struct FooterResultsSpecimen: View {
             availableSegments: [.results, .messages, .executionPlan],
             selectedSegment: segment, onSelectSegment: { segment = $0 },
             onTogglePanel: {}, isPanelOpen: true)
-        configuration.metrics = .init(rowCountText: "96", rowCountLabel: "rows", durationText: "38 ms", selectionText: "3 cells · Sum 263,487")
+        configuration.metrics = .init(rowCountText: "96", rowCountLabel: "rows", durationText: "38 ms", selectionText: "3 cells")
         configuration.statusBubble = .init(label: "Ready", tint: .green, isPulsing: false)
         configuration.availableDatabases = ["Dev_DM_Reporting", "Dev_DW_Reporting", "DM_Prod"]
         configuration.metricsStyle = .pillPerEntry
