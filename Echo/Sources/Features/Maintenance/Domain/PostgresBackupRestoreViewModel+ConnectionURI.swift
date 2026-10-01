@@ -30,11 +30,9 @@ extension PostgresBackupRestoreViewModel {
             env["PGPASSWORD"] = password
         }
         env["PGSSLMODE"] = connection.useTLS ? "require" : "disable"
-        if let sharedSupport = Bundle.main.sharedSupportURL {
-            let toolsDir = sharedSupport.appendingPathComponent("PostgresTools").path
-            env["DYLD_LIBRARY_PATH"] = toolsDir
-            env["DYLD_FALLBACK_LIBRARY_PATH"] = toolsDir
-        }
+        // libpq tries GSS encryption first whenever a Kerberos ticket exists; only Kerberos
+        // sign-ins should. The bundled tools find libpq through their rpath, no DYLD_ needed.
+        env["PGGSSENCMODE"] = connection.authenticationMethod == .kerberos ? "prefer" : "disable"
         return env
     }
 

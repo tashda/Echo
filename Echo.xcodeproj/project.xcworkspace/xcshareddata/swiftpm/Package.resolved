@@ -1,6 +1,15 @@
 {
-  "originHash" : "c27923dc7c379c3154d7adb934c2b897da39ab46d30e7884c26b65502f35c473",
+  "originHash" : "205b801487d4ae092d12d2d53e2517e6cd35d959a3cd90799f379517197fd21a",
   "pins" : [
+    {
+      "identity" : "echo-libraries",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tashda/echo-libraries",
+      "state" : {
+        "revision" : "97d531a1774f7b77026d9d3aaad5053c83e52d05",
+        "version" : "1.0.0"
+      }
+    },
     {
       "identity" : "echo-server-lab",
       "kind" : "remoteSourceControl",
@@ -78,7 +87,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/supabase/supabase-swift",
       "state" : {
-        "revision" : "9c8c9d283b13a369f52cc78d8639648d8a17f5d3",
+        "revision" : "40344fb3a7007d772218c6ddf6bca9febd8cb226",
         "version" : "2.55.2"
       }
     },

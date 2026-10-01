@@ -9,24 +9,6 @@ concurrency:
   group: ci-light-${{ github.ref_name }}
   cancel-in-progress: true
 
-env:
-  PG_TOOLS_SCRIPT: |
-    brew list libpq >/dev/null 2>&1 || brew install libpq
-    brew list krb5 >/dev/null 2>&1 || brew install krb5
-    brew list zstd >/dev/null 2>&1 || brew install zstd
-    brew list lz4 >/dev/null 2>&1 || brew install lz4
-    brew list gettext >/dev/null 2>&1 || brew install gettext
-    LIBPQ_PREFIX="$(brew --prefix libpq)"
-    mkdir -p Tools/PostgresTools
-    cp "$LIBPQ_PREFIX/bin/pg_dump" Tools/PostgresTools/
-    cp "$LIBPQ_PREFIX/bin/pg_restore" Tools/PostgresTools/
-    SEARCH_DIRS="$LIBPQ_PREFIX/lib $(brew --prefix krb5)/lib $(brew --prefix zstd)/lib $(brew --prefix lz4)/lib $(brew --prefix gettext)/lib $(brew --prefix openssl@3)/lib /opt/homebrew/lib /usr/local/lib"
-    for lib in libpq.5.dylib libzstd.1.dylib liblz4.1.dylib libssl.3.dylib libcrypto.3.dylib libintl.8.dylib libgssapi_krb5.2.2.dylib libkrb5.3.3.dylib libk5crypto.3.1.dylib libkrb5support.1.1.dylib libcom_err.3.0.dylib; do
-      for dir in $SEARCH_DIRS; do
-        if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
-      done
-    done
-
 jobs:
   build-and-test:
     name: "Build & Test"
@@ -39,8 +21,8 @@ jobs:
       with:
         xcode-version: '27'
 
-    - name: Install PostgreSQL tools
-      run: ${{ env.PG_TOOLS_SCRIPT }}
+    - name: PostgreSQL tools from echo-libraries
+      run: Tools/fetch-postgres-tools.sh
 
     - name: Clear SPM cache
       run: |

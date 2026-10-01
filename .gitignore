@@ -81,7 +81,8 @@ build-release/
 build_output*.txt
 screenshot*.png
 parse_menus.py
-Tools/
+Tools/*
+!Tools/fetch-postgres-tools.sh
 
 # Network captures and archives
 *.cap
