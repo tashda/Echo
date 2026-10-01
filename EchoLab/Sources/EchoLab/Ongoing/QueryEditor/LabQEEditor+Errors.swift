@@ -69,6 +69,10 @@ extension LabQEEditor {
             Line().stroke(ColorTokens.Status.error, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [0, 4]))
                 .frame(width: letters.width, height: 2)
                 .offset(x: letters.minX, y: letters.maxY - 1)
+        case .redLetters:
+            EmptyView()
+        default:
+            LabQEErrorWordMark(look: wordLook, corner: style.markCorner.points, letters: letters)
         }
     }
 
@@ -102,9 +106,20 @@ extension LabQEEditor {
         case .hover:
             if isHoveringError || scene.caretOnError {
                 let word = layout.rect(span)
-                LabQEErrorBubble(message: message, detail: scene.serverError ? "Msg 208, Level 16, State 1, Line 4" : "No table with that name in sales.")
-                    .offset(x: word.minX - SpacingTokens.xs, y: word.maxY + SpacingTokens.xxs)
-                    .transition(.opacity)
+                let bubble = LabQEErrorBubbleView(look: style.errorBubble, title: scene.serverError ? "Invalid object name" : "Unknown table",
+                                                  message: message,
+                                                  detail: scene.serverError ? "Msg 208, Level 16, State 1, Line 4" : "No table with that name in sales.")
+                switch style.errorBubble {
+                case .inline:
+                    bubble.offset(x: layout.codeX, y: word.maxY + SpacingTokens.micro)
+                case .margin:
+                    bubble.frame(width: max(width - SpacingTokens.sm, 0), alignment: .trailing)
+                        .frame(height: layout.lineHeight)
+                        .offset(y: word.minY)
+                default:
+                    bubble.offset(x: word.minX - SpacingTokens.xs, y: word.maxY + SpacingTokens.xs)
+                        .transition(.opacity)
+                }
             }
         }
     }
@@ -125,26 +140,6 @@ struct LabQEGlow: View {
                 shape.stroke(gradient, lineWidth: 2.3).blur(radius: 13).opacity(0.22)
             }
         }
-        .allowsHitTesting(false)
-    }
-}
-
-/// The server-error bubble (QueryErrorBubble in an NSPopover).
-struct LabQEErrorBubble: View {
-    let message: String
-    let detail: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-            Label(message, systemImage: "exclamationmark.octagon.fill")
-                .foregroundStyle(ColorTokens.Status.error)
-            Text(detail).foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .font(TypographyTokens.detail)
-        .fixedSize()
-        .padding(SpacingTokens.xs)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 8, y: 2)
         .allowsHitTesting(false)
     }
 }
@@ -170,6 +165,76 @@ private struct Line: Shape {
         Path { path in
             path.move(to: CGPoint(x: rect.minX, y: rect.midY))
             path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        }
+    }
+}
+
+/// Round 28.6 rev 3: the marks without a glow, drawn round the letters' rectangle.
+struct LabQEErrorWordMark: View {
+    let look: LabQEErrorWord
+    let corner: CGFloat
+    let letters: CGRect
+
+    private var red: Color { ColorTokens.Status.error }
+
+    var body: some View {
+        Group {
+            switch look {
+            case .boldSquiggle:
+                LabQESquiggle().stroke(red, lineWidth: 1.5)
+                    .frame(width: letters.width, height: SpacingTokens.xxs)
+                    .offset(x: letters.minX, y: letters.maxY - SpacingTokens.xxxs)
+            case .doubleUnderline:
+                VStack(spacing: SpacingTokens.xxxs) {
+                    Rectangle().fill(red).frame(height: 1)
+                    Rectangle().fill(red).frame(height: 1)
+                }
+                .frame(width: letters.width)
+                .offset(x: letters.minX, y: letters.maxY - SpacingTokens.xxxs)
+            case .redLettersSquiggle:
+                LabQESquiggle().stroke(red, lineWidth: 1)
+                    .frame(width: letters.width, height: SpacingTokens.nano)
+                    .offset(x: letters.minX, y: letters.maxY - SpacingTokens.xxxs)
+            case .cornerTicks:
+                LabQECornerTicks().stroke(red, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                    .frame(width: letters.width + SpacingTokens.xxs, height: letters.height + SpacingTokens.xxxs)
+                    .offset(x: letters.minX - SpacingTokens.xxxs, y: letters.minY - SpacingTokens.micro)
+            case .underBar:
+                Capsule().fill(red)
+                    .frame(width: letters.width, height: SpacingTokens.xxxs)
+                    .offset(x: letters.minX, y: letters.maxY - SpacingTokens.micro)
+            case .pill:
+                Capsule().fill(red.opacity(0.14))
+                    .frame(width: letters.width + SpacingTokens.xs, height: letters.height)
+                    .offset(x: letters.minX - SpacingTokens.xxs, y: letters.minY)
+            case .dashedOutline:
+                RoundedRectangle(cornerRadius: max(corner, SpacingTokens.xxxs), style: .continuous)
+                    .stroke(red, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+                    .frame(width: letters.width + SpacingTokens.xxs, height: letters.height + SpacingTokens.xxxs)
+                    .offset(x: letters.minX - SpacingTokens.xxxs, y: letters.minY - SpacingTokens.micro)
+            case .marker:
+                Capsule().fill(red.opacity(0.28))
+                    .frame(width: letters.width + SpacingTokens.xxs, height: letters.height * 0.45)
+                    .offset(x: letters.minX - SpacingTokens.xxxs, y: letters.maxY - letters.height * 0.45)
+            default:
+                EmptyView()
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Four short corner strokes, like a focus frame.
+struct LabQECornerTicks: Shape {
+    func path(in rect: CGRect) -> Path {
+        let length = min(rect.width, rect.height) * 0.3
+        return Path { path in
+            for (corner, dx, dy) in [(CGPoint(x: rect.minX, y: rect.minY), 1.0, 1.0), (CGPoint(x: rect.maxX, y: rect.minY), -1.0, 1.0),
+                                     (CGPoint(x: rect.minX, y: rect.maxY), 1.0, -1.0), (CGPoint(x: rect.maxX, y: rect.maxY), -1.0, -1.0)] {
+                path.move(to: CGPoint(x: corner.x + dx * length, y: corner.y))
+                path.addLine(to: corner)
+                path.addLine(to: CGPoint(x: corner.x, y: corner.y + dy * length))
+            }
         }
     }
 }

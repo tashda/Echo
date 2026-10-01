@@ -89,9 +89,30 @@ enum LabQEErrorWord: String, CaseIterable {
     case squiggle = "E1 · Red squiggle"
     case fill = "E2 · Soft red tint"
     case dotted = "E3 · Dotted underline"
+    case boldSquiggle = "E4 · Bold squiggle"
+    case doubleUnderline = "E5 · Double underline"
+    case redLetters = "E6 · Red letters"
+    case redLettersSquiggle = "E7 · Red letters and a squiggle"
+    case cornerTicks = "E8 · Corner ticks"
+    case underBar = "E9 · A bar under the word"
+    case pill = "E10 · Tinted pill"
+    case dashedOutline = "E11 · Dashed outline"
+    case marker = "E12 · Marker stroke"
+
+    /// Rev 3: the owner asked for everything, with and without a glow.
+    static let addedInRev3: [LabQEErrorWord] = [.boldSquiggle, .doubleUnderline, .redLetters, .redLettersSquiggle, .cornerTicks, .underBar, .pill, .dashedOutline, .marker]
 
     var summary: String {
         switch self {
+        case .boldSquiggle: "A 1.5pt squiggle with a longer wave: easier to see on a big screen."
+        case .doubleUnderline: "Two thin red lines under the word, like a proofreader's mark."
+        case .redLetters: "The word itself turns red; nothing else is drawn."
+        case .redLettersSquiggle: "Red letters with the squiggle under them: the strongest of the quiet marks."
+        case .cornerTicks: "Four small red corners round the word, like a camera's focus frame."
+        case .underBar: "A solid 2pt red bar under the letters, rounded at the ends."
+        case .pill: "A red-tinted capsule behind the word."
+        case .dashedOutline: "A thin dashed red outline with the marks' corner."
+        case .marker: "A red highlighter stroke across the lower half of the letters."
         case .glow: "Three blurred strokes of a red gradient that keeps shifting, 6pt corners. After a run the same error is a squiggle instead."
         case .squiggle: "The squiggle Echo already draws for a server error after a run, now for every error."
         case .fill: "A light red tint behind the word."

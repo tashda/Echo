@@ -44,19 +44,24 @@ extension LabQEEditor {
                 .frame(width: layout.numbersRight - layout.numbersLeft, alignment: .trailing)
                 .padding(.leading, layout.numbersLeft)
             Color.clear.frame(width: layout.codeX - layout.numbersRight, height: 1)
-            Text(attributed(text))
+            Text(attributed(text, line: line))
                 .font(Font(layout.codeFont))
                 .fixedSize()
         }
         .frame(height: layout.lineHeight, alignment: .leading)
     }
 
-    private func attributed(_ text: String) -> AttributedString {
+    private func attributed(_ text: String, line: Int) -> AttributedString {
+        // 28.6 rev 3: E6 and E7 turn the wrong word's letters red.
+        let redWord = hasError && line == LabQESample.error.line && [.redLetters, .redLettersSquiggle].contains(style.errorWord)
         var result = AttributedString()
+        var column = 0
         for token in LabQESample.tokens(text) {
             var part = AttributedString(token.text)
-            part.foregroundColor = palette.color(for: token.kind)
+            let isError = redWord && column >= LabQESample.error.start && column < LabQESample.error.end
+            part.foregroundColor = isError ? ColorTokens.Status.error : palette.color(for: token.kind)
             result += part
+            column += token.text.count
         }
         return result
     }

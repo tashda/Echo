@@ -142,6 +142,10 @@
       {
         "date": "2026-10-01T11:45:57Z",
         "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T11:57:46Z",
+        "text": "Revision 3: Everything for the wrong word, more glows, and new bubbles"
       }
     ],
     "needsMore": [
@@ -175,15 +179,36 @@
         "date": "2026-10-01T11:39:41Z",
         "number": 2,
         "summary": "Six new glows, all still"
+      },
+      {
+        "changes": [
+          "New marks without a glow: E4 bold squiggle, E5 double underline, E6 red letters, E7 red letters and a squiggle, E8 corner ticks, E9 a bar under the word, E10 tinted pill, E11 dashed outline, E12 marker stroke",
+          "New glows: GW7 aura, GW8 double ring, GW9 glow and a squiggle, GW10 pill with a halo, GW11 gradient border, GW12 red shadow",
+          "New step: Bubble (BB0 today's popover to BB7: card with a title, one-line pill, glass with a pointer, dark HUD, a line under the code, a note in the margin, card with a red edge), recommended BB1; a Bubbles gallery and a scene with the caret on the error's line"
+        ],
+        "date": "2026-10-01T11:57:46Z",
+        "number": 3,
+        "summary": "Everything for the wrong word, more glows, and new bubbles"
       }
     ],
-    "status": "New feedback",
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.editor-find-bar-r28": {
-    "comments": [],
-    "generalNote": "",
-    "history": [],
+    "comments": [
+      {
+        "date": "2026-10-01T11:54:16Z",
+        "id": "736B54A1-610E-4F6B-B6B8-66DDD0BCC4B6",
+        "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where: picked FB2 \u00b7 A glass strip along the top; NEEDS MORE OPTIONS; note: I like this, but currently the \"find\" has a white background and it is not an immersive \"search glass capsule\". Please take this round to another level with a LOT more suggestions!\n3. Options: picked O0 \u00b7 In the field's menu (today)\n4. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n5. Regular expressions: picked RX0 \u00b7 No (today)\n6. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n7. Starting from a selection: picked SE1 \u00b7 The selection, every time\nOverall: Also give me options on how to \"Search and replace\" and if it should search only \"Selected text\" or entire editor"
+      }
+    ],
+    "generalNote": "Also give me options on how to \"Search and replace\" and if it should search only \"Selected text\" or entire editor",
+    "history": [
+      {
+        "date": "2026-10-01T11:54:16Z",
+        "text": "Feedback sent"
+      }
+    ],
     "needsMore": [
       "findBar"
     ],
@@ -193,11 +218,16 @@
     },
     "picks": {
       "exhibit": "proposal",
-      "findBar": "FB2 \u00b7 A glass strip along the top"
+      "findBar": "FB2 \u00b7 A glass strip along the top",
+      "findCount": "C0 \u00b7 \u201c2 found\u201d (today)",
+      "findOptions": "O0 \u00b7 In the field's menu (today)",
+      "regex": "no",
+      "scope": "editor",
+      "selection": "fill"
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Judging",
+    "status": "New feedback",
     "verdicts": {}
   },
   "ongoing.editor-find-typing-r28": {
@@ -378,19 +408,15 @@
         "text": "Revision 3: While running: what the bracket does while the query runs"
       }
     ],
-    "needsMore": [
-      "ranHighlight"
-    ],
+    "needsMore": [],
     "optionNotes": {},
-    "pickNotes": {
-      "ranHighlight": "I like H4, but can it \"pulse\" while it is running - please give me a new step in this round with options for \"When running\""
-    },
+    "pickNotes": {},
     "picks": {
       "count": "all",
       "exhibit": "proposal",
       "lifetime": "edit",
       "multi": "each",
-      "ranHighlight": "H4 \u00b7 The gutter bracket lights up",
+      "ranHighlight": "H9 \u00b7 A line in the gutter that fades",
       "runNoteLook": "R10 \u00b7 Glass with a symbol",
       "runNotePlace": "P0 \u00b7 After the last line that ran (today)",
       "wording": "dot"

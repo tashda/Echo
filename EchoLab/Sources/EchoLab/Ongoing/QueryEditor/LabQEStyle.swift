@@ -40,6 +40,7 @@ struct LabQEStyle {
     var findLook = LabQEFindLook.native
     var errorGlow = LabQEErrorGlow.today
     var runningMark = LabQERunningMark.nothing
+    var errorBubble = LabQEErrorBubbleLook.today
     var findBar = LabQEFindBarPlace.native
     var findOptions = LabQEFindOptions.menu
     var findCount = LabQEFindCount.found
@@ -61,7 +62,7 @@ struct LabQEStyle {
         errorWord: .glow, errorMessage: .hover, errorDot: .dot,
         runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .bracketPulse,
         zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always, errorGlow: .hairlineHalo,
-        runningMark: .breathe)
+        runningMark: .breathe, errorBubble: .card)
 
     /// The gallery's handle on the find look, by the preview control's names.
     var findPreview: LabQEFindPreview {
@@ -84,7 +85,7 @@ struct LabQEStyle {
         set("errorMessage", \.errorMessage); set("errorDot", \.errorDot); set("runNoteLook", \.runNoteLook)
         set("runNotePlace", \.runNotePlace); set("ranHighlight", \.ranHighlight); set("zoom", \.zoom)
         set("zoomLook", \.zoomLook); set("zoomShows", \.zoomShows)
-        set("errorGlow", \.errorGlow); set("runningMark", \.runningMark); set("findBar", \.findBar); set("findOptions", \.findOptions); set("findCount", \.findCount)
+        set("errorGlow", \.errorGlow); set("runningMark", \.runningMark); set("errorBubble", \.errorBubble); set("findBar", \.findBar); set("findOptions", \.findOptions); set("findCount", \.findCount)
         if let preview = LabQEFindPreview(rawValue: values["findPreview"]) { style.findLook = preview.look }
         if let place = LabQEZoomPlace(rawValue: values["zoomPlace"]) { style.zoomPlace = place }
         return style
@@ -136,6 +137,7 @@ enum LabQESceneChoice: String, CaseIterable {
     case find = "Finding “orders”"
     case replace = "Replacing “orders”"
     case liveError = "A mistake while typing"
+    case liveErrorCaret = "A mistake, caret on its line"
     case running = "Running"
     case afterRun = "After a run"
     case afterError = "After a failed run"
@@ -148,6 +150,7 @@ enum LabQESceneChoice: String, CaseIterable {
         case .find: LabQEScene(wordHighlight: false, find: true)
         case .replace: LabQEScene(wordHighlight: false, find: true, showsReplace: true)
         case .liveError: LabQEScene(misspelled: true, liveError: true)
+        case .liveErrorCaret: LabQEScene(misspelled: true, liveError: true, caretOnError: true)
         case .running: LabQEScene(isRunning: true)
         case .afterRun: LabQEScene(runNote: .rows(14_870, seconds: 10.1))
         case .afterError: LabQEScene(misspelled: true, serverError: true, runNote: .error)
