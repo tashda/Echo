@@ -148,6 +148,232 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.context-menu-anatomy-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:47:52Z",
+        "id": "5E881842-99F2-43F0-9B16-8C787EFAD459",
+        "text": "Review of Context menus: the rules\n1. Icons: picked MI1 \u00b7 Icons only for familiar actions: New, Copy, Refresh, Properties, Drop\n2. Properties and Drop: picked PL0 \u00b7 Drop, then Properties last (today)\n3. Title: picked MT0 \u00b7 No title (today)\n4. Copy Name: picked CN1 \u00b7 Copy Name in every object's menu\n5. Drop: picked DR0 \u00b7 In ordinary text, in its own group (today)\n6. One order for every menu: picked MO0 \u00b7 Yes, one order everywhere\n7. Commands that don't apply: picked HD0 \u00b7 Hidden\n8. The same commands in the menu bar: picked MB0 \u00b7 Yes: an Object menu (New Query, Open Data, Script as, Properties, Drop\u2026)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:47:52Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:09Z",
+        "text": "Taken by Sonnet ctx-menus"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "copyName": "CN1 \u00b7 Copy Name in every object's menu",
+      "disabled": "hide",
+      "drop": "DR0 \u00b7 In ordinary text, in its own group (today)",
+      "icons": "MI1 \u00b7 Icons only for familiar actions: New, Copy, Refresh, Properties, Drop",
+      "menuBar": "yes",
+      "order": "yes",
+      "properties": "PL0 \u00b7 Drop, then Properties last (today)",
+      "title": "MT0 \u00b7 No title (today)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Sonnet ctx-menus",
+      "date": "2026-10-01T18:52:09Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.context-menu-column-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:50:32Z",
+        "id": "490E19CC-0F16-4400-B65C-CFE701995B94",
+        "text": "Review of Context menus: columns, routines and the rest\n1. Insert in Query: picked IQ0 \u00b7 Yes, and dragging a column into the editor does the same\n2. Rename from the tree: picked RN0 \u00b7 Yes: the name becomes editable, then Echo shows the ALTER it will run\n3. Execute a procedure: picked EX1 \u00b7 A new tab with EXEC and the parameters to fill in"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:50:32Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "execute": "script",
+      "insert": "yes",
+      "rename": "inline"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Sonnet ctx-menus",
+      "date": "2026-10-01T18:52:12Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.context-menu-database-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:48:57Z",
+        "id": "9437E4EA-2923-46C8-A910-6B42BE5C728D",
+        "text": "Review of Context menus: database\n1. Back Up: picked BU1 \u00b7 Back Up and Restore in the menu itself\n2. Visual Query Builder: picked QB0 \u00b7 Beside New Query and Diagram, as Query Builder\n3. Advanced Objects: picked AO0 \u00b7 Fold it into Open Tool with Maintenance and Security Overview"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:48:57Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:00:58Z",
+        "text": "Built into Echo: Back Up and Restore in the menu, Query Builder beside New Query, Open Tool with Maintenance, Security Overview and the advanced objects as flat items; no Diagram yet because Echo has no database diagram (0176b416)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "advanced": "tool",
+      "backUp": "BU1 \u00b7 Back Up and Restore in the menu itself",
+      "queryBuilder": "top"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.context-menu-folder-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:51:17Z",
+        "id": "46FB450D-10D4-445C-A27E-D3BEB9F81197",
+        "text": "Review of Context menus: folders and sections\n1. A folder's first item: picked FF0 \u00b7 Yes\n2. Filter: picked FL0 \u00b7 Yes, in every object folder\n3. Empty space: picked ES0 \u00b7 New Connection, Refresh All Servers, Show Empty Folders"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:51:17Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "empty": "connection",
+      "filter": "yes",
+      "first": "yes"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Sonnet ctx-menus",
+      "date": "2026-10-01T18:52:12Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.context-menu-server-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:48:27Z",
+        "id": "2FD049F8-447C-42FC-BF47-CBC86D6329A5",
+        "text": "Review of Context menus: server\n1. Tools: picked ST1 \u00b7 The tools in an Open Tool submenu\n2. Refresh All: picked SR0 \u00b7 Refresh, as on every other object\n3. Manage Connection: picked SC0 \u00b7 Edit Connection"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:48:27Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:00:58Z",
+        "text": "Built into Echo: Open Tool submenu, Refresh, Edit Connection, Copy Name, one order (0176b416)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "connection": "edit",
+      "refresh": "refresh",
+      "tools": "ST1 \u00b7 The tools in an Open Tool submenu"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.context-menu-table-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:49:42Z",
+        "id": "72F5D03B-BA4B-49C0-9D29-1AAFF5ABE62A",
+        "text": "Review of Context menus: tables and views\n1. Words: picked TN1 \u00b7 Open Data, Edit Structure, Diagram\n2. Double-click: picked DC0 \u00b7 Open Data (the first item in its menu)\n3. Truncate: picked TR0 \u00b7 Yes\n4. Views: picked VW0 \u00b7 Yes, the same shape"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:49:42Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "names": "TN1 \u00b7 Open Data, Edit Structure, Diagram",
+      "openDefault": "data",
+      "truncate": "yes",
+      "view": "same"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Sonnet ctx-menus",
+      "date": "2026-10-01T18:52:12Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
   "ongoing.editor-caret-line-r28": {
     "comments": [
       {
@@ -2981,6 +3207,194 @@
       }
     ],
     "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.settings-controls-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:54:49Z",
+        "id": "5A6733EC-56F7-4CF0-A3ED-5E9880F8C5C2",
+        "text": "Review of Settings: controls and words\n1. Descriptions: picked DS1 \u00b7 A short line only where the title isn't enough; the rest in \u24d8\n2. Back to default: picked RS1 \u00b7 A \u21ba beside any setting that isn't the default\n3. On and off: picked TG0 \u00b7 Switches (today, as System Settings)\n4. Numbers: picked NU0 \u00b7 A stepper with its unit (13 pt), typing allowed\n5. Section names: picked SN0 \u00b7 By what they change, everywhere"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:54:49Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "descriptions": "DS1 \u00b7 A short line only where the title isn't enough; the rest in \u24d8",
+      "numbers": "stepper",
+      "reset": "RS1 \u00b7 A \u21ba beside any setting that isn't the default",
+      "sections": "what",
+      "toggles": "switch"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Settings agent",
+      "date": "2026-10-01T18:57:58Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.settings-pictures-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:53:24Z",
+        "id": "B8C4EFDD-C5FC-4C5A-89BD-6327386F850D",
+        "text": "Review of Settings: a picture for every choice\n1. Choices: picked CH1 \u00b7 Small pictures of each choice\n2. After a change: picked FB0 \u00b7 The preview just changes (today)\n3. When to use pictures: picked PC0 \u00b7 Only for choices that change a look (gutter, corners, density, icons)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:53:24Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "choices": "CH1 \u00b7 Small pictures of each choice",
+      "feedback": "FB0 \u00b7 The preview just changes (today)",
+      "when": "visual"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Settings agent",
+      "date": "2026-10-01T18:57:58Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.settings-preview-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:52:36Z",
+        "id": "6FD8C87A-EFB4-4346-9916-43E1B488ABDC",
+        "text": "Review of Settings: the page and its preview\n1. Preview: picked PV1 \u00b7 One preview pinned at the top while the settings scroll\n2. What the preview shows: picked PS0 \u00b7 Yes: every setting on the page shows in it\n3. Pages with nothing to show: picked PN0 \u00b7 No preview: the page starts with its settings"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:52:36Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "noVisual": "none",
+      "placement": "PV1 \u00b7 One preview pinned at the top while the settings scroll",
+      "what": "all"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Settings agent",
+      "date": "2026-10-01T18:57:58Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.settings-scenarios-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:57:17Z",
+        "id": "2828DE8D-C795-41A8-8389-F9F28F788E1D",
+        "text": "Review of Settings: search, reset and overrides\n1. Search: picked SE2 \u00b7 A search field that lists matching settings across pages, like System Settings\n2. What you changed: picked MD1 \u00b7 No\n3. Resetting a page: picked RP0 \u00b7 Yes, at the bottom of each page, with a confirmation\n4. Per connection: picked PC0 \u00b7 A few, chosen deliberately, shown with the connection's colour dot beside the row\n5. Sync: picked SY0 \u00b7 Everything except window sizes and this Mac's paths"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:57:17Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "modified": "none",
+      "perConnection": "few",
+      "reset": "page",
+      "search": "SE2 \u00b7 A search field that lists matching settings across pages, like System Settings",
+      "sync": "look"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Settings agent",
+      "date": "2026-10-01T18:57:58Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.settings-template-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:56:08Z",
+        "id": "01B61DD0-8D5C-4FE1-B0EE-E2C9EE45F28D",
+        "text": "Review of Settings: the template on other pages\n1. The template: picked TP0 \u00b7 Yes: make it the template for every page with something to show\n2. One component: picked TC0 \u00b7 Yes: a SettingsPage(preview:sections:) in the design system\nOverall: For the sidebar, the Server Card shouldn't extend all the way to the side but show as a more narrow tru-to-life server card. For appearance, this template should not be true as the application we are in is the preview"
+      }
+    ],
+    "generalNote": "For the sidebar, the Server Card shouldn't extend all the way to the side but show as a more narrow tru-to-life server card. For appearance, this template should not be true as the application we are in is the preview",
+    "history": [
+      {
+        "date": "2026-10-01T18:56:08Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "component": "yes",
+      "template": "yes"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Settings agent",
+      "date": "2026-10-01T18:57:58Z",
+      "status": "Accepted"
+    },
     "verdicts": {}
   },
   "ongoing.tab-overview-direction-r35": {

@@ -199,7 +199,17 @@ enum ExplorerTreeSpec {
             SpecElement(number: "4.10", name: "Context menu", summary: "Right-click a row.", groups: [
                 .behaviour(.row("Items", "for that node kind, from the database type's blueprint"),
                            .row("Reveal in the tree", "smooth scroll, 0.40s", token: "echoMotion.reveal")),
-            ], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarView+ContextMenus.swift"]),
+                .behaviour(.row("Order (round 42.1)", "one in every menu: open and create | Copy Name, Script as, Tasks, Open Tool | Refresh and connection | Drop | Properties last"),
+                           .row("Icons", "only New, Copy, Refresh, Properties and Drop carry one; ExplorerMenuRules strips the rest"),
+                           .row("Hidden, not dimmed", "a command that doesn't apply is left out"), .row("Title", "none")),
+                .behaviour(.row("Server (42.5)", "New Query, Activity Monitor, Open Tool ▸ (Maintenance, Extended Events, Database Mail, Availability Groups, CMS) | Copy Name, Color | Refresh, Hide Offline Databases, Edit Connection, Disconnect | Properties")),
+                .behaviour(.row("Database (42.3)", "New Query, Query Builder | Back Up, Restore, Copy Name, Tasks ▸, Open Tool ▸ (Maintenance, Security Overview, the advanced objects) | Refresh | Drop | Properties")),
+                .behaviour(.row("Table and view (42.4)", "Open Data, Edit Structure, Diagram, New Query | Copy Name, Script as, Tasks ▸ (…, Truncate Table) | Refresh | Drop | Properties; a view has the same shape without what doesn't apply")),
+                .behaviour(.row("Column (42.2)", "Open Data Sorted by This Column | Copy Name, Copy Qualified Name | Drop Column | Properties (opens Edit Structure)"),
+                           .row("Execute a routine (42.2)", "a new tab with EXEC and one line per parameter")),
+                .behaviour(.row("Folder (42.6)", "what you can create there first, Refresh last"),
+                           .row("check:", "Filter, Show Empty Folders, the empty-space menu, double-click to Open Data, the Object menu, Insert in Query and inline Rename are accepted but not built yet")),
+            ], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarView+ContextMenus.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ExplorerMenuRules.swift"]),
         ]),
         SpecPart(number: "6", name: "Row kinds and loading", summary: "The other rows a card holds, and how a loading section looks.", elements: [
             SpecElement(number: "6.1", name: "Database row", summary: "A cylinder, the name, and its state.", groups: [
