@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r40", label: "Round 40", title: "Clicking a server while the tree is hidden", date: "1 Oct 2026",
+             asked: "With the sidebar hidden, clicking a server in the rail opens the glass card we decided on before. I hate it: it should open the sidebar with that server selected.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.rail-click-hidden-tree-r40"]),
         Info(id: "r39", label: "Round 39", title: "Rail tools: Clipboard", date: "1 Oct 2026",
              asked: "Each item in the rail's bottom pill needs a revision in design and function, and a decision on whether it's needed.",
              outcome: "Being judged.",

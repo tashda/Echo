@@ -128,6 +128,7 @@ enum LabAreas {
         "ongoing.rail-snippets-r39": "window",
         "ongoing.rail-history-r39": "window",
         "ongoing.rail-clipboard-r39": "window",
+        "ongoing.rail-click-hidden-tree-r40": "window",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
