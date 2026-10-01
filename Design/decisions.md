@@ -7,7 +7,7 @@ Newest first. Each entry says what was decided, and where the rule now lives. Wh
 Echo Labs › Footer and results › The blur under the footer · round 44, after the owner saw the blur as a band twice. The round showed every technique over the same real grid; looking at them showed why the band never went away: the stacked blur layers show either full or not at all instead of fading in, so a row went from sharp to mush at once whatever the steps. Built in b5eebdb9.
 
 - **Technique: BT4 · the system's material** (the owner's pick over my recommendation, one Core Image variable blur): the ultra-thin material behind every floating footer. Stacked steps (Echo until now), one Core Image variable blur and a plain fade to the card were not chosen. → FTR-2.2
-- **Reach: BH3 · 40pt above the footer** (\`EdgeBlur.materialReach\`); **growth: CV6 · exponential**, (e^(4.5t) − 1) / (e^4.5 − 1), only 10% half way up, so no row meets it at once; **tint: TT1 · 15%** of the card's colour over it.
+- **Reach: BH3 · 40pt above the footer** (`EdgeBlur.materialReach`); **growth: CV6 · exponential**, (e^(4.5t) − 1) / (e^4.5 − 1), only 10% half way up, so no row meets it at once; **tint: TT1 · 15%** of the card's colour over it.
 - **The scroll bar under a footer:** the material already reaches past it, so the AppKit blur that rose past the bar (round 27, U5) is off under footers; the material lies over the bar at about 6%. Every other horizontal bar in Echo keeps its rising blur. → FTR-4.6
 
 ## 2026-10-01 · Round 41 accepted: the results card's header line, selection pill, error banner, Messages and pill popovers
