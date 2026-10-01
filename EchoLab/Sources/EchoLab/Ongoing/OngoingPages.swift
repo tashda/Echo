@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -305,6 +305,27 @@
         status: .judging,
         summary: "Every mark in the editor in one language: one corner, one tint scale, colour by meaning, one height, one Marks section in Settings, and one look for floating pills. Today's marks mix pills, 3pt corners and tints from 9% to 35%. Asked in your notes on 28.13.",
         spec: EditorDesignLanguageRound.spec)
+
+    /// Round 30: Server card: the header.
+    static let serverHeaderLook = LabPage.round(
+        id: "ongoing.server-header-look-r30", group: "Explorer tree", title: "Server card: the header · round 30", symbol: "rectangle.topthird.inset.filled",
+        status: .judging,
+        summary: "The server's name, product line and dock at the top of its card, beside eight headers with more presence and four colour sources (none, the server's colour, accent, custom). Changes TREE-1.x (server header).",
+        spec: ServerHeaderLookRound.spec)
+
+    /// Round 30: Server card: collapsing.
+    static let serverHeaderCollapse = LabPage.round(
+        id: "ongoing.server-header-collapse-r30", group: "Explorer tree", title: "Server card: collapsing · round 30", symbol: "chevron.down.circle",
+        status: .judging,
+        summary: "Where the collapse chevron sits on the two-line header, and how the card folds away and opens again, beside Echo today.",
+        spec: ServerHeaderCollapseRound.spec)
+
+    /// Round 30: Database folders that are empty.
+    static let emptyFolders = LabPage.round(
+        id: "ongoing.empty-folders-r30", group: "Explorer tree", title: "Database folders that are empty · round 30", symbol: "folder",
+        status: .judging,
+        summary: "Views is loaded but hidden: Settings › Sidebar hides empty folders, and this database has no views. Should Tables, Views, Functions and Procedures always show, and how does an empty one look?",
+        spec: EmptyFoldersRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

@@ -103,6 +103,9 @@ enum LabAreas {
         "ongoing.editor-search-replace-r28": "editor",
         "ongoing.editor-gutter-lane-r28": "editor",
         "ongoing.editor-design-language-r28": "editor",
+        "ongoing.server-header-look-r30": "explorer-tree",
+        "ongoing.server-header-collapse-r30": "explorer-tree",
+        "ongoing.empty-folders-r30": "explorer-tree",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

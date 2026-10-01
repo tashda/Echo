@@ -19,6 +19,18 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r30", label: "Round 30", title: "Database folders that are empty", date: "1 Oct 2026",
+             asked: "Under a database I can no longer find Views.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.empty-folders-r30"]),
+        Info(id: "r30", label: "Round 30", title: "Server card: collapsing", date: "1 Oct 2026",
+             asked: "The chevron that collapses a server card isn't centred, and collapsing or expanding has no beautiful animation.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.server-header-collapse-r30"]),
+        Info(id: "r30", label: "Round 30", title: "Server card: the header", date: "1 Oct 2026",
+             asked: "The server card's header feels too quiet: explore headers with more presence, in the server's colour, a custom colour or the accent colour, and other ideas.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.server-header-look-r30"]),
         Info(id: "r29", label: "Round 29", title: "SQL Server: Always Encrypted columns", date: "1 Oct 2026",
              asked: "Echo now learns which SQL Server columns are Always Encrypted but has no keys to decrypt them; how should those columns look and behave in the results grid?",
              outcome: "Being judged.",
