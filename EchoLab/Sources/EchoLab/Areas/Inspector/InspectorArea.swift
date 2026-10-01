@@ -11,7 +11,7 @@ enum InspectorArea {
         summary: "A column on the canvas mirroring the tree: Details, Bookmarks and History share one column; details sections are grouped boxes with a header over rounded rows, like System Settings.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "9983a13c", date: "2026-10-01",
+                level: .code, commit: "b113aaa2", date: "2026-10-01",
                 note: "Read from WorkspaceInspectorColumn, InfoSidebarView, InspectorSection and InspectorSectionRow, WorkspaceColumnResizeHandle and the Inspector tokens. The specimen is the Echo Labs copy of the grouped-box column."),
             stageHeight: 640,
             behaviours: [
