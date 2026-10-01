@@ -112,7 +112,8 @@ extension QueryEditorState {
 
         finalizeSpoolOnCompletion(cancelled: false)
         finalizePerformanceMetrics(cancelled: false)
-        runNote = QueryRunNote.success(range: lastRunRange, rows: finalMat, hasResults: results != nil || !streamingColumns.isEmpty, duration: lastExecutionTime)
+        // The footer's count: every row the server sent, not only those already read back from the spool.
+        runNote = QueryRunNote.success(range: lastRunRange, rows: rowProgress.displayCount, hasResults: results != nil || !streamingColumns.isEmpty, duration: lastExecutionTime)
         runEndedHandler?(true)
     }
 
