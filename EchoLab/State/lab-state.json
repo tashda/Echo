@@ -3251,6 +3251,10 @@
       {
         "date": "2026-10-01T18:46:14Z",
         "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T18:58:06Z",
+        "text": "Built into Echo: the title, a hairline, then the pages at 11pt on the tab, the shown one semibold on a soft pill, no track; the tab exactly as wide as that (at most 62%), a lone one at its own width; house spring, pages fading out first (1f4414ff). Check it with Activity Monitor and with Activity Monitor alone."
       }
     ],
     "needsMore": [],
@@ -3296,12 +3300,7 @@
         "summary": "TP0 refined: your favourite, with one knob per thing that looked off"
       }
     ],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Opus r36-37",
-      "date": "2026-10-01T18:46:14Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tool-tab-pages-where-r36": {
