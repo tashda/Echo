@@ -218,6 +218,11 @@
         "date": "2026-10-01T12:08:45Z",
         "id": "16B5FA80-F598-48BF-8A5E-19F1741F25E5",
         "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where and how: picked FB5 \u00b7 A capsule with glass buttons beside it; note: fb5 is beautiful and perfect\n3. Replace: NEEDS MORE OPTIONS; note: I can't see how this looks in the previews. Needs way better previews that actually work\n4. What it searches: picked SS2 \u00b7 An In Selection button; NEEDS MORE OPTIONS; note: Both SS1 and SS2. When something is selected, the \"Selection\" button is toggled on (accent) When something isn't selected, there should only be a button if the user selects something\n5. Options: picked O0 \u00b7 In the field's menu (today)\n6. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n7. Regular expressions: picked RX0 \u00b7 No (today)\n8. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n9. Starting from a selection: picked SE1 \u00b7 The selection, every time"
+      },
+      {
+        "date": "2026-10-01T12:32:32Z",
+        "id": "F37EE3FD-0BED-48E5-BAC6-5FF03000AB70",
+        "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where and how: picked FB5 \u00b7 A capsule with glass buttons beside it; note: fb5 is beautiful and perfect\n3. Replace: picked RP1 \u00b7 A chevron opens it inside the capsule; NEEDS MORE OPTIONS; note: I like the idea of a chevron but we need a new round for search and replace all together. Like how the \"replacement\" is shown in the editor while typing, cause I love that idea but it should be refined, and the animations of opening the search fields replace second line - cause I want it to expand - and the shortcuts for opening \"Search and Replace\" and not only search.\n4. What it searches: picked SS4 \u00b7 A Selection button that appears with a selection, on\n5. Options: picked O0 \u00b7 In the field's menu (today)\n6. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n7. Regular expressions: picked RX0 \u00b7 No (today)\n8. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n9. Starting from a selection: picked SE1 \u00b7 The selection, every time"
       }
     ],
     "generalNote": "",
@@ -241,29 +246,36 @@
       {
         "date": "2026-10-01T12:24:10Z",
         "text": "Revision 4: Replace you can see"
+      },
+      {
+        "date": "2026-10-01T12:32:32Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T12:36:52Z",
+        "text": "Revision 5: Replace continues on 28.13"
       }
     ],
     "needsMore": [
-      "replaceStyle",
-      "findScope"
+      "replaceStyle"
     ],
     "optionNotes": {},
     "pickNotes": {
       "findBar": "fb5 is beautiful and perfect",
-      "findScope": "Both SS1 and SS2. When something is selected, the \"Selection\" button is toggled on (accent) When something isn't selected, there should only be a button if the user selects something",
-      "replaceStyle": "I can't see how this looks in the previews. Needs way better previews that actually work"
+      "replaceStyle": "I like the idea of a chevron but we need a new round for search and replace all together. Like how the \"replacement\" is shown in the editor while typing, cause I love that idea but it should be refined, and the animations of opening the search fields replace second line - cause I want it to expand - and the shortcuts for opening \"Search and Replace\" and not only search."
     },
     "picks": {
       "exhibit": "proposal",
       "findBar": "FB5 \u00b7 A capsule with glass buttons beside it",
       "findCount": "C0 \u00b7 \u201c2 found\u201d (today)",
       "findOptions": "O0 \u00b7 In the field's menu (today)",
-      "findScope": "SS2 \u00b7 An In Selection button",
+      "findScope": "SS4 \u00b7 A Selection button that appears with a selection, on",
       "regex": "no",
+      "replaceStyle": "RP1 \u00b7 A chevron opens it inside the capsule",
       "scope": "editor",
       "selection": "fill"
     },
-    "reviewedRevision": 3,
+    "reviewedRevision": 4,
     "revisions": [
       {
         "changes": [
@@ -294,6 +306,14 @@
         "date": "2026-10-01T12:24:10Z",
         "number": 4,
         "summary": "Replace you can see"
+      },
+      {
+        "changes": [
+          "Replace now recommends RP1, your pick; how it opens, the preview while typing and its shortcuts moved to the new page 28.13"
+        ],
+        "date": "2026-10-01T12:36:52Z",
+        "number": 5,
+        "summary": "Replace continues on 28.13"
       }
     ],
     "status": "Judging",

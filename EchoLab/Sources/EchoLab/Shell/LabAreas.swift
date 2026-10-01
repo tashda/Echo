@@ -100,6 +100,7 @@ enum LabAreas {
         "ongoing.editor-settings-r28": "editor",
         "ongoing.mssql-always-encrypted-r29": "footer-results",
         "ongoing.editor-find-bar-r28": "editor",
+        "ongoing.editor-search-replace-r28": "editor",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
