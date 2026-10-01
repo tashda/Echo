@@ -1,24 +1,22 @@
 import XCTest
 import PostgresKit
+import ServerLabClient
 @testable import Echo
 
 /// End-to-end checks of a PostgreSQL query-tab session against a real server: pinned connection,
 /// streaming past the 200-row preview, scripts and server-side cancel.
 ///
-/// Runs only when `ECHO_E2E_PG_PORT` points at a disposable server (user/password `postgres`),
-/// e.g. `TEST_RUNNER_ECHO_E2E_PG_PORT=54418 xcodebuild test …`.
+/// Runs on the lab Postgres the suites share (`LabSharedServers`).
 @MainActor
 final class PostgresQueryTabSessionTests: XCTestCase {
     private var session: PostgresSession!
 
     override func setUp() async throws {
         try await super.setUp()
-        guard let portText = ProcessInfo.processInfo.environment["ECHO_E2E_PG_PORT"], let port = Int(portText) else {
-            throw XCTSkip("ECHO_E2E_PG_PORT not set")
-        }
+        let server = try await LabSharedServers.serverForSuite(LabRecipes.postgres)
         let base = try await PostgresNIOFactory().connect(
-            host: "127.0.0.1", port: port, database: "postgres", tls: false, tlsMode: .disable,
-            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: "postgres", password: "postgres")
+            host: server.host, port: server.port, database: "postgres", tls: false, tlsMode: .disable,
+            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password)
         )
         session = (base as! PostgresSession).withPinnedQueries()
     }

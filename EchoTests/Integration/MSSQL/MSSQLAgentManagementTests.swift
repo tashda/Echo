@@ -6,7 +6,7 @@ import SQLServerKit
 /// Integration tests for SQL Server Agent management operations:
 /// alert CRUD, proxy management, category management, and job creation with all subsystems.
 /// Uses typed sqlserver-nio APIs per project conventions.
-@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote))
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .serialized)
 struct MSSQLAgentManagementTests {
 
     // MARK: - Alert CRUD

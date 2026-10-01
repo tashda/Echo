@@ -12,6 +12,12 @@ actor LabSharedServers {
     private var starts: [String: Task<LabServer, any Error>] = [:]
     private var observerRegistered = false
 
+    /// The shared server for an XCTest suite, or a skip when lab suites are switched off.
+    static func serverForSuite(_ recipe: String) async throws -> LabServer {
+        guard labIntegrationEnabled else { throw XCTSkip("\(labIntegrationNote)") }
+        return try await shared.server(for: recipe)
+    }
+
     func server(for recipe: String) async throws -> LabServer {
         if let start = starts[recipe] { return try await start.value }
         let start = Task(name: "lab-server-\(recipe)") {

@@ -1,23 +1,21 @@
 import XCTest
 import PostgresKit
+import ServerLabClient
 @testable import Echo
 
 /// Round 21, timeouts (accepted): the tab's time limit stops a statement, Run Without Limit lifts
 /// it (even a server limit), and a limit set on the server is read (SL1).
 ///
-/// Runs only when `ECHO_E2E_PG_PORT` points at a disposable server (user/password `postgres`).
+/// Runs on the lab Postgres the suites share (`LabSharedServers`).
 @MainActor
 final class PostgresQueryTimeLimitTests: XCTestCase {
     private var session: PostgresSession!
     private var store: PostgresPinnedSessionStore { session.pinnedStore! }
-    private var port = 0
+    private var server: LabServer!
 
     override func setUp() async throws {
         try await super.setUp()
-        guard let portText = ProcessInfo.processInfo.environment["ECHO_E2E_PG_PORT"], let port = Int(portText) else {
-            throw XCTSkip("ECHO_E2E_PG_PORT not set")
-        }
-        self.port = port
+        server = try await LabSharedServers.serverForSuite(LabRecipes.postgres)
         session = try await makeSession()
     }
 
@@ -28,8 +26,8 @@ final class PostgresQueryTimeLimitTests: XCTestCase {
 
     private func makeSession() async throws -> PostgresSession {
         let base = try await PostgresNIOFactory().connect(
-            host: "127.0.0.1", port: port, database: "postgres", tls: false, tlsMode: .disable,
-            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: "postgres", password: "postgres")
+            host: server.host, port: server.port, database: "postgres", tls: false, tlsMode: .disable,
+            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password)
         )
         return (base as! PostgresSession).withPinnedQueries()
     }
@@ -53,7 +51,11 @@ final class PostgresQueryTimeLimitTests: XCTestCase {
 
     func testRunWithoutLimitLiftsEvenAServerLimit() async throws {
         _ = try await run("ALTER ROLE postgres SET statement_timeout = '300ms'")
-        defer { Task { [port] in _ = port; _ = try? await self.run("ALTER ROLE postgres RESET statement_timeout") } }
+        // The server is shared: the role's limit is gone before the next suite connects.
+        let session = self.session!
+        addTeardownBlock {
+            _ = try? await session.simpleQuery("ALTER ROLE postgres RESET statement_timeout", executionMode: nil, progressHandler: { _ in })
+        }
         let fresh = try await makeSession()
         defer { Task { await fresh.close() } }
         _ = try await run("SELECT 1", on: fresh)

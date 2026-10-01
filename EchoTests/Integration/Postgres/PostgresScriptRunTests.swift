@@ -1,23 +1,22 @@
 import XCTest
 import PostgresKit
+import ServerLabClient
 @testable import Echo
 
 /// Round 21, script results (accepted): E3 stop at a failed statement (a setting continues) and
 /// OT1 Run as One Transaction, against a real server.
 ///
-/// Runs only when `ECHO_E2E_PG_PORT` points at a disposable server (user/password `postgres`).
+/// Runs on the lab Postgres the suites share (`LabSharedServers`).
 @MainActor
 final class PostgresScriptRunTests: XCTestCase {
     private var session: PostgresSession!
 
     override func setUp() async throws {
         try await super.setUp()
-        guard let portText = ProcessInfo.processInfo.environment["ECHO_E2E_PG_PORT"], let port = Int(portText) else {
-            throw XCTSkip("ECHO_E2E_PG_PORT not set")
-        }
+        let server = try await LabSharedServers.serverForSuite(LabRecipes.postgres)
         let base = try await PostgresNIOFactory().connect(
-            host: "127.0.0.1", port: port, database: "postgres", tls: false, tlsMode: .disable,
-            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: "postgres", password: "postgres")
+            host: server.host, port: server.port, database: "postgres", tls: false, tlsMode: .disable,
+            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password)
         )
         session = (base as! PostgresSession).withPinnedQueries()
         _ = try await session.simpleQuery("DROP TABLE IF EXISTS script_run_t", executionMode: nil, progressHandler: { _ in })

@@ -1,23 +1,22 @@
 import XCTest
 import PostgresKit
+import ServerLabClient
 @testable import Echo
 
 /// Round 21, cancelling a query (accepted): a cancel inside a transaction leaves it needing
 /// ROLLBACK (TX1), and Force Stop closes the connection so the next run gets a new session (CS2).
 ///
-/// Runs only when `ECHO_E2E_PG_PORT` points at a disposable server (user/password `postgres`).
+/// Runs on the lab Postgres the suites share (`LabSharedServers`).
 @MainActor
 final class PostgresCancelTests: XCTestCase {
     private var session: PostgresSession!
 
     override func setUp() async throws {
         try await super.setUp()
-        guard let portText = ProcessInfo.processInfo.environment["ECHO_E2E_PG_PORT"], let port = Int(portText) else {
-            throw XCTSkip("ECHO_E2E_PG_PORT not set")
-        }
+        let server = try await LabSharedServers.serverForSuite(LabRecipes.postgres)
         let base = try await PostgresNIOFactory().connect(
-            host: "127.0.0.1", port: port, database: "postgres", tls: false, tlsMode: .disable,
-            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: "postgres", password: "postgres")
+            host: server.host, port: server.port, database: "postgres", tls: false, tlsMode: .disable,
+            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password)
         )
         session = (base as! PostgresSession).withPinnedQueries()
     }
