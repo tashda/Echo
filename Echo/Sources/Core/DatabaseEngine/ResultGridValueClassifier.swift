@@ -2,6 +2,8 @@ import Foundation
 
 public enum ResultGridValueKind: Sendable, Equatable {
     case text, numeric, boolean, temporal, binary, identifier, json, null
+    /// SQL Server Always Encrypted ciphertext Echo cannot decrypt (round 29).
+    case encrypted
 }
 
 public enum ResultGridValueClassifier {
@@ -27,6 +29,7 @@ public enum ResultGridValueClassifier {
     public static func kind(for column: ColumnInfo?, value: String?) -> ResultGridValueKind {
         guard value != nil else { return .null }
         guard let column else { return .text }
+        if column.encryption != nil { return .encrypted }
         return kind(forType: column.dataType)
     }
 

@@ -53,7 +53,7 @@ enum MssqlAlwaysEncryptedRound {
                 MssqlEncryptedGrid(cell: .today, header: .none, editing: nil,
                                    moment: Moment(rawValue: values["moment"]) ?? .grid, today: true)
             },
-            .init(id: "proposal", title: "Proposal", summary: "Built from the controls.",
+            .init(id: "proposal", title: "Proposal", summary: "Accepted (EV1, EH1, ED1, CP1, AO1) and built into Echo in c25d5be9.",
                   designWidth: width, designHeight: height) { values in
                 MssqlEncryptedGrid(cell: Cell(rawValue: values["cell"]) ?? .lockWord,
                                    header: Header(rawValue: values["header"]) ?? .lock,

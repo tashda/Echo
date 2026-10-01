@@ -66,6 +66,7 @@ struct CellValueInspectorPanel: View {
         case .identifier: return "Identifier"
         case .json: return "JSON"
         case .null: return "NULL"
+        case .encrypted: return "Always Encrypted"
         }
     }
 

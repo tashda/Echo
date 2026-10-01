@@ -106,6 +106,13 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         // Plan R1: right-aligned tabular numbers and dates, ✓/✗ booleans (ResultCellPresentation).
         let font = resolvedFont(for: style, tabularDigits: ResultCellPresentation.usesTabularDigits(kind))
         // Round 21 (values in the grid): arrays, JSON, binary and decimals drawn by ResultCellValueForm.
+        if kind == .encrypted {
+            // Round 29 (EV1): a dimmed lock and "Encrypted" instead of the ciphertext.
+            cellView.apply(text: ResultCellPresentation.encryptedText, font: font, textColor: .tertiaryLabelColor)
+            cellView.applyLeadingSymbol("lock.fill")
+            cellView.configureIcon(nil)
+            return
+        }
         let shown = shownValue(rawValue, kind: kind, dataIndex: dataIndex, tableView: tableView)
         let baseTextColor = cachedTextColors[kind] ?? { let c = dynamicNSColor(for: kind, style: style); cachedTextColors[kind] = c; return c }()
         cellView.apply(text: shown.text, font: font, textColor: baseTextColor, alignment: ResultCellPresentation.alignment(for: kind))

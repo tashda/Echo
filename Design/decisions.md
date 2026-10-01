@@ -11,6 +11,17 @@ Echo Labs › Footer and results › round 27, revision 5. The owner loved the f
 - **Gap: H1 · 9pt** and **track: T1 · none**, as built.
 - **Everywhere** (owner, after round 27): every overlay horizontal scroll bar in Echo gets the same rising blur, SwiftUI tables included, with nothing to set per view: `ScrollBarBlur`, attached by `ScrollBarBlurHook` after every `NSScrollView.tile()`, installed at launch. → Phase 5 R14
 
+## 2026-10-01 · Round 29 accepted: SQL Server Always Encrypted columns
+
+Echo Labs › SQL Server › Always Encrypted columns · round 29. sqlserver-nio describes encrypted result columns (real type, deterministic or randomized, algorithm, key path); Echo has no column master keys, so the values stay ciphertext. Every recommendation was taken. Built in c25d5be9.
+
+- **Cell: EV1 · 🔒 Encrypted, dimmed**, in the query grid and Table Data. The word without the lock, the dimmed ciphertext and today's hex were not chosen.
+- **Header: EH1 · a lock after the name; details on hover** (type such as nvarchar(11), deterministic or randomized, algorithm, key store and path). A plain header was not chosen.
+- **Editing: ED1 · read-only, and trying to edit says why** ("Can't edit an encrypted value", naming the column master key). Silently read-only was not chosen.
+- **Copy: CP1 · the ciphertext as hex (0x01…)**, the value Echo has. The word Encrypted was not chosen.
+- **When Echo asks: AO1 · always, no setting.** Every SQL Server connection asks for column encryption metadata; servers before 2016 ignore it. A per-connection switch was not chosen.
+- Also fixed in the driver (sqlserver-nio e8f975a): Table Data showed binary values as `0x01` `0xAB`… run together; it now shows one hex literal, as the query grid did. → Phase 18 S8
+
 ## 2026-10-01 · Round 28 accepted: the find bar, search and replace, the lane, one mark language (28.12 to 28.15)
 
 Echo Labs › Editor and running › Query editor · round 28, pages 28.12 to 28.15. The owner's picks where they differ from the recommendation are marked. Built in ac5089f6 (the gutter's Column and Hairline full height in decd9770).
