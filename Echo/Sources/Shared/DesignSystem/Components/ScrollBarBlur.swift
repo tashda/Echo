@@ -1,14 +1,11 @@
 import AppKit
 import ObjectiveC
 
-/// The blur behind every horizontal scroll bar in Echo (owner, after round 27): while the bar
-/// shows, the content under it softens, the blur rising past the thumb (U5), and it settles a
-/// moment after the bar fades. Under a footer (the results grid, the editor) the footer's material
-/// does this instead (round 44, `FooterMaterialBlur`), and the bar can run as wide as the footer (L2).
-///
-/// Nothing has to ask for it: `ScrollBarBlurHook` attaches one to every scroll view that lays out
-/// an overlay horizontal bar, SwiftUI's tables included. `FooterScrollOverlay` sets the footer's
-/// room and the bar's span on the one it uses.
+/// The horizontal bar of the results grid and the editor (`FooterScrollOverlay` attaches it): the
+/// bar runs as wide as the footer (round 27, L2), and without a footer a blur rises past it while it
+/// shows (U5). Under a footer the footer's material softens the rows instead (round 44,
+/// `FooterMaterialBlur`). No other scroll view in Echo gets it: the owner took back the blur behind
+/// every bar after round 44.
 @MainActor
 final class ScrollBarBlur {
     private weak var scrollView: NSScrollView?
@@ -54,13 +51,11 @@ final class ScrollBarBlur {
     }
 
     /// Called after every scroll view lays out its bars (`ScrollBarBlurHook`).
+    /// Only scroll views that asked for it (the results grid and the editor, through
+    /// `FooterScrollOverlay`): the owner took back the blur behind every other bar in Echo (after
+    /// round 44; it looked wrong in tool tabs such as Agent Jobs).
     static func scrollViewDidTile(_ scrollView: NSScrollView) {
-        if let attached = existing(for: scrollView) {
-            attached.didTile()
-        } else if scrollView.hasHorizontalScroller, scrollView.scrollerStyle == .overlay,
-                  scrollView.window != nil, scrollView.documentView != nil {
-            attachment(for: scrollView).didTile()
-        }
+        existing(for: scrollView)?.didTile()
     }
 
     // MARK: - Layout
@@ -130,8 +125,8 @@ final class ScrollBarBlur {
     }
 }
 
-/// Puts a `ScrollBarBlur` behind every horizontal scroll bar in the app, by running it after
-/// every `NSScrollView.tile()`, the point where AppKit lays out its bars. Installed once at launch.
+/// Runs an attached `ScrollBarBlur` after every `NSScrollView.tile()`, the point where AppKit lays
+/// out its bars, so the bar can be stretched and its blur placed. Installed once at launch.
 @MainActor
 enum ScrollBarBlurHook {
     private static var isInstalled = false

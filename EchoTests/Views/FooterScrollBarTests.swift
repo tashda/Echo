@@ -95,6 +95,19 @@ struct ScrollBarBlurTests {
         #expect(steepest < 0.6, "the blur changes by \(steepest)pt of radius in one point of height")
     }
 
+    /// Only the results grid and the editor have it; a table in a tool tab gets no blur (owner,
+    /// after round 44).
+    @Test func otherScrollViewsGetNoBlur() {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 200), styleMask: [.titled], backing: .buffered, defer: true)
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 300, height: 200))
+        scrollView.hasHorizontalScroller = true
+        scrollView.scrollerStyle = .overlay
+        scrollView.documentView = NSView(frame: NSRect(x: 0, y: 0, width: 900, height: 600))
+        window.contentView?.addSubview(scrollView)
+        ScrollBarBlur.scrollViewDidTile(scrollView)
+        #expect(ScrollBarBlur.existing(for: scrollView) == nil)
+    }
+
     @Test func theFadeIsAnSCurve() {
         let alphas = BackdropEdgeBlurLayerView.fadeAlphas
         #expect(alphas.first == 1 && alphas.last == 0)
