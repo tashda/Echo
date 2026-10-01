@@ -66,11 +66,9 @@ jobs:
         "${{ steps.lab.outputs.serverlab }}" down --all --owner-prefix "nightly-${{ github.run_id }}-${{ github.run_attempt }}" || true
         "${{ steps.lab.outputs.serverlab }}" reap || true
 
-    # Off the tailnet before the results upload, which talks to GitHub (leave-tailnet.sh).
-    - name: Leave the tailnet
-      if: always()
-      run: .github/scripts/leave-tailnet.sh
-
+    # The results go up while the runner is still on the tailnet: leaving it (`tailscale down`) broke
+    # the runner's name lookups for minutes, and every upload after it failed. The Tailscale action
+    # logs out when the job ends.
     - name: Upload SQL Server Version Results
       if: always()
       uses: actions/upload-artifact@v4

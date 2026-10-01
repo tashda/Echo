@@ -35,7 +35,7 @@ while true; do
   tailscale=$(tailscale status --json 2>/dev/null | python3 -c 'import json, sys; print(json.load(sys.stdin).get("BackendState", "?"))' 2>/dev/null || echo none)
   memory=$(memory_pressure -Q 2>/dev/null | grep -oE '[0-9]+%' | head -1)
   load=$(sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}')
-  tests=$(grep -cE "$finished_test" "$test_log" 2>/dev/null || echo 0)
+  tests=$(grep -cE "$finished_test" "$test_log" 2>/dev/null || true)
   line="[watch] $(date -u +%H:%M) github=$github results=$results testlab=$testlab tailscale=$tailscale mem-free=${memory:-?} load=${load:-?} tests=$tests"
   echo "$line"
   echo "$line" >> diagnostics/runner-watch.log

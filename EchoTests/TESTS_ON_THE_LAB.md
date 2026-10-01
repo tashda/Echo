@@ -32,7 +32,7 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
   - **Nightly**, by hand: SQLServerVersions.
 
   The lab setup is one action, `.github/actions/lab-tests-setup`; the runner joins the tailnet
-  only after every download and leaves it before uploading. Each run's servers are owned by
+  only after every download and stays on it until the job ends. Each run's servers are owned by
   `ci-<run>` or `nightly-<run>` and removed afterwards.
 - **Time limits and the watchdog:** a hang fails one test, not the run. XCTest lab tests have 5
   minutes each (the plans' `defaultTestExecutionTimeAllowance`); `MSSQLLabTestCase` allows up to 15
@@ -50,8 +50,9 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
   the job log, in `diagnostics/runner-watch.log` and on testlab in `~/ci-watch/<run>-<attempt>-<name>.log`
   (kept 14 days), so a lost runner still leaves a record. The workflow `rerun-lost-runner.yml`
   reruns the failed jobs of a first attempt of CI (Full) or Nightly Tests once when a job failed
-  that way (it runs from `main` only, as GitHub requires). After the tests the runner leaves the
-  tailnet with `leave-tailnet.sh`, which waits until GitHub answers before the results upload.
+  that way (it runs from `main` only, as GitHub requires). The runner stays on the tailnet until the
+  job ends: the watch showed GitHub answering throughout the tests and not at all for minutes
+  after `tailscale down`, which is what broke the results uploads.
 - **Locally:** run the EchoTests plan; testlab must be reachable (home network), or set
   `SERVERLAB_HOST=local` for Docker on the Mac.
 
