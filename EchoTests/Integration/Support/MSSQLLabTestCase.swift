@@ -5,14 +5,21 @@ import Synchronization
 @testable import Echo
 
 /// Base class for the SQL Server suites: every test gets a `DatabaseSession` on a lab server
-/// started from `recipe`, shared by all suites of the test run (`LabSharedServers`). Runs only
-/// with `SERVERLAB_INTEGRATION=1` (the EchoTests plan); skipped otherwise.
+/// started from `recipe`, shared by all suites of the test run (`LabSharedServers`). Each suite
+/// works in a database of its own (`scratchDatabase`, made through sqlserver-nio), where sessions
+/// open unless a test names another database; the server is removed after the run, so nothing in
+/// it needs dropping. Runs only with `SERVERLAB_INTEGRATION=1` (the EchoTests plan).
 class MSSQLLabTestCase: XCTestCase {
     /// The recipe of the shared server. A suite that needs other content overrides it.
     class var recipe: String { LabRecipes.sqlServer }
 
     private(set) var server: LabServer!
     private(set) var session: DatabaseSession!
+    /// This suite's own database on the shared server.
+    private(set) var scratchDatabase: String!
+
+    /// Scratch databases made so far, by suite and server.
+    private static let scratchDatabases = Mutex<[String: String]>([:])
 
     var host: String { server.host }
     var port: Int { server.port }
@@ -32,7 +39,28 @@ class MSSQLLabTestCase: XCTestCase {
         executionTimeAllowance = 60
         guard labIntegrationEnabled else { throw XCTSkip("\(labIntegrationNote)") }
         server = try await LabSharedServers.shared.server(for: Self.recipe)
+        scratchDatabase = try await makeScratchDatabaseIfNeeded()
         session = try await createSession()
+    }
+
+    /// `echo_<suite>` on this server, made the first time one of the suite's tests runs.
+    private func makeScratchDatabaseIfNeeded() async throws -> String {
+        let key = "\(Self.self)|\(server.containerName)"
+        if let existing = Self.scratchDatabases.withLock({ $0[key] }) { return existing }
+        let name = "echo_\(String(describing: Self.self).lowercased())"
+        let master = try await createSession(database: "master")
+        do {
+            let admin = (master as! SQLServerSessionAdapter).client.admin
+            if try await !(master.listDatabases()).contains(name) {
+                try await admin.createDatabase(name: name)
+            }
+            await master.close()
+        } catch {
+            await master.close()
+            throw error
+        }
+        Self.scratchDatabases.withLock { $0[key] = name }
+        return name
     }
 
     override func tearDown() async throws {
@@ -45,11 +73,12 @@ class MSSQLLabTestCase: XCTestCase {
 
     // MARK: - Session Factory
 
+    /// A session on `database`, else on the suite's scratch database.
     func createSession(database: String? = nil) async throws -> DatabaseSession {
         try await MSSQLNIOFactory().connect(
             host: host,
             port: port,
-            database: database,
+            database: database ?? scratchDatabase,
             tls: true,
             trustServerCertificate: true,
             authentication: DatabaseAuthenticationConfiguration(
@@ -112,33 +141,5 @@ class MSSQLLabTestCase: XCTestCase {
     /// Generate a unique table name to avoid test collisions.
     func uniqueTableName(prefix: String = "echo_test") -> String {
         "\(prefix)_\(UUID().uuidString.prefix(8).lowercased())"
-    }
-
-    /// Schedule SQL cleanup to run after the test completes.
-    /// Use this instead of `defer { Task { ... } }` which causes Swift 6 sending errors.
-    func cleanupSQL(_ statements: String...) {
-        let session = self.session!
-        addTeardownBlock {
-            for sql in statements {
-                _ = try? await session.executeUpdate(sql)
-            }
-        }
-    }
-
-    /// Create a temporary table and run a closure, then clean up.
-    func withTempTable(
-        name: String? = nil,
-        columns: String = "id INT PRIMARY KEY, name NVARCHAR(100), value INT",
-        body: (String) async throws -> Void
-    ) async throws {
-        let tableName = name ?? uniqueTableName()
-        try await execute("CREATE TABLE [\(tableName)] (\(columns))")
-        do {
-            try await body(tableName)
-        } catch {
-            try? await execute("DROP TABLE IF EXISTS [\(tableName)]")
-            throw error
-        }
-        try? await execute("DROP TABLE IF EXISTS [\(tableName)]")
     }
 }

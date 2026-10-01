@@ -44,7 +44,6 @@ final class MSSQLConnectionTests: MSSQLLabTestCase {
         // Create a test database
         let dbName = uniqueTableName(prefix: "echo_db")
         try await execute("CREATE DATABASE [\(dbName)]")
-        cleanupSQL("DROP DATABASE [\(dbName)]")
 
         let dbSession = try await session.sessionForDatabase(dbName)
 

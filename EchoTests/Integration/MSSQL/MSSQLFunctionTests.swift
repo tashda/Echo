@@ -17,7 +17,6 @@ final class MSSQLFunctionTests: MSSQLLabTestCase {
             returnType: .int,
             body: "BEGIN RETURN @x * 3; END"
         )
-        cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         let result = try await query("SELECT dbo.[\(funcName)](14) AS tripled")
         XCTAssertEqual(result.rows[0][0], "42")
@@ -34,7 +33,6 @@ final class MSSQLFunctionTests: MSSQLLabTestCase {
             returnType: .nvarchar(length: .length(101)),
             body: "BEGIN RETURN @first + ' ' + @last; END"
         )
-        cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         let result = try await query("SELECT dbo.[\(funcName)]('Jane', 'Doe') AS name")
         XCTAssertEqual(result.rows[0][0], "Jane Doe")
@@ -66,10 +64,6 @@ final class MSSQLFunctionTests: MSSQLLabTestCase {
             AS
             RETURN (SELECT id, name FROM [\(tableName)] WHERE dept = @dept)
         """)
-        cleanupSQL(
-            "DROP FUNCTION dbo.[\(funcName)]",
-            "DROP TABLE [\(tableName)]"
-        )
 
         let result = try await query("SELECT * FROM dbo.[\(funcName)]('ENG')")
         IntegrationTestHelpers.assertRowCount(result, expected: 2)
@@ -87,7 +81,6 @@ final class MSSQLFunctionTests: MSSQLLabTestCase {
             returnType: .int,
             body: "BEGIN RETURN @x; END"
         )
-        cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         // ALTER FUNCTION — no typed API, use raw SQL
         try await execute("""
@@ -132,7 +125,6 @@ final class MSSQLFunctionTests: MSSQLLabTestCase {
             returnType: .nvarchar(length: .length(100)),
             body: "BEGIN RETURN UPPER(@input); END"
         )
-        cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         let definition = try await session.getObjectDefinition(
             objectName: funcName, schemaName: "dbo", objectType: .function

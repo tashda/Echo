@@ -26,11 +26,6 @@ final class MSSQLTriggerTests: MSSQLLabTestCase {
             events: [.insert],
             body: "INSERT INTO [\(logTable)] (message) VALUES ('Row inserted');"
         )
-        cleanupSQL(
-            "DROP TRIGGER [\(triggerName)]",
-            "DROP TABLE [\(tableName)]",
-            "DROP TABLE [\(logTable)]"
-        )
 
         try await sqlserverClient.admin.insertRow(
             into: tableName,
@@ -59,11 +54,6 @@ final class MSSQLTriggerTests: MSSQLLabTestCase {
             timing: .after,
             events: [.update],
             body: "INSERT INTO [\(logTable)] VALUES ('UPDATE');"
-        )
-        cleanupSQL(
-            "DROP TRIGGER [\(triggerName)]",
-            "DROP TABLE [\(tableName)]",
-            "DROP TABLE [\(logTable)]"
         )
 
         try await sqlserverClient.admin.insertRow(
@@ -97,11 +87,6 @@ final class MSSQLTriggerTests: MSSQLLabTestCase {
             events: [.delete],
             body: "INSERT INTO [\(logTable)] VALUES ('DELETE');"
         )
-        cleanupSQL(
-            "DROP TRIGGER [\(triggerName)]",
-            "DROP TABLE [\(tableName)]",
-            "DROP TABLE [\(logTable)]"
-        )
 
         try await sqlserverClient.admin.insertRow(
             into: tableName,
@@ -134,11 +119,6 @@ final class MSSQLTriggerTests: MSSQLLabTestCase {
             timing: .after,
             events: [.insert],
             body: "INSERT INTO [\(logTable)] VALUES ('INSERT');"
-        )
-        cleanupSQL(
-            "DROP TRIGGER [\(triggerName)]",
-            "DROP TABLE [\(tableName)]",
-            "DROP TABLE [\(logTable)]"
         )
 
         // Disable trigger
@@ -175,7 +155,6 @@ final class MSSQLTriggerTests: MSSQLLabTestCase {
             events: [.insert],
             body: "SELECT 1;"
         )
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.triggers.dropTrigger(name: triggerName)
         // Trigger should be gone — insert without error to verify

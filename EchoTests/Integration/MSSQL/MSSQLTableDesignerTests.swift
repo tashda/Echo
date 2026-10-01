@@ -18,7 +18,6 @@ final class MSSQLTableDesignerTests: MSSQLLabTestCase {
                 name NVARCHAR(100)
             )
         """)
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let idColumn = try XCTUnwrap(details.columns.first(where: { $0.name == "id" }))
@@ -35,7 +34,6 @@ final class MSSQLTableDesignerTests: MSSQLLabTestCase {
                 name NVARCHAR(100)
             )
         """)
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let idColumn = try XCTUnwrap(details.columns.first(where: { $0.name == "id" }))
@@ -54,7 +52,6 @@ final class MSSQLTableDesignerTests: MSSQLLabTestCase {
                 name NVARCHAR(100) COLLATE Latin1_General_CI_AS
             )
         """)
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let nameColumn = try XCTUnwrap(details.columns.first(where: { $0.name == "name" }))
@@ -73,7 +70,6 @@ final class MSSQLTableDesignerTests: MSSQLLabTestCase {
                 CONSTRAINT ck_\(tableName)_positive CHECK (value > 0)
             )
         """)
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertEqual(details.checkConstraints.count, 1, "Should have exactly one check constraint")
@@ -95,7 +91,6 @@ final class MSSQLTableDesignerTests: MSSQLLabTestCase {
                 CONSTRAINT [\(ckStatus)] CHECK (status IN (N'active', N'inactive'))
             )
         """)
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertEqual(details.checkConstraints.count, 2, "Should have two check constraints")
@@ -117,7 +112,6 @@ final class MSSQLTableDesignerTests: MSSQLLabTestCase {
             )
         """)
         try await execute("CREATE INDEX [\(indexName)] ON dbo.[\(tableName)] (key_col) INCLUDE (included_col)")
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let idx = try XCTUnwrap(details.indexes.first(where: { $0.name == indexName }), "Index should be present")
@@ -141,7 +135,6 @@ final class MSSQLTableDesignerTests: MSSQLLabTestCase {
                 name NVARCHAR(100)
             ) WITH (DATA_COMPRESSION = PAGE)
         """)
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let props = try XCTUnwrap(details.tableProperties, "Table properties should not be nil")
@@ -156,7 +149,6 @@ final class MSSQLTableDesignerTests: MSSQLLabTestCase {
                 name NVARCHAR(100)
             )
         """)
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let props = try XCTUnwrap(details.tableProperties, "Table properties should not be nil")

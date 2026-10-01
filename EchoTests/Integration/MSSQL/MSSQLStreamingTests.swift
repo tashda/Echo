@@ -87,7 +87,6 @@ final class MSSQLStreamingTests: MSSQLDedicatedLabTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let progressCalled = LockIsolated(false)
         let result = try await dedicatedSession.simpleQuery(

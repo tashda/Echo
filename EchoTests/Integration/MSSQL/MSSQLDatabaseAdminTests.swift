@@ -10,7 +10,6 @@ final class MSSQLDatabaseAdminTests: MSSQLLabTestCase {
     func testCreateDatabase() async throws {
         let dbName = uniqueTableName(prefix: "testdb")
         try await execute("CREATE DATABASE [\(dbName)]")
-        cleanupSQL("DROP DATABASE [\(dbName)]")
 
         let databases = try await session.listDatabases()
         IntegrationTestHelpers.assertContains(databases, value: dbName)
@@ -65,7 +64,6 @@ final class MSSQLDatabaseAdminTests: MSSQLLabTestCase {
     func testAlterDatabaseRecoveryModel() async throws {
         let dbName = uniqueTableName(prefix: "recdb")
         try await execute("CREATE DATABASE [\(dbName)]")
-        cleanupSQL("DROP DATABASE [\(dbName)]")
 
         try await execute("ALTER DATABASE [\(dbName)] SET RECOVERY SIMPLE")
 
@@ -108,7 +106,6 @@ final class MSSQLDatabaseAdminTests: MSSQLLabTestCase {
     func testCreateDatabaseWithCollation() async throws {
         let dbName = uniqueTableName(prefix: "colldb")
         try await execute("CREATE DATABASE [\(dbName)] COLLATE Latin1_General_CI_AS")
-        cleanupSQL("DROP DATABASE [\(dbName)]")
 
         let result = try await query("""
             SELECT collation_name FROM sys.databases WHERE name = '\(dbName)'

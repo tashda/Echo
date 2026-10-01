@@ -20,7 +20,7 @@ final class MSSQLQueryTabIsolationTests: MSSQLDedicatedLabTestCase {
         let tabTwoDatabase = try await tabTwo.currentDatabaseName()
 
         XCTAssertEqual(tabOneDatabase?.lowercased(), "tempdb")
-        XCTAssertEqual(tabTwoDatabase?.lowercased(), "master")
+        XCTAssertEqual(tabTwoDatabase?.lowercased(), scratchDatabase.lowercased())
     }
 
     func testDedicatedQueryTabsDoNotShareTemporaryTables() async throws {

@@ -95,7 +95,6 @@ final class MSSQLDataTypeNumericTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "money_val", definition: .standard(.init(dataType: .money))),
             SQLServerColumnDefinition(name: "bit_val", definition: .standard(.init(dataType: .bit)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
             "id": .int(1),

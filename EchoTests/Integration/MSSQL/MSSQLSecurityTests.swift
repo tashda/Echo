@@ -2,152 +2,110 @@ import XCTest
 import SQLServerKit
 @testable import Echo
 
-/// Tests SQL Server security operations through Echo's DatabaseSession layer.
+/// SQL Server security through the sqlserver-nio APIs Echo's security screens use: logins, users,
+/// roles, permissions and schema owners are made and read back with the typed clients.
 final class MSSQLSecurityTests: MSSQLLabTestCase {
+    private let loginPassword = "StrongPass123!"
+
+    private var serverSecurity: SQLServerServerSecurityClient { sqlserverClient.serverSecurity }
+    private var security: SQLServerSecurityClient { sqlserverClient.security }
+
+    /// A login and a user for it in the suite's database.
+    private func makeUser() async throws -> (login: String, user: String) {
+        let login = uniqueTableName(prefix: "login")
+        let user = uniqueTableName(prefix: "user")
+        try await serverSecurity.createSqlLogin(name: login, password: loginPassword)
+        try await security.createUser(name: user, login: login)
+        return (login, user)
+    }
 
     // MARK: - Logins
 
-    func testCreateAndDropLogin() async throws {
+    func testCreateLogin() async throws {
         let loginName = uniqueTableName(prefix: "login")
-        try await execute("CREATE LOGIN [\(loginName)] WITH PASSWORD = 'StrongPass123!'")
-        cleanupSQL("DROP LOGIN [\(loginName)]")
+        try await serverSecurity.createSqlLogin(name: loginName, password: loginPassword)
 
-        let result = try await query("SELECT name FROM sys.sql_logins WHERE name = '\(loginName)'")
-        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        let logins = try await serverSecurity.listLogins().map(\.name)
+        XCTAssertTrue(logins.contains(loginName))
     }
 
     func testDropLogin() async throws {
         let loginName = uniqueTableName(prefix: "login")
-        try await execute("CREATE LOGIN [\(loginName)] WITH PASSWORD = 'StrongPass123!'")
+        try await serverSecurity.createSqlLogin(name: loginName, password: loginPassword)
 
-        try await execute("DROP LOGIN [\(loginName)]")
+        try await serverSecurity.dropLogin(name: loginName)
 
-        let result = try await query("SELECT name FROM sys.sql_logins WHERE name = '\(loginName)'")
-        XCTAssertEqual(result.rows.count, 0)
+        let logins = try await serverSecurity.listLogins().map(\.name)
+        XCTAssertFalse(logins.contains(loginName))
     }
 
     // MARK: - Database Users
 
-    func testCreateAndDropUser() async throws {
-        let loginName = uniqueTableName(prefix: "login")
-        let userName = uniqueTableName(prefix: "user")
-        try await execute("CREATE LOGIN [\(loginName)] WITH PASSWORD = 'StrongPass123!'")
-        cleanupSQL("DROP LOGIN [\(loginName)]")
+    func testCreateUser() async throws {
+        let (_, user) = try await makeUser()
 
-        try await execute("CREATE USER [\(userName)] FOR LOGIN [\(loginName)]")
-        cleanupSQL("DROP USER [\(userName)]")
-
-        let result = try await query("SELECT name FROM sys.database_principals WHERE name = '\(userName)'")
-        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        let users = try await security.listUsers().map(\.name)
+        XCTAssertTrue(users.contains(user))
     }
 
     // MARK: - Roles
 
-    func testCreateAndDropRole() async throws {
+    func testCreateRole() async throws {
         let roleName = uniqueTableName(prefix: "role")
-        try await execute("CREATE ROLE [\(roleName)]")
-        cleanupSQL("DROP ROLE [\(roleName)]")
+        try await security.createRole(name: roleName)
 
-        let result = try await query("SELECT name FROM sys.database_principals WHERE name = '\(roleName)' AND type = 'R'")
-        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        let roles = try await security.listRoles().map(\.name)
+        XCTAssertTrue(roles.contains(roleName))
     }
 
     func testAddUserToRole() async throws {
-        let loginName = uniqueTableName(prefix: "login")
-        let userName = uniqueTableName(prefix: "user")
+        let (_, user) = try await makeUser()
         let roleName = uniqueTableName(prefix: "role")
-        try await execute("CREATE LOGIN [\(loginName)] WITH PASSWORD = 'StrongPass123!'")
-        try await execute("CREATE USER [\(userName)] FOR LOGIN [\(loginName)]")
-        try await execute("CREATE ROLE [\(roleName)]")
-        cleanupSQL(
-            "DROP USER [\(userName)]",
-            "DROP ROLE [\(roleName)]",
-            "DROP LOGIN [\(loginName)]"
-        )
+        try await security.createRole(name: roleName)
 
-        try await execute("ALTER ROLE [\(roleName)] ADD MEMBER [\(userName)]")
+        try await security.addUserToRole(user: user, role: roleName)
 
-        let result = try await query("""
-            SELECT r.name AS role_name, m.name AS member_name
-            FROM sys.database_role_members rm
-            JOIN sys.database_principals r ON rm.role_principal_id = r.principal_id
-            JOIN sys.database_principals m ON rm.member_principal_id = m.principal_id
-            WHERE r.name = '\(roleName)'
-        """)
-        IntegrationTestHelpers.assertMinRowCount(result, expected: 1)
+        let members = try await security.listRoleMembers(role: roleName)
+        XCTAssertEqual(members, [user])
     }
 
     // MARK: - Permissions
 
-    func testGrantPermission() async throws {
-        let loginName = uniqueTableName(prefix: "login")
-        let userName = uniqueTableName(prefix: "user")
+    private func makeTableForPermissions() async throws -> SQLServerKit.ObjectIdentifier {
         let tableName = uniqueTableName()
-        try await execute("CREATE LOGIN [\(loginName)] WITH PASSWORD = 'StrongPass123!'")
-        try await execute("CREATE USER [\(userName)] FOR LOGIN [\(loginName)]")
-        try await sqlserverClient.admin.createTable(name: tableName, columns: [
-            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
-        ])
-        cleanupSQL(
-            "DROP TABLE [\(tableName)]",
-            "DROP USER [\(userName)]",
-            "DROP LOGIN [\(loginName)]"
-        )
+        try await createTable(tableName, [.column("id", .int, primaryKey: true)])
+        return SQLServerKit.ObjectIdentifier(schema: "dbo", name: tableName, kind: .table)
+    }
 
-        try await execute("GRANT SELECT ON [\(tableName)] TO [\(userName)]")
+    func testGrantPermission() async throws {
+        let (_, user) = try await makeUser()
+        let table = try await makeTableForPermissions()
 
-        // Verify permission exists
-        let result = try await query("""
-            SELECT permission_name FROM sys.database_permissions
-            WHERE grantee_principal_id = DATABASE_PRINCIPAL_ID('\(userName)')
-            AND permission_name = 'SELECT'
-        """)
-        IntegrationTestHelpers.assertMinRowCount(result, expected: 1)
+        try await security.grant(permission: .select, on: .object(table), to: user)
+
+        let permissions = try await security.listPermissions(principal: user)
+        XCTAssertTrue(permissions.contains { $0.permission == "SELECT" && $0.state.hasPrefix("GRANT") && $0.objectName == table.name },
+                      "\(permissions.map { "\($0.state) \($0.permission) \($0.objectName ?? "")" })")
     }
 
     func testRevokePermission() async throws {
-        let loginName = uniqueTableName(prefix: "login")
-        let userName = uniqueTableName(prefix: "user")
-        let tableName = uniqueTableName()
-        try await execute("CREATE LOGIN [\(loginName)] WITH PASSWORD = 'StrongPass123!'")
-        try await execute("CREATE USER [\(userName)] FOR LOGIN [\(loginName)]")
-        try await sqlserverClient.admin.createTable(name: tableName, columns: [
-            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
-        ])
-        cleanupSQL(
-            "DROP TABLE [\(tableName)]",
-            "DROP USER [\(userName)]",
-            "DROP LOGIN [\(loginName)]"
-        )
+        let (_, user) = try await makeUser()
+        let table = try await makeTableForPermissions()
+        try await security.grant(permission: .select, on: .object(table), to: user)
 
-        try await execute("GRANT SELECT ON [\(tableName)] TO [\(userName)]")
-        try await execute("REVOKE SELECT ON [\(tableName)] FROM [\(userName)]")
+        try await security.revoke(permission: .select, on: .object(table), from: user)
 
-        let result = try await query("""
-            SELECT permission_name FROM sys.database_permissions
-            WHERE grantee_principal_id = DATABASE_PRINCIPAL_ID('\(userName)')
-            AND major_id = OBJECT_ID('[\(tableName)]')
-            AND permission_name = 'SELECT'
-        """)
-        XCTAssertEqual(result.rows.count, 0, "Permission should be revoked")
+        let permissions = try await security.listPermissions(principal: user)
+        XCTAssertFalse(permissions.contains { $0.permission == "SELECT" && $0.objectName == table.name }, "Permission should be revoked")
     }
 
     // MARK: - Schema Ownership
 
     func testCreateSchemaWithOwner() async throws {
-        let loginName = uniqueTableName(prefix: "login")
-        let userName = uniqueTableName(prefix: "user")
+        let (_, user) = try await makeUser()
         let schemaName = uniqueTableName(prefix: "sch")
-        try await execute("CREATE LOGIN [\(loginName)] WITH PASSWORD = 'StrongPass123!'")
-        try await execute("CREATE USER [\(userName)] FOR LOGIN [\(loginName)]")
-        cleanupSQL(
-            "DROP SCHEMA [\(schemaName)]",
-            "DROP USER [\(userName)]",
-            "DROP LOGIN [\(loginName)]"
-        )
 
-        // Schema with AUTHORIZATION requires raw SQL — no typed API for owner
-        try await execute("CREATE SCHEMA [\(schemaName)] AUTHORIZATION [\(userName)]")
+        try await security.createSchema(name: schemaName, authorization: user)
 
         let schemas = try await session.listSchemas()
         IntegrationTestHelpers.assertContains(schemas, value: schemaName)

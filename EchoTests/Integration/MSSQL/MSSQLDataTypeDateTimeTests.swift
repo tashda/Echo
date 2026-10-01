@@ -166,7 +166,6 @@ final class MSSQLDataTypeDateTimeTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "dt2", definition: .standard(.init(dataType: .datetime2(precision: 7), isNullable: true))),
             SQLServerColumnDefinition(name: "dto", definition: .standard(.init(dataType: .datetimeoffset(precision: 7), isNullable: true)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
             "id": .int(1),
@@ -195,7 +194,6 @@ final class MSSQLDataTypeDateTimeTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "dto_col", definition: .standard(.init(dataType: .datetimeoffset(precision: 7)))),
             SQLServerColumnDefinition(name: "sdt_col", definition: .standard(.init(dataType: .smalldatetime)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
             "id": .int(1),
@@ -224,7 +222,6 @@ final class MSSQLDataTypeDateTimeTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "created_at", definition: .standard(.init(dataType: .datetime2(precision: 7)))),
             SQLServerColumnDefinition(name: "expires_at", definition: .standard(.init(dataType: .datetime2(precision: 7), isNullable: true)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRows(
             into: tableName,

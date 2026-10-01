@@ -36,7 +36,7 @@ class MSSQLDedicatedLabTestCase: MSSQLLabTestCase {
         let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
             host: host,
             port: port,
-            database: database,
+            database: database ?? scratchDatabase,
             tls: false,
             trustServerCertificate: true,
             sslRootCertPath: nil,

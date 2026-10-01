@@ -159,7 +159,6 @@ final class MSSQLAgentTests: MSSQLLabTestCase {
 
         do {
             try await execute("EXEC msdb.dbo.sp_add_job @job_name = N'\(jobName)'")
-            cleanupSQL("EXEC msdb.dbo.sp_delete_job @job_name = N'\(jobName)'")
 
             // Add a job step
             try await execute("""
@@ -194,7 +193,6 @@ final class MSSQLAgentTests: MSSQLLabTestCase {
 
         do {
             try await execute("EXEC msdb.dbo.sp_add_job @job_name = N'\(jobName)'")
-            cleanupSQL("EXEC msdb.dbo.sp_delete_job @job_name = N'\(jobName)'")
 
             // Add multiple steps
             for i in 1...3 {

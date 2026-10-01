@@ -55,7 +55,6 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "img", definition: .standard(.init(dataType: .image)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
             "id": .int(1),
@@ -97,7 +96,6 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "guid", definition: .standard(.init(dataType: .uniqueidentifier)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let uuids = [UUID(), UUID(), UUID()]
         _ = try await sqlserverClient.admin.insertRows(
@@ -133,7 +131,6 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .uniqueidentifier, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "val", definition: .standard(.init(dataType: .nvarchar(length: .length(50)))))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let knownGuid = UUID()
         _ = try await sqlserverClient.admin.insertRow(
@@ -183,7 +180,6 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "data", definition: .standard(.init(dataType: .xml)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRows(
             into: tableName,
@@ -220,7 +216,6 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "val", definition: .standard(.init(dataType: .sql_variant)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         // sql_variant requires CAST expressions — insert one at a time to avoid type conflicts
         _ = try await execute("INSERT INTO [\(tableName)] (id, val) VALUES (1, CAST(100 AS INT))")
@@ -257,7 +252,6 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             // HIERARCHYID is not in the typed API, use raw SQL for table setup
             let tableName = uniqueTableName()
             try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, node HIERARCHYID)")
-            cleanupSQL("DROP TABLE [\(tableName)]")
 
             try await execute("""
                 INSERT INTO [\(tableName)] VALUES
@@ -312,7 +306,6 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             // GEOGRAPHY is not in the typed API, use raw SQL for table setup
             let tableName = uniqueTableName()
             try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, location GEOGRAPHY)")
-            cleanupSQL("DROP TABLE [\(tableName)]")
 
             try await execute("""
                 INSERT INTO [\(tableName)] VALUES
@@ -369,7 +362,6 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "guid_col", definition: .standard(.init(dataType: .uniqueidentifier))),
             SQLServerColumnDefinition(name: "xml_col", definition: .standard(.init(dataType: .xml)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
             "id": .int(1),
@@ -397,7 +389,6 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "data", definition: .standard(.init(dataType: .varbinary(length: .length(100)))))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRows(
             into: tableName,

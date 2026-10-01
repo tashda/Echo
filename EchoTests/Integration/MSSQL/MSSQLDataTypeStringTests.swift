@@ -139,7 +139,6 @@ final class MSSQLDataTypeStringTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "dt2_val", definition: .standard(.init(dataType: .datetime2(precision: 7)))),
             SQLServerColumnDefinition(name: "uid_val", definition: .standard(.init(dataType: .uniqueidentifier)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
             "id": .int(1),
