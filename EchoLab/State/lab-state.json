@@ -1,1939 +1,1758 @@
 {
-  "ongoing.content-during-slide-r26" : {
-    "comments" : [
+  "ongoing.content-during-slide-r26": {
+    "comments": [
       {
-        "date" : "2026-10-01T09:54:10Z",
-        "id" : "128969B8-09CD-4F78-905A-AA7C49B569F9",
-        "text" : "Review of Tab content while the tree slides\n1. While the card slides: picked A · Reflow live\n2. Where it applies: picked Every tab\nOverall: I love the current animation and I need this to work - preferably at 120fps but at least with 60. Please find a way to make this work."
+        "date": "2026-10-01T09:54:10Z",
+        "id": "128969B8-09CD-4F78-905A-AA7C49B569F9",
+        "text": "Review of Tab content while the tree slides\n1. While the card slides: picked A \u00b7 Reflow live\n2. Where it applies: picked Every tab\nOverall: I love the current animation and I need this to work - preferably at 120fps but at least with 60. Please find a way to make this work."
       }
     ],
-    "generalNote" : "I love the current animation and I need this to work - preferably at 120fps but at least with 60. Please find a way to make this work.",
-    "history" : [
+    "generalNote": "I love the current animation and I need this to work - preferably at 120fps but at least with 60. Please find a way to make this work.",
+    "history": [
       {
-        "date" : "2026-10-01T09:54:10Z",
-        "text" : "Feedback sent"
+        "date": "2026-10-01T09:54:10Z",
+        "text": "Feedback sent"
       },
       {
-        "date" : "2026-10-01T10:09:20Z",
-        "text" : "Revision 2: Kept A, live reflow, on every tab: nothing to build, it is how Echo works"
+        "date": "2026-10-01T10:09:20Z",
+        "text": "Revision 2: Kept A, live reflow, on every tab: nothing to build, it is how Echo works"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "mode": "A \u00b7 Reflow live",
+      "scope": "all"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "mode" : "A · Reflow live",
-      "scope" : "all"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
+    "reviewedRevision": 1,
+    "revisions": [
       {
-        "changes" : [
+        "changes": [
           "You said the Activity Monitor looks great with the tree sliding in and out; press Confirm in Echo if that holds"
         ],
-        "date" : "2026-10-01T10:09:20Z",
-        "number" : 2,
-        "summary" : "Kept A, live reflow, on every tab: nothing to build, it is how Echo works"
+        "date": "2026-10-01T10:09:20Z",
+        "number": 2,
+        "summary": "Kept A, live reflow, on every tab: nothing to build, it is how Echo works"
       }
     ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.editor-caret-line-r28" : {
-    "comments" : [
+  "ongoing.editor-caret-line-r28": {
+    "comments": [
       {
-        "date" : "2026-10-01T11:01:39Z",
-        "id" : "90D8BF18-F0FB-46FB-BE25-86ADEAAFED0A",
-        "text" : "Review of Editor: caret, current line and selection\n1. Which caret line?: picked Proposal\n2. Current line: picked CL1 · None\n3. Selection colour: picked S1 · System selection colour\n4. Selection shape: picked Rounded 3pt; note: I need more options for how rounded it should be. Please add this as a setting in Settings with Rounded 3 pt as default\n5. Caret colour: picked I1 · System accent\n6. Blinking: picked B0 · As the system sets it (today)\n7. When the editor isn't focused: picked U0 · Grey selection, no caret (native)"
+        "date": "2026-10-01T11:01:39Z",
+        "id": "90D8BF18-F0FB-46FB-BE25-86ADEAAFED0A",
+        "text": "Review of Editor: caret, current line and selection\n1. Which caret line?: picked Proposal\n2. Current line: picked CL1 \u00b7 None\n3. Selection colour: picked S1 \u00b7 System selection colour\n4. Selection shape: picked Rounded 3pt; note: I need more options for how rounded it should be. Please add this as a setting in Settings with Rounded 3 pt as default\n5. Caret colour: picked I1 \u00b7 System accent\n6. Blinking: picked B0 \u00b7 As the system sets it (today)\n7. When the editor isn't focused: picked U0 \u00b7 Grey selection, no caret (native)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-10-01T11:01:39Z",
-        "text" : "Accepted with picks"
+        "date": "2026-10-01T11:01:39Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-10-01T11:40:00Z",
-        "text" : "Built into Echo (9715ce3b): no current-line band; the system selection with 3pt corners, Settings › Selection Corners (Square, 2, 3, 4, 6pt); the system caret. Correction: Echo already drew the system selection colour, not the palette's blue"
+        "date": "2026-10-01T11:40:00Z",
+        "text": "Built into Echo (9715ce3b): no current-line band; the system selection with 3pt corners, Settings \u203a Selection Corners (Square, 2, 3, 4, 6pt); the system caret. Correction: Echo already drew the system selection colour, not the palette's blue"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "selectionShape": "I need more options for how rounded it should be. Please add this as a setting in Settings with Rounded 3 pt as default"
     },
-    "pickNotes" : {
-      "selectionShape" : "I need more options for how rounded it should be. Please add this as a setting in Settings with Rounded 3 pt as default"
+    "picks": {
+      "blink": "system",
+      "caret": "I1 \u00b7 System accent",
+      "currentLine": "CL1 \u00b7 None",
+      "exhibit": "proposal",
+      "focus": "system",
+      "selectionColour": "S1 \u00b7 System selection colour",
+      "selectionShape": "Rounded 3pt"
     },
-    "picks" : {
-      "blink" : "system",
-      "caret" : "I1 · System accent",
-      "currentLine" : "CL1 · None",
-      "exhibit" : "proposal",
-      "focus" : "system",
-      "selectionColour" : "S1 · System selection colour",
-      "selectionShape" : "Rounded 3pt"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.editor-empty-r28" : {
-    "comments" : [
+  "ongoing.editor-empty-r28": {
+    "comments": [
       {
-        "date" : "2026-10-01T11:39:43Z",
-        "id" : "BCC5777A-5649-4D57-8029-C31367F14DC1",
-        "text" : "Review of Editor: empty tab and the right edge\n1. Which empty tab?: picked Proposal\n2. Where the starting points sit: picked Y1 · On the first line, where you type\n3. What an empty tab offers: picked EC2 · The prompt only\n4. Outline edge: picked OE0 · A setting, off (today)\n5. The scroll bar: picked SB0 · The system's overlay scroll bar (today)"
+        "date": "2026-10-01T11:39:43Z",
+        "id": "BCC5777A-5649-4D57-8029-C31367F14DC1",
+        "text": "Review of Editor: empty tab and the right edge\n1. Which empty tab?: picked Proposal\n2. Where the starting points sit: picked Y1 \u00b7 On the first line, where you type\n3. What an empty tab offers: picked EC2 \u00b7 The prompt only\n4. Outline edge: picked OE0 \u00b7 A setting, off (today)\n5. The scroll bar: picked SB0 \u00b7 The system's overlay scroll bar (today)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-10-01T11:39:43Z",
-        "text" : "Accepted with picks"
+        "date": "2026-10-01T11:39:43Z",
+        "text": "Accepted with picks"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "chips": "prompt",
+      "exhibit": "proposal",
+      "hints": "Y1 \u00b7 On the first line, where you type",
+      "outlineEdge": "setting",
+      "scroller": "overlay"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "chips" : "prompt",
-      "exhibit" : "proposal",
-      "hints" : "Y1 · On the first line, where you type",
-      "outlineEdge" : "setting",
-      "scroller" : "overlay"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "Accepted",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
   },
-  "ongoing.editor-errors-r28" : {
-    "comments" : [
+  "ongoing.editor-errors-r28": {
+    "comments": [
       {
-        "date" : "2026-10-01T11:31:59Z",
-        "id" : "638F0C45-0541-4189-8155-815CCAF6C59D",
-        "text" : "Review of Editor: errors in the text\n1. Which error marks?: picked Proposal\n2. The wrong word: picked E0 · Glowing frame (today, while typing); NEEDS MORE OPTIONS; note: Need more options for the \"glowing frame\" - I like the idea of this but I want to have even more options to chose from and make them beautiful\n3. The message: picked M3 · In a bubble, on hover or with the caret on the line\n4. In the gutter: picked D0 · Red dot by the number (today)\n5. While typing and after a run: picked SL0 · The same mark and bubble\n6. When it appears: picked T1 · When you leave the line or stop for 2 s\n7. Movement: picked MO0 · Still\n8. Run note for an error: picked EN0 · ! Error (today, RN1)"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-10-01T11:31:59Z",
-        "text" : "Feedback sent"
+        "date": "2026-10-01T11:31:59Z",
+        "id": "638F0C45-0541-4189-8155-815CCAF6C59D",
+        "text": "Review of Editor: errors in the text\n1. Which error marks?: picked Proposal\n2. The wrong word: picked E0 \u00b7 Glowing frame (today, while typing); NEEDS MORE OPTIONS; note: Need more options for the \"glowing frame\" - I like the idea of this but I want to have even more options to chose from and make them beautiful\n3. The message: picked M3 \u00b7 In a bubble, on hover or with the caret on the line\n4. In the gutter: picked D0 \u00b7 Red dot by the number (today)\n5. While typing and after a run: picked SL0 \u00b7 The same mark and bubble\n6. When it appears: picked T1 \u00b7 When you leave the line or stop for 2 s\n7. Movement: picked MO0 \u00b7 Still\n8. Run note for an error: picked EN0 \u00b7 ! Error (today, RN1)"
       },
       {
-        "date" : "2026-10-01T11:39:41Z",
-        "text" : "Revision 2: Six new glows, all still"
+        "date": "2026-10-01T11:45:57Z",
+        "id": "4B3C0216-9676-4A56-94C6-D109F4FE5134",
+        "text": "Review of Editor: errors in the text\n1. Which error marks?: picked Proposal\n2. The wrong word: picked E0 \u00b7 Glowing frame (today, while typing); NEEDS MORE OPTIONS; note: Still need more options - i like the glowing frame today, but need several more options - also with \"no glow\" but just give me everything you got.\n3. The message: picked M3 \u00b7 In a bubble, on hover or with the caret on the line; NEEDS MORE OPTIONS; note: I also need way more options for the bubble that appears - I don't like the look of it now\n4. Glow: picked GW2 \u00b7 Hairline with a halo; NEEDS MORE OPTIONS\n5. In the gutter: picked D0 \u00b7 Red dot by the number (today)\n6. While typing and after a run: picked SL0 \u00b7 The same mark and bubble\n7. When it appears: picked T1 \u00b7 When you leave the line or stop for 2 s\n8. Movement: picked MO0 \u00b7 Still\n9. Run note for an error: picked EN0 \u00b7 ! Error (today, RN1)"
+      },
+      {
+        "date": "2026-10-01T11:45:57Z",
+        "id": "92344FE1-E773-4DBA-B4E8-01E83CB7F529",
+        "text": "Review of Editor: errors in the text\n1. Which error marks?: picked Proposal\n2. The wrong word: picked E0 \u00b7 Glowing frame (today, while typing); NEEDS MORE OPTIONS; note: Still need more options - i like the glowing frame today, but need several more options - also with \"no glow\" but just give me everything you got.\n3. The message: picked M3 \u00b7 In a bubble, on hover or with the caret on the line; NEEDS MORE OPTIONS; note: I also need way more options for the bubble that appears - I don't like the look of it now\n4. Glow: picked GW2 \u00b7 Hairline with a halo; NEEDS MORE OPTIONS\n5. In the gutter: picked D0 \u00b7 Red dot by the number (today)\n6. While typing and after a run: picked SL0 \u00b7 The same mark and bubble\n7. When it appears: picked T1 \u00b7 When you leave the line or stop for 2 s\n8. Movement: picked MO0 \u00b7 Still\n9. Run note for an error: picked EN0 \u00b7 ! Error (today, RN1)"
       }
     ],
-    "needsMore" : [
-      "errorWord"
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-      "errorWord" : "Need more options for the \"glowing frame\" - I like the idea of this but I want to have even more options to chose from and make them beautiful"
-    },
-    "picks" : {
-      "errorDot" : "D0 · Red dot by the number (today)",
-      "errorMessage" : "M3 · In a bubble, on hover or with the caret on the line",
-      "errorWord" : "E0 · Glowing frame (today, while typing)",
-      "exhibit" : "proposal",
-      "motion" : "still",
-      "sameLook" : "same",
-      "showMessage" : "short",
-      "timing" : "leave"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
+    "generalNote": "",
+    "history": [
       {
-        "changes" : [
+        "date": "2026-10-01T11:31:59Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T11:39:41Z",
+        "text": "Revision 2: Six new glows, all still"
+      },
+      {
+        "date": "2026-10-01T11:45:57Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T11:45:57Z",
+        "text": "Feedback sent"
+      }
+    ],
+    "needsMore": [
+      "errorWord",
+      "errorMessage",
+      "errorGlow"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "errorMessage": "I also need way more options for the bubble that appears - I don't like the look of it now",
+      "errorWord": "Still need more options - i like the glowing frame today, but need several more options - also with \"no glow\" but just give me everything you got."
+    },
+    "picks": {
+      "errorDot": "D0 \u00b7 Red dot by the number (today)",
+      "errorGlow": "GW2 \u00b7 Hairline with a halo",
+      "errorMessage": "M3 \u00b7 In a bubble, on hover or with the caret on the line",
+      "errorWord": "E0 \u00b7 Glowing frame (today, while typing)",
+      "exhibit": "proposal",
+      "motion": "still",
+      "sameLook": "same",
+      "showMessage": "short",
+      "timing": "leave"
+    },
+    "reviewedRevision": 2,
+    "revisions": [
+      {
+        "changes": [
           "New: Glow control and a Glows gallery: soft halo, hairline with a halo (recommended), ember, underglow, neon pill, inner glow",
           "The wrong word now recommends your glow; the squiggle was my first pick"
         ],
-        "date" : "2026-10-01T11:39:41Z",
-        "number" : 2,
-        "summary" : "Six new glows, all still"
+        "date": "2026-10-01T11:39:41Z",
+        "number": 2,
+        "summary": "Six new glows, all still"
       }
     ],
-    "status" : "Judging",
-    "verdicts" : {
-
-    }
+    "status": "New feedback",
+    "verdicts": {}
   },
-  "ongoing.editor-find-typing-r28" : {
-    "comments" : [
-      {
-        "date" : "2026-10-01T11:37:40Z",
-        "id" : "49C35953-3CDF-495F-B51E-B94A3E8D0CA9",
-        "text" : "Review of Editor: find, go to line and typing\n1. Go to Line (⌘L): picked GL1 · A field at the top of the editor\n2. Find: NEEDS MORE OPTIONS\n3. Tab: picked TB1 · 4 spaces; ⇧Tab outdents; Tab on a selection indents it\n4. Return: picked RT1 · Under the line above\n5. Brackets and quotes: picked BQ1 · Yes, and typing the closing one steps over it\n6. Comment out: picked CM1 · Yes, ⌘\/ toggles --\n7. Long lines: picked LW0 · Wrap, continuations indented (today), with a switch in Settings"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-10-01T11:37:40Z",
-        "text" : "Feedback sent"
-      },
-      {
-        "date" : "2026-10-01T11:39:42Z",
-        "text" : "Revision 2: Find moved to page 28.12; the rest accepted in chat"
-      }
-    ],
-    "needsMore" : [
+  "ongoing.editor-find-bar-r28": {
+    "comments": [],
+    "generalNote": "",
+    "history": [],
+    "needsMore": [
       "findBar"
     ],
-    "optionNotes" : {
-
+    "optionNotes": {},
+    "pickNotes": {
+      "findBar": "I like this, but currently the \"find\" has a white background and it is not an immersive \"search glass capsule\". Please take this round to another level with a LOT more suggestions!"
     },
-    "pickNotes" : {
-
+    "picks": {
+      "exhibit": "proposal",
+      "findBar": "FB2 \u00b7 A glass strip along the top"
     },
-    "picks" : {
-      "comment" : "yes",
-      "goToLine" : "GL1 · A field at the top of the editor",
-      "indent" : "keep",
-      "pairs" : "on",
-      "tab" : "spaces",
-      "wrap" : "wrap"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Judging",
+    "verdicts": {}
+  },
+  "ongoing.editor-find-typing-r28": {
+    "comments": [
       {
-        "changes" : [
+        "date": "2026-10-01T11:37:40Z",
+        "id": "49C35953-3CDF-495F-B51E-B94A3E8D0CA9",
+        "text": "Review of Editor: find, go to line and typing\n1. Go to Line (\u2318L): picked GL1 \u00b7 A field at the top of the editor\n2. Find: NEEDS MORE OPTIONS\n3. Tab: picked TB1 \u00b7 4 spaces; \u21e7Tab outdents; Tab on a selection indents it\n4. Return: picked RT1 \u00b7 Under the line above\n5. Brackets and quotes: picked BQ1 \u00b7 Yes, and typing the closing one steps over it\n6. Comment out: picked CM1 \u00b7 Yes, \u2318/ toggles --\n7. Long lines: picked LW0 \u00b7 Wrap, continuations indented (today), with a switch in Settings"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T11:37:40Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T11:39:42Z",
+        "text": "Revision 2: Find moved to page 28.12; the rest accepted in chat"
+      }
+    ],
+    "needsMore": [
+      "findBar"
+    ],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "comment": "yes",
+      "goToLine": "GL1 \u00b7 A field at the top of the editor",
+      "indent": "keep",
+      "pairs": "on",
+      "tab": "spaces",
+      "wrap": "wrap"
+    },
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
           "The Find question is now page 28.12 (the find bar, drawn)"
         ],
-        "date" : "2026-10-01T11:39:42Z",
-        "number" : 2,
-        "summary" : "Find moved to page 28.12; the rest accepted in chat"
+        "date": "2026-10-01T11:39:42Z",
+        "number": 2,
+        "summary": "Find moved to page 28.12; the rest accepted in chat"
       }
     ],
-    "status" : "Accepted",
-    "verdicts" : {
-
-    }
+    "status": "Accepted",
+    "verdicts": {}
   },
-  "ongoing.editor-gutter-r28" : {
-    "comments" : [
+  "ongoing.editor-gutter-r28": {
+    "comments": [
       {
-        "date" : "2026-10-01T10:59:48Z",
-        "id" : "742CFADB-59B5-497D-9F3A-FC99444DBDDB",
-        "text" : "Review of Editor: gutter\n1. Which gutter?: picked Proposal\n2. The caret line's number: picked K1 · Primary colour\n3. Number colour: picked C1 · Tertiary label\n4. Number font: picked N1 · SF digits, 2pt under the code\n5. Surface: picked G0 · Numbers only (today's default); note: Every option needs to be selectable in Settings, so we should do each of them (maybe they are in a different round? If not create them)\n6. Error dot and Run arrow: picked M0 · A column left of the numbers (today)\n7. Wrapped lines: picked W0 · Nothing (today)\n8. Clicking a number: picked C0 · Select the line, drag for more (today)"
+        "date": "2026-10-01T10:59:48Z",
+        "id": "742CFADB-59B5-497D-9F3A-FC99444DBDDB",
+        "text": "Review of Editor: gutter\n1. Which gutter?: picked Proposal\n2. The caret line's number: picked K1 \u00b7 Primary colour\n3. Number colour: picked C1 \u00b7 Tertiary label\n4. Number font: picked N1 \u00b7 SF digits, 2pt under the code\n5. Surface: picked G0 \u00b7 Numbers only (today's default); note: Every option needs to be selectable in Settings, so we should do each of them (maybe they are in a different round? If not create them)\n6. Error dot and Run arrow: picked M0 \u00b7 A column left of the numbers (today)\n7. Wrapped lines: picked W0 \u00b7 Nothing (today)\n8. Clicking a number: picked C0 \u00b7 Select the line, drag for more (today)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-10-01T10:59:48Z",
-        "text" : "Accepted with picks"
+        "date": "2026-10-01T10:59:48Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-10-01T11:40:00Z",
-        "text" : "Built into Echo (9715ce3b): SF digits 2pt under the code, tertiary, the caret line's number in the text colour; Hairline added beside Subtle, Column and Lane in Settings (your note)"
+        "date": "2026-10-01T11:40:00Z",
+        "text": "Built into Echo (9715ce3b): SF digits 2pt under the code, tertiary, the caret line's number in the text colour; Hairline added beside Subtle, Column and Lane in Settings (your note)"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "gutter": "Every option needs to be selectable in Settings, so we should do each of them (maybe they are in a different round? If not create them)"
     },
-    "pickNotes" : {
-      "gutter" : "Every option needs to be selectable in Settings, so we should do each of them (maybe they are in a different round? If not create them)"
+    "picks": {
+      "click": "select",
+      "currentNumber": "K1 \u00b7 Primary colour",
+      "exhibit": "proposal",
+      "gutter": "G0 \u00b7 Numbers only (today's default)",
+      "markers": "M0 \u00b7 A column left of the numbers (today)",
+      "numberColour": "C1 \u00b7 Tertiary label",
+      "numberFont": "N1 \u00b7 SF digits, 2pt under the code",
+      "wrapped": "blank"
     },
-    "picks" : {
-      "click" : "select",
-      "currentNumber" : "K1 · Primary colour",
-      "exhibit" : "proposal",
-      "gutter" : "G0 · Numbers only (today's default)",
-      "markers" : "M0 · A column left of the numbers (today)",
-      "numberColour" : "C1 · Tertiary label",
-      "numberFont" : "N1 · SF digits, 2pt under the code",
-      "wrapped" : "blank"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.editor-marks-r28" : {
-    "comments" : [
+  "ongoing.editor-marks-r28": {
+    "comments": [
       {
-        "date" : "2026-10-01T11:30:24Z",
-        "id" : "A4DC1E7E-DCFD-46B1-B236-E5F38415B0BF",
-        "text" : "Review of Editor: highlights and marks\n1. Which marks?: picked Proposal\n2. The word at the caret: picked H1 · Soft rounded tint\n3. Corner of a mark: picked 3pt; note: Needs options\n4. Height of a mark: picked The letters' height\n5. Find: picked F1 · Echo's soft tint for every match; NEEDS MORE OPTIONS; note: I cant visualize this. We also need a round for the actual search bar and how this looks, if it is not done already\n6. Matching brackets: picked P1 · A short flash on the partner as you type the closing one\n7. Glass on the text: picked GL0 · No: glass only on controls\n8. How soon the word lights up: picked D0 · 0.25 s (today)"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-10-01T11:30:24Z",
-        "text" : "Feedback sent"
+        "date": "2026-10-01T11:30:24Z",
+        "id": "A4DC1E7E-DCFD-46B1-B236-E5F38415B0BF",
+        "text": "Review of Editor: highlights and marks\n1. Which marks?: picked Proposal\n2. The word at the caret: picked H1 \u00b7 Soft rounded tint\n3. Corner of a mark: picked 3pt; note: Needs options\n4. Height of a mark: picked The letters' height\n5. Find: picked F1 \u00b7 Echo's soft tint for every match; NEEDS MORE OPTIONS; note: I cant visualize this. We also need a round for the actual search bar and how this looks, if it is not done already\n6. Matching brackets: picked P1 \u00b7 A short flash on the partner as you type the closing one\n7. Glass on the text: picked GL0 \u00b7 No: glass only on controls\n8. How soon the word lights up: picked D0 \u00b7 0.25 s (today)"
       },
       {
-        "date" : "2026-10-01T11:39:41Z",
-        "text" : "Revision 2: Find matches drawn in the editor, more corners"
+        "date": "2026-10-01T11:42:54Z",
+        "id": "BE2752AA-61DB-46F8-946E-652189E647DA",
+        "text": "Review of Editor: highlights and marks\n1. Which marks?: picked Proposal\n2. The word at the caret: picked H1 \u00b7 Soft rounded tint\n3. Corner of a mark: picked 3pt; note: Needs to be configurable in Settings\n4. Height of a mark: picked The letters' height\n5. Find: picked F1 \u00b7 Echo's soft tint for every match; note: Will decide in 28.12\n6. Matching brackets: picked P1 \u00b7 A short flash on the partner as you type the closing one\n7. Glass on the text: picked GL0 \u00b7 No: glass only on controls\n8. How soon the word lights up: picked D0 \u00b7 0.25 s (today)"
       }
     ],
-    "needsMore" : [
-      "find"
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-      "find" : "I cant visualize this. We also need a round for the actual search bar and how this looks, if it is not done already",
-      "markCorner" : "Needs options"
-    },
-    "picks" : {
-      "brackets" : "flash",
-      "delay" : "today",
-      "exhibit" : "proposal",
-      "find" : "echo",
-      "glass" : "no",
-      "markCorner" : "3pt",
-      "markHeight" : "The letters' height",
-      "wordHighlight" : "H1 · Soft rounded tint"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
+    "generalNote": "",
+    "history": [
       {
-        "changes" : [
+        "date": "2026-10-01T11:30:24Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T11:39:41Z",
+        "text": "Revision 2: Find matches drawn in the editor, more corners"
+      },
+      {
+        "date": "2026-10-01T11:42:54Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "find": "Will decide in 28.12",
+      "markCorner": "Needs to be configurable in Settings"
+    },
+    "picks": {
+      "brackets": "flash",
+      "delay": "today",
+      "exhibit": "proposal",
+      "find": "echo",
+      "glass": "no",
+      "markCorner": "3pt",
+      "markHeight": "The letters' height",
+      "wordHighlight": "H1 \u00b7 Soft rounded tint"
+    },
+    "reviewedRevision": 2,
+    "revisions": [
+      {
+        "changes": [
           "New: Find matches (preview) control and a Find matches gallery; the system's find now shows its dimming",
           "New find options: F2 yellow tint, F3 accent tint, F4 yellow underline",
           "New corners: 2, 4 and 6pt, and Follows Selection Corners (recommended)",
           "The find bar itself is a new page: 28.12"
         ],
-        "date" : "2026-10-01T11:39:41Z",
-        "number" : 2,
-        "summary" : "Find matches drawn in the editor, more corners"
+        "date": "2026-10-01T11:39:41Z",
+        "number": 2,
+        "summary": "Find matches drawn in the editor, more corners"
       }
     ],
-    "status" : "Judging",
-    "verdicts" : {
-
-    }
+    "status": "Accepted",
+    "verdicts": {}
   },
-  "ongoing.editor-run-note-r28" : {
-    "comments" : [
+  "ongoing.editor-run-note-r28": {
+    "comments": [
       {
-        "date" : "2026-10-01T11:34:49Z",
-        "id" : "A6CA7D43-37C2-48CB-9F26-48FF3792621F",
-        "text" : "Review of Editor: after a run\n1. Which run note?: picked Proposal\n2. Look: picked R2 · Tinted capsule; NEEDS MORE OPTIONS; note: Need more options for this - show me different variations and include also variations with glass\n3. Place: picked P0 · After the last line that ran (today)\n4. What ran: picked H1 · A short flash when it starts; NEEDS MORE OPTIONS; note: I like that it does something but the flash is \"too much\" and not looking so good. Give me way more options\n5. The row count: picked RC0 · Every row the server sent (fixed now)\n6. Wording: picked WD0 · 14,870 rows · 10.1 s (today)\n7. When it goes: picked LT0 · At the first edit (today)\n8. A script with several statements: picked MS0 · One note after each statement"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-10-01T11:34:49Z",
-        "text" : "Feedback sent"
+        "date": "2026-10-01T11:34:49Z",
+        "id": "A6CA7D43-37C2-48CB-9F26-48FF3792621F",
+        "text": "Review of Editor: after a run\n1. Which run note?: picked Proposal\n2. Look: picked R2 \u00b7 Tinted capsule; NEEDS MORE OPTIONS; note: Need more options for this - show me different variations and include also variations with glass\n3. Place: picked P0 \u00b7 After the last line that ran (today)\n4. What ran: picked H1 \u00b7 A short flash when it starts; NEEDS MORE OPTIONS; note: I like that it does something but the flash is \"too much\" and not looking so good. Give me way more options\n5. The row count: picked RC0 \u00b7 Every row the server sent (fixed now)\n6. Wording: picked WD0 \u00b7 14,870 rows \u00b7 10.1 s (today)\n7. When it goes: picked LT0 \u00b7 At the first edit (today)\n8. A script with several statements: picked MS0 \u00b7 One note after each statement"
       },
       {
-        "date" : "2026-10-01T11:39:42Z",
-        "text" : "Revision 2: More capsules (glass among them) and quieter ways to show what ran"
+        "date": "2026-10-01T11:50:38Z",
+        "id": "CBD0FED9-E83A-4BC0-B388-6E6200989251",
+        "text": "Review of Editor: after a run\n1. Which run note?: picked Proposal\n2. Look: picked R10 \u00b7 Glass with a symbol\n3. Place: picked P0 \u00b7 After the last line that ran (today)\n4. What ran: picked H4 \u00b7 The gutter bracket lights up; NEEDS MORE OPTIONS; note: I like H4, but can it \"pulse\" while it is running - please give me a new step in this round with options for \"When running\"\n5. The row count: picked RC0 \u00b7 Every row the server sent (fixed now)\n6. Wording: picked WD0 \u00b7 14,870 rows \u00b7 10.1 s (today)\n7. When it goes: picked LT0 \u00b7 At the first edit (today)\n8. A script with several statements: picked MS0 \u00b7 One note after each statement"
       }
     ],
-    "needsMore" : [
-      "runNoteLook",
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T11:34:49Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T11:39:42Z",
+        "text": "Revision 2: More capsules (glass among them) and quieter ways to show what ran"
+      },
+      {
+        "date": "2026-10-01T11:50:38Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T11:53:19Z",
+        "text": "Revision 3: While running: what the bracket does while the query runs"
+      }
+    ],
+    "needsMore": [
       "ranHighlight"
     ],
-    "optionNotes" : {
-
+    "optionNotes": {},
+    "pickNotes": {
+      "ranHighlight": "I like H4, but can it \"pulse\" while it is running - please give me a new step in this round with options for \"When running\""
     },
-    "pickNotes" : {
-      "ranHighlight" : "I like that it does something but the flash is \"too much\" and not looking so good. Give me way more options",
-      "runNoteLook" : "Need more options for this - show me different variations and include also variations with glass"
+    "picks": {
+      "count": "all",
+      "exhibit": "proposal",
+      "lifetime": "edit",
+      "multi": "each",
+      "ranHighlight": "H4 \u00b7 The gutter bracket lights up",
+      "runNoteLook": "R10 \u00b7 Glass with a symbol",
+      "runNotePlace": "P0 \u00b7 After the last line that ran (today)",
+      "wording": "dot"
     },
-    "picks" : {
-      "count" : "all",
-      "exhibit" : "proposal",
-      "lifetime" : "edit",
-      "multi" : "each",
-      "ranHighlight" : "H1 · A short flash when it starts",
-      "runNoteLook" : "R2 · Tinted capsule",
-      "runNotePlace" : "P0 · After the last line that ran (today)",
-      "wording" : "dot"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
+    "reviewedRevision": 2,
+    "revisions": [
       {
-        "changes" : [
+        "changes": [
           "New looks: R4 faint capsule (recommended), R5 outlined, R6 solid, R7 with a symbol, R8 tinted glass, R9 clear glass, R10 glass with a symbol; All looks exhibit",
           "New what-ran options: H4 the bracket lights up (recommended), H5 gentle tint, H6 fading outline, H7 a light passes down, H8 edge glow, H9 gutter line; What ran gallery"
         ],
-        "date" : "2026-10-01T11:39:42Z",
-        "number" : 2,
-        "summary" : "More capsules (glass among them) and quieter ways to show what ran"
+        "date": "2026-10-01T11:39:42Z",
+        "number": 2,
+        "summary": "More capsules (glass among them) and quieter ways to show what ran"
+      },
+      {
+        "changes": [
+          "New step: While running (RR0 to RR6: breathe, travelling light, shimmer, steady glow, marching dashes, filling), recommended RR1 breathe",
+          "New scene: Running, and a While running gallery",
+          "Your picks R10 and H4 are now the recommendations"
+        ],
+        "date": "2026-10-01T11:53:19Z",
+        "number": 3,
+        "summary": "While running: what the bracket does while the query runs"
       }
     ],
-    "status" : "Judging",
-    "verdicts" : {
-
+    "status": "Judging",
+    "verdicts": {}
+  },
+  "ongoing.editor-settings-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T11:41:35Z",
+        "id": "8BE2901D-67C5-4F2A-B0C1-B14F5BA292A6",
+        "text": "Review of Editor: settings\n1. Which settings?: picked Proposal\n2. One pane: picked SP0 \u00b7 One Editor pane\n3. Settings with no switch: picked HS0 \u00b7 Line numbers, word highlight and wrapping get switches; delay and indent stay fixed\n4. Gutter style: picked GS0 \u00b7 Keep the setting\n5. Statement focus: picked SF0 \u00b7 Keep, on\n6. Live check: picked LC0 \u00b7 Editor, under While typing\n7. The error note: picked EN0 \u00b7 Editor, under After a run\n8. Editor theme: picked TH1 \u00b7 Keep Aurora and Midnight, drop the other 18; note: Will introduce themes later, but for now let's remove all of the old ones\n9. Font size: picked FS1 \u00b7 A pop-up of whole sizes, \u201c13 pt\u201d"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T11:41:35Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "theme": "Will introduce themes later, but for now let's remove all of the old ones"
+    },
+    "picks": {
+      "errorNote": "editor",
+      "exhibit": "proposal",
+      "gutterStyle": "keep",
+      "hidden": "three",
+      "liveCheck": "editor",
+      "pane": "one",
+      "sizePicker": "whole",
+      "statementFocus": "keep",
+      "theme": "fixed"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.editor-statement-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T11:03:34Z",
+        "id": "7A1B8FE1-E11C-4EE6-AA94-5CE5E3FB19F4",
+        "text": "Review of Editor: the statement at the caret\n1. Which statement mark?: picked Proposal\n2. How the statement shows: picked B1 \u00b7 A bracket in the gutter\n3. Run arrow: picked A1 \u00b7 \u25b6 in the gutter's grey, accent on hover\n4. When it shows: picked W0 \u00b7 Only with two or more statements (today)\n5. A selected result's statement: picked SR1 \u00b7 Like the statement look, in the accent\n6. Where a statement ends: picked SE0 \u00b7 Semicolon, GO or a blank line (today)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T11:03:34Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T11:40:00Z",
+        "text": "Built into Echo (9715ce3b): a bracket beside the statement's numbers, solid for a selected result's statement; the Run arrow grey, accent under the pointer"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "ends": "today",
+      "exhibit": "proposal",
+      "result": "follow",
+      "runArrow": "A1 \u00b7 \u25b6 in the gutter's grey, accent on hover",
+      "statement": "B1 \u00b7 A bracket in the gutter",
+      "when": "several"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.editor-text-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T10:57:21Z",
+        "id": "3DE74BFD-92D8-4BB2-8C55-9E7AAB88EB9C",
+        "text": "Review of Editor: text and line height\n1. Which text?: picked Proposal\n2. Line height: picked L2 \u00b7 20pt, 1.55 \u00d7 the size\n3. Default font: picked SF Mono\n4. Default size: picked 13pt (today)\n5. Ligatures: picked Off\n6. Numbers to code: picked 16pt\n7. Above the first line: picked 8pt\n8. The Line Spacing setting: picked LS1 \u00b7 Compact, Comfortable, Relaxed"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T10:57:21Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T11:40:00Z",
+        "text": "Built into Echo (9715ce3b): lines 1.55 \u00d7 the size (20pt at 13pt); Line Height Compact, Comfortable, Relaxed; SF Mono by default; ligatures off; code 16pt after the numbers; 8pt above the first line"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "codeGap": "16pt",
+      "exhibit": "proposal",
+      "font": "SF Mono",
+      "ligatures": "Off",
+      "lineHeight": "L2 \u00b7 20pt, 1.55 \u00d7 the size",
+      "size": "13pt (today)",
+      "spacingSetting": "names",
+      "topMargin": "8pt"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.editor-zoom-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T11:35:44Z",
+        "id": "0F90ED51-B93F-4202-B497-BE9AEB2BBCF8",
+        "text": "Review of Editor: zoom\n1. Which zoom?: picked Proposal\n2. Where: picked Z1 \u00b7 Bottom left of the editor\n3. Look: picked L2 \u00b7 100% with a menu\n4. When it shows: picked V0 \u00b7 Always\n5. What it zooms: picked ZS0 \u00b7 Only this tab, until it closes\n6. Keys and gestures: picked ZK0 \u00b7 \u2318+, \u2318\u2212 and \u23180 in the View menu, and pinch\n7. Steps: picked ZR0 \u00b7 50% to 200%: 50, 75, 90, 100, 110, 125, 150, 200\n8. Results too: picked ZW0 \u00b7 The editor only, with its gutter and notes"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T11:35:44Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "exhibit": "proposal",
+      "keys": "keysPinch",
+      "range": "steps",
+      "scope": "tab",
+      "what": "editor",
+      "zoomLook": "L2 \u00b7 100% with a menu",
+      "zoomPlace": "Z1 \u00b7 Bottom left of the editor",
+      "zoomShows": "V0 \u00b7 Always"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.mssql-always-encrypted-r29": {
+    "comments": [
+      {
+        "date": "2026-10-01T11:46:44Z",
+        "id": "BA8F2DAA-FD52-481F-BCCF-D8EFAB59282C",
+        "text": "Review of SQL Server: Always Encrypted columns\n1. Build it?: picked Proposal\n2. Encrypted cell: picked EV1 \u00b7 \ud83d\udd12 Encrypted, dimmed\n3. Column header: picked EH1 \u00b7 A lock after the name; details on hover\n4. Editing: picked ED1 \u00b7 Read-only, and trying to edit says why\n5. Copy: picked CP1 \u00b7 The ciphertext as hex (0x01\u2026)\n6. When Echo asks: picked AO1 \u00b7 Always, no setting"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T11:46:44Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "cell": "EV1 \u00b7 \ud83d\udd12 Encrypted, dimmed",
+      "copy": "hex",
+      "editing": "ED1 \u00b7 Read-only, and trying to edit says why",
+      "exhibit": "proposal",
+      "header": "EH1 \u00b7 A lock after the name; details on hover",
+      "metadata": "always"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.mssql-encryption-r22": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:20:38Z",
+        "id": "E61ADE08-6D62-42E6-833E-48ADD7C44D61",
+        "text": "Review of SQL Server: encryption settings\n1. Clearer and safer?: picked Proposal\n2. Default: picked ED1 \u00b7 Mandatory for new connections\n3. Menu words: picked EW1 \u00b7 Say what is checked\n4. Strict and Trust: picked ST1 \u00b7 Trust switch turns off and dims under Strict\n5. SQL Server 2008 R2 without its TLS 1.2 update: picked LT2 \u00b7 Add an 'Allow TLS 1.0' switch for that connection\n6. When the certificate check fails at Test: picked TE1 \u00b7 Say which check failed and offer 'Trust this certificate' or Host Name In Certificate"
+      },
+      {
+        "date": "2026-09-30T14:20:39Z",
+        "id": "74FB85CE-F32C-4F22-9955-3D437080159D",
+        "text": "Review of SQL Server: encryption settings\n1. Clearer and safer?: picked Proposal\n2. Default: picked ED1 \u00b7 Mandatory for new connections\n3. Menu words: picked EW1 \u00b7 Say what is checked\n4. Strict and Trust: picked ST1 \u00b7 Trust switch turns off and dims under Strict\n5. SQL Server 2008 R2 without its TLS 1.2 update: picked LT2 \u00b7 Add an 'Allow TLS 1.0' switch for that connection\n6. When the certificate check fails at Test: picked TE1 \u00b7 Say which check failed and offer 'Trust this certificate' or Host Name In Certificate"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:20:38Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T14:20:39Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-09-30T15:27:07Z",
+        "text": "Built into Echo (057a797b): Mandatory default, menu says what is checked, Trust dims under Strict, Allow TLS 1.0 per connection, Test names the failed check with a fix button"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "default": "ED1 \u00b7 Mandatory for new connections",
+      "exhibit": "proposal",
+      "legacyTLS": "optIn",
+      "strictTrust": "ST1 \u00b7 Trust switch turns off and dims under Strict",
+      "testError": "explain",
+      "wording": "EW1 \u00b7 Say what is checked"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.mssql-errors-r22": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:39:38Z",
+        "id": "A95F6915-F784-4C08-A24B-6D0F17444C0C",
+        "text": "Review of SQL Server: errors and messages\n1. Easier to act on?: picked Proposal\n2. Error header: picked EM1 \u00b7 SSMS line: Msg 547, Level 16, State 0, Line 3\n3. Line: picked LL1 \u00b7 'Line 3' selects the line in the editor\n4. Several errors from one statement: picked AM1 \u00b7 All messages, in the order the server sent them\n5. COMMIT with an unknown outcome: picked CU1 \u00b7 'The connection was lost during COMMIT. The transaction may or may not have been saved; check the data before running it again.'\n6. Errors that end the session: picked FE1 \u00b7 As a lost connection (round 22 cancel page), with the server's message\n7. Mark in the editor: picked ED1 \u00b7 Yes, the same design for both engines"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:39:38Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T17:09:29Z",
+        "text": "Built into Echo (8e8ea135, d6cf8cf3): every message in order under the SSMS header, Line N selects the line, COMMIT outcome unknown wording, severity 20 as a lost connection, and the shared error mark"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "all": "all",
+      "editor": "same",
+      "exhibit": "proposal",
+      "fatal": "lost",
+      "header": "EM1 \u00b7 SSMS line: Msg 547, Level 16, State 0, Line 3",
+      "link": "LL1 \u00b7 'Line 3' selects the line in the editor",
+      "unknown": "explain"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.mssql-import-r25": {
+    "comments": [
+      {
+        "date": "2026-10-01T09:55:05Z",
+        "id": "A74B1CB0-1013-4954-94C7-D7E7BB0E95F9",
+        "text": "Review of SQL Server: importing a file\n1. Build it?: picked Proposal\n2. Options: picked IO1 \u00b7 An Options section, every option visible\n3. Empty cells: picked EC1 \u00b7 A choice in the sheet, NULL by default\n4. When an import fails: picked FA1 \u00b7 Undo everything: one transaction\n5. Batch size: picked BS1 \u00b7 10,000 rows\n6. When the bulk load cannot be used: picked ME1 \u00b7 Only when INSERT statements were used"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T09:55:05Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T10:07:06Z",
+        "text": "Built into Echo (2a235de8): an Options section (empty cells, keep identity values, check constraints, fire triggers, lock the table), the import in one transaction, 10,000-row batches and a note when INSERT statements were used"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "batch": "10k",
+      "empty": "EC1 \u00b7 A choice in the sheet, NULL by default",
+      "exhibit": "proposal",
+      "failure": "FA1 \u00b7 Undo everything: one transaction",
+      "method": "fallback",
+      "options": "IO1 \u00b7 An Options section, every option visible"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.mssql-sessions-r22": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:38:35Z",
+        "id": "DF078D1A-67B3-4B59-BF0E-2C6665AF7FA3",
+        "text": "Review of SQL Server: cancel, timeouts and lost connections\n1. Safer tab?: picked Proposal\n2. Query time limit: picked TO1 \u00b7 Follow the Postgres timeouts decision\n3. Dropped connection: picked LC1 \u00b7 Reconnect on the next Run, and say what was lost\n4. How cancelling looks: picked CL1 \u00b7 Yes, one design for both engines\n5. Transactions and cancel: picked XA1 \u00b7 Keep XACT_ABORT ON and say 'Transaction rolled back' after a cancel inside one\n6. Changes you will not see: picked BG1 \u00b7 Ship all"
+      },
+      {
+        "date": "2026-09-30T14:38:37Z",
+        "id": "84FA488A-C431-405D-BB3A-B6CBCEA7F37A",
+        "text": "Review of SQL Server: cancel, timeouts and lost connections\n1. Safer tab?: picked Proposal\n2. Query time limit: picked TO1 \u00b7 Follow the Postgres timeouts decision\n3. Dropped connection: picked LC1 \u00b7 Reconnect on the next Run, and say what was lost\n4. How cancelling looks: picked CL1 \u00b7 Yes, one design for both engines\n5. Transactions and cancel: picked XA1 \u00b7 Keep XACT_ABORT ON and say 'Transaction rolled back' after a cancel inside one\n6. Changes you will not see: picked BG1 \u00b7 Ship all"
+      },
+      {
+        "date": "2026-09-30T14:38:37Z",
+        "id": "C38B81B3-8D0C-4B54-9FF2-0E43131B62E2",
+        "text": "Review of SQL Server: cancel, timeouts and lost connections\n1. Safer tab?: picked Proposal\n2. Query time limit: picked TO1 \u00b7 Follow the Postgres timeouts decision\n3. Dropped connection: picked LC1 \u00b7 Reconnect on the next Run, and say what was lost\n4. How cancelling looks: picked CL1 \u00b7 Yes, one design for both engines\n5. Transactions and cancel: picked XA1 \u00b7 Keep XACT_ABORT ON and say 'Transaction rolled back' after a cancel inside one\n6. Changes you will not see: picked BG1 \u00b7 Ship all"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:38:35Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T14:38:37Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T14:38:37Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T17:09:29Z",
+        "text": "Built into Echo (057a797b, c051c455, a5ed0ffb, 20688328): no 45 s limit, cancel keeps the session and looks like PostgreSQL, Transaction rolled back, APP_NAME Echo, dropped connection with Reconnect, extra result sets spooled"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "background": "ship",
+      "cancelLook": "same",
+      "dropped": "LC1 \u00b7 Reconnect on the next Run, and say what was lost",
+      "exhibit": "proposal",
+      "timeout": "TO1 \u00b7 Follow the Postgres timeouts decision",
+      "txn": "on"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.mssql-values-r22": {
+    "comments": [
+      {
+        "date": "2026-09-30T14:41:07Z",
+        "id": "C96B4E2F-2429-4180-9593-D5CA1F41CC7D",
+        "text": "Review of SQL Server: values in the grid\n1. Correct values?: picked Proposal\n2. Dates and times: picked DF1 \u00b7 SQL Server style: 2026-09-30 12:34:56.123\n3. datetimeoffset: picked DO1 \u00b7 As stored, with its offset\n4. How rows after the preview are stored: picked SS1 \u00b7 Wire bytes for every row, formatted by the driver\n5. money and smallmoney: picked MN1 \u00b7 Always four decimals, as SSMS\n6. geography points: picked GE1 \u00b7 Longitude first, as STAsText"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T14:41:07Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T15:48:44Z",
+        "text": "Built into Echo (ce98d8e4): every row is spooled as wire bytes and formatted by the driver, so rows after 200 read like the preview (dates, datetimeoffset, money, geography, code-page varchar)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "dates": "DF1 \u00b7 SQL Server style: 2026-09-30 12:34:56.123",
+      "exhibit": "proposal",
+      "geo": "sql",
+      "money": "four",
+      "offsets": "DO1 \u00b7 As stored, with its offset",
+      "spool": "wire"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.notification-history-r17": {
+    "comments": [
+      {
+        "date": "2026-09-30T10:03:19Z",
+        "id": "ACDED792-1049-4F73-AC90-7581D7E4C4C1",
+        "text": "Review of Notification history \u00b7 round 17\n1. Which history?: picked B \u00b7 Cards; NEEDS MORE OPTIONS\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Unread: picked Enough\nOverall: I am not a fan of the \"2 new\" and \"Clear\" in the top of the notifications center. They look quite odd with their accent. Please show me different styles of how the count of notifications \"Clear\" can be shown. Also the \"Open Tab\" / \"Copy\" on each notification - should this be beautiful buttons? Give me more options."
+      },
+      {
+        "date": "2026-09-30T11:11:16Z",
+        "id": "6C46BF59-91B4-4458-803E-BE82F9C54CB9",
+        "text": "Review of Notification history \u00b7 round 17\n1. Which history?: picked D \u00b7 Compact cards; maybe B \u00b7 Cards\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Header: picked H3 \u00b7 Count by the title, one menu\n5. Actions: picked A2 \u00b7 Small buttons\n6. Unread: picked Enough"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T10:03:19Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-09-30T10:07:00Z",
+        "text": "More options added: D \u00b7 Compact cards, E \u00b7 Attention first, F \u00b7 Stacked by server; Header styles H1\u2013H5 and Action styles A1\u2013A5 for every proposal"
+      },
+      {
+        "date": "2026-09-30T11:11:16Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "actions": "A2 \u00b7 Small buttons",
+      "exhibit": "compactCards",
+      "grouping": "By time",
+      "header": "H3 \u00b7 Count by the title, one menu",
+      "motion": "Fade in",
+      "unread": "enough"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {
+      "exhibit/cards": "maybe"
     }
   },
-  "ongoing.editor-statement-r28" : {
-    "comments" : [
+  "ongoing.notification-toast-r18": {
+    "comments": [
       {
-        "date" : "2026-10-01T11:03:34Z",
-        "id" : "7A1B8FE1-E11C-4EE6-AA94-5CE5E3FB19F4",
-        "text" : "Review of Editor: the statement at the caret\n1. Which statement mark?: picked Proposal\n2. How the statement shows: picked B1 · A bracket in the gutter\n3. Run arrow: picked A1 · ▶ in the gutter's grey, accent on hover\n4. When it shows: picked W0 · Only with two or more statements (today)\n5. A selected result's statement: picked SR1 · Like the statement look, in the accent\n6. Where a statement ends: picked SE0 · Semicolon, GO or a blank line (today)"
+        "date": "2026-09-30T12:20:51Z",
+        "id": "004D889F-5ACC-48AA-8843-0F45CA3369A5",
+        "text": "Review of Notification toast\n1. Which toast?: picked Proposal; note: What I have answered, so no stack.\n2. Layout: picked L2 \u00b7 Title and detail\n3. Actions: picked A2 \u00b7 Small buttons\n4. Dismiss: picked D3 \u00b7 Swipe right\n5. Material: picked M1 \u00b7 Liquid Glass (today)\n6. Arrival: picked E1 \u00b7 Drop from the top (today)\n7. Stacking: picked S1 \u00b7 List of three (today)\n8. Duration: picked T1 \u00b7 3 s (today)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-10-01T11:03:34Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:20:51Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-10-01T11:40:00Z",
-        "text" : "Built into Echo (9715ce3b): a bracket beside the statement's numbers, solid for a selected result's statement; the Run arrow grey, accent under the pointer"
+        "date": "2026-09-30T12:26:04Z",
+        "text": "Built into Echo (arrival and the proposal confirmed in chat)"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "exhibit": "What I have answered, so no stack."
     },
-    "pickNotes" : {
-
+    "picks": {
+      "actions": "A2 \u00b7 Small buttons",
+      "arrival": "E1 \u00b7 Drop from the top (today)",
+      "dismiss": "D3 \u00b7 Swipe right",
+      "duration": "T1 \u00b7 3 s (today)",
+      "exhibit": "proposal",
+      "layout": "L2 \u00b7 Title and detail",
+      "material": "M1 \u00b7 Liquid Glass (today)",
+      "stacking": "S1 \u00b7 List of three (today)"
     },
-    "picks" : {
-      "ends" : "today",
-      "exhibit" : "proposal",
-      "result" : "follow",
-      "runArrow" : "A1 · ▶ in the gutter's grey, accent on hover",
-      "statement" : "B1 · A bracket in the gutter",
-      "when" : "several"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.editor-text-r28" : {
-    "comments" : [
+  "ongoing.pg-cancel-r21": {
+    "comments": [
       {
-        "date" : "2026-10-01T10:57:21Z",
-        "id" : "3DE74BFD-92D8-4BB2-8C55-9E7AAB88EB9C",
-        "text" : "Review of Editor: text and line height\n1. Which text?: picked Proposal\n2. Line height: picked L2 · 20pt, 1.55 × the size\n3. Default font: picked SF Mono\n4. Default size: picked 13pt (today)\n5. Ligatures: picked Off\n6. Numbers to code: picked 16pt\n7. Above the first line: picked 8pt\n8. The Line Spacing setting: picked LS1 · Compact, Comfortable, Relaxed"
+        "date": "2026-09-30T14:57:10Z",
+        "id": "B2DFBC24-4E5A-499B-83FA-79E64D4D2AE7",
+        "text": "Review of Postgres: cancelling a query\n1. Cancel feedback: picked Proposal\n2. While stopping: picked CX3 \u00b7 'Stopping\u2026' in the footer; note: Maybe the three dots are not correct, and please think if it should be Stopping or Cancelling. I have another round with the run button where we will looks at this\n3. Rows already fetched: picked CP1 \u00b7 Keep the rows, marked as partial\n4. If the server doesn't stop: picked CS2 \u00b7 Offer Force Stop after 5 s\n5. Reported: picked CR2 \u00b7 Run note at the statement, and Messages\n6. Shortcut: picked K2 \u00b7 Keep \u2325\u2318. only; note: Cmd + . is EchoSense\n7. Cancelling inside a transaction: picked TX1 \u00b7 Say so in the note: 'The transaction now needs ROLLBACK'"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-10-01T10:57:21Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T14:57:10Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-10-01T11:40:00Z",
-        "text" : "Built into Echo (9715ce3b): lines 1.55 × the size (20pt at 13pt); Line Height Compact, Comfortable, Relaxed; SF Mono by default; ligatures off; code 16pt after the numbers; 8pt above the first line"
+        "date": "2026-09-30T15:48:42Z",
+        "text": "Built into Echo (plan R9): footer Cancelling (no dots), partial rows marked, Force Stop after 5 s, run note and Messages 'Cancelled after \u2026', ROLLBACK note inside a transaction; \u2325\u2318. only. Please check it in the running app."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "shortcut": "Cmd + . is EchoSense",
+      "waiting": "Maybe the three dots are not correct, and please think if it should be Stopping or Cancelling. I have another round with the run button where we will looks at this"
     },
-    "pickNotes" : {
-
+    "picks": {
+      "exhibit": "proposal",
+      "partial": "CP1 \u00b7 Keep the rows, marked as partial",
+      "report": "CR2 \u00b7 Run note at the statement, and Messages",
+      "shortcut": "keep",
+      "stuck": "CS2 \u00b7 Offer Force Stop after 5 s",
+      "transaction": "say",
+      "waiting": "CX3 \u00b7 'Stopping\u2026' in the footer"
     },
-    "picks" : {
-      "codeGap" : "16pt",
-      "exhibit" : "proposal",
-      "font" : "SF Mono",
-      "ligatures" : "Off",
-      "lineHeight" : "L2 · 20pt, 1.55 × the size",
-      "size" : "13pt (today)",
-      "spacingSetting" : "names",
-      "topMargin" : "8pt"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.editor-zoom-r28" : {
-    "comments" : [
+  "ongoing.pg-client-key-password-r23": {
+    "comments": [
       {
-        "date" : "2026-10-01T11:35:44Z",
-        "id" : "0F90ED51-B93F-4202-B497-BE9AEB2BBCF8",
-        "text" : "Review of Editor: zoom\n1. Which zoom?: picked Proposal\n2. Where: picked Z1 · Bottom left of the editor\n3. Look: picked L2 · 100% with a menu\n4. When it shows: picked V0 · Always\n5. What it zooms: picked ZS0 · Only this tab, until it closes\n6. Keys and gestures: picked ZK0 · ⌘+, ⌘− and ⌘0 in the View menu, and pinch\n7. Steps: picked ZR0 · 50% to 200%: 50, 75, 90, 100, 110, 125, 150, 200\n8. Results too: picked ZW0 · The editor only, with its gutter and notes"
+        "date": "2026-09-30T19:36:17Z",
+        "id": "4444FC60-02BD-4408-A623-9E0EBA692635",
+        "text": "Review of Postgres: encrypted client key\n1. Can you sign in with it?: picked Proposal\n2. When shown: picked KW1 \u00b7 Only when the chosen key is encrypted\n3. Kept: picked KK1 \u00b7 Saved in the Keychain, like the password\n4. Label: picked KL1 \u00b7 Key Password\n5. Certificate rows: picked KR1 \u00b7 Label left, file name and Choose\u2026 right\n6. A wrong key password: picked KE1 \u00b7 Under the Key Password row, and in the result line\n7. Certificates from IT as .p12 or .pfx: picked PF2 \u00b7 Also .p12/.pfx: one file for both rows, unlocked by the same password"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-10-01T11:35:44Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T19:36:17Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T20:26:49Z",
+        "text": "Built into Echo: labelled certificate rows, Key Password only for encrypted keys (Keychain), wrong password under the row, .p12/.pfx for both rows (PF2, as in the review). Check in the running app."
+      },
+      {
+        "date": "2026-09-30T20:36:28Z",
+        "text": "Owner confirmed in chat: accept .p12/.pfx files (PF2); the saved pick said PF1."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "exhibit": "proposal",
+      "label": "KL1 \u00b7 Key Password",
+      "p12": "p12",
+      "rows": "KR1 \u00b7 Label left, file name and Choose\u2026 right",
+      "storage": "KK1 \u00b7 Saved in the Keychain, like the password",
+      "when": "KW1 \u00b7 Only when the chosen key is encrypted",
+      "wrongPassword": "inline"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "exhibit" : "proposal",
-      "keys" : "keysPinch",
-      "range" : "steps",
-      "scope" : "tab",
-      "what" : "editor",
-      "zoomLook" : "L2 · 100% with a menu",
-      "zoomPlace" : "Z1 · Bottom left of the editor",
-      "zoomShows" : "V0 · Always"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "Accepted",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.mssql-encryption-r22" : {
-    "comments" : [
+  "ongoing.pg-connection-lost-r21": {
+    "comments": [
       {
-        "date" : "2026-09-30T14:20:38Z",
-        "id" : "E61ADE08-6D62-42E6-833E-48ADD7C44D61",
-        "text" : "Review of SQL Server: encryption settings\n1. Clearer and safer?: picked Proposal\n2. Default: picked ED1 · Mandatory for new connections\n3. Menu words: picked EW1 · Say what is checked\n4. Strict and Trust: picked ST1 · Trust switch turns off and dims under Strict\n5. SQL Server 2008 R2 without its TLS 1.2 update: picked LT2 · Add an 'Allow TLS 1.0' switch for that connection\n6. When the certificate check fails at Test: picked TE1 · Say which check failed and offer 'Trust this certificate' or Host Name In Certificate"
-      },
-      {
-        "date" : "2026-09-30T14:20:39Z",
-        "id" : "74FB85CE-F32C-4F22-9955-3D437080159D",
-        "text" : "Review of SQL Server: encryption settings\n1. Clearer and safer?: picked Proposal\n2. Default: picked ED1 · Mandatory for new connections\n3. Menu words: picked EW1 · Say what is checked\n4. Strict and Trust: picked ST1 · Trust switch turns off and dims under Strict\n5. SQL Server 2008 R2 without its TLS 1.2 update: picked LT2 · Add an 'Allow TLS 1.0' switch for that connection\n6. When the certificate check fails at Test: picked TE1 · Say which check failed and offer 'Trust this certificate' or Host Name In Certificate"
+        "date": "2026-09-30T14:35:33Z",
+        "id": "BCD8B599-AA6B-4F32-A16B-1B13034EDA4B",
+        "text": "Review of Postgres: connection lost\n1. Tell about lost connections?: picked Proposal\n2. Where: picked CL1 \u00b7 Error in Messages (today); note: Error in Messages AND a Notification via the Notification Engine\n3. When: picked CW2 \u00b7 The moment it drops\n4. Reconnect: picked RC2 \u00b7 A Reconnect button\n5. Wording: picked WD2 \u00b7 What it means for your work\n6. No transaction open: picked I1 \u00b7 Quietly: footer says Disconnected, reconnects on the next run\n7. After reconnecting: picked RR3 \u00b7 Never offer\n8. Notification history: picked H1 \u00b7 Yes"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T14:20:38Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T14:35:33Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T14:20:39Z",
-        "text" : "Feedback sent"
-      },
-      {
-        "date" : "2026-09-30T15:27:07Z",
-        "text" : "Built into Echo (057a797b): Mandatory default, menu says what is checked, Trust dims under Strict, Allow TLS 1.0 per connection, Test names the failed check with a fix button"
+        "date": "2026-09-30T14:45:57Z",
+        "text": "Built into Echo (plan N6): told at once in Messages and a notification with Reconnect; footer Disconnected; runs wait for Reconnect; idle drops quiet. Please check it in the running app."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "where": "Error in Messages AND a Notification via the Notification Engine"
     },
-    "pickNotes" : {
-
+    "picks": {
+      "exhibit": "proposal",
+      "history": "yes",
+      "idle": "quiet",
+      "reconnect": "RC2 \u00b7 A Reconnect button",
+      "rerun": "never",
+      "when": "CW2 \u00b7 The moment it drops",
+      "where": "CL1 \u00b7 Error in Messages (today)",
+      "wording": "WD2 \u00b7 What it means for your work"
     },
-    "picks" : {
-      "default" : "ED1 · Mandatory for new connections",
-      "exhibit" : "proposal",
-      "legacyTLS" : "optIn",
-      "strictTrust" : "ST1 · Trust switch turns off and dims under Strict",
-      "testError" : "explain",
-      "wording" : "EW1 · Say what is checked"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.mssql-errors-r22" : {
-    "comments" : [
+  "ongoing.pg-error-location-r21": {
+    "comments": [
       {
-        "date" : "2026-09-30T14:39:38Z",
-        "id" : "A95F6915-F784-4C08-A24B-6D0F17444C0C",
-        "text" : "Review of SQL Server: errors and messages\n1. Easier to act on?: picked Proposal\n2. Error header: picked EM1 · SSMS line: Msg 547, Level 16, State 0, Line 3\n3. Line: picked LL1 · 'Line 3' selects the line in the editor\n4. Several errors from one statement: picked AM1 · All messages, in the order the server sent them\n5. COMMIT with an unknown outcome: picked CU1 · 'The connection was lost during COMMIT. The transaction may or may not have been saved; check the data before running it again.'\n6. Errors that end the session: picked FE1 · As a lost connection (round 22 cancel page), with the server's message\n7. Mark in the editor: picked ED1 · Yes, the same design for both engines"
+        "date": "2026-09-30T14:43:48Z",
+        "id": "2CAD60BA-AD50-4D2E-A4A8-B76E1C48A102",
+        "text": "Review of Postgres: where the error is\n1. Point at the error?: picked Proposal\n2. Mark: picked EM5 \u00b7 Squiggle, bubble on hover\n3. Hint: picked EH3 \u00b7 With a Fix button when it names a column\n4. Clearing: picked EC3 \u00b7 Whichever comes first\n5. The run note: picked RN1 \u00b7 Keep it short: '! Error' \u2014 the mark carries the message; note: Needs to be configurable if it should show ! Error or the full message in Echo Settings\n6. Jump to the error: picked J1 \u00b7 No, but clicking the error in Messages jumps there; note: Or clicking the error notification with a button \"Go to Error\" or something\n7. Errors inside functions: picked IF1 \u00b7 Mark the call, show the function's line in the bubble"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T14:39:38Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T14:43:48Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T17:09:29Z",
-        "text" : "Built into Echo (8e8ea135, d6cf8cf3): every message in order under the SSMS header, Line N selects the line, COMMIT outcome unknown wording, severity 20 as a lost connection, and the shared error mark"
+        "date": "2026-09-30T17:09:29Z",
+        "text": "Built into Echo (d6cf8cf3) for PostgreSQL and SQL Server: squiggle with bubble, Fix, cleared by an edit or the next run, ! Error run note with a Settings choice, Go to Error on the notification"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "jump": "Or clicking the error notification with a button \"Go to Error\" or something",
+      "runNote": "Needs to be configurable if it should show ! Error or the full message in Echo Settings"
     },
-    "pickNotes" : {
-
+    "picks": {
+      "clearing": "EC3 \u00b7 Whichever comes first",
+      "exhibit": "proposal",
+      "hint": "EH3 \u00b7 With a Fix button when it names a column",
+      "internal": "call",
+      "jump": "click",
+      "mark": "EM5 \u00b7 Squiggle, bubble on hover",
+      "runNote": "short"
     },
-    "picks" : {
-      "all" : "all",
-      "editor" : "same",
-      "exhibit" : "proposal",
-      "fatal" : "lost",
-      "header" : "EM1 · SSMS line: Msg 547, Level 16, State 0, Line 3",
-      "link" : "LL1 · 'Line 3' selects the line in the editor",
-      "unknown" : "explain"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.mssql-import-r25" : {
-    "comments" : [
+  "ongoing.pg-failover-hosts-r23": {
+    "comments": [
       {
-        "date" : "2026-10-01T09:55:05Z",
-        "id" : "A74B1CB0-1013-4954-94C7-D7E7BB0E95F9",
-        "text" : "Review of SQL Server: importing a file\n1. Build it?: picked Proposal\n2. Options: picked IO1 · An Options section, every option visible\n3. Empty cells: picked EC1 · A choice in the sheet, NULL by default\n4. When an import fails: picked FA1 · Undo everything: one transaction\n5. Batch size: picked BS1 · 10,000 rows\n6. When the bulk load cannot be used: picked ME1 · Only when INSERT statements were used"
+        "date": "2026-09-30T19:35:41Z",
+        "id": "C6466A80-FA0A-4450-B78B-F2ED03489B46",
+        "text": "Review of Postgres: several servers and failover\n1. Ready for a cluster?: picked Proposal\n2. Servers: picked FH1 \u00b7 '+ Add Server': one row per server\n3. Connect to words: picked FT1 \u00b7 Plain words (Any server, Primary, Standby\u2026)\n4. Connect to place: picked FW1 \u00b7 Under the servers, once there are two\n5. Load balancing: picked FL1 \u00b7 Not shown (a pasted URL can still set it)\n6. After a failover: picked FS1 \u00b7 Footer chip names the server, and a notification when it changes\n7. Test with several servers: picked TS1 \u00b7 Every server, one line each (db1 \u2713 primary \u00b7 db2 \u2713 standby)\n8. Query tabs during a failover: picked FR1 \u00b7 'Connection lost' as round 21 decided; Reconnect goes to the new primary\n9. Pasting a URL with several servers: picked PU1 \u00b7 Yes: fill a row per server and set Connect to"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-10-01T09:55:05Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T19:35:41Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-10-01T10:07:06Z",
-        "text" : "Built into Echo (2a235de8): an Options section (empty cells, keep identity values, check constraints, fire triggers, lock the table), the import in one transaction, 10,000-row batches and a note when INSERT statements were used"
+        "date": "2026-09-30T20:26:49Z",
+        "text": "Built into Echo: + Add Server rows, Connect To, Test checks every server, pasted multi-server URLs, footer chip and notification after a failover. Check in the running app."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "balance": "FL1 \u00b7 Not shown (a pasted URL can still set it)",
+      "exhibit": "proposal",
+      "hosts": "FH1 \u00b7 '+ Add Server': one row per server",
+      "moved": "FS1 \u00b7 Footer chip names the server, and a notification when it changes",
+      "openTabs": "lost",
+      "paste": "fill",
+      "target": "FT1 \u00b7 Plain words (Any server, Primary, Standby\u2026)",
+      "targetPlace": "FW1 \u00b7 Under the servers, once there are two",
+      "test": "each"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "batch" : "10k",
-      "empty" : "EC1 · A choice in the sheet, NULL by default",
-      "exhibit" : "proposal",
-      "failure" : "FA1 · Undo everything: one transaction",
-      "method" : "fallback",
-      "options" : "IO1 · An Options section, every option visible"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.mssql-sessions-r22" : {
-    "comments" : [
+  "ongoing.pg-kerberos-signin-r23": {
+    "comments": [
       {
-        "date" : "2026-09-30T14:38:35Z",
-        "id" : "DF078D1A-67B3-4B59-BF0E-2C6665AF7FA3",
-        "text" : "Review of SQL Server: cancel, timeouts and lost connections\n1. Safer tab?: picked Proposal\n2. Query time limit: picked TO1 · Follow the Postgres timeouts decision\n3. Dropped connection: picked LC1 · Reconnect on the next Run, and say what was lost\n4. How cancelling looks: picked CL1 · Yes, one design for both engines\n5. Transactions and cancel: picked XA1 · Keep XACT_ABORT ON and say 'Transaction rolled back' after a cancel inside one\n6. Changes you will not see: picked BG1 · Ship all"
-      },
-      {
-        "date" : "2026-09-30T14:38:37Z",
-        "id" : "84FA488A-C431-405D-BB3A-B6CBCEA7F37A",
-        "text" : "Review of SQL Server: cancel, timeouts and lost connections\n1. Safer tab?: picked Proposal\n2. Query time limit: picked TO1 · Follow the Postgres timeouts decision\n3. Dropped connection: picked LC1 · Reconnect on the next Run, and say what was lost\n4. How cancelling looks: picked CL1 · Yes, one design for both engines\n5. Transactions and cancel: picked XA1 · Keep XACT_ABORT ON and say 'Transaction rolled back' after a cancel inside one\n6. Changes you will not see: picked BG1 · Ship all"
-      },
-      {
-        "date" : "2026-09-30T14:38:37Z",
-        "id" : "C38B81B3-8D0C-4B54-9FF2-0E43131B62E2",
-        "text" : "Review of SQL Server: cancel, timeouts and lost connections\n1. Safer tab?: picked Proposal\n2. Query time limit: picked TO1 · Follow the Postgres timeouts decision\n3. Dropped connection: picked LC1 · Reconnect on the next Run, and say what was lost\n4. How cancelling looks: picked CL1 · Yes, one design for both engines\n5. Transactions and cancel: picked XA1 · Keep XACT_ABORT ON and say 'Transaction rolled back' after a cancel inside one\n6. Changes you will not see: picked BG1 · Ship all"
+        "date": "2026-09-30T19:39:13Z",
+        "id": "D618212D-F482-4497-9C92-E105E6023EB3",
+        "text": "Review of Postgres: Kerberos sign-in\n1. Clear enough to set up?: picked Proposal\n2. Where: picked KP1 \u00b7 Mechanism menu: Password or Kerberos\n3. Name: picked KN1 \u00b7 Kerberos\n4. Ticket line: picked KT1 \u00b7 Show whose ticket, and when it expires\n5. Service name: picked KS1 \u00b7 In Security and timeouts, only for Kerberos\n6. User name: picked KU1 \u00b7 Filled in from the ticket (alice), editable\n7. Test without a ticket: picked NT1 \u00b7 'No Kerberos ticket' and an Open Ticket Viewer button\n8. The server asks for a password instead: picked KF1 \u00b7 Fail: 'The server asks for a password, not Kerberos', with a Use Password button\n9. A Password connection to a Kerberos server: picked PK1 \u00b7 Yes, use the ticket (libpq does)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T14:38:35Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T19:39:13Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T14:38:37Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-09-30T14:38:37Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-09-30T17:09:29Z",
-        "text" : "Built into Echo (057a797b, c051c455, a5ed0ffb, 20688328): no 45 s limit, cancel keeps the session and looks like PostgreSQL, Transaction rolled back, APP_NAME Echo, dropped connection with Reconnect, extra result sets spooled"
+        "date": "2026-09-30T20:26:49Z",
+        "text": "Built into Echo: Mechanism Password or Kerberos, ticket line with Open Ticket Viewer, Kerberos Service in the disclosure, user name from the ticket, Test fixes (NT1, KF1). Check in the running app."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "exhibit": "proposal",
+      "naming": "KN1 \u00b7 Kerberos",
+      "noTicket": "viewer",
+      "passwordMode": "useTicket",
+      "placement": "KP1 \u00b7 Mechanism menu: Password or Kerberos",
+      "service": "KS1 \u00b7 In Security and timeouts, only for Kerberos",
+      "ticket": "KT1 \u00b7 Show whose ticket, and when it expires",
+      "username": "KU1 \u00b7 Filled in from the ticket (alice), editable",
+      "wrongMethod": "explain"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "background" : "ship",
-      "cancelLook" : "same",
-      "dropped" : "LC1 · Reconnect on the next Run, and say what was lost",
-      "exhibit" : "proposal",
-      "timeout" : "TO1 · Follow the Postgres timeouts decision",
-      "txn" : "on"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.mssql-values-r22" : {
-    "comments" : [
+  "ongoing.pg-open-transaction-guard-r21": {
+    "comments": [
       {
-        "date" : "2026-09-30T14:41:07Z",
-        "id" : "C96B4E2F-2429-4180-9593-D5CA1F41CC7D",
-        "text" : "Review of SQL Server: values in the grid\n1. Correct values?: picked Proposal\n2. Dates and times: picked DF1 · SQL Server style: 2026-09-30 12:34:56.123\n3. datetimeoffset: picked DO1 · As stored, with its offset\n4. How rows after the preview are stored: picked SS1 · Wire bytes for every row, formatted by the driver\n5. money and smallmoney: picked MN1 · Always four decimals, as SSMS\n6. geography points: picked GE1 · Longitude first, as STAsText"
+        "date": "2026-09-30T18:02:30Z",
+        "id": "FA6FAACB-AD3A-43C4-9C23-E7F260BC1329",
+        "text": "Review of Postgres: open transaction on close\n1. Guard open transactions?: picked Proposal\n2. Form: picked G2 \u00b7 Alert\n3. Default button: picked D1 \u00b7 Commit\n4. Detail: picked DT2 \u00b7 Sentence, time and statements\n5. When to ask: picked W1 \u00b7 Close tab, switch database, disconnect, quit\n6. A failed transaction: picked FT1 \u00b7 Roll Back and Cancel, saying it failed\n7. Quitting: picked Q1 \u00b7 One alert listing the tabs: Review, Roll Back All, Cancel\n8. Don't ask again: picked N1 \u00b7 No"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T14:41:07Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T18:02:30Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T15:48:44Z",
-        "text" : "Built into Echo (ce98d8e4): every row is spooled as wire bytes and formatted by the driver, so rows after 200 read like the preview (dates, datetimeoffset, money, geography, code-page varchar)"
+        "date": "2026-09-30T18:22:07Z",
+        "text": "Built into Echo (plan R11): alert before closing, switching database, disconnecting and quitting; Commit default; time and statements; failed offers Roll Back; quitting lists the tabs. Please check it in the running app."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "default": "D1 \u00b7 Commit",
+      "detail": "DT2 \u00b7 Sentence, time and statements",
+      "exhibit": "proposal",
+      "failed": "rollback-cancel",
+      "form": "G2 \u00b7 Alert",
+      "quit": "one-list",
+      "remember": "no",
+      "when": "all"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "dates" : "DF1 · SQL Server style: 2026-09-30 12:34:56.123",
-      "exhibit" : "proposal",
-      "geo" : "sql",
-      "money" : "four",
-      "offsets" : "DO1 · As stored, with its offset",
-      "spool" : "wire"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.notification-history-r17" : {
-    "comments" : [
+  "ongoing.pg-script-results-r21": {
+    "comments": [
       {
-        "date" : "2026-09-30T10:03:19Z",
-        "id" : "ACDED792-1049-4F73-AC90-7581D7E4C4C1",
-        "text" : "Review of Notification history · round 17\n1. Which history?: picked B · Cards; NEEDS MORE OPTIONS\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Unread: picked Enough\nOverall: I am not a fan of the \"2 new\" and \"Clear\" in the top of the notifications center. They look quite odd with their accent. Please show me different styles of how the count of notifications \"Clear\" can be shown. Also the \"Open Tab\" \/ \"Copy\" on each notification - should this be beautiful buttons? Give me more options."
-      },
-      {
-        "date" : "2026-09-30T11:11:16Z",
-        "id" : "6C46BF59-91B4-4458-803E-BE82F9C54CB9",
-        "text" : "Review of Notification history · round 17\n1. Which history?: picked D · Compact cards; maybe B · Cards\n2. Group: picked By time\n3. Opening: picked Fade in\n4. Header: picked H3 · Count by the title, one menu\n5. Actions: picked A2 · Small buttons\n6. Unread: picked Enough"
+        "date": "2026-09-30T14:53:20Z",
+        "id": "717B31B5-D41F-4E90-ABEA-81099FD90172",
+        "text": "Review of Postgres: script results\n1. Script results: picked Proposal\n2. Layout: picked SR4 \u00b7 Statement list at the left\n3. Label: picked SL3 \u00b7 The statement's first words\n4. Commands: picked SC2 \u00b7 Entries with their tag\n5. Messages: picked SP2 \u00b7 One line per statement\n6. Link to the editor: picked SK2 \u00b7 A result highlights its statement\n7. When a statement fails: picked E3 \u00b7 Stop by default, a setting to continue\n8. All or nothing: picked OT1 \u00b7 'Run as one transaction' in the Run menu, off by default"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T10:03:19Z",
-        "text" : "Feedback sent"
+        "date": "2026-09-30T14:53:20Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T10:07:00Z",
-        "text" : "More options added: D · Compact cards, E · Attention first, F · Stacked by server; Header styles H1–H5 and Action styles A1–A5 for every proposal"
-      },
-      {
-        "date" : "2026-09-30T11:11:16Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T15:34:34Z",
+        "text": "Built into Echo (plan R8): statement list at the left, first-word labels, command entries, one Messages line per statement, the selected result lights its statement, stop on a failed statement (setting to continue), Run as One Transaction. Please check it in the running app."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "commands": "SC2 \u00b7 Entries with their tag",
+      "exhibit": "proposal",
+      "label": "SL3 \u00b7 The statement's first words",
+      "layout": "SR4 \u00b7 Statement list at the left",
+      "link": "SK2 \u00b7 A result highlights its statement",
+      "onError": "setting",
+      "oneTransaction": "menu",
+      "progress": "SP2 \u00b7 One line per statement"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "actions" : "A2 · Small buttons",
-      "exhibit" : "compactCards",
-      "grouping" : "By time",
-      "header" : "H3 · Count by the title, one menu",
-      "motion" : "Fade in",
-      "unread" : "enough"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "Accepted",
-    "verdicts" : {
-      "exhibit\/cards" : "maybe"
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.notification-toast-r18" : {
-    "comments" : [
+  "ongoing.pg-timeouts-r21": {
+    "comments": [
       {
-        "date" : "2026-09-30T12:20:51Z",
-        "id" : "004D889F-5ACC-48AA-8843-0F45CA3369A5",
-        "text" : "Review of Notification toast\n1. Which toast?: picked Proposal; note: What I have answered, so no stack.\n2. Layout: picked L2 · Title and detail\n3. Actions: picked A2 · Small buttons\n4. Dismiss: picked D3 · Swipe right\n5. Material: picked M1 · Liquid Glass (today)\n6. Arrival: picked E1 · Drop from the top (today)\n7. Stacking: picked S1 · List of three (today)\n8. Duration: picked T1 · 3 s (today)"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T12:20:51Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T13:58:21Z",
+        "id": "D14B3620-14DC-4F24-A997-4D07D32F37B8",
+        "text": "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Proposal; note: It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere\n2. Where: picked TW2 \u00b7 Settings default, connection overrides; note: Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab\n3. Default: picked TD2 \u00b7 No limit unless set\n4. When it fires: picked TF2 \u00b7 Explained, with Run Without Limit; NEEDS MORE OPTIONS; note: Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification\n5. Lock waits: picked TL2 \u00b7 Separate field under Timeouts; NEEDS MORE OPTIONS; note: Should this be showing in the footer status?\n6. The 60 seconds already saved: picked M3 \u00b7 Reset to No limit, mention it once in What's New\n7. The limit in the footer: picked FT1 \u00b7 0:12 / 0:30 while running\n8. Idle in transaction: picked IT1 \u00b7 No, the transaction indicator covers it\n9. Scripts: picked SC1 \u00b7 Each statement (how Postgres does it)"
       },
       {
-        "date" : "2026-09-30T12:26:04Z",
-        "text" : "Built into Echo (arrival and the proposal confirmed in chat)"
+        "date": "2026-09-30T18:01:17Z",
+        "id": "D592CC78-76BF-463D-AB65-3D350178970F",
+        "text": "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Where the message goes\n2. Where: picked TW2 \u00b7 Settings default, connection overrides\n3. Default: picked TD2 \u00b7 No limit unless set\n4. When it fires: picked TF4 \u00b7 Explained, plus a notification when you're elsewhere\n5. Lock waits: picked TL4 \u00b7 No lock field; show the wait instead\n6. Lock wait in the footer: picked LF3 \u00b7 Waiting for lock, who holds it on hover\n7. The 60 seconds already saved: picked M3 \u00b7 Reset to No limit, mention it once in What's New\n8. The limit in the footer: picked FT1 \u00b7 0:12 / 0:30 while running\n9. A limit set on the server: picked SL1 \u00b7 Names it: the server's limit of 30 s\n10. Idle in transaction: picked IT1 \u00b7 No, the transaction indicator covers it\n11. Scripts: picked SC1 \u00b7 Each statement (how Postgres does it)"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-      "exhibit" : "What I have answered, so no stack."
-    },
-    "picks" : {
-      "actions" : "A2 · Small buttons",
-      "arrival" : "E1 · Drop from the top (today)",
-      "dismiss" : "D3 · Swipe right",
-      "duration" : "T1 · 3 s (today)",
-      "exhibit" : "proposal",
-      "layout" : "L2 · Title and detail",
-      "material" : "M1 · Liquid Glass (today)",
-      "stacking" : "S1 · List of three (today)"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.pg-cancel-r21" : {
-    "comments" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T14:57:10Z",
-        "id" : "B2DFBC24-4E5A-499B-83FA-79E64D4D2AE7",
-        "text" : "Review of Postgres: cancelling a query\n1. Cancel feedback: picked Proposal\n2. While stopping: picked CX3 · 'Stopping…' in the footer; note: Maybe the three dots are not correct, and please think if it should be Stopping or Cancelling. I have another round with the run button where we will looks at this\n3. Rows already fetched: picked CP1 · Keep the rows, marked as partial\n4. If the server doesn't stop: picked CS2 · Offer Force Stop after 5 s\n5. Reported: picked CR2 · Run note at the statement, and Messages\n6. Shortcut: picked K2 · Keep ⌥⌘. only; note: Cmd + . is EchoSense\n7. Cancelling inside a transaction: picked TX1 · Say so in the note: 'The transaction now needs ROLLBACK'"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T14:57:10Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T13:58:21Z",
+        "text": "Feedback sent"
       },
       {
-        "date" : "2026-09-30T15:48:42Z",
-        "text" : "Built into Echo (plan R9): footer Cancelling (no dots), partial rows marked, Force Stop after 5 s, run note and Messages 'Cancelled after …', ROLLBACK note inside a transaction; ⌥⌘. only. Please check it in the running app."
-      }
-    ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-      "shortcut" : "Cmd + . is EchoSense",
-      "waiting" : "Maybe the three dots are not correct, and please think if it should be Stopping or Cancelling. I have another round with the run button where we will looks at this"
-    },
-    "picks" : {
-      "exhibit" : "proposal",
-      "partial" : "CP1 · Keep the rows, marked as partial",
-      "report" : "CR2 · Run note at the statement, and Messages",
-      "shortcut" : "keep",
-      "stuck" : "CS2 · Offer Force Stop after 5 s",
-      "transaction" : "say",
-      "waiting" : "CX3 · 'Stopping…' in the footer"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.pg-client-key-password-r23" : {
-    "comments" : [
-      {
-        "date" : "2026-09-30T19:36:17Z",
-        "id" : "4444FC60-02BD-4408-A623-9E0EBA692635",
-        "text" : "Review of Postgres: encrypted client key\n1. Can you sign in with it?: picked Proposal\n2. When shown: picked KW1 · Only when the chosen key is encrypted\n3. Kept: picked KK1 · Saved in the Keychain, like the password\n4. Label: picked KL1 · Key Password\n5. Certificate rows: picked KR1 · Label left, file name and Choose… right\n6. A wrong key password: picked KE1 · Under the Key Password row, and in the result line\n7. Certificates from IT as .p12 or .pfx: picked PF2 · Also .p12\/.pfx: one file for both rows, unlocked by the same password"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T19:36:17Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T14:48:26Z",
+        "text": "Revision 2: Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
       },
       {
-        "date" : "2026-09-30T20:26:49Z",
-        "text" : "Built into Echo: labelled certificate rows, Key Password only for encrypted keys (Keychain), wrong password under the row, .p12\/.pfx for both rows (PF2, as in the review). Check in the running app."
+        "date": "2026-09-30T18:01:17Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T20:36:28Z",
-        "text" : "Owner confirmed in chat: accept .p12\/.pfx files (PF2); the saved pick said PF1."
+        "date": "2026-09-30T18:31:46Z",
+        "text": "Built into Echo (plan R12): Settings default + connection override, old 60 s reset with a one-time notice, statement_timeout per tab, footer 0:12 / 0:30, stop explained with Run Without Limit, server limit named, Waiting for lock with the holder on hover. Please check it in the running app."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "default": "TD2 \u00b7 No limit unless set",
+      "exhibit": "fired",
+      "fired": "TF4 \u00b7 Explained, plus a notification when you're elsewhere",
+      "idle": "no",
+      "lockStatus": "LF3 \u00b7 Waiting for lock, who holds it on hover",
+      "locks": "TL4 \u00b7 No lock field; show the wait instead",
+      "migrate": "resetTell",
+      "scripts": "each",
+      "serverLimit": "named",
+      "timer": "fraction",
+      "where": "TW2 \u00b7 Settings default, connection overrides"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "exhibit" : "proposal",
-      "label" : "KL1 · Key Password",
-      "p12" : "p12",
-      "rows" : "KR1 · Label left, file name and Choose… right",
-      "storage" : "KK1 · Saved in the Keychain, like the password",
-      "when" : "KW1 · Only when the chosen key is encrypted",
-      "wrongPassword" : "inline"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.pg-connection-lost-r21" : {
-    "comments" : [
+    "reviewedRevision": 2,
+    "revisions": [
       {
-        "date" : "2026-09-30T14:35:33Z",
-        "id" : "BCD8B599-AA6B-4F32-A16B-1B13034EDA4B",
-        "text" : "Review of Postgres: connection lost\n1. Tell about lost connections?: picked Proposal\n2. Where: picked CL1 · Error in Messages (today); note: Error in Messages AND a Notification via the Notification Engine\n3. When: picked CW2 · The moment it drops\n4. Reconnect: picked RC2 · A Reconnect button\n5. Wording: picked WD2 · What it means for your work\n6. No transaction open: picked I1 · Quietly: footer says Disconnected, reconnects on the next run\n7. After reconnecting: picked RR3 · Never offer\n8. Notification history: picked H1 · Yes"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T14:35:33Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-09-30T14:45:57Z",
-        "text" : "Built into Echo (plan N6): told at once in Messages and a notification with Reconnect; footer Disconnected; runs wait for Reconnect; idle drops quiet. Please check it in the running app."
-      }
-    ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-      "where" : "Error in Messages AND a Notification via the Notification Engine"
-    },
-    "picks" : {
-      "exhibit" : "proposal",
-      "history" : "yes",
-      "idle" : "quiet",
-      "reconnect" : "RC2 · A Reconnect button",
-      "rerun" : "never",
-      "when" : "CW2 · The moment it drops",
-      "where" : "CL1 · Error in Messages (today)",
-      "wording" : "WD2 · What it means for your work"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.pg-error-location-r21" : {
-    "comments" : [
-      {
-        "date" : "2026-09-30T14:43:48Z",
-        "id" : "2CAD60BA-AD50-4D2E-A4A8-B76E1C48A102",
-        "text" : "Review of Postgres: where the error is\n1. Point at the error?: picked Proposal\n2. Mark: picked EM5 · Squiggle, bubble on hover\n3. Hint: picked EH3 · With a Fix button when it names a column\n4. Clearing: picked EC3 · Whichever comes first\n5. The run note: picked RN1 · Keep it short: '! Error' — the mark carries the message; note: Needs to be configurable if it should show ! Error or the full message in Echo Settings\n6. Jump to the error: picked J1 · No, but clicking the error in Messages jumps there; note: Or clicking the error notification with a button \"Go to Error\" or something\n7. Errors inside functions: picked IF1 · Mark the call, show the function's line in the bubble"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T14:43:48Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-09-30T17:09:29Z",
-        "text" : "Built into Echo (d6cf8cf3) for PostgreSQL and SQL Server: squiggle with bubble, Fix, cleared by an edit or the next run, ! Error run note with a Settings choice, Go to Error on the notification"
-      }
-    ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-      "jump" : "Or clicking the error notification with a button \"Go to Error\" or something",
-      "runNote" : "Needs to be configurable if it should show ! Error or the full message in Echo Settings"
-    },
-    "picks" : {
-      "clearing" : "EC3 · Whichever comes first",
-      "exhibit" : "proposal",
-      "hint" : "EH3 · With a Fix button when it names a column",
-      "internal" : "call",
-      "jump" : "click",
-      "mark" : "EM5 · Squiggle, bubble on hover",
-      "runNote" : "short"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.pg-failover-hosts-r23" : {
-    "comments" : [
-      {
-        "date" : "2026-09-30T19:35:41Z",
-        "id" : "C6466A80-FA0A-4450-B78B-F2ED03489B46",
-        "text" : "Review of Postgres: several servers and failover\n1. Ready for a cluster?: picked Proposal\n2. Servers: picked FH1 · '+ Add Server': one row per server\n3. Connect to words: picked FT1 · Plain words (Any server, Primary, Standby…)\n4. Connect to place: picked FW1 · Under the servers, once there are two\n5. Load balancing: picked FL1 · Not shown (a pasted URL can still set it)\n6. After a failover: picked FS1 · Footer chip names the server, and a notification when it changes\n7. Test with several servers: picked TS1 · Every server, one line each (db1 ✓ primary · db2 ✓ standby)\n8. Query tabs during a failover: picked FR1 · 'Connection lost' as round 21 decided; Reconnect goes to the new primary\n9. Pasting a URL with several servers: picked PU1 · Yes: fill a row per server and set Connect to"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T19:35:41Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-09-30T20:26:49Z",
-        "text" : "Built into Echo: + Add Server rows, Connect To, Test checks every server, pasted multi-server URLs, footer chip and notification after a failover. Check in the running app."
-      }
-    ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "balance" : "FL1 · Not shown (a pasted URL can still set it)",
-      "exhibit" : "proposal",
-      "hosts" : "FH1 · '+ Add Server': one row per server",
-      "moved" : "FS1 · Footer chip names the server, and a notification when it changes",
-      "openTabs" : "lost",
-      "paste" : "fill",
-      "target" : "FT1 · Plain words (Any server, Primary, Standby…)",
-      "targetPlace" : "FW1 · Under the servers, once there are two",
-      "test" : "each"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.pg-kerberos-signin-r23" : {
-    "comments" : [
-      {
-        "date" : "2026-09-30T19:39:13Z",
-        "id" : "D618212D-F482-4497-9C92-E105E6023EB3",
-        "text" : "Review of Postgres: Kerberos sign-in\n1. Clear enough to set up?: picked Proposal\n2. Where: picked KP1 · Mechanism menu: Password or Kerberos\n3. Name: picked KN1 · Kerberos\n4. Ticket line: picked KT1 · Show whose ticket, and when it expires\n5. Service name: picked KS1 · In Security and timeouts, only for Kerberos\n6. User name: picked KU1 · Filled in from the ticket (alice), editable\n7. Test without a ticket: picked NT1 · 'No Kerberos ticket' and an Open Ticket Viewer button\n8. The server asks for a password instead: picked KF1 · Fail: 'The server asks for a password, not Kerberos', with a Use Password button\n9. A Password connection to a Kerberos server: picked PK1 · Yes, use the ticket (libpq does)"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T19:39:13Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-09-30T20:26:49Z",
-        "text" : "Built into Echo: Mechanism Password or Kerberos, ticket line with Open Ticket Viewer, Kerberos Service in the disclosure, user name from the ticket, Test fixes (NT1, KF1). Check in the running app."
-      }
-    ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "exhibit" : "proposal",
-      "naming" : "KN1 · Kerberos",
-      "noTicket" : "viewer",
-      "passwordMode" : "useTicket",
-      "placement" : "KP1 · Mechanism menu: Password or Kerberos",
-      "service" : "KS1 · In Security and timeouts, only for Kerberos",
-      "ticket" : "KT1 · Show whose ticket, and when it expires",
-      "username" : "KU1 · Filled in from the ticket (alice), editable",
-      "wrongMethod" : "explain"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.pg-open-transaction-guard-r21" : {
-    "comments" : [
-      {
-        "date" : "2026-09-30T18:02:30Z",
-        "id" : "FA6FAACB-AD3A-43C4-9C23-E7F260BC1329",
-        "text" : "Review of Postgres: open transaction on close\n1. Guard open transactions?: picked Proposal\n2. Form: picked G2 · Alert\n3. Default button: picked D1 · Commit\n4. Detail: picked DT2 · Sentence, time and statements\n5. When to ask: picked W1 · Close tab, switch database, disconnect, quit\n6. A failed transaction: picked FT1 · Roll Back and Cancel, saying it failed\n7. Quitting: picked Q1 · One alert listing the tabs: Review, Roll Back All, Cancel\n8. Don't ask again: picked N1 · No"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T18:02:30Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-09-30T18:22:07Z",
-        "text" : "Built into Echo (plan R11): alert before closing, switching database, disconnecting and quitting; Commit default; time and statements; failed offers Roll Back; quitting lists the tabs. Please check it in the running app."
-      }
-    ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "default" : "D1 · Commit",
-      "detail" : "DT2 · Sentence, time and statements",
-      "exhibit" : "proposal",
-      "failed" : "rollback-cancel",
-      "form" : "G2 · Alert",
-      "quit" : "one-list",
-      "remember" : "no",
-      "when" : "all"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.pg-script-results-r21" : {
-    "comments" : [
-      {
-        "date" : "2026-09-30T14:53:20Z",
-        "id" : "717B31B5-D41F-4E90-ABEA-81099FD90172",
-        "text" : "Review of Postgres: script results\n1. Script results: picked Proposal\n2. Layout: picked SR4 · Statement list at the left\n3. Label: picked SL3 · The statement's first words\n4. Commands: picked SC2 · Entries with their tag\n5. Messages: picked SP2 · One line per statement\n6. Link to the editor: picked SK2 · A result highlights its statement\n7. When a statement fails: picked E3 · Stop by default, a setting to continue\n8. All or nothing: picked OT1 · 'Run as one transaction' in the Run menu, off by default"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T14:53:20Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-09-30T15:34:34Z",
-        "text" : "Built into Echo (plan R8): statement list at the left, first-word labels, command entries, one Messages line per statement, the selected result lights its statement, stop on a failed statement (setting to continue), Run as One Transaction. Please check it in the running app."
-      }
-    ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "commands" : "SC2 · Entries with their tag",
-      "exhibit" : "proposal",
-      "label" : "SL3 · The statement's first words",
-      "layout" : "SR4 · Statement list at the left",
-      "link" : "SK2 · A result highlights its statement",
-      "onError" : "setting",
-      "oneTransaction" : "menu",
-      "progress" : "SP2 · One line per statement"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.pg-timeouts-r21" : {
-    "comments" : [
-      {
-        "date" : "2026-09-30T13:58:21Z",
-        "id" : "D14B3620-14DC-4F24-A997-4D07D32F37B8",
-        "text" : "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Proposal; note: It should work, but not like you recommend. Why would we need a limit? What is the use case? I reckon it is very few people who will use it, so all of it's pills and options shouldn't be flashed around everywhere\n2. Where: picked TW2 · Settings default, connection overrides; note: Isn't this how pgAdmin4 and SSMS does it? Why would we need a different timeout pr. tab\n3. Default: picked TD2 · No limit unless set\n4. When it fires: picked TF2 · Explained, with Run Without Limit; NEEDS MORE OPTIONS; note: Explain exactly where this would go - I can't see it in the screenshot - and if we could include notification\n5. Lock waits: picked TL2 · Separate field under Timeouts; NEEDS MORE OPTIONS; note: Should this be showing in the footer status?\n6. The 60 seconds already saved: picked M3 · Reset to No limit, mention it once in What's New\n7. The limit in the footer: picked FT1 · 0:12 \/ 0:30 while running\n8. Idle in transaction: picked IT1 · No, the transaction indicator covers it\n9. Scripts: picked SC1 · Each statement (how Postgres does it)"
-      },
-      {
-        "date" : "2026-09-30T18:01:17Z",
-        "id" : "D592CC78-76BF-463D-AB65-3D350178970F",
-        "text" : "Review of Postgres: statement timeouts\n1. Should the limit work?: picked Where the message goes\n2. Where: picked TW2 · Settings default, connection overrides\n3. Default: picked TD2 · No limit unless set\n4. When it fires: picked TF4 · Explained, plus a notification when you're elsewhere\n5. Lock waits: picked TL4 · No lock field; show the wait instead\n6. Lock wait in the footer: picked LF3 · Waiting for lock, who holds it on hover\n7. The 60 seconds already saved: picked M3 · Reset to No limit, mention it once in What's New\n8. The limit in the footer: picked FT1 · 0:12 \/ 0:30 while running\n9. A limit set on the server: picked SL1 · Names it: the server's limit of 30 s\n10. Idle in transaction: picked IT1 · No, the transaction indicator covers it\n11. Scripts: picked SC1 · Each statement (how Postgres does it)"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-09-30T13:58:21Z",
-        "text" : "Feedback sent"
-      },
-      {
-        "date" : "2026-09-30T14:48:26Z",
-        "text" : "Revision 2: Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
-      },
-      {
-        "date" : "2026-09-30T18:01:17Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-09-30T18:31:46Z",
-        "text" : "Built into Echo (plan R12): Settings default + connection override, old 60 s reset with a one-time notice, statement_timeout per tab, footer 0:12 \/ 0:30, stop explained with Run Without Limit, server limit named, Waiting for lock with the holder on hover. Please check it in the running app."
-      }
-    ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "default" : "TD2 · No limit unless set",
-      "exhibit" : "fired",
-      "fired" : "TF4 · Explained, plus a notification when you're elsewhere",
-      "idle" : "no",
-      "lockStatus" : "LF3 · Waiting for lock, who holds it on hover",
-      "locks" : "TL4 · No lock field; show the wait instead",
-      "migrate" : "resetTell",
-      "scripts" : "each",
-      "serverLimit" : "named",
-      "timer" : "fraction",
-      "where" : "TW2 · Settings default, connection overrides"
-    },
-    "reviewedRevision" : 2,
-    "revisions" : [
-      {
-        "changes" : [
+        "changes": [
           "Where: TW2 (Settings default, connection overrides) is now recommended; per tab is done with SET in the tab, no UI",
           "Nothing about limits appears in the tab unless a limit is set (no 'No limit' pill)",
-          "New exhibit: Where the message goes — the fired state drawn as it stays, on the tab and from another tab",
+          "New exhibit: Where the message goes \u2014 the fired state drawn as it stays, on the tab and from another tab",
           "New options in When it fires: TF4 explained plus a notification when you're elsewhere (recommended), TF5 notification only, TF6 explained plus a notification every time",
           "New option in Lock waits: TL4 no lock field, show the wait instead",
           "New control: Lock wait in the footer (LF1-3); LF3 says Waiting for lock and shows who holds it on hover",
           "New question: A limit set on the server (SL1 names it, SL2 generic)",
           "Should the limit work? now says what a limit is for"
         ],
-        "date" : "2026-09-30T14:48:26Z",
-        "number" : 2,
-        "summary" : "Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
+        "date": "2026-09-30T14:48:26Z",
+        "number": 2,
+        "summary": "Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
       }
     ],
-    "status" : "In Echo",
-    "verdicts" : {
-
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.pg-transaction-state-r21": {
+    "comments": [
+      {
+        "date": "2026-09-30T15:00:38Z",
+        "id": "EC0408ED-FF9E-4B99-B128-028EEA3D8084",
+        "text": "Review of Postgres: transaction state\n1. Show the state?: picked All states; no Echo today; no Proposal\n2. Where: picked TS3 \u00b7 Footer pill\n3. Look: picked TL2 \u00b7 Icon and word\n4. Colour: picked TC1 \u00b7 Orange, red when failed\n5. Time: picked TT2 \u00b7 After a minute\n6. Actions: picked TA2 \u00b7 Commit and Roll Back in the pill's menu\n7. Failed transaction: picked F1 \u00b7 Red, 'Failed \u2014 roll back'\n8. Long transaction: picked R3 \u00b7 A notification after 15 minutes idle\n9. How the state is known: picked K1 \u00b7 From the statements, check the server before closing"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-09-30T15:00:38Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-09-30T15:56:46Z",
+        "text": "Built into Echo (plan R10): footer status pill Transaction (orange, time after a minute) or Failed \u2014 roll back (red), Commit and Roll Back in its menu, a notification after 15 minutes idle, state from the statements. Please check it in the running app."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "accuracy": "statements",
+      "actions": "TA2 \u00b7 Commit and Roll Back in the pill's menu",
+      "colour": "TC1 \u00b7 Orange, red when failed",
+      "exhibit": "gallery",
+      "failed": "red-word",
+      "look": "TL2 \u00b7 Icon and word",
+      "place": "TS3 \u00b7 Footer pill",
+      "reminder": "toast",
+      "timer": "TT2 \u00b7 After a minute"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {
+      "exhibit/proposal": "no",
+      "exhibit/today": "no"
     }
   },
-  "ongoing.pg-transaction-state-r21" : {
-    "comments" : [
+  "ongoing.pg-value-display-r21": {
+    "comments": [
       {
-        "date" : "2026-09-30T15:00:38Z",
-        "id" : "EC0408ED-FF9E-4B99-B128-028EEA3D8084",
-        "text" : "Review of Postgres: transaction state\n1. Show the state?: picked All states; no Echo today; no Proposal\n2. Where: picked TS3 · Footer pill\n3. Look: picked TL2 · Icon and word\n4. Colour: picked TC1 · Orange, red when failed\n5. Time: picked TT2 · After a minute\n6. Actions: picked TA2 · Commit and Roll Back in the pill's menu\n7. Failed transaction: picked F1 · Red, 'Failed — roll back'\n8. Long transaction: picked R3 · A notification after 15 minutes idle\n9. How the state is known: picked K1 · From the statements, check the server before closing"
+        "date": "2026-09-30T14:07:00Z",
+        "id": "C7897230-9444-4677-BD57-D5FEA18CB22C",
+        "text": "Review of Postgres: values in the grid\n1. Easier to read?: picked Proposal\n2. Arrays: picked VA4 \u00b7 Count, then the first items\n3. JSON: picked VJ3 \u00b7 Summary: { 4 keys }\n4. Binary: picked VB3 \u00b7 Kind and size\n5. Numbers: picked VN2 \u00b7 Aligned on the decimal point\n6. What copy copies: picked CP3 \u00b7 The server's text; Copy as Shown in the menu\n7. Empty text and NULL: picked EN1 \u00b7 NULL in grey, empty shows nothing (today)\n8. Ranges, intervals and infinity: picked SP1 \u00b7 Keep the server's form\n9. Other databases: picked SC1 \u00b7 Yes, by kind (binary, JSON, numbers)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T15:00:38Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T14:07:00Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T15:56:46Z",
-        "text" : "Built into Echo (plan R10): footer status pill Transaction (orange, time after a minute) or Failed — roll back (red), Commit and Roll Back in its menu, a notification after 15 minutes idle, state from the statements. Please check it in the running app."
+        "date": "2026-09-30T14:17:25Z",
+        "text": "Built into Echo (plan R7): array count and items, JSON summary, binary kind and size, decimal-point alignment, Copy as Shown. Please check it in the running app."
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "arrays": "VA4 \u00b7 Count, then the first items",
+      "binary": "VB3 \u00b7 Kind and size",
+      "copy": "both",
+      "emptyNull": "today",
+      "exhibit": "proposal",
+      "json": "VJ3 \u00b7 Summary: { 4 keys }",
+      "numbers": "VN2 \u00b7 Aligned on the decimal point",
+      "scope": "all",
+      "special": "keep"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "accuracy" : "statements",
-      "actions" : "TA2 · Commit and Roll Back in the pill's menu",
-      "colour" : "TC1 · Orange, red when failed",
-      "exhibit" : "gallery",
-      "failed" : "red-word",
-      "look" : "TL2 · Icon and word",
-      "place" : "TS3 · Footer pill",
-      "reminder" : "toast",
-      "timer" : "TT2 · After a minute"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-      "exhibit\/proposal" : "no",
-      "exhibit\/today" : "no"
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.pg-value-display-r21" : {
-    "comments" : [
+  "ongoing.results-scrollers-r27": {
+    "comments": [
       {
-        "date" : "2026-09-30T14:07:00Z",
-        "id" : "C7897230-9444-4677-BD57-D5FEA18CB22C",
-        "text" : "Review of Postgres: values in the grid\n1. Easier to read?: picked Proposal\n2. Arrays: picked VA4 · Count, then the first items\n3. JSON: picked VJ3 · Summary: { 4 keys }\n4. Binary: picked VB3 · Kind and size\n5. Numbers: picked VN2 · Aligned on the decimal point\n6. What copy copies: picked CP3 · The server's text; Copy as Shown in the menu\n7. Empty text and NULL: picked EN1 · NULL in grey, empty shows nothing (today)\n8. Ranges, intervals and infinity: picked SP1 · Keep the server's form\n9. Other databases: picked SC1 · Yes, by kind (binary, JSON, numbers)"
+        "date": "2026-10-01T09:45:51Z",
+        "id": "CB6DC89C-30BA-4323-A5EF-31A44BC41138",
+        "text": "Review of Results scroll bars and the footer\n1. Horizontal scroll bar: NEEDS MORE OPTIONS\n2. Other grids: NEEDS MORE OPTIONS"
+      },
+      {
+        "date": "2026-10-01T09:45:51Z",
+        "id": "4B61A353-E8FE-4288-B3F2-8E7AFA781391",
+        "text": "Review of Results scroll bars and the footer\n1. Horizontal scroll bar: NEEDS MORE OPTIONS\n2. Other grids: NEEDS MORE OPTIONS"
+      },
+      {
+        "date": "2026-10-01T09:51:46Z",
+        "id": "D032E99A-F859-4066-884E-5A48668C80A8",
+        "text": "Review of Results scroll bars and the footer\n1. Horizontal scroll bar: NEEDS MORE OPTIONS\n2. Other grids: NEEDS MORE OPTIONS"
+      },
+      {
+        "date": "2026-10-01T10:51:45Z",
+        "id": "CF6B3A53-D787-430D-A20E-54886810DD4E",
+        "text": "Review of Results scroll bars and the footer\n1. Horizontal bar: where: picked E \u00b7 On the footer's top edge; note: It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills.\n2. Bar: how it looks: picked S1 \u00b7 The system's bar\n3. Bars: when they show: picked V1 \u00b7 While scrolling\n4. Vertical bar: where it ends: picked R2 \u00b7 Runs down to the horizontal bar\n5. Tie the position to the card: picked X1 \u00b7 Soft edges where there is more\n6. Other grids: picked Every scroll bar in a card"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T14:07:00Z",
-        "text" : "Accepted with picks"
+        "date": "2026-10-01T09:45:51Z",
+        "text": "Feedback sent"
       },
       {
-        "date" : "2026-09-30T14:17:25Z",
-        "text" : "Built into Echo (plan R7): array count and items, JSON summary, binary kind and size, decimal-point alignment, Copy as Shown. Please check it in the running app."
+        "date": "2026-10-01T09:45:51Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T09:51:46Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T10:09:16Z",
+        "text": "Revision 2: Four more places for the bar and three more scopes, as asked"
+      },
+      {
+        "date": "2026-10-01T10:39:37Z",
+        "text": "Revision 3: Way more options on every aspect, and the proposal now draws what it says"
+      },
+      {
+        "date": "2026-10-01T10:51:45Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T11:17:13Z",
+        "text": "Revision 4: Built into Echo: E with the pills' spacing, the system's bar while scrolling, the vertical bar down to it, soft edges"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "placement": "It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills."
     },
-    "pickNotes" : {
-
+    "picks": {
+      "everywhere": "everything",
+      "extra": "X1 \u00b7 Soft edges where there is more",
+      "placement": "E \u00b7 On the footer's top edge",
+      "style": "S1 \u00b7 The system's bar",
+      "vertical": "R2 \u00b7 Runs down to the horizontal bar",
+      "visibility": "V1 \u00b7 While scrolling"
     },
-    "picks" : {
-      "arrays" : "VA4 · Count, then the first items",
-      "binary" : "VB3 · Kind and size",
-      "copy" : "both",
-      "emptyNull" : "today",
-      "exhibit" : "proposal",
-      "json" : "VJ3 · Summary: { 4 keys }",
-      "numbers" : "VN2 · Aligned on the decimal point",
-      "scope" : "all",
-      "special" : "keep"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
-  },
-  "ongoing.results-scrollers-r27" : {
-    "comments" : [
+    "reviewedRevision": 3,
+    "revisions": [
       {
-        "date" : "2026-10-01T09:45:51Z",
-        "id" : "CB6DC89C-30BA-4323-A5EF-31A44BC41138",
-        "text" : "Review of Results scroll bars and the footer\n1. Horizontal scroll bar: NEEDS MORE OPTIONS\n2. Other grids: NEEDS MORE OPTIONS"
-      },
-      {
-        "date" : "2026-10-01T09:45:51Z",
-        "id" : "4B61A353-E8FE-4288-B3F2-8E7AFA781391",
-        "text" : "Review of Results scroll bars and the footer\n1. Horizontal scroll bar: NEEDS MORE OPTIONS\n2. Other grids: NEEDS MORE OPTIONS"
-      },
-      {
-        "date" : "2026-10-01T09:51:46Z",
-        "id" : "D032E99A-F859-4066-884E-5A48668C80A8",
-        "text" : "Review of Results scroll bars and the footer\n1. Horizontal scroll bar: NEEDS MORE OPTIONS\n2. Other grids: NEEDS MORE OPTIONS"
-      },
-      {
-        "date" : "2026-10-01T10:51:45Z",
-        "id" : "CF6B3A53-D787-430D-A20E-54886810DD4E",
-        "text" : "Review of Results scroll bars and the footer\n1. Horizontal bar: where: picked E · On the footer's top edge; note: It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills.\n2. Bar: how it looks: picked S1 · The system's bar\n3. Bars: when they show: picked V1 · While scrolling\n4. Vertical bar: where it ends: picked R2 · Runs down to the horizontal bar\n5. Tie the position to the card: picked X1 · Soft edges where there is more\n6. Other grids: picked Every scroll bar in a card"
-      }
-    ],
-    "generalNote" : "",
-    "history" : [
-      {
-        "date" : "2026-10-01T09:45:51Z",
-        "text" : "Feedback sent"
-      },
-      {
-        "date" : "2026-10-01T09:45:51Z",
-        "text" : "Feedback sent"
-      },
-      {
-        "date" : "2026-10-01T09:51:46Z",
-        "text" : "Feedback sent"
-      },
-      {
-        "date" : "2026-10-01T10:09:16Z",
-        "text" : "Revision 2: Four more places for the bar and three more scopes, as asked"
-      },
-      {
-        "date" : "2026-10-01T10:39:37Z",
-        "text" : "Revision 3: Way more options on every aspect, and the proposal now draws what it says"
-      },
-      {
-        "date" : "2026-10-01T10:51:45Z",
-        "text" : "Accepted with picks"
-      },
-      {
-        "date" : "2026-10-01T11:17:13Z",
-        "text" : "Revision 4: Built into Echo: E with the pills' spacing, the system's bar while scrolling, the vertical bar down to it, soft edges"
-      }
-    ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
-    },
-    "pickNotes" : {
-      "placement" : "It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills."
-    },
-    "picks" : {
-      "everywhere" : "everything",
-      "extra" : "X1 · Soft edges where there is more",
-      "placement" : "E · On the footer's top edge",
-      "style" : "S1 · The system's bar",
-      "vertical" : "R2 · Runs down to the horizontal bar",
-      "visibility" : "V1 · While scrolling"
-    },
-    "reviewedRevision" : 3,
-    "revisions" : [
-      {
-        "changes" : [
-          "New options: D · Its own lane under the footer (now recommended), E · On the footer's top edge, F · A glass track in the footer, G · No bar, a position chip",
+        "changes": [
+          "New options: D \u00b7 Its own lane under the footer (now recommended), E \u00b7 On the footer's top edge, F \u00b7 A glass track in the footer, G \u00b7 No bar, a position chip",
           "Other grids: new choices Every scroll bar in a card (now recommended), Everything under the footer, Query results and table data"
         ],
-        "date" : "2026-10-01T10:09:16Z",
-        "number" : 2,
-        "summary" : "Four more places for the bar and three more scopes, as asked"
+        "date": "2026-10-01T10:09:16Z",
+        "number": 2,
+        "summary": "Four more places for the bar and three more scopes, as asked"
       },
       {
-        "changes" : [
+        "changes": [
           "Fixed: the proposal's bar was lifted by the footer's room (AppKit adds the content and scroller insets), so D looked like A; Echo today has the same doubling, which is why its bar floats so high",
           "New controls: how the bar looks (S1 to S6: system, thin line, soft capsule in the card's tint, accent, glass track, groove), when bars show (V1 to V4), where the vertical bar ends (R1 to R3), and what else ties the position to the card (X0 to X4: soft edges, a line on the footer's edge, a column map in the footer, a line under the header)",
           "Seven presets, from native in its own lane to almost nothing"
         ],
-        "date" : "2026-10-01T10:39:37Z",
-        "number" : 3,
-        "summary" : "Way more options on every aspect, and the proposal now draws what it says"
+        "date": "2026-10-01T10:39:37Z",
+        "number": 3,
+        "summary": "Way more options on every aspect, and the proposal now draws what it says"
       },
       {
-        "changes" : [
+        "changes": [
           "Echo today now shows what is built; Before shows the bar floating a footer above the footer",
           "Check it in Echo: scroll a wide result sideways and down, and look at the bar over the footer"
         ],
-        "date" : "2026-10-01T11:17:13Z",
-        "number" : 4,
-        "summary" : "Built into Echo: E with the pills' spacing, the system's bar while scrolling, the vertical bar down to it, soft edges"
+        "date": "2026-10-01T11:17:13Z",
+        "number": 4,
+        "summary": "Built into Echo: E with the pills' spacing, the system's bar while scrolling, the vertical bar down to it, soft edges"
       }
     ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.run-button-look-r20" : {
-    "comments" : [
+  "ongoing.run-button-look-r20": {
+    "comments": [
       {
-        "date" : "2026-09-30T19:44:33Z",
-        "id" : "20BA3374-75AD-41EC-9EBF-0778DACCC31F",
-        "text" : "Review of Run button: look\n1. Which Run at rest?: picked Proposal\n2. Form: picked F0 · Plain glyph (today)\n3. Icon: picked I1 · ▶ play.fill (today)\n4. Colour: picked C0 · Label colour (today)\n5. Selection signal: picked S0 · Accent colour (today)\n6. Hover: picked H0 · Nothing (today)\n7. When it can't run: picked U1 · Dimmed, the tooltip says why\n8. Other modes: picked M0 · Right-click (today)\n9. Last mode: picked L0 · Always Run (today)\n10. Other tabs: picked O0 · Hidden (today)\n11. ⌘↩ while running: picked W2 · Ask; note: If it is running Cmd + Enter cancels it if pressed again. It is a toggle between Run\/stop\n12. Pressing ⌘↩: picked D0 · No (today)\n13. What the tooltip says: picked T1 · Where it runs\n14. Narrow window: picked V1 · Run never overflows"
+        "date": "2026-09-30T19:44:33Z",
+        "id": "20BA3374-75AD-41EC-9EBF-0778DACCC31F",
+        "text": "Review of Run button: look\n1. Which Run at rest?: picked Proposal\n2. Form: picked F0 \u00b7 Plain glyph (today)\n3. Icon: picked I1 \u00b7 \u25b6 play.fill (today)\n4. Colour: picked C0 \u00b7 Label colour (today)\n5. Selection signal: picked S0 \u00b7 Accent colour (today)\n6. Hover: picked H0 \u00b7 Nothing (today)\n7. When it can't run: picked U1 \u00b7 Dimmed, the tooltip says why\n8. Other modes: picked M0 \u00b7 Right-click (today)\n9. Last mode: picked L0 \u00b7 Always Run (today)\n10. Other tabs: picked O0 \u00b7 Hidden (today)\n11. \u2318\u21a9 while running: picked W2 \u00b7 Ask; note: If it is running Cmd + Enter cancels it if pressed again. It is a toggle between Run/stop\n12. Pressing \u2318\u21a9: picked D0 \u00b7 No (today)\n13. What the tooltip says: picked T1 \u00b7 Where it runs\n14. Narrow window: picked V1 \u00b7 Run never overflows"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T19:44:33Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T19:44:33Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T20:28:22Z",
-        "text" : "Built into Echo: tooltip says where it runs or why it can't (U1, T1), never in the toolbar overflow (V1), ⌘↩ toggles Run and Stop"
+        "date": "2026-09-30T20:28:22Z",
+        "text": "Built into Echo: tooltip says where it runs or why it can't (U1, T1), never in the toolbar overflow (V1), \u2318\u21a9 toggles Run and Stop"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "runWhileRunning": "If it is running Cmd + Enter cancels it if pressed again. It is a toggle between Run/stop"
     },
-    "pickNotes" : {
-      "runWhileRunning" : "If it is running Cmd + Enter cancels it if pressed again. It is a toggle between Run\/stop"
+    "picks": {
+      "colour": "C0 \u00b7 Label colour (today)",
+      "exhibit": "proposal",
+      "form": "F0 \u00b7 Plain glyph (today)",
+      "hover": "H0 \u00b7 Nothing (today)",
+      "icon": "I1 \u00b7 \u25b6 play.fill (today)",
+      "keyEcho": "none",
+      "memory": "L0 \u00b7 Always Run (today)",
+      "menu": "M0 \u00b7 Right-click (today)",
+      "narrow": "keep",
+      "otherTabs": "hidden",
+      "runWhileRunning": "ask",
+      "selection": "S0 \u00b7 Accent colour (today)",
+      "tooltip": "target",
+      "unavailable": "U1 \u00b7 Dimmed, the tooltip says why"
     },
-    "picks" : {
-      "colour" : "C0 · Label colour (today)",
-      "exhibit" : "proposal",
-      "form" : "F0 · Plain glyph (today)",
-      "hover" : "H0 · Nothing (today)",
-      "icon" : "I1 · ▶ play.fill (today)",
-      "keyEcho" : "none",
-      "memory" : "L0 · Always Run (today)",
-      "menu" : "M0 · Right-click (today)",
-      "narrow" : "keep",
-      "otherTabs" : "hidden",
-      "runWhileRunning" : "ask",
-      "selection" : "S0 · Accent colour (today)",
-      "tooltip" : "target",
-      "unavailable" : "U1 · Dimmed, the tooltip says why"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.run-button-running-r20" : {
-    "comments" : [
+  "ongoing.run-button-running-r20": {
+    "comments": [
       {
-        "date" : "2026-09-30T20:26:50Z",
-        "id" : "BBD23D63-E42E-4F8B-A48F-659D10C3B1C5",
-        "text" : "Review of Run button: running\n1. Which running Run?: picked Proposal\n2. Running look: picked R0 · Red capsule, ■ and timer (today); note: It needs a way smoother animation when the timer appears.\n3. Delay: picked G0 · At once (today); note: It's beautiful but the animation of the \"button coming in from the side\" when running is not very good - the play button needs to \"transform\" into the stop button\"\n4. Timer: picked K1 · 5 s, then 1:05\n5. Stop icon: picked X0 · ■ stop.fill (today)\n6. Motion while running: picked P0 · Still (today)\n7. Change into running: picked A2 · Glass morph; note: I am not really keen on this, I'd rather a beautiful morphing of the icon only. Maybe a new round?\n8. Result: picked E1 · ✓ draws itself\n9. Result hold: picked T1 · 2.4 s (today)\n10. Running in another tab: picked B0 · No (today)\n11. After a cancel: picked Z0 · Straight back to ▶ (today)\n12. Long query finishes while you're away: picked N1 · A system notification after 30 s\n13. A slow cancel: picked J1 · Stopping\n14. Scripts with several batches: picked Q0 · No (today)\n15. Runs started elsewhere: picked Y0 · The same running look (today)"
+        "date": "2026-09-30T20:26:50Z",
+        "id": "BBD23D63-E42E-4F8B-A48F-659D10C3B1C5",
+        "text": "Review of Run button: running\n1. Which running Run?: picked Proposal\n2. Running look: picked R0 \u00b7 Red capsule, \u25a0 and timer (today); note: It needs a way smoother animation when the timer appears.\n3. Delay: picked G0 \u00b7 At once (today); note: It's beautiful but the animation of the \"button coming in from the side\" when running is not very good - the play button needs to \"transform\" into the stop button\"\n4. Timer: picked K1 \u00b7 5 s, then 1:05\n5. Stop icon: picked X0 \u00b7 \u25a0 stop.fill (today)\n6. Motion while running: picked P0 \u00b7 Still (today)\n7. Change into running: picked A2 \u00b7 Glass morph; note: I am not really keen on this, I'd rather a beautiful morphing of the icon only. Maybe a new round?\n8. Result: picked E1 \u00b7 \u2713 draws itself\n9. Result hold: picked T1 \u00b7 2.4 s (today)\n10. Running in another tab: picked B0 \u00b7 No (today)\n11. After a cancel: picked Z0 \u00b7 Straight back to \u25b6 (today)\n12. Long query finishes while you're away: picked N1 \u00b7 A system notification after 30 s\n13. A slow cancel: picked J1 \u00b7 Stopping\n14. Scripts with several batches: picked Q0 \u00b7 No (today)\n15. Runs started elsewhere: picked Y0 \u00b7 The same running look (today)"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T20:26:50Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T20:26:50Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T20:28:22Z",
-        "text" : "Built into Echo: timer \"5 s, then 1:05\" (K1), ✓ draws itself (E1), Stopping on a slow cancel (J1), macOS notification for a query of 30 s or more while away (N1). The change into running went to round 24"
+        "date": "2026-09-30T20:28:22Z",
+        "text": "Built into Echo: timer \"5 s, then 1:05\" (K1), \u2713 draws itself (E1), Stopping on a slow cancel (J1), macOS notification for a query of 30 s or more while away (N1). The change into running went to round 24"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "change": "I am not really keen on this, I'd rather a beautiful morphing of the icon only. Maybe a new round?",
+      "delay": "It's beautiful but the animation of the \"button coming in from the side\" when running is not very good - the play button needs to \"transform\" into the stop button\"",
+      "running": "It needs a way smoother animation when the timer appears."
     },
-    "pickNotes" : {
-      "change" : "I am not really keen on this, I'd rather a beautiful morphing of the icon only. Maybe a new round?",
-      "delay" : "It's beautiful but the animation of the \"button coming in from the side\" when running is not very good - the play button needs to \"transform\" into the stop button\"",
-      "running" : "It needs a way smoother animation when the timer appears."
+    "picks": {
+      "background": "nothing",
+      "batches": "none",
+      "cancelled": "back",
+      "change": "A2 \u00b7 Glass morph",
+      "delay": "G0 \u00b7 At once (today)",
+      "done": "system",
+      "exhibit": "proposal",
+      "hold": "T1 \u00b7 2.4 s (today)",
+      "modes": "same",
+      "motion": "P0 \u00b7 Still (today)",
+      "result": "E1 \u00b7 \u2713 draws itself",
+      "running": "R0 \u00b7 Red capsule, \u25a0 and timer (today)",
+      "stopIcon": "X0 \u00b7 \u25a0 stop.fill (today)",
+      "stopping": "stopping",
+      "timer": "K1 \u00b7 5 s, then 1:05"
     },
-    "picks" : {
-      "background" : "nothing",
-      "batches" : "none",
-      "cancelled" : "back",
-      "change" : "A2 · Glass morph",
-      "delay" : "G0 · At once (today)",
-      "done" : "system",
-      "exhibit" : "proposal",
-      "hold" : "T1 · 2.4 s (today)",
-      "modes" : "same",
-      "motion" : "P0 · Still (today)",
-      "result" : "E1 · ✓ draws itself",
-      "running" : "R0 · Red capsule, ■ and timer (today)",
-      "stopIcon" : "X0 · ■ stop.fill (today)",
-      "stopping" : "stopping",
-      "timer" : "K1 · 5 s, then 1:05"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.run-into-running-r24" : {
-    "comments" : [
+  "ongoing.run-into-running-r24": {
+    "comments": [
       {
-        "date" : "2026-09-30T20:23:30Z",
-        "id" : "10584BC6-5432-4C7A-A64A-E70908F69ECD",
-        "text" : "Review of Run: ▶ into ■\n1. Which change?: picked Proposal\n2. Morph: picked M1 · Replace in place (round 20's R1)\n3. Red: picked F1 · The glass fades to red\n4. Time: picked W1 · Grows, then the time fades in\n5. Curve: picked K2 · Staged: icon, then width\n6. Ending: picked B0 · Shrinks while the ✓ draws\n7. Building it in the real toolbar: picked Y · Draw the red inside the toolbar's glass"
+        "date": "2026-09-30T20:23:30Z",
+        "id": "10584BC6-5432-4C7A-A64A-E70908F69ECD",
+        "text": "Review of Run: \u25b6 into \u25a0\n1. Which change?: picked Proposal\n2. Morph: picked M1 \u00b7 Replace in place (round 20's R1)\n3. Red: picked F1 \u00b7 The glass fades to red\n4. Time: picked W1 \u00b7 Grows, then the time fades in\n5. Curve: picked K2 \u00b7 Staged: icon, then width\n6. Ending: picked B0 \u00b7 Shrinks while the \u2713 draws\n7. Building it in the real toolbar: picked Y \u00b7 Draw the red inside the toolbar's glass"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T20:23:30Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T20:23:30Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T20:28:22Z",
-        "text" : "Built into Echo: one button in its own glass; ▶ replaced by ■ in place (M1), the glass fades to red (F1), then it grows and the time fades in (W1, K2 staged); the red drains as the ✓ draws (B0); Echo draws the red (Y)"
+        "date": "2026-09-30T20:28:22Z",
+        "text": "Built into Echo: one button in its own glass; \u25b6 replaced by \u25a0 in place (M1), the glass fades to red (F1), then it grows and the time fades in (W1, K2 staged); the red drains as the \u2713 draws (B0); Echo draws the red (Y)"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "build": "draw",
+      "curve": "K2 \u00b7 Staged: icon, then width",
+      "ending": "B0 \u00b7 Shrinks while the \u2713 draws",
+      "exhibit": "proposal",
+      "fill": "F1 \u00b7 The glass fades to red",
+      "grow": "W1 \u00b7 Grows, then the time fades in",
+      "morph": "M1 \u00b7 Replace in place (round 20's R1)"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "build" : "draw",
-      "curve" : "K2 · Staged: icon, then width",
-      "ending" : "B0 · Shrinks while the ✓ draws",
-      "exhibit" : "proposal",
-      "fill" : "F1 · The glass fades to red",
-      "grow" : "W1 · Grows, then the time fades in",
-      "morph" : "M1 · Replace in place (round 20's R1)"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.section-dock-capsule-r19" : {
-    "comments" : [
+  "ongoing.section-dock-capsule-r19": {
+    "comments": [
       {
-        "date" : "2026-09-30T12:42:35Z",
-        "id" : "5E613BD9-EF39-4027-8F0F-2155C794FBFC",
-        "text" : "Review of Section dock: capsule\n1. Capsule: picked C5 · Glass with an edge\n2. Icon weight: picked Medium\n3. Icon size: picked Today\n4. Current section: picked Accent colour (today)\n5. Section name: picked Under the server's name\n6. Hover: picked Icon grows"
+        "date": "2026-09-30T12:42:35Z",
+        "id": "5E613BD9-EF39-4027-8F0F-2155C794FBFC",
+        "text": "Review of Section dock: capsule\n1. Capsule: picked C5 \u00b7 Glass with an edge\n2. Icon weight: picked Medium\n3. Icon size: picked Today\n4. Current section: picked Accent colour (today)\n5. Section name: picked Under the server's name\n6. Hover: picked Icon grows"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T12:42:35Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:42:35Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T13:00:00Z",
-        "text" : "Built into Echo"
+        "date": "2026-09-30T13:00:00Z",
+        "text": "Built into Echo"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "capsule": "C5 \u00b7 Glass with an edge",
+      "currentMark": "Accent colour (today)",
+      "hover": "Icon grows",
+      "sectionName": "Under the server's name",
+      "size": "Today",
+      "weight": "Medium"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "capsule" : "C5 · Glass with an edge",
-      "currentMark" : "Accent colour (today)",
-      "hover" : "Icon grows",
-      "sectionName" : "Under the server's name",
-      "size" : "Today",
-      "weight" : "Medium"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.section-dock-sections-r19" : {
-    "comments" : [
+  "ongoing.section-dock-sections-r19": {
+    "comments": [
       {
-        "date" : "2026-09-30T12:36:49Z",
-        "id" : "E98A51A0-F775-46F1-B0C9-4F7A836830FD",
-        "text" : "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+        "date": "2026-09-30T12:36:49Z",
+        "id": "E98A51A0-F775-46F1-B0C9-4F7A836830FD",
+        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 \u00b7 SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 \u00b7 More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
       },
       {
-        "date" : "2026-09-30T12:36:51Z",
-        "id" : "89E05383-45DC-4C70-96EA-DCD74CF1EABC",
-        "text" : "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+        "date": "2026-09-30T12:36:51Z",
+        "id": "89E05383-45DC-4C70-96EA-DCD74CF1EABC",
+        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 \u00b7 SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 \u00b7 More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
       },
       {
-        "date" : "2026-09-30T12:36:52Z",
-        "id" : "5FDD8082-5428-4596-BF19-F448C1AF3D07",
-        "text" : "Review of Section dock: sections\n1. SQL Server's sections: picked G1 · SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 · More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
+        "date": "2026-09-30T12:36:52Z",
+        "id": "5FDD8082-5428-4596-BF19-F448C1AF3D07",
+        "text": "Review of Section dock: sections\n1. SQL Server's sections: picked G1 \u00b7 SSMS five\n2. Most icons: picked 5\n3. Sections that don't fit: picked M2 \u00b7 More as a section\n4. The grouped section's name: picked Server Objects\n5. A rule for every type: picked Yes, five at most"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T12:36:49Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:36:49Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T12:36:51Z",
-        "text" : "Feedback sent"
+        "date": "2026-09-30T12:36:51Z",
+        "text": "Feedback sent"
       },
       {
-        "date" : "2026-09-30T12:36:52Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:36:52Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T13:00:00Z",
-        "text" : "Built into Echo"
+        "date": "2026-09-30T13:00:00Z",
+        "text": "Built into Echo"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "groupName": "serverObjects",
+      "grouping": "G1 \u00b7 SSMS five",
+      "limit": "5",
+      "overflow": "M2 \u00b7 More as a section",
+      "rule": "yes"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "groupName" : "serverObjects",
-      "grouping" : "G1 · SSMS five",
-      "limit" : "5",
-      "overflow" : "M2 · More as a section",
-      "rule" : "yes"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.section-dock-switching-r19" : {
-    "comments" : [
+  "ongoing.section-dock-switching-r19": {
+    "comments": [
       {
-        "date" : "2026-09-30T12:39:10Z",
-        "id" : "D0B7BE8C-185F-4F26-B61C-1E36E35781C0",
-        "text" : "Review of Section dock: switching\n1. Switching: picked S3 · Fade through\n2. Where the view goes: picked Jump to where it was\n3. The other cards: picked N2 · Only the changed card, view holds"
+        "date": "2026-09-30T12:39:10Z",
+        "id": "D0B7BE8C-185F-4F26-B61C-1E36E35781C0",
+        "text": "Review of Section dock: switching\n1. Switching: picked S3 \u00b7 Fade through\n2. Where the view goes: picked Jump to where it was\n3. The other cards: picked N2 \u00b7 Only the changed card, view holds"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T12:39:10Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T12:39:10Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T13:00:00Z",
-        "text" : "Built into Echo"
+        "date": "2026-09-30T13:00:00Z",
+        "text": "Built into Echo"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "neighbours": "N2 \u00b7 Only the changed card, view holds",
+      "scroll": "Jump to where it was",
+      "switch": "S3 \u00b7 Fade through"
     },
-    "pickNotes" : {
-
-    },
-    "picks" : {
-      "neighbours" : "N2 · Only the changed card, view holds",
-      "scroll" : "Jump to where it was",
-      "switch" : "S3 · Fade through"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   },
-  "ongoing.server-card-r16" : {
-    "comments" : [
+  "ongoing.server-card-r16": {
+    "comments": [
       {
-        "date" : "2026-09-30T10:00:33Z",
-        "id" : "EF06491D-D320-4DB4-B60E-E806FF3BA3BC",
-        "text" : "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it\n2. Version: picked Under the name\n3. Edge under the header: picked Blur rows; note: Needs to look like native\n4. Switching sections: picked Crossfade\n5. Loading: picked Quiet skeleton; NEEDS MORE OPTIONS; note: I like the spinner but the \"loading rows\" is not a good fit for the \"initial load\". Please try some more options with the spinner and then what shows inside the card\n6. Counts: picked Always\n7. Selection: picked Symmetric\n8. Customising: picked Works as intended\n9. PostgreSQL: picked Looks right"
+        "date": "2026-09-30T10:00:33Z",
+        "id": "EF06491D-D320-4DB4-B60E-E806FF3BA3BC",
+        "text": "Review of Server card \u00b7 round 16\n1. Header style: picked H5 \u00b7 Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it\n2. Version: picked Under the name\n3. Edge under the header: picked Blur rows; note: Needs to look like native\n4. Switching sections: picked Crossfade\n5. Loading: picked Quiet skeleton; NEEDS MORE OPTIONS; note: I like the spinner but the \"loading rows\" is not a good fit for the \"initial load\". Please try some more options with the spinner and then what shows inside the card\n6. Counts: picked Always\n7. Selection: picked Symmetric\n8. Customising: picked Works as intended\n9. PostgreSQL: picked Looks right"
       },
       {
-        "date" : "2026-09-30T11:17:03Z",
-        "id" : "FDCF1724-BCEE-4A9A-BF46-55DBDF632BFD",
-        "text" : "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 · Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
+        "date": "2026-09-30T11:17:03Z",
+        "id": "FDCF1724-BCEE-4A9A-BF46-55DBDF632BFD",
+        "text": "Review of Server card \u00b7 round 16\n1. Header style: picked H5 \u00b7 Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 \u00b7 Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
       },
       {
-        "date" : "2026-09-30T11:17:05Z",
-        "id" : "21CD2918-45AA-4D6C-95FB-8EBF12467D3F",
-        "text" : "Review of Server card · round 16\n1. Header style: picked H5 · Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 · Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
+        "date": "2026-09-30T11:17:05Z",
+        "id": "21CD2918-45AA-4D6C-95FB-8EBF12467D3F",
+        "text": "Review of Server card \u00b7 round 16\n1. Header style: picked H5 \u00b7 Glass capsule; note: Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+\n2. Pinned: picked Name and icons\n3. Version: picked Under the name\n4. Edge under the header: picked Blur rows; note: Needs to look like native\n5. Switching sections: picked Crossfade\n6. Initial load: picked I4 \u00b7 Folders first; note: I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation\n7. Spinner on the icon: picked Keep the icon still\n8. Opening a folder: picked Quiet skeleton\n9. Counts: picked Always\n10. Selection: picked Symmetric\n11. Customising: picked Works as intended\n12. PostgreSQL: picked Looks right"
       }
     ],
-    "generalNote" : "",
-    "history" : [
+    "generalNote": "",
+    "history": [
       {
-        "date" : "2026-09-30T10:00:33Z",
-        "text" : "Feedback sent"
+        "date": "2026-09-30T10:00:33Z",
+        "text": "Feedback sent"
       },
       {
-        "date" : "2026-09-30T10:14:42Z",
-        "text" : "More options added: Initial load I1–I5 (spinner in the icon, spinner row, centred spinner, folders first, spinner by the name), Spinner on the icon, Pinned (name and icons \/ icons only); H5 reworked as Xcode navigator icons in a glass capsule with rows blurred under it; Blur rows reworked after the system soft edge, with a System edge reference exhibit; your picks are the new defaults"
+        "date": "2026-09-30T10:14:42Z",
+        "text": "More options added: Initial load I1\u2013I5 (spinner in the icon, spinner row, centred spinner, folders first, spinner by the name), Spinner on the icon, Pinned (name and icons / icons only); H5 reworked as Xcode navigator icons in a glass capsule with rows blurred under it; Blur rows reworked after the system soft edge, with a System edge reference exhibit; your picks are the new defaults"
       },
       {
-        "date" : "2026-09-30T11:17:03Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T11:17:03Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T11:17:05Z",
-        "text" : "Accepted with picks"
+        "date": "2026-09-30T11:17:05Z",
+        "text": "Accepted with picks"
       },
       {
-        "date" : "2026-09-30T11:30:00Z",
-        "text" : "Initial load note: switching sections and rows arriving after a load now use Echo's settle (no overshoot), folders use expand"
+        "date": "2026-09-30T11:30:00Z",
+        "text": "Initial load note: switching sections and rows arriving after a load now use Echo's settle (no overshoot), folders use expand"
       },
       {
-        "date" : "2026-09-30T11:45:00Z",
-        "text" : "Built into Echo"
+        "date": "2026-09-30T11:45:00Z",
+        "text": "Built into Echo"
       }
     ],
-    "needsMore" : [
-
-    ],
-    "optionNotes" : {
-
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "edge": "Needs to look like native",
+      "header": "Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+",
+      "initialLoad": "I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation"
     },
-    "pickNotes" : {
-      "edge" : "Needs to look like native",
-      "header" : "Glass capsule should be just liek Xcodes \"Icon menu\" in the sidebar and content should scroll under it but be blured under it+",
-      "initialLoad" : "I like it, but the animation you have added makes the bottom bounce \"too much\" up when it switches to a new iconmenu and needs to be smaller. Needs to have very smooth animation"
+    "picks": {
+      "counts": "Always",
+      "customising": "works",
+      "edge": "Blur rows",
+      "header": "H5 \u00b7 Glass capsule",
+      "iconSpinner": "Keep the icon still",
+      "initialLoad": "I4 \u00b7 Folders first",
+      "loading": "Quiet skeleton",
+      "pinning": "Name and icons",
+      "postgres": "right",
+      "selection": "Symmetric",
+      "switch": "Crossfade",
+      "version": "Under the name"
     },
-    "picks" : {
-      "counts" : "Always",
-      "customising" : "works",
-      "edge" : "Blur rows",
-      "header" : "H5 · Glass capsule",
-      "iconSpinner" : "Keep the icon still",
-      "initialLoad" : "I4 · Folders first",
-      "loading" : "Quiet skeleton",
-      "pinning" : "Name and icons",
-      "postgres" : "right",
-      "selection" : "Symmetric",
-      "switch" : "Crossfade",
-      "version" : "Under the name"
-    },
-    "reviewedRevision" : 1,
-    "revisions" : [
-
-    ],
-    "status" : "In Echo",
-    "verdicts" : {
-
-    }
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
   }
 }

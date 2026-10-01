@@ -10,10 +10,10 @@ import SwiftUI
 enum EditorRunNoteRound {
     static let spec = RoundSpec(
         controls: [
-            .of("runNoteLook", "Look", LabQERunNoteLook.self, default: .faintCapsule,
+            .of("runNoteLook", "Look", LabQERunNoteLook.self, default: .glassSymbol,
                 question: "Compare every look in the All looks exhibit (a success and an error each), in light and dark, then try your favourite in the Proposal. How should the note look?",
-                recommend: .faintCapsule,
-                why: "You liked the tinted capsule (R2); at half the tint with grey numbers it keeps the shape you liked but stops shouting “success” on every SELECT: only the ✓ is green, so an error still jumps out. Outlined and symbol capsules are close behind. The glass looks are here as you asked, but you chose no glass on the text (28.5, GL0), and glass over code blurs the line it sits on.",
+                recommend: .glassSymbol,
+                why: "You picked R10 in rev 2, so I recommend it. Before that I recommended R4: you liked the tinted capsule (R2); at half the tint with grey numbers it keeps the shape you liked but stops shouting “success” on every SELECT: only the ✓ is green, so an error still jumps out. Outlined and symbol capsules are close behind. The glass looks are here as you asked, but you chose no glass on the text (28.5, GL0), and glass over code blurs the line it sits on.",
                 summary: \.summary, newChoices: (2, LabQERunNoteLook.addedInRev2)),
             .of("runNotePlace", "Place", LabQERunNotePlace.self, default: .lineEnd,
                 question: "Should the note follow the code or line up at the right edge?",
@@ -25,6 +25,11 @@ enum EditorRunNoteRound {
                 recommend: .bracketPulse,
                 why: "You liked that something happens but found the flash too much: it tints seven lines of text at once. Lighting the statement's own bracket (28.4) for a moment says the same thing beside the code, never over it, and uses a mark you already know. The gentle tint and the fading outline are the quiet runners-up; the sweep is pretty but takes as long to watch as a quick query takes to run.",
                 summary: \.summary, newChoices: (2, LabQERanHighlight.addedInRev2)),
+            .of("runningMark", "While running", LabQERunningMark.self, default: .breathe,
+                question: "Set The editor shows to Running and look at the While running gallery. What should the statement's bracket do while its query runs?",
+                recommend: .breathe,
+                why: "A slow breath says “working” the way a Mac's sleep light does, calm enough to watch for a minute-long query, and it settles straight into H4's light when the result comes. The travelling light and the shimmer read as busier; the steady glow doesn't say it's still going; marching dashes look like a selection; filling suggests progress Echo can't measure.",
+                summary: \.summary, addedIn: 3),
             LabQERound.sceneControl(default: .afterRun),
             LabQERound.baseControl,
         ],
@@ -37,6 +42,8 @@ enum EditorRunNoteRound {
             LabQERound.gallery("What ran", "The quieter ways to show what ran, and the flash for comparison; press Run again to replay them all.",
                                LabQERanHighlight.self, \.ranHighlight, scene: .afterRun, id: "ranGallery", addedIn: 2,
                                only: [.flash] + LabQERanHighlight.addedInRev2, cellHeight: 180),
+            LabQERound.gallery("While running", "Every running look of the bracket, on the proposal, while the first statement runs.",
+                               LabQERunningMark.self, \.runningMark, scene: .running, id: "runningGallery", addedIn: 3, cellHeight: 180),
         ],
         questions: [
             .init(id: "count", title: "The row count",
@@ -76,8 +83,9 @@ enum EditorRunNoteRound {
         exhibitTopic: ("Which run note?", "Run again in both, in light and dark. Is the proposal better than Echo today?", "proposal",
                        "It says the same in calmer type, with the right count, and shows for a moment what actually ran."),
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "A faint capsule with a green ✓ after the code; the statement's bracket lights up.",
-                  values: ["runNoteLook": LabQERunNoteLook.faintCapsule.rawValue, "runNotePlace": LabQERunNotePlace.lineEnd.rawValue, "ranHighlight": LabQERanHighlight.bracketPulse.rawValue],
+            .init(id: "recommended", name: "My recommendation", summary: "Glass with a symbol after the code; the bracket breathes while it runs and lights up when it ends.",
+                  values: ["runNoteLook": LabQERunNoteLook.glassSymbol.rawValue, "runNotePlace": LabQERunNotePlace.lineEnd.rawValue, "ranHighlight": LabQERanHighlight.bracketPulse.rawValue,
+                           "runningMark": LabQERunningMark.breathe.rawValue],
                   isRecommended: true),
             .init(id: "today", name: "Like Echo today",
                   values: ["runNoteLook": LabQERunNoteLook.today.rawValue, "runNotePlace": LabQERunNotePlace.lineEnd.rawValue, "ranHighlight": LabQERanHighlight.nothing.rawValue]),

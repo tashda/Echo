@@ -47,6 +47,7 @@ struct LabQEEditor: View {
                     textLines(layout)
                     findDimming(layout, size: proxy.size)
                     foregroundMarks(layout, width: proxy.size.width)
+                    runningMark(layout)
                     errorMarks(layout, width: proxy.size.width)
                     runNote(layout, width: proxy.size.width)
                     if let hints { hintsView(hints, layout) }

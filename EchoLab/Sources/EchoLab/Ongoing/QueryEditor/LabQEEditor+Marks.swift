@@ -77,11 +77,11 @@ extension LabQEEditor {
                     .offset(x: layout.gutterEdge, y: top)
                     .opacity(isHoveringArrow ? 1 : 0)
                     .animation(motion.hover, value: isHoveringArrow)
-            case .bracket:
+            case .bracket where !(scene.isRunning && style.runningMark != .nothing):
                 Capsule().fill(ColorTokens.accent.opacity(0.7))
                     .frame(width: SpacingTokens.xxxs, height: max(height - SpacingTokens.xxs, 0))
                     .offset(x: layout.numbersRight + SpacingTokens.xxs, y: top + SpacingTokens.xxxs)
-            case .nothing:
+            case .bracket, .nothing:
                 EmptyView()
             }
         }

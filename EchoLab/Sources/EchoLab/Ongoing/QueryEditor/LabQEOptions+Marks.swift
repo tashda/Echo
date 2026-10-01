@@ -196,6 +196,30 @@ enum LabQERanHighlight: String, CaseIterable {
     }
 }
 
+/// Round 28.7 rev 3: what the statement's bracket does while its query runs (the owner liked H4
+/// and asked for it to pulse while running).
+enum LabQERunningMark: String, CaseIterable {
+    case nothing = "RR0 · Nothing while it runs (today)"
+    case breathe = "RR1 · The bracket breathes"
+    case travel = "RR2 · A light travels down the bracket"
+    case shimmer = "RR3 · A shimmer runs along it"
+    case glow = "RR4 · The bracket glows, steady"
+    case march = "RR5 · Marching dashes"
+    case grow = "RR6 · It fills from the top, again and again"
+
+    var summary: String {
+        switch self {
+        case .nothing: "The toolbar's red Run and the timer are the only signs."
+        case .breathe: "The bracket fades between half and full accent, once a second and a half, like a sleeping Mac's light."
+        case .travel: "A bright spot slides from the statement's first line to its last, then starts again."
+        case .shimmer: "A soft highlight sweeps along the bracket, the way a loading placeholder shimmers."
+        case .glow: "The bracket turns solid with a soft accent glow round it until the result comes."
+        case .march: "The bracket becomes dashes that move downwards, like a selection being made."
+        case .grow: "The bracket draws itself from the top down, over and over, like an indeterminate progress bar."
+        }
+    }
+}
+
 enum LabQEZoomPlace: String, CaseIterable {
     case bottomLeft = "Z1 · Bottom left of the editor"
     case bottomRight = "Z2 · Bottom right of the editor"

@@ -39,6 +39,7 @@ struct LabQEStyle {
     var zoomShows = LabQEZoomShows.always
     var findLook = LabQEFindLook.native
     var errorGlow = LabQEErrorGlow.today
+    var runningMark = LabQERunningMark.nothing
     var findBar = LabQEFindBarPlace.native
     var findOptions = LabQEFindOptions.menu
     var findCount = LabQEFindCount.found
@@ -58,8 +59,9 @@ struct LabQEStyle {
         currentLine: .noBand, selectionColour: .system, selectionShape: .rounded, caret: .accent,
         statement: .bracket, runArrow: .symbol, wordHighlight: .soft, markCorner: .followSelection, markHeight: .letters,
         errorWord: .glow, errorMessage: .hover, errorDot: .dot,
-        runNoteLook: .faintCapsule, runNotePlace: .lineEnd, ranHighlight: .bracketPulse,
-        zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always, errorGlow: .hairlineHalo)
+        runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .bracketPulse,
+        zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always, errorGlow: .hairlineHalo,
+        runningMark: .breathe)
 
     /// The gallery's handle on the find look, by the preview control's names.
     var findPreview: LabQEFindPreview {
@@ -82,7 +84,7 @@ struct LabQEStyle {
         set("errorMessage", \.errorMessage); set("errorDot", \.errorDot); set("runNoteLook", \.runNoteLook)
         set("runNotePlace", \.runNotePlace); set("ranHighlight", \.ranHighlight); set("zoom", \.zoom)
         set("zoomLook", \.zoomLook); set("zoomShows", \.zoomShows)
-        set("errorGlow", \.errorGlow); set("findBar", \.findBar); set("findOptions", \.findOptions); set("findCount", \.findCount)
+        set("errorGlow", \.errorGlow); set("runningMark", \.runningMark); set("findBar", \.findBar); set("findOptions", \.findOptions); set("findCount", \.findCount)
         if let preview = LabQEFindPreview(rawValue: values["findPreview"]) { style.findLook = preview.look }
         if let place = LabQEZoomPlace(rawValue: values["zoomPlace"]) { style.zoomPlace = place }
         return style
@@ -118,6 +120,8 @@ struct LabQEScene {
     var isWindowActive = true
     /// The find bar with its Replace row open.
     var showsReplace = false
+    /// The first statement's query is running (28.7 rev 3).
+    var isRunning = false
 }
 
 enum LabQERunResult: Equatable {
@@ -132,6 +136,7 @@ enum LabQESceneChoice: String, CaseIterable {
     case find = "Finding “orders”"
     case replace = "Replacing “orders”"
     case liveError = "A mistake while typing"
+    case running = "Running"
     case afterRun = "After a run"
     case afterError = "After a failed run"
     case inactive = "Window in the background"
@@ -143,6 +148,7 @@ enum LabQESceneChoice: String, CaseIterable {
         case .find: LabQEScene(wordHighlight: false, find: true)
         case .replace: LabQEScene(wordHighlight: false, find: true, showsReplace: true)
         case .liveError: LabQEScene(misspelled: true, liveError: true)
+        case .running: LabQEScene(isRunning: true)
         case .afterRun: LabQEScene(runNote: .rows(14_870, seconds: 10.1))
         case .afterError: LabQEScene(misspelled: true, serverError: true, runNote: .error)
         case .inactive: LabQEScene(selection: true, isWindowActive: false)
