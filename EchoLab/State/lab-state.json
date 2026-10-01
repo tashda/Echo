@@ -2410,6 +2410,10 @@
       {
         "date": "2026-10-01T14:00:11Z",
         "text": "Taken by editor-r28"
+      },
+      {
+        "date": "2026-10-01T14:15:07Z",
+        "text": "Built into Echo (3626716a): 12pt in and 9pt up with results; stacked 9pt above the server pill without results; 24pt; primary text"
       }
     ],
     "needsMore": [],
@@ -2423,12 +2427,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "editor-r28",
-      "date": "2026-10-01T14:00:11Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   }
 }

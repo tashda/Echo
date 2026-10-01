@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 31 accepted: the zoom pill sits like the footer's pills
+
+Echo Labs › Editor and running › the zoom pill and the footer · round 31. Every recommendation was taken. Built in 3626716a.
+
+- **With results (ZW1):** the pill sits **12pt in and 9pt up** from the editor card's bottom, where the server pill sits in the results card. It had been 8pt in and 28pt up.
+- **Without results (ZN2):** the footer floats in the editor's card, so the pill **stacks above the server pill, left edges aligned, 9pt between** (42pt up). It had landed on the server pill.
+- **Height (ZH1):** **24pt**, the footer's chip height (it was about 21pt). **Text (ZT1):** **primary**, as the server pill (it was secondary). → EDT-1.4
+
 ## 2026-10-01 · Round 27 refined and accepted again: the bar as wide as the footer, the blur rising past it, everywhere
 
 Echo Labs › Footer and results › round 27, revision 5. The owner loved the first build "about 90%": the bar didn't reach as far as the footer and sat over sharp rows.

@@ -380,6 +380,7 @@ Rules: `decisions.md` › 2026-10-01 round 28; `05-components` › Editor card.
 | QE14 | **Search and replace (28.13):** preview in the text, Replace grows the capsule, one-step Replace All. | `SQLTextView+FindPreview`, `EditorFindBar` | `EditorFindTests` 👁 | ☑ ac5089f6, 👁 pending |
 | QE15 | **The lane (28.14):** full height, concentric corners, numbers centred. | `EditorGutterSurface`, `LineNumberRulerView` | `LineNumberRulerTests` 👁 | ☑ ac5089f6, 👁 pending |
 | QE16 | **One mark language (28.15):** `EditorMarkTokens`, round ends, two strengths, Settings › Editor › Marks. | `EditorMarkToken`, `SQLTextView+Marks`, `SQLLayoutManager`, `EditorSettingsView` | `EditorMarksTests`, `GlobalSettingsExtendedTests` 👁 | ☑ ac5089f6, 👁 pending |
+| QE17 | **Zoom pill (round 31):** 12pt in, 9pt up; above the server pill without results; 24pt, primary. | `EditorZoomControl`, `QueryInputSection` | `EditorZoomTests` 👁 | ☑ 3626716a, 👁 pending |
 
 ## Phase 10 · Finish
 
