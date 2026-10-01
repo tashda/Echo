@@ -106,6 +106,7 @@ enum LabAreas {
         "ongoing.server-header-look-r30": "explorer-tree",
         "ongoing.server-header-collapse-r30": "explorer-tree",
         "ongoing.empty-folders-r30": "explorer-tree",
+        "ongoing.zoom-pill-footer-r31": "editor",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

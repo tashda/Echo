@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r31", label: "Round 31", title: "Editor: the zoom pill and the footer", date: "1 Oct 2026",
+             asked: "The zoom pill sits too far up in the editor; it should sit as close to the editor's bottom as the server pill sits to the results card's. Without results it sits too close to the server pill: align it with the server pill and stack it above, at the same height, with text as bright as the footer's.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.zoom-pill-footer-r31"]),
         Info(id: "r30", label: "Round 30", title: "Database folders that are empty", date: "1 Oct 2026",
              asked: "Under a database I can no longer find Views.",
              outcome: "Being judged.",
