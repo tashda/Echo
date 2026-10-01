@@ -24,7 +24,9 @@ struct SQLEditorView: View {
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata
     var onAddBookmark: (String) -> Void
     var onRunStatement: () -> Void
-    var runNote: QueryRunNote?
+    var runNotes: [QueryRunNote]
+    /// Round 28.7: what is running now, for the gutter's breathing bracket.
+    var runningRange: NSRange?
     /// Where the last run's error is (round 21 EM5, round 22 ED1).
     var errorMark: QueryErrorMark?
     /// The statement of the result selected in a script's statement list (round 21, SK2).
@@ -50,7 +52,8 @@ struct SQLEditorView: View {
         clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty,
         onAddBookmark: @escaping (String) -> Void = { _ in },
         onRunStatement: @escaping () -> Void = {},
-        runNote: QueryRunNote? = nil,
+        runNotes: [QueryRunNote] = [],
+        runningRange: NSRange? = nil,
         errorMark: QueryErrorMark? = nil,
         resultStatementRange: NSRange? = nil
     ) {
@@ -69,7 +72,8 @@ struct SQLEditorView: View {
         self.clipboardMetadata = clipboardMetadata
         self.onAddBookmark = onAddBookmark
         self.onRunStatement = onRunStatement
-        self.runNote = runNote
+        self.runNotes = runNotes
+        self.runningRange = runningRange
         self.errorMark = errorMark
         self.resultStatementRange = resultStatementRange
     }
@@ -88,7 +92,8 @@ struct SQLEditorView: View {
             clipboardMetadata: clipboardMetadata,
             onAddBookmark: onAddBookmark,
             onRunStatement: onRunStatement,
-            runNote: runNote,
+            runNotes: runNotes,
+            runningRange: runningRange,
             errorMark: errorMark,
             resultStatementRange: resultStatementRange,
             completionContext: completionContext,

@@ -146,6 +146,11 @@ public enum LayoutTokens {
         /// Round 28.5 (H1): the word's other uses, a soft tint as high as the letters.
         public static let highlightOpacity: CGFloat = 0.09
         public static let highlightPadding: CGFloat = SpacingTokens.micro
+        /// Round 28.7: the running bracket breathes down to this opacity and back (RR1), and the
+        /// line beside what ran fades out over this long (H9).
+        public static let runningBreathFloor: Float = 0.45
+        public static let runningBreathDuration: Double = 1.5
+        public static let ranFadeDuration: Double = 2
         /// Round 28.9 (GL1): the Go to Line field.
         public static let goToLineWidth: CGFloat = 220
         /// QE2: the gap between a statement's last character and its run note.

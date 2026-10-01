@@ -32,4 +32,22 @@ struct QueryEditorStateRunNoteTests {
         #expect(note.text == expected.text)
         #expect(state.rowProgress.displayCount == 20_000)
     }
+
+    /// Round 28.7 (MS0): a script that ran statement by statement gets one note per statement.
+    @Test func aScriptGetsOneNotePerStatement() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("RunNotes-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let state = QueryEditorState(sql: "", spoolManager: ResultSpooler(configuration: ResultSpoolConfiguration.defaultConfiguration(rootDirectory: root)))
+        state.runNote = QueryRunNote.success(range: NSRange(location: 0, length: 40), rows: 3, hasResults: true, duration: 1)
+        state.scriptEntries = [
+            ScriptResultEntry(id: 0, label: "SELECT", outcome: .rows(resultSetIndex: 0, count: 3), duration: 0.5, editorRange: NSRange(location: 0, length: 20)),
+            ScriptResultEntry(id: 1, label: "UPDATE", outcome: .command(tag: "UPDATE 2"), duration: 0.5, editorRange: NSRange(location: 21, length: 19)),
+        ]
+        let notes = state.runNotes
+        #expect(notes.count == 2)
+        #expect(notes.last?.text.hasPrefix("✓ UPDATE 2") == true)
+        state.scriptEntries = nil
+        #expect(state.runNotes.count == 1)
+    }
 }

@@ -34,6 +34,11 @@ extension SQLTextView {
         lineNumberRuler?.resultStatementLines = resultStatementRange.flatMap(lines(of:))
     }
 
+    /// Round 28.7: the running statement's bracket breathes; when it ends, a line marks what ran.
+    func updateRunningMark(previous: NSRange?) {
+        lineNumberRuler?.setRunning(runningRange.flatMap(lines(of:)))
+    }
+
     /// The first and last line a range of the script covers.
     func lines(of range: NSRange) -> ClosedRange<Int>? {
         let text = string as NSString

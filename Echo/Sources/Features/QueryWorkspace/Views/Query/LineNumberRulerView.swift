@@ -29,6 +29,11 @@ final class LineNumberRulerView: NSRulerView {
     var resultStatementLines: ClosedRange<Int>? {
         didSet { if oldValue != resultStatementLines { needsDisplay = true } }
     }
+    /// Round 28.7: the lines running now (RR1) and the lines that just ran (H9), with their layers.
+    var runningLines: ClosedRange<Int>?
+    var ranLines: ClosedRange<Int>?
+    var runningLayer: CALayer?
+    var ranLayer: CALayer?
     /// Round 28.4 A1: the arrow is grey until the pointer is on it.
     private var isHoveringRunArrow = false {
         didSet { if oldValue != isHoveringRunArrow { needsDisplay = true } }
@@ -179,8 +184,12 @@ final class LineNumberRulerView: NSRulerView {
             return
         }
 
-        var brackets = StatementBrackets(focused: statementLines, result: resultStatementLines)
-        defer { brackets.draw(numbersRight: gutterWidth - LayoutTokens.EditorGutter.numberTrailing, context: context) }
+        var brackets = StatementBrackets(focused: statementLines, result: resultStatementLines, running: runningLines, ran: ranLines)
+        defer {
+            let numbersRight = gutterWidth - LayoutTokens.EditorGutter.numberTrailing
+            brackets.draw(numbersRight: numbersRight, context: context)
+            placeRunMarks(brackets, numbersRight: numbersRight, context: context)
+        }
 
         // Count lines once for the first visible fragment, then step: counting from the top of
         // the script for every fragment made long scripts slow to scroll.

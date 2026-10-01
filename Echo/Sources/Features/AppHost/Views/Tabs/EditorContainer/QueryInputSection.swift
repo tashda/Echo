@@ -65,7 +65,8 @@ struct QueryInputSection: View {
             clipboardMetadata: query.clipboardMetadata,
             onAddBookmark: onAddBookmark,
             onRunStatement: onRunStatement,
-            runNote: query.runNote,
+            runNotes: query.runNotes,
+            runningRange: query.isExecuting ? query.lastRunRange : nil,
             errorMark: query.errorMark,
             resultStatementRange: query.highlightedStatementRange
         )

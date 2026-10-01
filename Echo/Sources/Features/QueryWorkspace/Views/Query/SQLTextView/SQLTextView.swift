@@ -45,8 +45,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var ghostSuggestion: (suggestion: SQLAutoCompletionSuggestion, response: SQLCompletionResponse)?
     var ghostTextLabel: NSTextField?
     /// QE2: the note at the end of what last ran.
-    var runNote: QueryRunNote? { didSet { showRunNote() } }
-    var runNoteLabel: NSTextField?
+    var runNotes: [QueryRunNote] = [] { didSet { if oldValue != runNotes { showRunNotes() } } }
+    var runNoteViews: [NSView] = []
+    /// Round 28.7: the range of the query running now (RR1); when it ends, H9 marks what ran.
+    var runningRange: NSRange? { didSet { if oldValue != runningRange { updateRunningMark(previous: oldValue) } } }
     /// Round 21 EM5 / round 22 ED1: the last run's error, as a squiggle with a bubble on hover.
     var errorMark: QueryErrorMark? { didSet { showErrorMark() } }
     var errorMarkView: QueryErrorMarkView?
