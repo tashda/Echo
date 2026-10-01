@@ -55,11 +55,13 @@ struct MSSQLAgentManagementTests {
         }
         let alertName = "echo_test_msgid_\(UUID().uuidString.prefix(8).lowercased())"
 
-        try await mssql.agent.createAlert(name: alertName, messageId: 50001, databaseName: "master", enabled: true)
+        // 9002 (transaction log full) exists on every server and is written to the event log, as an
+        // alert on a message needs; a user message such as 50001 exists only after sp_addmessage.
+        try await mssql.agent.createAlert(name: alertName, messageId: 9002, databaseName: "master", enabled: true)
 
         let alerts = try await mssql.agent.listAlerts()
         let found = alerts.first { $0.name == alertName }
-        #expect(found?.messageId == 50001)
+        #expect(found?.messageId == 9002)
         #expect(found?.databaseName == "master")
 
         // Cleanup
