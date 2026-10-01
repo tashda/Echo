@@ -17,6 +17,8 @@ struct LabRoundInfoBox: View {
                     .compactMap { $0 }.joined(separator: " · "))
                     .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                 Spacer()
+                LabClaimTag(page: page)
+                LabAgentHandoffButton(page: page, iconOnly: true).buttonStyle(.borderless).controlSize(.small)
                 if let status = store.status(of: page) { LabStatusPill(status: status) }
                 if hint {
                     Button(expanded ? "Collapse" : "Expand", systemImage: expanded ? "chevron.up" : "chevron.down") { expanded.toggle() }

@@ -127,6 +127,7 @@ struct LabInboxView: View {
                 HStack(spacing: 5) {
                     Text(areaTitle(page)).font(TypographyTokens.detail).foregroundStyle(.secondary)
                     LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
+                    LabClaimTag(page: page)
                     if store.revision(of: page) > store.reviewedRevision(of: page) {
                         Text("New since rev \(store.reviewedRevision(of: page))")
                             .font(.system(size: 11, weight: .semibold)).foregroundStyle(ColorTokens.accent)
@@ -186,8 +187,13 @@ struct LabMailPageDetail: View {
                         LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
                         if let areaTitle { LabTag(text: areaTitle, symbol: "square.grid.2x2") }
                     }
-                    Button { navigator.openPage(page.id) } label: { Label("Open", systemImage: "arrow.up.right.square") }
-                        .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true)).padding(.top, 4)
+                    HStack(spacing: SpacingTokens.xs) {
+                        Button { navigator.openPage(page.id) } label: { Label("Open", systemImage: "arrow.up.right.square") }
+                            .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true))
+                        LabAgentHandoffButton(page: page).buttonStyle(LabPillButtonStyle())
+                        LabClaimTag(page: page)
+                    }
+                    .padding(.top, 4)
                 }
                 sinceReview
                 if !page.summary.isEmpty {
