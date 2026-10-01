@@ -6,6 +6,10 @@ struct LabTBToolbar: View {
     let tab: LabTBTab
     let look: LabTBLook
     @Namespace private var glass
+    /// TT21: how visible the symbol is after a switch.
+    @State var flashOpacity: Double = 1
+    /// TT22: whether the pointer is over the tab's buttons.
+    @State var isHovering = false
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
@@ -48,11 +52,23 @@ struct LabTBToolbar: View {
         if units.isEmpty {
             EmptyView()
         } else {
-            let row = HStack(spacing: look.tie.hasTray ? SpacingTokens.xxs : SpacingTokens.xs) {
+            let row = HStack(spacing: markSpacing) {
                 leadingMark
                 arranged(units)
+                    .background(alignment: .leading) { watermark }
+                    .overlay(alignment: .topLeading) { badge }
+                    .overlay(alignment: .bottom) { underline }
+                trailingMark
             }
-            if look.tie.hasTray {
+            .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { isHovering = inside } }
+            .onAppear { flash() }
+            .onChange(of: tab.id) { flash() }
+            if look.tie == .caption {
+                VStack(spacing: SpacingTokens.micro) {
+                    row
+                    symbol(font: TypographyTokens.compact, color: look.symbolColour.color(tab))
+                }
+            } else if look.tie.hasTray {
                 row.padding(.horizontal, SpacingTokens.xxs).padding(.vertical, SpacingTokens.xxxs)
                     .background(ColorTokens.TabStrip.Background.plate, in: Capsule())
             } else {
@@ -72,7 +88,7 @@ struct LabTBToolbar: View {
         case .dot:
             Circle().fill(tab.tint).frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
         default:
-            EmptyView()
+            symbolMark
         }
     }
 
@@ -163,8 +179,8 @@ struct LabTBToolbar: View {
         switch look.tie {
         case .plate:
             row.background(Capsule().fill(ColorTokens.Workspace.card).shadow(ShadowTokens.railSelection))
-        case .tint:
-            row.glassEffect(.regular.tint(tab.tint.opacity(0.18)), in: .capsule)
+        case .tint, .tintBoth:
+            row.glassEffect(.regular.tint(tab.tint.opacity(look.tie == .tint ? 0.18 : 0.1)), in: .capsule)
                 .glassEffectID(index, in: glass)
                 .modifier(LabTBUnion(on: union, namespace: glass))
         default:

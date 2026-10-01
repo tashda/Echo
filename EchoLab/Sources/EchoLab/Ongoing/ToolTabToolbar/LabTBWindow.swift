@@ -139,7 +139,7 @@ struct LabTBSwitching: View {
 
 /// Every tie, or every way to arrange the groups, on the query tab's toolbar, one per row.
 struct LabTBGallery: View {
-    enum Kind { case ties, groups, runs }
+    enum Kind { case ties, groups, runs, symbolsFirst, symbolsSecond, everyTab }
     let kind: Kind
     let look: LabTBLook
 
@@ -148,7 +148,7 @@ struct LabTBGallery: View {
             ForEach(rows, id: \.0) { row in
                 Text(row.0).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                     .padding(.horizontal, SpacingTokens.sm)
-                LabTBToolbar(tab: .query, look: row.1)
+                LabTBToolbar(tab: row.2, look: row.1)
             }
         }
         .padding(.vertical, SpacingTokens.xs)
@@ -156,13 +156,20 @@ struct LabTBGallery: View {
         .background(ColorTokens.Workspace.canvas)
     }
 
-    private var rows: [(String, LabTBLook)] {
+    private var rows: [(String, LabTBLook, LabTBTab)] {
+        func ties(_ list: [LabTBTie]) -> [(String, LabTBLook, LabTBTab)] {
+            list.map { tie in var l = look; l.tie = tie; return (tie.rawValue, l, .query) }
+        }
         switch kind {
-        case .ties: LabTBTie.allCases.map { tie in var l = look; l.tie = tie; return (tie.rawValue, l) }
-        case .groups: LabTBGroups.allCases.map { groups in var l = look; l.groups = groups; return (groups.rawValue, l) }
-        case .runs: LabTBRun.allCases.flatMap { run in [false, true].map { running in
+        case .ties: return ties(Array(LabTBTie.allCases.prefix(8)))
+        case .symbolsFirst: return ties(Array(LabTBTie.revision2.prefix(8)))
+        case .symbolsSecond: return ties(Array(LabTBTie.revision2.dropFirst(8)))
+        case .everyTab:
+            return [LabTBTab.query, .profiler, .policy, .activity, .structure, .errorLog].map { ($0.title, look, $0) }
+        case .groups: return LabTBGroups.allCases.map { groups in var l = look; l.groups = groups; return (groups.rawValue, l, .query) }
+        case .runs: return LabTBRun.allCases.flatMap { run in [false, true].map { running in
             var l = look; l.run = run; l.running = running
-            return (run.rawValue + (running ? ", running" : ""), l)
+            return (run.rawValue + (running ? ", running" : ""), l, .query)
         } }
         }
     }

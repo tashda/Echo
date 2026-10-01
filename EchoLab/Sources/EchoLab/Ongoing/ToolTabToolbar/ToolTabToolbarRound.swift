@@ -8,6 +8,8 @@ import SwiftUI
 /// capsule that turns red (round 24), Format · Validate · Help · Plan, and SQLCMD · Statistics for
 /// SQL Server, each a plain glass group that hides when another tab is in front; tools put their
 /// buttons on their header line (37.2, 37.3) and nothing in the toolbar (45).
+/// Revision 2: the owner liked TT2 best but not the symbol inside a glass button; fifteen ways to
+/// show the tab's symbol with no glass around it (TT8 to TT22), with its colour and size.
 @MainActor
 enum ToolTabToolbarRound {
     private static func look(_ v: RoundValues) -> LabTBLook { LabTBLook.from(v) }
@@ -15,11 +17,21 @@ enum ToolTabToolbarRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("tie", "Tie to the tab", LabTBTie.self, default: .iconTray,
-                question: "Switch between the ties on the Proposals and in 'Every tie'. Which makes the buttons read as the front tab's, without shouting?",
-                recommend: .iconTray,
-                why: "The grey tray is the tab bar's own plate, so the section reads as part of the tabs rather than the window, and the tab's symbol (the same one as in its tab) says which tab. TT2, the symbol alone, is the quiet runner-up; TT4's white plate is the most literal but fights the glass around it, and TT5's name costs up to 120pt.",
-                summary: \.summary),
+            .of("tie", "Tie to the tab", LabTBTie.self, default: .bare,
+                question: "Look at 'The symbol, part 1 and 2' and try your favourites on the Proposals and 'On every tab'. Which shows the tab's symbol best without a glass button?",
+                recommend: .bare,
+                why: "TT2 without its glass is TT8: the tab's own symbol standing on the toolbar like a label, so it reads as 'whose' rather than another button, and it costs one symbol's width. TT11's hairline is the runner-up if the symbol and the first button sit too close; TT21 and TT22 are the quietest but say nothing at rest.",
+                summary: \.summary, newChoices: (2, LabTBTie.revision2)),
+            .of("symbolColour", "Symbol colour", LabTBSymbolColour.self, default: .secondary,
+                question: "With TT8 (or another plain-symbol tie), compare the symbol's colours.",
+                recommend: .secondary,
+                why: "Grey says 'label' next to the black buttons, as the tab strip greys its inactive tabs' symbols. The tab's colour ties it to the header's tile but turns orange and red on Activity Monitor and Error Log, which read as warnings.",
+                addedIn: 2),
+            .of("symbolSize", "Symbol size", LabTBSymbolSize.self, default: .same,
+                question: "Compare the symbol at 11, 13 and 14pt next to the buttons.",
+                recommend: .same,
+                why: "At the buttons' size the row lines up; smaller reads as a caption and works with TT10, larger starts to look like the most important thing in the toolbar.",
+                addedIn: 2),
             .of("groups", "Several groups", LabTBGroups.self, default: .dividers,
                 question: "Look at the query tab, which has three groups. How should a tab with more than one group show them?",
                 recommend: .dividers,
@@ -79,6 +91,18 @@ enum ToolTabToolbarRound {
                   isWide: true, designWidth: 900, designHeight: 230) { v in
                 LabTBWindow(tabs: [.query, .errorLog], active: .errorLog, look: look(v))
             },
+            .init(id: "symbolsFirst", title: "The symbol, part 1", summary: "TT8 to TT15 on the query tab: the tab's symbol with no glass around it.",
+                  isWide: true, addedIn: 2, designWidth: 900, designHeight: 520) { v in
+                LabTBGallery(kind: .symbolsFirst, look: look(v))
+            },
+            .init(id: "symbolsSecond", title: "The symbol, part 2", summary: "TT16 to TT22. TT21 shows the symbol when it appears, then fades; point at TT22's buttons.",
+                  isWide: true, addedIn: 2, designWidth: 900, designHeight: 470) { v in
+                LabTBGallery(kind: .symbolsSecond, look: look(v))
+            },
+            .init(id: "everyTab", title: "On every tab", summary: "The tie as set, on six tabs: each shows its own symbol.",
+                  isWide: true, addedIn: 2, designWidth: 900, designHeight: 400) { v in
+                LabTBGallery(kind: .everyTab, look: look(v))
+            },
             .init(id: "switching", title: "Switching tabs", summary: "Click the tabs; Availability Groups has no buttons of its own.",
                   isWide: true, designWidth: 900, designHeight: 150) { v in
                 LabTBSwitching(look: look(v))
@@ -131,12 +155,16 @@ enum ToolTabToolbarRound {
                   why: "You asked for every tab's dedicated buttons in the toolbar; one rule for every tab, with the tie saying whose they are, is what makes it learnable."),
         ],
         exhibitTopic: ("Which toolbar?", "Do the Proposals make the buttons read as the front tab's, against Echo today?", "query",
-                       "A grey tray in the tab bar's colour, starting with the tab's symbol, holding the tab's buttons in one glass capsule; Run a plain ▶ that turns red."),
+                       "The tab's symbol in grey on its own before its buttons (TT8), the buttons in one glass capsule; Run a plain ▶ that turns red."),
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "TT7, GR1, RN1, MV1, MA1, the fixed gap, the glass reshaping.",
-                  values: ["tie": LabTBTie.iconTray.rawValue, "groups": LabTBGroups.dividers.rawValue, "run": LabTBRun.plain.rawValue,
+            .init(id: "recommended", name: "My recommendation", summary: "TT8 in grey at 13pt, GR1, RN1, MV1, MA1, the fixed gap, the glass reshaping.",
+                  values: ["tie": LabTBTie.bare.rawValue, "symbolColour": LabTBSymbolColour.secondary.rawValue, "symbolSize": LabTBSymbolSize.same.rawValue, "groups": LabTBGroups.dividers.rawValue, "run": LabTBRun.plain.rawValue,
                            "move": LabTBMove.buttons.rawValue, "mainLook": LabTBMainLook.word.rawValue, "gap": LabTBGap.fixed.rawValue,
                            "motion": LabTBMotion.morph.rawValue], isRecommended: true),
+            .init(id: "breadcrumb", name: "Breadcrumb", summary: "The symbol, a hairline, then the buttons.",
+                  values: ["tie": LabTBTie.hairline.rawValue, "groups": LabTBGroups.dividers.rawValue, "run": LabTBRun.plain.rawValue]),
+            .init(id: "atRest", name: "Quiet at rest", summary: "The symbol only while you switch.",
+                  values: ["tie": LabTBTie.flash.rawValue, "motion": LabTBMotion.morph.rawValue]),
             .init(id: "quiet", name: "Quietest", summary: "Only the tab's symbol, separate capsules, Run as today.",
                   values: ["tie": LabTBTie.icon.rawValue, "groups": LabTBGroups.separate.rawValue, "run": LabTBRun.capsule.rawValue,
                            "gap": LabTBGap.hairline.rawValue, "motion": LabTBMotion.fade.rawValue]),

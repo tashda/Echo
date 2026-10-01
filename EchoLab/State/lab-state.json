@@ -3820,6 +3820,50 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.tool-tab-toolbar-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T20:38:33Z",
+        "id": "2EA1E722-4C80-4329-B64B-9C9666DCB4FF",
+        "text": "Review of Tool tabs: the tab's own buttons in the toolbar\n1. Which toolbar?: no answer yet\n2. Tie to the tab: no answer yet\n3. Several groups: no answer yet\n4. Run: no answer yet\n5. What moves: no answer yet\n6. Main action: no answer yet\n7. Gap: no answer yet\n8. Switching: no answer yet\n9. A tab without buttons: no answer yet\n10. A narrow window: no answer yet\n11. The header line afterwards: no answer yet\n12. Round 45: no answer yet\nOverall: I don't like any of the styles but TT2 is the one I like the best - but the tab symbol should not be in a \"glas button\" but should somehow show. Make more suggestions and a lot of them"
+      }
+    ],
+    "generalNote": "I don't like any of the styles but TT2 is the one I like the best - but the tab symbol should not be in a \"glas button\" but should somehow show. Make more suggestions and a lot of them",
+    "history": [
+      {
+        "date": "2026-10-01T20:38:33Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T20:41:07Z",
+        "text": "Revision 2: Fifteen ways to show the tab's symbol without a glass button, from TT2"
+      }
+    ],
+    "needsMore": [
+      "exhibit",
+      "tie"
+    ],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "New ties: TT8 the symbol on its own (recommended), TT9 in the tab's colour, TT10 tucked against the buttons, TT11 with a hairline, TT12 with a \u203a, TT13 in a thin ring",
+          "New ties: TT14 engraved, TT15 a faint watermark, TT16 a tiny badge, TT17 a caption under the buttons, TT18 after the buttons",
+          "New ties: TT19 symbol and glass in the tab's colour, TT20 with a coloured underline, TT21 only while switching, TT22 a dot that shows the symbol and name on hover",
+          "New controls: Symbol colour and Symbol size",
+          "New exhibits: The symbol, part 1 and 2; On every tab"
+        ],
+        "date": "2026-10-01T20:41:07Z",
+        "number": 2,
+        "summary": "Fifteen ways to show the tab's symbol without a glass button, from TT2"
+      }
+    ],
+    "status": "Judging",
+    "verdicts": {}
+  },
   "ongoing.tree-tool-rows-r38": {
     "comments": [
       {
