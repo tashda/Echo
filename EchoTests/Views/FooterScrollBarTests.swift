@@ -109,3 +109,28 @@ struct ScrollBarBlurTests {
         #expect(raised > LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift + LayoutTokens.EdgeBlur.fade)
     }
 }
+
+/// Round 44: the system's material under the footer, faded in exponentially (BT4, CV6, BH3, TT1).
+@Suite("Footer material (round 44)")
+struct FooterMaterialBlurTests {
+    @Test func itFadesFromClearToFull() {
+        #expect(FooterMaterialBlur.amount(at: 0) == 0)
+        #expect(abs(FooterMaterialBlur.amount(at: 1) - 1) < 0.0001)
+        let amounts = FooterMaterialBlur.stops().map(\.opacity)
+        #expect(amounts == amounts.sorted())
+    }
+
+    /// Most of its height is spent where it is still faint, so no row meets it at once.
+    @Test func itStartsSlowly() {
+        #expect(FooterMaterialBlur.amount(at: 0.5) < 0.15)
+        let steepest = zip(FooterMaterialBlur.stops(), FooterMaterialBlur.stops().dropFirst())
+            .map { $1.opacity - $0.opacity }.max() ?? 0
+        #expect(steepest < 0.2)
+    }
+
+    /// It reaches past the horizontal scroll bar, so the blur behind the bar needs nothing more.
+    @Test func itReachesPastTheScrollBar() {
+        let reach = LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift + LayoutTokens.EdgeBlur.materialReach
+        #expect(reach > LayoutTokens.Footer.scrollBarBottom + LayoutTokens.Footer.overlayThumbMaxHeight)
+    }
+}

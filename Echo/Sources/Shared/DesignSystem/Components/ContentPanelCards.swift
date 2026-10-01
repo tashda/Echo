@@ -215,19 +215,12 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
         .workspaceCard()
     }
 
-    /// A light card tint towards the bottom keeps the footer readable over the blur.
+    /// The rows under the footer soften into the system's material (round 44).
     private var footerOverlay: some View {
         footer()
             .padding(.bottom, LayoutTokens.Footer.bottomLift)
             .background(alignment: .bottom) {
-                ColorTokens.Workspace.card
-                    .opacity(LayoutTokens.EdgeBlur.tintOpacity)
-                    // An S curve, so the tint has no edge where it starts.
-                    .mask(LinearGradient(stops: BackdropEdgeBlurLayerView.fadeAlphas.reversed().enumerated().map { index, alpha in
-                        .init(color: .black.opacity(Double(alpha)), location: CGFloat(index) / CGFloat(BackdropEdgeBlurLayerView.fadeAlphas.count - 1))
-                    }, startPoint: .top, endPoint: .bottom))
-                    .frame(height: footerZone + LayoutTokens.EdgeBlur.fade)
-                    .allowsHitTesting(false)
+                FooterMaterialBlur(height: footerZone + LayoutTokens.EdgeBlur.materialReach)
             }
     }
 

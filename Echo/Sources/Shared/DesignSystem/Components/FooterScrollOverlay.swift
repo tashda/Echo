@@ -1,14 +1,10 @@
 import AppKit
 
 /// The footer floating over the bottom of an AppKit scroll view (the results grid, the editor):
-/// room for the last rows to scroll clear of it, the soft blur under it (round 9, FB1), the scroll
-/// bars just above its pills (round 27: E, the system's bar, R2), the bar as wide as the footer
-/// (L2), the blur rising past it while it shows (U5), and for grids, soft edges where more columns
-/// wait (X1).
-///
-/// The blur is the scroll view's `ScrollBarBlur`, which every horizontal bar in Echo has; this
-/// gives it the footer's room and the bar's span. The blur and the soft edges live in the clip
-/// view, between the rows and the scroll bars, so the bars are never blurred.
+/// room for the last rows to scroll clear of it, the scroll bars just above its pills (round 27:
+/// E, the system's bar, R2), the bar as wide as the footer (L2), and for grids, soft edges where
+/// more columns wait (X1). The rows soften under the footer's material (round 44,
+/// `FooterMaterialBlur`, drawn by the card), so the scroll view's `ScrollBarBlur` stays off here.
 @MainActor
 final class FooterScrollOverlay {
     private weak var scrollView: NSScrollView?

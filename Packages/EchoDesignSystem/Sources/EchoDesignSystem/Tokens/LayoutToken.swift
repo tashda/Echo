@@ -134,6 +134,11 @@ public enum LayoutTokens {
         public static let settleDuration: Double = 0.5
         /// How long the blur stays raised after the last scroll: the system's bar fades about then.
         public static let raisedHold: Double = 0.9
+        /// Round 44: how far above the footer the material under it reaches (BH3), how fast it
+        /// grows (CV6: (e^(g·t) − 1) / (e^g − 1)), and the card's colour over it (TT1).
+        public static let materialReach: CGFloat = SpacingTokens.xxl + SpacingTokens.xs
+        public static let materialGrowth: CGFloat = 4.5
+        public static let materialTintOpacity: Double = 0.15
         /// Card-coloured tint over the blur, so the control on it stays readable.
         public static let tintOpacity: Double = 0.35
         /// How wide the rows fade at a side where more columns wait (round 27, X1).
