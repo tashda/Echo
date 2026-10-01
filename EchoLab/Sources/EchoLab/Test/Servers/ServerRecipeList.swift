@@ -24,7 +24,7 @@ struct ServerRecipeList: View {
                 ForEach(EngineKind.allCases, id: \.self) { engine in
                     let recipes = filtered.filter { $0.engine == engine }
                     if !recipes.isEmpty {
-                        Section(engine == .sqlServer ? "SQL Server" : "PostgreSQL") {
+                        Section(engine.displayName) {
                             ForEach(recipes, id: \.name) { recipe in
                                 row(recipe).tag(recipe.name)
                             }
@@ -56,7 +56,7 @@ struct ServerRecipeList: View {
         Form {
             Section(recipe.name) {
                 Text(recipe.summary).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
-                LabeledContent("Engine", value: "\(recipe.engine == .sqlServer ? "SQL Server" : "PostgreSQL") \(recipe.version)")
+                LabeledContent("Engine", value: "\(recipe.engine.displayName) \(recipe.version)")
                 if let agent = recipe.settings.agent { LabeledContent("Agent", value: agent ? "On" : "Off") }
                 if let collation = recipe.settings.collation { LabeledContent("Collation", value: collation) }
                 if let variant = recipe.settings.imageVariant { LabeledContent("Image", value: variant) }

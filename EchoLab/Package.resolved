@@ -7,7 +7,7 @@
       "location" : "https://github.com/tashda/echo-server-lab",
       "state" : {
         "branch" : "dev",
-        "revision" : "4e4f26c356d7c4b8144b5a701a25f40a236991b4"
+        "revision" : "10c45b69c64f87470249b89be767261a780ceafb"
       }
     },
     {
@@ -17,6 +17,24 @@
       "state" : {
         "branch" : "dev",
         "revision" : "8743a27a21f08d5ed4adf0c7c97d67e0f4afebf5"
+      }
+    },
+    {
+      "identity" : "mysql-nio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/vapor/mysql-nio.git",
+      "state" : {
+        "revision" : "7fa853040169b604a16b963f23b481772f4ac181",
+        "version" : "1.9.1"
+      }
+    },
+    {
+      "identity" : "mysql-wire",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tashda/mysql-wire",
+      "state" : {
+        "branch" : "dev",
+        "revision" : "2faf26f94c4c3de8e462e9ceff0ca49c855ed455"
       }
     },
     {
@@ -35,6 +53,15 @@
       "state" : {
         "branch" : "dev",
         "revision" : "3412de4f558d4ee7403b5e2d4f471e0a83bc751a"
+      }
+    },
+    {
+      "identity" : "swift-algorithms",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-algorithms.git",
+      "state" : {
+        "revision" : "87e50f483c54e6efd60e885f7f5aa946cee68023",
+        "version" : "1.2.1"
       }
     },
     {
@@ -143,6 +170,15 @@
       "state" : {
         "revision" : "67787bb645a5e67d2edcdfbe48a216cc549222d5",
         "version" : "1.28.0"
+      }
+    },
+    {
+      "identity" : "swift-numerics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-numerics.git",
+      "state" : {
+        "revision" : "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
+        "version" : "1.1.1"
       }
     },
     {
