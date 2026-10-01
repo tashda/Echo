@@ -53,10 +53,5 @@ extension ObjectBrowserNode.Row {
     }
 }
 
-/// What sits at the top of the Explorer's visible area.
-struct ObjectBrowserTopVisibleContext: Equatable {
-    var connectionID: UUID?
-    var databaseName: String?
-    /// True once the server's own header has scrolled out of view.
-    var isScrolledPastServerHeader: Bool
-}
+/// What sits at the top of the Explorer's visible area (the shared tree layout works it out).
+typealias ObjectBrowserTopVisibleContext = ExplorerTreeTopContext

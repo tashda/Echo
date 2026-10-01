@@ -3,7 +3,7 @@ import SwiftUI
 /// The Explorer tree, in SwiftUI (Design/05-components.md › Explorer tree, Design/swiftui-tree.md).
 ///
 /// Rows are a flat, lazy list with a fixed height per row kind, so every row's position is known
-/// from `ExplorerTreeLayout` without measuring. Behind the list, one card per server is drawn with
+/// from `ObjectBrowserTreeLayout` without measuring. Behind the list, one card per server is drawn with
 /// the editor card's own modifier, cut to the visible area with rounded corners where the tree's
 /// edge cuts it (round 7, F2). The list itself is clipped to the same rounded shape.
 ///
@@ -66,7 +66,7 @@ struct ObjectBrowserOutlineView: View {
 
     var body: some View {
         let baseRowHeight = Self.baseRowHeight(for: density)
-        let layout = ExplorerTreeLayout(roots: roots, expandedNodeIDs: expandedNodeIDs, baseRowHeight: baseRowHeight)
+        let layout = ObjectBrowserTreeLayout(roots: roots, expandedNodeIDs: expandedNodeIDs, baseRowHeight: baseRowHeight)
         let rowIDs = layout.rows.map(\.id)
         let dockSelections = layout.dockSelections
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -134,7 +134,10 @@ struct ObjectBrowserOutlineView: View {
         // window) taller than its space.
         .background(alignment: .top) {
             ExplorerTreeCardsLayer(cards: layout.cards, scroll: scroll,
-                                   switchingCardIDs: switchingCardIDs(in: layout), edgeAnimation: motion.dockEdge)
+                                   switchingCardIDs: switchingCardIDs(in: layout), edgeAnimation: motion.dockEdge) {
+                // The editor card's modifier, so the tree's cards match it exactly.
+                Color.clear.workspaceCard()
+            }
                 .animation(nil, value: dockSelections)
                 .animation(motion.expand, value: rowIDs)
         }
@@ -161,7 +164,7 @@ struct ObjectBrowserOutlineView: View {
     /// Arriving rows fade in with the list's animation while their neighbours move; leaving rows
     /// fade out quickly, so they never sit under rows moving over them. A card mid-switch swaps
     /// its rows with no transitions at all: the whole card fades instead.
-    private func rows(_ rows: [ExplorerTreeLayout.Row], underHeaderOf headerHeight: CGFloat = 0, isSwitching: Bool = false) -> some View {
+    private func rows(_ rows: [ObjectBrowserTreeLayout.Row], underHeaderOf headerHeight: CGFloat = 0, isSwitching: Bool = false) -> some View {
         ForEach(rows) { row in
             let node = row.node
             rowContent(node, expandedNodeIDs.contains(node.id), row.depth, 0, { activate(node) })
@@ -189,7 +192,7 @@ struct ObjectBrowserOutlineView: View {
 
     /// Glides so the requested row (or the gap above its card) lands at the top.
     /// A switch is starting: remember how far each switching server's card was scrolled.
-    private func saveDockPlaces(of connectionIDs: Set<UUID>, in layout: ExplorerTreeLayout) {
+    private func saveDockPlaces(of connectionIDs: Set<UUID>, in layout: ObjectBrowserTreeLayout) {
         let selections = layout.dockSelections
         for connectionID in connectionIDs {
             guard let section = selections[connectionID], let top = layout.serverTop(connectionID) else { continue }
@@ -199,7 +202,7 @@ struct ObjectBrowserOutlineView: View {
 
     /// The new section is in: if you had scrolled into the card in that section, jump back there,
     /// instantly (the rows are faded). Otherwise the view doesn't move.
-    private func returnToDockPlaces(changedFrom old: [UUID: String], to new: [UUID: String], in layout: ExplorerTreeLayout) {
+    private func returnToDockPlaces(changedFrom old: [UUID: String], to new: [UUID: String], in layout: ObjectBrowserTreeLayout) {
         for (connectionID, section) in new where old[connectionID] != nil && old[connectionID] != section {
             guard let place = dockPlaces["\(connectionID)|\(section)"], place > 0,
                   let top = layout.serverTop(connectionID) else { continue }
@@ -212,7 +215,7 @@ struct ObjectBrowserOutlineView: View {
 
     /// The row under a point in the tree's view (a pinned header covers the top), unless it is
     /// the dock, whose icons have menus of their own.
-    private func contextTarget(at point: CGPoint, in layout: ExplorerTreeLayout) -> ExplorerTreeContextTarget? {
+    private func contextTarget(at point: CGPoint, in layout: ObjectBrowserTreeLayout) -> ExplorerTreeContextTarget? {
         guard let row = row(at: point.y, in: layout) else { return nil }
         switch row.node.row {
         case .dock, .topSpacer: return nil
@@ -222,7 +225,7 @@ struct ObjectBrowserOutlineView: View {
         return ExplorerTreeContextTarget(nodeID: node.id, menu: { contextMenu(node) })
     }
 
-    private func row(at y: CGFloat, in layout: ExplorerTreeLayout) -> ExplorerTreeLayout.Row? {
+    private func row(at y: CGFloat, in layout: ObjectBrowserTreeLayout) -> ObjectBrowserTreeLayout.Row? {
         let offset = scroll.offset
         for group in layout.groups where !group.header.isEmpty {
             guard let card = layout.cards.first(where: { $0.id == group.header[0].id }) else { continue }
@@ -243,24 +246,24 @@ struct ObjectBrowserOutlineView: View {
     }
 
     /// The cards whose edge animates in a dock switch: the switching servers' own.
-    private func switchingCardIDs(in layout: ExplorerTreeLayout) -> Set<String> {
+    private func switchingCardIDs(in layout: ObjectBrowserTreeLayout) -> Set<String> {
         Set(layout.groups.compactMap { group in
             guard let server = group.header.first, let id = server.node.row.connectionID, switchingConnectionIDs.contains(id) else { return nil }
             return server.id
         })
     }
 
-    private func hidesRows(_ group: ExplorerTreeLayout.Group) -> Bool {
+    private func hidesRows(_ group: ObjectBrowserTreeLayout.Group) -> Bool {
         guard let connectionID = group.header.first?.node.row.connectionID else { return false }
         return hiddenRowsConnectionIDs.contains(connectionID)
     }
 
-    private func isSwitching(_ group: ExplorerTreeLayout.Group) -> Bool {
+    private func isSwitching(_ group: ObjectBrowserTreeLayout.Group) -> Bool {
         guard let connectionID = group.header.first?.node.row.connectionID else { return false }
         return switchingConnectionIDs.contains(connectionID)
     }
 
-    private func reveal(in layout: ExplorerTreeLayout) {
+    private func reveal(in layout: ObjectBrowserTreeLayout) {
         guard revealRequestID != handledRevealRequestID,
               let revealNodeID,
               let target = layout.revealOffset(for: revealNodeID)
@@ -276,7 +279,7 @@ struct ObjectBrowserOutlineView: View {
 
     /// Reports only when the server or database at the top changes, and after the current
     /// update, so scrolling never mutates shared state mid-render.
-    private func reportTopVisibleContext(in layout: ExplorerTreeLayout, baseRowHeight: CGFloat) {
+    private func reportTopVisibleContext(in layout: ObjectBrowserTreeLayout, baseRowHeight: CGFloat) {
         guard let onTopVisibleContextChanged,
               let context = layout.topVisibleContext(atOffset: scroll.offset, baseRowHeight: baseRowHeight),
               context != scroll.lastReportedContext

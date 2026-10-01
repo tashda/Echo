@@ -122,7 +122,7 @@ struct ExplorerDockTests {
 
     @Test func serverAndDockPinAsOneHeader() {
         let roots = ExplorerDock.apply(to: [server([.databases, .serverSecurity])], selections: [:])
-        let layout = ExplorerTreeLayout(roots: roots, expandedNodeIDs: ["server"], baseRowHeight: 24)
+        let layout = ObjectBrowserTreeLayout(roots: roots, expandedNodeIDs: ["server"], baseRowHeight: 24)
         let groups = layout.groups
         #expect(groups.count == 1)
         #expect(groups[0].header.map(\.id) == ["server", ExplorerDock.dockNodeID(connectionID)])

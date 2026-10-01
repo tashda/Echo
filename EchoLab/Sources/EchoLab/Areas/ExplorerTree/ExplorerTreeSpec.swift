@@ -29,11 +29,11 @@ enum ExplorerTreeSpec {
                           .row("Shadow", "black 12%, blur 10, y 4", token: "ShadowTokens.workspaceCard")),
                 .layout(.row("Corner", "16pt continuous (setting: 10 to 26)", token: "LayoutTokens.Workspace.cardCornerRadius"),
                         .row("Width", "260pt ideal, 200 to 480", token: "LayoutTokens.Workspace.treeIdealWidth / Min / Max")),
-            ], rounds: ["decided.window-canvas-and-cards"], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ExplorerTreeCardsLayer.swift"]),
+            ], rounds: ["decided.window-canvas-and-cards"], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeCardsLayer.swift"]),
             SpecElement(number: "1.2", name: "One card per server", summary: "Servers are never merged into one list; a server's card is as tall as its rows.", groups: [
                 .behaviour(.row("Rail", "Clicking a server in the rail jumps to its card; the rail marks the card at the top while you scroll"),
                            .row("Holding view (N2)", "when a card gets shorter, a spacer under the last card keeps the bottom where it was, so the cards above don't move; it gives the room back as you scroll up and can't be stretched by overscrolling", token: "ExplorerTreeHold.spacerHeight")),
-            ], rounds: ["decided.rail-servers", r19Switching], files: [components + "ExplorerTreeLayout.swift", components + "ExplorerTreeScrollState.swift"]),
+            ], rounds: ["decided.rail-servers", r19Switching], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeLayout.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeScrollState.swift", components + "ObjectBrowserNode+TreeRole.swift"]),
         ]),
         SpecPart(number: "2", name: "Header", summary: "The server's name and version at the top of its card.", elements: [
             SpecElement(number: "2.1", name: "Server name", summary: "Bold, at the top left of the card, sized by the sidebar size.", groups: [
@@ -54,7 +54,7 @@ enum ExplorerTreeSpec {
                           .row("Rows", "blur and fade as they pass under it", token: "ExplorerRowEdgeBlur")),
                 .motion(.row("Wash in", "ease out, 0.12s")),
                 .behaviour(.row("No line and no grey material", "the soft blur is the only edge")),
-            ], rounds: ["decided.tree-sticky-header", round16], files: [components + "ExplorerPinnedHeaderWash.swift"]),
+            ], rounds: ["decided.tree-sticky-header", round16], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerPinnedHeaderWash.swift"]),
         ]),
         SpecPart(number: "3", name: "Dock", summary: "The section icons under the server's name.", elements: [
             SpecElement(number: "3.1", name: "Capsule", summary: "A Liquid Glass capsule as wide as the card, with a hairline edge and a soft shadow (C5). The only glass in the card.", groups: [
@@ -104,7 +104,7 @@ enum ExplorerTreeSpec {
                            .row("A section not shown before", "doesn't scroll"), .row("While switching", "another click on that server's dock is ignored"),
                            .row("The section", "opens (and starts loading) when the switch starts, under the fading veil"),
                            .row("The window", "can't be dragged while the switch runs", token: "WindowDragPause")),
-            ], rounds: ["ported.Round 14 · section dock", round16, r19Switching], files: [components + "ObjectBrowserSidebarView+Dock.swift", components + "ExplorerMotion.swift", components + "ExplorerTreeVeilLayer.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarViewModel+Dock.swift"]),
+            ], rounds: ["ported.Round 14 · section dock", round16, r19Switching], files: [components + "ObjectBrowserSidebarView+Dock.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerMotion.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeVeilLayer.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarViewModel+Dock.swift"]),
             SpecElement(number: "3.8", name: "SQL Server's five sections", summary: "Grouped as SSMS groups them (round 19).", groups: [
                 .behaviour(.row("Databases", "the databases, with Database Snapshots at the end"), .row("Security", "Logins, Server Roles, Credentials"),
                            .row("Server Objects", "Linked Servers, Server Triggers"), .row("Agent Jobs", "Job Queue and the jobs"),
