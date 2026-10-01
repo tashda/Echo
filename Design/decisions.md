@@ -2,6 +2,17 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 25 accepted: SQL Server imports with the bulk load
+
+Echo Labs › Explorer tree › SQL Server: importing a file · round 25. sqlserver-nio sends imports with the TDS bulk load (as bcp and SqlBulkCopy); the Import Data sheet offers its options.
+
+- **Options: IO1 · an Options section, every option visible** (SQL Server only): Empty cells, Keep identity values (was Identity Insert under Target), Check constraints, Fire triggers, Lock the table, with a line saying what locking costs. A disclosure (IO2) and today's Identity Insert alone (IO3) were not chosen.
+- **Empty cells: EC1 · a choice in the sheet, NULL by default** (NULL or the column default). Always NULL (today) and always the default were not chosen.
+- **A failed import: FA1 · undo everything, one transaction.** The sheet says "Nothing was imported. dbo.orders is as it was." with the server's error under it; a cancel says nothing was imported. Keeping the rows already imported (FA2) was not chosen.
+- **Batch size: BS1 · 10,000 rows** for SQL Server (other engines keep 1,000). 1,000 and the whole file in one batch were not chosen.
+- **INSERT statements: ME1 · said only when they were used** (a table with geometry, sql_variant, text and similar columns). Always naming the method and never naming it were not chosen.
+- Built as reviewed: progress moves per batch, "Imported 48,210 rows in 1.9 s", footer Done or Failed. → Phase 18 S7 (`Features/Import/BulkImport*`)
+
 ## 2026-10-01 · Smoothness pass: the owner's answers
 
 After the overnight tracing pass (commits f90524d9 to 9819269c), asked in chat:

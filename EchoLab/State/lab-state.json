@@ -99,6 +99,51 @@
 
     }
   },
+  "ongoing.mssql-import-r25" : {
+    "comments" : [
+      {
+        "date" : "2026-10-01T09:55:05Z",
+        "id" : "A74B1CB0-1013-4954-94C7-D7E7BB0E95F9",
+        "text" : "Review of SQL Server: importing a file\n1. Build it?: picked Proposal\n2. Options: picked IO1 · An Options section, every option visible\n3. Empty cells: picked EC1 · A choice in the sheet, NULL by default\n4. When an import fails: picked FA1 · Undo everything: one transaction\n5. Batch size: picked BS1 · 10,000 rows\n6. When the bulk load cannot be used: picked ME1 · Only when INSERT statements were used"
+      }
+    ],
+    "generalNote" : "",
+    "history" : [
+      {
+        "date" : "2026-10-01T09:55:05Z",
+        "text" : "Accepted with picks"
+      },
+      {
+        "date" : "2026-10-01T10:07:06Z",
+        "text" : "Built into Echo (2a235de8): an Options section (empty cells, keep identity values, check constraints, fire triggers, lock the table), the import in one transaction, 10,000-row batches and a note when INSERT statements were used"
+      }
+    ],
+    "needsMore" : [
+
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+
+    },
+    "picks" : {
+      "batch" : "10k",
+      "empty" : "EC1 · A choice in the sheet, NULL by default",
+      "exhibit" : "proposal",
+      "failure" : "FA1 · Undo everything: one transaction",
+      "method" : "fallback",
+      "options" : "IO1 · An Options section, every option visible"
+    },
+    "reviewedRevision" : 1,
+    "revisions" : [
+
+    ],
+    "status" : "In Echo",
+    "verdicts" : {
+
+    }
+  },
   "ongoing.mssql-sessions-r22" : {
     "comments" : [
       {

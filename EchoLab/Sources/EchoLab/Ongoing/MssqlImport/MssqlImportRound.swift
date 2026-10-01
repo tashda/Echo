@@ -56,7 +56,7 @@ enum MssqlImportRound {
                 MssqlImportSheet(today: true, moment: Moment(rawValue: values["moment"]) ?? .ready,
                                  options: .today, empty: .null, failure: .keep)
             },
-            .init(id: "proposal", title: "Proposal", summary: "Built from the controls, with a 10,000-row batch.",
+            .init(id: "proposal", title: "Proposal", summary: "Accepted (IO1, EC1, FA1, BS1, ME1) and built into Echo in 2a235de8.",
                   designWidth: width, designHeight: height) { values in
                 MssqlImportSheet(today: false, moment: Moment(rawValue: values["moment"]) ?? .ready,
                                  options: Options(rawValue: values["options"]) ?? .section,
@@ -91,8 +91,6 @@ enum MssqlImportRound {
             .init(id: "recommended", name: "My recommendation", summary: "IO1, EC1, FA1.",
                   values: ["options": Options.section.rawValue, "empty": EmptyCells.choice.rawValue, "failure": Failure.undo.rawValue],
                   isRecommended: true),
-            .init(id: "minimal", name: "Keep it small", summary: "IO2, EC2, FA2.",
-                  values: ["options": Options.disclosure.rawValue, "empty": EmptyCells.null.rawValue, "failure": Failure.keep.rawValue]),
         ]
     )
 }
