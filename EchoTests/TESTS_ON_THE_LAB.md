@@ -43,6 +43,15 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
   samples the test processes (`diagnostics/`) and stops the run. It understands both XCTest and
   Swift Testing output; the final totals and the failures (as GitHub error annotations) come from
   the `.xcresult`, not the log.
+- **Lost runners:** GitHub's macOS runners sometimes lose contact with GitHub mid-job ("The hosted
+  runner lost communication with the server"), which fails the job with no log. On CI the run
+  script also starts `.github/scripts/watch-runner.sh`: once a minute it records whether GitHub
+  and testlab answer, the tailnet state, free memory, load and the number of finished tests, in
+  the job log, in `diagnostics/runner-watch.log` and on testlab in `~/ci-watch/<run>-<attempt>-<name>.log`
+  (kept 14 days), so a lost runner still leaves a record. The workflow `rerun-lost-runner.yml`
+  reruns the failed jobs of a first attempt of CI (Full) or Nightly Tests once when a job failed
+  that way (it runs from `main` only, as GitHub requires). After the tests the runner leaves the
+  tailnet with `leave-tailnet.sh`, which waits until GitHub answers before the results upload.
 - **Locally:** run the EchoTests plan; testlab must be reachable (home network), or set
   `SERVERLAB_HOST=local` for Docker on the Mac.
 

@@ -10,6 +10,8 @@
 #   <stall-minutes> (default 15), it names the tests still running and stops the run; on a CI
 #   runner (CI=true) it also samples the test processes into diagnostics/ first. A hang then fails in minutes with a report instead of
 #   running into the job's time limit with nothing to show.
+# - On a CI runner it also starts watch-runner.sh: a line a minute on whether GitHub and testlab
+#   still answer, kept on testlab too, for runs where the runner loses GitHub.
 # - Exit status: xcodebuild's, or 124 after a stall.
 set -uo pipefail
 
@@ -35,6 +37,14 @@ finished_test="Test [Cc]ase .*' (passed|failed|skipped)|Test .*(passed|failed) a
 # Lines worth showing: test results, failures, errors, the lab's own lines, the final verdict.
 interesting="$finished_test|Test [Ss]uite .*(started|passed|failed)|Suite .*(passed|failed) after|error:|recorded an issue|\\[serverlab\\]|\\*\\* TEST|Testing (started|cancelled|failed)"
 progress="$finished_test|\\[serverlab\\]"
+
+# On a CI runner, a line a minute on whether GitHub and testlab still answer (watch-runner.sh).
+watch_pid=""
+if [ "${CI:-}" = "true" ]; then
+  "$(dirname "$0")/watch-runner.sh" "$log" "$finished_test" "${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$name" &
+  watch_pid=$!
+fi
+trap '[ -n "$watch_pid" ] && kill "$watch_pid" 2>/dev/null' EXIT
 
 printed=0
 started=""
