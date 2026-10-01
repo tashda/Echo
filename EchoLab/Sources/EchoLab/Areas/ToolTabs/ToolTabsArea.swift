@@ -12,6 +12,7 @@ enum ToolTabsArea {
     private static let jobs = "Echo/Sources/Features/AppHost/Views/Navigation/JobManagement/JobQueue/JobQueueView.swift"
     private static let controls = "Echo/Sources/Shared/DesignSystem/Components/ToolTabControls"
     private static let family = "Echo/Sources/Features/AppHost/Domain/ToolTabFamily.swift"
+    private static let tabToolbar = "Echo/Sources/Shared/DesignSystem/Components/TabToolbar"
 
     static let area = LabArea(
         id: "tool-tabs",
@@ -24,13 +25,13 @@ enum ToolTabsArea {
                 note: "Read from ToolTabHeader, ToolTabContainer, CardSplitView, ActivityMonitorSparklineStrip and Design/05-components. The specimen is a stand-in Activity Monitor; not compared with the running app."),
             stageHeight: 380,
             behaviours: [
-                .init(trigger: "Open a tool", result: "A tab opens with the tool's header on the canvas, its controls on the same line (picker, search, other actions, main action), then its panes on cards."),
+                .init(trigger: "Open a tool", result: "A tab opens with the tool's header on the canvas, its pickers and search on the same line, then its panes on cards; its buttons appear in the window toolbar (round 37.5)."),
                 .init(trigger: "A tool with pages", result: "The pages are in the tool's tab (see Tabs); it reopens on the last page used on that server (round 36.2)."),
                 .init(trigger: "Start something that runs", result: "The main action turns into Stop with a pulsing red dot (round 37.3, ST1)."),
                 .init(trigger: "A Health page", result: "Its findings come first, worst first, each with a fix: Back Up Now, Rebuild, Vacuum (round 37.4)."),
                 .init(trigger: "Change a Properties tool", result: "An Apply bar at the bottom counts the changes, with Revert and Apply (round 37.4)."),
                 .init(trigger: "A Canvas tool", result: "Zoom, fit and what to show float in a glass bar at the bottom of the drawing (round 37.4)."),
-                .init(trigger: "Any tool tab in front", result: "The window toolbar shows no tool buttons; only the query editor uses Run (round 45)."),
+                .init(trigger: "Any tab in front", result: "Its own buttons are in the window toolbar before the window's icons: its symbol in grey, its special button with its word, then one capsule of its other buttons; they reshape as you switch tabs (round 37.5)."),
                 .init(trigger: "A page that brings its own cards", result: "The one big card steps aside (adaptiveWorkspaceCard)."),
                 .init(trigger: "Drag the gap between panes", result: "Resizes them; double-click maximises where the tool supports it."),
                 .init(trigger: "Open a tool's bottom panel", result: "It grows up out of the status bar like the query tab's results, and folds back; ⌥⇧⌘Y maximises it to a one-line content card."),
@@ -67,8 +68,8 @@ enum ToolTabsArea {
                       rounds: ["ongoing.tool-tab-controls-r37"]),
                 .init(text: "Five families, one theme (round 37.1)", why: "Monitor, Manage, Health, Properties and Canvas each have one layout idea; every tool shares the header, cards, tables and empty states.",
                       rounds: ["ongoing.tool-tab-families-r37", "ongoing.tool-tab-themes-r37"]),
-                .init(text: "Tool actions live in the tab (round 45)", why: "The owner: only the query editor uses the toolbar's Run, so it is clear what you are doing.",
-                      rounds: ["ongoing.tool-tab-main-action-r45"]),
+                .init(text: "Every tab's own buttons in the window toolbar, tied to the tab (round 37.5)", why: "The owner: one place for every tab's dedicated buttons, with the tab's own symbol in front so it is clear whose they are; replaces round 45.",
+                      rounds: ["ongoing.tool-tab-toolbar-r37"]),
                 .init(text: "A pane that compares two things of one object keeps them in one card", why: "A session's events and targets, or source and target DDL, are one subject."),
                 .init(text: "Every Monitor opens on tiles (TT3, round 37.4)", why: "The key figures first, the detail below: Activity Monitor, SQL Profiler and Extended Events."),
                 .init(text: "Configuration stays in the tab", why: "Read-only detail, such as a job's history, may use the Inspector."),
@@ -76,7 +77,7 @@ enum ToolTabsArea {
                       rounds: ["ongoing.agent-jobs-tab-r33"]),
                 .init(text: "Lists end where their rows end (round 33)", why: "Stripes under the last row look like rows waiting to load.", rounds: ["ongoing.agent-jobs-tab-r33"]),
             ],
-            code: [header, container, controls, family, split, tiles, paneHeader, jobs, "Design/05-components.md › Tool tabs"]
+            code: [header, container, controls, tabToolbar, family, split, tiles, paneHeader, jobs, "Design/05-components.md › Tool tabs"]
         ) {
             ToolTabsSpecimen()
         },

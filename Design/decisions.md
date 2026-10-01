@@ -6,6 +6,16 @@ The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 /
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 37.5 accepted: every tab's own buttons in the window toolbar, tied to the tab
+
+Echo Labs › Tool tabs › round 37.5, revision 2 (the owner liked TT2 best but not the symbol inside a glass button). **Replaces round 45** (R45-0). Built in bb8a6bee.
+
+- **Where:** a tab's dedicated buttons are in the window toolbar, at the right before the window's icons (GP0, the toolbar's own gap). Pickers and search stay on the tool's header line (MV1); the header line stays (HL0).
+- **Tie (TT8, SC0, SZ1):** the tab's own symbol, in grey at the buttons' size, stands before its buttons with no glass around it.
+- **Buttons (MA1, GR1):** the tab's special button is a glass capsule with its word (Start Trace, New Backup, Pause); its other buttons share one glass capsule, groups split by short hairlines. The query editor keeps Run's own red capsule (RN0).
+- **Motion and edges (SW2, EM0, NW1):** the glass reshapes from one tab's buttons into the next; a tab without buttons shows nothing; in a narrow window the window's icons stay and the tab's buttons give way first.
+- **The assessment, the owner's answers:** Agent Jobs' New Job is its special button and Start/Stop joins its group (changing round 33's JA1); SQL Server security's pages get their New as the special button; a tool's special button follows its page. Open in New Window stays its own group (the owner, 2026-10-01). → TLT-10.3 to 10.5 (10.1 retired), TLT-8.1, 8.2
+
 ## 2026-10-01 · Round 47 accepted: the results' row numbers follow the editor's gutter
 
 Echo Labs › Footer and results › round 47. Asked: the names over the figures and the two lines under the header looked off; make the gutter as good and consistent as the editor's, keeping everything it does.

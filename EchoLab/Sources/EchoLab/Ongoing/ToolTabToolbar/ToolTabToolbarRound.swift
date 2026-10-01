@@ -10,6 +10,8 @@ import SwiftUI
 /// buttons on their header line (37.2, 37.3) and nothing in the toolbar (45).
 /// Revision 2: the owner liked TT2 best but not the symbol inside a glass button; fifteen ways to
 /// show the tab's symbol with no glass around it (TT8 to TT22), with its colour and size.
+/// Accepted (TT8, SC0, SZ1, GR1, RN0, MV1, MA1, GP0, SW2, EM0, NW1, HL0, R45-0) and built into
+/// Echo; the controls default to the picks.
 @MainActor
 enum ToolTabToolbarRound {
     private static func look(_ v: RoundValues) -> LabTBLook { LabTBLook.from(v) }
@@ -36,7 +38,7 @@ enum ToolTabToolbarRound {
                 question: "Look at the query tab, which has three groups. How should a tab with more than one group show them?",
                 recommend: .dividers,
                 why: "Inside a tray, three separate capsules make a crowded row of bubbles; one capsule with short hairlines keeps the groups apart and the section one piece. GR2's melted glass looks the same at rest and only differs in motion; GR3 hides Format and Plan behind a click."),
-            .of("run", "Run", LabTBRun.self, default: .plain,
+            .of("run", "Run", LabTBRun.self, default: .capsule,
                 question: "Set State to Running and compare the three Runs, in the Proposal and in 'Every Run'.",
                 recommend: .plain,
                 why: "You suggested Run could look like a regular button: as the first symbol in the tab's group it is one of the tab's buttons, and running still shows, the ▶ becoming a red ■. It costs round 24's red capsule, which is easier to spot across the room; RN0 keeps it if you miss that."),

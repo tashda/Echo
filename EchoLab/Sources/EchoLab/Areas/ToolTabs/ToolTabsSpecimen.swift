@@ -10,6 +10,7 @@ struct ToolTabsSpecimen: View {
 
     var body: some View {
         VStack(spacing: gutter) {
+            toolbar.specAnchor("10.3")
             header.specAnchor("1.1")
             tiles.specAnchor("3.1")
             HStack(spacing: gutter) {
@@ -37,19 +38,27 @@ struct ToolTabsSpecimen: View {
                 Text("Test MSSQL · AdventureWorks2022 · updated 2 s ago").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary).monospacedDigit().specAnchor("1.4")
             }
             Spacer()
-            HStack(spacing: SpacingTokens.xs) {
-                glassPill { Image(systemName: "timer").foregroundStyle(ColorTokens.Text.secondary); Text("Every 5 s")
-                    Image(systemName: "chevron.down").font(TypographyTokens.compact.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary) }
-                    .specAnchor("8.3")
-                glassPill { Image(systemName: "arrow.clockwise") }.specAnchor("8.2")
-                glassPill { Image(systemName: "pause.fill").foregroundStyle(ColorTokens.accent); Text("Pause").foregroundStyle(ColorTokens.Text.secondary) }
-                    .fontWeight(.medium)
-                    .specAnchor("8.1")
-            }
-            .specAnchor("1.5")
+            glassPill { Image(systemName: "timer").foregroundStyle(ColorTokens.Text.secondary); Text("Every 5 s")
+                Image(systemName: "chevron.down").font(TypographyTokens.compact.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary) }
+                .specAnchor("8.3")
+                .specAnchor("1.5")
         }
         .padding(.horizontal, SpacingTokens.xs)
         .frame(height: 40)
+    }
+
+    /// The window toolbar's right side with this tab's section (TLT-10.3): its symbol in grey, Pause,
+    /// Refresh in the group, then the window's icons.
+    private var toolbar: some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Spacer()
+            Image(systemName: "waveform.path.ecg").font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
+            glassPill { Image(systemName: "pause.fill").foregroundStyle(ColorTokens.accent); Text("Pause").foregroundStyle(ColorTokens.Text.secondary) }
+                .fontWeight(.medium)
+                .specAnchor("8.1")
+            glassPill { Image(systemName: "arrow.clockwise") }.specAnchor("8.2")
+            glassPill { ForEach(["magnifyingglass", "square.grid.2x2", "bell", "sidebar.right"], id: \.self) { Image(systemName: $0) } }
+        }
     }
 
     /// A 28pt glass control (TLT-8).

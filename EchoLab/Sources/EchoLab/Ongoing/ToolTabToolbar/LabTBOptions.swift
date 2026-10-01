@@ -155,7 +155,7 @@ enum LabTBState: String, CaseIterable {
 struct LabTBLook {
     var tie: LabTBTie = .bare
     var groups: LabTBGroups = .dividers
-    var run: LabTBRun = .plain
+    var run: LabTBRun = .capsule
     var move: LabTBMove = .buttons
     var mainLook: LabTBMainLook = .word
     var gap: LabTBGap = .fixed
@@ -168,7 +168,7 @@ struct LabTBLook {
 
     @MainActor static func from(_ v: RoundValues) -> LabTBLook {
         LabTBLook(tie: .init(rawValue: v["tie"]) ?? .bare, groups: .init(rawValue: v["groups"]) ?? .dividers,
-                  run: .init(rawValue: v["run"]) ?? .plain, move: .init(rawValue: v["move"]) ?? .buttons,
+                  run: .init(rawValue: v["run"]) ?? .capsule, move: .init(rawValue: v["move"]) ?? .buttons,
                   mainLook: .init(rawValue: v["mainLook"]) ?? .word, gap: .init(rawValue: v["gap"]) ?? .fixed,
                   motion: .init(rawValue: v["motion"]) ?? .morph,
                   running: (LabTBState(rawValue: v["state"]) ?? .resting) == .running,

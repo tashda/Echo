@@ -322,7 +322,8 @@ Rules: `05-components` › Tool tabs.
 | TL7 | **Families and one theme (round 37.1):** every tool tab knows its family; one header, pane cards, tables and empty states for all. The header's layout follows round 37.2. | `ToolTabContainer`, tool views | No tool tab drawn its own way 👁 | ☑ built (bb01362f), 👁 pending: the header on one line (37.2) everywhere |
 | TL8 | **Controls (round 37.3):** glass capsule main action, one glass capsule of other actions, glass picker pill, Stop with a pulsing dot, glass search capsule, all 28pt. Where the main action lives follows round 45. | `DesignSystem/Components`, tool toolbars | Every tool's row uses them 👁 | ☑ built (bb01362f), 👁 pending; the main action stays in the tab (round 45) |
 | TL9 | **A theme per family (round 37.4):** tiles for Monitor, a details card beside the list for Manage, a fix per finding for Health, an Apply bar with the count for Properties, a floating glass bar for Canvas. | Tool views by family | Owner checks it in Echo 👁 | ☑ built (bb01362f, 6e27bab7), 👁 pending: the other Manage tools keep their layouts |
-| TL10 | **Tool actions in the tab (round 45):** the window toolbar's tool group removed; each action moved into its tab's header line or Apply bar. | `WorkspaceToolbarItems`, tool views | 👁 | ☑ built (bb01362f), 👁 pending |
+| TL10 | **Tool actions in the tab (round 45):** the window toolbar's tool group removed; each action moved into its tab's header line or Apply bar. | `WorkspaceToolbarItems`, tool views | 👁 | replaced by TL11 (round 37.5) |
+| TL11 | **Every tab's own buttons in the toolbar (round 37.5):** the tab's symbol, its special button and one capsule of its buttons before the window's icons, from data each tab sets; query editor's groups in one capsule. | `TabToolbar/*`, `WorkspaceToolbarItems`, every tool view | Owner checks it in Echo 👁 | ☑ built (bb8a6bee), 👁 pending |
 
 ## Phase 16 · Section dock
 

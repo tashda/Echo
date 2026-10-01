@@ -13,6 +13,7 @@ enum ToolTabsSpec {
     private static let controls = "Echo/Sources/Shared/DesignSystem/Components/ToolTabControls"
     private static let channel = controls + "/ToolTabHeaderContent.swift"
     private static let family = "Echo/Sources/Features/AppHost/Domain/ToolTabFamily.swift"
+    private static let tabToolbar = "Echo/Sources/Shared/DesignSystem/Components/TabToolbar"
 
     static func spec<Specimen: View>(stageHeight: CGFloat, @ViewBuilder specimen: @escaping () -> Specimen) -> AreaSpec {
         AreaSpec(code: "TLT", stageHeight: stageHeight, parts: parts, specimen: specimen)
@@ -37,7 +38,7 @@ enum ToolTabsSpec {
                 .behaviour(.row("Text", "server · database; a tool adds its freshness (\"updated 2 s ago\")"),
                            .row("Ticking", "live while the tab is on screen; frozen in a tab kept mounted behind another (SinceDateText, owner's choice 2026-10-01)")),
             ], files: [header, container]),
-            SpecElement(number: "1.5", name: "Controls", summary: "The tool's controls at the right of the same line: picker, search, other actions, then the main action (round 37.2).", groups: [
+            SpecElement(number: "1.5", name: "Controls", summary: "The tool's pickers and search at the right of the same line (round 37.2); its buttons are in the window toolbar (TLT-10.3, round 37.5).", groups: [
                 .layout(.row("Spacing", "8pt between controls", token: "SpacingTokens.xs"), .row("Glass", "one GlassEffectContainer around them")),
                 .behaviour(.row("Set by", "the tool, from inside its content (toolTabHeaderControls); the innermost page wins"),
                            .row("Detail", "a tool can add one after the server: \"14 policies\", \"1,204 events\" (toolTabHeaderDetail)")),
@@ -140,18 +141,18 @@ enum ToolTabsSpec {
             ], files: ["\(jobs)/JobDetails/JobDetailsView+Steps.swift", "\(jobs)/JobDetails/JobDetailsView+Schedules.swift"]),
         ]),
         SpecPart(number: "8", name: "Controls", summary: "The header line's controls, in the editor's glass language (round 37.3).", elements: [
-            SpecElement(number: "8.1", name: "Main action", summary: "A glass capsule: its symbol in the accent colour, its word in grey (PA1).", groups: [
+            SpecElement(number: "8.1", name: "Main action", summary: "The tab's special button in the window toolbar: a glass capsule, its symbol in the accent colour, its word in grey (PA1, round 37.5 MA1).", groups: [
                 .layout(.row("Height", "28pt", token: "LayoutTokens.ToolTab.controlHeight"), .row("Padding", "12pt horizontal", token: "SpacingTokens.sm")),
                 .type(.row("Word", "13pt medium, secondary", token: "TypographyTokens.standard")),
                 .behaviour(.row("Running", "Stop with a pulsing red dot (ST1), as SQL Profiler's Stop Trace"),
                            .row("More than one thing to make", "the same capsule opens a menu (Add › Primary Key, Unique, Check)"),
-                           .row("Where", "in the tab, never the window toolbar (round 45)")),
-            ], rounds: ["ongoing.tool-tab-controls-r37", "ongoing.tool-tab-main-action-r45"], files: [controls + "/ToolTabPrimaryButton.swift", controls + "/ToolTabPrimaryMenu.swift"]),
-            SpecElement(number: "8.2", name: "Other actions", summary: "Symbols together in one glass capsule (SA2); the title is the tooltip.", groups: [
+                           .row("Where", "the tab's section of the window toolbar (round 37.5, replacing 45)")),
+            ], rounds: ["ongoing.tool-tab-controls-r37", "ongoing.tool-tab-toolbar-r37"], files: [tabToolbar + "/TabToolbarButtons.swift"]),
+            SpecElement(number: "8.2", name: "Other actions", summary: "Symbols together in one glass capsule in the window toolbar, groups split by short hairlines (SA2, round 37.5 GR1); the title is the tooltip.", groups: [
                 .layout(.row("Height", "28pt", token: "controlHeight"), .row("Spacing", "12pt", token: "SpacingTokens.sm")),
                 .behaviour(.row("Refresh", "a spinner in its place while the tab reloads"), .row("A toggle that is on", "its symbol in the accent colour"),
                            .row("Menu", "a symbol that opens a menu, as Export")),
-            ], rounds: ["ongoing.tool-tab-controls-r37"], files: [controls + "/ToolTabActionGroup.swift"]),
+            ], rounds: ["ongoing.tool-tab-controls-r37", "ongoing.tool-tab-toolbar-r37"], files: [tabToolbar + "/TabToolbarButtons.swift"]),
             SpecElement(number: "8.3", name: "Picker", summary: "One glass pill: a symbol, the value and a chevron, opening a menu of the choices (PK1).", groups: [
                 .layout(.row("Height", "28pt", token: "controlHeight")),
                 .behaviour(.row("Database", "Maintenance's database, Profiler's All Databases, a schema, an interval")),
@@ -189,15 +190,30 @@ enum ToolTabsSpec {
                 .behaviour(.row("Zoom", "in 10% steps; a double-click on the percentage gives 100%"), .row("Built", "Schema Diagram, Query Builder")),
             ], rounds: ["ongoing.tool-tab-themes-r37"], files: [controls + "/CanvasFloatingBar.swift"]),
         ]),
-        SpecPart(number: "10", name: "Window toolbar", summary: "A tool adds nothing to the window toolbar (round 45): only the query editor uses Run.", elements: [
-            SpecElement(number: "10.1", name: "No tool group", summary: "The structure editor's Add, Script and Apply, Activity Monitor's pause, Start Job, Cycle Log and Maintenance's database menu moved into their tabs.", groups: [
-                .behaviour(.row("Why", "the owner: actions for these tabs belong in the tabs; it is clearer what you are doing")),
-            ], rounds: ["ongoing.tool-tab-main-action-r45"], files: ["Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/WorkspaceToolbarItems.swift"]),
+        SpecPart(number: "10", name: "Window toolbar", summary: "Every tab's own buttons are in the window toolbar, tied to the tab in front (round 37.5, replacing round 45).", elements: [
+            SpecElement(number: "10.1", name: "No tool group", summary: "Round 45 kept tool buttons out of the toolbar. Replaced by the tab's section (10.3).", isRetired: true),
             SpecElement(number: "10.2", name: "Open in New Window", summary: "Agent Jobs' one toolbar item: its own glass group at the start of the right-hand side.", groups: [
                 .behaviour(.row("Shown", "only while Agent Jobs is the front tab", token: "WorkspaceToolbarContext.canOpenInWindow"),
                            .row("Why", "the owner, 2026-10-01: it moves the tab, so it belongs with the window, not in the tab's header")),
                 .material(.row("Symbol", "rectangle.portrait.and.arrow.right")),
             ], files: ["Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/OpenInWindowToolbarButton.swift"]),
+            SpecElement(number: "10.3", name: "The tab's section", summary: "At the right, before the window's icons: the tab's symbol, its special button, then one capsule of its other buttons.", groups: [
+                .material(.row("Symbol", "the tab's own, in grey, no glass around it (TT8, SC0)", token: "ColorTokens.Text.secondary"),
+                          .row("Special button", "glass capsule, symbol in the accent colour, word in grey (MA1); Stop with a pulsing dot while running"),
+                          .row("Other buttons", "one glass capsule, groups split by 1 × 16pt hairlines (GR1)")),
+                .type(.row("Symbol", "13pt, the buttons' size (SZ1)", token: "TypographyTokens.standard")),
+                .layout(.row("Gap to the window's icons", "the toolbar's fixed gap (GP0)")),
+                .behaviour(.row("Set by", "the tab's content, as data (.tabToolbar(special:groups:)); the innermost page wins, so the special button follows the page"),
+                           .row("No buttons", "nothing; only the window's icons (EM0)"),
+                           .row("Pickers and search", "stay on the tool's header line (MV1, HL0)")),
+            ], rounds: ["ongoing.tool-tab-toolbar-r37"], files: [tabToolbar + "/TabToolbarSectionView.swift", tabToolbar + "/TabToolbarItem.swift"]),
+            SpecElement(number: "10.4", name: "The query editor", summary: "Run keeps its own capsule that turns red (round 24, RN0); Format · Validate · Help · Plan and, for SQL Server, SQLCMD · Statistics share one capsule, split by a hairline (GR1).", groups: [
+                .behaviour(.row("Symbol", "the query tab's own, before Run")),
+            ], rounds: ["ongoing.tool-tab-toolbar-r37"], files: [tabToolbar + "/TabToolbarSectionView.swift"]),
+            SpecElement(number: "10.5", name: "Switching and narrow windows", summary: "The glass reshapes from one tab's buttons into the next (SW2); in a narrow window the window's icons stay and the tab's buttons give way first (NW1).", groups: [
+                .motion(.row("Switch", "house spring, the glass reshaping (glassEffectID)", token: "EchoMotion.standard")),
+                .behaviour(.row("Narrow", "the window's group is kept out of overflow (visibilityPriority high, macOS 26.1)")),
+            ], rounds: ["ongoing.tool-tab-toolbar-r37"], files: ["Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/WorkspaceToolbarItems.swift"]),
         ]),
     ]
 }
