@@ -4249,6 +4249,10 @@
       {
         "date": "2026-10-01T21:22:03Z",
         "text": "Built into Echo (bb8a6bee): every tab's own buttons in the window toolbar before the window's icons, the tab's symbol in grey first, the special button with its word, the rest in one capsule split by hairlines; Run keeps its red capsule; the glass reshapes between tabs; replaces round 45. Agent Jobs' New Job and Start/Stop and SQL Server security's per-page New moved there as you answered. Check it with a query tab, SQL Profiler, Agent Jobs and a tab without buttons (Availability Groups)."
+      },
+      {
+        "date": "2026-10-01T21:52:01Z",
+        "text": "Changed after your check (3f9e54d2): no tab symbol; the special button and each group are native toolbar items the toolbar sizes and highlights; fixed slots so switching changes the buttons in place. Please check again."
       }
     ],
     "needsMore": [],
