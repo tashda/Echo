@@ -8,6 +8,8 @@ enum ToolTabsSpec {
     private static let split = "Echo/Sources/Shared/DesignSystem/Components/CardSplitView.swift"
     private static let tiles = "Echo/Sources/Features/ActivityMonitor/Views/ActivityMonitorSparklineStrip.swift"
     private static let panels = "Echo/Sources/Shared/DesignSystem/Components/ContentPanelCards.swift"
+    private static let paneHeader = "Echo/Sources/Shared/DesignSystem/Components/PaneHeader.swift"
+    private static let jobs = "Echo/Sources/Features/AppHost/Views/Navigation/JobManagement"
 
     static func spec<Specimen: View>(stageHeight: CGFloat, @ViewBuilder specimen: @escaping () -> Specimen) -> AreaSpec {
         AreaSpec(code: "TLT", stageHeight: stageHeight, parts: parts, specimen: specimen)
@@ -75,6 +77,43 @@ enum ToolTabsSpec {
                            .row("Status bar", "floats in the content card while the panel is closed; rests on the canvas below cards side by side")),
                 .motion(.row("Curve", "house spring out, smooth in, 0.45s")),
             ], files: [panels]),
+        ]),
+        SpecPart(number: "6", name: "Pane header", summary: "The header at the top of a pane inside a tool tab's card (round 33, JH1).", elements: [
+            SpecElement(number: "6.1", name: "Pane header", summary: "Every pane of a tool tab uses the same one, so the panes line up.", groups: [
+                .layout(.row("Height", "36pt", token: "LayoutTokens.ToolTab.paneHeaderHeight"), .row("Padding", "12pt horizontal", token: "SpacingTokens.sm"),
+                        .row("Spacing", "6pt between title and count", token: "SpacingTokens.xxs2")),
+                .type(.row("Title", "13pt semibold, primary", token: "TypographyTokens.headline"),
+                      .row("Count", "11pt tabular digits, tertiary", token: "TypographyTokens.detail")),
+                .behaviour(.row("Actions", "the pane's own, at the right of the same line")),
+            ], files: [paneHeader]),
+        ]),
+        SpecPart(number: "7", name: "Agent Jobs", summary: "SQL Server Agent's jobs, their details and their history (round 33).", elements: [
+            SpecElement(number: "7.1", name: "Layout", summary: "Jobs the full height on the left; Details over History on the right (JL1).", groups: [
+                .layout(.row("Jobs", "50% of the width, at least 25%", token: "CardSplitView.minFraction"),
+                        .row("Details over History", "62% / 38%, each at least 20%")),
+            ], files: ["\(jobs)/JobQueue/JobQueueView.swift"]),
+            SpecElement(number: "7.2", name: "Jobs columns", summary: "Status, Name, Last Run, Next Run (JC1).", groups: [
+                .layout(.row("Status", "30pt, one symbol", token: "LayoutTokens.AgentJobs.statusColumnWidth")),
+                .material(.row("Ready", "checkmark.circle.fill, green"), .row("Failed last run", "xmark.circle.fill, red; Last Run in red"),
+                          .row("Disabled", "pause.circle, tertiary; name dimmed, Next Run says Disabled")),
+                .behaviour(.row("Owner and Category", "in Details › Properties")),
+            ], files: ["\(jobs)/JobListView.swift", "\(jobs)/JobStatusSymbol.swift"]),
+            SpecElement(number: "7.3", name: "A running job", summary: "A spinning symbol and its elapsed time in Last Run (JR1).", groups: [
+                .material(.row("Symbol", "arrow.triangle.2.circlepath, orange, rotating")),
+                .behaviour(.row("Last Run", "the time since the Agent started it, counting up, orange"),
+                           .row("Polling", "every 2 s while any job runs; the list reloads when one finishes")),
+            ], files: ["\(jobs)/JobQueue/JobQueueViewModel+Polling.swift", "\(jobs)/JobQueue/JobQueueViewModel+JobStatus.swift"]),
+            SpecElement(number: "7.4", name: "Job actions", summary: "New Job and Start/Stop on the Jobs header; the rest in ⋯ and right-click (JA1).", groups: [
+                .behaviour(.row("Header", "+ New Job; ▶ Start or ■ Stop for the selected job"),
+                           .row("⋯", "Enable, Disable, New Alert, New Proxy, Manage Categories, Refresh"),
+                           .row("Right-click", "Start or Stop, Enable, Disable; on empty space New Job and Refresh")),
+            ], files: ["\(jobs)/JobListView+Actions.swift"]),
+            SpecElement(number: "7.5", name: "Details sections", summary: "Properties, Steps, Schedules, Notifications: segmented, centred under the header (DT0).", groups: [
+                .layout(.row("Gap below", "8pt", token: "SpacingTokens.xs")),
+            ], files: ["\(jobs)/JobDetails/JobDetailsView.swift"]),
+            SpecElement(number: "7.6", name: "Empty rows", summary: "No stripes: every list in the tab ends where its rows end (ER1).", groups: [
+                .material(.row("Rows", "inset style, alternating backgrounds off")),
+            ], files: ["\(jobs)/JobHistoryView.swift", "\(jobs)/JobDetails/JobDetailsView+Steps.swift"]),
         ]),
     ]
 }

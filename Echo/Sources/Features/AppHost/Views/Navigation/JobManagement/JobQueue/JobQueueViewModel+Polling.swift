@@ -55,7 +55,12 @@ extension JobQueueViewModel {
             if inGracePeriod, let jobName {
                 runningNames.insert(jobName)
             }
+            let finishedNames = self.runningJobNames.subtracting(runningNames)
             self.runningJobNames = runningNames
+            self.runningJobStartDates = Dictionary(
+                running.compactMap { job in job.startExecutionDate.map { (job.name, $0) } },
+                uniquingKeysWith: { first, _ in first }
+            )
 
             // While running, query current step activity via typed API
             if isJobRunning, let jobName {
@@ -88,6 +93,9 @@ extension JobQueueViewModel {
                 jobStartedAt = nil
                 jobSeenRunning = false
                 await loadHistory(all: false)
+                await loadJobs()
+            } else if !finishedNames.isEmpty {
+                // Another job finished: its last run and outcome changed in the list.
                 await loadJobs()
             }
         } catch {

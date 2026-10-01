@@ -2,6 +2,18 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 33 accepted: the Agent Jobs tab, finished
+
+Echo Labs › Tool tabs › SQL Server Agent Jobs: the tab · round 33. The Proposal was accepted; the owner's pick where it differs from the recommendation is marked.
+
+- **Headers (JH1):** one **pane header** for Jobs, Details and History: 13pt semibold title, a grey count, the pane's actions at the right, 12pt in, on one 36pt line (`PaneHeader`). Details had been a point bigger and 4pt further in and down.
+- **Layout (JL1):** Jobs takes the **full height on the left**; Details sits **over History on the right** (62% / 38%). History stays under the job it describes.
+- **Details sections (DT0, owner's pick over DT1):** Properties, Steps, Schedules and Notifications stay **segmented, centred under the header**, as today.
+- **Jobs columns (JC1):** **Status, Name, Last Run, Next Run**. One status symbol (ready, running, failed, disabled) replaces Enabled, Status and Last Outcome; Owner and Category are in Properties. A disabled job's name is dimmed and its next run says Disabled.
+- **Empty rows (ER1):** no stripes; every list in the tab ends where its rows end.
+- **Job actions (JA1):** **New Job and Start/Stop** (for the selected job) on the Jobs header; Enable, Disable, New Alert, New Proxy, Manage Categories and Refresh in ⋯; Start/Stop, Enable and Disable on right-click.
+- **A running job (JR1):** a **spinning symbol**, and its **elapsed time counting up in Last Run**, from the Agent's start time; the tab polls while any job runs. → `05-components` › Tool tabs, plan TL4
+
 ## 2026-10-01 · Round 31 accepted: the zoom pill sits like the footer's pills
 
 Echo Labs › Editor and running › the zoom pill and the footer · round 31. Every recommendation was taken. Built in 3626716a.

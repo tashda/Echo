@@ -6,6 +6,8 @@ import SwiftUI
 /// Details is `prominent` semibold with 16 by 12pt padding and its sections centred under it. The
 /// lists stripe every second row and keep striping to the bottom. The owner likes the idea and
 /// wants it finished; round 37 decides the shared design for all tool tabs, this is Agent Jobs itself.
+/// Accepted 2026-10-01 (JH1, JL1, DT0, JC1, ER1, JA1, JR1) and built into Echo: the Proposal now
+/// opens on the accepted picks.
 @MainActor
 enum AgentJobsTabRound {
     static let spec = RoundSpec(
@@ -20,7 +22,7 @@ enum AgentJobsTabRound {
                 recommend: .jobsFull,
                 why: "It keeps your three cards, but the jobs list gets the whole height, so 24 jobs fit without scrolling, and History sits under the job it describes. JL2 hides history behind a click, which is the thing you open the tab to check after a failure.",
                 summary: \.summary),
-            .of("sections", "Details sections", LabAJSections.self, default: .header,
+            .of("sections", "Details sections", LabAJSections.self, default: .today,
                 question: "Where should Properties, Steps, Schedules and Notifications sit?",
                 recommend: .header,
                 why: "On the header's line they take no height of their own and line up with the other panes' actions; centred under the title they push the content down by 30pt and float away from everything else."),
@@ -66,15 +68,10 @@ enum AgentJobsTabRound {
         exhibitTopic: ("Finished?", "Does the Proposal feel like the finished version of the tab you like?", "proposal",
                        "Same three cards, one header for all, the list at full height, sections on the header line, useful columns, no ghost rows."),
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "Unified headers, jobs full height, sections in the header, compact columns, plain.",
-                  values: ["headers": LabAJHeaders.unified.rawValue, "layout": LabAJLayout.jobsFull.rawValue, "sections": LabAJSections.header.rawValue,
+            .init(id: "accepted", name: "Accepted", summary: "Unified headers, jobs full height, sections centred under the title, compact columns, plain.",
+                  values: ["headers": LabAJHeaders.unified.rawValue, "layout": LabAJLayout.jobsFull.rawValue, "sections": LabAJSections.today.rawValue,
                            "columns": LabAJColumns.compact.rawValue, "empty": LabAJEmptyRows.plain.rawValue],
                   isRecommended: true),
-            .init(id: "fixOnly", name: "Only fix what's off", summary: "Today's layout and columns with unified headers and no ghost rows.",
-                  values: ["headers": LabAJHeaders.unified.rawValue, "layout": LabAJLayout.today.rawValue, "sections": LabAJSections.header.rawValue,
-                           "columns": LabAJColumns.today.rawValue, "empty": LabAJEmptyRows.plain.rawValue]),
-            .init(id: "twoCards", name: "Two cards", summary: "History inside Details.",
-                  values: ["headers": LabAJHeaders.unified.rawValue, "layout": LabAJLayout.historyInDetails.rawValue, "sections": LabAJSections.header.rawValue]),
         ]
     )
 }

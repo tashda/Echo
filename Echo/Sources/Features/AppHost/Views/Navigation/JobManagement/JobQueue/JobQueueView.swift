@@ -9,8 +9,8 @@ struct JobQueueView: View {
     @Environment(ActivityEngine.self) private var activityEngine
 
     @State private var inspectorAutoOpened = false
-    @State private var verticalFraction: CGFloat = 0.70
     @State private var horizontalFraction: CGFloat = 0.50
+    @State private var detailsFraction: CGFloat = 0.62
     @State private var showNewJobSheet = false
 
     /// Whether this view is hosted inside a tab (vs. a detached window).
@@ -37,22 +37,23 @@ struct JobQueueView: View {
             PermissionBanner(message: "Job management requires the sysadmin or SQLAgentOperatorRole role.")
         }
         // TT1: Jobs, Details and History are three cards on the canvas, one gutter apart.
-        CardSplitView(axis: .vertical, fraction: $verticalFraction, minFraction: 0.2) {
-            CardSplitView(axis: .horizontal, fraction: $horizontalFraction, minFraction: 0.25) {
-                JobListView(
-                    viewModel: viewModel,
-                    notificationEngine: environmentState.notificationEngine,
-                    permissions: connectionSession?.permissions,
-                    onNewJob: { showNewJobSheet = true }
-                )
-            } second: {
+        // JL1 (round 33): Jobs the full height on the left; Details over History on the right.
+        CardSplitView(axis: .horizontal, fraction: $horizontalFraction, minFraction: 0.25) {
+            JobListView(
+                viewModel: viewModel,
+                notificationEngine: environmentState.notificationEngine,
+                permissions: connectionSession?.permissions,
+                onNewJob: { showNewJobSheet = true }
+            )
+        } second: {
+            CardSplitView(axis: .vertical, fraction: $detailsFraction, minFraction: 0.2) {
                 JobDetailsView(
                     viewModel: viewModel,
                     notificationEngine: environmentState.notificationEngine
                 )
+            } second: {
+                JobHistoryView(viewModel: viewModel)
             }
-        } second: {
-            JobHistoryView(viewModel: viewModel)
         }
         .task {
             viewModel.activityEngine = activityEngine

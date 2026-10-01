@@ -13,8 +13,11 @@ struct ToolTabsSpecimen: View {
             toolbarRow.specAnchor("2.1")
             tiles.specAnchor("3.1")
             HStack(spacing: gutter) {
-                pane("Jobs", rows: ["Nightly backup", "Index maintenance", "Stats refresh", "Log cleanup", "ETL load"]).specAnchor("4.1")
-                pane("Details", rows: ["Enabled  Yes", "Owner  sa", "Next run  02:00", "Last outcome  Succeeded"]).specAnchor("4.2")
+                pane("Jobs", count: 5, rows: ["Nightly backup", "Index maintenance", "Stats refresh", "Log cleanup", "ETL load"]).specAnchor("4.1")
+                VStack(spacing: gutter) {
+                    pane("Details", rows: ["Enabled  Yes", "Owner  sa", "Next run  02:00"]).specAnchor("4.2")
+                    pane("History", count: 52, rows: ["Succeeded  26 Sep 23:00"]).specAnchor("7.1")
+                }
             }
         }
         .padding(SpacingTokens.md)
@@ -74,13 +77,20 @@ struct ToolTabsSpecimen: View {
         .frame(height: 76)
     }
 
-    private func pane(_ title: String, rows: [String]) -> some View {
+    /// A pane: the one pane header (title, grey count, 36pt; TLT-6.1), then its rows.
+    private func pane(_ title: String, count: Int? = nil, rows: [String]) -> some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
-            Text(title).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
+            HStack(spacing: SpacingTokens.xxs2) {
+                Text(title).font(TypographyTokens.headline)
+                if let count { Text("\(count)").font(TypographyTokens.detail.monospacedDigit()).foregroundStyle(ColorTokens.Text.tertiary) }
+                Spacer()
+            }
+            .frame(height: SpacingTokens.lg + SpacingTokens.sm)
+            .specAnchorIf(title == "Jobs", "6.1")
             ForEach(rows, id: \.self) { Text($0).font(TypographyTokens.standard) }
             Spacer()
         }
-        .padding(SpacingTokens.sm)
+        .padding(.horizontal, SpacingTokens.sm)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ColorTokens.Workspace.card, in: .rect(cornerRadius: cornerRadius))
         .overlay(cardEdge)

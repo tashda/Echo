@@ -38,13 +38,7 @@ struct JobDetailsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Details")
-                    .font(TypographyTokens.prominent.weight(.semibold))
-                Spacer()
-            }
-            .padding(.horizontal, SpacingTokens.md)
-            .padding(.vertical, SpacingTokens.sm)
+            PaneHeader("Details")
 
             if viewModel.properties != nil {
                 TabSectionPicker(
@@ -59,6 +53,7 @@ struct JobDetailsView: View {
                         Text(section.rawValue).tag(section)
                     }
                 }
+                // DT0: the sections stay centred under the header.
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.bottom, SpacingTokens.xs)
 

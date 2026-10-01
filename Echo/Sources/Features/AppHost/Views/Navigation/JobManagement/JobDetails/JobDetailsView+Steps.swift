@@ -36,7 +36,7 @@ extension JobDetailsView {
                 }
                 .onMove(perform: moveSteps)
             }
-            .listStyle(.inset(alternatesRowBackgrounds: true))
+            .listStyle(.inset(alternatesRowBackgrounds: false))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay {
                 if viewModel.steps.isEmpty {

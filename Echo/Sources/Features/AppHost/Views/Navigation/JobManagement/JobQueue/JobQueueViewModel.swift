@@ -71,6 +71,8 @@ final class JobQueueViewModel {
     var manuallyStartedJobName: String?
     @ObservationIgnored var manualStartHandle: OperationHandle?
     var runningJobNames: Set<String> = []
+    /// When each running job started, by name, from the Agent's activity (round 33, JR1).
+    var runningJobStartDates: [String: Date] = [:]
     var errorMessage: String?
     var selectedDetailSection: String = "Properties"
     var activeStepInfo: ActiveStepInfo?
@@ -127,6 +129,7 @@ final class JobQueueViewModel {
             await checkJobActivity()
             if isJobRunning { startActivityPolling() }
         }
+        if !isJobRunning, !runningJobNames.isEmpty { startActivityPolling() }
     }
 
     func resolveAndSelect(jobIdentifier: String) {
@@ -240,7 +243,7 @@ final class JobQueueViewModel {
         await loadDetails()
         await loadHistory(all: selectedJobID == nil || selectedJobID?.isEmpty == true)
         await checkJobActivity()
-        if isJobRunning { startActivityPolling() }
+        if isJobRunning || !runningJobNames.isEmpty { startActivityPolling() }
     }
 
     // MARK: - Date Formatting

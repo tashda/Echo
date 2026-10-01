@@ -130,7 +130,7 @@ private struct SchedulesTableView: View {
                 TableRow(sch)
             }
         }
-        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: false))
         .tableColumnAutoResize()
         .contextMenu(forSelectionType: String.self) { items in
             if let id = items.first, let sch = viewModel.schedules.first(where: { $0.id == id }) {
