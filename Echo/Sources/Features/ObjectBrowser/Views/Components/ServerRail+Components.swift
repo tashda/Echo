@@ -7,6 +7,8 @@ extension ServerRail {
     /// One entry per server. A connection that is being re-established while its old session
     /// is still open shows as that session, so a server never appears twice.
     var entries: [ServerRailEntry] {
+        // The first server waits for the welcome's pills to leave (round 48).
+        guard appState.welcomeDeparture != .leaving else { return [] }
         let sessions = environmentState.sessionGroup.sessions
         let sessionConnectionIDs = Set(sessions.map(\.connection.id))
         return sessions.map(ServerRailEntry.session)

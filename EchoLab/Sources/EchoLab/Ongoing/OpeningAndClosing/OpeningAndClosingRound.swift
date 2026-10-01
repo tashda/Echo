@@ -11,6 +11,9 @@ import SwiftUI
 /// `AppDirector+TabDelegate.tabStore(_:didRemoveTabID:)`, which sets `activeSessionID = nil` when no
 /// tab is left, so `WorkspaceTabContainerView` shows the welcome. The mark's motion is
 /// echodb.dev's `Mark.astro`. Changes the welcome and server page rules of the Window and cards area.
+///
+/// Accepted 2026-10-01 with every recommendation except LV2 (the owner chose the pills echoing out
+/// on connect). Built into Echo: WelcomeMark, WelcomeMarkMotion, WorkspaceShell+WelcomeDeparture.
 @MainActor
 enum OpeningAndClosingRound {
     private static let width: CGFloat = 720
@@ -27,7 +30,7 @@ enum OpeningAndClosingRound {
                 recommend: .rise,
                 why: "If the mark flies in while everything else is already there, the eye splits between two things; letting the mark finish first, then the buttons and recents rising 0.15 s apart, gives the screen an order. It costs 0.8 s before the buttons settle, and they are clickable (and visible) during the last half of it.",
                 summary: \.summary),
-            .of("leave", "Welcome on connect", LabOCLeave.self, default: .stays,
+            .of("leave", "Welcome on connect", LabOCLeave.self, default: .pillsOut,
                 question: "Press Connect, and look at where the welcome goes. How should it leave?",
                 recommend: .stays,
                 why: "The shove is a side effect of the canvas shrinking, not a design: cancelling it (LV1) is the smallest change that stops the welcome moving and costs no time. LV2 is the most on-brand (the mark echoes out) but every connect waits 0.4 s for a screen you are leaving; connects are frequent and the server is already there.",

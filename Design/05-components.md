@@ -26,11 +26,13 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - No icon. The server name in 26pt bold, only the version under it (the host is its tooltip); the page's top lines up with the rail. *Decided* (round 8, S1a).
 - The server's tools as **Liquid Glass buttons** (`.glass`), with **New Query** first as `.glassProminent`. Tools that need a database open a menu of them. The buttons wrap when the window is narrow. *Decided.*
 - The databases on one small opaque card with a filter field, 28pt rows. Recent queries and connection details are not on this page. *Decided* (round 8).
+- **Arrival** (round 48, *Decided*): the page builds up, the name, the version, the tools and the databases each rising 8pt and fading in 0.06 s apart. It stays mounted under the tabs, so closing the last tab lifts the card away (0.28 s) and shows it; the server stays active.
 
 ## Welcome
 
 - Shown on the canvas while no tab is open and no server is active. **No card**: cards are only for content. *Decided* (2026-09-29).
-- Centred, 420pt wide: Echo's icon (64pt), **"Echo"** in 26pt bold, then glass buttons: **Connect…** (prominent, opens the connections menu), Quick Connect, Manage. No subtitle. *Decided* (round 8, W1b).
+- Centred, 420pt wide: **Echo's mark alone** (120pt wide, the three pills, no tile and no name), then glass buttons: **Connect…** (prominent, opens the connections menu), Quick Connect, Manage. No subtitle. *Decided* (round 8, W1b; the name went in round 48).
+- **Motion** (round 48, *Decided*): every time it appears the pills echo in as on echodb.dev (0.9 s, 0.12 s apart, overshoot), then the buttons and the recents rise 10pt, 0.15 s apart. When a server connects the pills echo out to the left first; the rail, the tree and the server page wait for that (`WelcomeMarkMotion`).
 - Below, "Recent" and the **5 latest connections on one small opaque card**, 28pt rows: the rail monogram in the server's colour, name, host, and when it was last used. A click connects, and the server grows into the rail. *Decided.*
 - With a server active but no tab, the server dashboard shows on a card as before.
 

@@ -9,19 +9,24 @@ import SwiftUI
 /// grow into its space. While it is hidden, a server click opens it again, scrolled to that server
 /// (round 40, RC1; the peek on glass is gone).
 struct WorkspaceShell: View {
-    @Environment(AppState.self) private var appState
-    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppState.self) var appState
+    @Environment(EnvironmentState.self) var environmentState
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(ProjectStore.self) private var projectStore
-    @Environment(\.echoMotion) private var motion
+    @Environment(\.echoMotion) var motion
+    @Environment(TabStore.self) var tabStore
 
     @AppStorage("workspace.treeWidth") private var treeWidth = Double(LayoutTokens.Workspace.treeIdealWidth)
     @State private var railBridge = ServerRailBridge()
+    @State var departureTask: Task<Void, Never>?
 
     var body: some View {
         let gutter = projectStore.globalSettings.workspaceGutter.points
+        // While the welcome's pills leave, and for a moment after the rail shows the server, the
+        // tree waits (round 48, LV2 and CO1).
         let isTreeVisible = appState.isWorkspaceTreeVisible
             && WorkspaceTreeAvailability.hasContent(environmentState: environmentState, navigationStore: navigationStore)
+            && appState.welcomeDeparture == .idle
         // The tab strip keeps a little room above its plate. The rail and tree start that much
         // lower, so the rail, the tree and the plate all sit one gutter below the toolbar.
         let stripInset = (WorkspaceChromeMetrics.tabStripTotalHeight - WorkspaceChromeMetrics.chromeBackgroundHeight) / 2
@@ -60,6 +65,9 @@ struct WorkspaceShell: View {
         .animation(appState.isInspectorColumnVisible ? motion.standard : motion.settle, value: appState.isInspectorColumnVisible)
         .onChange(of: isTreeVisible) { _, _ in
             WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
+        }
+        .onChange(of: hasConnectionActivity) { _, isActive in
+            updateWelcomeDeparture(isActive: isActive)
         }
         // The columns sliding would otherwise recompute the window's drag regions every frame.
         .onChange(of: appState.isInspectorColumnVisible) { _, _ in

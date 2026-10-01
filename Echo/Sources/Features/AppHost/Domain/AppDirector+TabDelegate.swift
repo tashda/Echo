@@ -61,17 +61,15 @@ extension AppDirector: TabStoreDelegate {
         // Clean up the tab from the session's query tabs list
         environmentState.tabStore(store, didRemoveTabID: tabID)
 
+        // With no tab left the server stays active, so the canvas shows its page (round 48, CW1).
         if let activeTab = store.activeTab {
             environmentState.sessionGroup.setActiveSession(activeTab.connectionSessionID)
             syncSessionActiveTab(for: activeTab)
-        } else {
-            environmentState.sessionGroup.activeSessionID = nil
         }
     }
 
     func tabStore(_ store: TabStore, didSetActiveTabID tabID: UUID?) {
         guard let tabID, let tab = store.getTab(id: tabID) else {
-            environmentState.sessionGroup.activeSessionID = nil
 #if !os(macOS)
             presentConnectionsIfNeeded()
 #endif

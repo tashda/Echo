@@ -132,19 +132,22 @@ enum WindowSpec {
         ]),
         SpecPart(number: "4", name: "Empty states", summary: "What the content area shows without a tab.", elements: [
             SpecElement(number: "4.1", name: "Welcome", summary: "No server and no tab. Sits on the canvas, with no card.", groups: [
-                .layout(.row("Width", "420pt", token: "LayoutTokens.Welcome.width"), .row("Icon", "32pt", token: "LayoutTokens.Welcome.iconSize"),
-                        .row("Title", "Echo, 26pt bold", token: "LayoutTokens.Welcome.titleSize")),
+                .layout(.row("Width", "420pt", token: "LayoutTokens.Welcome.width"), .row("Mark", "120pt wide, the three pills alone: no tile, no name", token: "LayoutTokens.Welcome.markWidth")),
                 .behaviour(.row("Buttons", "Connect… (glass, prominent, opens the connections menu), Quick Connect and Manage (glass), large"),
                            .row("Recent", "the latest five connections on one small card: monogram in its colour, name, host, how long ago; a click connects", token: "WorkspaceWelcomeView.maximumRecentCount"),
                            .row("Why no card", "cards are only for content")),
-            ], rounds: [canvasRound], files: [welcome]),
+                .motion(.row("Arrives", "each time the welcome appears: the pills echo in (0.9s, 0.12s apart, overshoot), then the buttons and the recents rise 10pt, 0.15s apart", token: "WelcomeMarkMotion"),
+                        .row("Leaves", "when a server connects the pills echo out to the left (0.46s) and the rest fades; the rail, the tree and the page wait", token: "AppState.welcomeDeparture")),
+            ], rounds: [canvasRound, "ongoing.opening-and-closing-r48"], files: [welcome]),
             SpecElement(number: "4.2", name: "Server page", summary: "A server is active but no tab is open. Sits on the canvas, with no card.", groups: [
                 .layout(.row("Width", "600pt", token: "LayoutTokens.ServerPage.width"), .row("Name", "26pt bold", token: "LayoutTokens.ServerPage.nameSize"),
                         .row("Top", "lines up with the rail's top")),
                 .type(.row("Version", "13pt secondary, one line")),
                 .behaviour(.row("Content", "the name (a Beta badge for beta engines), the version, the server's tools on glass buttons with New Query first, and a databases card with a filter"),
                            .row("Tooltip", "the host")),
-            ], rounds: [canvasRound], files: [serverPage]),
+                .motion(.row("Arrives", "builds up: name, version, tools, databases rise 8pt and fade in, 0.06s apart", token: "WelcomeMarkMotion.pieceGap"),
+                        .row("Closing the last tab", "the server stays active; the page sits under the tabs and the card lifts away in 0.28s", token: "WelcomeMarkMotion.revealDuration")),
+            ], rounds: [canvasRound, "ongoing.opening-and-closing-r48"], files: [serverPage]),
         ]),
         SpecPart(number: "5", name: "Refresh", summary: "The toolbar's Refresh and ⌘R (round 34).", elements: [
             SpecElement(number: "5.1", name: "Refresh button", summary: "In the right-hand capsule, before the bell, only while the front tab can reload.", groups: [

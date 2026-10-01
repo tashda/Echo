@@ -21,6 +21,7 @@ struct ServerRail: View {
     @Environment(ConnectionStore.self) var connectionStore
     @Environment(ProjectStore.self) var projectStore
     @Environment(TabStore.self) var tabStore
+    @Environment(AppState.self) var appState
     @Environment(\.echoMotion) var motion
 
     /// Keeps the selection on a server the user just clicked while the tree scrolls to it.

@@ -208,7 +208,8 @@ public enum LayoutTokens {
     /// The welcome on the canvas while no tab is open.
     public enum Welcome {
         public static let width: CGFloat = FloatingSurface.largeWidth
-        public static let iconSize: CGFloat = SpacingTokens.xxxl
+        /// Width of Echo's mark (the three rows without the tile); the height follows its aspect.
+        public static let markWidth: CGFloat = 120
         public static let titleSize: CGFloat = 26
         /// Inset around the recent connections inside their card.
         public static let listPadding: CGFloat = SpacingTokens.xxs

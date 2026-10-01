@@ -8,7 +8,18 @@ import SwiftUI
         let statements: [String]
     }
 
+    /// Where the welcome is in leaving when a server connects (round 48, LV2 and CO1): the pills
+    /// echo out first, then the server grows into the rail, then the tree slides out.
+    enum WelcomeDeparture: Equatable {
+        case idle
+        /// The pills are leaving; the rail, the tree and the server page wait.
+        case leaving
+        /// The rail shows the server; the tree and the page follow.
+        case railIn
+    }
+
     // MARK: - UI State
+    var welcomeDeparture: WelcomeDeparture = .idle
     var isLoading = false
     var currentError: DatabaseError?
     var showingError = false

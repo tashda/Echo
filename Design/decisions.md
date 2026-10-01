@@ -6,6 +6,14 @@ The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 /
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 48 accepted: opening, connecting and closing the last tab
+
+Echo Labs › Window and cards › round 48. The owner accepted every recommendation except one: **LV2** (the pills echo out) instead of LV1.
+- The welcome shows **the mark alone** (WM2): the pills echo in as on echodb.dev (`Mark.astro`: 0.9 s, cubic-bezier(0.3, 1.3, 0.5, 1), 0.12 s apart), then the buttons and the recents rise after it (WR1, 0.15 s apart). It plays every time the welcome appears.
+- **Connecting** (LV2, CO1, AR2): the pills echo out to the left, last first (0.46 s); then the server grows into the rail, the tree slides out 0.12 s later, and the server page builds up (name, version, tools, databases, 0.06 s apart). If the connection fails the welcome comes back.
+- **Closing the last tab** (CW1, CH1): the server stays active, so the canvas shows its page; the page stays mounted under the tabs and the card lifts away (0.28 s). The cause was `AppDirector+TabDelegate` clearing `activeSessionID` when no tab was left.
+- Opening a tab is unchanged. Rule: `Design/05-components.md` › Welcome and Server page. Built in this commit; awaiting the owner's check in the running app.
+
 ## 2026-10-01 · Round 37.5 accepted: every tab's own buttons in the window toolbar, tied to the tab
 
 Echo Labs › Tool tabs › round 37.5, revision 2 (the owner liked TT2 best but not the symbol inside a glass button). **Replaces round 45** (R45-0). Built in bb8a6bee.
