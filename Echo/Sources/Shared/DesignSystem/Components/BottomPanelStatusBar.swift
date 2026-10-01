@@ -16,8 +16,9 @@ struct BottomPanelStatusBarConfiguration {
     var modeIndicators: [ModeIndicator] = []
     /// How the status, selection, rows and time sit on the right (round 10, judged in the lab).
     var metricsStyle: FooterMetricsStyle = .pillPerEntry
-    var statisticsPopover: AnyView?
-    var showStatisticsPopover: Binding<Bool>?
+    /// What each right-hand pill opens when clicked (round 41.5, PP2); a pill without one opens or
+    /// closes the panel, as empty footer space does.
+    var pillPopovers: [FooterPillKind: AnyView] = [:]
 
     /// Database switching support — nil means no switching available.
     var availableDatabases: [String]?
@@ -48,7 +49,7 @@ struct BottomPanelStatusBarConfiguration {
         let rowCountText: String
         let rowCountLabel: String
         let durationText: String?
-        /// The selected cells' count, sum and average (plan R5).
+        /// The selected cells' count (round 41.2, SP3); the figures are in its popover.
         var selectionText: String? = nil
     }
 
@@ -91,6 +92,8 @@ struct BottomPanelStatusBar: View {
 
     @Environment(\.echoMotion) private var motion
     @Environment(\.serverPillColor) private var serverPillColor
+    /// The pill whose popover is open (round 41.5).
+    @State var openPillPopover: FooterPillKind?
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {

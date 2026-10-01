@@ -82,6 +82,12 @@ struct QueryResultsSection: View {
         .onChange(of: query.isExecuting) { _, executing in
             handleExecutionStateChange(isExecuting: executing)
         }
+#if os(macOS)
+        // Export and Copy All from the rows pill's popover (round 41.5, PR0).
+        .onChange(of: query.resultsActionRequest) { _, request in
+            if let request { handleResultsAction(request) }
+        }
+#endif
         .task {
             lastObservedColumnIDs = tableColumns.map(\.id)
             if activeSort != nil {

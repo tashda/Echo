@@ -22,16 +22,8 @@ final class ResultTableHeaderView: NSTableHeaderView {
         wantsLayer = true
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-
-        // Draw bottom separator line spanning full width — the native header view
-        // doesn't always draw this depending on table configuration.
-        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1
-        let lineWidth = 1 / max(scale, 1)
-        NSColor.separatorColor.setFill()
-        NSRect(x: 0, y: bounds.height - lineWidth, width: bounds.width, height: lineWidth).fill()
-    }
+    // No line of our own under the header: the system header's hairline is the only one
+    // (round 41.1, HL1; a second full-width line drew two lines 4pt apart).
 
     override func layout() {
         super.layout()

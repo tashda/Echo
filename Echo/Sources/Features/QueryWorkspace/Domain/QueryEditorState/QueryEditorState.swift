@@ -48,6 +48,14 @@ import OSLog
     var validationRequestGeneration: Int = 0
     /// Set to move the editor's caret to a line, as "Show in Editor" on a query error does.
     var editorLineRequest: EditorLineRequest?
+    /// Set by the rows pill's popover for the results card to export or copy (round 41.5, PR0).
+    var resultsActionRequest: ResultsActionRequest?
+    /// This tab's last runs, oldest first, for the time pill's popover (round 41.5, PT0).
+    var runHistory: [QueryRunRecord] = []
+    /// When the run going now started, for the status and time popovers.
+    var runStartedAt: Date?
+    /// The statement new messages belong to (round 41.4, ML1): the run's, or a script statement's.
+    @ObservationIgnored var messageStatement: QueryMessageStatement?
     @ObservationIgnored var rowCountRefreshHandler: (() -> Void)?
     var streamingMode: StreamingMode = .idle
 

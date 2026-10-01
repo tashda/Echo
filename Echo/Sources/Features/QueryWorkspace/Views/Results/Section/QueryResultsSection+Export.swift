@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 #if os(macOS)
@@ -76,6 +77,21 @@ extension QueryResultsSection {
         let count = query.selectedResultSetIndex == 0 ? exportedPrimaryRows.count : (currentResultSet?.rows.count ?? 0)
         let rowLabel = count == 1 ? "row" : "rows"
         return "\(count) \(rowLabel)"
+    }
+
+    /// Carries out what the rows pill's popover asked for, on the result set on screen in its
+    /// current order (round 41.5, PR0).
+    func handleResultsAction(_ request: ResultsActionRequest) {
+        query.resultsActionRequest = nil
+        switch request.kind {
+        case .export:
+            presentExportSheet()
+        case .copyAll:
+            guard let resultSet = currentResultSet else { return }
+            let text = ResultTableExportFormatter.formatTSV(headers: resultSet.columns.map(\.name), rows: resultSet.rows, includeHeaders: true)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+        }
     }
 
     private func presentExportSheet() {

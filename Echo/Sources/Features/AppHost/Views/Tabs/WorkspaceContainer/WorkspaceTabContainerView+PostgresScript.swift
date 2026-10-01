@@ -7,9 +7,13 @@ extension WorkspaceTabContainerView {
         let ranges = ScriptResultEntry.editorRanges(for: statements, in: state.sql, within: state.lastRunRange)
         let entries = ScriptResultEntry.entries(for: run.results, statements: statements, editorRanges: ranges)
 
+        // Round 41.4 (ML1): each statement's line under its own heading; the summary under the run's.
+        let runStatement = state.messageStatement
         for entry in entries {
+            state.messageStatement = entry.editorRange.flatMap { QueryMessageStatement.heading(for: state.sql, range: $0) } ?? runStatement
             state.appendMessage(message: entry.messageLine, severity: entry.isFailure ? .error : .info, category: "Script")
         }
+        state.messageStatement = runStatement
         for line in PostgresScriptSummary.lines(results: run.results, transaction: run.transaction) {
             state.appendMessage(message: line.text, severity: line.isError ? .error : .info, category: "Script")
         }

@@ -9,19 +9,27 @@ enum FooterMetricsStyle: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 }
 
+/// The right-hand pills that can open a popover of their own (round 41.5, PP2).
+enum FooterPillKind: Hashable, Sendable {
+    case selection
+    case rows
+    case time
+    case status
+}
+
 extension BottomPanelStatusBar {
     var metricsSection: some View {
         HStack(spacing: configuration.metricsStyle == .pillPerEntry ? SpacingTokens.xxs : SpacingTokens.xs) {
             if let metrics = configuration.metrics {
                 if let selection = metrics.selectionText {
-                    entry {
+                    entry(.selection) {
                         Text(selection)
                             .font(TypographyTokens.detail.monospacedDigit())
                             .foregroundStyle(ColorTokens.Text.secondary)
                             .lineLimit(1)
                     }
                 }
-                entry {
+                entry(.rows) {
                     HStack(spacing: SpacingTokens.xxxs) {
                         Text(metrics.rowCountText)
                             .font(TypographyTokens.detail.monospaced().weight(.medium))
@@ -32,7 +40,7 @@ extension BottomPanelStatusBar {
                     }
                 }
                 if let duration = metrics.durationText {
-                    entry {
+                    entry(.time) {
                         Text(duration)
                             .font(TypographyTokens.detail.monospaced().weight(.medium))
                             .foregroundStyle(ColorTokens.Text.secondary)
@@ -41,10 +49,10 @@ extension BottomPanelStatusBar {
             }
             // The status always sits at the far right.
             if let bubble = configuration.statusBubble {
-                entry {
-                    if bubble.menu.isEmpty {
-                        StatusBubbleLabel(bubble: bubble)
-                    } else {
+                if bubble.menu.isEmpty || configuration.pillPopovers[.status] != nil {
+                    entry(.status) { StatusBubbleLabel(bubble: bubble) }
+                } else {
+                    entry(.status) {
                         Menu {
                             ForEach(bubble.menu) { item in
                                 Button(role: item.isDestructive ? .destructive : nil, action: item.action) {
@@ -64,23 +72,41 @@ extension BottomPanelStatusBar {
         }
         .modifier(FooterPill(isPill: configuration.metricsStyle == .onePill))
         .contentShape(Rectangle())
-        .onTapGesture {
-            if configuration.statisticsPopover != nil,
-               let binding = configuration.showStatisticsPopover {
-                binding.wrappedValue.toggle()
-            } else {
-                configuration.onTogglePanel()
-            }
-        }
-        .popover(isPresented: configuration.showStatisticsPopover ?? .constant(false)) {
-            if let popoverView = configuration.statisticsPopover {
-                popoverView
-            }
-        }
+        .onTapGesture { configuration.onTogglePanel() }
     }
 
-    private func entry(@ViewBuilder _ content: () -> some View) -> some View {
-        content().modifier(FooterPill(isPill: configuration.metricsStyle == .pillPerEntry))
+    /// A pill; with a popover, clicking it opens that popover instead of the panel.
+    private func entry(_ kind: FooterPillKind, @ViewBuilder _ content: () -> some View) -> some View {
+        content()
+            .modifier(FooterPill(isPill: configuration.metricsStyle == .pillPerEntry))
+            .modifier(FooterPillPopover(content: configuration.pillPopovers[kind], isPresented: popoverBinding(kind)))
+    }
+
+    private func popoverBinding(_ kind: FooterPillKind) -> Binding<Bool> {
+        Binding(
+            get: { openPillPopover == kind },
+            set: { isOpen in
+                if isOpen { openPillPopover = kind } else if openPillPopover == kind { openPillPopover = nil }
+            }
+        )
+    }
+}
+
+/// Opens a pill's popover above it on a click (round 41.5); no popover leaves the pill as it is.
+private struct FooterPillPopover: ViewModifier {
+    let content: AnyView?
+    @Binding var isPresented: Bool
+
+    func body(content pill: Content) -> some View {
+        if let content {
+            pill
+                .contentShape(Capsule())
+                .onTapGesture { isPresented.toggle() }
+                .popover(isPresented: $isPresented, arrowEdge: .top) { content }
+                .accessibilityAddTraits(.isButton)
+        } else {
+            pill
+        }
     }
 }
 

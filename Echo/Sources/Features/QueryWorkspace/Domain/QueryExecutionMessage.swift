@@ -51,6 +51,8 @@ struct QueryExecutionMessage: Identifiable, Hashable {
     let procedure: String?
     let line: Int?
     let metadata: [String: String]
+    /// The statement that said it, for Messages' groups (round 41.4, ML1).
+    let statement: QueryMessageStatement?
 
     init(
         id: UUID = UUID(),
@@ -63,7 +65,8 @@ struct QueryExecutionMessage: Identifiable, Hashable {
         duration: TimeInterval? = nil,
         procedure: String? = nil,
         line: Int? = nil,
-        metadata: [String: String] = [:]
+        metadata: [String: String] = [:],
+        statement: QueryMessageStatement? = nil
     ) {
         self.id = id
         self.index = index
@@ -76,6 +79,7 @@ struct QueryExecutionMessage: Identifiable, Hashable {
         self.procedure = procedure
         self.line = line
         self.metadata = metadata
+        self.statement = statement
     }
 
     /// EM1: what SSMS prints above an error, without the line (shown as a link):

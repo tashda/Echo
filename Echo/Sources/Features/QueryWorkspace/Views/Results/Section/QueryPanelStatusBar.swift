@@ -14,7 +14,6 @@ struct QueryPanelStatusBar: View {
     /// The server a connection with several moved to (round 23, FS1).
     var serverMove: ConnectionServerMove?
 
-    @State private var showStatisticsPopover = false
     @State private var showDatabasePicker = false
 
     var body: some View {
@@ -71,12 +70,7 @@ struct QueryPanelStatusBar: View {
 
         config.modeIndicators = buildModeIndicators()
 
-        if hasPerformanceReport {
-            config.statisticsPopover = AnyView(
-                QueryPerformanceReportView(query: query)
-            )
-            config.showStatisticsPopover = $showStatisticsPopover
-        }
+        config.pillPopovers = pillPopovers
 
         if !availableDatabases.isEmpty, onSwitchDatabase != nil {
             config.availableDatabases = availableDatabases
@@ -87,8 +81,26 @@ struct QueryPanelStatusBar: View {
         return config
     }
 
-    private var hasPerformanceReport: Bool {
-        query.isExecuting || query.livePerformanceReport != nil || query.lastPerformanceReport != nil
+    /// Each pill's own popover (round 41.5, PP2), and the selection's figures (round 41.2).
+    private var pillPopovers: [FooterPillKind: AnyView] {
+        guard hasActivity else { return [:] }
+        var popovers: [FooterPillKind: AnyView] = [
+            .rows: AnyView(RowsPillPopover(query: query)),
+            .time: AnyView(TimePillPopover(query: query)),
+            .status: AnyView(StatusPillPopover(query: query, panelState: panelState, transactionActions: transactionActions)),
+        ]
+        if let summary = query.gridSelectionSummary, summary.cellCount > 1 {
+            popovers[.selection] = AnyView(SelectionSummaryPopover(summary: summary))
+        }
+        return popovers
+    }
+
+    private var transactionActions: [BottomPanelStatusBarConfiguration.StatusBubble.MenuItem] {
+        switch query.transactionState {
+        case .none: []
+        case .open: transactionMenu(failed: false)
+        case .failed: transactionMenu(failed: true)
+        }
     }
 
     private func buildMetrics() -> BottomPanelStatusBarConfiguration.Metrics {

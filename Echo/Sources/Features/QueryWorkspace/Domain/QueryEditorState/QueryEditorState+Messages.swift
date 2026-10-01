@@ -1,3 +1,4 @@
+import EchoSense
 import Foundation
 
 extension QueryEditorState {
@@ -23,7 +24,8 @@ extension QueryEditorState {
             duration: duration,
             procedure: procedure,
             line: line,
-            metadata: metadata
+            metadata: metadata,
+            statement: category == "Connection" ? nil : messageStatement
         )
         messages.append(entry)
         lastMessageTimestamp = timestamp
@@ -68,6 +70,23 @@ extension QueryEditorState {
             editorLineRequest = EditorLineRequest(line: mark.line, range: mark.range)
         } else if let message = messages.last(where: { $0.severity == .error && $0.line != nil }) {
             goToLine(of: message)
+        }
+    }
+
+    /// The editor line a failed run points at: the marked error's, or the line the message
+    /// reports mapped from what was sent (plan N4).
+    func failureLine(for message: String) -> Int? {
+        if let mark = errorMark { return mark.line }
+        guard let reported = QueryErrorLocation.line(in: message) else { return nil }
+        return messageLineMapper?(reported) ?? reported
+    }
+
+    /// Show in Editor on a failure (round 41.3): the marked word, or the reported line.
+    func showFailureInEditor(message: String) {
+        if let mark = errorMark {
+            editorLineRequest = EditorLineRequest(line: mark.line, range: mark.range)
+        } else if let line = failureLine(for: message) {
+            editorLineRequest = EditorLineRequest(line: line)
         }
     }
 }

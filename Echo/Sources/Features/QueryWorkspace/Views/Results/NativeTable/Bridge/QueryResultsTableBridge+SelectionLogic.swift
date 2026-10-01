@@ -256,7 +256,8 @@ extension QueryResultsTableView.Coordinator {
         updateAccentRowNumbers(in: tableView)
     }
 
-    /// Sums the selected cells for the footer (plan R5); huge selections are only counted.
+    /// The selected cells' figures for the footer's pill and its popover (round 41.2); huge
+    /// selections are only counted.
     func updateSelectionSummary(for region: SelectedRegion?) {
         guard let region else {
             if queryState.gridSelectionSummary != nil { queryState.gridSelectionSummary = nil }
@@ -276,7 +277,9 @@ extension QueryResultsTableView.Coordinator {
                 }
             }
         }
-        let summary = GridSelectionSummary.summarize(values, cellCount: cellCount)
+        let columnsShown = queryState.displayedColumns
+        let columnName = columns.count == 1 && columnsShown.indices.contains(columns.lowerBound) ? columnsShown[columns.lowerBound].name : nil
+        let summary = GridSelectionSummary.summarize(values, cellCount: cellCount, columnName: columnName)
         if queryState.gridSelectionSummary != summary { queryState.gridSelectionSummary = summary }
     }
 
