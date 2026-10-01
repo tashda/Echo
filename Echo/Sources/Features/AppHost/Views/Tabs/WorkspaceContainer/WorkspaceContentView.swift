@@ -14,6 +14,8 @@ struct WorkspaceContentView: View {
     @Environment(AppearanceStore.self) private var appearanceStore
     
     @State private var selectedSQLContext: SQLPopoutContext?
+    @Environment(\.keptAliveTabsActivity) private var tabsActivity
+    @Environment(\.keptAliveTabID) private var tabID
 
     var body: some View {
         ZStack {
@@ -35,9 +37,16 @@ struct WorkspaceContentView: View {
                 }
             }
         }
+        // The tab presents only its own sheet (the structure script preview), and only while it is
+        // on screen: every kept-mounted tab carries this modifier, and the window presents the
+        // other sheets (connection editor, Quick Connect) itself.
         .sheet(
-            item: Binding(
-                get: { appState.activeSheet },
+            item: Binding<ActiveSheet?>(
+                get: {
+                    guard appState.activeSheet == .structureScriptPreview,
+                          KeptAliveTabsActivity.isActive(tabID, in: tabsActivity) else { return nil }
+                    return appState.activeSheet
+                },
                 set: { newValue in
                     if let newValue {
                         appState.activeSheet = newValue
