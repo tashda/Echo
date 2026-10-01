@@ -205,6 +205,10 @@ enum TabsArea {
             SpecElement(number: "5.4", name: "Alone", summary: "A tool tab with pages as the only tab keeps its own width at the leading edge, on the full grey plate (SW1).", groups: [
                 .layout(.row("Wider than the strip", "fills it")),
             ], rounds: ["ongoing.tool-tab-pages-r36"], files: [files + "QueryTabStrip.swift", files + "QueryTabStrip+Unfold.swift"]),
+            SpecElement(number: "5.5", name: "More", summary: "Pages that don't fit go into More at the end of the tab (round 36.2, OF1); the shown page stays visible, taking the last slot.", groups: [
+                .type(.row("Label", "More and a small chevron, 11pt secondary", token: "TypographyTokens.detail")),
+                .behaviour(.row("Fits", "as many pages as fit in order, leaving room for More", token: "TabPageOverflow.split")),
+            ], rounds: ["ongoing.tool-tab-pages-where-r36"], files: [files + "TabPageChips.swift"]),
         ]),
         SpecPart(number: "6", name: "Not built", summary: "Things the plan mentioned that Echo does not do (yet).", elements: [
             SpecElement(number: "6.1", name: "Collapse inactive tabs to icons", summary: "Plan B3: a minimum tab width, then inactive tabs shrink to their icon. Not in the code; tabs only get narrower.", isRetired: true),

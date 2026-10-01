@@ -3480,6 +3480,10 @@
       {
         "date": "2026-10-01T17:58:14Z",
         "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f): the glass main action (Stop with a pulsing dot while running), other actions in one glass capsule, glass picker pills, a glass search capsule, all 28pt, on every tool's header line."
       }
     ],
     "needsMore": [],
@@ -3495,12 +3499,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Opus r36-37",
-      "date": "2026-10-01T17:58:14Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tool-tab-families-r37": {
@@ -3520,6 +3519,10 @@
       {
         "date": "2026-10-01T17:58:13Z",
         "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f): every tab but the query editor and the psql console has a family (ToolTabFamily); the structure editor, diagram, extension details and Agent Jobs now have the shared header too. Tables keep their zebra rows (round 32.1, ZB0)."
       }
     ],
     "needsMore": [],
@@ -3533,12 +3536,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Opus r36-37",
-      "date": "2026-10-01T17:58:13Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tool-tab-header-r37": {
@@ -3580,6 +3578,10 @@
       {
         "date": "2026-10-01T18:22:02Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f): one header line (UH5) on every tool tab: tile, name and subtitle at the left, the tool's controls at the right; the second toolbar row is gone. A tool can add a detail after the server (14 policies, 1,204 events)."
       }
     ],
     "needsMore": [],
@@ -3606,7 +3608,7 @@
         "summary": "The header on one line; the pages are in the tab (36.1)"
       }
     ],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tool-tab-main-action-r45": {
@@ -3622,6 +3624,10 @@
       {
         "date": "2026-10-01T18:29:59Z",
         "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f) as the owner's note said: tool actions stay in the tab and only the query editor uses Run. The window toolbar's tool group is removed; the structure editor's Add, Script and Apply, Activity Monitor's pause, Start Job, Open in Window, Cycle Log and Maintenance's database menu moved into their tabs."
       }
     ],
     "needsMore": [
@@ -3634,7 +3640,7 @@
     "picks": {},
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "New feedback",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tool-tab-pages-r36": {
@@ -3753,6 +3759,14 @@
       {
         "date": "2026-10-01T17:58:13Z",
         "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f): every tool whose sections are separate views has its pages in the tab: Maintenance, Server Properties, the four security tools, Policy Management, Advanced Objects, Tuning Advisor, Error Log, Extensions and the structure editor, with Activity Monitor. A tool reopens on the last page used on that server. Query Store is a page of Maintenance, so its two views stay a picker on the header line. Not yet: the More menu for pages that don't fit; the pages scroll sideways in the tab meanwhile."
+      },
+      {
+        "date": "2026-10-01T20:31:19Z",
+        "text": "More menu added: the pages that don't fit go into More at the end of the tab, and the shown page always stays visible, taking the last slot (TabPageOverflow)."
       }
     ],
     "needsMore": [],
@@ -3765,12 +3779,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Opus r36-37",
-      "date": "2026-10-01T17:58:13Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tool-tab-themes-r37": {
@@ -3790,6 +3799,10 @@
       {
         "date": "2026-10-01T17:58:14Z",
         "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f, 6e27bab7): tiles on SQL Profiler and Extended Events; findings with Back Up Now, Rebuild and Vacuum on both maintenance Health pages; a details card beside Policy Management's list; an Apply bar on the structure editor and MySQL's config file; a floating glass bar on the diagram and Query Builder. The other Manage tools keep their current layouts for now."
       }
     ],
     "needsMore": [],
@@ -3804,12 +3817,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Opus r36-37",
-      "date": "2026-10-01T17:58:14Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tree-tool-rows-r38": {

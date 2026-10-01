@@ -58,3 +58,35 @@ struct TabUnfoldLayoutTests {
         #expect(MySQLActivityMonitorView.MySQLActivitySection.allCases.first?.rawValue == "Overview")
     }
 }
+
+/// Round 36.2, OF1: the pages that don't fit go into More; the shown one stays visible.
+@Suite("Tool tab pages: More")
+struct TabPageOverflowTests {
+    private let pages = ["Users", "Roles", "App Roles", "Schemas", "Certificates", "Masking", "RLS", "Audit Specs", "Encryption"]
+    private func width(_ page: String) -> CGFloat { 50 }
+
+    @Test func everythingFitsWithoutMore() {
+        let split = TabPageOverflow.split(pages: pages, selected: "Users", available: 1_000, width: width, moreWidth: 40)
+        #expect(split.shown == pages)
+        #expect(split.more.isEmpty)
+    }
+
+    @Test func thePagesThatDoNotFitGoIntoMore() {
+        let split = TabPageOverflow.split(pages: pages, selected: "Users", available: 240, width: width, moreWidth: 40)
+        #expect(split.shown == ["Users", "Roles", "App Roles", "Schemas"])
+        #expect(split.more == ["Certificates", "Masking", "RLS", "Audit Specs", "Encryption"])
+    }
+
+    @Test func theShownPageTakesTheLastSlot() {
+        let split = TabPageOverflow.split(pages: pages, selected: "Encryption", available: 240, width: width, moreWidth: 40)
+        #expect(split.shown == ["Users", "Roles", "App Roles", "Encryption"])
+        #expect(split.more.contains("Schemas"))
+        #expect(!split.more.contains("Encryption"))
+    }
+
+    @Test func aTinyTabStillShowsTheShownPage() {
+        let split = TabPageOverflow.split(pages: pages, selected: "Masking", available: 10, width: width, moreWidth: 40)
+        #expect(split.shown == ["Masking"])
+        #expect(split.more.count == pages.count - 1)
+    }
+}
