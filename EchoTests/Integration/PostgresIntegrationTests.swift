@@ -1,4 +1,5 @@
 import XCTest
+import ServerLabClient
 @testable import Echo
 
 final class PostgresIntegrationTests: XCTestCase {
@@ -10,18 +11,11 @@ final class PostgresIntegrationTests: XCTestCase {
         let password: String
     }
 
-    private func loadConfig() throws -> PGConfig {
-        let host = echoTestEnv("TEST_PG_HOST") ?? echoTestEnv("ECHO_PG_HOST") ?? "127.0.0.1"
-        let portValue = echoTestEnv("TEST_PG_PORT") ?? echoTestEnv("ECHO_PG_PORT") ?? "54322"
-        let database = echoTestEnv("TEST_PG_DATABASE") ?? echoTestEnv("ECHO_PG_DATABASE") ?? "postgres"
-        let username = echoTestEnv("TEST_PG_USER") ?? echoTestEnv("ECHO_PG_USER") ?? "postgres"
-        let password = echoTestEnv("TEST_PG_PASSWORD") ?? echoTestEnv("ECHO_PG_PASSWORD") ?? "postgres"
-        guard
-            let port = Int(portValue)
-        else {
-            throw XCTSkip("PostgreSQL integration test env vars invalid (TEST_PG_PORT or ECHO_PG_PORT)")
-        }
-        return PGConfig(host: host, port: port, database: database, username: username, password: password)
+    /// The lab Postgres the suites share (`LabSharedServers`).
+    private func loadConfig() async throws -> PGConfig {
+        let server = try await LabSharedServers.serverForSuite(LabRecipes.postgres)
+        return PGConfig(host: server.host, port: server.port, database: "postgres",
+                        username: server.username, password: server.password)
     }
 
     private func connect(config: PGConfig) async throws -> DatabaseSession {
@@ -41,7 +35,7 @@ final class PostgresIntegrationTests: XCTestCase {
     // MARK: - Basic Connectivity
 
     func testSimpleQuerySelect1() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -55,7 +49,7 @@ final class PostgresIntegrationTests: XCTestCase {
     // MARK: - Schema Discovery
 
     func testListDatabases() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -64,7 +58,7 @@ final class PostgresIntegrationTests: XCTestCase {
     }
 
     func testListSchemas() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -73,7 +67,7 @@ final class PostgresIntegrationTests: XCTestCase {
     }
 
     func testListTablesAndViews() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -85,7 +79,7 @@ final class PostgresIntegrationTests: XCTestCase {
     // MARK: - Query With Paging
 
     func testQueryWithPaging() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -100,7 +94,7 @@ final class PostgresIntegrationTests: XCTestCase {
     // MARK: - Execute Update
 
     func testExecuteUpdateDDL() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 

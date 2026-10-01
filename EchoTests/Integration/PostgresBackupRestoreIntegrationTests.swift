@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import ServerLabClient
 @testable import Echo
 
 /// Integration tests for PostgreSQL backup and restore via pg_dump/pg_restore.
@@ -7,9 +8,8 @@ import Foundation
 /// Every test creates real data, backs up, drops/truncates, restores, and verifies
 /// the data survived the roundtrip. No test merely checks exit codes or file contents.
 ///
-/// Requires a validated PostgreSQL fixture.
-/// Environment variables: TEST_PG_HOST, TEST_PG_PORT, TEST_PG_DATABASE, TEST_PG_USER, TEST_PG_PASSWORD
-@Suite("PostgreSQL Backup & Restore", .enabled(if: ProcessInfo.processInfo.environment["USE_DOCKER"] != nil || ProcessInfo.processInfo.environment["TEST_PG_HOST"] != nil, "Requires Postgres fixture"))
+/// Runs on a fresh lab Postgres (`.server`), removed when the suite ends.
+@Suite("PostgreSQL Backup & Restore", .enabled(if: labIntegrationEnabled, labIntegrationNote), .server(LabRecipes.postgres))
 struct PostgresBackupRestoreIntegrationTests {
 
     // MARK: - Config & Helpers
@@ -27,29 +27,9 @@ struct PostgresBackupRestoreIntegrationTests {
     }
 
     private func loadConfig() throws -> PGConfig {
-        // Skip unless running against a real database (self-hosted CI or explicit config).
-        // Check ProcessInfo.processInfo.environment directly — echoTestEnv() reads
-        // .ci-fixtures/test-fixtures.env which is checked into the repo, so it always
-        // returns non-nil for USE_DOCKER even on GitHub-hosted runners with no database.
-        let env = ProcessInfo.processInfo.environment
-        let hasDockerEnv = env["USE_DOCKER"] != nil
-        let hasExplicitHost = env["TEST_PG_HOST"] != nil || env["ECHO_PG_HOST"] != nil
-        try #require(hasDockerEnv || hasExplicitHost, "Skipping: no Postgres fixture configured")
-        let host = echoTestEnv("TEST_PG_HOST") ?? echoTestEnv("ECHO_PG_HOST") ?? "127.0.0.1"
-        let portValue = echoTestEnv("TEST_PG_PORT") ?? echoTestEnv("ECHO_PG_PORT") ?? "54322"
-        let database = echoTestEnv("TEST_PG_BACKUP_DATABASE")
-            ?? echoTestEnv("ECHO_PG_BACKUP_DATABASE")
-            ?? echoTestEnv("TEST_PG_DATABASE")
-            ?? echoTestEnv("ECHO_PG_DATABASE")
-            ?? "postgres"
-        let username = echoTestEnv("TEST_PG_USER") ?? echoTestEnv("ECHO_PG_USER") ?? "postgres"
-        let password = echoTestEnv("TEST_PG_PASSWORD") ?? echoTestEnv("ECHO_PG_PASSWORD") ?? "postgres"
-        guard
-            let port = Int(portValue)
-        else {
-            throw PGTestError.skipped
-        }
-        return PGConfig(host: host, port: port, database: database, username: username, password: password)
+        let server = try #require(LabServer.current)
+        return PGConfig(host: server.host, port: server.port, database: "postgres",
+                        username: server.username, password: server.password)
     }
 
     private let runner = PostgresProcessRunner()
