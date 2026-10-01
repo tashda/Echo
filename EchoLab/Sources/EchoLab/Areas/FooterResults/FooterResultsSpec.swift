@@ -184,7 +184,7 @@ enum FooterResultsSpec {
                           .row("Selected rows", "the number accent on the selection's own tint, accent at 18% (SR1): one rounded block per run of selected rows, inset 4pt from the gutter's sides, ends 2pt in and 6pt round like the selection beside it; a hovered row has the grid's hover tint", token: "ResultsGridMetrics.gutterTintInset / selectionCornerRadius"),
                           .row("Shaded rows", "stop at the gutter (RS1)")),
                 .behaviour(.row("Click a number", "selects its row"), .row("Drag", "extends the selection and autoscrolls"), .row("Right-click", "the row menu"),
-                           .row("The # in the corner", "selects every cell; a hover tint and the tooltip Select All (GC2)"), .row("Setting", "Settings › Results › Show row numbers")),
+                           .row("The # in the corner", "selects every cell on a click, with the tooltip Select All and no hover tint, as no column header has one (GC2)"), .row("Setting", "Settings › Results › Show row numbers")),
             ], rounds: ["ongoing.results-gutter-r47"], files: [grid + "Cells/ResultTableRowNumberView.swift", grid + "SystemHeaderLineHider.swift"]),
             SpecElement(number: "4.6", name: "Scroll bars", summary: "The system's bar on the footer's top edge, as wide as the footer, on the footer's material.", groups: [
                 .layout(.row("Horizontal", "its thumb ends 42pt above the card's edge: 9pt above the footer's pills, the gap the pills keep above the edge", token: "LayoutTokens.Footer.scrollBarBottom"),

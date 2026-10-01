@@ -65,6 +65,10 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
     /// Only the name, type and arrow: the system's header background and bottom line are not drawn,
     /// so the header view's one hairline is the only line under the header (round 47).
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
+        // AppKit copies the last column's cell to paint the empty header past it; that copy has the
+        // last column's type but no column, and would show it again as a column of its own.
+        guard let header = controlView as? NSTableHeaderView,
+              header.tableView?.tableColumns.contains(where: { $0.headerCell === self }) == true else { return }
         drawInterior(withFrame: cellFrame, in: controlView)
     }
 

@@ -17,6 +17,7 @@ The owner's notes on the running app, decided in chat. These change what round 4
 - **Gutter style pictures in Settings** no longer wrap their names letter by letter ("H a ir li n e").
 - **One row shape (bug: the hover was wider than its shaded row):** the system drew the shaded rows inset about 8pt with rounded ends while Echo's hover was inset 2pt, so a hovered row stuck out past its shade. Echo now draws the shaded rows itself in the hover's shape (inset 8pt by 1pt, 6pt corners), so shade, hover and selection agree. → FTR-4.3
 - **A rounded gutter tint (owner: the grid's highlights are rounded and the gutter's was a sharp box):** the selected rows' tint in the gutter is now one rounded block per run of selected rows, inset 4pt from the gutter's sides, its ends 2pt in and 6pt round like the selection beside it, and a hovered row's number sits on the grid's hover tint. → FTR-4.5
+- **Two fixes after trying it (owner):** the empty header past the last column showed the last column's type again as a column of its own (AppKit copies the last header cell to paint it; the cell now draws only for a real column), and the `#` corner has **no hover tint** (no other column header has one; it keeps the Select All tooltip and the click). → FTR-4.2, FTR-4.5
 
 ## 2026-10-01 · Round 37.5 in Echo, changed: native toolbar buttons, no tab symbol
 

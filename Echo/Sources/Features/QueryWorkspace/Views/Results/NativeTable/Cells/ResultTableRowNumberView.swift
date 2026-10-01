@@ -59,10 +59,6 @@ final class ResultTableRowNumberView: NSView {
         didSet { if oldValue != cardCornerRadius { needsDisplay = true } }
     }
 
-    private var isCornerHovered = false {
-        didSet { if oldValue != isCornerHovered { needsDisplay = true } }
-    }
-    private var hoverTrackingArea: NSTrackingArea?
     /// Kept for as long as the tooltip is, as AppKit doesn't retain its owner.
     private let selectAllToolTip: NSString = "Select All"
     private var laneInset: CGFloat { LayoutTokens.EditorGutter.laneInset }
@@ -230,24 +226,6 @@ final class ResultTableRowNumberView: NSView {
         if corner.height > 0 { addToolTip(corner, owner: selectAllToolTip, userData: nil) }
     }
 
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let hoverTrackingArea { removeTrackingArea(hoverTrackingArea) }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self, userInfo: nil)
-        addTrackingArea(area)
-        hoverTrackingArea = area
-    }
-
-    override func mouseMoved(with event: NSEvent) {
-        super.mouseMoved(with: event)
-        isCornerHovered = convert(event.locationInWindow, from: nil).y < contentAreaTop
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        super.mouseExited(with: event)
-        isCornerHovered = false
-    }
-
     // MARK: - Key Events
 
     override func keyDown(with event: NSEvent) {
@@ -291,12 +269,7 @@ final class ResultTableRowNumberView: NSView {
         }
 
         if contentTop > 0 {
-            if isCornerHovered {
-                NSColor(ColorTokens.Sidebar.hoverFill).setFill()
-                let hover = NSRect(x: sideInset, y: 0, width: bounds.width - 2 * sideInset, height: contentTop).insetBy(dx: SpacingTokens.xxs, dy: SpacingTokens.xxs)
-                NSBezierPath(roundedRect: hover, xRadius: SpacingTokens.xxs, yRadius: SpacingTokens.xxs).fill()
-            }
-            // The "#", vertically centered; a click on it selects everything.
+            // The "#", vertically centered; a click on it selects everything (no hover tint: no column header has one).
             let headerLabel = "#" as NSString
             let headerTextSize = headerLabel.size(withAttributes: drawAttributes)
             let headerTextRect = NSRect(

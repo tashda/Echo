@@ -176,9 +176,9 @@ struct LabRGCard: View {
             if look.corner != .empty {
                 Text("#").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
             }
-            if look.corner == .selectAll, isCornerHovered || isAllSelected {
+            if look.corner == .selectAll, isAllSelected {
                 RoundedRectangle(cornerRadius: SpacingTokens.xxs, style: .continuous)
-                    .fill(isAllSelected ? ColorTokens.accent.opacity(0.18) : ColorTokens.Sidebar.hoverFill)
+                    .fill(ColorTokens.accent.opacity(0.18))
                     .padding(SpacingTokens.xxs)
             }
         }
