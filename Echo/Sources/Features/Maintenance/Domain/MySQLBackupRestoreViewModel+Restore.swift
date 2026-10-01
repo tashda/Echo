@@ -20,6 +20,15 @@ extension MySQLBackupRestoreViewModel {
         restorePhase = .running
         restoreOutput = []
 
+        let tls: MySQLToolTLS?
+        do {
+            tls = try await toolTLS(for: mysql)
+        } catch {
+            let message = error.localizedDescription
+            restorePhase = .failed(message: message)
+            handle?.fail(message)
+            return
+        }
         let trimmedCharacterSet = defaultCharacterSet.trimmingCharacters(in: .whitespacesAndNewlines)
         let command = (session as? MySQLSession)?.client.backupRestore.restoreCommand(
             host: connection.host,
@@ -28,7 +37,8 @@ extension MySQLBackupRestoreViewModel {
             database: databaseName,
             inputPath: inputPath,
             defaultCharacterSet: trimmedCharacterSet.isEmpty ? nil : trimmedCharacterSet,
-            force: forceRestore
+            force: forceRestore,
+            tlsArguments: tls?.arguments ?? []
         ) ?? [
             "mysql",
             "--host=\(connection.host)",
@@ -45,6 +55,7 @@ extension MySQLBackupRestoreViewModel {
                 environment: processEnvironment(),
                 standardInput: inputHandle
             )
+            withExtendedLifetime(tls) {}
             restoreOutput = result.stderrLines
 
             if result.exitCode == 0 {
