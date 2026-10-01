@@ -52,6 +52,9 @@ jobs:
         deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
     - name: Resolve packages
+      env:
+        GIT_TRACE: "1"
+        GIT_SSH_COMMAND: "ssh -v"
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo -scmProvider system
 
     - name: Run Unit Tests
