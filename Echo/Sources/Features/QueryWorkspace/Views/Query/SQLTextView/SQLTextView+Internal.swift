@@ -182,30 +182,5 @@ extension SQLTextView {
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
     }
 
-    func showGoToLinePanel() {
-        guard let window else { return }
-
-        let alert = NSAlert()
-        alert.messageText = "Go to Line"
-        alert.informativeText = "Enter a line number:"
-        alert.addButton(withTitle: "Go")
-        alert.addButton(withTitle: "Cancel")
-
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
-        field.placeholderString = "Line number"
-        field.formatter = NumberFormatter()
-        alert.accessoryView = field
-
-        alert.beginSheetModal(for: window) { [weak self] response in
-            guard response == .alertFirstButtonReturn else { return }
-            if let lineNumber = Int(field.stringValue), lineNumber >= 1 {
-                self?.goToLine(lineNumber)
-            }
-        }
-
-        // Focus the text field
-        alert.window.initialFirstResponder = field
-    }
-
 }
 #endif

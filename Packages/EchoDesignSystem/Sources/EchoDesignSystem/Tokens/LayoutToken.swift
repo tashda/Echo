@@ -146,6 +146,8 @@ public enum LayoutTokens {
         /// Round 28.5 (H1): the word's other uses, a soft tint as high as the letters.
         public static let highlightOpacity: CGFloat = 0.09
         public static let highlightPadding: CGFloat = SpacingTokens.micro
+        /// Round 28.9 (GL1): the Go to Line field.
+        public static let goToLineWidth: CGFloat = 220
         /// QE2: the gap between a statement's last character and its run note.
         public static let runNoteGap: CGFloat = SpacingTokens.md2
     }

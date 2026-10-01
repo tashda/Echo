@@ -53,6 +53,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     /// Round 28.10: whether the empty prompt is drawn.
     var showsEmptyPrompt = true
     override var string: String { didSet { refreshEmptyPrompt() } }
+    /// Round 28.9: the Go to Line field while it is open.
+    var goToLineField: NSView?
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()
@@ -180,6 +182,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if modifiers == .command, event.charactersIgnoringModifiers == "l" { showGoToLinePanel(); return true }
+        if modifiers == .command, event.charactersIgnoringModifiers == "/" { toggleLineComment(); return true }
         return super.performKeyEquivalent(with: event)
     }
 
@@ -188,8 +191,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
+        let typed = (string as? String) ?? (string as? NSAttributedString)?.string ?? ""
+        // Round 28.9: brackets and quotes close themselves and are stepped over.
+        if ["(", ")", "'", "\""].contains(typed), handleTypedPair(typed, replacementRange: replacementRange) { return }
         suppressNextCompletionPopover = false; let trigger = determineCompletionTrigger(for: string); super.insertText(string, replacementRange: replacementRange)
-        let inserted = (string as? String) ?? (string as? NSAttributedString)?.string ?? ""
+        let inserted = typed
         handleCompletionTrigger(trigger, insertedText: inserted)
         if inserted == ")" { flashMatchingBracket(closingAt: selectedRange().location - 1) }
     }
