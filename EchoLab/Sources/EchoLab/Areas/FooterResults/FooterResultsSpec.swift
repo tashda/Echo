@@ -36,9 +36,9 @@ enum FooterResultsSpec {
                 .behaviour(.row("Empty space", "click to open or close the panel"), .row("Order", "chip · segments · mode chips · space · metrics")),
             ], rounds: [r9], files: [bar]),
             SpecElement(number: "2.2", name: "Soft blur behind", summary: "Rows scroll under the footer and blur away softly (FB1).", groups: [
-                .material(.row("Blur radii", "0.75 · 1.5 · 3 · 5 · 7.5 · 10pt, strongest at the edge, a real blur of the AppKit content (round 27: finer steps, was 1 · 3 · 6 · 10)", token: "LayoutTokens.EdgeBlur.radii"),
+                .material(.row("Blur radii", "4 · 4.25 · 4.5 · 5 · 5.25 · 5.5pt, stacked so the blur grows evenly from sharp to about 12pt at the edge, a real blur of the AppKit content (owner, after round 27: the old 0.75 to 10pt steps jumped within one row and read as a line)", token: "LayoutTokens.EdgeBlur.radii"),
                           .row("Fades beyond the footer", "24pt (round 27, was 16)", token: "LayoutTokens.EdgeBlur.fade"),
-                          .row("Step fade", "45% of each step's reach, along an S curve", token: "LayoutTokens.EdgeBlur.step"),
+                          .row("Step fade", "90% of each step's reach, along an S curve, so the steps overlap", token: "LayoutTokens.EdgeBlur.step"),
                           .row("Card tint", "the card colour at 35%, a gradient growing towards the bottom, so the footer stays readable", token: "LayoutTokens.EdgeBlur.tintOpacity")),
                 .behaviour(.row("SwiftUI content", "isn't blurred: only the grid and the editor"),
                            .row("Where it lives", "in the scroll view's clip view, under the scroll bars, following the visible area (round 27)")),

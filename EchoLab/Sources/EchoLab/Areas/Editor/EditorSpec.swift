@@ -37,6 +37,7 @@ enum EditorSpec {
                 .material(.row("Pill", "Liquid Glass capsule, 24pt like the footer's pills, 11pt primary text, a menu of 50% to 200% and Actual Size", token: "LayoutTokens.Footer.chipHeight / chipHorizontalPadding")),
                 .layout(.row("With results", "12pt in, 9pt up: where the server pill sits in the results card", token: "LayoutTokens.Footer.pillInset"),
                         .row("Without results", "above the server pill, left edges aligned, 9pt between (42pt up)", token: "EditorZoomControl.bottomInset")),
+                .motion(.row("Results grow or fold", "rides on the editor card's visible edge, a moment behind with a small bounce", token: "echoMotion.liquidTrail")),
                 .behaviour(.row("Keys", "⌘+, ⌘− and ⌘0 in the View menu, and pinch"), .row("Scope", "this tab, until it closes; the editor's font and gutter, not the results")),
             ], rounds: ["ongoing.editor-zoom-r28", "ongoing.zoom-pill-footer-r31"], files: [textView, "Echo/Sources/Features/QueryWorkspace/Views/Query/EditorZoomControl.swift"]),
             SpecElement(number: "1.5", name: "Typing", summary: "Tab, Return, pairs and comments (round 28.9).", groups: [
@@ -137,12 +138,12 @@ enum EditorSpec {
             SpecElement(number: "4.2", name: "With a selection", summary: "▶ turns the accent colour: Run will run only the selection.", groups: [
                 .states(.row("Colour", "accent", token: "ColorTokens.accent"), .row("Help", "Run Selection (⌘↩)")), .motion(.row("Change", "ease out, 0.12s", token: "echoMotion.hover")),
             ], rounds: [r15], files: [run]),
-            SpecElement(number: "4.3", name: "Running", summary: "▶ becomes ■ as the capsule fades to red, then it widens for the time (rounds 20, 24).", groups: [
+            SpecElement(number: "4.3", name: "Running", summary: "▶ becomes ■ as the capsule fades to red; after 3 s it widens for the time (rounds 20, 24).", groups: [
                 .material(.row("Fill", "a red fill inside the glass; ■ and the time in white", token: "ColorTokens.Status.error / ColorTokens.Text.onFill")),
                 .behaviour(.row("⌘↩ or click ▶", "runs the query"), .row("Click ■ or ⌘↩", "stops it; ⌥⌘. also cancels"),
                            .row("Stopping", "a spinner and “Stopping” on a 60% red until the server stops"),
                            .row("Time", "“5 s”, then “1:05”", token: "ElapsedTimeText")),
-                .motion(.row("Run to running", "▶ to ■ and the red first, the width and the time 0.25 s later; echoMotion.settle, 0.45s; nothing else in the toolbar moves")),
+                .motion(.row("Run to running", "▶ to ■ and the red first, the width and the time once the query has run 3 s (QueryRunTimeReveal); echoMotion.settle, 0.45s; nothing else in the toolbar moves")),
             ], rounds: [r15, "ongoing.run-button-running-r20", "ongoing.run-into-running-r24"], files: [run]),
             SpecElement(number: "4.4", name: "Result", summary: "The red drains as a green ✓ draws itself, or a red ! shows, then ▶ again.", groups: [
                 .motion(.row("Hold", "2.4s", token: "QueryRunToolbarControl.resultHold"), .row("✓", "draws itself (symbol draw-on)")),

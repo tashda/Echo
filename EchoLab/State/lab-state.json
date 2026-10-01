@@ -1963,6 +1963,14 @@
       {
         "date": "2026-10-01T13:58:54Z",
         "text": "Revision 6: Built into Echo: as wide as the footer, the blur rising past the bar while it shows, everywhere"
+      },
+      {
+        "date": "2026-10-01T14:28:07Z",
+        "text": "Taken by editor-r28"
+      },
+      {
+        "date": "2026-10-01T14:36:51Z",
+        "text": "Fixed in Echo (f756a13b), the owner's note that the blur cut in a straight line: near-equal radii with overlapping fades, so it grows evenly from sharp to about 12pt"
       }
     ],
     "needsMore": [],
@@ -1983,7 +1991,7 @@
       "vertical": "R2 \u00b7 Runs down to the horizontal bar",
       "visibility": "V1 \u00b7 While scrolling"
     },
-    "reviewedRevision": 5,
+    "reviewedRevision": 6,
     "revisions": [
       {
         "changes": [
@@ -2098,6 +2106,10 @@
       {
         "date": "2026-09-30T20:28:22Z",
         "text": "Built into Echo: timer \"5 s, then 1:05\" (K1), \u2713 draws itself (E1), Stopping on a slow cancel (J1), macOS notification for a query of 30 s or more while away (N1). The change into running went to round 24"
+      },
+      {
+        "date": "2026-10-01T14:36:51Z",
+        "text": "Changed in Echo (f756a13b), the owner's call after round 31: the capsule widens for the time only once the query has run 3 s (was at once, G0)"
       }
     ],
     "needsMore": [],
@@ -2499,6 +2511,10 @@
       {
         "date": "2026-10-01T14:15:07Z",
         "text": "Built into Echo (3626716a): 12pt in and 9pt up with results; stacked 9pt above the server pill without results; 24pt; primary text"
+      },
+      {
+        "date": "2026-10-01T14:36:51Z",
+        "text": "Changed in Echo (f756a13b), the owner's note: the pill rides on the editor card's edge while the results grow or fold, a moment behind with a small bounce"
       }
     ],
     "needsMore": [],

@@ -13,13 +13,13 @@ enum EditorArea {
         summary: "An opaque editor card in SF Mono with 20pt lines, a quiet gutter, a bracket on the statement at the caret with a Run arrow, and a plain Run button whose capsule turns red with ■ and the time while a query runs.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "3626716a", date: "2026-10-01",
+                level: .code, commit: "f756a13b", date: "2026-10-01",
                 note: "Read from QueryRunToolbarControl(+Components), QueryRunButtonText, WorkspaceTab+RunModes, QueryRunMode, QueryRunNote, LineNumberRulerView, SQLTextView+StatementFocus, +RunNote, +Marks and +Find, EditorZoomControl, QueryInputSection, SQLEditorTheme and the editor settings. The specimen is a copy of the Run control (native button, accent with a selection, red while running) beside an editor card that draws the gutter styles, caret line, statement focus, error dot and run note."),
             stageHeight: 520,
             behaviours: [
                 .init(trigger: "Idle", result: "Run is a plain ▶ in a glass capsule of its own, sized like its neighbours: no tint, no chevron. Grey and disabled while there is nothing to run; the tooltip says where it will run (“Run in sales on prod (⌘↩)”) or “Type a query to run” (round 20)."),
                 .init(trigger: "Text selected", result: "▶ turns the accent colour: Run will run only the selection."),
-                .init(trigger: "⌘↩ or click ▶", result: "Runs the query. ▶ becomes ■ in place as the capsule fades to red; just after, the capsule widens and the time (“5 s”, then “1:05”) fades in (rounds 20, 24)."),
+                .init(trigger: "⌘↩ or click ▶", result: "Runs the query. ▶ becomes ■ in place as the capsule fades to red; once the query has run 3 s, the capsule widens and the time (“5 s”, then “1:05”) fades in, so a quick query never widens (rounds 20, 24; the 3 s wait is the owner's, after round 31)."),
                 .init(trigger: "Click ■ or ⌘↩", result: "Stops the query (⌥⌘. also cancels). Until the server stops, a spinner and “Stopping” on a dimmer red. A cancelled statement's run note says “Cancelled after 3.2 s · 1,200 rows” in orange, and “The transaction now needs ROLLBACK” when it was inside one (round 21)."),
                 .init(trigger: "Query ends", result: "The red drains as a green ✓ draws itself (or a red ! shows) for 2.4 s, then ▶ again; after a cancel it goes straight back to ▶."),
                 .init(trigger: "Right-click Run", result: "The four modes: Run, Run Statement at Cursor, Explain, Explain Analyze (also in the Query menu). The Explain modes are offered only for engines that provide execution plans."),
@@ -29,7 +29,7 @@ enum EditorArea {
                 .init(trigger: "Caret on a word", result: "Its other uses get a soft grey mark as high as the letters; typing ) flashes its ( (round 28.5)."),
                 .init(trigger: "⌘F, ⌥⌘F", result: "Echo's find bar: a glass capsule with glass buttons over the top of the editor; a selected word becomes the search, a selection over several lines gets a Selection button (on). ⌥⌘F or the chevron opens Replace inside the capsule as it grows; each match then shows its replacement (old struck through on red, new on green) without changing the script. Return replaces and moves on; Replace All is one undo and says “Replaced 12” (rounds 28.12, 28.13)."),
                 .init(trigger: "Every mark", result: "As high as the letters, round ends (Settings › Editor › Marks › Corners, also the selection), soft 10% or strong 22% (Strength), coloured by meaning: grey the same word, yellow found, red wrong or removed, green added (round 28.15)."),
-                .init(trigger: "Zoom", result: "The 100% pill at the bottom left, ⌘+ ⌘− ⌘0 or pinch; this tab only (round 28.8). It sits like the footer's pills: 12pt in and 9pt up with results; without results, stacked 9pt above the server pill (round 31)."),
+                .init(trigger: "Zoom", result: "The 100% pill at the bottom left, ⌘+ ⌘− ⌘0 or pinch; this tab only (round 28.8). It sits like the footer's pills: 12pt in and 9pt up with results; without results, stacked 9pt above the server pill (round 31). While the results grow or fold it rides on the editor card's edge, a moment behind with a small bounce."),
                 .init(trigger: "Typing", result: "Tab is 4 spaces, ⇧Tab outdents, Return keeps the indent, ( and quotes close themselves, ⌘/ toggles --, ⌘L opens a Go to Line field (round 28.9)."),
                 .init(trigger: "First run", result: "The results grow up out of the footer while the editor card shrinks."),
                 .init(trigger: "Drag the gap between the cards", result: "Resizes them; a grab capsule shows on hover. Double-click the gap maximises the results, leaving a one-line editor."),
@@ -42,8 +42,9 @@ enum EditorArea {
                 .init(trigger: "Statement ends at", result: "A semicolon, a GO line or a blank line."),
             ],
             motions: [
-                .init(name: "Run to running to result", curve: "echoMotion.settle", duration: "0.45s", note: "▶ to ■ and the red first; the width and the time 0.25 s later. Nothing else in the toolbar moves."),
+                .init(name: "Run to running to result", curve: "echoMotion.settle", duration: "0.45s", note: "▶ to ■ and the red first; the width and the time once the query has run 3 s (QueryRunTimeReveal). Nothing else in the toolbar moves."),
                 .init(name: "Result hold", curve: "shows, then returns to idle", duration: "2.4s", note: "QueryRunToolbarControl.resultHold"),
+                .init(name: "Zoom pill follows the results card", curve: "echoMotion.liquidTrail", duration: "0.55s", note: "a spring with a little bounce, 0.06 s behind the card's edge (owner, after round 31)"),
                 .init(name: "Selection accent", curve: "ease out", duration: "0.12s", note: "echoMotion.hover"),
                 .init(name: "Results grow out of the footer", curve: "house spring", duration: "0.45s"),
             ],

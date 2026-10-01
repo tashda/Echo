@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · After round 31: Run waits 3 s for the time, the zoom pill chases the results, an even blur
+
+The owner's notes on the running app, decided in chat. Built in f756a13b.
+
+- **Run's time after 3 s** (changes round 20's G0, "at once"): ▶ still turns into ■ on red at once; the capsule widens and the time fades in only once the query has run 3 s, so a quick query never grows and shrinks. → EDT-4.3
+- **The zoom pill follows the results card:** while the results grow or fold, the pill rides on the editor card's visible edge, a moment behind with a small bounce (`liquidTrail`), instead of vanishing and reappearing in its new place. → EDT-1.4
+- **The blur fades evenly** (round 27, U5 note "hard capped"): its steps are now near-equal radii (4 to 5.5pt) with overlapping fades, so the blur grows evenly from sharp to about 12pt at the edge instead of jumping within one row. → FTR blur, `LayoutTokens.EdgeBlur`
+
 ## 2026-10-01 · Round 30.2 accepted: a server card folds while its rows fade
 
 Echo Labs › Explorer tree › Server card: collapsing · round 30.2. Every recommendation was taken. Built in 7503bb42.
