@@ -16,6 +16,10 @@
       {
         "date": "2026-10-01T14:23:29Z",
         "text": "Taken by agent-jobs-r33"
+      },
+      {
+        "date": "2026-10-01T14:26:32Z",
+        "text": "Revision 2: Four more radical layouts and the sheet's edges as a choice; your three sections kept"
       }
     ],
     "needsMore": [
@@ -34,13 +38,19 @@
       "structure": "NS1 \u00b7 Three sections: Step, Command, When it finishes"
     },
     "reviewedRevision": 1,
-    "revisions": [],
-    "status": "New feedback",
-    "takenBy": {
-      "agent": "agent-jobs-r33",
-      "date": "2026-10-01T14:23:29Z",
-      "status": "New feedback"
-    },
+    "revisions": [
+      {
+        "changes": [
+          "New layouts: NS3 the command fills the sheet (settings on one line, what happens next as a sentence; now my recommendation), NS4 inspector sidebar, NS5 the job's steps as a flow with success and failure arrows, NS6 your three sections as cards with nothing between",
+          "New control: Edges, SE0 hairlines (every sheet today), SE1 none (recommended), SE2 buttons on glass; SE1 would change every Echo sheet (SheetLayout)",
+          "New presets: Your three sections, Inspector, In the job's flow"
+        ],
+        "date": "2026-10-01T14:26:32Z",
+        "number": 2,
+        "summary": "Four more radical layouts and the sheet's edges as a choice; your three sections kept"
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.agent-jobs-tab-r33": {

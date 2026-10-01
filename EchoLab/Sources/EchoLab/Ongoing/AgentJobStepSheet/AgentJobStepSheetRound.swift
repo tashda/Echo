@@ -6,12 +6,27 @@ import SwiftUI
 /// a hard-coded 6pt corner and an expand button that opens CommandEditorView. No On success / On
 /// failure or retries (SSMS's Advanced page). The enabled Add Step is `.bordered`, where
 /// VISUAL_GUIDELINES › Sheets wants `.borderedProminent`.
+///
+/// Revision 2 (owner: NS1's three sections are good, but the hairlines between the top and the
+/// bottom are not, and wants more radical layouts): NS3 to NS6, and the sheet's edges as a control.
 @MainActor
 enum AgentJobStepSheetRound {
     enum Structure: String, CaseIterable {
         case today = "NS0 · One section titled New Step (today)"
         case sections = "NS1 · Three sections: Step, Command, When it finishes"
         case twoPane = "NS2 · Wide: settings on the left, the command on the right"
+        case editorFirst = "NS3 · The command fills the sheet; Name, Type, Database on one line above; what happens next as a sentence below"
+        case inspector = "NS4 · Wide: the command full height, the settings in a sidebar at the right, like Xcode's inspector"
+        case flow = "NS5 · The job's steps at the left with their success and failure arrows; the new step's form at the right"
+        case cards = "NS6 · NS1's three sections as cards on the canvas, nothing drawn between them"
+
+        var isWide: Bool { [.twoPane, .inspector, .flow].contains(self) }
+    }
+
+    enum Edges: String, CaseIterable {
+        case hairlines = "SE0 · Hairlines under the title and over the buttons (every sheet today)"
+        case plain = "SE1 · No hairlines: title, content and buttons on one surface"
+        case glass = "SE2 · No hairlines; the buttons float on glass over the content"
     }
 
     enum Command: String, CaseIterable {
@@ -31,20 +46,27 @@ enum AgentJobStepSheetRound {
     }
 
     struct Look {
-        var structure: Structure, command: Command, completion: Completion, primary: Primary
-        static let today = Look(structure: .today, command: .today, completion: .none, primary: .bordered)
+        var structure: Structure, edges: Edges, command: Command, completion: Completion, primary: Primary
+        static let today = Look(structure: .today, edges: .hairlines, command: .today, completion: .none, primary: .bordered)
         @MainActor static func from(_ v: RoundValues) -> Look {
-            Look(structure: .init(rawValue: v["structure"]) ?? .sections, command: .init(rawValue: v["command"]) ?? .parse,
+            Look(structure: .init(rawValue: v["structure"]) ?? .editorFirst, edges: .init(rawValue: v["edges"]) ?? .plain,
+                 command: .init(rawValue: v["command"]) ?? .parse,
                  completion: .init(rawValue: v["completion"]) ?? .offered, primary: .init(rawValue: v["primary"]) ?? .prominent)
         }
     }
 
     static let spec = RoundSpec(
         controls: [
-            .of("structure", "Layout", Structure.self, default: .sections,
-                question: "Compare the sheet's layouts. Which reads best for a step you will come back to edit?",
-                recommend: .sections,
-                why: "Three titled sections follow the order you think in (what, run what, then what) and match the other grouped sheets. NS2 earns its width only for long scripts, which the full editor already covers."),
+            .of("structure", "Layout", Structure.self, default: .editorFirst,
+                question: "Compare the sheet's layouts, NS3 to NS6 first. Which reads best for a step you will come back to edit?",
+                recommend: .editorFirst,
+                why: "A step is its command: Name, Type and Database are three short values that fit on one line, and On success / On failure read naturally as a sentence, so the editor gets the whole sheet with no section frames at all. If you want to keep NS1's three sections exactly, NS6 keeps them with nothing drawn between. NS4 and NS5 need a sheet 760pt wide; NS5 is the most useful when a job has several steps, but it is a new view to maintain.",
+                newChoices: (revision: 2, choices: [.editorFirst, .inspector, .flow, .cards])),
+            .of("edges", "Edges", Edges.self, default: .plain,
+                question: "Look at the top and bottom of the sheet: the hairline under the title and the one over the buttons. Keep them?",
+                recommend: .plain,
+                why: "They are the lines you didn't like. On one surface the content's own grouping carries the structure, as in macOS 26's own sheets. Every Echo sheet draws them today (SheetLayout), so this would change all of them, not only New Step. SE2's glass helps only where the content scrolls under the buttons, which few sheets do.",
+                addedIn: 2),
             .of("command", "Command", Command.self, default: .parse,
                 question: "Look at the command field in each.",
                 recommend: .parse,
@@ -63,8 +85,8 @@ enum AgentJobStepSheetRound {
                   isEchoToday: true, designWidth: 640, designHeight: 560) { _ in
                 LabAJStepSheet(look: .today)
             },
-            .init(id: "proposal", title: "Proposal", summary: "Built from the controls.",
-                  designWidth: 640, designHeight: 560) { values in
+            .init(id: "proposal", title: "Proposal", summary: "Built from the controls; NS2, NS4 and NS5 draw the sheet 760pt wide.",
+                  isWide: true, designWidth: 820, designHeight: 560) { values in
                 LabAJStepSheet(look: Look.from(values))
             },
         ],
@@ -79,117 +101,24 @@ enum AgentJobStepSheetRound {
                   why: "You usually edit a step because of how it last ran; the line saves a trip to History."),
         ],
         exhibitTopic: ("Which sheet?", "Is the Proposal the New Step sheet to build?", "proposal",
-                       "Three sections, a real SQL editor with Parse, success and failure actions, and a prominent Add Step."),
+                       "The command fills the sheet with its settings on one line and what happens next as a sentence, no hairlines, Parse, and a prominent Add Step."),
         presets: [
             .init(id: "recommended", name: "My recommendation",
-                  values: ["structure": Structure.sections.rawValue, "command": Command.parse.rawValue,
+                  values: ["structure": Structure.editorFirst.rawValue, "edges": Edges.plain.rawValue, "command": Command.parse.rawValue,
                            "completion": Completion.offered.rawValue, "primary": Primary.prominent.rawValue],
                   isRecommended: true),
+            .init(id: "sectionsAsCards", name: "Your three sections", summary: "NS1's sections as cards, no hairlines.",
+                  values: ["structure": Structure.cards.rawValue, "edges": Edges.plain.rawValue, "command": Command.parse.rawValue,
+                           "completion": Completion.offered.rawValue, "primary": Primary.prominent.rawValue]),
+            .init(id: "inspector", name: "Inspector", summary: "The editor full height, settings at the right.",
+                  values: ["structure": Structure.inspector.rawValue, "edges": Edges.plain.rawValue, "command": Command.parse.rawValue,
+                           "completion": Completion.offered.rawValue, "primary": Primary.prominent.rawValue]),
+            .init(id: "flow", name: "In the job's flow", summary: "The steps and their arrows beside the form.",
+                  values: ["structure": Structure.flow.rawValue, "edges": Edges.plain.rawValue, "command": Command.parse.rawValue,
+                           "completion": Completion.offered.rawValue, "primary": Primary.prominent.rawValue]),
             .init(id: "wide", name: "Wide", summary: "Settings and command side by side.",
                   values: ["structure": Structure.twoPane.rawValue, "command": Command.parse.rawValue, "completion": Completion.offered.rawValue,
                            "primary": Primary.prominent.rawValue]),
         ]
     )
-}
-
-/// The sheet: title, form, footer.
-private struct LabAJStepSheet: View {
-    let look: AgentJobStepSheetRound.Look
-    @State private var name = "Rebuild indexes"
-
-    var body: some View {
-        VStack(spacing: SpacingTokens.none) {
-            Text(look.structure == .today ? "New Step" : "New Step · IndexOptimize - USER_DATABASES")
-                .font(TypographyTokens.headline).frame(maxWidth: .infinity).padding(SpacingTokens.sm)
-            Divider()
-            if look.structure == .twoPane {
-                HStack(alignment: .top, spacing: SpacingTokens.none) {
-                    form(includeCommand: false).frame(width: 280)
-                    Divider()
-                    commandField.padding(SpacingTokens.md)
-                }
-            } else {
-                form(includeCommand: true)
-            }
-            Divider()
-            footer
-        }
-        .background(ColorTokens.Background.primary)
-        .clipShape(.rect(cornerRadius: SpacingTokens.md, style: .continuous))
-        .shadow(color: .black.opacity(0.25), radius: 20, y: 8)
-        .padding(SpacingTokens.lg)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ColorTokens.Workspace.canvas)
-    }
-
-    private func form(includeCommand: Bool) -> some View {
-        Form {
-            Section(look.structure == .today ? "New Step" : "Step") {
-                TextField("Name", text: $name, prompt: Text("e.g. Run cleanup query"))
-                Picker("Type", selection: .constant("T-SQL")) { Text("T-SQL").tag("T-SQL"); Text("PowerShell").tag("PowerShell") }
-                Picker("Database", selection: .constant("master")) { Text("master").tag("master") }
-                if look.structure == .today, includeCommand { LabeledContent("Command") { commandField } }
-            }
-            if look.structure != .today, includeCommand {
-                Section("Command") { commandField }
-            }
-            if look.completion == .offered {
-                Section("When it finishes") {
-                    Picker("On success", selection: .constant("Go to the next step")) { Text("Go to the next step").tag("Go to the next step") }
-                    Picker("On failure", selection: .constant("Quit the job reporting failure")) {
-                        Text("Quit the job reporting failure").tag("Quit the job reporting failure")
-                    }
-                    LabeledContent("Retry") {
-                        Text("0 times, 1 minute apart").foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                }
-            }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-    }
-
-    @ViewBuilder
-    private var commandField: some View {
-        let sql = ["EXECUTE dbo.IndexOptimize", "  @Databases = 'USER_DATABASES',", "  @FragmentationLevel1 = 5,", "  @LogToTable = 'Y'"]
-        if look.command == .today {
-            HStack(alignment: .top) {
-                Text(sql.joined(separator: "\n")).font(TypographyTokens.body.monospaced())
-                    .frame(maxWidth: .infinity, minHeight: SpacingTokens.xxxl + SpacingTokens.md, alignment: .topLeading)
-                    .padding(SpacingTokens.xxs)
-                    .background(ColorTokens.Background.primary, in: .rect(cornerRadius: SpacingTokens.xxs2))
-                    .overlay(RoundedRectangle(cornerRadius: SpacingTokens.xxs2).strokeBorder(ColorTokens.Text.quaternary.opacity(0.4), lineWidth: 0.5))
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
-            }
-        } else {
-            VStack(alignment: .trailing, spacing: SpacingTokens.xxs) {
-                LabWKEditor(lines: sql)
-                    .frame(minHeight: SpacingTokens.xxxl * 2)
-                    .background(ColorTokens.Workspace.card, in: .rect(cornerRadius: SpacingTokens.xs, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous).strokeBorder(ColorTokens.Separator.primary, lineWidth: 0.5))
-                HStack {
-                    if look.command == .parse {
-                        Label("No errors", systemImage: "checkmark.circle.fill").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Status.success)
-                        Spacer()
-                        Button("Parse") {}.controlSize(.small)
-                    } else { Spacer() }
-                    Button("Open in Editor", systemImage: "arrow.up.left.and.arrow.down.right") {}.controlSize(.small)
-                }
-            }
-        }
-    }
-
-    private var footer: some View {
-        HStack {
-            Spacer()
-            Button("Cancel") {}
-            if look.primary == .prominent {
-                Button("Add Step") {}.buttonStyle(.borderedProminent)
-            } else {
-                Button("Add Step") {}.buttonStyle(.bordered)
-            }
-        }
-        .padding(SpacingTokens.sm)
-        .background(.bar)
-    }
 }
