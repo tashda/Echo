@@ -17,6 +17,10 @@ inputs:
 runs:
   using: composite
   steps:
+    # Downloads first: once the runner is on the tailnet, Homebrew's bottle download failed.
+    - shell: bash
+      run: brew list docker >/dev/null 2>&1 || brew install docker
+
     - uses: tailscale/github-action@v4
       with:
         oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
@@ -44,7 +48,6 @@ runs:
           ConnectTimeout 15
           ServerAliveInterval 30
         CONFIG
-        brew list docker >/dev/null 2>&1 || brew install docker
         # The tailnet route to 192.168.1.153 can take a few seconds to arrive.
         for attempt in 1 2 3 4 5 6; do
           ssh testlab true && break
