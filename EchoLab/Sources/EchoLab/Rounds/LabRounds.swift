@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r26", label: "Round 26", title: "Tab content while the tree slides", date: "1 Oct 2026",
+             asked: "How should a heavy tab (Activity Monitor's tables) behave while the tree or inspector slides: reflow live, or hold its width and settle at the end?",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.content-during-slide-r26"]),
         Info(id: "r25", label: "Round 25", title: "SQL Server: importing a file", date: "30 Sep 2026",
              asked: "Imports into SQL Server now use the TDS bulk load; which of its options should the Import Data sheet offer, and what should a failed import leave behind?",
              outcome: "Being judged.",
