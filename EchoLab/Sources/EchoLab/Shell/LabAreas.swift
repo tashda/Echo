@@ -116,6 +116,12 @@ enum LabAreas {
         "ongoing.tab-overview-card-r35": "tabs",
         "ongoing.tab-overview-grouping-r35": "tabs",
         "ongoing.tab-overview-motion-r35": "tabs",
+        "ongoing.tool-tab-pages-r36": "tabs",
+        "ongoing.tool-tab-pages-where-r36": "tabs",
+        "ongoing.tool-tab-families-r37": "tool-tabs",
+        "ongoing.tool-tab-header-r37": "tool-tabs",
+        "ongoing.tool-tab-controls-r37": "tool-tabs",
+        "ongoing.tool-tab-themes-r37": "tool-tabs",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

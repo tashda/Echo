@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -396,6 +396,48 @@
         status: .judging,
         summary: "How the overview opens from the tab you are in and returns into the one you pick, and what the keyboard does.",
         spec: TabOverviewMotionRound.spec)
+
+    /// Round 36: Tool tabs with pages: the tab bar.
+    static let toolTabPages = LabPage.round(
+        id: "ongoing.tool-tab-pages-r36", group: "Tabs", title: "Tool tabs with pages: the tab bar · round 36", symbol: "rectangle.split.3x1",
+        status: .judging,
+        summary: "Changes ST2 (round 14): how a tool's pages sit in its tab (today a grey track capsule inside the tab), how the strip looks with one tab, and how the tab unfolds.",
+        spec: ToolTabPagesRound.spec)
+
+    /// Round 36: Tool tabs with pages: which tools.
+    static let toolTabPagesWhere = LabPage.round(
+        id: "ongoing.tool-tab-pages-where-r36", group: "Tabs", title: "Tool tabs with pages: which tools · round 36", symbol: "square.stack.3d.up",
+        status: .judging,
+        summary: "Nine other tools switch sections with a segmented control inside the tab. Which should get pages in the tab bar, and what happens when there are more pages than fit (Database Security has nine).",
+        spec: ToolTabPagesWhereRound.spec)
+
+    /// Round 37: Tool tabs: the families.
+    static let toolTabFamilies = LabPage.round(
+        id: "ongoing.tool-tab-families-r37", group: "Tool tabs", title: "Tool tabs: the families · round 37", symbol: "square.grid.3x2",
+        status: .judging,
+        summary: "Every tool tab Echo has, sorted into five families by the shape of their work (monitor, manage, health, properties, canvas). Decide the families first; 37.2 to 37.4 design them.",
+        spec: ToolTabFamiliesRound.spec)
+
+    /// Round 37: Tool tabs: the header and toolbar row.
+    static let toolTabHeader = LabPage.round(
+        id: "ongoing.tool-tab-header-r37", group: "Tool tabs", title: "Tool tabs: the header and toolbar row · round 37", symbol: "rectangle.topthird.inset.filled",
+        status: .judging,
+        summary: "The one header and toolbar row for every tool tab (changes TLT-1 and TLT-2): five layouts drawn on SQL Profiler, Policy Management and Activity Monitor.",
+        spec: ToolTabHeaderRound.spec)
+
+    /// Round 37: Tool tabs: buttons and controls.
+    static let toolTabControls = LabPage.round(
+        id: "ongoing.tool-tab-controls-r37", group: "Tool tabs", title: "Tool tabs: buttons and controls · round 37", symbol: "button.horizontal",
+        status: .judging,
+        summary: "The vocabulary: a primary action like Start Trace, icon buttons, pickers like Database: All Databases, a running status and search, in the editor's glass language.",
+        spec: ToolTabControlsRound.spec)
+
+    /// Round 37: Tool tabs: a theme per family.
+    static let toolTabThemes = LabPage.round(
+        id: "ongoing.tool-tab-themes-r37", group: "Tool tabs", title: "Tool tabs: a theme per family · round 37", symbol: "paintpalette",
+        status: .judging,
+        summary: "Each family's tab in the unified design: monitor, manage, health, properties and canvas.",
+        spec: ToolTabThemesRound.spec)
 
     // ROUNDS-DEFINITIONS
 }
