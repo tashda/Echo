@@ -32,6 +32,13 @@ extension QueryTabButton {
                     .foregroundStyle(tabTitleColor)
                     .layoutPriority(1)
 
+                if let serverDotColor {
+                    Circle()
+                        .fill(serverDotColor)
+                        .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
+                        .accessibilityHidden(true)
+                }
+
                 if isActive, !tab.toolPages.isEmpty {
                     TabPageChips(pages: tab.toolPages, selected: tab.currentToolPage) { tab.selectToolPage($0) }
                         .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))

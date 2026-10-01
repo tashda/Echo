@@ -142,6 +142,7 @@ extension ObjectBrowserSidebarView {
         }
 
         menu.addDivider()
+        addServerColorMenu(to: menu, session: session)
         menu.addActionItem("Manage Connection", systemImage: "slider.horizontal.3") {
             ManageConnectionsWindowController.shared.present(
                 initialSection: .connections,

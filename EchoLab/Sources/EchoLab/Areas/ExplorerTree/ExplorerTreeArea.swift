@@ -44,6 +44,7 @@ enum ExplorerTreeArea {
                 .init(trigger: "Scroll the rows", result: "Rows pass under the pinned name and dock; once they do, a light wash of the card colour appears behind them and the rows blur and fade at the edge. The capsule has a hairline edge and a soft shadow."),
                 .init(trigger: "Right-click", result: "A menu for that node kind, from the database type's blueprint."),
                 .init(trigger: "Schema prefix", result: "Dimmed on tables outside the default schema."),
+                .init(trigger: "A database with no views", result: "Views is still there, dimmed with no count; it opens to a grey “No views” row. Tables, Views, Functions and Procedures always show; Synonyms, Sequences and the other rare folders only when they have something (round 30.3)."),
             ],
             motions: [
                 .init(name: "Folder open and close", curve: "ease in-out", duration: "0.22s", note: "echoMotion.expand"),
@@ -95,6 +96,9 @@ enum ExplorerTreeArea {
                 .init(text: "A server card folds while its rows fade",
                       why: "Today the rows faded while the card snapped, so for a moment they floated on the canvas. The card's edge now moves with them and cuts them (CM2); a spring, rows rolling up and a cascade were rejected.",
                       rounds: ["ongoing.server-header-collapse-r30"]),
+                .init(text: "The main folders never disappear",
+                      why: "The owner went looking for Views and thought it was gone. Tables, Views, Functions and Procedures always show, dimmed when empty; hiding every empty folder and showing every folder were rejected, and the setting was removed.",
+                      rounds: ["ongoing.empty-folders-r30"]),
                 .init(text: "No pinned path header",
                       why: "It cost space and added blur; the dock does the job of orientation.",
                       rounds: ["decided.tree-sticky-header"]),

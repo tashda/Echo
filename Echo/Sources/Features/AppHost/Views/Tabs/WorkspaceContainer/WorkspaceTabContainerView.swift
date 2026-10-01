@@ -164,6 +164,9 @@ struct WorkspaceTabContainerView: View {
             gridStateProvider: { tab.resultsGridState }
         )
         .id(tab.id)
+        // Round 30.1, CO2: the footer's server pill carries a dot of the server's colour.
+        .environment(\.serverPillColor, projectStore.globalSettings.serverHeaderColorSource == .server
+            ? connectionStore.currentColor(of: tab.connection) : nil)
         if tab.drawsOwnCards {
             content
         } else if tab.kind.isToolTab {

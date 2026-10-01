@@ -47,7 +47,10 @@ extension QueryTabStrip {
             availableDatabases: databases,
             onSwitchDatabase: databases.isEmpty ? nil : { dbName in
                 switchDatabase(dbName, for: tab)
-            }
+            },
+            // Round 30.1, CO2: with the header in the server's colour, its tabs carry a dot of it.
+            serverDotColor: projectStore.globalSettings.serverHeaderColorSource == .server
+                ? environmentState.connectionStore.currentColor(of: tab.connection) : nil
         )
         .frame(width: targetWidth > 0 ? targetWidth : nil)
         .id(tab.id)

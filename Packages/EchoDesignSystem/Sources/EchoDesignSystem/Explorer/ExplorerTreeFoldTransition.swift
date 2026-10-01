@@ -56,13 +56,14 @@ private struct ExplorerTreeFoldCut: ViewModifier, Animatable {
 }
 
 /// Everything above the card's moving edge, in the row's own coordinates, with the card's
-/// rounded bottom corners at the edge.
+/// rounded bottom corners at the edge. It reaches past the row's own slot, so colour a row draws
+/// below itself (the server header's wash, round 30.1) is cut by the edge too, not by the slot.
 private struct ExplorerTreeFoldEdge: Shape {
     let edge: CGFloat
     let cornerRadius: CGFloat
 
     nonisolated func path(in rect: CGRect) -> Path {
-        let bottom = min(edge, rect.maxY + cornerRadius)
+        let bottom = edge
         let top = rect.minY - cornerRadius
         guard bottom > rect.minY else { return Path() }
         let radius = min(cornerRadius, (bottom - top) / 2)

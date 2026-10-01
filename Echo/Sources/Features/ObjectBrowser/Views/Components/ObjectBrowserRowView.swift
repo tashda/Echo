@@ -101,7 +101,8 @@ struct ObjectBrowserRowView: View {
                 layout: layout,
                 selectedID: selectedID,
                 style: projectStore.globalSettings.sidebarDockIconStyle,
-                accentColor: resolvedAccentColor(for: session.connection),
+                // The current section: the header's colour (round 30.1, DK1) or the accent.
+                accentColor: serverHeaderPaint(for: session.connection).dockColor,
                 duotoneColor: { $0.mix(with: ColorTokens.Text.secondary, by: ColorTokens.Explorer.colorfulSoftening) }
             )
         case .message(let title, let systemImage):

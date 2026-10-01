@@ -236,6 +236,33 @@ struct ExplorerBlueprintTests {
         }
     }
 
+    /// Round 30.3: Tables, Views, Functions and Procedures always show; an empty one opens to a
+    /// grey "No views" row, and the rarer folders still hide when empty.
+    @Test func mainObjectFoldersShowEvenWhenEmpty() throws {
+        let session = makeSession(.microsoftSQL)
+        let table = SchemaObjectInfo(name: "orders", schema: "dbo", type: .table)
+        session.databaseStructure = DatabaseStructure(serverVersion: nil, databases: [
+            DatabaseInfo(name: "AdventureWorks", schemas: [SchemaInfo(name: "dbo", objects: [table])]),
+        ])
+        let viewModel = ObjectBrowserSidebarViewModel()
+        // Only an open database builds its folders.
+        viewModel.expandedNodeIDs.insert(ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: session.connection.id, databaseName: "AdventureWorks"))
+        let databases = try #require(build(session, viewModel).first)
+        let database = try #require(databases.children.first { if case .database = $0.row { true } else { false } })
+        let kinds = database.children.compactMap { folder($0)?.kind }
+        #expect(kinds.contains(.views))
+        #expect(kinds.contains(.functions))
+        #expect(kinds.contains(.procedures))
+        #expect(!kinds.contains(.synonyms))
+        let views = try #require(database.children.first { folder($0)?.kind == .views })
+        #expect(folder(views)?.count == 0)
+        guard case .placeholder(let title, _) = try #require(views.children.first).row else {
+            Issue.record("An empty Views folder should open to a grey row")
+            return
+        }
+        #expect(title == "No views")
+    }
+
     @Test func mySQLToolsSitUnderManagement() throws {
         let nodes = build(makeSession(.mysql), ObjectBrowserSidebarViewModel())
         let management = try #require(nodes.first { folder($0)?.kind == .management })

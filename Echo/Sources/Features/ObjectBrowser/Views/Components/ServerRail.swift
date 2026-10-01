@@ -38,6 +38,7 @@ struct ServerRail: View {
     // redraw only the rail, never the tree beside it.
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(ProjectStore.self) private var projectStore
     @Environment(TabStore.self) private var tabStore
     @Environment(\.echoMotion) private var motion
 
@@ -165,10 +166,12 @@ struct ServerRail: View {
         } label: {
             ServerRailItem(
                 monogram: ServerRailMonogram.make(from: entry.displayName),
-                color: entry.connection.color,
+                color: connectionStore.currentColor(of: entry.connection),
                 status: status,
                 isSelected: isSelected,
-                size: itemSize
+                size: itemSize,
+                // Round 30.1, CO1: with the header in the server's colour, the monogram always is.
+                isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server
             )
         }
         .buttonStyle(.plain)
@@ -307,13 +310,15 @@ extension SidebarMenu.NavSection {
 }
 
 /// A server's monogram in the rail: secondary grey, or bold in the server's own colour when
-/// selected. A connecting server breathes; a lost one is dimmed.
+/// selected. With Server Header Color set to the server's colour it is always in that colour,
+/// bold when selected (round 30.1, CO1). A connecting server breathes; a lost one is dimmed.
 struct ServerRailItem: View {
     let monogram: String
     let color: Color
     let status: ServerRailStatus
     let isSelected: Bool
     let size: CGFloat
+    var isAlwaysColored = false
 
     @Environment(\.echoMotion) private var motion
     @State private var isHovering = false
@@ -337,7 +342,7 @@ struct ServerRailItem: View {
     }
 
     private var foreground: Color {
-        if isSelected { return color }
+        if isSelected || isAlwaysColored { return color }
         return isHovering ? ColorTokens.Text.primary : ColorTokens.Text.secondary
     }
 }

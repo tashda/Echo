@@ -41,7 +41,8 @@ extension ObjectBrowserRowView {
                 depth: depth,
                 icon: .system(folder.kind.symbol),
                 label: folder.kind.title,
-                isExpanded: isEmptyObjectFolder ? nil : expansionBinding,
+                // An empty folder still opens, to its grey "No views" row (round 30.3, OE0).
+                isExpanded: expansionBinding,
                 isSelected: isSelected,
                 iconColor: isEmptyObjectFolder ? ColorTokens.Text.quaternary : explorerIconColor(folder.kind.role.color),
                 labelColor: isEmptyObjectFolder ? ColorTokens.Text.tertiary : ColorTokens.Text.primary,

@@ -195,16 +195,21 @@ struct ExplorerBlueprintWalker {
 
         let children = nodes(for: blueprint.database, in: .database(database))
         guard children.isEmpty else { return children }
-        // With empty folders hidden, an empty database says so instead of expanding to nothing.
+        // A database whose engine has none of the main folders says so instead of expanding to nothing.
         return [ObjectBrowserNode(id: "\(databaseID)#empty", row: .placeholder("No objects", kind: nil))]
     }
 
-    /// One folder per object type, in the blueprint's order. Empty folders are hidden unless the
-    /// user asks for them in Settings › Sidebar.
+    /// The folders a database always shows, empty or not (round 30.3, EF1): where everyone looks
+    /// first, so they never come and go with their contents.
+    static let alwaysShownObjectTypes: Set<SchemaObjectInfo.ObjectType> = [.table, .view, .function, .procedure]
+
+    /// One folder per object type, in the blueprint's order. Tables, Views, Functions and
+    /// Procedures always show; the rarer folders only when they have something in them. An empty
+    /// folder opens to a grey "No views" row (OE0).
     private func objectFolderNodes(_ kinds: [ExplorerNodeKind], database: DatabaseInfo) -> [ObjectBrowserNode] {
         let types = kinds.compactMap(\.objectType)
         let grouped = ObjectBrowserSnapshotBuilder.groupedObjects(for: database, supportedTypes: types)
-        let visibleTypes = settings.sidebarShowsEmptyFolders ? types : types.filter { !(grouped[$0] ?? []).isEmpty }
+        let visibleTypes = types.filter { Self.alwaysShownObjectTypes.contains($0) || !(grouped[$0] ?? []).isEmpty }
 
         return visibleTypes.map { type in
             let objects = grouped[type] ?? []
@@ -216,8 +221,10 @@ struct ExplorerBlueprintWalker {
                     : []
                 return ObjectBrowserNode(id: objectID, row: .object(session, database.name, object), children: columns)
             }
+            let kind = ExplorerNodeKind(objectFolderFor: type)
+            let folderID = ObjectBrowserSidebarViewModel.objectGroupNodeID(connectionID: connectionID, databaseName: database.name, objectType: type)
             let folder = ExplorerFolder(
-                kind: ExplorerNodeKind(objectFolderFor: type),
+                kind: kind,
                 session: session,
                 databaseName: database.name,
                 count: objects.count,
@@ -225,10 +232,19 @@ struct ExplorerBlueprintWalker {
                 source: nil
             )
             return ObjectBrowserNode(
-                id: ObjectBrowserSidebarViewModel.objectGroupNodeID(connectionID: connectionID, databaseName: database.name, objectType: type),
+                id: folderID,
                 row: .folder(folder),
-                children: objectNodes
+                children: objectNodes.isEmpty ? [Self.emptyFolderRow(kind, folderID: folderID)] : objectNodes
             )
         }
+    }
+
+    /// What an empty folder opens to: "No views", grey, at the child indent, as an empty item
+    /// folder does.
+    static func emptyFolderRow(_ kind: ExplorerNodeKind, folderID: String) -> ObjectBrowserNode {
+        ObjectBrowserNode(
+            id: ObjectBrowserSidebarViewModel.infoNodeID(parentID: folderID, title: kind.emptyTitle),
+            row: .placeholder(kind.emptyTitle, kind: kind.itemKind)
+        )
     }
 }

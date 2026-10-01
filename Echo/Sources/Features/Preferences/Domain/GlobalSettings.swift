@@ -173,8 +173,6 @@ struct GlobalSettings: Codable, Hashable {
     /// Pins "server › database" above the Explorer once the server's header scrolls away.
     /// The Explorer's scroll bar; hidden by default (round 9, SB3).
     var sidebarShowsScrollBar: Bool = false
-    /// Shows object folders with nothing in them (Views, Functions…) in the Explorer.
-    var sidebarShowsEmptyFolders: Bool = false
     // Canvas-and-cards redesign (Design/01-principles.md, rule 7).
     var interfaceMotionSpeed: InterfaceMotionSpeed = .standard
     var workspaceGutter: WorkspaceGutter = .standard
@@ -184,6 +182,10 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
     /// The section dock's icons, apart from the tree's (round 16): mono by default.
     var sidebarDockIconStyle: SidebarDockIconStyle = .mono
+    /// Round 30.1: the server card's header, its colour, and the dock's current icon.
+    var serverHeaderStyle: ServerHeaderStyle = .wash
+    var serverHeaderColorSource: ServerHeaderColorSource = .server
+    var sidebarDockCurrentIconTint: SidebarDockCurrentIconTint = .header
     /// Each database type's dock (keyed by `DatabaseType.rawValue`): the sections shown, in
     /// order, as section keys. A type missing here uses its blueprint's default.
     var sidebarDockSections: [String: [String]] = [:]
@@ -278,7 +280,6 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarDensity
         case sidebarExpandOneConnectionAtATime
         case sidebarShowsScrollBar
-        case sidebarShowsEmptyFolders
         case interfaceMotionSpeed
         case workspaceGutter
         case workspaceCornerRadius
@@ -286,6 +287,9 @@ struct GlobalSettings: Codable, Hashable {
         case collapsedServerClick
         case sidebarMonochromeVariant
         case sidebarDockIconStyle
+        case serverHeaderStyle
+        case serverHeaderColorSource
+        case sidebarDockCurrentIconTint
         case sidebarDockSections
         case editorGutterStyle
         case editorMarkCorners
@@ -398,11 +402,6 @@ struct GlobalSettings: Codable, Hashable {
 
         sidebarShowsScrollBar = try container.decodeIfPresent(Bool.self, forKey: .sidebarShowsScrollBar) ?? false
 
-        sidebarShowsEmptyFolders = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .sidebarShowsEmptyFolders
-        ) ?? false
-
         // Unknown values (from a newer build) fall back to the default instead of failing.
         interfaceMotionSpeed = (try? container.decodeIfPresent(InterfaceMotionSpeed.self, forKey: .interfaceMotionSpeed)) ?? .standard
         workspaceGutter = (try? container.decodeIfPresent(WorkspaceGutter.self, forKey: .workspaceGutter)) ?? .standard
@@ -411,6 +410,9 @@ struct GlobalSettings: Codable, Hashable {
         collapsedServerClick = (try? container.decodeIfPresent(CollapsedServerClickBehavior.self, forKey: .collapsedServerClick)) ?? .peekCommandReopens
         sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
         sidebarDockIconStyle = (try? container.decodeIfPresent(SidebarDockIconStyle.self, forKey: .sidebarDockIconStyle)) ?? .mono
+        serverHeaderStyle = (try? container.decodeIfPresent(ServerHeaderStyle.self, forKey: .serverHeaderStyle)) ?? .wash
+        serverHeaderColorSource = (try? container.decodeIfPresent(ServerHeaderColorSource.self, forKey: .serverHeaderColorSource)) ?? .server
+        sidebarDockCurrentIconTint = (try? container.decodeIfPresent(SidebarDockCurrentIconTint.self, forKey: .sidebarDockCurrentIconTint)) ?? .header
         sidebarDockSections = (try? container.decodeIfPresent([String: [String]].self, forKey: .sidebarDockSections)) ?? [:]
         editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
         editorMarkCorners = (try? container.decodeIfPresent(EditorMarkCorners.self, forKey: .editorMarkCorners)) ?? .round
@@ -504,7 +506,6 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
         try container.encode(sidebarExpandOneConnectionAtATime, forKey: .sidebarExpandOneConnectionAtATime)
         try container.encode(sidebarShowsScrollBar, forKey: .sidebarShowsScrollBar)
-        try container.encode(sidebarShowsEmptyFolders, forKey: .sidebarShowsEmptyFolders)
         try container.encode(interfaceMotionSpeed, forKey: .interfaceMotionSpeed)
         try container.encode(workspaceGutter, forKey: .workspaceGutter)
         try container.encode(workspaceCornerRadius, forKey: .workspaceCornerRadius)
@@ -512,6 +513,9 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(collapsedServerClick, forKey: .collapsedServerClick)
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
         try container.encode(sidebarDockIconStyle, forKey: .sidebarDockIconStyle)
+        try container.encode(serverHeaderStyle, forKey: .serverHeaderStyle)
+        try container.encode(serverHeaderColorSource, forKey: .serverHeaderColorSource)
+        try container.encode(sidebarDockCurrentIconTint, forKey: .sidebarDockCurrentIconTint)
         try container.encode(sidebarDockSections, forKey: .sidebarDockSections)
         try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
         try container.encode(editorMarkCorners, forKey: .editorMarkCorners)

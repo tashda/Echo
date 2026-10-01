@@ -18,10 +18,9 @@ struct SidebarSettingsView: View {
             }
 
             Section {
-                Toggle("Show empty folders", isOn: emptyFoldersToggle)
                 Toggle("Show scroll bar", isOn: scrollBarToggle)
             } footer: {
-                Text("Empty folders such as Views or Functions with nothing in them are hidden unless shown here. The scroll bar is hidden unless shown here; the rail shows which server you're in.")
+                Text("The scroll bar is hidden unless shown here; the rail shows which server you're in.")
             }
 
             Section {
@@ -80,17 +79,6 @@ struct SidebarSettingsView: View {
             set: { enabled in
                 var updated = settings
                 updated.sidebarExpandOneConnectionAtATime = enabled
-                Task { try? await projectStore.updateGlobalSettings(updated) }
-            }
-        )
-    }
-
-    private var emptyFoldersToggle: Binding<Bool> {
-        Binding(
-            get: { settings.sidebarShowsEmptyFolders },
-            set: { enabled in
-                var updated = settings
-                updated.sidebarShowsEmptyFolders = enabled
                 Task { try? await projectStore.updateGlobalSettings(updated) }
             }
         )

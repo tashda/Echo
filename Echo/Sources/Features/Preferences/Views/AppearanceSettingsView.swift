@@ -52,6 +52,39 @@ struct AppearanceSettingsView: View {
                 }
 
                 PropertyRow(
+                    title: "Current Dock Icon",
+                    subtitle: "The section you are in. The header's color falls back to the accent when the header has none."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.sidebarDockCurrentIconTint)) {
+                        ForEach(SidebarDockCurrentIconTint.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                PropertyRow(
+                    title: "Server Header",
+                    subtitle: "How each server's name heads its card. Plain is the name and product line alone."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.serverHeaderStyle)) {
+                        ForEach(ServerHeaderStyle.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                PropertyRow(
+                    title: "Server Header Color",
+                    subtitle: "With the server's color, it also marks the rail, the server's tabs and the footer's server pill."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.serverHeaderColorSource)) {
+                        ForEach(ServerHeaderColorSource.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                PropertyRow(
                     title: "Toolbar Project Button",
                     subtitle: "Show your account avatar or the project icon in the toolbar."
                 ) {

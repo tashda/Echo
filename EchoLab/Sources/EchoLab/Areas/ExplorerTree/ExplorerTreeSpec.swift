@@ -190,9 +190,12 @@ enum ExplorerTreeSpec {
                 .behaviour(.row("Offline or no access", "the row is at 50%; the state (OFFLINE and so on) or NO ACCESS shows in 9pt uppercase quaternary at the right"),
                            .row("No access", "the label is secondary"), .row("Loading", "a mini spinner at the right")),
             ], files: [components + "ObjectBrowserRowView+Components.swift"]),
-            SpecElement(number: "6.2", name: "Empty object folder", summary: "Kept, because its menu creates objects, but it steps back.", groups: [
-                .states(.row("Icon", "quaternary"), .row("Label", "tertiary"), .row("Count and chevron", "none")),
-            ], files: [components + "ObjectBrowserRowView+Components.swift"]),
+            SpecElement(number: "6.2", name: "Empty object folder", summary: "Tables, Views, Functions and Procedures always show, empty or not (EF1, round 30.3); the rarer folders only when they have something. An empty one steps back (EL1).", groups: [
+                .states(.row("Icon", "quaternary"), .row("Label", "tertiary"), .row("Count", "none")),
+                .behaviour(.row("Always shown", "Tables, Views, Functions, Procedures", token: "ExplorerBlueprintWalker.alwaysShownObjectTypes"),
+                           .row("Opening it", "it opens like any folder, to a grey “No views” row (OE0)", token: "ExplorerBlueprintWalker.emptyFolderRow"),
+                           .row("Setting", "none: Show Empty Folders was removed (ST1)")),
+            ], rounds: ["ongoing.empty-folders-r30"], files: [components + "ObjectBrowserRowView+Components.swift", "Echo/Sources/Features/ObjectBrowser/Blueprint/ExplorerBlueprintWalker.swift"]),
             SpecElement(number: "6.3", name: "Item and tool rows", summary: "A loaded item, or a tool the folder offers.", groups: [
                 .material(.row("Item icon", "secondary; quaternary when disabled"), .row("Item label", "primary; secondary when disabled"),
                           .row("Tool icon", "its role colour, like a folder's")),

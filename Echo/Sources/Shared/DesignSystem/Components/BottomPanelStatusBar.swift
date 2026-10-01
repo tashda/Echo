@@ -90,6 +90,7 @@ struct BottomPanelStatusBar: View {
     let configuration: BottomPanelStatusBarConfiguration
 
     @Environment(\.echoMotion) private var motion
+    @Environment(\.serverPillColor) private var serverPillColor
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
@@ -160,14 +161,23 @@ struct BottomPanelStatusBar: View {
     }
 
     private var chipLabel: some View {
-        Text(connectionText)
-            .font(TypographyTokens.detail)
-            .foregroundStyle(ColorTokens.Text.primary)
-            .lineLimit(1)
-            .truncationMode(.middle)
-            .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
-            .frame(height: LayoutTokens.Footer.chipHeight)
-            .contentShape(Capsule())
+        HStack(spacing: SpacingTokens.xxs2) {
+            // Round 30.1, CO2: a dot of the server's colour, as on its tabs.
+            if let serverPillColor {
+                Circle()
+                    .fill(serverPillColor)
+                    .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
+                    .accessibilityHidden(true)
+            }
+            Text(connectionText)
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.primary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
+        .frame(height: LayoutTokens.Footer.chipHeight)
+        .contentShape(Capsule())
     }
 
     // MARK: - Views
@@ -229,4 +239,10 @@ struct BottomPanelStatusBar: View {
             .help(indicator.help ?? "")
         }
     }
+}
+
+extension EnvironmentValues {
+    /// The colour of the server a tab belongs to, for a dot on the footer's server pill (round
+    /// 30.1, CO2); nil when the server's colour doesn't mark it.
+    @Entry var serverPillColor: Color?
 }
