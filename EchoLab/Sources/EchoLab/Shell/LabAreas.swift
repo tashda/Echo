@@ -129,6 +129,11 @@ enum LabAreas {
         "ongoing.rail-history-r39": "window",
         "ongoing.rail-clipboard-r39": "window",
         "ongoing.rail-click-hidden-tree-r40": "window",
+        "ongoing.results-header-lines-r41": "footer-results",
+        "ongoing.results-selection-summary-r41": "footer-results",
+        "ongoing.results-error-page-r41": "footer-results",
+        "ongoing.results-messages-r41": "footer-results",
+        "ongoing.results-pill-popovers-r41": "footer-results",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

@@ -73,7 +73,7 @@ struct LabWKGrid: View {
     var headerRule: HeaderRule = .single
     var selectedColumn: Int?
 
-    enum HeaderRule { case single, doubled, none }
+    enum HeaderRule { case single, doubled, none, thick, soft }
     @Environment(\.labWKStriped) private var striped
 
     static let checkpointColumns: [Column] = [.init(name: "keyName", type: "varchar"), .init(name: "keyValue", type: "varchar"),
@@ -119,13 +119,20 @@ struct LabWKGrid: View {
     @ViewBuilder
     private var rule: some View {
         switch headerRule {
-        case .single: Rectangle().fill(ColorTokens.Separator.primary).frame(height: 1)
+        case .single: Rectangle().fill(ColorTokens.Separator.primary).frame(height: 0.5)
+        case .thick: Rectangle().fill(ColorTokens.Separator.primary).frame(height: 1)
         case .doubled:
-            VStack(spacing: SpacingTokens.xxxs) {
+            // Echo today (measured): ResultTableHeaderView's 1pt line, and the system header's own
+            // 0.5pt line about 4pt below it.
+            VStack(spacing: SpacingTokens.none) {
                 Rectangle().fill(ColorTokens.Separator.primary).frame(height: 1)
-                Rectangle().fill(ColorTokens.Separator.secondary).frame(height: 1)
+                Color.clear.frame(height: SpacingTokens.xxs - 0.5)
+                Rectangle().fill(ColorTokens.Separator.primary).frame(height: 0.5)
             }
-            .offset(y: SpacingTokens.xxxs)
+            .offset(y: SpacingTokens.xxs + 0.5)
+        case .soft:
+            LinearGradient(colors: [ColorTokens.Text.primary.opacity(0.07), .clear], startPoint: .top, endPoint: .bottom)
+                .frame(height: SpacingTokens.xxs2).offset(y: SpacingTokens.xxs2)
         case .none: EmptyView()
         }
     }

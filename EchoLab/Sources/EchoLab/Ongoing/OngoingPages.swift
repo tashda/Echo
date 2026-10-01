@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -487,6 +487,41 @@
         status: .judging,
         summary: "Today (WorkspaceShell, ServerRailClick) a plain click peeks: the tree slides out on glass over the cards until you click outside or press Esc; ⌘-click or a double-click shows the tree. Changes the rail decision (round 3–8) as you asked; this page decides the details.",
         spec: RailClickHiddenTreeRound.spec)
+
+    /// Round 41: Results: the column header's lines.
+    static let resultsHeaderLines = LabPage.round(
+        id: "ongoing.results-header-lines-r41", group: "Footer and results", title: "Results: the column header's lines · round 41", symbol: "line.3.horizontal",
+        status: .judging,
+        summary: "Measured in your screenshot: a 1pt line under the header and a second 0.5pt line about 4pt below it. ResultTableHeaderView.draw adds a full-width separator on top of the one the system header draws. One line, which, or none.",
+        spec: ResultsHeaderLinesRound.spec)
+
+    /// Round 41: Results: the selection summary.
+    static let resultsSelectionSummary = LabPage.round(
+        id: "ongoing.results-selection-summary-r41", group: "Footer and results", title: "Results: the selection summary · round 41", symbol: "sum",
+        status: .judging,
+        summary: "The selection pill (today 89 cells · Sum 34.630.054.833.231 · Avg …) made compact, with a popover of exact figures you can copy.",
+        spec: ResultsSelectionSummaryRound.spec)
+
+    /// Round 41: Results: the error page and its neighbours.
+    static let resultsErrorPage = LabPage.round(
+        id: "ongoing.results-error-page-r41", group: "Footer and results", title: "Results: the error page and its neighbours · round 41", symbol: "exclamationmark.octagon",
+        status: .judging,
+        summary: "How a failed query shows in the results card beside the other states (rows affected, no rows, cancelled, lost connection, running), and whether the editor highlights the statement's first word.",
+        spec: ResultsErrorPageRound.spec)
+
+    /// Round 41: Results: the Messages panel.
+    static let resultsMessages = LabPage.round(
+        id: "ongoing.results-messages-r41", group: "Footer and results", title: "Results: the Messages panel · round 41", symbol: "text.bubble",
+        status: .judging,
+        summary: "The Messages panel without its distractions: categories, two time columns, pink rows, debug metrics and a trash button over Warnings.",
+        spec: ResultsMessagesRound.spec)
+
+    /// Round 41: Results: a popover for each footer pill.
+    static let resultsPillPopovers = LabPage.round(
+        id: "ongoing.results-pill-popovers-r41", group: "Footer and results", title: "Results: a popover for each footer pill · round 41", symbol: "rectangle.3.group.bubble",
+        status: .judging,
+        summary: "Rows, time and status each open their own popover with what that pill is about, instead of one general one.",
+        spec: ResultsPillPopoversRound.spec)
 
     // ROUNDS-DEFINITIONS
 }
