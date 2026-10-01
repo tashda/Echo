@@ -133,6 +133,12 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - Numbers stop at the last line; the tint still runs the card's full height. *Decided.*
   - Every style gets the current-line number and validation markers (a red dot on failing lines) in a column left of the numbers. *Decided.*
 - **Caret line and selection (round 28.3):** nothing behind the caret's line; the system selection colour with 3pt corners (Selection Corners: Square, 2, 3, 4, 6pt); the system insertion point. *Decided.*
+- **Marks on the text (round 28.5):** the word at the caret's other uses get a soft tint as high as the letters, with Settings › Highlight Corners (3pt); typing ) flashes its (; no glass on text. *Decided.*
+- **Errors (round 28.6):** a tinted red pill behind the wrong word, the same while typing and after a run; the message in a glass popover with a pointer, on hover or with the caret on the line; the live check runs when you leave the line or 2 s after typing. *Decided.*
+- **After a run (round 28.7):** a glass pill with the result's symbol after each statement that ran; the statement's bracket breathes while it runs, and a line beside it fades when it ends. *Decided.*
+- **Zoom (round 28.8):** a glass “100%” pill at the editor's bottom left with a menu; ⌘+ ⌘− ⌘0 and pinch; per tab. *Decided.*
+- **Typing (round 28.9):** soft tabs of four, Return keeps the indent, brackets and quotes close themselves, ⌘/ toggles --, Go to Line is a glass field. *Decided.*
+- **Empty tab (round 28.10):** “Start typing a query” where you type; nothing else. *Decided.*
 - **Statement at the caret (round 28.4):** a thin accent bracket beside its line numbers, solid for a selected script result's statement; the Run arrow is grey and turns accent under the pointer. *Decided.*
   - Fixes that apply either way: one number per logical line, width that grows with digit count, and using the theme's gutter colours. *Decided.*
 - **After the first run, the results grow up out of the footer** (round 10, RS2): the footer detaches from the editor card as a footer-high results card, then the seam travels up to the split line while the rows fade in. The editor keeps its scroll position, undo and focus. *Decided.*

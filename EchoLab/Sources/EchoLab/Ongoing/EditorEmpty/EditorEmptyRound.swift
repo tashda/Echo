@@ -17,9 +17,9 @@ enum EditorEmptyRound {
             LabQERound.baseControl,
         ],
         exhibits: [
-            .init(id: "today", title: "Echo today", summary: "The prompt and chips 52pt in and 32pt down, in the system font.", isEchoToday: true,
+            .init(id: "today", title: "Echo before round 28", summary: "The prompt and chips 52pt in and 32pt down, in the system font.", isEchoToday: true,
                   designWidth: LabQERound.width, designHeight: 260) { _ in
-                LabQEEditor(style: .today, scene: LabQEScene(empty: true), hints: .today)
+                LabQEEditor(style: .before28, scene: LabQEScene(empty: true), hints: .today)
             },
             .init(id: "proposal", title: "Proposal", summary: "Where the control puts them.", designWidth: LabQERound.width, designHeight: 260) { values in
                 LabQEEditor(style: LabQEBase.proposal(values), scene: LabQEScene(empty: true), hints: LabQEHintsPlace(rawValue: values["hints"]) ?? .firstLine)

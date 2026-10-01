@@ -90,6 +90,10 @@
       {
         "date": "2026-10-01T11:39:43Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (433f34e1): the prompt on the first line where you type, in the editor's font; no chips"
       }
     ],
     "needsMore": [],
@@ -104,7 +108,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-errors-r28": {
@@ -155,6 +159,10 @@
       {
         "date": "2026-10-01T12:17:02Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (306a8fb2): one tinted pill for every error (E10), its message in a glass popover with a pointer (BB3) on hover or with the caret on the line; the live check when you leave the line or after 2 s"
       }
     ],
     "needsMore": [],
@@ -196,7 +204,7 @@
         "summary": "Everything for the wrong word, more glows, and new bubbles"
       }
     ],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-find-bar-r28": {
@@ -308,6 +316,10 @@
       {
         "date": "2026-10-01T11:39:42Z",
         "text": "Revision 2: Find moved to page 28.12; the rest accepted in chat"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (8464a8c1): Go to Line as a glass field; Tab is 4 spaces, \u21e7Tab outdents; Return keeps the indent; brackets and quotes close themselves; \u2318/ toggles --"
       }
     ],
     "needsMore": [
@@ -334,7 +346,7 @@
         "summary": "Find moved to page 28.12; the rest accepted in chat"
       }
     ],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-gutter-r28": {
@@ -402,6 +414,10 @@
       {
         "date": "2026-10-01T11:42:54Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (56799682): the word's other uses in a soft tint as high as the letters, with Settings \u203a Highlight Corners (3pt); typing ) flashes its (. Find waits for 28.12"
       }
     ],
     "needsMore": [],
@@ -434,7 +450,7 @@
         "summary": "Find matches drawn in the editor, more corners"
       }
     ],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-run-note-r28": {
@@ -476,6 +492,10 @@
       {
         "date": "2026-10-01T11:58:10Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (f530ad91): the note on a glass pill with a symbol (R10), one per statement of a script (MS0); the bracket breathes while it runs (RR1), a gutter line fades when it ends (H9)"
       }
     ],
     "needsMore": [],
@@ -514,7 +534,7 @@
         "summary": "While running: what the bracket does while the query runs"
       }
     ],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-settings-r28": {
@@ -530,6 +550,10 @@
       {
         "date": "2026-10-01T11:41:35Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (c30bc3e7): one Settings \u203a Editor pane; switches for line numbers, word highlight and wrapping; only Aurora and Midnight; whole font sizes"
       }
     ],
     "needsMore": [],
@@ -550,7 +574,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-statement-r28": {
@@ -638,6 +662,10 @@
       {
         "date": "2026-10-01T11:35:44Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (a80770d9): a glass 100% pill at the bottom left with a menu; \u2318+ \u2318\u2212 \u23180 and pinch; per tab, editor only"
       }
     ],
     "needsMore": [],
@@ -655,7 +683,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.mssql-always-encrypted-r29": {

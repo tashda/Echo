@@ -27,7 +27,7 @@ enum EditorMarksRound {
             LabQERound.baseControl,
         ],
         exhibits: [
-            LabQERound.today("shipped_at on lines 5 and 12 in the selection blue at 30%, the whole line high.", scene: .typing),
+            LabQERound.today("shipped_at on lines 5 and 12 in the selection blue at 30%, the whole line high.", scene: .typing, before28: true),
             LabQERound.proposal("Built from the controls; try Finding “orders” too.", scene: .typing),
             LabQERound.gallery("Word highlights", "Every way of marking the word's other uses, on the proposal.", LabQEWordHighlight.self, \.wordHighlight, scene: .typing),
             LabQERound.gallery("Find matches", "Every way of marking find matches, finding “orders” (lines 3 and 10; the first is the current one).", LabQEFindPreview.self, \.findPreview,

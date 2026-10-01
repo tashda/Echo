@@ -368,6 +368,14 @@ Rules: `decisions.md` › 2026-10-01 round 28; `05-components` › Editor card.
 | QE3 | **Caret line and selection (28.3):** no band; system selection with corners from Settings (3pt); system caret. | `SQLTextView`, `SQLLayoutManager.fillBackgroundRectArray`, `EditorSelectionCorners`, `AppearanceSettingsView+Selection` | `EditorTypographySettingsTests` 👁 | ☑ 9715ce3b, 👁 pending |
 | QE4 | **Statement (28.4):** a bracket beside the numbers, solid for a selected result's statement; grey Run arrow, accent on hover. | `SQLTextView+StatementFocus`, `LineNumberRulerView+StatementBracket`, `LayoutTokens.EditorGutter.statementBracket*` | `StatementFocusTests` 👁 | ☑ 9715ce3b, 👁 pending |
 | QE5 | **Run note count:** every row the server sent, as the footer. | `QueryEditorState+Execution` | `QueryEditorStateRunNoteTests` | ☑ 18b2898d |
+| QE6 | **Marks (28.5):** soft letters-high word highlight with Highlight Corners; bracket flash. | `SQLTextView+Background`, `+BracketMatch` | `EditorMarksTests` 👁 | ☑ 56799682, 👁 pending |
+| QE7 | **Errors (28.6):** tinted pill, glass popover bubble on hover or caret line, live check on leaving the line or 2 s. | `ErrorPillView`, `ErrorBubble`, `SQLTextView+ErrorMark`, `+Validation` | `EditorErrorMarkTests` 👁 | ☑ 306a8fb2, 👁 pending |
+| QE8 | **Run note (28.7):** glass pill per statement; breathing bracket while running; fading line when done. | `RunNotePill`, `QueryEditorState+RunNotes`, `LineNumberRulerView+RunMarks` | `QueryEditorStateRunNoteTests` 👁 | ☑ f530ad91, 👁 pending |
+| QE9 | **Zoom (28.8):** 100% pill, menu, ⌘+ ⌘− ⌘0, pinch, per tab. | `EditorZoom`, `EditorZoomControl`, `SQLTextView+Zoom`, `EchoApp+ViewMenu` | `EditorZoomTests` 👁 | ☑ a80770d9, 👁 pending |
+| QE10 | **Typing (28.9):** Go to Line field, soft tabs, indent, pairs, ⌘/. | `SQLEditorTyping`, `SQLTextView+Typing`, `GoToLineField` | `EditorTypingTests` 👁 | ☑ 8464a8c1, 👁 pending |
+| QE11 | **Empty tab (28.10):** prompt on line 1, nothing else. | `SQLTextView+Placeholder` | `TablePreviewQueryTests` 👁 | ☑ 433f34e1, 👁 pending |
+| QE12 | **Settings (28.11):** Settings › Editor; Aurora and Midnight only; whole sizes. | `EditorSettingsView`, `SQLEditorPalette+BuiltIn` | `EditorTypographySettingsTests`, `GlobalSettingsTests` 👁 | ☑ c30bc3e7, 👁 pending |
+| QE13 | **Find bar (28.12):** FB5 chosen; Replace and scope still being judged. | | | ☐ |
 
 ## Phase 10 · Finish
 

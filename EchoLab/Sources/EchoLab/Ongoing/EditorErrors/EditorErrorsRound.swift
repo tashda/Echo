@@ -38,7 +38,7 @@ enum EditorErrorsRound {
             LabQERound.baseControl,
         ],
         exhibits: [
-            LabQERound.today("While typing: the glowing frame and the pill. After a failed run: the squiggle, the bubble on hover and “! Error”.", scene: .liveError),
+            LabQERound.today("While typing: the glowing frame and the pill. After a failed run: the squiggle, the bubble on hover and “! Error”.", scene: .liveError, before28: true),
             LabQERound.proposal("Built from the controls, the same while typing and after a run. Point at the word.", scene: .liveError),
             LabQERound.gallery("Marks", "Every way of marking the wrong word, on the proposal (rev 3: nine without a glow).", LabQEErrorWord.self, \.errorWord,
                                scene: .liveError, cellHeight: 120),

@@ -49,22 +49,26 @@ struct LabQEStyle {
 
     static let before28 = LabQEStyle()
 
-    /// Built into Echo: 28.1 text, 28.2 gutter, 28.3 caret line and selection, 28.4 statement.
+    /// Built into Echo: 28.1 to 28.11 (find looks wait for 28.12).
     static let today = LabQEStyle(
         font: .sfMono, size: .s13, ligatures: .off, lineHeight: .comfortable, codeGap: .g16, topMargin: .m8,
         gutter: .subtle, numberFont: .smaller, numberColour: .tertiary, currentNumber: .primary, markers: .left,
         currentLine: .noBand, selectionColour: .system, selectionShape: .rounded, caret: .accent,
-        statement: .bracket, runArrow: .symbol)
+        statement: .bracket, runArrow: .symbol, wordHighlight: .soft, markCorner: .c3, markHeight: .letters,
+        errorWord: .pill, errorMessage: .hover, errorDot: .dot,
+        runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .gutterLine,
+        zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always,
+        runningMark: .breathe, errorBubble: .glass)
 
     static let recommended = LabQEStyle(
         font: .sfMono, size: .s13, ligatures: .off, lineHeight: .comfortable, codeGap: .g16, topMargin: .m8,
         gutter: .subtle, numberFont: .smaller, numberColour: .tertiary, currentNumber: .primary, markers: .left,
         currentLine: .noBand, selectionColour: .system, selectionShape: .rounded, caret: .accent,
         statement: .bracket, runArrow: .symbol, wordHighlight: .soft, markCorner: .followSelection, markHeight: .letters,
-        errorWord: .glow, errorMessage: .hover, errorDot: .dot,
+        errorWord: .pill, errorMessage: .hover, errorDot: .dot,
         runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .gutterLine,
-        zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always, errorGlow: .hairlineHalo,
-        runningMark: .breathe, errorBubble: .card)
+        zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always, errorGlow: .today,
+        runningMark: .breathe, errorBubble: .glass)
         .with { $0.findBar = .safari; $0.replaceStyle = .preview; $0.findScope = .selectionButton }
 
     func with(_ change: (inout LabQEStyle) -> Void) -> LabQEStyle {

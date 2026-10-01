@@ -26,7 +26,7 @@ enum EditorZoomRound {
             LabQERound.baseControl,
         ],
         exhibits: [
-            LabQERound.today("No zoom: the font size is a setting for every editor.", scene: .typing),
+            LabQERound.today("No zoom: the font size is a setting for every editor.", scene: .typing, before28: true),
             LabQERound.proposal("Built from the controls; the control works.", scene: .typing),
             LabQERound.gallery("Places", "Every place, on the proposal at the current zoom.", LabQEZoomPlace.self, \.zoomPlaceChoice, scene: .typing),
         ],
