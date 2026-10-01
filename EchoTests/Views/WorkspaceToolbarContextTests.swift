@@ -26,4 +26,21 @@ struct WorkspaceToolbarContextTests {
         // A schema diff neither runs queries nor reloads (round 34: a diagram reloads, so it shows Refresh).
         #expect(WorkspaceToolbarContext(kind: nil, databaseType: nil) == WorkspaceToolbarContext(kind: .schemaDiff, databaseType: nil))
     }
+
+    /// Round 37.5: the toolbar counts a tab's buttons by shape only, so a button's state never
+    /// rebuilds it.
+    @Test func aTabsButtonsCountByShape() {
+        let refresh = TabToolbarItem.refresh {}
+        let trace = TabToolbarItem(id: "trace", title: "Start Trace", symbol: "play.fill")
+        let context = WorkspaceToolbarContext(kind: .profiler, databaseType: .microsoftSQL,
+                                              section: TabToolbarSection(special: trace, groups: [[refresh], [], [refresh], [refresh], [refresh]]))
+        #expect(context.hasTabSpecial)
+        #expect(context.tabGroupCount == WorkspaceToolbarContext.maxTabGroups)
+        var busy = refresh
+        busy.isBusy = true
+        let same = WorkspaceToolbarContext(kind: .profiler, databaseType: .microsoftSQL,
+                                           section: TabToolbarSection(special: trace, groups: [[busy], [busy], [busy]]))
+        #expect(context == same)
+        #expect(!WorkspaceToolbarContext(kind: .policyManagement, databaseType: nil, section: nil).hasTabSpecial)
+    }
 }

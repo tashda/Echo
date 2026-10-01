@@ -151,9 +151,11 @@ struct WorkspaceTabContainerView: View {
         .id(tab.id)
         // Round 37.5: what the tab's content sets for the window toolbar is kept on the tab, so
         // the toolbar draws the front tab's buttons.
-        .onPreferenceChange(TabToolbarSectionKey.self) { [tab] section in
+        .onPreferenceChange(TabToolbarSectionKey.self) { [tab, tabStore] section in
             MainActor.assumeIsolated {
-                if tab.toolbarSection != section { tab.toolbarSection = section }
+                guard tab.toolbarSection != section else { return }
+                tab.toolbarSection = section
+                tabStore.toolbarSectionDidChange(for: tab)
             }
         }
         // Round 30.1, CO2: the footer's server pill carries a dot of the server's colour.

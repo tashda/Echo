@@ -151,16 +151,23 @@ final class TabStore {
         refreshToolbarContext()
     }
 
+    /// A tab's content set new toolbar buttons (round 37.5); the front tab's may change the toolbar's
+    /// shape.
+    func toolbarSectionDidChange(for tab: WorkspaceTab) {
+        if tab.id == activeTabId { refreshToolbarContext() }
+    }
+
     private func refreshToolbarContext() {
         let tab = activeTab
-        let context = WorkspaceToolbarContext(kind: tab?.kind, databaseType: tab?.connection.databaseType)
+        let context = WorkspaceToolbarContext(kind: tab?.kind, databaseType: tab?.connection.databaseType, section: tab?.toolbarSection)
         guard context != activeTabToolbarContext || tab?.kind != activeTabKind else { return }
         // A frame later: re-creating the toolbar's items takes ~50 ms, and done in the same update
         // it held back the new tab itself. The tab shows first, the toolbar follows.
         toolbarContextTask?.cancel()
         toolbarContextTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
-            let current = WorkspaceToolbarContext(kind: self.activeTab?.kind, databaseType: self.activeTab?.connection.databaseType)
+            let current = WorkspaceToolbarContext(kind: self.activeTab?.kind, databaseType: self.activeTab?.connection.databaseType,
+                                                  section: self.activeTab?.toolbarSection)
             if current != self.activeTabToolbarContext { self.activeTabToolbarContext = current }
             if self.activeTab?.kind != self.activeTabKind { self.activeTabKind = self.activeTab?.kind }
         }

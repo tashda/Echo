@@ -12,6 +12,8 @@ struct TabToolbarItem: Identifiable, Sendable, Equatable {
     var isDisabled = false
     /// A toggle that is on (Statistics, Watch Live Data): the symbol in the accent colour.
     var isOn = false
+    /// A switch (DISTINCT, Watch Live Data): drawn as a toolbar toggle so on and off show natively.
+    var isToggle = false
     /// A spinner in place of the symbol (Refresh while reloading).
     var isBusy = false
     /// What it started is running: a special button turns into `runningTitle` with a pulsing dot.
@@ -23,7 +25,7 @@ struct TabToolbarItem: Identifiable, Sendable, Equatable {
 
     static func == (lhs: TabToolbarItem, rhs: TabToolbarItem) -> Bool {
         lhs.id == rhs.id && lhs.title == rhs.title && lhs.symbol == rhs.symbol && lhs.isDisabled == rhs.isDisabled
-            && lhs.isOn == rhs.isOn && lhs.isBusy == rhs.isBusy && lhs.isRunning == rhs.isRunning
+            && lhs.isOn == rhs.isOn && lhs.isToggle == rhs.isToggle && lhs.isBusy == rhs.isBusy && lhs.isRunning == rhs.isRunning
             && lhs.runningTitle == rhs.runningTitle && lhs.menu == rhs.menu
     }
 

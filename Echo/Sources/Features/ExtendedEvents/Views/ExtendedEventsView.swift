@@ -107,7 +107,7 @@ struct ExtendedEventsView: View {
         let canWatch = viewModel.sessions.first(where: { $0.name == viewModel.selectedSessionName })?.isRunning == true
         return TabToolbarItem(id: "watchLiveData",
                               title: canWatch || isWatchingLiveData ? "Watch Live Data" : "Select a running session to watch live data",
-                              symbol: "waveform.path.ecg", isDisabled: !canWatch && !isWatchingLiveData, isOn: isWatchingLiveData) { [viewModel, panelState] in
+                              symbol: "waveform.path.ecg", isDisabled: !canWatch && !isWatchingLiveData, isOn: isWatchingLiveData, isToggle: true) { [viewModel, panelState] in
             if panelState.isOpen && panelState.selectedSegment == .liveData {
                 panelState.isOpen = false
             } else {

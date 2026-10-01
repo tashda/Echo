@@ -79,7 +79,7 @@ struct ResourceGovernorView: View {
         var items: [TabToolbarItem] = []
         if let config = viewModel.configuration {
             items.append(TabToolbarItem(id: "enable", title: config.isEnabled ? "Disable Resource Governor" : "Enable Resource Governor",
-                                        symbol: "power", isDisabled: viewModel.isToggling, isOn: config.isEnabled) { [viewModel] in
+                                        symbol: "power", isDisabled: viewModel.isToggling, isOn: config.isEnabled, isToggle: true) { [viewModel] in
                 Task { await viewModel.toggleEnabled() }
             })
         }

@@ -55,9 +55,10 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     // MARK: - Right Side (plan K2)
 
-    /// The front tab's own buttons (round 37.5): its symbol, its special button (Run, Start Trace,
-    /// New Backup…) and one capsule of its other buttons, before the window's icons. One custom
-    /// item that draws its own glass, so the glass can reshape from one tab's buttons to the next.
+    /// The front tab's own buttons (round 37.5), native toolbar items before the window's icons:
+    /// the query editor's Run (its own glass, round 24) and its two groups; any other tab's special
+    /// button, then each group of its other buttons. The items stay put and only hide, so the
+    /// toolbar is not rebuilt as tabs switch; their buttons change in place.
     @ToolbarContentBuilder
     private var contextActionItems: some ToolbarContent {
         // The owner, 2026-10-01: Open in New Window is its own group at the start of the right-hand
@@ -69,10 +70,61 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
         ToolbarSpacer(.fixed, placement: .primaryAction)
 
-        ToolbarItem(id: "workspace.primary.tabsection", placement: .primaryAction) {
-            TabToolbarSectionView()
+        ToolbarItem(id: "workspace.primary.queryrun", placement: .primaryAction) {
+            QueryRunToolbarItem()
         }
+        .hidden(!toolbarContext.isQuery)
+        // Run draws its own glass so it can turn red without swapping buttons (round 24).
         .sharedBackgroundVisibility(.hidden)
+        .keptOutOfOverflow()
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
+        ToolbarItem(id: "workspace.primary.queryenhance", placement: .primaryAction) {
+            QueryEditorEnhanceToolbarControls()
+        }
+        .hidden(!toolbarContext.isQuery)
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
+        ToolbarItem(id: "workspace.primary.querydb", placement: .primaryAction) {
+            QueryEditorDatabaseToolbarControls()
+        }
+        .hidden(!toolbarContext.hasDatabaseToggles)
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
+        tabItems
+    }
+
+    /// Any other tab's special button, then each group of its other buttons (round 37.5).
+    @ToolbarContentBuilder
+    private var tabItems: some ToolbarContent {
+        ToolbarItem(id: "workspace.primary.tabspecial", placement: .primaryAction) {
+            TabToolbarSpecialSlot()
+        }
+        .hidden(!toolbarContext.hasTabSpecial)
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
+        ToolbarItem(id: "workspace.primary.tabgroup0", placement: .primaryAction) {
+            TabToolbarGroupSlot(index: 0)
+        }
+        .hidden(toolbarContext.tabGroupCount < 1)
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
+        ToolbarItem(id: "workspace.primary.tabgroup1", placement: .primaryAction) {
+            TabToolbarGroupSlot(index: 1)
+        }
+        .hidden(toolbarContext.tabGroupCount < 2)
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
+        ToolbarItem(id: "workspace.primary.tabgroup2", placement: .primaryAction) {
+            TabToolbarGroupSlot(index: 2)
+        }
+        .hidden(toolbarContext.tabGroupCount < 3)
 
         ToolbarSpacer(.fixed, placement: .primaryAction)
     }

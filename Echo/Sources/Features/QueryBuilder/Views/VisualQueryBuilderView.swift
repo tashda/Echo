@@ -31,7 +31,7 @@ struct VisualQueryBuilderView: View {
             special: TabToolbarItem(id: "addJoin", title: "Add Join", symbol: "arrow.triangle.swap",
                                     isDisabled: viewModel.tables.count < 2) { showAddJoinSheet = true },
             groups: [[
-                TabToolbarItem(id: "distinct", title: "DISTINCT", symbol: "square.on.square.dashed", isOn: viewModel.distinct) { [viewModel] in
+                TabToolbarItem(id: "distinct", title: "DISTINCT", symbol: "square.on.square.dashed", isOn: viewModel.distinct, isToggle: true) { [viewModel] in
                     viewModel.distinct.toggle()
                 },
                 TabToolbarItem(id: "addFilter", title: "Add Filter", symbol: "line.3.horizontal.decrease",

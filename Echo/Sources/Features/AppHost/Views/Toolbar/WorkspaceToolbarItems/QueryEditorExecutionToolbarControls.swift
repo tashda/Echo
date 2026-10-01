@@ -1,8 +1,21 @@
 import SwiftUI
 import EchoSense
 
-/// Format, Validate, Context Help and Estimated Plan: the query tab's group in its toolbar
-/// section, after Run (round 37.5).
+/// Standalone Run button — shown only when a query editor tab is active.
+/// Separate Liquid Glass group, positioned as the leftmost query action.
+struct QueryRunToolbarItem: View {
+    @Environment(TabStore.self) private var tabStore
+
+    var body: some View {
+        if tabStore.activeTabToolbarContext.isQuery, let tab = tabStore.activeTab, tab.query != nil {
+            // No `.id(tab.id)`: a new identity per tab re-creates the window's toolbar items on
+            // every tab switch. The control takes the new tab's state itself.
+            QueryRunToolbarControl(tabStore: tabStore)
+        }
+    }
+}
+
+/// Format, Validate, Context Help and Estimated Plan: the query tab's own group, after Run.
 struct QueryEditorEnhanceToolbarControls: View {
     @Environment(TabStore.self) private var tabStore
 
