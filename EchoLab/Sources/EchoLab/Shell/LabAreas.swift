@@ -140,6 +140,11 @@ enum LabAreas {
         "ongoing.context-menu-table-r42": "explorer-tree",
         "ongoing.context-menu-column-r42": "explorer-tree",
         "ongoing.context-menu-folder-r42": "explorer-tree",
+        "ongoing.settings-preview-r43": "foundations",
+        "ongoing.settings-pictures-r43": "foundations",
+        "ongoing.settings-controls-r43": "foundations",
+        "ongoing.settings-template-r43": "foundations",
+        "ongoing.settings-scenarios-r43": "foundations",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

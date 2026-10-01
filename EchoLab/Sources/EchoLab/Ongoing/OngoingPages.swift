@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder , settingsPreview , settingsPictures , settingsControls , settingsTemplate , settingsScenarios /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -564,6 +564,41 @@
         status: .judging,
         summary: "Tables, Security, Agent Jobs and the other folders: what right-clicking a folder offers.",
         spec: ContextMenuFolderRound.spec)
+
+    /// Round 43: Settings: the page and its preview.
+    static let settingsPreview = LabPage.round(
+        id: "ongoing.settings-preview-r43", group: "Foundations", title: "Settings: the page and its preview · round 43", symbol: "gearshape",
+        status: .judging,
+        summary: "Today Settings › Editor has one font preview near the top that scrolls away, and a gutter style explained in a sentence. Where a live preview sits so every change shows (top, pinned, per section, beside the settings), drawn on an editor that follows every Editor setting.",
+        spec: SettingsPreviewRound.spec)
+
+    /// Round 43: Settings: a picture for every choice.
+    static let settingsPictures = LabPage.round(
+        id: "ongoing.settings-pictures-r43", group: "Foundations", title: "Settings: a picture for every choice · round 43", symbol: "photo.on.rectangle",
+        status: .judging,
+        summary: "Choices shown as what they look like (gutter styles, mark corners and strength as small renderings) instead of words, and the preview pointing at what a setting changed.",
+        spec: SettingsPicturesRound.spec)
+
+    /// Round 43: Settings: controls and words.
+    static let settingsControls = LabPage.round(
+        id: "ongoing.settings-controls-r43", group: "Foundations", title: "Settings: controls and words · round 43", symbol: "switch.2",
+        status: .judging,
+        summary: "One vocabulary for settings: switches, choices, numbers, descriptions, the info button and resetting a single setting.",
+        spec: SettingsControlsRound.spec)
+
+    /// Round 43: Settings: the template on other pages.
+    static let settingsTemplate = LabPage.round(
+        id: "ongoing.settings-template-r43", group: "Foundations", title: "Settings: the template on other pages · round 43", symbol: "rectangle.stack",
+        status: .judging,
+        summary: "The Editor page's design applied to Results, Sidebar and Appearance, to check it works as the template for every page.",
+        spec: SettingsTemplateRound.spec)
+
+    /// Round 43: Settings: search, reset and overrides.
+    static let settingsScenarios = LabPage.round(
+        id: "ongoing.settings-scenarios-r43", group: "Foundations", title: "Settings: search, reset and overrides · round 43", symbol: "magnifyingglass",
+        status: .judging,
+        summary: "Finding a setting, seeing what you changed, resetting, settings per connection, and what syncs.",
+        spec: SettingsScenariosRound.spec)
 
     // ROUNDS-DEFINITIONS
 }
