@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import ServerLabCatalog
 import ServerLabKit
+import ServerLabWorkloads
 
 /// A server started from a lab recipe (`ServerLabKit.LabServer`; Echo Labs has its own `LabServer`).
 typealias LabDatabaseServer = ServerLabKit.LabServer
@@ -30,6 +31,8 @@ final class LabServersModel {
     private(set) var explained: [ExplainedMessage] = []
     /// Fresh SQLite fixture copies made on this page.
     private(set) var sqliteCopies: [LabSQLiteFixture: URL] = [:]
+    /// Live workloads started here, by server container name (set in +Workloads).
+    var workloads: [String: LabWorkload] = [:]
     private(set) var explainedServer: String?
 
     /// Echo Labs marks the servers it starts with this owner.

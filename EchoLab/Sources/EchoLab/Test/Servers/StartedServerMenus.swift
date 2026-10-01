@@ -1,8 +1,9 @@
 import EchoDesignSystem
 import ServerLabKit
+import ServerLabWorkloads
 import SwiftUI
 
-/// Parts and fault menus for a server started from the Servers page.
+/// Parts, fault and workload menus for a server started from the Servers page.
 struct StartedServerMenus: View {
     let model: LabServersModel
     let server: LabDatabaseServer
@@ -48,6 +49,15 @@ struct StartedServerMenus: View {
         }
         .fixedSize()
         .help(hasProxy ? "Faults act on connections to the proxy part's port" : "Faults need a proxy in front of the server")
+
+        Menu("Workload") {
+            Button("Blocking chain") { Task { await model.startWorkload(.blockingChain, on: server) } }
+            Button("Idle in transaction") { Task { await model.startWorkload(.idleInTransaction, on: server) } }
+            Button("Stop workload") { Task { await model.stopWorkload(on: server) } }
+                .disabled(model.workloads[server.containerName] == nil)
+        }
+        .fixedSize()
+        .help("Sessions that hold a lock with others waiting, or an open transaction, for the Activity Monitor")
     }
 }
 
