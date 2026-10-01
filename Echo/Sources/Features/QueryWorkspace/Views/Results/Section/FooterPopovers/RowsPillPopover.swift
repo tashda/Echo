@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The rows pill's popover (round 41.5, PR0): rows and columns, which result set, rows loaded
-/// against the total while streaming, the memory the results take; Export and Copy All.
+/// against the total while streaming, the memory the results take (owner: no Export or Copy All here).
 struct RowsPillPopover: View {
     @Bindable var query: QueryEditorState
 
@@ -28,14 +28,6 @@ struct RowsPillPopover: View {
             if let memoryBytes {
                 FooterPopoverLine(label: "In memory", value: EchoFormatters.bytes(memoryBytes))
             }
-            Divider()
-            HStack(spacing: SpacingTokens.xs) {
-                Button("Export\u{2026}") { query.resultsActionRequest = ResultsActionRequest(kind: .export) }
-                Button("Copy All") { query.resultsActionRequest = ResultsActionRequest(kind: .copyAll) }
-                Spacer(minLength: SpacingTokens.none)
-            }
-            .controlSize(.small)
-            .disabled(query.isExecuting || rowCount == 0)
         }
     }
 

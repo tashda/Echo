@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The time pill's popover (round 41.5, PT0): where the time went (sending, waiting for the first
-/// row, reading rows), when the run started and finished, and this tab's last runs; Run Again.
+/// row, reading rows), when the run started and finished, and this tab's last runs (owner: no Run Again).
 struct TimePillPopover: View {
     @Bindable var query: QueryEditorState
 
@@ -26,10 +26,6 @@ struct TimePillPopover: View {
             }
             if let earlier = earlierRunsText {
                 FooterPopoverLine(label: "Last runs", value: earlier)
-            }
-            if let rerun = query.rerunAction, !query.isExecuting {
-                Divider()
-                Button("Run Again", action: rerun).controlSize(.small)
             }
         }
     }

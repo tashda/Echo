@@ -84,17 +84,7 @@ struct StatusPillPopover: View {
         if let error = failureMessage, query.failureLine(for: error) != nil {
             buttons.append(Action(title: "Show in Editor") { query.showFailureInEditor(message: error) })
         }
-        if failureMessage != nil || !transactionActions.isEmpty || serverMessageCount > 0 {
-            buttons.append(Action(title: "Messages") { showMessages() })
-        }
-        if let rerun = query.rerunAction, query.hasExecutedAtLeastOnce {
-            buttons.append(Action(title: "Run Again", action: rerun))
-        }
+        // Owner, after round 41.5: no Messages or Run Again here.
         return buttons
-    }
-
-    private func showMessages() {
-        panelState.selectedSegment = .messages
-        if !panelState.isOpen { panelState.isOpen = true }
     }
 }
