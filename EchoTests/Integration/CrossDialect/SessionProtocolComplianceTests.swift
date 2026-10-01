@@ -1,9 +1,10 @@
 import XCTest
+import ServerLabClient
 @testable import Echo
 
 /// Verifies that every DatabaseSession protocol method is callable and returns
-/// expected types when backed by SQLite (always available, no Docker needed).
-/// Methods requiring Docker-only dialects are skipped unless USE_DOCKER=1.
+/// expected types when backed by SQLite (always available, no server needed).
+/// The SQL Server checks at the end use the lab server the suites share and skip without the lab.
 final class SessionProtocolComplianceTests: XCTestCase {
 
     // MARK: - Helpers
@@ -22,10 +23,6 @@ final class SessionProtocolComplianceTests: XCTestCase {
             ),
             connectTimeoutSeconds: 5
         )
-    }
-
-    private var isDockerAvailable: Bool {
-        ProcessInfo.processInfo.environment["USE_DOCKER"] == "1"
     }
 
     /// Creates a test table for methods that require existing schema objects.
@@ -367,37 +364,50 @@ final class SessionProtocolComplianceTests: XCTestCase {
         }
     }
 
-    // MARK: - Docker-only tests (skipped by default)
+    // MARK: - On a SQL Server (the lab server the suites share; skipped without the lab)
 
-    func testListDatabasesRequiresDocker() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
+    private func sqlServerSession(database: String = "master") async throws -> DatabaseSession {
+        let server = try await LabSharedServers.serverForSuite(MSSQLLabTestCase.recipe)
+        return try await MSSQLNIOFactory().connect(
+            host: server.host, port: server.port, database: database, tls: true, trustServerCertificate: true,
+            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password),
+            connectTimeoutSeconds: 30
+        )
+    }
 
-        // Would connect to a real Postgres or MSSQL here
-        // Placeholder: verify the protocol method exists and is callable
-        let session = try await createMemorySession()
-        defer { Task { @MainActor in await session.close() } }
-
+    func testListDatabasesOnSQLServer() async throws {
+        let session = try await sqlServerSession()
         let databases = try await session.listDatabases()
-        XCTAssertNotNil(databases)
+        await session.close()
+        XCTAssertTrue(Set(["master", "msdb", "tempdb"]).isSubset(of: Set(databases)), "\(databases)")
     }
 
-    func testSessionForDatabaseRequiresDocker() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
+    func testSessionForDatabaseOnSQLServerUsesThatDatabase() async throws {
+        let session = try await sqlServerSession()
+        let msdb = try await session.sessionForDatabase("msdb")
+        let name = try await msdb.simpleQuery("SELECT DB_NAME()").rows.first?.first ?? nil
+        await session.close()
+        XCTAssertEqual(name, "msdb")
     }
 
-    func testMakeActivityMonitorRequiresDocker() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
+    func testMakeActivityMonitorOnSQLServer() async throws {
+        let session = try await sqlServerSession()
+        defer { Task { await session.close() } }
+        XCTAssertNoThrow(try session.makeActivityMonitor())
     }
 
-    func testIsSuperuserRequiresDocker() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
+    func testIsSuperuserOnSQLServerForTheAdminLogin() async throws {
+        let session = try await sqlServerSession()
+        let isSuperuser = try await session.isSuperuser()
+        await session.close()
+        XCTAssertTrue(isSuperuser, "the lab's admin login is sysadmin")
     }
 
-    func testGetObjectDefinitionRequiresDocker() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
-    }
-
-    func testListExtensionObjectsRequiresDocker() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
+    func testGetObjectDefinitionOnSQLServer() async throws {
+        let session = try await sqlServerSession()
+        let definition = try await session.getObjectDefinition(objectName: "sp_help_job", schemaName: "dbo",
+                                                               objectType: .procedure, database: "msdb")
+        await session.close()
+        XCTAssertTrue(definition.localizedCaseInsensitiveContains("sp_help_job"), definition.prefix(200).description)
     }
 }

@@ -10,4 +10,6 @@ let labIntegrationNote: Comment = "Needs echo-server-lab: run the EchoTests plan
 /// Recipes of the servers the XCTest suites share (`LabSharedServers`).
 enum LabRecipes {
     static let postgres = "pg-17-empty"
+    /// SQL Server 2022 with AdventureWorks, AdventureWorksLT and AdventureWorksDW.
+    static let sqlServerSamples = "mssql-2022-adventureworks"
 }

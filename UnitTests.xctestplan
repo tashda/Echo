@@ -19,7 +19,6 @@
         "LabSQLServerSessionTests",
         "LabSQLServerImportTests",
         "EchoSenseIntegrationTests",
-        "FactoryConnectionTests",
         "MSSQLActivityMonitorTests",
         "MSSQLAgentManagementTests",
         "MSSQLAgentTests",
@@ -83,8 +82,7 @@
         "PGTriggerTests",
         "PGViewTests",
         "PostgresBackupRestoreIntegrationTests",
-        "PostgresIntegrationTests",
-        "SessionProtocolComplianceTests"
+        "PostgresIntegrationTests"
       ],
       "target" : {
         "containerPath" : "container:Echo.xcodeproj",
