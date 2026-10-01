@@ -115,10 +115,12 @@ enum FooterResultsSpec {
             ], rounds: ["decided.results-grid", "ongoing.pg-value-display-r21", "ongoing.mssql-values-r22"],
                files: [grid + "ResultCellPresentation.swift", grid + "ResultsGridMetrics.swift", grid + "ResultCellValueForm.swift"]),
             SpecElement(number: "4.2", name: "Column header", summary: "The column's name over its type, on two lines.", groups: [
-                .type(.row("Name", "12pt semibold"), .row("Type", "10pt monospaced, under the name")),
+                .type(.row("Name", "12pt semibold"), .row("Type", "10pt monospaced, under the name"),
+                      .row("Type wording", "as the server names it; on PostgreSQL without the OID Echo carries for decoding (DATE, not DATE(1082))")),
                 .layout(.row("Height", "36pt", token: "ResultsGridMetrics.headerHeight")),
                 .behaviour(.row("Sort arrow", "a 14pt box at the trailing edge, shown while hovered or sorted; click it to sort, click elsewhere to select the column",
-                                token: "ResultsGridMetrics.sortIndicatorSize")),
+                                token: "ResultsGridMetrics.sortIndicatorSize"),
+                           .row("Past the last column", "the header stays empty: AppKit draws it with a copy of the last cell, which shows no type or arrow there")),
             ], rounds: ["decided.results-grid"], files: [grid + "Cells/ResultTableHeaderCell.swift", grid + "Cells/ResultTableHeaderView.swift"]),
             SpecElement(number: "4.3", name: "Row hover", summary: "A faint rounded tint on the row under the pointer.", groups: [
                 .material(.row("Fill", "hover fill", token: "ColorTokens.Sidebar.hoverFill")),

@@ -133,7 +133,8 @@ extension QueryResultsSection {
             showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
             colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
             isDarkMode: appearanceStore.effectiveColorScheme == .dark,
-            monospacedCells: projectStore.globalSettings.resultsMonospacedCells
+            monospacedCells: projectStore.globalSettings.resultsMonospacedCells,
+            databaseType: connection.databaseType
         )
     }
 
@@ -144,7 +145,7 @@ extension QueryResultsSection {
             } else if query.selectedResultSetIndex > 0,
                       let state = query.additionalResultState(at: query.selectedResultSetIndex - 1) {
                 // The same grid as the first set (plan R6).
-                AdditionalResultSetGrid(state: state)
+                AdditionalResultSetGrid(state: state, databaseType: connection.databaseType)
                     .id(query.selectedResultSetIndex)
             } else {
                 noRowsReturnedView

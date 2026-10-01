@@ -67,7 +67,7 @@ extension QueryResultsTableView.Coordinator {
             tableColumn.headerCell.controlSize = .regular
             tableColumn.headerCell.alignment = .left
             tableColumn.headerCell.font = ResultTableHeaderCell.nameFont
-            (tableColumn.headerCell as? ResultTableHeaderCell)?.typeName = column.dataType
+            (tableColumn.headerCell as? ResultTableHeaderCell)?.typeName = column.headerTypeName(on: parent.databaseType)
             tableView.addTableColumn(tableColumn)
             if let savedWidth = savedWidths[column.id], savedWidth > 0 {
                 tableColumn.width = min(max(savedWidth, tableColumn.minWidth), tableColumn.maxWidth)
