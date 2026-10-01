@@ -7,7 +7,7 @@ import SQLServerKit
 /// Transaction tests require dedicated connections because transactions are session-local state.
 /// The pooled `SQLServerClient` dispatches each `withConnection` call to potentially different
 /// connections, so BEGIN/COMMIT/ROLLBACK cannot be reliably paired.
-final class MSSQLTransactionTests: MSSQLDedicatedDockerTestCase {
+final class MSSQLTransactionTests: MSSQLDedicatedLabTestCase {
 
     // MARK: - Basic Transactions
 

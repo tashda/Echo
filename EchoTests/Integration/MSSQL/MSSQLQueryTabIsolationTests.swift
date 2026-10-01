@@ -4,10 +4,10 @@ import SQLServerKit
 
 /// Tests query tab isolation using dedicated sessions.
 ///
-/// Uses `MSSQLDedicatedDockerTestCase` to verify that separate query tabs
+/// Uses `MSSQLDedicatedLabTestCase` to verify that separate query tabs
 /// (each with their own dedicated `SQLServerConnection`) maintain independent
 /// database context, temp tables, and query execution state.
-final class MSSQLQueryTabIsolationTests: MSSQLDedicatedDockerTestCase {
+final class MSSQLQueryTabIsolationTests: MSSQLDedicatedLabTestCase {
 
     func testDedicatedQueryTabsKeepDatabaseContextIsolated() async throws {
         let tabOne = dedicatedSession!

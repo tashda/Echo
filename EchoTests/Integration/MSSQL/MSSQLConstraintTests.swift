@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server constraint operations through Echo's DatabaseSession layer.
-final class MSSQLConstraintTests: MSSQLDockerTestCase {
+final class MSSQLConstraintTests: MSSQLLabTestCase {
 
     // MARK: - Primary Key
 

@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server metadata retrieval through Echo's DatabaseSession layer.
-final class MSSQLMetadataTests: MSSQLDockerTestCase {
+final class MSSQLMetadataTests: MSSQLLabTestCase {
 
     // MARK: - Table Schema
 

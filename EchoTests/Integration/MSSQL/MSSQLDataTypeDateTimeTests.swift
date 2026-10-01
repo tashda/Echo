@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server date/time data type round-trips through Echo's DatabaseSession layer.
-final class MSSQLDataTypeDateTimeTests: MSSQLDockerTestCase {
+final class MSSQLDataTypeDateTimeTests: MSSQLLabTestCase {
 
     // MARK: - DATE
 

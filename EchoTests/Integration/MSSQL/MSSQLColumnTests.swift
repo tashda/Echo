@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server column operations through Echo's DatabaseSession layer.
-final class MSSQLColumnTests: MSSQLDockerTestCase {
+final class MSSQLColumnTests: MSSQLLabTestCase {
 
     // MARK: - Add Column
 

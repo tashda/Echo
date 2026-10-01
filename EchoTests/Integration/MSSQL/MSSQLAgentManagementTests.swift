@@ -6,7 +6,7 @@ import SQLServerKit
 /// Integration tests for SQL Server Agent management operations:
 /// alert CRUD, proxy management, category management, and job creation with all subsystems.
 /// Uses typed sqlserver-nio APIs per project conventions.
-@Suite(.enabled(if: ProcessInfo.processInfo.environment["USE_DOCKER"] != nil, "Requires MSSQL Docker fixture"))
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote))
 struct MSSQLAgentManagementTests {
 
     // MARK: - Alert CRUD
@@ -229,25 +229,22 @@ extension Tag {
 
 // MARK: - Test Helpers
 
-/// Lightweight session factory for Swift Testing integration tests.
-/// Uses the same Docker MSSQL instance as MSSQLDockerTestCase.
+/// A session on the lab server the SQL Server suites share (MSSQLLabTestCase.recipe).
 enum MSSQLTestSession {
     static func create() async throws -> DatabaseSession {
-
-        let port = Int(ProcessInfo.processInfo.environment["TEST_RUNNER_ECHO_MSSQL_PORT"] ?? "14332") ?? 14332
-        let password = ProcessInfo.processInfo.environment["TEST_RUNNER_ECHO_MSSQL_PASSWORD"] ?? "YourStrong@Passw0rd"
-
-        let factory = MSSQLNIOFactory()
-        return try await factory.connect(
-            host: "localhost",
-            port: port,
+        let server = try await LabSharedServers.shared.server(for: MSSQLLabTestCase.recipe)
+        return try await MSSQLNIOFactory().connect(
+            host: server.host,
+            port: server.port,
             database: "master",
-            tls: false,
+            tls: true,
+            trustServerCertificate: true,
             authentication: DatabaseAuthenticationConfiguration(
                 method: .sqlPassword,
-                username: "sa",
-                password: password
-            )
+                username: server.username,
+                password: server.password
+            ),
+            connectTimeoutSeconds: 30
         )
     }
 }

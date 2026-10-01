@@ -4,12 +4,12 @@ import SQLServerKit
 
 /// Round 22 BG1 against a real server: extra result sets of a SQL Server run stream into their own
 /// results and spool like the first set, instead of holding every row in memory.
-final class MSSQLDedicatedSessionResultSetTests: MSSQLDockerTestCase {
+final class MSSQLDedicatedSessionResultSetTests: MSSQLLabTestCase {
     @MainActor
     private func makeDedicatedSession() async throws -> MSSQLDedicatedQuerySession {
         let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
-            host: "127.0.0.1",
-            port: Self.port,
+            host: host,
+            port: port,
             database: "master",
             tls: false,
             trustServerCertificate: true,
@@ -17,7 +17,7 @@ final class MSSQLDedicatedSessionResultSetTests: MSSQLDockerTestCase {
             mssqlEncryptionMode: .optional,
             hostNameInCertificate: nil,
             readOnlyIntent: false,
-            authentication: .init(method: .sqlPassword, username: Self.username, password: Self.password),
+            authentication: .init(method: .sqlPassword, username: username, password: password),
             connectTimeoutSeconds: 15
         )
         let connection = try await SQLServerConnection.connect(configuration: configuration)

@@ -8,8 +8,8 @@ import SQLServerKit
 /// encryption, expiration) and every restore option (REPLACE, NORECOVERY, STANDBY,
 /// KEEP_REPLICATION, RESTRICTED_USER, file relocation, point-in-time).
 ///
-/// Requires Docker SQL Server on the self-hosted runner (echo-test-mssql, port 14332).
-class MSSQLBackupRestoreTests: MSSQLDockerTestCase {
+/// Runs on the shared lab server (MSSQLLabTestCase).
+class MSSQLBackupRestoreTests: MSSQLLabTestCase {
 
     private let backupDir = "/var/opt/mssql/backup"
 

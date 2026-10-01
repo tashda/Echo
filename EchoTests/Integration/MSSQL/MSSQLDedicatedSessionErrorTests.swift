@@ -5,11 +5,11 @@ import SQLServerKit
 /// Round 22 errors on a query tab's dedicated SQL Server session, against a real server: a failed
 /// batch carries every message in order with number, severity, line and procedure (EM1, LL1), and
 /// a severity 20 error takes the lost-connection path, after which the next run reconnects (FE1).
-final class MSSQLDedicatedSessionErrorTests: MSSQLDockerTestCase {
+final class MSSQLDedicatedSessionErrorTests: MSSQLLabTestCase {
     private func makeDedicatedSession() async throws -> MSSQLDedicatedQuerySession {
         let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
-            host: "127.0.0.1",
-            port: Self.port,
+            host: host,
+            port: port,
             database: "master",
             tls: false,
             trustServerCertificate: true,
@@ -17,7 +17,7 @@ final class MSSQLDedicatedSessionErrorTests: MSSQLDockerTestCase {
             mssqlEncryptionMode: .optional,
             hostNameInCertificate: nil,
             readOnlyIntent: false,
-            authentication: .init(method: .sqlPassword, username: Self.username, password: Self.password),
+            authentication: .init(method: .sqlPassword, username: username, password: password),
             connectTimeoutSeconds: 15
         )
         let connection = try await SQLServerConnection.connect(configuration: configuration)

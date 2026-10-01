@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server trigger operations through Echo's DatabaseSession layer.
-final class MSSQLTriggerTests: MSSQLDockerTestCase {
+final class MSSQLTriggerTests: MSSQLLabTestCase {
 
     // MARK: - DML Triggers
 

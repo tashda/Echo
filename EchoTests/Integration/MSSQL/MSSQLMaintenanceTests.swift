@@ -2,7 +2,7 @@ import XCTest
 @testable import Echo
 
 /// Integration tests for MSSQL maintenance operations.
-final class MSSQLMaintenanceTests: MSSQLDockerTestCase {
+final class MSSQLMaintenanceTests: MSSQLLabTestCase {
 
     func testListFragmentedIndexes() async throws {
         // Create a table and index to ensure we have something to list

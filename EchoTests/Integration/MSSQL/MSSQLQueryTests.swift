@@ -4,10 +4,10 @@ import SQLServerKit
 
 /// Tests SQL Server query execution through Echo's dedicated query session layer.
 ///
-/// Uses `MSSQLDedicatedDockerTestCase` to match how Echo actually runs queries:
+/// Uses `MSSQLDedicatedLabTestCase` to match how Echo actually runs queries:
 /// each query tab gets its own dedicated `SQLServerConnection`, while metadata
 /// operations are delegated to the shared pooled session.
-final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
+final class MSSQLQueryTests: MSSQLDedicatedLabTestCase {
 
     // MARK: - Simple Queries
 

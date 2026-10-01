@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server user-defined function operations through Echo's DatabaseSession layer.
-final class MSSQLFunctionTests: MSSQLDockerTestCase {
+final class MSSQLFunctionTests: MSSQLLabTestCase {
 
     // MARK: - Scalar Functions
 

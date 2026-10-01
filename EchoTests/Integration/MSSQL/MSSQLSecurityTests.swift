@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server security operations through Echo's DatabaseSession layer.
-final class MSSQLSecurityTests: MSSQLDockerTestCase {
+final class MSSQLSecurityTests: MSSQLLabTestCase {
 
     // MARK: - Logins
 

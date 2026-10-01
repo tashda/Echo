@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server stored procedure operations through Echo's DatabaseSession layer.
-final class MSSQLProcedureTests: MSSQLDockerTestCase {
+final class MSSQLProcedureTests: MSSQLLabTestCase {
 
     // MARK: - Create and Execute
 

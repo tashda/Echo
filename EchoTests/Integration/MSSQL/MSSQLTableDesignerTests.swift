@@ -6,7 +6,7 @@ import SQLServerKit
 /// Verifies that identity columns, collation, check constraints, INCLUDE columns,
 /// table compression, and filegroup all round-trip correctly through
 /// `getTableStructureDetails`.
-final class MSSQLTableDesignerTests: MSSQLDockerTestCase {
+final class MSSQLTableDesignerTests: MSSQLLabTestCase {
 
     // MARK: - Identity Columns
 

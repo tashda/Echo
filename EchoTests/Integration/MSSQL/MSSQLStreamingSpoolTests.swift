@@ -4,9 +4,9 @@ import SQLServerKit
 
 /// Tests spool behavior for large result sets through Echo's streaming pipeline.
 ///
-/// Uses `MSSQLDedicatedDockerTestCase` to match how Echo actually streams queries:
+/// Uses `MSSQLDedicatedLabTestCase` to match how Echo actually streams queries:
 /// streaming always happens through a dedicated `SQLServerConnection` per query tab.
-final class MSSQLStreamingSpoolTests: MSSQLDedicatedDockerTestCase {
+final class MSSQLStreamingSpoolTests: MSSQLDedicatedLabTestCase {
 
     // MARK: - Large Dataset Streaming
 

@@ -4,7 +4,7 @@ import SQLServerKit
 
 /// Round 22 LC4 (the PostgreSQL connection-lost decision, CW2 RC2 WD2) on a query tab's dedicated
 /// SQL Server session, against a real server. The tab's session is killed from another connection.
-final class MSSQLDedicatedSessionConnectionLossTests: MSSQLDockerTestCase {
+final class MSSQLDedicatedSessionConnectionLossTests: MSSQLLabTestCase {
     private final class Drops: @unchecked Sendable {
         private let lock = NSLock()
         private var events: [(database: String, transactionLost: Bool, isReminder: Bool)] = []
@@ -18,8 +18,8 @@ final class MSSQLDedicatedSessionConnectionLossTests: MSSQLDockerTestCase {
 
     private func makeDedicatedSession() async throws -> MSSQLDedicatedQuerySession {
         let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
-            host: "127.0.0.1",
-            port: Self.port,
+            host: host,
+            port: port,
             database: "master",
             tls: false,
             trustServerCertificate: true,
@@ -27,7 +27,7 @@ final class MSSQLDedicatedSessionConnectionLossTests: MSSQLDockerTestCase {
             mssqlEncryptionMode: .optional,
             hostNameInCertificate: nil,
             readOnlyIntent: false,
-            authentication: .init(method: .sqlPassword, username: Self.username, password: Self.password),
+            authentication: .init(method: .sqlPassword, username: username, password: password),
             connectTimeoutSeconds: 15
         )
         let connection = try await SQLServerConnection.connect(configuration: configuration)

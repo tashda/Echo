@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server index operations through Echo's DatabaseSession layer.
-final class MSSQLIndexTests: MSSQLDockerTestCase {
+final class MSSQLIndexTests: MSSQLLabTestCase {
 
     // MARK: - Create Index
 

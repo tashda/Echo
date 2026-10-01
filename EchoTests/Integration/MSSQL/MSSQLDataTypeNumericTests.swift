@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server numeric data type round-trips through Echo's DatabaseSession layer.
-final class MSSQLDataTypeNumericTests: MSSQLDockerTestCase {
+final class MSSQLDataTypeNumericTests: MSSQLLabTestCase {
 
     // MARK: - Integer Types
 

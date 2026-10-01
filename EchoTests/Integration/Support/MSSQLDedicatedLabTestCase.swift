@@ -10,10 +10,10 @@ import SQLServerKit
 ///
 /// Use this base class for tests that exercise query execution, streaming,
 /// transactions, temp tables, or any behavior that depends on session-local state.
-class MSSQLDedicatedDockerTestCase: MSSQLDockerTestCase {
+class MSSQLDedicatedLabTestCase: MSSQLLabTestCase {
     private(set) var dedicatedSession: MSSQLDedicatedQuerySession!
 
-    /// The pooled metadata session (inherited from MSSQLDockerTestCase as `session`).
+    /// The pooled metadata session (inherited from MSSQLLabTestCase as `session`).
     var metadataAdapter: SQLServerSessionAdapter {
         session as! SQLServerSessionAdapter
     }
@@ -34,8 +34,8 @@ class MSSQLDedicatedDockerTestCase: MSSQLDockerTestCase {
     /// Create a new dedicated query session (for multi-tab tests).
     func makeDedicatedSession(database: String? = nil) async throws -> MSSQLDedicatedQuerySession {
         let configuration = try MSSQLNIOFactory.makeConnectionConfiguration(
-            host: "127.0.0.1",
-            port: Self.port,
+            host: host,
+            port: port,
             database: database,
             tls: false,
             trustServerCertificate: true,
@@ -45,8 +45,8 @@ class MSSQLDedicatedDockerTestCase: MSSQLDockerTestCase {
             readOnlyIntent: false,
             authentication: DatabaseAuthenticationConfiguration(
                 method: .sqlPassword,
-                username: Self.username,
-                password: Self.password
+                username: username,
+                password: password
             ),
             connectTimeoutSeconds: 15
         )
