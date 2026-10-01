@@ -32,8 +32,9 @@ enum ExplorerTreeSpec {
             ], rounds: ["decided.window-canvas-and-cards"], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeCardsLayer.swift"]),
             SpecElement(number: "1.2", name: "One card per server", summary: "Servers are never merged into one list; a server's card is as tall as its rows.", groups: [
                 .behaviour(.row("Rail", "Clicking a server in the rail jumps to its card; the rail marks the card at the top while you scroll"),
-                           .row("Holding view (N2)", "when a card gets shorter, a spacer under the last card keeps the bottom where it was, so the cards above don't move; it gives the room back as you scroll up and can't be stretched by overscrolling", token: "ExplorerTreeHold.spacerHeight")),
-            ], rounds: ["decided.rail-servers", r19Switching], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeLayout.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeScrollState.swift", components + "ObjectBrowserNode+TreeRole.swift"]),
+                           .row("Holding view (N2)", "when a card gets shorter, a spacer under the last card keeps the bottom where it was, so the cards above don't move; it gives the room back as you scroll up and can't be stretched by overscrolling", token: "ExplorerTreeHold.spacerHeight"),
+                           .row("Row slot", "each row sits in a slot exactly its kind's height, sized without asking the row, so scrolling never measures rows again", token: "ExplorerTreeRowSlot")),
+            ], rounds: ["decided.rail-servers", r19Switching], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeLayout.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeRowSlot.swift","Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeScrollState.swift", components + "ObjectBrowserNode+TreeRole.swift"]),
         ]),
         SpecPart(number: "2", name: "Header", summary: "The server's name and version at the top of its card.", elements: [
             SpecElement(number: "2.1", name: "Server name", summary: "Bold, at the top left of the card, sized by the sidebar size.", groups: [

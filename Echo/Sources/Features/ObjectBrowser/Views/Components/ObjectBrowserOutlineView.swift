@@ -123,7 +123,10 @@ struct ObjectBrowserOutlineView: View {
                 contentWidth: geometry.contentSize.width,
                 totalHeight: geometry.contentSize.height
             )
-        } action: { _, metrics in
+        } action: { old, metrics in
+            // Rows scrolling in and out made AppKit recheck the window's drag regions every
+            // frame (a sixth of the main thread, traced 2026-10-01).
+            if old.offset != metrics.offset { WindowDragPause.pauseWorkspace(for: 0.3) }
             scroll.offset = metrics.offset
             scroll.viewportHeight = metrics.viewportHeight
             scroll.contentWidth = metrics.contentWidth
@@ -167,12 +170,12 @@ struct ObjectBrowserOutlineView: View {
     private func rows(_ rows: [ObjectBrowserTreeLayout.Row], underHeaderOf headerHeight: CGFloat = 0, isSwitching: Bool = false) -> some View {
         ForEach(rows) { row in
             let node = row.node
-            rowContent(node, expandedNodeIDs.contains(node.id), row.depth, 0, { activate(node) })
-                .frame(maxWidth: .infinity)
-                .frame(height: row.height)
-                .modifier(ExplorerRowEdgeBlur(headerHeight: headerHeight))
-                .environment(\.sidebarContextMenuActive, contextMenuNodeID == node.id)
-                .transition(isSwitching ? .identity : Self.rowTransition(motion))
+            ExplorerTreeRowSlot(height: row.height) {
+                rowContent(node, expandedNodeIDs.contains(node.id), row.depth, 0, { activate(node) })
+                    .modifier(ExplorerRowEdgeBlur(headerHeight: headerHeight))
+                    .environment(\.sidebarContextMenuActive, contextMenuNodeID == node.id)
+            }
+            .transition(isSwitching ? .identity : Self.rowTransition(motion))
         }
     }
 
