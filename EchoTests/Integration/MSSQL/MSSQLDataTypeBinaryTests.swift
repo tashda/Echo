@@ -217,10 +217,12 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "val", definition: .standard(.init(dataType: .sql_variant)))
         ])
 
-        // sql_variant requires CAST expressions — insert one at a time to avoid type conflicts
-        _ = try await execute("INSERT INTO [\(tableName)] (id, val) VALUES (1, CAST(100 AS INT))")
-        _ = try await execute("INSERT INTO [\(tableName)] (id, val) VALUES (2, CAST('text value' AS NVARCHAR(50)))")
-        _ = try await execute("INSERT INTO [\(tableName)] (id, val) VALUES (3, CAST(3.14159 AS FLOAT))")
+        // Each value keeps its own base type (.variant), as three separate inserts did.
+        try await sqlserverClient.admin.insertRows(into: tableName, columns: ["id", "val"], values: [
+            [.int(1), .variant(.int(100))],
+            [.int(2), .variant(.nString("text value"))],
+            [.int(3), .variant(.double(3.14159))],
+        ])
 
         let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
         IntegrationTestHelpers.assertRowCount(result, expected: 3)
@@ -249,17 +251,12 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
 
     func testHierarchyIdRoundTrip() async throws {
         do {
-            // HIERARCHYID is not in the typed API, use raw SQL for table setup
             let tableName = uniqueTableName()
-            try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, node HIERARCHYID)")
-
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES
-                    (1, hierarchyid::GetRoot()),
-                    (2, hierarchyid::Parse('/1/')),
-                    (3, hierarchyid::Parse('/1/2/')),
-                    (4, hierarchyid::Parse('/2/'))
-            """)
+            try await createTable(tableName, [.column("id", .int, primaryKey: true), .column("node", .hierarchyid)])
+            try await sqlserverClient.admin.insertRows(into: tableName, columns: ["id", "node"], values: [
+                [.int(1), .hierarchyID("/")], [.int(2), .hierarchyID("/1/")],
+                [.int(3), .hierarchyID("/1/2/")], [.int(4), .hierarchyID("/2/")],
+            ])
 
             let result = try await query("""
                 SELECT id, node.ToString() AS node_path
@@ -303,15 +300,13 @@ final class MSSQLDataTypeBinaryTests: MSSQLLabTestCase {
 
     func testGeographyRoundTrip() async throws {
         do {
-            // GEOGRAPHY is not in the typed API, use raw SQL for table setup
             let tableName = uniqueTableName()
-            try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, location GEOGRAPHY)")
-
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES
-                    (1, geography::Point(47.651, -122.349, 4326)),
-                    (2, geography::Point(40.7128, -74.0060, 4326))
-            """)
+            try await createTable(tableName, [.column("id", .int, primaryKey: true), .column("location", .geography)])
+            // Well-known text puts longitude first.
+            try await sqlserverClient.admin.insertRows(into: tableName, columns: ["id", "location"], values: [
+                [.int(1), .geography(wellKnownText: "POINT(-122.349 47.651)", srid: 4326)],
+                [.int(2), .geography(wellKnownText: "POINT(-74.006 40.7128)", srid: 4326)],
+            ])
 
             let result = try await query("""
                 SELECT id, location.ToString() AS wkt,

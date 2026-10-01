@@ -43,7 +43,7 @@ final class MSSQLConnectionTests: MSSQLLabTestCase {
     func testSessionForDatabase() async throws {
         // Create a test database
         let dbName = uniqueTableName(prefix: "echo_db")
-        try await execute("CREATE DATABASE [\(dbName)]")
+        try await sqlserverClient.admin.createDatabase(name: dbName)
 
         let dbSession = try await session.sessionForDatabase(dbName)
 

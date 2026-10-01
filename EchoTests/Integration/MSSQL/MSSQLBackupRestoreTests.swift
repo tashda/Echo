@@ -15,32 +15,29 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
 
     // MARK: - Test Database Setup
 
+    /// A database with dbo.test_data and five rows, made through sqlserver-nio.
     private func setupTestDB(_ name: String) async throws {
-        // Force-drop if leftover from a previous failed test run
-        _ = try? await execute("""
-            IF DB_ID('\(name)') IS NOT NULL
-            BEGIN
-                ALTER DATABASE [\(name)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                DROP DATABASE [\(name)];
-            END
-        """)
-        _ = try? await sqlserverClient.admin.createDatabase(name: name)
-        let dbSession = try await createSession(database: name)
-        _ = try? await dbSession.executeUpdate("DROP TABLE IF EXISTS dbo.test_data")
-        _ = try await dbSession.executeUpdate("""
-            CREATE TABLE dbo.test_data (
-                id INT IDENTITY(1,1) PRIMARY KEY,
-                name NVARCHAR(100) NOT NULL,
-                value DECIMAL(10,2),
-                created_at DATETIME2 DEFAULT GETDATE()
-            )
-        """)
-        _ = try await dbSession.executeUpdate("""
-            INSERT INTO dbo.test_data (name, value) VALUES
-            ('alpha', 10.50), ('beta', 20.00), ('gamma', 30.75),
-            ('delta', 40.25), ('epsilon', 50.00)
-        """)
-        await dbSession.close()
+        try await sqlserverClient.admin.createDatabase(name: name)
+        try await sqlserverClient.withConnection { connection in
+            try await connection.createTable(name: "test_data", columns: [
+                .column("id", .int, primaryKey: true, identity: (1, 1)),
+                .column("name", .nvarchar(length: .length(100)), nullable: false),
+                .column("value", .decimal(precision: 10, scale: 2)),
+                .column("created_at", .datetime2(precision: nil), default: "GETDATE()"),
+            ], database: name)
+            _ = try await connection.insertRows(into: "test_data", database: name, columns: ["name", "value"], values: [
+                [.nString("alpha"), .decimal("10.50")], [.nString("beta"), .decimal("20.00")], [.nString("gamma"), .decimal("30.75")],
+                [.nString("delta"), .decimal("40.25")], [.nString("epsilon"), .decimal("50.00")],
+            ])
+        }
+    }
+
+    /// One more row in dbo.test_data of `database`.
+    private func insertTestRow(_ database: String, name: String, value: String) async throws {
+        _ = try await sqlserverClient.withConnection { connection in
+            try await connection.insertRows(into: "test_data", database: database, columns: ["name", "value"],
+                                            values: [[.nString(name), .decimal(value)]])
+        }
     }
 
     private func dropTestDB(_ name: String) async {
@@ -118,9 +115,7 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         _ = try await sqlserverClient.backupRestore.backup(options: fullOptions)
 
         // Add more data
-        let dbSession = try await createSession(database: dbName)
-        _ = try await dbSession.executeUpdate("INSERT INTO dbo.test_data (name, value) VALUES ('zeta', 60.00)")
-        await dbSession.close()
+        try await insertTestRow(dbName, name: "zeta", value: "60.00")
 
         // Differential backup
         let diffOptions = SQLServerBackupOptions(database: dbName, diskPath: diffPath, backupType: .differential, initMedia: true)
@@ -145,7 +140,7 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         cleanupDB(dbName)
 
         // Set recovery model to FULL for log backups
-        _ = try await session.executeUpdate("ALTER DATABASE [\(dbName)] SET RECOVERY FULL")
+        _ = try await sqlserverClient.admin.alterDatabaseOption(name: dbName, option: .recoveryModel(.full))
 
         let fullPath = backupPath("\(dbName)_full.bak")
         let logPath = backupPath("\(dbName)_log.trn")
@@ -155,9 +150,7 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         _ = try await sqlserverClient.backupRestore.backup(options: fullOptions)
 
         // Add data
-        let dbSession = try await createSession(database: dbName)
-        _ = try await dbSession.executeUpdate("INSERT INTO dbo.test_data (name, value) VALUES ('theta', 70.00)")
-        await dbSession.close()
+        try await insertTestRow(dbName, name: "theta", value: "70.00")
 
         // Log backup
         let logOptions = SQLServerBackupOptions(database: dbName, diskPath: logPath, backupType: .log, initMedia: true)
@@ -412,19 +405,13 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         _ = try await sqlserverClient.backupRestore.backup(options: backupOptions)
 
         // Add extra data
-        let dbSession = try await createSession(database: dbName)
-        _ = try await dbSession.executeUpdate("INSERT INTO dbo.test_data (name, value) VALUES ('extra', 99.99)")
-        await dbSession.close()
+        try await insertTestRow(dbName, name: "extra", value: "99.99")
 
         let countBefore = try await rowCount(database: dbName, table: "dbo.test_data")
         XCTAssertEqual(countBefore, 6)
 
         // Kill all connections to the database before restore
-        let killSession = try await createSession()
-        _ = try? await killSession.simpleQuery("""
-            ALTER DATABASE [\(dbName)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
-        """)
-        await killSession.close()
+        try await sqlserverClient.backupRestore.closeConnections(database: dbName)
 
         let restoreOptions = SQLServerRestoreOptions(
             database: dbName, diskPath: path, recoveryMode: .recovery, replace: true
@@ -432,9 +419,7 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         _ = try await sqlserverClient.backupRestore.restore(options: restoreOptions)
 
         // Restore multi-user mode
-        let multiSession = try await createSession()
-        _ = try? await multiSession.simpleQuery("ALTER DATABASE [\(dbName)] SET MULTI_USER")
-        await multiSession.close()
+        try await sqlserverClient.backupRestore.restoreMultiUser(database: dbName)
 
         let countAfter = try await rowCount(database: dbName, table: "dbo.test_data")
         XCTAssertEqual(countAfter, 5, "REPLACE restore should revert to 5 rows")
@@ -450,9 +435,6 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         _ = try await sqlserverClient.backupRestore.backup(options: backupOptions)
 
         // Kill all connections before drop
-        let killSession = try await createSession()
-        _ = try? await killSession.simpleQuery("ALTER DATABASE [\(dbName)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
-        await killSession.close()
         await dropTestDB(dbName)
 
         // Restore with NORECOVERY — database should be in restoring state
@@ -470,6 +452,7 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         }
 
         // Bring online
+        // No typed call finishes a restore yet: gap GS-41, tashda/sqlserver-nio#16.
         _ = try await session.executeUpdate("RESTORE DATABASE [\(dbName)] WITH RECOVERY")
         let count = try await rowCount(database: dbName, table: "dbo.test_data")
         XCTAssertEqual(count, 5)
@@ -575,7 +558,7 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         XCTAssertEqual(count, 5)
 
         // Reset to multi-user for cleanup
-        _ = try await session.executeUpdate("ALTER DATABASE [\(dbName)] SET MULTI_USER")
+        try await sqlserverClient.backupRestore.restoreMultiUser(database: dbName)
     }
 
     // MARK: - Close Connections
@@ -651,9 +634,7 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         _ = try await sqlserverClient.backupRestore.backup(options: first)
 
         // Add data, second backup (appended)
-        let dbSession = try await createSession(database: dbName)
-        _ = try await dbSession.executeUpdate("INSERT INTO dbo.test_data (name, value) VALUES ('new', 100.00)")
-        await dbSession.close()
+        try await insertTestRow(dbName, name: "new", value: "100.00")
 
         let second = SQLServerBackupOptions(
             database: dbName, diskPath: path, backupName: "Set 2", initMedia: false
@@ -664,9 +645,6 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         XCTAssertEqual(sets.count, 2)
 
         // Restore from file number 1 (the first backup with 5 rows)
-        let killSession = try await createSession()
-        _ = try? await killSession.simpleQuery("ALTER DATABASE [\(dbName)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
-        await killSession.close()
         await dropTestDB(dbName)
 
         let restoreOptions = SQLServerRestoreOptions(

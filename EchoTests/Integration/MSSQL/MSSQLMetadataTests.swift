@@ -79,7 +79,7 @@ final class MSSQLMetadataTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "email", definition: .standard(.init(dataType: .nvarchar(length: .length(200)))))
         ])
-        try await execute("CREATE INDEX IX_\(tableName)_name ON dbo.[\(tableName)](name)")
+        try await sqlserverClient.indexes.createIndex(name: "IX_\(tableName)_name", table: tableName, columns: [IndexColumn(name: "name")])
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertFalse(details.indexes.isEmpty, "Should have at least one index")
@@ -92,12 +92,9 @@ final class MSSQLMetadataTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100)))))
         ])
-        try await execute("""
-            CREATE TABLE dbo.[\(childTable)] (
-                id INT PRIMARY KEY,
-                parent_id INT REFERENCES dbo.[\(parentTable)](id)
-            )
-        """)
+        try await createTable(childTable, [.column("id", .int, primaryKey: true), .column("parent_id", .int)])
+        try await sqlserverClient.constraints.addForeignKey(name: "FK_\(childTable)_parent", table: childTable, columns: ["parent_id"],
+                                                            referencedTable: parentTable, referencedColumns: ["id"])
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: childTable)
         XCTAssertFalse(details.foreignKeys.isEmpty, "Should detect foreign key")
@@ -107,9 +104,10 @@ final class MSSQLMetadataTests: MSSQLLabTestCase {
     }
 
     func testGetTableStructureDetailsUniqueConstraints() async throws {
-        // UNIQUE constraint requires raw SQL since typed API doesn't support constraints inline
         let tableName = uniqueTableName()
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, code NVARCHAR(10) UNIQUE, name NVARCHAR(100))")
+        try await createTable(tableName, [.column("id", .int, primaryKey: true), .column("code", .nvarchar(length: .length(10))),
+                                          .column("name", .nvarchar(length: .length(100)))])
+        try await sqlserverClient.constraints.addUniqueConstraint(name: "UQ_\(tableName)_code", table: tableName, columns: ["code"])
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         // Unique constraint may appear as index or unique constraint
@@ -127,7 +125,7 @@ final class MSSQLMetadataTests: MSSQLLabTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100)))))
         ])
-        try await execute("CREATE VIEW dbo.[\(viewName)] AS SELECT id, name FROM dbo.[\(tableName)]")
+        try await sqlserverClient.views.createView(name: viewName, query: "SELECT id, name FROM dbo.[\(tableName)]")
 
         let definition = try await session.getObjectDefinition(
             objectName: viewName, schemaName: "dbo", objectType: .view
@@ -139,14 +137,8 @@ final class MSSQLMetadataTests: MSSQLLabTestCase {
 
     func testGetProcedureDefinition() async throws {
         let procName = uniqueTableName(prefix: "usp")
-        try await execute("""
-            CREATE PROCEDURE dbo.[\(procName)]
-                @id INT
-            AS
-            BEGIN
-                SELECT @id AS result;
-            END
-        """)
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName, parameters: [ProcedureParameter(name: "id", dataType: .int)], body: "SELECT @id AS result;")
 
         let definition = try await session.getObjectDefinition(
             objectName: procName, schemaName: "dbo", objectType: .procedure
@@ -156,14 +148,8 @@ final class MSSQLMetadataTests: MSSQLLabTestCase {
 
     func testGetFunctionDefinition() async throws {
         let funcName = uniqueTableName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION dbo.[\(funcName)](@x INT)
-            RETURNS INT
-            AS
-            BEGIN
-                RETURN @x * 2;
-            END
-        """)
+        try await sqlserverClient.routines.createFunction(
+            name: funcName, parameters: [FunctionParameter(name: "x", dataType: .int)], returnType: .int, body: "BEGIN RETURN @x * 2; END")
 
         let definition = try await session.getObjectDefinition(
             objectName: funcName, schemaName: "dbo", objectType: .function

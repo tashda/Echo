@@ -93,10 +93,9 @@ final class MSSQLConstraintTests: MSSQLLabTestCase {
         ])
 
         // Cascade options require raw SQL — no typed API for ON DELETE/UPDATE CASCADE
-        try await execute("""
-            ALTER TABLE [\(child)] ADD CONSTRAINT FK_\(child)_cascade
-            FOREIGN KEY (parent_id) REFERENCES [\(parent)](id) ON DELETE CASCADE ON UPDATE CASCADE
-        """)
+        try await sqlserverClient.constraints.addForeignKey(
+            name: "FK_\(child)_cascade", table: child, columns: ["parent_id"], referencedTable: parent, referencedColumns: ["id"],
+            options: .init(onDelete: .cascade, onUpdate: .cascade))
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: child)
         XCTAssertFalse(details.foreignKeys.isEmpty)

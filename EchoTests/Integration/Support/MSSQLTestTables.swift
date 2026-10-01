@@ -9,14 +9,16 @@ extension SQLServerColumnDefinition {
         primaryKey: Bool = false,
         nullable: Bool? = nil,
         identity: (seed: Int, increment: Int)? = nil,
-        default defaultValue: String? = nil
+        default defaultValue: String? = nil,
+        collation: String? = nil
     ) -> SQLServerColumnDefinition {
         SQLServerColumnDefinition(name: name, definition: .standard(.init(
             dataType: type,
             isNullable: nullable ?? !primaryKey,
             isPrimaryKey: primaryKey,
             identity: identity,
-            defaultValue: defaultValue
+            defaultValue: defaultValue,
+            collation: collation
         )))
     }
 }

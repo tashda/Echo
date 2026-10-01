@@ -66,7 +66,9 @@ final class MSSQLIndexTests: MSSQLLabTestCase {
         ])
 
         // Sort order requires raw SQL — no typed API for ASC/DESC column ordering
-        try await execute("CREATE INDEX [\(indexName)] ON [\(tableName)](score DESC, name ASC)")
+        try await sqlserverClient.indexes.createIndex(name: indexName, table: tableName, columns: [
+            IndexColumn(name: "score", sortDirection: .descending), IndexColumn(name: "name"),
+        ])
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let idx = details.indexes.first { $0.name.caseInsensitiveCompare(indexName) == .orderedSame }
@@ -130,7 +132,8 @@ final class MSSQLIndexTests: MSSQLLabTestCase {
         ])
 
         // Filtered index requires raw SQL — no typed API for WHERE clause on indexes
-        try await execute("CREATE INDEX [\(indexName)] ON [\(tableName)](name) WHERE status = 'active'")
+        try await sqlserverClient.indexes.createIndex(name: indexName, table: tableName, columns: [IndexColumn(name: "name")],
+                                                      filter: "status = 'active'")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let idx = details.indexes.first { $0.name.caseInsensitiveCompare(indexName) == .orderedSame }

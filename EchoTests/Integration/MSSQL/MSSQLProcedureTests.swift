@@ -71,7 +71,7 @@ final class MSSQLProcedureTests: MSSQLLabTestCase {
         )
 
         // ALTER PROCEDURE — no typed API, use raw SQL
-        try await execute("ALTER PROCEDURE [\(procName)] AS BEGIN SELECT 2 AS modified; END")
+        try await sqlserverClient.routines.alterStoredProcedure(name: procName, body: "SELECT 2 AS modified;")
 
         let result = try await query("EXEC [\(procName)]")
         XCTAssertEqual(result.rows[0][0], "2")

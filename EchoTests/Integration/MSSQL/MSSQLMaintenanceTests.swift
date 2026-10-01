@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Integration tests for MSSQL maintenance operations.
@@ -7,8 +8,8 @@ final class MSSQLMaintenanceTests: MSSQLLabTestCase {
     func testListFragmentedIndexes() async throws {
         // Create a table and index to ensure we have something to list
         let tableName = uniqueTableName(prefix: "maint_frag")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, val NVARCHAR(200))")
-        try await execute("CREATE INDEX [IX_\(tableName)] ON [\(tableName)](val)")
+        try await createTable(tableName, [.column("id", .int, primaryKey: true), .column("val", .nvarchar(length: .length(200)))])
+        try await sqlserverClient.indexes.createIndex(name: "IX_\(tableName)", table: tableName, columns: [IndexColumn(name: "val")])
 
         // Fragmentation might be 0 for a new table, but the query should still succeed
         let fragmented = try await session.listFragmentedIndexes()

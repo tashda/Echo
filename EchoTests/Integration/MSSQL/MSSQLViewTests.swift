@@ -68,7 +68,7 @@ final class MSSQLViewTests: MSSQLLabTestCase {
         )
 
         // Alter to include email — no typed API for ALTER VIEW, use raw SQL
-        try await execute("ALTER VIEW [\(viewName)] AS SELECT id, name, email FROM [\(tableName)]")
+        try await sqlserverClient.views.alterView(name: viewName, query: "SELECT id, name, email FROM [\(tableName)]")
 
         let definition = try await session.getObjectDefinition(
             objectName: viewName, schemaName: "dbo", objectType: .view

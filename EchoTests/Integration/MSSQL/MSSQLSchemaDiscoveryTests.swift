@@ -18,7 +18,7 @@ final class MSSQLSchemaDiscoveryTests: MSSQLLabTestCase {
 
     func testListDatabasesIncludesUserDatabase() async throws {
         let dbName = uniqueTableName(prefix: "echo_db")
-        try await execute("CREATE DATABASE [\(dbName)]")
+        try await sqlserverClient.admin.createDatabase(name: dbName)
 
         let databases = try await session.listDatabases()
         IntegrationTestHelpers.assertContains(databases, value: dbName)
@@ -83,7 +83,7 @@ final class MSSQLSchemaDiscoveryTests: MSSQLLabTestCase {
         let schemaName = uniqueTableName(prefix: "s")
         let tableName = uniqueTableName()
         try await sqlserverClient.security.createSchema(name: schemaName)
-        try await execute("CREATE TABLE [\(schemaName)].[\(tableName)] (id INT)")
+        try await createTable(tableName, schema: schemaName, [.column("id", .int)])
 
         let objects = try await session.listTablesAndViews(schema: schemaName)
         IntegrationTestHelpers.assertContainsObject(objects, name: tableName)

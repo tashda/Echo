@@ -57,13 +57,9 @@ final class MSSQLFunctionTests: MSSQLLabTestCase {
                 [.int(3), .nString("HR"), .nString("Carol")],
             ]
         )
-        // Inline TVF requires raw SQL — createFunction wraps body in BEGIN/END which is for scalar functions
-        try await execute("""
-            CREATE FUNCTION dbo.[\(funcName)](@dept NVARCHAR(50))
-            RETURNS TABLE
-            AS
-            RETURN (SELECT id, name FROM [\(tableName)] WHERE dept = @dept)
-        """)
+        try await sqlserverClient.routines.createInlineTableValuedFunction(
+            name: funcName, parameters: [FunctionParameter(name: "dept", dataType: .nvarchar(length: .length(50)))],
+            query: "SELECT id, name FROM [\(tableName)] WHERE dept = @dept")
 
         let result = try await query("SELECT * FROM dbo.[\(funcName)]('ENG')")
         IntegrationTestHelpers.assertRowCount(result, expected: 2)
@@ -82,11 +78,8 @@ final class MSSQLFunctionTests: MSSQLLabTestCase {
             body: "BEGIN RETURN @x; END"
         )
 
-        // ALTER FUNCTION — no typed API, use raw SQL
-        try await execute("""
-            ALTER FUNCTION dbo.[\(funcName)](@x INT)
-            RETURNS INT AS BEGIN RETURN @x + 100; END
-        """)
+        try await sqlserverClient.routines.alterScalarFunction(
+            name: funcName, parameters: [FunctionParameter(name: "x", dataType: .int)], returnType: .int, body: "BEGIN RETURN @x + 100; END")
 
         let result = try await query("SELECT dbo.[\(funcName)](1) AS val")
         XCTAssertEqual(result.rows[0][0], "101")
