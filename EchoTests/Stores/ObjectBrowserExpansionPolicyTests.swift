@@ -21,9 +21,10 @@ struct ObjectBrowserExpansionPolicyTests {
         #expect(!layoutMode.showsServerNameInOutline)
     }
 
-    @Test func outlineKeepsItsStandardTopInsetInBothModes() {
-        #expect(ObjectBrowserConnectionLayoutMode.singleConnection.outlineTopSpacerHeight == SpacingTokens.xs)
-        #expect(ObjectBrowserConnectionLayoutMode.multipleConnections.outlineTopSpacerHeight == SpacingTokens.xs)
+    /// The first server card lines up with the top of the server rail in both modes.
+    @Test func outlineTopInsetLinesTheFirstCardUpWithTheRail() {
+        #expect(ObjectBrowserConnectionLayoutMode.singleConnection.outlineTopSpacerHeight == SpacingTokens.micro)
+        #expect(ObjectBrowserConnectionLayoutMode.multipleConnections.outlineTopSpacerHeight == SpacingTokens.micro)
     }
 
     @Test func expandingServerWithCollapseEnabledRemovesOtherServerRootsOnly() {

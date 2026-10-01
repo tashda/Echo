@@ -83,14 +83,6 @@
         "PGViewTests",
         "PostgresBackupRestoreIntegrationTests",
         "PostgresIntegrationTests",
-        "SQLiteBulkImportTests",
-        "SQLiteConnectionTests",
-        "SQLiteDataTypeTests",
-        "SQLiteIntegrationTests",
-        "SQLiteQueryTests",
-        "SQLiteSchemaTests",
-        "SQLiteTableOperationsTests",
-        "SQLiteTriggerDiscoveryTests",
         "SessionProtocolComplianceTests"
       ],
       "target" : {

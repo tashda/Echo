@@ -3,11 +3,8 @@ import ServerLabClient
 import Testing
 @testable import Echo
 
-/// Echo's own sessions against fresh echo-server-lab servers. Run with SERVERLAB_INTEGRATION=1
-/// (TEST_RUNNER_SERVERLAB_INTEGRATION=1 through xcodebuild).
-private let labIntegrationEnabled = ProcessInfo.processInfo.environment["SERVERLAB_INTEGRATION"] == "1"
-
-@Suite(.enabled(if: labIntegrationEnabled), .server("mssql-2022-column-types"))
+/// Echo's own sessions against fresh echo-server-lab servers.
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("mssql-2022-column-types"))
 @MainActor
 struct LabSQLServerSessionTests {
     @Test func sessionListsEveryColumnTypeIncludingCLRTypes() async throws {
@@ -26,7 +23,7 @@ struct LabSQLServerSessionTests {
     }
 }
 
-@Suite(.enabled(if: labIntegrationEnabled), .server("pg-17-column-types"))
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("pg-17-column-types"))
 @MainActor
 struct LabPostgresSessionTests {
     @Test func sessionListsJsonAndEveryType() async throws {

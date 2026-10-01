@@ -5,11 +5,8 @@ import Testing
 
 /// Echo Labs round 23 (failover) end to end on two fresh echo-server-lab servers: a saved
 /// connection with both connects, Test checks both, and when the first server goes away Echo carries
-/// on with the second and reports the move. Both servers are removed afterwards. Run with
-/// SERVERLAB_INTEGRATION=1 (TEST_RUNNER_SERVERLAB_INTEGRATION=1 through xcodebuild).
-private let labIntegrationEnabled = ProcessInfo.processInfo.environment["SERVERLAB_INTEGRATION"] == "1"
-
-@Suite(.enabled(if: labIntegrationEnabled), .serialized)
+/// on with the second and reports the move. Both servers are removed afterwards.
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .serialized)
 struct PostgresFailoverTests {
     /// Starts two servers, runs `body`, and removes whatever is left of them.
     private func withTwoServers(_ body: ([LabServer]) async throws -> Void) async throws {
