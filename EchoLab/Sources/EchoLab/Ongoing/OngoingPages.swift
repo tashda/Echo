@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -270,6 +270,13 @@
         status: .judging,
         summary: "Every editor setting Echo has today, spread over three panes with five more hidden, and which should stay a setting, in one Editor pane.",
         spec: EditorSettingsRound.spec)
+
+    /// Round 29: SQL Server: Always Encrypted columns.
+    static let mssqlAlwaysEncrypted = LabPage.round(
+        id: "ongoing.mssql-always-encrypted-r29", group: "Footer and results", title: "SQL Server: Always Encrypted columns · round 29", symbol: "lock.fill",
+        status: .judging,
+        summary: "sqlserver-nio now says which result columns are Always Encrypted (real type, deterministic or randomized, key path), but Echo has no keys, so values stay ciphertext. How encrypted cells read, a header marker with details on hover, editing, Copy, and whether Echo always asks. Touches FTR-2.3 and the cell editor.",
+        spec: MssqlAlwaysEncryptedRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

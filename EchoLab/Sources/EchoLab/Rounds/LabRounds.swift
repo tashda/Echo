@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r29", label: "Round 29", title: "SQL Server: Always Encrypted columns", date: "1 Oct 2026",
+             asked: "Echo now learns which SQL Server columns are Always Encrypted but has no keys to decrypt them; how should those columns look and behave in the results grid?",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.mssql-always-encrypted-r29"]),
         Info(id: "r28", label: "Round 28", title: "Query editor", date: "1 Oct 2026",
              asked: "Everything about the query editor, decided page by page: the text and its line height, the gutter, the caret, current line and selection, the statement at the caret, highlights and marks, errors, the run note, a new zoom control, find and typing, the empty tab, and which of it stays a setting.",
              outcome: "Being judged.",
