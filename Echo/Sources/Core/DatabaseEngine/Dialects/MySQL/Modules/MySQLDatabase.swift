@@ -1,6 +1,7 @@
 import Foundation
 import Logging
 import MySQLKit
+import Synchronization
 
 struct MySQLNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dev.echodb.echo.mysql")
@@ -68,6 +69,8 @@ final class MySQLSession: DatabaseSession {
     internal let logger: Logger
     internal let defaultDatabase: String?
     internal let formatter = MySQLCellFormatter()
+    /// Told when the tab's connection drops (see `MySQLSession+ConnectionLoss`).
+    internal let connectionLostHandler = Mutex<ConnectionLostHandler?>(nil)
 
     init(
         client: MySQLClient,

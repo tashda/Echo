@@ -69,8 +69,11 @@ extension EnvironmentState {
         switch action {
         case .reconnectTab:
             guard let tabID = context?.tabID else { return }
-            if tabStore.tabs.first(where: { $0.id == tabID })?.session is MSSQLDedicatedQuerySession {
+            let session = tabStore.tabs.first(where: { $0.id == tabID })?.session
+            if session is MSSQLDedicatedQuerySession {
                 reconnectSQLServerTab(tabID)
+            } else if session is MySQLSession {
+                reconnectMySQLTab(tabID)
             } else {
                 reconnectPostgresTab(tabID)
             }

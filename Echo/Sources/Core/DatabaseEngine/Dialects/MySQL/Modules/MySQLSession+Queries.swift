@@ -15,66 +15,39 @@ extension MySQLSession {
         guard let progressHandler else {
             return try await executeSimpleQuery(sql)
         }
+        return try await streamQuery(sql, progressHandler: progressHandler)
+    }
 
-        var previewRows: [[String?]] = []
-        previewRows.reserveCapacity(512)
-        var totalRowCount = 0
-
+    /// Off the main actor, like PostgreSQL's and SQL Server's streaming: a nonisolated async
+    /// function runs on its caller's actor (SE-0461), and the tab calls from the main actor.
+    /// Rows are pulled from the server as the workers take them (bounded memory); each result set
+    /// gets its own grid.
+    @concurrent
+    private func streamQuery(_ sql: String, progressHandler: @escaping QueryProgressHandler) async throws -> QueryResultSet {
         let operationStart = CFAbsoluteTimeGetCurrent()
-        let streamingPreviewLimit = 512
-        let maxFlushLatency: TimeInterval = 0.015
-
-        var columns: [MySQLColumn] = []
-        var columnInfo: [ColumnInfo] = []
-        var messages: [ServerMessage] = []
-        var worker: ResultStreamBatchWorker?
         let bridgedHandler: QueryProgressHandler = { update in
             Task { @MainActor in
                 progressHandler(update)
             }
         }
-
+        var current: MySQLResultSetSink?
+        var results: [QueryResultSet] = []
+        var messages: [ServerMessage] = []
         do {
-            // Rows are pulled from the server as the worker takes them (bounded memory); Cancel
-            // stops the statement on the server (KILL QUERY).
             for try await event in try await client.events(sql) {
                 try Task.checkCancellation()
                 switch event {
-                case .columns(let resultColumns):
-                    // The first result set fills the grid; later ones (multi-statement) only report.
-                    guard columns.isEmpty else { continue }
-                    columns = resultColumns
-                    columnInfo = Self.columnInfo(for: resultColumns)
-                    worker = ResultStreamBatchWorker(
-                        label: "dev.echodb.echo.mysql.streamWorker",
-                        columns: columnInfo,
-                        streamingPreviewLimit: streamingPreviewLimit,
-                        maxFlushLatency: maxFlushLatency,
+                case .columns(let columns):
+                    if let previous = current { results.append(await previous.finish()) }
+                    current = MySQLResultSetSink(
+                        columns: columns,
+                        resultSetIndex: results.count,
+                        formatter: formatter,
                         operationStart: operationStart,
                         progressHandler: bridgedHandler
                     )
                 case .rows(let rows):
-                    guard let first = rows.first, first.columnDefinitions == columns else { continue }
-                    var payloads: [ResultStreamBatchWorker.Payload] = []
-                    payloads.reserveCapacity(rows.count)
-                    for row in rows {
-                        let decodeStart = CFAbsoluteTimeGetCurrent()
-                        let values = columns.indices.map { index in
-                            formatter.stringValue(bytes: row.value(at: index).bytes, column: columns[index])
-                        }
-                        totalRowCount += 1
-                        let capturePreview = totalRowCount <= streamingPreviewLimit
-                        if capturePreview { previewRows.append(values) }
-                        // The spool keeps the display text, so spooled rows read like the preview.
-                        let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: values.map { $0.map { Data($0.utf8) } })
-                        payloads.append(ResultStreamBatchWorker.Payload(
-                            previewValues: capturePreview ? values : nil,
-                            storage: .encoded(encodedRow),
-                            totalRowCount: totalRowCount,
-                            decodeDuration: CFAbsoluteTimeGetCurrent() - decodeStart
-                        ))
-                    }
-                    worker?.enqueueBatch(payloads)
+                    current?.append(rows)
                 case .done(let metadata, let returnedRows):
                     messages.append(Self.serverMessage(Self.commandResponse(metadata, returnedRows: returnedRows)))
                 case .warnings(let warnings):
@@ -83,22 +56,23 @@ extension MySQLSession {
                 }
             }
         } catch is CancellationError {
-            worker?.finish(totalRowCount: totalRowCount)
+            current?.abandon()
             throw CancellationError()
         } catch {
-            worker?.finish(totalRowCount: totalRowCount)
-            throw DatabaseError.queryError(error.localizedDescription)
+            current?.abandon()
+            throw await queryFailure(error)
         }
-
-        if let worker {
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                worker.finish(totalRowCount: totalRowCount) {
-                    Task { @MainActor in continuation.resume() }
-                }
-            }
+        if let current { results.append(await current.finish()) }
+        guard let first = results.first else {
+            return QueryResultSet(columns: [ColumnInfo(name: "result", dataType: "text")], rows: [], totalRowCount: 0, serverMessages: messages)
         }
-        let resolvedColumns = columnInfo.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columnInfo
-        return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount, serverMessages: messages)
+        return QueryResultSet(
+            columns: first.columns,
+            rows: first.rows,
+            totalRowCount: first.totalRowCount,
+            additionalResults: Array(results.dropFirst()),
+            serverMessages: messages
+        )
     }
 
     /// Stops what this connection runs, on the server (Echo #33).
@@ -110,6 +84,18 @@ extension MySQLSession {
             logger.warning("MySQL cancel failed: \(error.localizedDescription)")
             return false
         }
+    }
+
+    /// Force Stop (round 21, CS2): closes the connection still running a statement after a KILL
+    /// QUERY the server did not answer. The next run opens a new connection.
+    func forceStopRunningQuery() async -> (stopped: Bool, transactionWasOpen: Bool) {
+        let outcome = await client.closeRunningConnection()
+        return (outcome.closed, outcome.transactionWasOpen)
+    }
+
+    /// Whether a transaction is open, as of the last statement (no round trip).
+    var isInTransaction: Bool {
+        get async { await client.isInTransaction }
     }
 
     func simpleQuery(
@@ -125,7 +111,7 @@ extension MySQLSession {
             let result = try await client.query(sql)
             return makeResultSet(from: result)
         } catch {
-            throw DatabaseError.queryError(error.localizedDescription)
+            throw await queryFailure(error)
         }
     }
 
