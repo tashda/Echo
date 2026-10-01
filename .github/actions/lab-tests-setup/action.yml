@@ -3,7 +3,8 @@ description: >
   Everything a job needs before running a test plan whose suites start echo-server-lab servers:
   access to the private echo-server-lab package and to testlab, the serverlab tool built from the
   lab revision Echo is pinned to, placeholder secrets for the build, and resolved packages.
-  Run it after checkout, Xcode selection and the PostgreSQL tools step.
+  Run it after checkout, Xcode selection and the PostgreSQL tools step. It joins the tailnet last,
+  so every download (packages, caches, Homebrew) happens on the runner's own network.
 inputs:
   lab-deploy-key:
     required: true
@@ -26,14 +27,6 @@ runs:
       uses: ./.github/actions/lab-repo-access
       with:
         deploy-key: ${{ inputs.lab-deploy-key }}
-
-    - name: Access to testlab
-      uses: ./.github/actions/testlab-access
-      with:
-        tailscale-oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
-        tailscale-oauth-secret: ${{ inputs.tailscale-oauth-secret }}
-        ssh-key: ${{ inputs.testlab-ssh-key }}
-        known-hosts: ${{ inputs.testlab-known-hosts }}
 
     - name: Lab revision Echo is pinned to
       id: lab
@@ -67,3 +60,11 @@ runs:
     - name: Resolve packages
       shell: bash
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
+
+    - name: Access to testlab
+      uses: ./.github/actions/testlab-access
+      with:
+        tailscale-oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
+        tailscale-oauth-secret: ${{ inputs.tailscale-oauth-secret }}
+        ssh-key: ${{ inputs.testlab-ssh-key }}
+        known-hosts: ${{ inputs.testlab-known-hosts }}

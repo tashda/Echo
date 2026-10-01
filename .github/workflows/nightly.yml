@@ -73,6 +73,11 @@ jobs:
         "${{ steps.lab.outputs.serverlab }}" down --all --owner-prefix "nightly-${{ github.run_id }}-${{ github.run_attempt }}" || true
         "${{ steps.lab.outputs.serverlab }}" reap || true
 
+    # The results upload talks to GitHub, which failed to resolve while the runner was on the tailnet.
+    - name: Leave the tailnet
+      if: always()
+      run: sudo "$(command -v tailscale)" down || true
+
     - name: Upload SQL Server Version Results
       if: always()
       uses: actions/upload-artifact@v4
