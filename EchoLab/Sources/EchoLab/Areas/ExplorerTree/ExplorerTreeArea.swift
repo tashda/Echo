@@ -29,7 +29,7 @@ enum ExplorerTreeArea {
         summary: "Each server sits on its own card: quiet 28pt rows, duotone icons, and a dock of section icons pinned under the server's name.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "9498ca2b", date: "2026-10-01",
+                level: .code, commit: "fea43dc2", date: "2026-10-01",
                 note: "Read from SidebarRow, SidebarRowConstants, ExplorerDock, ExplorerDockRow, ObjectBrowserRowView+Headers, ObjectBrowserSidebarView+Dock, ExplorerMotion, ExplorerTreeVeilLayer, ExplorerTreeScrollState, ExplorerBlueprint+SQLServer and the tokens, as of round 19 and the 2026-10-01 smoothness work. The specimen is a self-contained copy of the server card."),
             stageHeight: 540,
             behaviours: [
@@ -37,7 +37,7 @@ enum ExplorerTreeArea {
                 .init(trigger: "Click a folder", result: "It opens or closes; the rows below slide and fade, like the native outline."),
                 .init(trigger: "Look at a server's name", result: "A wash of the server's colour fades down from the card's top edge through the dock; the dock's current icon is in the same colour. Settings › Appearance › Server Header offers Plain, Bar, Glass Plate and Banner, and Server Header Color the accent or none (round 30.1)."),
                 .init(trigger: "Right-click a server's name › Color", result: "Five swatches, the connection sheet's; the header, rail, tabs and footer pill change at once."),
-                .init(trigger: "Click a server's name", result: "The card folds to its header while its dock and rows fade, cut by the card's moving edge, and the cards below follow (CM2); it opens the same way. Closed, the name, product line and chevron are centred in the card. The chevron sits at the trailing edge, centred on the two lines; it shows on hover while open and always while closed (round 30.2)."),
+                .init(trigger: "Click a server's name", result: "Opening, the edge glides down while the dock grows out of the header and the rows wait under a veil in the card's colour, which fades away once the edge settles; closing, the veil covers the rows, then the edge glides up as the dock shrinks back (round 46). The cards below follow the edge. Closed, the name, product line and chevron are centred in the card. The chevron sits at the trailing edge, centred on the two lines; it shows on hover while open and always while closed (round 30.2)."),
                 .init(trigger: "Click an object", result: "Grey selection fill with the row's icon in its accent."),
                 .init(trigger: "Click a dock icon", result: "A veil in the card's colour fades over the rows (0.12s); under it the new section swaps in and the card's edge moves to its size (0.28s, no overshoot), the view jumps to where that section was left, and the veil fades away (0.22s). Rows never slide or show outside the card, and the window holds still meanwhile. A section not shown before doesn't scroll; the header's second line names the current section."),
                 .init(trigger: "Hover a dock icon", result: "An icon that isn't the current one grows 12%."),
@@ -51,7 +51,9 @@ enum ExplorerTreeArea {
             ],
             motions: [
                 .init(name: "Folder open and close", curve: "ease in-out", duration: "0.22s", note: "echoMotion.expand"),
-                .init(name: "Server card fold", curve: "ease in-out", duration: "0.22s", note: "echoMotion.expand: the card's edge, the rows' fade and cut, and the header's glide on one curve (round 30.2)"),
+                .init(name: "Server card fold", curve: "ease in-out", duration: "0.22s", note: "echoMotion.expand: the card's edge, the veil, the dock's growth and the header's glide on one curve (rounds 30.2 and 46)"),
+                .init(name: "Server card open: veil out", curve: "ease out", duration: "0.22s", note: "ExplorerDockSwitchTiming.fadeIn, after the edge"),
+                .init(name: "Server card close: veil in", curve: "ease out", duration: "0.12s", note: "ExplorerDockSwitchTiming.fadeOut, before the edge"),
                 .init(name: "Reveal in the tree", curve: "smooth", duration: "0.40s", note: "echoMotion.reveal, scrolling to a picked object"),
                 .init(name: "Hover fill", curve: "ease out", duration: "0.12s", note: "echoMotion.hover"),
                 .init(name: "Switch dock section: veil in", curve: "ease out", duration: "0.12s", note: "ExplorerDockSwitchTiming.fadeOut; scaled by the Motion speed setting"),

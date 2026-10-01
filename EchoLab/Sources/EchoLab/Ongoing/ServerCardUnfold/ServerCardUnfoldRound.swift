@@ -9,6 +9,10 @@ import SwiftUI
 /// today below draws exactly that. The owner asked to look at how switching sections animates
 /// (round 19, S3: a veil in the card's colour, the edge settling, the veil fading away) and find a
 /// proper way to bring the dock in. Changes TREE-2.5.
+///
+/// Accepted 2026-10-01 with every recommendation (DA2, RA1, CL2), and the note that the glass
+/// must blur from the first frame, so DA2 no longer fades: the edge uncovers it. Built into Echo as
+/// TREE-2.5.
 @MainActor
 enum ServerCardUnfoldRound {
     private static let width = LayoutTokens.Workspace.treeIdealWidth + SpacingTokens.xl * 2

@@ -29,6 +29,10 @@
       {
         "date": "2026-10-01T14:31:50Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:15:06Z",
+        "text": "Taken by agent-jobs-r33"
       }
     ],
     "needsMore": [],
@@ -57,6 +61,11 @@
       }
     ],
     "status": "Accepted",
+    "takenBy": {
+      "agent": "agent-jobs-r33",
+      "date": "2026-10-01T18:15:06Z",
+      "status": "Accepted"
+    },
     "verdicts": {}
   },
   "ongoing.agent-jobs-tab-r33": {
@@ -1933,6 +1942,40 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.rail-bookmarks-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:37:26Z",
+        "id": "13124FAB-D4A4-4D15-8234-798DB744A2BA",
+        "text": "Review of Rail tools: Bookmarks\n1. Saving: picked BS2 \u00b7 BS1, and saving opens a small popover: name, folder, note\n2. A bookmark holds: picked BH1 \u00b7 BH0, plus a folder and a note\n3. List: picked BL2 \u00b7 BL1 with the SQL shown under the selected bookmark; NEEDS MORE OPTIONS; note: This, but it needs to look better.\n4. Opening: picked BO1 \u00b7 Click opens a new tab; \u2325-click or drag inserts at the caret\n5. Bookmarks with blanks: picked BP0 \u00b7 Not now; snippets have placeholders (39.3)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:37:26Z",
+        "text": "Feedback sent"
+      }
+    ],
+    "needsMore": [
+      "list"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "list": "This, but it needs to look better."
+    },
+    "picks": {
+      "holds": "BH1 \u00b7 BH0, plus a folder and a note",
+      "list": "BL2 \u00b7 BL1 with the SQL shown under the selected bookmark",
+      "open": "BO1 \u00b7 Click opens a new tab; \u2325-click or drag inserts at the caret",
+      "parameters": "later",
+      "save": "BS2 \u00b7 BS1, and saving opens a small popover: name, folder, note"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "New feedback",
+    "verdicts": {}
+  },
   "ongoing.rail-click-hidden-tree-r40": {
     "comments": [
       {
@@ -1968,6 +2011,120 @@
     "reviewedRevision": 1,
     "revisions": [],
     "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.rail-clipboard-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:39:31Z",
+        "id": "2548E577-5BD3-4ACC-8922-2408F45FDE3F",
+        "text": "Review of Rail tools: Clipboard\n1. Clipboard: picked CB1 \u00b7 Drop it; the system's clipboard history covers it\n2. The rail's bottom pill: picked BP0 \u00b7 It goes; the rail is only servers and +"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:39:31Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "fate": "CB1 \u00b7 Drop it; the system's clipboard history covers it",
+      "railAfter": "remove"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.rail-history-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:39:07Z",
+        "id": "45A33194-9B2C-4973-A62F-A17304FF0D46",
+        "text": "Review of Rail tools: History\n1. Grouping: picked HG0 \u00b7 By day, newest first\n2. Rows: picked HR0 \u00b7 The first line of SQL, then database \u00b7 result \u00b7 time\n3. Kept for: picked HK1 \u00b7 The last 5,000 runs; note: Remember cache settings in Settings and to take them into consideration\n4. A past query: picked HA1 \u00b7 Open in a new tab only\n5. Servers you don't want recorded: picked HP0 \u00b7 Yes: Don't keep history, in the connection's settings"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:39:07Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "keep": "Remember cache settings in Settings and to take them into consideration"
+    },
+    "picks": {
+      "actions": "open",
+      "grouping": "HG0 \u00b7 By day, newest first",
+      "keep": "HK1 \u00b7 The last 5,000 runs",
+      "row": "HR0 \u00b7 The first line of SQL, then database \u00b7 result \u00b7 time",
+      "sensitive": "yes"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.rail-snippets-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:38:02Z",
+        "id": "7375BA25-155C-4D00-85B9-034AE234BCA4",
+        "text": "Review of Rail tools: Snippets\n1. Snippets: no answer yet\n2. Inserting: no answer yet\n3. Blanks: no answer yet\n4. Making one: no answer yet\nOverall: Remove snippets"
+      }
+    ],
+    "generalNote": "Remove snippets",
+    "history": [
+      {
+        "date": "2026-10-01T18:38:02Z",
+        "text": "Feedback sent"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "New feedback",
+    "verdicts": {}
+  },
+  "ongoing.rail-tools-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:35:31Z",
+        "id": "7ECE66DC-2ADC-4BB1-8657-DEF494C887BE",
+        "text": "Review of Rail tools: keep, merge or move\n1. Which placement?: picked RT2 \u00b7 Panels in the inspector column, beside the tab\n2. Where they live: picked RT2 \u00b7 Panels in the inspector column, beside the tab\n3. Bookmarks: picked KB0 \u00b7 Keep, redesigned (39.2)\n4. Snippets: picked KS2 \u00b7 Drop\n5. History: picked KH0 \u00b7 Build it (39.4), and remove Coming Soon\n6. Clipboard: picked KC0 \u00b7 Drop it: macOS 26 keeps clipboard history in Spotlight (39.5)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:35:31Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "bookmarks": "keep",
+      "clipboard": "drop",
+      "exhibit": "inspector",
+      "history": "build",
+      "placement": "RT2 \u00b7 Panels in the inspector column, beside the tab",
+      "snippets": "drop"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
     "verdicts": {}
   },
   "ongoing.refresh-and-activity-r34": {
@@ -2668,6 +2825,43 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.server-card-unfold-r46": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:28:21Z",
+        "id": "219B492E-A7B9-4D28-9218-8B57FFC1DB91",
+        "text": "Review of Server card: opening and closing\n1. Which opening?: picked Proposal\n2. Dock: picked DA2 \u00b7 Grows out of the header\n3. Rows: picked RA1 \u00b7 Under the section switch's veil\n4. Closing: picked CL2 \u00b7 The veil covers the rows, then the card folds\nOverall: During the animation it shows the headers \"gradient color\" with a line at the bottom and when expanded it is THEN blurred - needs to be blurred immediately so the user dont see a hard line during animation"
+      }
+    ],
+    "generalNote": "During the animation it shows the headers \"gradient color\" with a line at the bottom and when expanded it is THEN blurred - needs to be blurred immediately so the user dont see a hard line during animation",
+    "history": [
+      {
+        "date": "2026-10-01T18:28:21Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:30:36Z",
+        "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T18:45:50Z",
+        "text": "Built into Echo (9aaec7e9): opening, the dock grows out of the header without fading (its glass blurs from the first frame) while the rows wait under the section switch's veil, which fades away once the edge settles; closing, the veil covers the rows, then the card folds as the dock shrinks back. The cause of the abrupt dock and rows (animation turned off on any dock-selection change) is fixed for folds."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "close": "CL2 \u00b7 The veil covers the rows, then the card folds",
+      "dock": "DA2 \u00b7 Grows out of the header",
+      "exhibit": "proposal",
+      "rows": "RA1 \u00b7 Under the section switch's veil"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.server-header-collapse-r30": {
     "comments": [
       {
@@ -2926,6 +3120,11 @@
         "date": "2026-10-01T17:51:40Z",
         "id": "6735196C-FD88-43F7-8456-8E9C6D68AAAF",
         "text": "Review of Tool tabs: the header and toolbar row\n1. Which header?: picked Proposal: SQL Profiler; NEEDS MORE OPTIONS; note: The pages needs to bee in the tab, so maybe we could add everything on \"one line\" where the header is. please investigate this and then make proper suggestions\n2. Layout: no answer yet\n3. Pages: no answer yet"
+      },
+      {
+        "date": "2026-10-01T18:22:02Z",
+        "id": "57A17214-12AB-4DF1-AABF-CC9D11DAA852",
+        "text": "Review of Tool tabs: the header and toolbar row\n1. Which header?: picked Proposal: SQL Profiler\n2. Layout: picked UH5 \u00b7 One line: tile, name and subtitle at the left, every control at the right\n3. Pages: picked PG0 \u00b7 Yes: pages in the tab (36.1), the row has filters, search and actions"
       }
     ],
     "generalNote": "",
@@ -2945,19 +3144,21 @@
       {
         "date": "2026-10-01T18:09:48Z",
         "text": "Revision 2: The header on one line; the pages are in the tab (36.1)"
+      },
+      {
+        "date": "2026-10-01T18:22:02Z",
+        "text": "Accepted with picks"
       }
     ],
-    "needsMore": [
-      "exhibit"
-    ],
+    "needsMore": [],
     "optionNotes": {},
-    "pickNotes": {
-      "exhibit": "The pages needs to bee in the tab, so maybe we could add everything on \"one line\" where the header is. please investigate this and then make proper suggestions"
-    },
+    "pickNotes": {},
     "picks": {
-      "exhibit": "profiler"
+      "exhibit": "profiler",
+      "header": "UH5 \u00b7 One line: tile, name and subtitle at the left, every control at the right",
+      "pagesPlace": "tab"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -2973,7 +3174,35 @@
         "summary": "The header on one line; the pages are in the tab (36.1)"
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-main-action-r45": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:29:59Z",
+        "id": "2D4ED93C-0313-42B3-B8D9-9D56883CCF21",
+        "text": "Review of Tool tabs: the main action in the toolbar\n1. Which one?: NEEDS MORE OPTIONS; note: I actually don't want it in the toolbar - actions for these tabs should be within the tabs and only the query panel should use the run button. Makes it easier for the user to understand what they are doing,\n2. Main action: no answer yet\n3. Running: no answer yet\n4. More than one kind of New: no answer yet\n5. Keyboard: no answer yet\n6. The toolbar's other tool buttons: no answer yet"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:29:59Z",
+        "text": "Feedback sent"
+      }
+    ],
+    "needsMore": [
+      "exhibit"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "exhibit": "I actually don't want it in the toolbar - actions for these tabs should be within the tabs and only the query panel should use the run button. Makes it easier for the user to understand what they are doing,"
+    },
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "New feedback",
     "verdicts": {}
   },
   "ongoing.tool-tab-pages-r36": {
@@ -2987,6 +3216,11 @@
         "date": "2026-10-01T18:18:02Z",
         "id": "63836D69-F2FB-419F-AEC4-1028D7A176E4",
         "text": "Review of Tool tabs with pages: the tab bar\n1. Which tab bar?: NEEDS MORE OPTIONS; note: I don't really like any of these. TP0 is closest, but it looks weird with how the \"sub pages\" are in a tab within the tab and the activity monitor sits on the tab. This needs to look better, but I don't enjoy any of the other suggestions\n2. Pages: no answer yet\n3. One tab: no answer yet\n4. Switching tabs: no answer yet"
+      },
+      {
+        "date": "2026-10-01T18:45:26Z",
+        "id": "FBBE7866-A42A-41CD-A916-8003B571F9B3",
+        "text": "Review of Tool tabs with pages: the tab bar\n1. Which tab bar?: picked TP0 refined\n2. Tab width: picked RW1 \u00b7 Exactly as wide as its title and pages; the other tabs share the rest\n3. Grey track: picked RT2 \u00b7 No track: the pages sit on the tab itself\n4. Type: picked RX1 \u00b7 Title and pages at 11pt on one baseline; the title medium, the shown page semibold\n5. Between: picked RD1 \u00b7 A short hairline\n6. Shown page: picked RC0 \u00b7 A white raised pill (today)\n7. One tab: picked SW1 \u00b7 Its own width, at the leading edge\n8. Switching tabs: picked UF1 \u00b7 The house spring, the pages fading first"
       }
     ],
     "generalNote": "",
@@ -3010,17 +3244,26 @@
       {
         "date": "2026-10-01T18:33:38Z",
         "text": "Revision 3: TP0 refined: your favourite, with one knob per thing that looked off"
+      },
+      {
+        "date": "2026-10-01T18:45:26Z",
+        "text": "Accepted with picks"
       }
     ],
-    "needsMore": [
-      "exhibit"
-    ],
+    "needsMore": [],
     "optionNotes": {},
-    "pickNotes": {
-      "exhibit": "I don't really like any of these. TP0 is closest, but it looks weird with how the \"sub pages\" are in a tab within the tab and the activity monitor sits on the tab. This needs to look better, but I don't enjoy any of the other suggestions"
+    "pickNotes": {},
+    "picks": {
+      "chip": "RC0 \u00b7 A white raised pill (today)",
+      "divider": "RD1 \u00b7 A short hairline",
+      "exhibit": "refined",
+      "single": "SW1 \u00b7 Its own width, at the leading edge",
+      "switching": "spring",
+      "text": "RX1 \u00b7 Title and pages at 11pt on one baseline; the title medium, the shown page semibold",
+      "track": "RT2 \u00b7 No track: the pages sit on the tab itself",
+      "width": "RW1 \u00b7 Exactly as wide as its title and pages; the other tabs share the rest"
     },
-    "picks": {},
-    "reviewedRevision": 2,
+    "reviewedRevision": 3,
     "revisions": [
       {
         "changes": [
@@ -3050,7 +3293,7 @@
         "summary": "TP0 refined: your favourite, with one knob per thing that looked off"
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
     "verdicts": {}
   },
   "ongoing.tool-tab-pages-where-r36": {

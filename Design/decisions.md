@@ -2,6 +2,15 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 46 accepted: a server card opens and closes like a section switch
+
+Echo Labs › Explorer tree › Server card: opening and closing · round 46, after the owner checked 30.2 in Echo (the dock and rows "just appeared": the list turned animation off whenever dock selections changed, which opening a docked server does). Every recommendation was taken. Built in 9aaec7e9.
+
+- **Dock (DA2):** grows out of the header, from 92% and slightly out of focus, as the edge uncovers it. **It never fades** (owner's note: the glass must blur from the first frame, with no hard line during the animation).
+- **Rows (RA1):** they come in **under the section switch's veil**: hidden under the card's colour while the edge glides, then the veil fades away (0.22s).
+- **Closing (CL2):** the veil covers the rows (0.12s), then the card folds as the dock shrinks back into the header.
+- A fold keeps the list's animation; only a section switch turns it off. → TREE-2.5
+
 ## 2026-10-01 · Round 44 accepted: the rows soften into the system's material under the footer
 
 Echo Labs › Footer and results › The blur under the footer · round 44, after the owner saw the blur as a band twice. The round showed every technique over the same real grid; looking at them showed why the band never went away: the stacked blur layers show either full or not at all instead of fading in, so a row went from sharp to mush at once whatever the steps. Built in b5eebdb9.

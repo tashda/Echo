@@ -63,14 +63,18 @@ enum ExplorerTreeSpec {
                 .behaviour(.row("Shows", "on hover while open, always while closed (CV0)"), .row("Turns", "90° when open")),
                 .motion(.row("Turn", "ease in-out, 0.22s", token: "echoMotion.expand"), .row("Show and hide", "ease in-out, 0.15s")),
             ], rounds: [r30Collapse], files: [components + "ObjectBrowserRowView+Headers.swift"]),
-            SpecElement(number: "2.5", name: "Folding the card", summary: "Click the header: the card folds to its header while the rows fade (CM2), and opens the same way.", groups: [
+            SpecElement(number: "2.5", name: "Folding the card", summary: "Click the header: the card opens with its dock growing out of the header and its rows under the section switch's veil, and closes by covering the rows, then folding (rounds 30.2 and 46).", groups: [
                 .layout(.row("Closed card", "the header only (CC0): the slot plus 4pt, the name, product line and chevron centred in it")),
                 .motion(.row("Card edge", "ease in-out, 0.22s", token: "echoMotion.expand / ExplorerTreeCardsLayer.foldingCardIDs"),
-                        .row("Rows and dock", "fade over the same 0.22s and are cut by the moving edge and its corners, so none shows outside the card", token: "ExplorerTreeFoldTransition"),
+                        .row("Dock (DA2)", "grows from 92% and 3pt out of focus to full size, anchored at its top, cut by the moving edge; it never fades, so its glass blurs from the first frame", token: "ExplorerTreeFoldTransition.Style.grow"),
+                        .row("Rows, opening (RA1)", "hidden under an opaque veil in the card's colour that grows with the edge; when the edge settles they show and the veil fades away, ease out 0.22s", token: "ExplorerDockSwitchTiming.fadeIn"),
+                        .row("Rows, closing (CL2)", "the veil fades over them, ease out 0.12s; then they go at once under it and the edge closes as the dock shrinks back", token: "ExplorerDockSwitchTiming.fadeOut"),
+                        .row("Other cards' rows", "when one server's opening closes another, its rows fade and are cut by its edge", token: "ExplorerTreeFoldTransition"),
                         .row("Header", "glides between its open place (12pt down) and the centre of the closed card")),
                 .behaviour(.row("Two steps", "the cards are marked as folding first, then the server opens or closes, so leaving rows carry the fold", token: "ObjectBrowserSidebarView.foldServerCard"),
-                           .row("The cards below", "move with the edge, on the same curve")),
-            ], rounds: [r30Collapse], files: [components + "ObjectBrowserSidebarView+Fold.swift", components + "ObjectBrowserOutlineView+Fold.swift",
+                           .row("The cards below", "move with the edge, on the same curve"),
+                           .row("Animation", "a fold keeps the list's animation: only a section switch turns it off", token: "ObjectBrowserOutlineView.dockSwitchKey")),
+            ], rounds: [r30Collapse, "ongoing.server-card-unfold-r46"], files: [components + "ObjectBrowserSidebarView+Fold.swift", components + "ObjectBrowserOutlineView+Fold.swift",
                                               "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeFoldTransition.swift"]),
             SpecElement(number: "2.6", name: "Header colour", summary: "Settings › Appearance › Server Header and Server Header Color (round 30.1): a wash of the server's colour by default.", groups: [
                 .material(.row("Wash (HD4, default)", "the colour at 20% at the card's top edge, fading to clear through the dock (8% grey with None); the whole card when closed", token: "ServerHeaderBackdrop"),
