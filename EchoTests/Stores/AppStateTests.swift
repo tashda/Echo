@@ -5,11 +5,15 @@ import Foundation
 @MainActor
 @Suite("AppState")
 struct AppStateTests {
+    private func isolatedState() -> AppState {
+        AppState(historyDefaults: UserDefaults(suiteName: "AppStateTests.\(UUID())")!)
+    }
+
 
     // MARK: - showError
 
     @Test func showErrorSetsErrorAndFlag() {
-        let state = AppState()
+        let state = isolatedState()
         let error = DatabaseError.connectionFailed("timeout")
 
         state.showError(error)
@@ -19,7 +23,7 @@ struct AppStateTests {
     }
 
     @Test func showErrorClearsLoadingStates() {
-        let state = AppState()
+        let state = isolatedState()
         state.isLoading = true
         state.isConnecting = true
         state.isQueryRunning = true
@@ -32,7 +36,7 @@ struct AppStateTests {
     }
 
     @Test func showErrorOverridesPreviousError() {
-        let state = AppState()
+        let state = isolatedState()
         state.showError(.connectionFailed("first"))
         state.showError(.queryError("second"))
 
@@ -46,7 +50,7 @@ struct AppStateTests {
     // MARK: - clearError
 
     @Test func clearErrorClearsBoth() {
-        let state = AppState()
+        let state = isolatedState()
         state.showError(.connectionFailed("test"))
 
         state.clearError()
@@ -56,7 +60,7 @@ struct AppStateTests {
     }
 
     @Test func clearErrorWhenAlreadyClearIsNoOp() {
-        let state = AppState()
+        let state = isolatedState()
         state.clearError()
 
         #expect(state.currentError == nil)
@@ -66,20 +70,20 @@ struct AppStateTests {
     // MARK: - startLoading / stopLoading
 
     @Test func startLoadingSetsFlag() {
-        let state = AppState()
+        let state = isolatedState()
         state.startLoading()
         #expect(state.isLoading == true)
     }
 
     @Test func stopLoadingClearsFlag() {
-        let state = AppState()
+        let state = isolatedState()
         state.startLoading()
         state.stopLoading()
         #expect(state.isLoading == false)
     }
 
     @Test func stopLoadingWhenNotLoadingIsNoOp() {
-        let state = AppState()
+        let state = isolatedState()
         state.stopLoading()
         #expect(state.isLoading == false)
     }
@@ -87,33 +91,33 @@ struct AppStateTests {
     // MARK: - showSheet / dismissSheet
 
     @Test func showSheetSetsActiveSheet() {
-        let state = AppState()
+        let state = isolatedState()
         state.showSheet(.connectionEditor)
         #expect(state.activeSheet == .connectionEditor)
     }
 
     @Test func showSheetReplacesExisting() {
-        let state = AppState()
+        let state = isolatedState()
         state.showSheet(.connectionEditor)
         state.showSheet(.preferences)
         #expect(state.activeSheet == .preferences)
     }
 
     @Test func dismissSheetClearsActiveSheet() {
-        let state = AppState()
+        let state = isolatedState()
         state.showSheet(.about)
         state.dismissSheet()
         #expect(state.activeSheet == nil)
     }
 
     @Test func dismissSheetWhenNoSheetIsNoOp() {
-        let state = AppState()
+        let state = isolatedState()
         state.dismissSheet()
         #expect(state.activeSheet == nil)
     }
 
     @Test func showSheetAllCases() {
-        let state = AppState()
+        let state = isolatedState()
         let cases: [ActiveSheet] = [.connectionEditor, .quickConnect, .preferences, .about, .exportData]
         for sheet in cases {
             state.showSheet(sheet)
@@ -124,7 +128,7 @@ struct AppStateTests {
     // MARK: - addToQueryHistory
 
     @Test func addToQueryHistoryAddsItem() {
-        let state = AppState()
+        let state = isolatedState()
         state.clearQueryHistory()
 
         state.addToQueryHistory("SELECT 1;", resultCount: 1, duration: 0.5)
@@ -136,7 +140,7 @@ struct AppStateTests {
     }
 
     @Test func addToQueryHistoryInsertsAtFront() {
-        let state = AppState()
+        let state = isolatedState()
         state.clearQueryHistory()
 
         state.addToQueryHistory("SELECT 1;")
@@ -146,21 +150,21 @@ struct AppStateTests {
         #expect(state.queryHistory[1].query == "SELECT 1;")
     }
 
-    @Test func addToQueryHistoryLimitsTo500() {
-        let state = AppState()
+    @Test func addToQueryHistoryKeepsMoreThan500ByDefault() {
+        let state = isolatedState()
         state.clearQueryHistory()
 
         for i in 0..<510 {
             state.addToQueryHistory("SELECT \(i);")
         }
 
-        #expect(state.queryHistory.count == 500)
+        #expect(state.queryHistory.count == 510)
         // Most recent should be at index 0
         #expect(state.queryHistory[0].query == "SELECT 509;")
     }
 
     @Test func addToQueryHistoryWithNilOptionals() {
-        let state = AppState()
+        let state = isolatedState()
         state.clearQueryHistory()
 
         state.addToQueryHistory("SELECT 1;")
@@ -172,7 +176,7 @@ struct AppStateTests {
     // MARK: - clearQueryHistory
 
     @Test func clearQueryHistoryEmptiesList() {
-        let state = AppState()
+        let state = isolatedState()
         state.addToQueryHistory("SELECT 1;")
         state.addToQueryHistory("SELECT 2;")
 
@@ -182,7 +186,7 @@ struct AppStateTests {
     }
 
     @Test func clearQueryHistoryWhenAlreadyEmptyIsNoOp() {
-        let state = AppState()
+        let state = isolatedState()
         state.clearQueryHistory()
         state.clearQueryHistory()
         #expect(state.queryHistory.isEmpty)
@@ -259,7 +263,7 @@ struct AppStateTests {
     // MARK: - Initial state
 
     @Test func initialStateDefaults() {
-        let state = AppState()
+        let state = isolatedState()
 
         #expect(state.isLoading == false)
         #expect(state.currentError == nil)

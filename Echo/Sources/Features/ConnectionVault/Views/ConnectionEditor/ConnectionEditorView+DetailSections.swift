@@ -184,6 +184,11 @@ extension ConnectionEditorView {
                 }
             }
 
+            PropertyRow(title: "Don't keep query history", info: "New runs on this connection will not be stored in Query History. Existing history can be cleared in Settings › Cache.") {
+                Toggle("", isOn: Binding(get: { !keepsQueryHistory }, set: { keepsQueryHistory = !$0 }))
+                    .labelsHidden().toggleStyle(.switch)
+            }
+
             PropertyRow(
                 title: "Query Time Limit",
                 info: "Stops a statement that runs longer than this. Empty uses Settings › Databases › Query time limit; 0 means no limit."

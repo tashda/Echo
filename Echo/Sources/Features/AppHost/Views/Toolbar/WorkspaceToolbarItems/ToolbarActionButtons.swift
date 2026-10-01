@@ -11,11 +11,15 @@ struct InspectorToolbarButton: View {
     private var showsDetails: Bool { appState.showInfoSidebar && !appState.isNotificationHistoryVisible }
 
     var body: some View {
-        Button {
-            appState.toggleInspector()
+        Menu {
+            Button("Details", systemImage: "sidebar.right") { appState.showInfoSidebar = true }
+            Button("Bookmarks", systemImage: "bookmark") { appState.showWorkspaceLibrary(.bookmarks) }
+            Button("Query History", systemImage: "clock") { appState.showWorkspaceLibrary(.history) }
         } label: {
             Label("Inspector", systemImage: "sidebar.right")
                 .symbolVariant(showsDetails ? .fill : .none)
+        } primaryAction: {
+            appState.toggleInspector()
         }
         .help(showsDetails ? "Hide Inspector" : "Show Inspector")
         .labelStyle(.iconOnly)

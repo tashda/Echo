@@ -22,6 +22,8 @@ enum RailBookmarksRound {
         case today = "BL0 · One server at a time, database groups, a card each (today)"
         case rows = "BL1 · All servers, folders, quiet two-line rows, search"
         case preview = "BL2 · BL1 with the SQL shown under the selected bookmark"
+        case inline = "BL3 · Native folder list, SQL beneath the selected row"
+        case detail = "BL4 · Native folder list, SQL in a fixed detail pane"
     }
 
     enum Open: String, CaseIterable {
@@ -39,10 +41,11 @@ enum RailBookmarksRound {
                 question: "What should a bookmark keep besides its SQL?",
                 recommend: .folders,
                 why: "A list of more than 15 bookmarks needs folders; a note keeps 'only run after the OH import failed' with the UPDATE that needs it."),
-            .of("list", "List", ListLook.self, default: .preview,
+            .of("list", "List", ListLook.self, default: .inline,
                 question: "Compare the lists. Which helps you find and recognise a bookmark?",
-                recommend: .preview,
-                why: "One list for every server, folders as in Finder, search at the top; the selected bookmark shows its SQL so you know what it does before opening it. Cards for every bookmark take three times the height."),
+                recommend: .inline,
+                why: "You chose SQL beneath the selected bookmark. BL3 gives it a native selection, quieter folder headings and readable SQL with no card inside a selected card. BL4 keeps the list stable but separates the preview from its row.",
+                addedIn: 2, newChoices: (2, [.inline, .detail])),
             .of("open", "Opening", Open.self, default: .insert,
                 question: "What should clicking a bookmark do?",
                 recommend: .insert,
@@ -53,10 +56,18 @@ enum RailBookmarksRound {
                 LabRTScene(selected: 0) { LabRTBookmarksToday() }
             },
             .init(id: "proposal", title: "Proposal", summary: "Built from the controls.", isWide: true, designWidth: 760, designHeight: 460) { values in
-                LabRTScene(selected: 0) { LabRBList(look: ListLook(rawValue: values["list"]) ?? .preview, folders: (Holds(rawValue: values["holds"]) ?? .folders) == .folders) }
+                let look = ListLook(rawValue: values["list"]) ?? .inline
+                if look == .inline || look == .detail { LabRBInspectorScene(look: look) }
+                else { LabRTScene(selected: 0) { LabRBList(look: look, folders: (Holds(rawValue: values["holds"]) ?? .folders) == .folders) } }
             },
             .init(id: "saving", title: "Saving", summary: "⌘D in a query tab, with BS2's popover.", isWide: true, designWidth: 760, designHeight: 300) { values in
                 LabRBSaving(save: Save(rawValue: values["save"]) ?? .popover)
+            },
+            .init(id: "inline", title: "BL3 · Inline preview", summary: "New: native folder list; SQL and note beneath the selected row, in the inspector column.", isWide: true, addedIn: 2, designWidth: 860, designHeight: 520) { _ in
+                LabRBInspectorScene(look: .inline)
+            },
+            .init(id: "detail", title: "BL4 · Fixed preview", summary: "New: the list keeps its height; selected SQL and note have a separate pane below.", isWide: true, addedIn: 2, designWidth: 860, designHeight: 520) { _ in
+                LabRBInspectorScene(look: .detail)
             },
         ],
         questions: [
@@ -66,96 +77,6 @@ enum RailBookmarksRound {
                   recommended: "later",
                   why: "Placeholders belong to snippets, which are made for it; a bookmark is a query as you ran it."),
         ],
-        presets: [.init(id: "recommended", name: "My recommendation", values: ["save": Save.popover.rawValue, "holds": Holds.folders.rawValue, "list": ListLook.preview.rawValue, "open": Open.insert.rawValue], isRecommended: true)]
+        presets: [.init(id: "recommended", name: "My recommendation", values: ["save": Save.popover.rawValue, "holds": Holds.folders.rawValue, "list": ListLook.inline.rawValue, "open": Open.insert.rawValue], isRecommended: true)]
     )
-}
-
-/// The proposed list: all servers, folders, search, selected bookmark's SQL.
-private struct LabRBList: View {
-    let look: RailBookmarksRound.ListLook
-    let folders: Bool
-    @State private var selected = "b2"
-
-    var body: some View {
-        if look == .today {
-            LabRTBookmarksToday()
-        } else {
-            LabRTColumn(title: "Bookmarks", subtitle: "\(LabRTBookmark.samples.count) saved", trailing: AnyView(Image(systemName: "folder.badge.plus").foregroundStyle(ColorTokens.Text.secondary))) {
-                LabRTSearch(prompt: "Search bookmarks")
-                ScrollView {
-                    VStack(alignment: .leading, spacing: SpacingTokens.none) {
-                        ForEach(groups, id: \.0) { title, items in
-                            LabRTHeading(title: title, count: items.count)
-                            ForEach(items) { bookmark in
-                                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                                    LabRTRow(symbol: "bookmark", title: bookmark.title, detail: "\(bookmark.server) · \(bookmark.database)")
-                                    if look == .preview, bookmark.id == selected {
-                                        Text(bookmark.sql).font(TypographyTokens.detail.monospaced()).foregroundStyle(ColorTokens.Text.secondary)
-                                            .padding(SpacingTokens.xs).frame(maxWidth: .infinity, alignment: .leading)
-                                            .background(ColorTokens.Workspace.groupFill, in: .rect(cornerRadius: SpacingTokens.xs))
-                                            .padding(.horizontal, SpacingTokens.sm).padding(.bottom, SpacingTokens.xxs)
-                                        if let note = bookmark.note {
-                                            Label(note, systemImage: "note.text").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
-                                                .padding(.horizontal, SpacingTokens.sm).padding(.bottom, SpacingTokens.xs)
-                                        }
-                                    }
-                                }
-                                .background(bookmark.id == selected ? ColorTokens.Sidebar.selectedFill : .clear, in: .rect(cornerRadius: SpacingTokens.xs))
-                                .padding(.horizontal, SpacingTokens.xxs)
-                                .onTapGesture { selected = bookmark.id }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var groups: [(String, [LabRTBookmark])] {
-        folders ? ["AML", "Bags", "DBA", "Unfiled"].map { f in (f, LabRTBookmark.samples.filter { $0.folder == f }) }
-                : LabRTBookmark.servers.map { s in (s, LabRTBookmark.samples.filter { $0.server == s }) }
-    }
-}
-
-extension LabRTBookmark {
-    static let servers = ["dkloosql10-p", "postgres18"]
-}
-
-/// A query tab with the ☆ on the tab and the save popover open.
-private struct LabRBSaving: View {
-    let save: RailBookmarksRound.Save
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            HStack(spacing: SpacingTokens.none) {
-                HStack(spacing: SpacingTokens.xs) {
-                    Label("Query 1", systemImage: "tablecells").font(TypographyTokens.detail)
-                    if save != .today { Image(systemName: "star").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary) }
-                }
-                .frame(maxWidth: .infinity).frame(height: SpacingTokens.lg)
-                .background(Capsule().fill(ColorTokens.Workspace.card).shadow(ShadowTokens.railSelection))
-                Label("Query 2", systemImage: "tablecells").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary).frame(maxWidth: .infinity)
-            }
-            .padding(SpacingTokens.xxxs).background(ColorTokens.Sidebar.hoverFill, in: Capsule())
-            ZStack(alignment: .topLeading) {
-                LabWKEditor().workspaceCard()
-                if save == .popover {
-                    VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                        Text("Add to Bookmarks").font(TypographyTokens.headline)
-                        LabeledContent("Name") { Text("Last checkpoints").padding(.horizontal, SpacingTokens.xxs2).padding(.vertical, SpacingTokens.xxxs).background(ColorTokens.Workspace.groupFill, in: .rect(cornerRadius: SpacingTokens.xxs)) }
-                        LabeledContent("Folder") { Text("AML ⌄") }
-                        LabeledContent("Note") { Text("Optional").foregroundStyle(ColorTokens.Text.tertiary) }
-                        HStack { Spacer(); Button("Cancel") {}; Button("Add") {}.buttonStyle(.borderedProminent) }
-                    }
-                    .font(TypographyTokens.standard)
-                    .padding(SpacingTokens.md).frame(width: 300)
-                    .glassEffect(.regular, in: .rect(cornerRadius: SpacingTokens.md))
-                    .padding(.leading, SpacingTokens.lg).padding(.top, SpacingTokens.xxs)
-                }
-            }
-        }
-        .padding(SpacingTokens.sm)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(ColorTokens.Workspace.canvas)
-    }
 }

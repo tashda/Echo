@@ -80,6 +80,11 @@ struct SidebarMenu: View {
         } message: { _ in
             Text("Do you want to copy the bookmark history into the duplicated connection?")
         }
+        .onAppear {
+            if [.bookmark, .snippets, .history, .clipboard].contains(navigationStore.sidebarSection) {
+                navigationStore.sidebarSection = .folder
+            }
+        }
         .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in
             guard focus != nil else { return }
             // The tree stays alive while hidden, so focus and search requests still arrive here.

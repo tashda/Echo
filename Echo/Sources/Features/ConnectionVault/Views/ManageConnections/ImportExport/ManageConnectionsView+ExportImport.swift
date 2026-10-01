@@ -62,8 +62,7 @@ extension ManageConnectionsView {
                 Toggle("Include Global Settings Template", isOn: $includeGlobalSettings)
                     .help("The project's own settings are always included. This also exports the global fallback template.")
 
-                Toggle("Include Clipboard History", isOn: $includeClipboardHistory)
-                    .help("Adds saved clipboard items to the export so they can be restored when imported.")
+
 
                 Toggle("Include Autocomplete History", isOn: $includeAutocompleteHistory)
                     .help("Preserves accepted autocomplete suggestions so ranking feels familiar after import.")
@@ -144,7 +143,7 @@ extension ManageConnectionsView {
                     identities: connectionStore.identities.filter { $0.projectID == project.id },
                     folders: connectionStore.folders.filter { $0.projectID == project.id },
                     globalSettings: includeGlobalSettings ? projectStore.globalSettings : nil,
-                    clipboardHistory: includeClipboardHistory ? clipboardHistory.entries : nil,
+                    clipboardHistory: nil,
                     autocompleteHistory: nil,
                     diagramCaches: await environmentState.diagramCacheStore.listPayloads(for: project.id),
                     password: exportPassword

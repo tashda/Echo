@@ -9,9 +9,7 @@ struct ApplicationCacheSettingsView: View {
 
     @Environment(EnvironmentState.self) var environmentState
     @Environment(AppState.self) var appState
-    @Environment(ClipboardHistoryStore.self) var clipboardHistory
 
-    @State var confirmDisableHistory = false
     @State var resultCacheUsage: UInt64 = 0
     @State var isRefreshingResultCache = false
     @State var autocompleteHistoryUsage: UInt64 = 0
@@ -24,6 +22,7 @@ struct ApplicationCacheSettingsView: View {
     var body: some View {
         Form {
             cacheManagementSection
+            queryHistorySection
             storageLimitsSection
             storageUsageSection
             storageLocationSection
@@ -36,38 +35,14 @@ struct ApplicationCacheSettingsView: View {
             await refreshDiagramCacheUsage()
             await refreshObjectBrowserCacheUsage()
         }
-        .alert("Disable Clipboard History?", isPresented: $confirmDisableHistory) {
-            Button("Disable", role: .destructive) {
-                confirmDisableHistory = false
-                clipboardHistory.setEnabled(false)
-            }
-            Button("Cancel", role: .cancel) {
-                confirmDisableHistory = false
-            }
-        } message: {
-            Text("Echo will immediately delete all saved clipboard items. This action cannot be undone.")
-        }
     }
 
     private var cacheManagementSection: some View {
         Section("Cache Management") {
             PropertyRow(title: "Query result retention") {
                 Picker("", selection: resultCacheRetentionBinding) {
-                    ForEach(Self.retentionOptions, id: \.hours) { option in
-                        Text(option.label).tag(option.hours)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-            }
-
-            PropertyRow(
-                title: "Enable clipboard history",
-                info: "Echo stores recently copied queries and results locally for quick reuse. Data stays on this Mac."
-            ) {
-                Toggle("", isOn: clipboardEnabledBinding)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
+                    ForEach(Self.retentionOptions, id: \.hours) { Text($0.label).tag($0.hours) }
+                }.labelsHidden().pickerStyle(.menu)
             }
         }
     }
@@ -106,15 +81,7 @@ struct ApplicationCacheSettingsView: View {
                 onClear: { clearAutocompleteHistory() }
             )
 
-            if clipboardHistory.isEnabled {
-                storageUsageRow(
-                    title: "Clipboard History",
-                    usage: UInt64(clipboardHistory.usage.totalBytes),
-                    isRefreshing: false,
-                    onRefresh: nil,
-                    onClear: { clearClipboardHistory() }
-                )
-            }
+
         }
     }
 

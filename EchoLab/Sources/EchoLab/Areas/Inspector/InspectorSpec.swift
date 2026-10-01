@@ -58,7 +58,7 @@ enum InspectorSpec {
             SpecElement(number: "3.2", name: "Foreign-key records", summary: "A record and its related records.", groups: [.behaviour(.row("Shows", "the referenced record, with a link symbol, and its related records"))], files: ["Echo/Sources/Features/AppHost/Views/Inspector/InfoSidebar/InfoSidebarView.swift"]),
             SpecElement(number: "3.3", name: "Cell value and JSON", summary: "A selected cell's value; JSON in a viewer that widens the column.", groups: [.behaviour(.row("Cell", "the value, selectable"), .row("JSON", "the JSON viewer, in a column at least 520pt wide"))], files: ["Echo/Sources/Features/AppHost/Views/Inspector/InfoSidebar/InfoSidebarView.swift"]),
             SpecElement(number: "3.4", name: "Nothing selected", summary: "An empty state.", groups: [
-                .type(.row("Title", "No Selection, 13pt semibold"), .row("Text", "Select an object, a cell or a row to inspect its details., 13pt secondary")),
+                .type(.row("Title", "No Selection, 13pt semibold"), .row("Text", "Select an object, a cell or a row., 11pt tertiary; centred with sidebar.right")),
             ], files: ["Echo/Sources/Features/AppHost/Views/Inspector/InfoSidebar/InfoSidebarView.swift"]),
             SpecElement(number: "3.5", name: "Read-only extras", summary: "Agent job history and SQL keyword help.", groups: [
                 .behaviour(.row("Rule", "configuration stays in the tab; read-only detail may use the inspector")),
@@ -69,6 +69,16 @@ enum InspectorSpec {
                 .behaviour(.row("Click the bell", "the history takes the column; the badge clears; click again to put it away"),
                            .row("Click the inspector button", "from the history it switches the column to the details")),
             ], rounds: ["ongoing.notification-history-r17"], files: [workspace]),
+        ]),
+        SpecPart(number: "5", name: "Saved SQL", summary: "The library shares the inspector column (round 39).", elements: [
+            SpecElement(number: "5.1", name: "Library selector", summary: "Details, Bookmarks and History.", groups: [
+                .behaviour(.row("Open", "View menu or inspector menu; library leaves the Explorer tree alone"),
+                           .row("Switch", "native segmented picker; bell and detail requests replace the library")),
+            ], rounds: ["ongoing.rail-tools-r39"], files: ["Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceInspectorPicker.swift"]),
+            SpecElement(number: "5.2", name: "Query history", summary: "Newest first, by day; first SQL line with database, outcome and time.", groups: [
+                .behaviour(.row("Click", "opens a new tab in the recorded server and database; never executes; disconnected entries explain that a connection is needed"),
+                           .row("Retention", "5,000 default, count and age limits plus Clear in Cache settings; per-connection opt-out")),
+            ], rounds: ["ongoing.rail-history-r39"], files: ["Echo/Sources/Features/QueryWorkspace/Views/Results/QueryHistoryPanelView.swift"]),
         ]),
     ]
 }

@@ -57,7 +57,7 @@ enum WindowSpec {
                 .motion(.row("Capsule", "fades in on hover, 0.12s", token: "echoMotion.hover")),
             ], files: [workspace, tokens]),
         ]),
-        SpecPart(number: "2", name: "Server rail", summary: "Two glass pills down the window's left edge: servers, and tools.", elements: [
+        SpecPart(number: "2", name: "Server rail", summary: "One server glass pill down the window's left edge; saved SQL uses the inspector column (round 39).", elements: [
             SpecElement(number: "2.1", name: "Rail", summary: "The server pill on top, the tool pill at the bottom, and the space between.", groups: [
                 .layout(.row("Width", "item + 2 × pill padding: 42pt at the default", token: "LayoutTokens.Rail.width(itemSize:)"),
                         .row("Smallest gap between pills", "12pt", token: "LayoutTokens.Rail.minimumPillGap")),
@@ -99,15 +99,9 @@ enum WindowSpec {
                 .behaviour(.row("Click", "opens the connections menu: open sessions, saved connections by folder, Manage Connections, Quick Connect", token: "ConnectionsMenuContent"),
                            .row("Never selected", "the disc never moves onto it"), .row("Tooltip", "Connect to a Server")),
             ], rounds: [railRound], files: [rail]),
-            SpecElement(number: "2.9", name: "Tool pill", summary: "A glass capsule of four tool buttons at the bottom of the rail.", groups: [
-                .layout(.row("Tools", "Bookmarks, Snippets, History, Clipboard", token: "SidebarMenu.NavSection.railTools"),
-                        .row("Button", "the server pill's width, 30pt high", token: "LayoutTokens.Rail.toolHeight"), .row("Spacing", "2pt", token: "LayoutTokens.Rail.toolSpacing"),
-                        .row("Padding", "4pt on every side, like the server pill", token: "LayoutTokens.Rail.pillPadding")),
-                .type(.row("Symbols", "13pt; secondary, primary on hover", token: "LayoutTokens.Rail.toolSymbolSize")),
-                .states(.row("Showing", "the filled symbol in the accent colour")),
-                .behaviour(.row("Click", "its page shows in the tree's place and the tree opens if hidden"), .row("Click the one showing", "back to the tree"),
-                           .row("Tooltip", "the tool's name")),
-            ], rounds: [railRound], files: [rail]),
+            SpecElement(number: "2.9", name: "Tool pill (retired)", summary: "Removed in round 39; Bookmarks and History moved to the inspector column.", groups: [
+                .behaviour(.row("Removed", "Snippets and Echo clipboard history are gone; rail is servers and + only")),
+            ], rounds: ["ongoing.rail-tools-r39", "ongoing.rail-clipboard-r39"], files: [rail], isRetired: true),
         ]),
         SpecPart(number: "3", name: "Tree column", summary: "The Explorer's cards, between the rail and the content.", elements: [
             SpecElement(number: "3.1", name: "Column", summary: "One card per server; see the Explorer tree area.", groups: [

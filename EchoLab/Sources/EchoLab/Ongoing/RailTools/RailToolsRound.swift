@@ -27,44 +27,14 @@ enum RailToolsRound {
     }
 
     static let spec = RoundSpec(
-        controls: [
-            .of("placement", "Where they live", Placement.self, default: .inspector,
-                question: "Look at each placement. Where should saved SQL, snippets and history live?",
-                recommend: .inspector,
-                why: "They are all SQL you reuse in the editor, so they belong beside it, not instead of the tree you need to see what the SQL touches. The inspector column is already the place for 'details of what I'm working on'; a library tab there keeps both the tree and the editor on screen and lets you drag SQL across. RT1 is the closest alternative if you'd rather keep the right side for the inspector.",
-                summary: \.summary),
-        ],
-        exhibits: Placement.allCases.map { placement in
-            RoundSpec.Exhibit(id: "\(placement)", title: placement.rawValue, summary: placement.summary, isEchoToday: placement == .today,
-                              isWide: true, designWidth: 860, designHeight: 440) { _ in
-                LabRTPlacementView(placement: placement)
-            }
-        },
-        questions: [
-            .init(id: "bookmarks", title: "Bookmarks", question: "Keep Bookmarks?",
-                  choices: [.init(id: "keep", name: "KB0 · Keep, redesigned (39.2)"), .init(id: "drop", name: "KB1 · Drop")],
-                  recommended: "keep",
-                  why: "Saved queries are the one thing here people ask for in every database tool (SSMS's Template Explorer, DataGrip's scratches); Echo already syncs them."),
-            .init(id: "snippets", title: "Snippets", question: "Keep Snippets?",
-                  choices: [.init(id: "keep", name: "KS0 · Keep, with your own snippets (39.3)"),
-                            .init(id: "echosense", name: "KS1 · Only through EchoSense: type a prefix, no list"),
-                            .init(id: "drop", name: "KS2 · Drop")],
-                  recommended: "keep",
-                  why: "Snippets you write yourself are the reason to have a list; built-ins alone are better as EchoSense completions, which 39.3 adds either way."),
-            .init(id: "history", title: "History", question: "Build History?",
-                  choices: [.init(id: "build", name: "KH0 · Build it (39.4), and remove Coming Soon"), .init(id: "drop", name: "KH1 · Drop the rail button; history stays in the results panel")],
-                  recommended: "build",
-                  why: "'What did I run on production yesterday?' is the question; Echo records it already, so this is mostly showing what exists."),
-            .init(id: "clipboard", title: "Clipboard", question: "Keep Echo's clipboard history?",
-                  choices: [.init(id: "drop", name: "KC0 · Drop it: macOS 26 keeps clipboard history in Spotlight (39.5)"),
-                            .init(id: "keep", name: "KC1 · Keep it")],
-                  recommended: "drop",
-                  why: "The system now does this for every app, with search and privacy controls; a second history inside Echo is something to learn, sync and secure for no gain."),
-        ],
-        exhibitTopic: ("Which placement?", "Which placement should the library get?", "\(Placement.inspector)",
-                       "Beside the editor in the inspector column: the tree stays, and SQL can be dragged from the library into the editor."),
-        presets: [.init(id: "recommended", name: "My recommendation", values: ["placement": Placement.inspector.rawValue], isRecommended: true)]
+        controls: [],
+        exhibits: [
+            .init(id: "inspector", title: "Accepted · inspector library", summary: "RT2 / KB0 / KS2 / KH0 / KC0. Bookmarks and History beside the tab; tree unchanged, rail only servers and +. The bookmark redesign is still being judged in 39.2.", isEchoToday: true, isWide: true, designWidth: 860, designHeight: 520) { _ in
+                RailToolsAcceptedScene()
+            },
+        ], questions: []
     )
+
 }
 
 /// The window's left and centre in one placement.

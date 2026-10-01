@@ -11,8 +11,8 @@ enum WindowArea {
         summary: "A canvas holding the server rail, the tree, and opaque cards. Glass is only for controls.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "ec188205", date: "2026-10-01",
-                note: "Read from WorkspaceShell, ServerRail, ServerRailEntry, ServerRailMonogram, WorkspaceWelcomeView, ConnectionDashboardView and the workspace, rail and welcome tokens. The specimen is the Echo Labs rail (servers and the tool pill) with a stand-in tree and two cards. 2026-10-01: checked the commits since ef1c3bba (round 32.2's dark canvas, card edges and shadows; round 30.1's always-coloured monogram; round 34's Refresh); the LayoutToken changes in that range are the editor's and results'."),
+                level: .code, commit: "9983a13c", date: "2026-10-01",
+                note: "Read from WorkspaceShell, ServerRail, ServerRailEntry, ServerRailMonogram, WorkspaceWelcomeView, ConnectionDashboardView and the workspace, rail and welcome tokens. The specimen is the Echo Labs server rail (tool pill removed in round 39) with a stand-in tree and two cards. Checked b5eebdb9 and fb789c41: only footer-blur tokens changed; no window measurements changed. 2026-10-01: checked the commits since ef1c3bba (round 32.2's dark canvas, card edges and shadows; round 30.1's always-coloured monogram; round 34's Refresh); the LayoutToken changes in that range are the editor's and results'."),
             stageHeight: 520,
             behaviours: [
                 .init(trigger: "Click a server in the rail", result: "With the tree showing, the tree glides to that server and the rail keeps it selected while it does. While you scroll, the rail marks the server whose card is at the top."),
@@ -22,11 +22,11 @@ enum WindowArea {
                 .init(trigger: "Connection lost", result: "The monogram dims to 40%; the tooltip says why."),
                 .init(trigger: "Hover a server", result: "The monogram turns primary; the tooltip shows the name and host, and a line for connecting, lost, or how many queries are running. Running queries show nothing else in the rail."),
                 .init(trigger: "Click +", result: "Opens the connections menu (open sessions, saved connections by folder, Manage Connections, Quick Connect); it is never selected."),
-                .init(trigger: "Click a tool at the bottom of the rail", result: "Its page (Bookmarks, Snippets, History, Clipboard) shows in the tree's place, and the tree opens if hidden. The tool that is showing is filled in the accent colour; clicking it again goes back to the tree."),
+                .init(trigger: "View › Bookmarks or Query History (or inspector menu)", result: "Opens that library in the inspector column, beside the tab; the tree stays as it is. Details, Bookmarks and History share a segmented picker. The rail tool pill, Snippets and Echo clipboard history are removed (round 39; awaiting build/run verification)."),
                 .init(trigger: "⌃⌘S or the sidebar button", result: "Hides and shows the tree. The button says Hide Sidebar or Show Sidebar (⌃⌘S) and is disabled, with a reason, while there is nothing to show."),
                 .init(trigger: "No server and no tab", result: "The welcome sits on the canvas with no card: Echo's icon and name; Connect… (glass, prominent), Quick Connect and Manage (glass); then Recent, the latest five connections on one small card, each with its monogram in its colour, name, host and how long ago."),
                 .init(trigger: "Server active, no tab", result: "The server page on the canvas: the name large, its version as one quiet line, its tools on glass buttons (New Query first), and a databases card with a filter. Its top lines up with the rail's."),
-                .init(trigger: "Nothing to show in the tree", result: "The tree stays hidden and ⌃⌘S does nothing until a server connects or you pick a tool."),
+                .init(trigger: "Nothing to show in the tree", result: "The tree stays hidden and ⌃⌘S does nothing until a server connects."),
                 .init(trigger: "While the tree, inspector, tab overview or an Explorer switch animates, and while the Explorer tree scrolls", result: "The window can't be dragged for those few hundred milliseconds (WindowDragPause). Otherwise AppKit recomputed the window's drag regions on every frame, walking the whole window's focus order."),
             ],
             motions: [
@@ -46,7 +46,6 @@ enum WindowArea {
                 .init(label: "Monogram", value: "37% of the item: 12.5pt at 34pt, rounded design; bold when selected", token: "LayoutTokens.Rail.monogramFontRatio"),
                 .init(label: "Rail pill padding", value: "4pt", token: "LayoutTokens.Rail.pillPadding"),
                 .init(label: "Selection disc", value: "the item minus 3pt on every side, filled with the text background, shadow black 16% radius 1.5 y 0.5", token: "ColorTokens.Workspace.railSelection / ShadowTokens.railSelection / LayoutTokens.Rail.selectionInset"),
-                .init(label: "Tool symbols", value: "13pt; filled in the accent colour when its page shows", token: "LayoutTokens.Rail.toolSymbolSize"),
                 .init(label: "Welcome", value: "420pt wide, icon 32pt, title 26pt bold, recents on a card with 28pt rows", token: "LayoutTokens.Welcome"),
                 .init(label: "Server page", value: "600pt wide, name 26pt bold", token: "LayoutTokens.ServerPage"),
                 .init(label: "Tool button height", value: "30pt", token: "LayoutTokens.Rail.toolHeight"),
@@ -80,6 +79,10 @@ enum WindowArea {
                 "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceShell.swift",
                 "Echo/Sources/Features/AppHost/Views/Toolbar/RefreshToolbarButton/TabReloader.swift",
                 "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail.swift",
+                "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail+Components.swift",
+                "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail+Selection.swift",
+                "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceRailColumn.swift",
+                "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceInspectorColumn.swift",
                 "Echo/Sources/Features/AppHost/Views/Tabs/WorkspaceContainer/WorkspaceWelcomeView.swift",
                 "Echo/Sources/Features/AppHost/Views/Tabs/EditorContainer/ConnectionDashboard/ConnectionDashboardView.swift",
                 "Echo/Sources/Shared/DesignSystem/Components/WorkspaceCard.swift",
@@ -98,7 +101,7 @@ struct WindowSpecimen: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: SpacingTokens.sm) {
-            LabRailView(servers: LabServer.samples, selectedID: $selected, selection: .liquid, identity: .colorOnSelection)
+            WindowRailSpecimen(selected: $selected)
                 .specAnchor("2.1")
             LabRound14TreeStub().frame(width: 220).specAnchor("3.1")
             VStack(spacing: SpacingTokens.sm) {

@@ -239,7 +239,7 @@ Decided 2026-09-30.
 ## Inspector
 
 - **A column on the canvas** (round 10, IN1), mirroring the tree on the trailing side: **one workspace card** holding the sections as **grouped boxes** (round 15): a header (icon, title, actions) over a rounded inset group of rows, label left and selectable value right, like System Settings. It has the tree's resize edge and show/hide motion. A card per section (round 10) was replaced: the stacked shadows were cut off at the column's edges. The window reads tree · cards · inspector. It replaces the native inspector column. *Decided.* A floating card (IN2), a pane inside the results card (IN3) and the restyled native column (IN4) were rejected.
-- Its one job, once notifications move to the bell: the details of what you pointed at (object details, foreign-key records with related records, cell values, the JSON viewer, Agent job history, SQL keyword help). *Decided.*
+- **Details** shows what you pointed at (object details, foreign-key records with related records, cell values, the JSON viewer, Agent job history, SQL keyword help). **Bookmarks and History share the column** via a segmented selector (round 39, RT2); the notification bell still temporarily takes the column. *Decided; round 39 built; owner verification pending.*
 - Fixes: *Decided.*
   - one section style across every panel;
   - one smooth width change instead of today's stepped jumps;

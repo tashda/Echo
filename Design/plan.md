@@ -9,6 +9,12 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 
 ---
 
+## Round 39 · Rail tools (Codex)
+
+- 👁 #39.1 / #39.4 / #39.5: built and run; 37 focused tests pass. Live history recording and opening verified, screenshot captured, no assertion/fatal runtime logs. Owner check pending in Echo Labs.
+- 👁 #39.3: owner requested removal, also accepted in #39.1; panel and palette snippets removed. Owner check pending.
+- 👁 #39.2 revision 2: BL3 native inline SQL preview (recommended) and BL4 fixed detail pane. Keep the old choices; owner must judge before the bookmark redesign ships.
+
 ## Phase 0 · Foundations
 
 Nothing visible changes. Everything later builds on this.

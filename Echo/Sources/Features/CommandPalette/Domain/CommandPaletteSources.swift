@@ -17,7 +17,7 @@ struct CommandPaletteSources {
     static let historyLimit = 50
 
     func localItems() -> [CommandPaletteItem] {
-        actionItems() + tabItems() + historyItems() + snippetItems()
+        actionItems() + tabItems()
     }
 
     func objectItem(for result: GlobalSearchResult) -> CommandPaletteItem? {
@@ -112,49 +112,4 @@ struct CommandPaletteSources {
         }
     }
 
-    private func historyItems() -> [CommandPaletteItem] {
-        let environmentState = environmentState
-        return clipboardHistory.entries
-            .filter { $0.source == .queryEditor }
-            .prefix(Self.historyLimit)
-            .map { entry in
-                CommandPaletteItem(
-                    id: "history.\(entry.id)", section: .history, title: entry.previewText,
-                    subtitle: [entry.metadata.serverName, entry.metadata.databaseName, entry.timestampDisplay]
-                        .compactMap { $0 }.joined(separator: " · "),
-                    systemImage: "clock.arrow.circlepath",
-                    perform: { environmentState.openQueryTab(presetQuery: entry.content) }
-                )
-            }
-    }
-
-    private func snippetItems() -> [CommandPaletteItem] {
-        guard let databaseType = environmentState.sessionGroup.activeSession?.connection.databaseType else { return [] }
-        let tabStore = tabStore
-        let environmentState = environmentState
-        return SQLSnippetCatalog.snippets(for: SQLDialect(databaseType)).map { snippet in
-            CommandPaletteItem(
-                id: "snippet.\(snippet.id)", section: .snippets, title: snippet.title,
-                subtitle: snippet.detail, systemImage: "text.badge.plus",
-                perform: {
-                    if let query = tabStore.activeTab?.query {
-                        query.sql = query.sql.isEmpty ? snippet.insertText : query.sql + "\n" + snippet.insertText
-                    } else {
-                        environmentState.openQueryTab(presetQuery: snippet.insertText)
-                    }
-                }
-            )
-        }
-    }
-}
-
-private extension SQLDialect {
-    init(_ databaseType: DatabaseType) {
-        switch databaseType {
-        case .postgresql: self = .postgresql
-        case .mysql: self = .mysql
-        case .sqlite: self = .sqlite
-        case .microsoftSQL: self = .microsoftSQL
-        }
-    }
 }

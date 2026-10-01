@@ -48,6 +48,11 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("i", modifiers: [.command, .option])
             .disabled(!navigationStore.isWorkspaceWindowKey)
 
+            Button("Bookmarks", systemImage: "bookmark") { appState.showWorkspaceLibrary(.bookmarks) }
+                .disabled(!navigationStore.isWorkspaceWindowKey)
+            Button("Query History", systemImage: "clock") { appState.showWorkspaceLibrary(.history) }
+                .disabled(!navigationStore.isWorkspaceWindowKey)
+
             Button {
                 tabStore.activeTab?.panelState.isOpen.toggle()
             } label: {

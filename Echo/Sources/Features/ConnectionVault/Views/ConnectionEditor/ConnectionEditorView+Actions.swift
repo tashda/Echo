@@ -69,6 +69,7 @@ extension ConnectionEditorView {
             queryTimeout: originalConnection?.queryTimeout ?? 60,
             queryTimeLimit: queryTimeLimit.map { max(0, $0) },
             confirmUnguardedWrites: confirmUnguardedWrites,
+            keepsQueryHistory: keepsQueryHistory,
             databaseType: selectedDatabaseType,
             serverVersion: originalConnection?.serverVersion,
             colorHex: colorHex,

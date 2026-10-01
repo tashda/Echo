@@ -2184,6 +2184,14 @@
       {
         "date": "2026-10-01T18:37:26Z",
         "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T21:00:35Z",
+        "text": "Revision 2: Two native inspector layouts with clearer SQL previews."
       }
     ],
     "needsMore": [
@@ -2201,8 +2209,19 @@
       "save": "BS2 \u00b7 BS1, and saving opens a small popover: name, folder, note"
     },
     "reviewedRevision": 1,
-    "revisions": [],
-    "status": "New feedback",
+    "revisions": [
+      {
+        "changes": [
+          "BL3: folder list with selected SQL and note inline; recommended for keeping context beside the editor.",
+          "BL4: folder list above a fixed SQL and note detail pane; keeps the list height stable.",
+          "Original choices and all save, metadata and opening decisions are retained."
+        ],
+        "date": "2026-10-01T21:00:35Z",
+        "number": 2,
+        "summary": "Two native inspector layouts with clearer SQL previews."
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.rail-click-hidden-tree-r40": {
@@ -2255,6 +2274,14 @@
       {
         "date": "2026-10-01T18:39:31Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T21:00:35Z",
+        "text": "Built into Echo: removed Echo clipboard capture, browsing, cache settings and export; ordinary system clipboard copying remains. Legacy archives still decode without importing or capturing history. Build/run and tests pass."
       }
     ],
     "needsMore": [],
@@ -2266,8 +2293,19 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "verdicts": {}
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Check there is no bottom tool pill or Clipboard History entry.",
+        "Copy SQL or a result normally; use the system clipboard as before."
+      ],
+      "done": [],
+      "shots": [
+        "1.png"
+      ],
+      "summary": "Clipboard capture and the bottom tool pill are gone."
+    }
   },
   "ongoing.rail-history-r39": {
     "comments": [
@@ -2282,6 +2320,14 @@
       {
         "date": "2026-10-01T18:39:07Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T21:00:35Z",
+        "text": "Built into Echo: accepted day groups, first SQL line with database/result/time, default 5000 runs, separate Cache controls and per-connection opt-out. Build/run and 37 tests pass; live SELECT persisted after relaunch and opened Ready without executing."
       }
     ],
     "needsMore": [],
@@ -2298,8 +2344,19 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "verdicts": {}
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Run a query, find it in History, then click it: a new tab should open Ready on the original database.",
+        "Inspect Settings > Cache for history count, expiry and Clear; connection settings include Don\u2019t keep query history."
+      ],
+      "done": [],
+      "shots": [
+        "1.png"
+      ],
+      "summary": "Query History lives beside the editor and opens SQL safely in a new tab."
+    }
   },
   "ongoing.rail-snippets-r39": {
     "comments": [
@@ -2314,6 +2371,14 @@
       {
         "date": "2026-10-01T18:38:02Z",
         "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T21:00:35Z",
+        "text": "Built into Echo: removed Snippets panel and palette snippets as requested in 39.3 and accepted as KS2 in 39.1. SQL autocomplete remains a separate feature. Build/run and focused tests pass."
       }
     ],
     "needsMore": [],
@@ -2322,8 +2387,18 @@
     "picks": {},
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "New feedback",
-    "verdicts": {}
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Check the rail, inspector selector and command palette have no Snippets entry."
+      ],
+      "done": [],
+      "shots": [
+        "1.png"
+      ],
+      "summary": "Snippets removed from the workspace."
+    }
   },
   "ongoing.rail-tools-r39": {
     "comments": [
@@ -2338,6 +2413,14 @@
       {
         "date": "2026-10-01T18:35:31Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T20:59:58Z",
+        "text": "Built into Echo: RT2 inspector placement; removed Snippets, clipboard capture and bottom tool pill. Build/run and 37 focused tests pass; live recording and safe history opening verified. Bookmarks redesign remains Judging in 39.2."
       }
     ],
     "needsMore": [],
@@ -2353,8 +2436,19 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "verdicts": {}
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Use the inspector menu or View to open Bookmarks and History; switch back to Details.",
+        "Check the Explorer stays visible and the rail has only servers and +."
+      ],
+      "done": [],
+      "shots": [
+        "1.png"
+      ],
+      "summary": "Bookmarks and History share the inspector; Explorer stays visible."
+    }
   },
   "ongoing.refresh-and-activity-r34": {
     "comments": [

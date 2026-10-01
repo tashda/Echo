@@ -106,69 +106,6 @@ struct WorkspaceShell: View {
     }
 }
 
-/// The server rail at the window's leading edge. It stays in place whether or not the tree shows.
-struct WorkspaceRailColumn: View {
-    let bridge: ServerRailBridge
-
-    @Environment(EnvironmentState.self) private var environmentState
-    @Environment(NavigationStore.self) private var navigationStore
-    @Environment(ProjectStore.self) private var projectStore
-    @Environment(AppState.self) private var appState
-    @Environment(\.echoMotion) private var motion
-
-    var body: some View {
-        ServerRail(
-            bridge: bridge,
-            itemSize: projectStore.globalSettings.railItemSize.points,
-            selectedTool: selectedTool,
-            onSelectSession: selectSession,
-            onRetryPending: { pending in
-                environmentState.retryPendingConnection(for: pending.connection.id)
-            },
-            onSelectTool: selectTool
-        )
-    }
-
-    /// A click selects the server and the tree glides to its card. With the tree hidden, the
-    /// click opens it too, and it slides in while it scrolls to the server (round 40, RC1 and
-    /// OM0); the rail shows which server it is (SM1).
-    private func selectSession(_ session: ConnectionSession) {
-        let connectionID = session.connection.id
-
-        if !appState.isWorkspaceTreeVisible {
-            appState.isWorkspaceTreeVisible = true
-        }
-
-        if navigationStore.sidebarSection != .folder {
-            navigationStore.sidebarSection = .folder
-        }
-        environmentState.sessionGroup.setActiveSession(session.id)
-        navigationStore.revealExplorerConnection(connectionID)
-    }
-
-    /// The tool page showing in the tree's place, while the tree shows.
-    private var selectedTool: SidebarMenu.NavSection? {
-        guard appState.isWorkspaceTreeVisible else { return nil }
-        let section = navigationStore.sidebarSection
-        return SidebarMenu.NavSection.railTools.contains(section) ? section : nil
-    }
-
-    /// Picking the tool that is showing goes back to the tree; any other tool shows its page.
-    private func selectTool(_ section: SidebarMenu.NavSection) {
-        let next: SidebarMenu.NavSection = selectedTool == section ? .folder : section
-        withAnimation(motion.standard) {
-            navigationStore.sidebarSection = next
-        }
-        showTree()
-    }
-
-    private func showTree() {
-        if !appState.isWorkspaceTreeVisible {
-            appState.isWorkspaceTreeVisible = true
-        }
-    }
-}
-
 /// Whether the tree has anything to show (Design/02-layout.md › Tree): a server in the rail,
 /// connected or connecting, or a tool page. With neither it stays hidden and can't be opened;
 /// the first server to connect, or picking a tool, brings it out.
@@ -177,7 +114,7 @@ enum WorkspaceTreeAvailability {
     static func hasContent(environmentState: EnvironmentState, navigationStore: NavigationStore) -> Bool {
         !environmentState.sessionGroup.sessions.isEmpty
             || !environmentState.pendingConnections.isEmpty
-            || navigationStore.sidebarSection != .folder
+            || navigationStore.sidebarSection == .connections
     }
 }
 

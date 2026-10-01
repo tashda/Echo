@@ -43,10 +43,6 @@ extension ApplicationCacheSettingsView {
         }
     }
 
-    func clearClipboardHistory() {
-        clipboardHistory.clearHistory()
-    }
-
     func refreshDiagramCacheUsage() async {
         let shouldContinue = await MainActor.run { () -> Bool in
             if isRefreshingDiagramCache { return false }

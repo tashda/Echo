@@ -21,46 +21,14 @@ enum RailSnippetsRound {
     }
 
     static let spec = RoundSpec(
-        controls: [
-            .of("source", "Snippets", Source.self, default: .yours,
-                question: "Should you be able to write your own snippets?",
-                recommend: .yours,
-                why: "Your own are why a snippet list is worth a place in the window; built-ins are shared by everyone and can stay quietly below."),
-            .of("insert", "Inserting", Insert.self, default: .all,
-                question: "How should a snippet get into the editor?",
-                recommend: .all,
-                why: "Typing a prefix (sel, tran) is fastest once learned and goes through EchoSense, which already ranks completions; the list is for discovering them."),
-            .of("placeholders", "Blanks", Placeholders.self, default: .tabStops,
-                question: "Should snippets have fields you Tab through?",
-                recommend: .tabStops,
-                why: "A snippet is a pattern with blanks: Xcode, VS Code and SSMS's templates all fill them with Tab. The placeholder marks use the editor's mark language (28.15)."),
-        ],
+        controls: [],
         exhibits: [
-            .init(id: "today", title: "Echo today", summary: "Built-in snippets for SQL Server, grouped.", isEchoToday: true, isWide: true, designWidth: 760, designHeight: 440) { _ in
-                LabRTScene(selected: 1) {
-                    LabRTColumn(title: "Snippets", subtitle: "SQL Server") {
-                        ForEach(["Queries", "Transactions", "Server"], id: \.self) { group in
-                            LabRTHeading(title: group.uppercased())
-                            ForEach(LabRTSnippet.samples.filter { $0.group == group }) { LabRTRow(symbol: "curlybraces", title: $0.name, detail: $0.body) }
-                        }
-                    }
-                }
+            .init(id: "removed", title: "Removed · Snippets", summary: "Owner: Remove snippets; KS2 accepted in 39.1. No Snippets panel or palette items. Bookmarks retain saved queries.", isEchoToday: true, isWide: true, designWidth: 860, designHeight: 520) { _ in
+                RailToolsAcceptedScene()
             },
-            .init(id: "proposal", title: "Proposal", summary: "Built from the controls; the editor shows a snippet being filled in.", isWide: true, designWidth: 760, designHeight: 440) { values in
-                LabRSProposal(source: Source(rawValue: values["source"]) ?? .yours, insert: Insert(rawValue: values["insert"]) ?? .all,
-                              placeholders: Placeholders(rawValue: values["placeholders"]) ?? .tabStops)
-            },
-        ],
-        questions: [
-            .init(id: "create", title: "Making one",
-                  question: "Where do you make a snippet?",
-                  choices: [.init(id: "selection", name: "SN0 · Select SQL › right-click › New Snippet from Selection, and + in the list"),
-                            .init(id: "settings", name: "SN1 · In Settings › Snippets only")],
-                  recommended: "selection",
-                  why: "You notice you want a snippet while looking at the SQL; making it from there takes the text with it."),
-        ],
-        presets: [.init(id: "recommended", name: "My recommendation", values: ["source": Source.yours.rawValue, "insert": Insert.all.rawValue, "placeholders": Placeholders.tabStops.rawValue], isRecommended: true)]
+        ], questions: []
     )
+
 }
 
 private struct LabRSProposal: View {

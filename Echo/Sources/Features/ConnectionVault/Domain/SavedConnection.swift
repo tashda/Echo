@@ -138,6 +138,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     /// Round 43.5 (PC0): ask before an UPDATE or DELETE without WHERE runs on this connection; nil follows
     /// Settings › Databases.
     var confirmUnguardedWrites: Bool?
+    /// Round 39 HP0: opt this connection out of query-history capture.
+    var keepsQueryHistory: Bool
     /// PostgreSQL servers after `host`/`port`, tried in order (Echo Labs round 23, failover: FH1).
     var additionalHosts: [ConnectionHost] = []
     /// Which of the servers to use (FT1); only meaningful with additional hosts.
@@ -195,6 +197,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case queryTimeout
         case queryTimeLimit
         case confirmUnguardedWrites
+        case keepsQueryHistory
         case additionalHosts
         case targetSessionAttributes
         case loadBalanceHosts
@@ -236,6 +239,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         queryTimeout: TimeInterval = 60,
         queryTimeLimit: TimeInterval? = nil,
         confirmUnguardedWrites: Bool? = nil,
+        keepsQueryHistory: Bool = true,
         databaseType: DatabaseType = .postgresql,
         serverVersion: String? = nil,
         colorHex: String = "",
@@ -270,6 +274,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         self.queryTimeout = queryTimeout
         self.queryTimeLimit = queryTimeLimit
         self.confirmUnguardedWrites = confirmUnguardedWrites
+        self.keepsQueryHistory = keepsQueryHistory
         self.databaseType = databaseType
         self.serverVersion = serverVersion
         self.colorHex = colorHex
@@ -307,6 +312,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         queryTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .queryTimeout) ?? 60
         queryTimeLimit = try container.decodeIfPresent(TimeInterval.self, forKey: .queryTimeLimit)
         confirmUnguardedWrites = try container.decodeIfPresent(Bool.self, forKey: .confirmUnguardedWrites)
+        keepsQueryHistory = try container.decodeIfPresent(Bool.self, forKey: .keepsQueryHistory) ?? true
         additionalHosts = (try? container.decodeIfPresent([ConnectionHost].self, forKey: .additionalHosts)) ?? []
         targetSessionAttributes = (try? container.decodeIfPresent(PostgresConnectTo.self, forKey: .targetSessionAttributes)) ?? .any
         loadBalanceHosts = try container.decodeIfPresent(Bool.self, forKey: .loadBalanceHosts) ?? false
@@ -349,6 +355,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encode(queryTimeout, forKey: .queryTimeout)
         try container.encodeIfPresent(queryTimeLimit, forKey: .queryTimeLimit)
         try container.encodeIfPresent(confirmUnguardedWrites, forKey: .confirmUnguardedWrites)
+        try container.encode(keepsQueryHistory, forKey: .keepsQueryHistory)
         if !additionalHosts.isEmpty { try container.encode(additionalHosts, forKey: .additionalHosts) }
         if targetSessionAttributes != .any { try container.encode(targetSessionAttributes, forKey: .targetSessionAttributes) }
         if loadBalanceHosts { try container.encode(loadBalanceHosts, forKey: .loadBalanceHosts) }

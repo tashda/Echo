@@ -1,5 +1,9 @@
 # Decision log
 
+## 2026-10-01 · Round 39 accepted: saved SQL beside the tab
+
+The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 / HP0 in #39.4 and CB1 / BP0 in #39.5. Bookmarks and query history share the trailing inspector column; the Explorer stays in place. The rail contains only servers and +. Snippets and Echo clipboard history are removed. History groups newest first by day, shows the first SQL line with database, outcome and time, keeps 5,000 runs by default, opens only in a new tab without executing, and can be disabled per connection. Separate Cache controls govern run count, expiry and clearing; result-cache expiry continues to govern result data. #39.2 remains under review: revision 2 adds two native list options while retaining the owner's selected save, folder/note and insertion behaviour. Built and run successfully; 37 focused Swift Testing tests passed, including legacy decoding, privacy, retention and clearing. A live Test Postgres SELECT was recorded; clicking history opened the original SQL in a new, unexecuted tab on the original database. Owner confirmation in Echo is pending.
+
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
 ## 2026-10-01 · Agent Jobs after checking it in Echo
