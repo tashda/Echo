@@ -14,11 +14,22 @@ extension LabQEEditor {
                 .frame(width: layout.gutterEdge, height: height)
                 .overlay(alignment: .trailing) { Rectangle().fill(ColorTokens.Separator.primary).frame(width: edge) }
         case .lane:
-            let inset = LayoutTokens.EditorGutter.laneInset
-            RoundedRectangle(cornerRadius: LayoutTokens.EditorGutter.laneCornerRadius, style: .continuous)
-                .fill(palette.gutterBackground)
-                .frame(width: max(layout.gutterEdge - inset * 2, 0), height: max(height - inset * 2, 0))
-                .offset(x: inset, y: inset)
+            let lane = laneRect(layout, height: height)
+            let radius: CGFloat = switch style.laneCorner {
+            case .eight: LayoutTokens.EditorGutter.laneCornerRadius
+            case .concentric: max(cornerRadius - LayoutTokens.EditorGutter.laneInset, SpacingTokens.xxs)
+            case .capsule: lane.width / 2
+            }
+            let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+            Group {
+                switch style.laneFill {
+                case .palette: shape.fill(palette.gutterBackground)
+                case .system: shape.fill(ColorTokens.Workspace.groupFill)
+                case .outline: shape.strokeBorder(ColorTokens.Separator.primary, lineWidth: edge)
+                }
+            }
+            .frame(width: lane.width, height: lane.height)
+            .offset(x: lane.minX, y: lane.minY)
         case .hairline:
             Rectangle().fill(ColorTokens.Separator.primary).frame(width: edge, height: height).offset(x: layout.gutterEdge)
         }
@@ -33,17 +44,30 @@ extension LabQEEditor {
         .offset(y: layout.top)
     }
 
+    /// Round 28.14: the lane's rectangle. Echo today draws it inside the scroll view, which stops
+    /// 20pt above the card's bottom (QueryInputSection's padding).
+    func laneRect(_ layout: LabQELayout, height: CGFloat) -> CGRect {
+        let inset = LayoutTokens.EditorGutter.laneInset
+        let bottom = style.laneHeight == .short ? inset + SpacingTokens.md2 : inset
+        let side = SpacingTokens.xxs2
+        let minX = style.laneHolds == .everything ? inset : layout.numbersLeft - side
+        let maxX = style.laneHolds == .everything ? layout.gutterEdge - inset : layout.numbersRight + side
+        return CGRect(x: minX, y: inset, width: max(maxX - minX, 0), height: max(height - inset - bottom, 0))
+    }
+
     private func row(line: Int, text: String, _ layout: LabQELayout) -> some View {
         let isCurrent = scene.hasCaret && !scene.selection && line == LabQESample.caret.line
             || scene.selection && (LabQESample.selection.from.line...LabQESample.selection.to.line).contains(line)
+        // Round 28.14 (LA1): the numbers centred in the lane.
+        let centredLane = style.gutter == .lane && style.laneAlign == .centre ? laneRect(layout, height: 0) : nil
         return HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.none) {
             Text(verbatim: "\(line)")
                 .font(Font(numberFont(isCurrent: isCurrent, layout)))
                 .foregroundStyle(numberColour(line: line, isCurrent: isCurrent))
                 .opacity(hidesNumber(line: line) ? 0 : 1)
-                .frame(width: layout.numbersRight - layout.numbersLeft, alignment: .trailing)
-                .padding(.leading, layout.numbersLeft)
-            Color.clear.frame(width: layout.codeX - layout.numbersRight, height: 1)
+                .frame(width: centredLane?.width ?? layout.numbersRight - layout.numbersLeft, alignment: centredLane == nil ? .trailing : .center)
+                .padding(.leading, centredLane?.minX ?? layout.numbersLeft)
+            Color.clear.frame(width: layout.codeX - (centredLane?.maxX ?? layout.numbersRight), height: 1)
             Text(attributed(text, line: line))
                 .font(Font(layout.codeFont))
                 .fixedSize()

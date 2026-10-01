@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -291,6 +291,13 @@
         status: .judging,
         summary: "Search and replace together, on FB5's glass: how the replacement shows in the editor while you type, how the Replace row opens from the chevron, the shortcuts for Find and for Find and Replace, and the keys inside the bar. Asked in your notes on 28.12.",
         spec: EditorSearchReplaceRound.spec)
+
+    /// Round 28: Editor: the gutter's lane.
+    static let editorGutterLane = LabPage.round(
+        id: "ongoing.editor-gutter-lane-r28", group: "Editor and running", title: "Editor: the gutter's lane · round 28", symbol: "sidebar.squares.left",
+        status: .judging,
+        summary: "The Lane gutter style, redrawn: what it holds, how the numbers sit in it, its height, corners and fill. Today it floats 25pt above the card's bottom with the numbers pushed to its right edge. Asked with your screenshots of the gutter styles.",
+        spec: EditorGutterLaneRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

@@ -41,6 +41,11 @@ struct LabQEStyle {
     var errorGlow = LabQEErrorGlow.today
     var runningMark = LabQERunningMark.nothing
     var errorBubble = LabQEErrorBubbleLook.today
+    var laneHolds = LabQELaneHolds.everything
+    var laneAlign = LabQELaneAlign.right
+    var laneHeight = LabQELaneHeight.short
+    var laneCorner = LabQELaneCorner.eight
+    var laneFill = LabQELaneFill.palette
     var findBar = LabQEFindBarPlace.native
     var findOptions = LabQEFindOptions.menu
     var findCount = LabQEFindCount.found
@@ -98,7 +103,9 @@ struct LabQEStyle {
         set("errorMessage", \.errorMessage); set("errorDot", \.errorDot); set("runNoteLook", \.runNoteLook)
         set("runNotePlace", \.runNotePlace); set("ranHighlight", \.ranHighlight); set("zoom", \.zoom)
         set("zoomLook", \.zoomLook); set("zoomShows", \.zoomShows)
-        set("errorGlow", \.errorGlow); set("runningMark", \.runningMark); set("errorBubble", \.errorBubble); set("findBar", \.findBar); set("findOptions", \.findOptions); set("findCount", \.findCount)
+        set("errorGlow", \.errorGlow); set("runningMark", \.runningMark); set("errorBubble", \.errorBubble);
+        set("laneHolds", \.laneHolds); set("laneAlign", \.laneAlign); set("laneHeight", \.laneHeight)
+        set("laneCorner", \.laneCorner); set("laneFill", \.laneFill); set("findBar", \.findBar); set("findOptions", \.findOptions); set("findCount", \.findCount)
         set("replaceStyle", \.replaceStyle); set("findScope", \.findScope)
         if let preview = LabQEFindPreview(rawValue: values["findPreview"]) { style.findLook = preview.look }
         if let place = LabQEZoomPlace(rawValue: values["zoomPlace"]) { style.zoomPlace = place }
