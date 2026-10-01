@@ -6,7 +6,7 @@ import Testing
 
 /// The Import Data sheet's SQL Server path (round 25) against a fresh lab server: the bulk load in
 /// one transaction, its options, and what the sheet says afterwards.
-@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("mssql-2022-empty"))
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("mssql-2022-empty"), .timeLimit(.minutes(10)))
 @MainActor
 struct LabSQLServerImportTests {
     private func connect() async throws -> SQLServerSessionAdapter {

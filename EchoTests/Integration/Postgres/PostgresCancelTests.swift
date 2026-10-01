@@ -13,7 +13,7 @@ final class PostgresCancelTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        let server = try await LabSharedServers.serverForSuite(LabRecipes.postgres)
+        let server = try await labServer(LabRecipes.postgres)
         let base = try await PostgresNIOFactory().connect(
             host: server.host, port: server.port, database: "postgres", tls: false, tlsMode: .disable,
             authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password)

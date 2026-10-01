@@ -43,26 +43,21 @@ jobs:
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Run Unit Tests
-      run: |
-        find . -maxdepth 1 -name "TestResults-unit*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo -testPlan UnitTests \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-unit \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+      run: .github/scripts/run-test-plan.sh UnitTests TestResults-unit
 
     - name: Upload Unit Test Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-unit
-        path: TestResults-unit.xcresult
+        path: |
+          TestResults-unit.xcresult
+          TestResults-unit.log
 
 
   # ── Database tests on echo-server-lab ───────────────────────────────────────
-  # Runs the EchoTests plan, which switches on the lab suites (SERVERLAB_INTEGRATION=1): each one
-  # starts fresh servers from its recipe on testlab, reached over Tailscale, and removes them.
+  # Runs the LabTests plan (only the suites that use lab servers, one process, with time limits):
+  # each starts fresh servers from its recipe on testlab, reached over Tailscale, and removes them.
 
   lab-tests:
     name: "Step 2: Database tests on the lab"
@@ -93,19 +88,12 @@ jobs:
         testlab-ssh-key: ${{ secrets.TESTLAB_SSH_KEY }}
         testlab-known-hosts: ${{ secrets.TESTLAB_KNOWN_HOSTS }}
 
-    - name: Run the EchoTests plan against the lab
+    - name: Run the LabTests plan against the lab
       env:
         TEST_RUNNER_SERVERLAB_CLI: ${{ steps.lab.outputs.serverlab }}
         TEST_RUNNER_SERVERLAB_PASSWORD: ${{ secrets.SERVERLAB_PASSWORD }}
         TEST_RUNNER_SERVERLAB_OWNER_PREFIX: ci-${{ github.run_id }}-${{ github.run_attempt }}
-      run: |
-        find . -maxdepth 1 -name "TestResults-lab*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo -testPlan EchoTests \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-lab \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+      run: .github/scripts/run-test-plan.sh LabTests TestResults-lab
 
     - name: Remove servers this run left behind
       if: always()
@@ -115,17 +103,20 @@ jobs:
         "${{ steps.lab.outputs.serverlab }}" down --all --owner-prefix "ci-${{ github.run_id }}-${{ github.run_attempt }}" || true
         "${{ steps.lab.outputs.serverlab }}" reap || true
 
-    # The results upload talks to GitHub, which failed to resolve while the runner was on the tailnet.
+    # Off the tailnet before the results upload, which talks to GitHub (leave-tailnet.sh).
     - name: Leave the tailnet
       if: always()
-      run: sudo "$(command -v tailscale)" down || true
+      run: .github/scripts/leave-tailnet.sh
 
     - name: Upload Lab Test Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-lab
-        path: TestResults-lab.xcresult
+        path: |
+          TestResults-lab.xcresult
+          TestResults-lab.log
+          diagnostics/
 
   # ── Production Build & Release ──────────────────────────────────────────────
 

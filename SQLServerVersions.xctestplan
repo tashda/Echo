@@ -146,6 +146,8 @@
     }
   ],
   "defaultOptions" : {
+    "maximumTestExecutionTimeAllowance" : 900,
+    "testTimeoutsEnabled" : true,
     "defaultTestExecutionTimeAllowance" : 180,
     "performanceAntipatternCheckerEnabled" : true
   },

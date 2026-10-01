@@ -15,7 +15,7 @@ final class PostgresQueryTimeLimitTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        server = try await LabSharedServers.serverForSuite(LabRecipes.postgres)
+        server = try await labServer(LabRecipes.postgres)
         session = try await makeSession()
     }
 

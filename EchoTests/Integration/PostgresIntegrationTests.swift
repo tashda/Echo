@@ -14,7 +14,7 @@ final class PostgresIntegrationTests: XCTestCase {
 
     /// The lab Postgres the suites share (`LabSharedServers`).
     private func loadConfig() async throws -> PGConfig {
-        let server = try await LabSharedServers.serverForSuite(LabRecipes.postgres)
+        let server = try await labServer(LabRecipes.postgres)
         return PGConfig(host: server.host, port: server.port, database: "postgres",
                         username: server.username, password: server.password)
     }
