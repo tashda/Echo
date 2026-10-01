@@ -90,6 +90,8 @@ struct RoundSpec {
     /// When set, the decision has a topic that picks between the exhibits, and each exhibit
     /// card gets Pick, Maybe and No.
     var exhibitTopic: (title: String, question: String, recommended: String, why: String)?
+    /// How Echo is checked against this round once it is built (`EchoLab/Scripts/verify-round.py`).
+    var conformance: RoundConformance?
     /// Named combinations of control settings; one click sets them all.
     var presets: [Preset] = []
 
@@ -137,6 +139,8 @@ struct RoundSpec {
 final class RoundValues {
     private let key: String
     private var values: [String: String]
+    /// False for fixed values (a conformance capture draws the accepted picks and saves nothing).
+    private var persists = true
 
     private static var cache: [String: RoundValues] = [:]
 
@@ -157,14 +161,25 @@ final class RoundValues {
         values = initial
     }
 
+    /// Values that are never saved: what a conformance capture draws.
+    init(fixed: [String: String]) {
+        key = ""
+        values = fixed
+        persists = false
+    }
+
+    private func save() {
+        if persists { LabPrefs.save(values, key: key) }
+    }
+
     subscript(id: String) -> String {
         get { values[id] ?? "" }
-        set { values[id] = newValue; LabPrefs.save(values, key: key) }
+        set { values[id] = newValue; save() }
     }
 
     func apply(_ preset: RoundSpec.Preset) {
         for (key, value) in preset.values { values[key] = value }
-        LabPrefs.save(values, key: key)
+        save()
     }
 
     func matches(_ preset: RoundSpec.Preset) -> Bool {
@@ -173,7 +188,7 @@ final class RoundValues {
 
     func reset(_ controls: [RoundSpec.Control]) {
         for control in controls { values[control.id] = control.defaultChoice }
-        LabPrefs.save(values, key: key)
+        save()
     }
 
     /// A binding to one control, for views that change it themselves.
@@ -203,10 +218,12 @@ extension LabPage {
     @MainActor
     static func round(id: String, section: LabSection = .ongoing, group: String, title: String, symbol: String,
                       status: LabStatus, summary: String, spec: RoundSpec) -> LabPage {
-        LabPage(id: id, section: section, group: group, title: title, symbol: symbol, status: status, summary: summary,
-                ownsHeader: true,
-                decision: { spec.decision(values: RoundValues.shared(pageID: id, controls: spec.controls)) }) {
+        var page = LabPage(id: id, section: section, group: group, title: title, symbol: symbol, status: status, summary: summary,
+                           ownsHeader: true,
+                           decision: { spec.decision(values: RoundValues.shared(pageID: id, controls: spec.controls)) }) {
             LabRoundPage(pageID: id, spec: spec)
         }
+        page.roundSpec = spec
+        return page
     }
 }

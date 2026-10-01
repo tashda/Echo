@@ -16,16 +16,19 @@ struct StatusToastRow: View {
     private var parts: NotificationMessageParts { NotificationMessageParts(toast.message) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+        // The buttons sit 6pt under the text when hovered, as accepted in round 18.
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.xs) {
                 Image(systemName: toast.icon)
                     .font(TypographyTokens.standard.weight(.semibold))
                     .foregroundStyle(toast.style.iconColor)
+                    .conformanceTag(tag("icon"))
                 VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     Text(parts.headline)
                         .font(TypographyTokens.standard.weight(.semibold))
                         .foregroundStyle(ColorTokens.Text.primary)
                         .lineLimit(1)
+                        .conformanceTag(tag("title"))
                     if let detail = parts.detail {
                         Text(detail)
                             .font(TypographyTokens.detail)
@@ -33,6 +36,7 @@ struct StatusToastRow: View {
                             .lineLimit(isExpanded ? nil : 2)
                             .fixedSize(horizontal: false, vertical: isExpanded)
                             .textSelection(.enabled)
+                            .conformanceTag(tag("detail"))
                     }
                 }
                 if toast.count > 1 {
@@ -48,6 +52,7 @@ struct StatusToastRow: View {
                     .opacity(isExpanded || toast.staysUntilDismissed ? 1 : 0)
                     .help("Dismiss")
                     .accessibilityLabel("Dismiss")
+                    .conformanceTag(tag("dismiss"))
             }
             if isExpanded { actions }
         }
@@ -55,6 +60,7 @@ struct StatusToastRow: View {
         .padding(.vertical, SpacingTokens.xs)
         .frame(width: LayoutTokens.Toast.width, alignment: .leading)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: LayoutTokens.Toast.cornerRadius, style: .continuous))
+        .conformanceTag(tag())
         .offset(x: dragOffset)
         .opacity(1 - Double(min(dragOffset / LayoutTokens.Toast.width, LayoutTokens.Toast.swipeFadeLimit)))
         .gesture(swipe)
@@ -93,6 +99,13 @@ struct StatusToastRow: View {
         .buttonStyle(.bordered)
         .controlSize(.small)
         .padding(.leading, SpacingTokens.lg)
+        .conformanceTag(tag("actions"))
+    }
+
+    /// The conformance tag of this toast or one of its parts (`toast.error.title`); the round 18
+    /// exhibit in Echo Labs uses the same names.
+    private func tag(_ part: String? = nil) -> String {
+        ["toast", "\(toast.style)", part].compactMap(\.self).joined(separator: ".")
     }
 
     /// A flick to the right dismisses; a short drag springs back.

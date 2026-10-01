@@ -17,6 +17,8 @@ struct EchoLabApp: App {
         // A SwiftPM executable has no app bundle, so ask for a Dock icon and a key window.
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate()
+        // `ECHO_CONFORMANCE=<request>`: capture a round's accepted exhibit and quit (verify-round.py).
+        _ = LabConformanceRun.startIfRequested()
     }
 
     private static func postNotificationAndExit(_ text: String) -> Never {

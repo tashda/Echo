@@ -17,12 +17,13 @@ struct NTToastView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             content
-            if isExpanded { actions.padding(.leading, SpacingTokens.lg) }
+            if isExpanded { actions.padding(.leading, SpacingTokens.lg).conformanceTag(tag("actions")) }
         }
         .padding(.horizontal, SpacingTokens.sm)
         .padding(.vertical, isPill ? SpacingTokens.xxs2 : SpacingTokens.xs)
         .frame(width: isPill ? nil : LayoutTokens.Toast.width, alignment: .leading)
         .modifier(NTMaterialModifier(material: options.material, tint: toast.tint, isPill: isPill))
+        .conformanceTag(tag())
         .offset(x: dragOffset)
         .opacity(1 - Double(min(dragOffset / 240, 0.6)))
         .gesture(swipe, including: options.dismiss == .swipe ? .all : .none)
@@ -54,6 +55,7 @@ struct NTToastView: View {
                 icon
                 VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     Text(toast.headline).font(TypographyTokens.standard.weight(.semibold)).lineLimit(1)
+                        .conformanceTag(tag("title"))
                     if !isPill, let detail = toast.detail {
                         Text(detail)
                             .font(TypographyTokens.detail)
@@ -61,6 +63,7 @@ struct NTToastView: View {
                             .lineLimit(isExpanded ? nil : 2)
                             .fixedSize(horizontal: false, vertical: isExpanded)
                             .textSelection(.enabled)
+                            .conformanceTag(tag("detail"))
                     }
                 }
                 if isPill { count } else { trailing }
@@ -86,6 +89,12 @@ struct NTToastView: View {
         Image(systemName: toast.icon)
             .font(TypographyTokens.standard.weight(.semibold))
             .foregroundStyle(toast.tint)
+            .conformanceTag(tag("icon"))
+    }
+
+    /// The conformance tag of this toast or one of its parts: `toast.error`, `toast.error.title`.
+    private func tag(_ part: String? = nil) -> String {
+        ["toast", "\(toast.kind)", part].compactMap(\.self).joined(separator: ".")
     }
 
     @ViewBuilder
@@ -98,20 +107,22 @@ struct NTToastView: View {
         }
     }
 
-    /// The count, then × when the dismiss style shows one.
+    /// The count, then × when the dismiss style shows one. These join the row's own HStack, as in
+    /// Echo: wrapped in a stack of their own (with its Spacer) they took half the row from the text,
+    /// which cut the title and wrapped the reason short (found by the conformance check, rev 2).
+    @ViewBuilder
     private var trailing: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            count
-            Spacer(minLength: SpacingTokens.none)
-            if options.dismiss != .click {
-                let shows = options.dismiss == .alwaysX || isExpanded || toast.kind == .error
-                Button { simulation.dismiss(toast.id) } label: { Image(systemName: "xmark") }
-                    .buttonStyle(.plain)
-                    .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .opacity(shows ? 1 : 0)
-                    .help("Dismiss")
-            }
+        count
+        Spacer(minLength: SpacingTokens.none)
+        if options.dismiss != .click {
+            let shows = options.dismiss == .alwaysX || isExpanded || toast.kind == .error
+            Button { simulation.dismiss(toast.id) } label: { Image(systemName: "xmark") }
+                .buttonStyle(.plain)
+                .font(TypographyTokens.detail.weight(.semibold))
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .opacity(shows ? 1 : 0)
+                .help("Dismiss")
+                .conformanceTag(tag("dismiss"))
         }
     }
 

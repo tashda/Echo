@@ -6,6 +6,8 @@ import SwiftUI
 enum NotificationToastRound {
     private static let width: CGFloat = 520
     private static let height: CGFloat = 420
+    /// The conformance state with the error toast hovered (its exhibit reads it on appear).
+    static let hoveredState = "hovered"
 
     static let spec = RoundSpec(
         controls: [
@@ -53,6 +55,17 @@ enum NotificationToastRound {
         exhibitTopic: ("Which toast?", "Post the same events in both, hover them and dismiss them. Is the proposal better than Echo today?",
                        "proposal",
                        "It keeps the corner, glass and drop you already have, but shows the reason without hovering, uses the history's buttons, goes away with a flick, stacks as a deck and stays long enough to read."),
+        conformance: RoundConformance(
+            states: [
+                .init(id: "rest", title: "A failed query and a connection, nothing hovered; watched until the success toast goes",
+                      observe: 4.5),
+                .init(id: hoveredState, title: "The same, with the error toast hovered (whole reason and its buttons)"),
+            ],
+            subject: "toast.stack",
+            knownDifferences: [
+                "toast.error.actions": "Echo's specimen has no open tab, so the failed query's toast leaves out Open Tab; in the app it has it.",
+                "pixels:toast.error.detail": "Selectable text on glass is drawn with more contrast in Echo Labs than in Echo from the same code (without .textSelection both draw it alike); a lab rendering difference (tashda/Echo#32).",
+            ]),
         presets: [
             .init(id: "recommended", name: "My recommendation", summary: "L2, A2, D3, M1, E1, S2, T2.",
                   values: ["layout": NTLayout.titleDetail.rawValue, "actions": NTActions.smallButtons.rawValue,

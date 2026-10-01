@@ -21,6 +21,11 @@ struct EchoApp: App {
     init() {
         EchoApp.raiseFileDescriptorLimit()
         FontRegistrar.registerBundledFonts()
+        #if DEBUG
+        // `ECHO_CONFORMANCE=<request>`: capture a specimen for verify-round.py and quit. It needs
+        // none of the user's data, so it does not wait for the app to initialize.
+        AppDirector.shared.runConformanceIfRequested()
+        #endif
         #if os(macOS)
         if let forced = ProcessInfo.processInfo.environment["ECHO_FORCE_APPEARANCE"] {
             switch forced.lowercased() {

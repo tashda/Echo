@@ -16,6 +16,7 @@ struct StatusToastStack: View {
                 }
             }
         }
+        .conformanceTag("toast.stack")
         .animation(motion.standard, value: presenter.toasts)
         .animation(motion.standard, value: presenter.hoveredID)
     }

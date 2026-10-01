@@ -28,6 +28,7 @@ struct LabRoundInfoBox: View {
                 Text(page.summary).font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            LabConformanceStatusRow(pageID: page.id)
             if hint, expanded {
                 HStack(spacing: SpacingTokens.md) {
                     hintStep("1", "Try things here")

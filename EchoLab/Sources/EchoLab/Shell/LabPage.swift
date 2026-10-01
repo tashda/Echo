@@ -15,6 +15,8 @@ import SwiftUI
     var ownsHeader = false
     /// Round pages describe how they are decided; it is shown in the right-hand panel.
     var decision: (@MainActor () -> RoundDecision)?
+    /// The round, for pages written as a `RoundSpec` (conformance captures draw its exhibits).
+    var roundSpec: RoundSpec?
     let content: () -> AnyView
 
     init<Content: View>(

@@ -8,6 +8,7 @@ struct NTExhibit: View {
     @State private var simulation = NTSimulation()
     @State private var isStackHovered = false
     @Environment(\.echoMotion) private var motion
+    @Environment(\.labConformanceState) private var conformanceState
 
     var body: some View {
         VStack(spacing: SpacingTokens.xs) {
@@ -27,6 +28,9 @@ struct NTExhibit: View {
             simulation.duration = options.duration.seconds
             simulation.post(.queryFailed)
             simulation.post(.connected)
+            if conformanceState == NotificationToastRound.hoveredState {
+                simulation.hoveredID = simulation.toasts.first { $0.kind == .error }?.id
+            }
         }
         .onChange(of: options.duration) { _, duration in simulation.duration = duration.seconds }
     }
@@ -66,6 +70,7 @@ struct NTExhibit: View {
                 }
             }
         }
+        .conformanceTag("toast.stack")
         .onHover { isStackHovered = $0 }
         .animation(motion.standard, value: simulation.toasts)
         .animation(motion.standard, value: simulation.hoveredID)

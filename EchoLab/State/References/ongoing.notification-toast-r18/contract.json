@@ -1,0 +1,399 @@
+{
+  "capturedAt": "2026-10-01T11:58:06+00:00",
+  "exhibit": "proposal",
+  "exhibitTitle": "Proposal",
+  "height": 420,
+  "knownDifferences": {
+    "pixels:toast.error.detail": "Selectable text on glass is drawn with more contrast in Echo Labs than in Echo from the same code (without .textSelection both draw it alike); a lab rendering difference (tashda/Echo#32).",
+    "toast.error.actions": "Echo's specimen has no open tab, so the failed query's toast leaves out Open Tab; in the app it has it."
+  },
+  "labCommit": "c590407d",
+  "page": "ongoing.notification-toast-r18",
+  "picks": {
+    "actions": "A2 \u00b7 Small buttons",
+    "arrival": "E1 \u00b7 Drop from the top (today)",
+    "dismiss": "D3 \u00b7 Swipe right",
+    "duration": "T1 \u00b7 3 s (today)",
+    "exhibit": "proposal",
+    "layout": "L2 \u00b7 Title and detail",
+    "material": "M1 \u00b7 Liquid Glass (today)",
+    "stacking": "S1 \u00b7 List of three (today)"
+  },
+  "shots": [
+    {
+      "appWasActive": false,
+      "appearance": "light",
+      "height": 420,
+      "image": "rest-light.png",
+      "parts": {
+        "toast.error": {
+          "appearedAt": 0.263,
+          "height": 48,
+          "width": 320,
+          "x": 180,
+          "y": 100
+        },
+        "toast.error.detail": {
+          "appearedAt": 0.263,
+          "height": 14,
+          "width": 221.5,
+          "x": 216.5,
+          "y": 126
+        },
+        "toast.error.dismiss": {
+          "appearedAt": 0.263,
+          "height": 11,
+          "width": 12,
+          "x": 476,
+          "y": 111.5
+        },
+        "toast.error.icon": {
+          "appearedAt": 0.263,
+          "height": 15,
+          "width": 16.5,
+          "x": 192,
+          "y": 109
+        },
+        "toast.error.title": {
+          "appearedAt": 0.263,
+          "height": 16,
+          "width": 87,
+          "x": 216.5,
+          "y": 108
+        },
+        "toast.stack": {
+          "appearedAt": 0.242,
+          "height": 88,
+          "width": 320,
+          "x": 180,
+          "y": 60
+        },
+        "toast.success": {
+          "appearedAt": 0.263,
+          "disappearedAt": 4.117,
+          "height": 32,
+          "width": 320,
+          "x": 180,
+          "y": 60
+        },
+        "toast.success.dismiss": {
+          "appearedAt": 0.263,
+          "disappearedAt": 4.117,
+          "height": 11,
+          "width": 12,
+          "x": 476,
+          "y": 71.5
+        },
+        "toast.success.icon": {
+          "appearedAt": 0.263,
+          "disappearedAt": 4.117,
+          "height": 15.5,
+          "width": 15.5,
+          "x": 192,
+          "y": 68.5
+        },
+        "toast.success.title": {
+          "appearedAt": 0.263,
+          "disappearedAt": 4.117,
+          "height": 16,
+          "width": 159.5,
+          "x": 215.5,
+          "y": 68
+        }
+      },
+      "scale": 2,
+      "state": "rest",
+      "width": 520
+    },
+    {
+      "appWasActive": false,
+      "appearance": "light",
+      "height": 420,
+      "image": "hovered-light.png",
+      "parts": {
+        "toast.error": {
+          "appearedAt": 0.102,
+          "height": 74,
+          "width": 320,
+          "x": 180,
+          "y": 100
+        },
+        "toast.error.actions": {
+          "appearedAt": 0.102,
+          "height": 20,
+          "width": 223,
+          "x": 192,
+          "y": 146
+        },
+        "toast.error.detail": {
+          "appearedAt": 0.102,
+          "height": 14,
+          "width": 221.5,
+          "x": 216.5,
+          "y": 126
+        },
+        "toast.error.dismiss": {
+          "appearedAt": 0.102,
+          "height": 11,
+          "width": 12,
+          "x": 476,
+          "y": 111.5
+        },
+        "toast.error.icon": {
+          "appearedAt": 0.102,
+          "height": 15,
+          "width": 16.5,
+          "x": 192,
+          "y": 109
+        },
+        "toast.error.title": {
+          "appearedAt": 0.102,
+          "height": 16,
+          "width": 87,
+          "x": 216.5,
+          "y": 108
+        },
+        "toast.stack": {
+          "appearedAt": 0.088,
+          "height": 114,
+          "width": 320,
+          "x": 180,
+          "y": 60
+        },
+        "toast.success": {
+          "appearedAt": 0.102,
+          "height": 32,
+          "width": 320,
+          "x": 180,
+          "y": 60
+        },
+        "toast.success.dismiss": {
+          "appearedAt": 0.102,
+          "height": 11,
+          "width": 12,
+          "x": 476,
+          "y": 71.5
+        },
+        "toast.success.icon": {
+          "appearedAt": 0.102,
+          "height": 15.5,
+          "width": 15.5,
+          "x": 192,
+          "y": 68.5
+        },
+        "toast.success.title": {
+          "appearedAt": 0.102,
+          "height": 16,
+          "width": 159.5,
+          "x": 215.5,
+          "y": 68
+        }
+      },
+      "scale": 2,
+      "state": "hovered",
+      "width": 520
+    },
+    {
+      "appWasActive": false,
+      "appearance": "dark",
+      "height": 420,
+      "image": "rest-dark.png",
+      "parts": {
+        "toast.error": {
+          "appearedAt": 0.096,
+          "height": 48,
+          "width": 320,
+          "x": 180,
+          "y": 100
+        },
+        "toast.error.detail": {
+          "appearedAt": 0.096,
+          "height": 14,
+          "width": 221.5,
+          "x": 216.5,
+          "y": 126
+        },
+        "toast.error.dismiss": {
+          "appearedAt": 0.096,
+          "height": 11,
+          "width": 12,
+          "x": 476,
+          "y": 111.5
+        },
+        "toast.error.icon": {
+          "appearedAt": 0.096,
+          "height": 15,
+          "width": 16.5,
+          "x": 192,
+          "y": 109
+        },
+        "toast.error.title": {
+          "appearedAt": 0.096,
+          "height": 16,
+          "width": 87,
+          "x": 216.5,
+          "y": 108
+        },
+        "toast.stack": {
+          "appearedAt": 0.084,
+          "height": 88,
+          "width": 320,
+          "x": 180,
+          "y": 60
+        },
+        "toast.success": {
+          "appearedAt": 0.096,
+          "disappearedAt": 3.905,
+          "height": 32,
+          "width": 320,
+          "x": 180,
+          "y": 60
+        },
+        "toast.success.dismiss": {
+          "appearedAt": 0.096,
+          "disappearedAt": 3.905,
+          "height": 11,
+          "width": 12,
+          "x": 476,
+          "y": 71.5
+        },
+        "toast.success.icon": {
+          "appearedAt": 0.096,
+          "disappearedAt": 3.905,
+          "height": 15.5,
+          "width": 15.5,
+          "x": 192,
+          "y": 68.5
+        },
+        "toast.success.title": {
+          "appearedAt": 0.096,
+          "disappearedAt": 3.905,
+          "height": 16,
+          "width": 159.5,
+          "x": 215.5,
+          "y": 68
+        }
+      },
+      "scale": 2,
+      "state": "rest",
+      "width": 520
+    },
+    {
+      "appWasActive": false,
+      "appearance": "dark",
+      "height": 420,
+      "image": "hovered-dark.png",
+      "parts": {
+        "toast.error": {
+          "appearedAt": 0.065,
+          "height": 74,
+          "width": 320,
+          "x": 180,
+          "y": 100
+        },
+        "toast.error.actions": {
+          "appearedAt": 0.065,
+          "height": 20,
+          "width": 223,
+          "x": 192,
+          "y": 146
+        },
+        "toast.error.detail": {
+          "appearedAt": 0.065,
+          "height": 14,
+          "width": 221.5,
+          "x": 216.5,
+          "y": 126
+        },
+        "toast.error.dismiss": {
+          "appearedAt": 0.065,
+          "height": 11,
+          "width": 12,
+          "x": 476,
+          "y": 111.5
+        },
+        "toast.error.icon": {
+          "appearedAt": 0.065,
+          "height": 15,
+          "width": 16.5,
+          "x": 192,
+          "y": 109
+        },
+        "toast.error.title": {
+          "appearedAt": 0.065,
+          "height": 16,
+          "width": 87,
+          "x": 216.5,
+          "y": 108
+        },
+        "toast.stack": {
+          "appearedAt": 0.052,
+          "height": 114,
+          "width": 320,
+          "x": 180,
+          "y": 60
+        },
+        "toast.success": {
+          "appearedAt": 0.065,
+          "height": 32,
+          "width": 320,
+          "x": 180,
+          "y": 60
+        },
+        "toast.success.dismiss": {
+          "appearedAt": 0.065,
+          "height": 11,
+          "width": 12,
+          "x": 476,
+          "y": 71.5
+        },
+        "toast.success.icon": {
+          "appearedAt": 0.065,
+          "height": 15.5,
+          "width": 15.5,
+          "x": 192,
+          "y": 68.5
+        },
+        "toast.success.title": {
+          "appearedAt": 0.065,
+          "height": 16,
+          "width": 159.5,
+          "x": 215.5,
+          "y": 68
+        }
+      },
+      "scale": 2,
+      "state": "hovered",
+      "width": 520
+    }
+  ],
+  "states": [
+    {
+      "id": "rest",
+      "observe": 4.5,
+      "settle": 1.5,
+      "title": "A failed query and a connection, nothing hovered; watched until the success toast goes"
+    },
+    {
+      "id": "hovered",
+      "observe": 0,
+      "settle": 1.5,
+      "title": "The same, with the error toast hovered (whole reason and its buttons)"
+    }
+  ],
+  "status": "In Echo",
+  "subject": "toast.stack",
+  "title": "Notification toast \u00b7 round 18",
+  "unpicked": [],
+  "values": {
+    "actions": "A2 \u00b7 Small buttons",
+    "arrival": "E1 \u00b7 Drop from the top (today)",
+    "dismiss": "D3 \u00b7 Swipe right",
+    "duration": "T1 \u00b7 3 s (today)",
+    "layout": "L2 \u00b7 Title and detail",
+    "material": "M1 \u00b7 Liquid Glass (today)",
+    "speed": "Default",
+    "stacking": "S1 \u00b7 List of three (today)"
+  },
+  "width": 520
+}
