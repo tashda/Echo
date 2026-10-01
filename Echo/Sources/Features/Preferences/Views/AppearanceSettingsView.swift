@@ -152,7 +152,7 @@ struct AppearanceSettingsView: View {
 
                 PropertyRow(
                     title: "Line Number Gutter",
-                    subtitle: "Subtle shows numbers only; Column adds a faint full-height column; Lane adds a rounded, inset lane."
+                    subtitle: "Subtle shows numbers only; Column adds a faint full-height column; Lane adds a rounded, inset lane; Hairline adds only a thin edge."
                 ) {
                     Picker("", selection: projectStore.globalSettingBinding(\.editorGutterStyle)) {
                         ForEach(EditorGutterStyle.allCases, id: \.self) { Text($0.displayName).tag($0) }
@@ -161,6 +161,8 @@ struct AppearanceSettingsView: View {
                     .pickerStyle(.segmented)
                     .fixedSize()
                 }
+
+                selectionCornersRow
             }
 
             editorFontSection

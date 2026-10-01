@@ -21,12 +21,29 @@ final class LineNumberRulerView: NSRulerView {
     var onRunStatement: (() -> Void)?
     /// Where the Run arrow was last drawn, for clicks.
     var runArrowRect: NSRect?
+    /// Round 28.4: the lines of the statement at the caret, marked with a bracket.
+    var statementLines: ClosedRange<Int>? {
+        didSet { if oldValue != statementLines { needsDisplay = true } }
+    }
+    /// Round 21 SK2, round 28.4 SR1: the selected script result's statement, a solid bracket.
+    var resultStatementLines: ClosedRange<Int>? {
+        didSet { if oldValue != resultStatementLines { needsDisplay = true } }
+    }
+    /// Round 28.4 A1: the arrow is grey until the pointer is on it.
+    private var isHoveringRunArrow = false {
+        didSet { if oldValue != isHoveringRunArrow { needsDisplay = true } }
+    }
     /// Subtle (numbers only), a tinted column with an edge, or a tinted inset lane, from Settings.
     var gutterStyle: EditorGutterStyle = .subtle {
         didSet { if oldValue != gutterStyle { needsDisplay = true } }
     }
     var theme: SQLEditorTheme {
-        didSet { needsDisplay = true }
+        didSet {
+            guard oldValue.fontSize != theme.fontSize else { needsDisplay = true; return }
+            sizedDigitCount = 0
+            updateThickness()
+            needsDisplay = true
+        }
     }
     /// Digits the gutter is currently sized for; it widens as the script grows.
     private var sizedDigitCount = 0
@@ -42,7 +59,7 @@ final class LineNumberRulerView: NSRulerView {
         super.init(scrollView: textView.enclosingScrollView, orientation: .verticalRuler)
         self.sqlTextView = textView
         self.clientView = textView
-        self.ruleThickness = Self.thickness(forDigits: LayoutTokens.EditorGutter.minimumDigits)
+        self.ruleThickness = Self.thickness(forDigits: LayoutTokens.EditorGutter.minimumDigits, codeSize: theme.fontSize)
         translatesAutoresizingMaskIntoConstraints = true
         autoresizingMask = [.height]
         setFrameSize(NSSize(width: ruleThickness, height: frame.size.height))
@@ -75,15 +92,19 @@ final class LineNumberRulerView: NSRulerView {
         let digits = max(String(lineCount).count, LayoutTokens.EditorGutter.minimumDigits)
         guard digits != sizedDigitCount else { return }
         sizedDigitCount = digits
-        ruleThickness = Self.thickness(forDigits: digits)
+        ruleThickness = Self.thickness(forDigits: digits, codeSize: theme.fontSize)
     }
 
-    private static let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-    private static let currentNumberFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+    /// Round 28.2 N1: SF digits 2pt under the code, so the numbers follow the font size.
+    static func numberFont(forCodeSize size: CGFloat) -> NSFont {
+        .monospacedDigitSystemFont(ofSize: max(size - 2, 8), weight: .regular)
+    }
+
+    private var numberFont: NSFont { Self.numberFont(forCodeSize: theme.fontSize) }
 
     /// Room for the error dot, the digits, and the gap before the text.
-    static func thickness(forDigits digits: Int) -> CGFloat {
-        let digitWidth = ("0" as NSString).size(withAttributes: [.font: numberFont]).width
+    static func thickness(forDigits digits: Int, codeSize: CGFloat = SQLEditorTheme.defaultFontSize) -> CGFloat {
+        let digitWidth = ("0" as NSString).size(withAttributes: [.font: numberFont(forCodeSize: codeSize)]).width
         return ceil(
             LayoutTokens.EditorGutter.markerLeading + LayoutTokens.EditorGutter.markerSize
                 + LayoutTokens.EditorGutter.markerSpacing + digitWidth * CGFloat(digits)
@@ -107,7 +128,8 @@ final class LineNumberRulerView: NSRulerView {
         drawHashMarksAndLabels(in: dirtyRect)
     }
 
-    /// QE1: a small accent triangle at the leading edge of the statement's first line.
+    /// QE1: a small triangle at the leading edge of the statement's first line; round 28.4 A1:
+    /// grey, in the accent while the pointer is on it.
     private func drawRunArrow(labelY: CGFloat, labelHeight: CGFloat) {
         let size = LayoutTokens.EditorGutter.runArrowSize
         let rect = NSRect(x: LayoutTokens.EditorGutter.markerLeading, y: labelY + (labelHeight - size) / 2, width: size * 0.85, height: size)
@@ -116,7 +138,7 @@ final class LineNumberRulerView: NSRulerView {
         path.line(to: NSPoint(x: rect.maxX, y: rect.midY))
         path.line(to: NSPoint(x: rect.minX, y: rect.maxY))
         path.close()
-        NSColor.controlAccentColor.setFill()
+        (isHoveringRunArrow ? NSColor.controlAccentColor : NSColor.tertiaryLabelColor).setFill()
         path.fill()
         runArrowRect = rect
     }
@@ -157,6 +179,9 @@ final class LineNumberRulerView: NSRulerView {
             return
         }
 
+        var brackets = StatementBrackets(focused: statementLines, result: resultStatementLines)
+        defer { brackets.draw(numbersRight: gutterWidth - LayoutTokens.EditorGutter.numberTrailing, context: context) }
+
         // Count lines once for the first visible fragment, then step: counting from the top of
         // the script for every fragment made long scripts slow to scroll.
         var lineNumber = nsString.lineNumber(at: layoutManager.characterIndexForGlyph(at: firstGlyph))
@@ -170,6 +195,7 @@ final class LineNumberRulerView: NSRulerView {
             if startsLine && !isFirstFragment {
                 lineNumber += 1
             }
+            brackets.include(line: lineNumber, fragment: fragmentRect)
             // One number per logical line: wrapped continuations stay blank.
             if startsLine {
                 drawLabel(lineNumber, atFragmentMinY: fragmentRect.minY, context: context)
@@ -184,6 +210,7 @@ final class LineNumberRulerView: NSRulerView {
         if layoutManager.extraLineFragmentTextContainer != nil {
             let extraRect = layoutManager.extraLineFragmentRect
             if extraRect.height > 0 {
+                brackets.include(line: nsString.lineNumber(at: nsString.length), fragment: extraRect)
                 drawLabel(nsString.lineNumber(at: nsString.length), atFragmentMinY: extraRect.minY, context: context)
             }
         }
@@ -196,7 +223,7 @@ final class LineNumberRulerView: NSRulerView {
         return previous == 10 || previous == 13
     }
 
-    private struct LabelContext {
+    struct LabelContext {
         let containerOriginY: CGFloat
         let scrollOffsetY: CGFloat
         let baselineOffset: CGFloat
@@ -214,6 +241,9 @@ final class LineNumberRulerView: NSRulerView {
             NSRect(x: 0, y: bounds.minY, width: width, height: bounds.height).fill()
             NSColor.separatorColor.setFill()
             NSRect(x: width - LayoutTokens.EditorGutter.edgeWidth, y: bounds.minY, width: LayoutTokens.EditorGutter.edgeWidth, height: bounds.height).fill()
+        case .hairline:
+            NSColor.separatorColor.setFill()
+            NSRect(x: width - LayoutTokens.EditorGutter.edgeWidth, y: bounds.minY, width: LayoutTokens.EditorGutter.edgeWidth, height: bounds.height).fill()
         case .lane:
             let inset = LayoutTokens.EditorGutter.laneInset
             let lane = NSRect(x: inset, y: bounds.minY + inset, width: max(width - inset * 2, 0), height: max(bounds.height - inset * 2, 0))
@@ -224,9 +254,10 @@ final class LineNumberRulerView: NSRulerView {
     }
 
     private func drawLabel(_ lineNumber: Int, atFragmentMinY fragmentMinY: CGFloat, context: LabelContext) {
+        // Round 28.2: the caret's number in the text colour (K1), the others tertiary (C1), one weight.
         let isCurrent = highlightedLines.contains(lineNumber)
-        let font = isCurrent ? Self.currentNumberFont : Self.numberFont
-        let color = isCurrent ? theme.surfaces.gutterAccent.nsColor : theme.surfaces.gutterText.nsColor
+        let font = numberFont
+        let color: NSColor = isCurrent ? .labelColor : .tertiaryLabelColor
         let labelHeight = ceil(font.ascender - font.descender + font.leading)
         let baselineY = fragmentMinY + context.baselineOffset + context.containerOriginY - context.scrollOffsetY
         let labelY = baselineY - font.ascender
@@ -254,6 +285,21 @@ final class LineNumberRulerView: NSRulerView {
     }
 
     private var anchorLine: Int?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        isHoveringRunArrow = runArrowRect?.insetBy(dx: -LayoutTokens.EditorGutter.markerSpacing, dy: -LayoutTokens.EditorGutter.markerSpacing).contains(point) ?? false
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHoveringRunArrow = false
+    }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)

@@ -16,6 +16,9 @@ struct EditorTypographySettingsTests {
         let settings = GlobalSettings()
         #expect(settings.defaultEditorFontSize == 13)
         #expect(settings.defaultEditorLineHeight == 1.55)
+        #expect(settings.defaultEditorFontFamily == SQLEditorTheme.systemFontIdentifier)
+        #expect(settings.editorSelectionCornerRadius == 3)
+        #expect(!settings.ligaturesEnabled(for: settings.defaultEditorFontFamily))
     }
 
     @Test func oldDefaultsMoveToTheNewOnesOnce() throws {
@@ -26,7 +29,7 @@ struct EditorTypographySettingsTests {
         }
         #expect(settings.defaultEditorFontSize == 13)
         #expect(settings.defaultEditorLineHeight == 1.55)
-        #expect(settings.editorTypographyRevision == 1)
+        #expect(settings.editorTypographyRevision == 2)
     }
 
     @Test func chosenValuesSurviveTheMove() throws {
@@ -36,7 +39,42 @@ struct EditorTypographySettingsTests {
             json["defaultEditorLineHeight"] = 1.2
         }
         #expect(settings.defaultEditorFontSize == 15)
-        #expect(settings.defaultEditorLineHeight == 1.2)
+        // Round 28.1: a chosen spacing lands on its nearest name.
+        #expect(settings.defaultEditorLineHeight == EditorLineHeight.compact.rawValue)
+    }
+
+    @Test(arguments: [(1.0, EditorLineHeight.compact), (1.2, .compact), (1.35, .comfortable), (1.55, .comfortable), (1.75, .relaxed), (2.0, .relaxed)])
+    func oldSpacingsLandOnTheirNearestName(value: Double, expected: EditorLineHeight) {
+        #expect(EditorLineHeight.nearest(to: value) == expected)
+    }
+
+    @Test func theOldDefaultFontMovesToSFMonoOnce() throws {
+        let moved = try decode { json in
+            json["editorTypographyRevision"] = 1
+            json["defaultEditorFontFamily"] = "JetBrainsMono-Regular"
+        }
+        #expect(moved.defaultEditorFontFamily == SQLEditorTheme.systemFontIdentifier)
+        let chosenLater = try decode { json in
+            json["editorTypographyRevision"] = 2
+            json["defaultEditorFontFamily"] = "JetBrainsMono-Regular"
+        }
+        #expect(chosenLater.defaultEditorFontFamily == "JetBrainsMono-Regular")
+        let other = try decode { json in
+            json["editorTypographyRevision"] = 1
+            json["defaultEditorFontFamily"] = "Geist Mono"
+        }
+        #expect(other.defaultEditorFontFamily == "Geist Mono")
+    }
+
+    @Test func selectionCornersDecodeAndDefault() throws {
+        #expect(try decode { _ = $0.removeValue(forKey: "editorSelectionCornerRadius") }.editorSelectionCornerRadius == 3)
+        #expect(try decode { $0["editorSelectionCornerRadius"] = 6.0 }.editorSelectionCornerRadius == 6)
+    }
+
+    @Test func aLineIsTheMultipleOfTheSizeNeverLessThanTheFont() {
+        #expect(SQLLayoutManager.lineHeight(fontSize: 13, multiple: 1.55, naturalHeight: 16) == 20)
+        #expect(SQLLayoutManager.lineHeight(fontSize: 13, multiple: 1.75, naturalHeight: 16) == 23)
+        #expect(SQLLayoutManager.lineHeight(fontSize: 13, multiple: 1.0, naturalHeight: 17) == 17)
     }
 
     @Test func twelvePointChosenAfterTheMoveStays() throws {
@@ -46,17 +84,17 @@ struct EditorTypographySettingsTests {
             json["defaultEditorLineHeight"] = 1.0
         }
         #expect(settings.defaultEditorFontSize == 12)
-        #expect(settings.defaultEditorLineHeight == 1)
+        #expect(settings.defaultEditorLineHeight == EditorLineHeight.compact.rawValue)
     }
 
-    @Test(arguments: [("subtle", EditorGutterStyle.subtle), ("tinted", .tinted), ("lane", .lane), ("unknown", .subtle)])
+    @Test(arguments: [("subtle", EditorGutterStyle.subtle), ("tinted", .tinted), ("lane", .lane), ("hairline", .hairline), ("unknown", .subtle)])
     func gutterStyleDecodes(raw: String, expected: EditorGutterStyle) throws {
         let settings = try decode { $0["editorGutterStyle"] = raw }
         #expect(settings.editorGutterStyle == expected)
     }
 
     @Test func bundledFontsHaveDisplayNames() {
-        #expect(SQLEditorTheme.bundledFontFamilies.contains(SQLEditorTheme.defaultFontFamily))
+        #expect(SQLEditorTheme.bundledFontFamilies.contains("JetBrains Mono"))
         #expect(SQLEditorTheme.bundledFontDisplayNames["CommitMono"] == "Commit Mono")
         #expect(SQLEditorTheme.bundledFontDisplayNames.keys.allSatisfy(SQLEditorTheme.bundledFontFamilies.contains))
     }

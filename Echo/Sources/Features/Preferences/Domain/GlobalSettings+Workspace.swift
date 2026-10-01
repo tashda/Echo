@@ -121,19 +121,58 @@ enum SidebarMonochromeVariant: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// Look of the SQL editor's line-number gutter (design board, 2026-09-30). `tinted` keeps its
-/// raw value so saved settings still decode; it is the full-height column.
+/// Look of the SQL editor's line-number gutter (design board, 2026-09-30; Hairline from round
+/// 28.2, where the owner asked for every surface in Settings). `tinted` keeps its raw value so
+/// saved settings still decode; it is the full-height column.
 enum EditorGutterStyle: String, Codable, CaseIterable, Sendable {
     case subtle
     case tinted
     case lane
+    case hairline
 
     var displayName: String {
         switch self {
         case .subtle: return "Subtle"
         case .tinted: return "Column"
         case .lane: return "Lane"
+        case .hairline: return "Hairline"
         }
+    }
+}
+
+/// The editor's line height (round 28.1, LS1), stored as a multiple of the font size: a 13pt
+/// line is 17, 20 or 23pt high.
+enum EditorLineHeight: Double, CaseIterable, Sendable {
+    case compact = 1.3
+    case comfortable = 1.55
+    case relaxed = 1.75
+
+    var displayName: String {
+        switch self {
+        case .compact: return "Compact"
+        case .comfortable: return "Comfortable"
+        case .relaxed: return "Relaxed"
+        }
+    }
+
+    /// Any stored value (older builds offered 1.0 to 2.0) lands on the nearest name.
+    static func nearest(to value: Double) -> EditorLineHeight {
+        if value <= 1.25 { return .compact }
+        if value <= 1.65 { return .comfortable }
+        return .relaxed
+    }
+}
+
+/// How round the editor's selection is (round 28.3: rounded, 3pt by default, a setting).
+enum EditorSelectionCorners: Double, CaseIterable, Sendable {
+    case square = 0
+    case two = 2
+    case three = 3
+    case four = 4
+    case six = 6
+
+    var displayName: String {
+        self == .square ? "Square" : "\(Int(rawValue)) pt"
     }
 }
 

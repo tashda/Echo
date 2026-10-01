@@ -39,7 +39,9 @@ extension SQLTextView {
             scrollView.setRulerVisible(displayOptions.showLineNumbers)
         }
         refreshStatements()
-        
+        (layoutManager as? SQLLayoutManager)?.selectionCornerRadius = displayOptions.selectionCornerRadius
+        setNeedsDisplay(visibleRect)
+
         let container = textContainer
         if displayOptions.wrapLines {
             container?.widthTracksTextView = true
@@ -64,7 +66,6 @@ extension SQLTextView {
         if let sqlLayout = layoutManager as? SQLLayoutManager {
             sqlLayout.textFont = theme.nsFont
             sqlLayout.lineHeightMultiple = theme.lineHeightMultiplier
-            sqlLayout.extraLineSpacing = theme.lineSpacing
         }
 
         let nsString = string as NSString

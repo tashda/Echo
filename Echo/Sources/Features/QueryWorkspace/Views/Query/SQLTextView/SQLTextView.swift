@@ -38,8 +38,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var cachedStatements: [SQLStatementAtCaret.Match] = []
     var focusedStatementRange: NSRange?
     /// Round 21, SK2: the statement of the result selected in a script's statement list.
-    var resultStatementRange: NSRange? { didSet { if oldValue != resultStatementRange { setNeedsDisplay(visibleRect) } } }
-    var lastCurrentLineBandRect: NSRect?
+    var resultStatementRange: NSRange? { didSet { if oldValue != resultStatementRange { updateResultStatement() } } }
     /// QE5: the outline strip, when the setting is on.
     weak var outlineStrip: EditorOutlineStripView?
     /// ES3: the suggestion shown as ghost text after the caret, with the response it came from.
@@ -123,14 +122,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let textStorage = NSTextStorage(); let layoutManager = SQLLayoutManager(); let textContainer = NSTextContainer(size: NSSize(width: 800, height: CGFloat.greatestFiniteMagnitude))
         layoutManager.textFont = theme.nsFont
         layoutManager.lineHeightMultiple = theme.lineHeightMultiplier
-        layoutManager.extraLineSpacing = theme.lineSpacing
         textStorage.addLayoutManager(layoutManager); layoutManager.addTextContainer(textContainer)
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 360), textContainer: textContainer)
         completionEngine.updateContext(completionContext); completionController = SQLAutoCompletionController(textView: self)
         self.nextResponder = fallbackResponder
         isEditable = true; isSelectable = true; isRichText = false; isAutomaticQuoteSubstitutionEnabled = false; isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false; isAutomaticSpellingCorrectionEnabled = false; isGrammarCheckingEnabled = false
-        usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: SpacingTokens.xxs, height: SpacingTokens.xxs); allowsUndo = true
+        usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: SpacingTokens.xxs, height: SpacingTokens.xs); allowsUndo = true
         usesFindBar = true; isIncrementalSearchingEnabled = true
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude); minSize = NSSize(width: 0, height: 320)
         isHorizontallyResizable = false; isVerticallyResizable = true; autoresizingMask = [.width]; wantsLayer = true; layer?.isOpaque = true
@@ -152,7 +150,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func configureDelegates() { delegate = self }
 
     func applyTheme() {
-        font = theme.nsFont; textColor = theme.tokenColors.plain.nsColor; insertionPointColor = theme.tokenColors.operatorSymbol.nsColor
+        font = theme.nsFont; textColor = theme.tokenColors.plain.nsColor; insertionPointColor = .textInsertionPointColor
         drawsBackground = true; backgroundColor = backgroundOverride ?? theme.surfaces.background.nsColor; typingAttributes[.ligature] = theme.ligaturesEnabled ? 1 : 0
         updateParagraphStyle(); lineNumberRuler?.theme = theme
         let range = selectedLineRange()
@@ -256,7 +254,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
-        notifySelectionChanged(); updateStatementFocus(); invalidateCurrentLineBand(); let range = selectedLineRange()
+        (layoutManager as? SQLLayoutManager)?.selectedRanges = selectedRanges.map(\.rangeValue)
+        notifySelectionChanged(); updateStatementFocus(); let range = selectedLineRange()
         if range.location != NSNotFound { lineNumberRuler?.highlightedLines = IndexSet(integersIn: range.location..<(range.location + range.length)) }
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)

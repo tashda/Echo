@@ -15,8 +15,11 @@ struct SQLEditorSurfaceColors: Codable, Equatable {
 }
 
 struct SQLEditorTheme: Codable, Equatable {
-    static let defaultFontName = "JetBrainsMono-Regular"
-    static let defaultFontFamily = "JetBrains Mono"
+    /// Round 28.1: SF Mono, the system's monospaced font.
+    static let defaultFontName = systemFontIdentifier
+    static let defaultFontFamily = systemFontIdentifier
+    /// The default before round 28.1; settings still on it move to SF Mono once.
+    static let formerDefaultFontNames: Set<String> = ["JetBrainsMono-Regular", "JetBrains Mono"]
     /// Families bundled in `Resources/Fonts`, all under the SIL Open Font License.
     static let bundledFontFamilies = [
         "JetBrains Mono", "Geist Mono", "Google Sans Code", "Intel One Mono", "Martian Mono", "Fragment Mono",
@@ -36,7 +39,7 @@ struct SQLEditorTheme: Codable, Equatable {
     var fontName: String
     var fontSize: CGFloat
     var lineHeightMultiplier: CGFloat
-    var ligaturesEnabled: Bool = true
+    var ligaturesEnabled: Bool = false
     var surfaces: SQLEditorSurfaceColors
     var tokenPalette: SQLEditorTokenPalette
     var palette: SQLEditorTokenPalette { tokenPalette }
@@ -45,7 +48,7 @@ struct SQLEditorTheme: Codable, Equatable {
         fontName: String = SQLEditorTheme.defaultFontName,
         fontSize: CGFloat = SQLEditorTheme.defaultFontSize,
         lineHeightMultiplier: CGFloat = SQLEditorTheme.defaultLineHeight,
-        ligaturesEnabled: Bool = true,
+        ligaturesEnabled: Bool = false,
         surfaces: SQLEditorSurfaceColors,
         tokenPalette: SQLEditorTokenPalette
     ) {
@@ -71,7 +74,7 @@ struct SQLEditorTheme: Codable, Equatable {
         fontName = try container.decode(String.self, forKey: .fontName)
         fontSize = try container.decode(CGFloat.self, forKey: .fontSize)
         lineHeightMultiplier = try container.decode(CGFloat.self, forKey: .lineHeightMultiplier)
-        ligaturesEnabled = try container.decodeIfPresent(Bool.self, forKey: .ligaturesEnabled) ?? true
+        ligaturesEnabled = try container.decodeIfPresent(Bool.self, forKey: .ligaturesEnabled) ?? false
         surfaces = try container.decode(SQLEditorSurfaceColors.self, forKey: .surfaces)
         tokenPalette = try container.decode(SQLEditorTokenPalette.self, forKey: .tokenPalette)
     }
@@ -139,9 +142,4 @@ struct SQLEditorTheme: Codable, Equatable {
         )
     }
 }
-extension SQLEditorTheme {
-    var lineSpacing: CGFloat {
-        let base = fontSize * 0.2
-        return base * lineHeightMultiplier
-    }
-}
+

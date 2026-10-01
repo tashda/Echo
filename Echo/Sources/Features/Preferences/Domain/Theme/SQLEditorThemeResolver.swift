@@ -15,7 +15,7 @@ enum SQLEditorThemeResolver {
         let lineHeightValue = project?.settings.editorLineHeight ?? globalSettings.defaultEditorLineHeight
 
         let fontSize = max(8, CGFloat(fontSizeValue))
-        let lineHeight = max(1.0, CGFloat(lineHeightValue))
+        let lineHeight = CGFloat(EditorLineHeight.nearest(to: lineHeightValue).rawValue)
 
         let strongHighlight = SQLEditorTokenPalette.defaultSymbolHighlightStrong(
             selection: basePalette.selection,
@@ -67,6 +67,7 @@ enum SQLEditorThemeResolver {
             outlineEdgeEnabled: globalSettings.editorOutlineEdge,
             ghostTextEnabled: globalSettings.editorGhostTextCompletion,
             gutterStyle: globalSettings.editorGutterStyle,
+            selectionCornerRadius: CGFloat(max(0, globalSettings.editorSelectionCornerRadius)),
             cardCornerRadius: globalSettings.workspaceCornerRadius.points
         )
     }

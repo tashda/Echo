@@ -50,6 +50,8 @@ struct MonospacedFontPicker: View {
         PropertyRow(title: "Font Family") {
             Picker("", selection: $selectedFamily) {
                 Section("Echo") {
+                    // Round 28.1: SF Mono, the system's monospaced font, is the default.
+                    Text(displayName(for: SQLEditorTheme.systemFontIdentifier)).tag(SQLEditorTheme.systemFontIdentifier)
                     ForEach(bundledFamilies, id: \.self) { family in
                         Text(displayName(for: family)).tag(family)
                     }
@@ -59,7 +61,7 @@ struct MonospacedFontPicker: View {
                         Text(displayName(for: family)).tag(family)
                     }
                 }
-                if !isKnown(selectedFamily) {
+                if !isKnown(selectedFamily), !SQLEditorTheme.isSystemFontIdentifier(selectedFamily) {
                     Text(displayName(for: SQLEditorTheme.defaultFontFamily)).tag(selectedFamily)
                 }
             }
@@ -71,7 +73,7 @@ struct MonospacedFontPicker: View {
 
     private func displayName(for family: String) -> String {
         if SQLEditorTheme.isSystemFontIdentifier(family) {
-            return "System Monospaced"
+            return "SF Mono"
         }
         return SQLEditorTheme.bundledFontDisplayNames[family] ?? family
     }

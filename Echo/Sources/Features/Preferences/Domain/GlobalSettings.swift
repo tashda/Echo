@@ -188,8 +188,11 @@ struct GlobalSettings: Codable, Hashable {
     /// order, as section keys. A type missing here uses its blueprint's default.
     var sidebarDockSections: [String: [String]] = [:]
     var editorGutterStyle: EditorGutterStyle = .subtle
-    /// 1 once the editor moved to 13pt with 1.55 line spacing (design board, 2026-09-30).
-    var editorTypographyRevision = 1
+    /// Round 28.3: the selection's corner radius, in points (0 is square).
+    var editorSelectionCornerRadius: Double = EditorSelectionCorners.three.rawValue
+    /// 1 once the editor moved to 13pt with 1.55 line spacing (design board, 2026-09-30); 2 once
+    /// line heights became named and the default font SF Mono (round 28.1).
+    var editorTypographyRevision = 2
     var resultsMonospacedCells: Bool = false
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
@@ -218,7 +221,7 @@ struct GlobalSettings: Codable, Hashable {
     init(
         appearanceMode: AppearanceMode = .system,
         defaultEditorFontSize: Double = Double(SQLEditorTheme.defaultFontSize),
-        defaultEditorFontFamily: String = "JetBrainsMono-Regular",
+        defaultEditorFontFamily: String = SQLEditorTheme.defaultFontName,
         defaultEditorTheme: String = SQLEditorPalette.aurora.id,
         fontLigatureOverrides: [String: Bool] = [:],
         defaultEditorPaletteIDLight: String = SQLEditorPalette.aurora.id,
@@ -284,6 +287,7 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarDockIconStyle
         case sidebarDockSections
         case editorGutterStyle
+        case editorSelectionCornerRadius
         case editorTypographyRevision
         case resultsMonospacedCells
         case sidebarColoredIcons
@@ -300,7 +304,7 @@ struct GlobalSettings: Codable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         appearanceMode = try container.decodeIfPresent(AppearanceMode.self, forKey: .appearanceMode) ?? .system
         defaultEditorFontSize = try container.decodeIfPresent(Double.self, forKey: .defaultEditorFontSize) ?? Double(SQLEditorTheme.defaultFontSize)
-        defaultEditorFontFamily = try container.decodeIfPresent(String.self, forKey: .defaultEditorFontFamily) ?? "JetBrainsMono-Regular"
+        defaultEditorFontFamily = try container.decodeIfPresent(String.self, forKey: .defaultEditorFontFamily) ?? SQLEditorTheme.defaultFontName
         defaultEditorTheme = try container.decodeIfPresent(String.self, forKey: .defaultEditorTheme) ?? SQLEditorPalette.aurora.id
         fontLigatureOverrides = try container.decodeIfPresent([String: Bool].self, forKey: .fontLigatureOverrides) ?? [:]
         customEditorPalettes = (try? container.decodeIfPresent([SQLEditorTokenPalette].self, forKey: .customEditorPalettes)) ?? []
@@ -404,12 +408,21 @@ struct GlobalSettings: Codable, Hashable {
         sidebarDockIconStyle = (try? container.decodeIfPresent(SidebarDockIconStyle.self, forKey: .sidebarDockIconStyle)) ?? .mono
         sidebarDockSections = (try? container.decodeIfPresent([String: [String]].self, forKey: .sidebarDockSections)) ?? [:]
         editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
+        editorSelectionCornerRadius = try container.decodeIfPresent(Double.self, forKey: .editorSelectionCornerRadius) ?? EditorSelectionCorners.three.rawValue
+        let typographyRevision = try container.decodeIfPresent(Int.self, forKey: .editorTypographyRevision) ?? 0
         // Settings still on the old defaults (12pt, single spacing) move to the new ones once.
-        if (try container.decodeIfPresent(Int.self, forKey: .editorTypographyRevision) ?? 0) < 1 {
+        if typographyRevision < 1 {
             if defaultEditorFontSize == 12 { defaultEditorFontSize = Double(SQLEditorTheme.defaultFontSize) }
             if defaultEditorLineHeight == 1 { defaultEditorLineHeight = Double(SQLEditorTheme.defaultLineHeight) }
         }
-        editorTypographyRevision = 1
+        // Round 28.1: the old default font moves to SF Mono, and every line spacing to its name.
+        if typographyRevision < 2 {
+            if SQLEditorTheme.formerDefaultFontNames.contains(defaultEditorFontFamily) {
+                defaultEditorFontFamily = SQLEditorTheme.defaultFontName
+            }
+        }
+        defaultEditorLineHeight = EditorLineHeight.nearest(to: defaultEditorLineHeight).rawValue
+        editorTypographyRevision = 2
         resultsMonospacedCells = try container.decodeIfPresent(Bool.self, forKey: .resultsMonospacedCells) ?? false
 
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
@@ -495,6 +508,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarDockIconStyle, forKey: .sidebarDockIconStyle)
         try container.encode(sidebarDockSections, forKey: .sidebarDockSections)
         try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
+        try container.encode(editorSelectionCornerRadius, forKey: .editorSelectionCornerRadius)
         try container.encode(editorTypographyRevision, forKey: .editorTypographyRevision)
         try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
@@ -507,7 +521,8 @@ struct GlobalSettings: Codable, Hashable {
     }
 
     func ligaturesEnabled(for fontName: String) -> Bool {
-        fontLigatureOverrides[fontName] ?? true
+        // Round 28.1: ligatures are off unless turned on for a font.
+        fontLigatureOverrides[fontName] ?? false
     }
 
     func defaultPalette(for tone: SQLEditorPalette.Tone) -> SQLEditorTokenPalette? {

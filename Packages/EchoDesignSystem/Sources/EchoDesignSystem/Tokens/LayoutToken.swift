@@ -122,9 +122,11 @@ public enum LayoutTokens {
         public static let markerSize: CGFloat = 5
         public static let markerLeading: CGFloat = SpacingTokens.xxs
         public static let markerSpacing: CGFloat = SpacingTokens.xxxs
-        /// QE4, room to breathe: more space between the numbers and the code.
-        public static let numberTrailing: CGFloat = SpacingTokens.sm
-        /// QE4: the current line is a rounded band inset from the card's edges.
+        /// From the numbers to the gutter's edge; with the text view's 9pt inset the code starts
+        /// 16pt after the numbers (round 28.1).
+        public static let numberTrailing: CGFloat = SpacingTokens.xxs3
+        /// QE4's rounded band on the current line, removed in round 28.3 (CL1); Echo Labs still
+        /// draws it for Echo before round 28.
         public static let currentLineInset: CGFloat = SpacingTokens.xxs2
         public static let currentLineCornerRadius: CGFloat = SpacingTokens.xxs2
         public static let edgeWidth: CGFloat = 0.5
@@ -133,8 +135,14 @@ public enum LayoutTokens {
         public static let laneCornerRadius: CGFloat = SpacingTokens.xs
         /// QE1: the Run arrow on the statement at the caret.
         public static let runArrowSize: CGFloat = 8
-        /// QE1: the band behind the statement at the caret.
+        /// QE1: the band behind the statement at the caret, replaced by the bracket in round 28.4
+        /// (Echo Labs still draws it for Echo before round 28).
         public static let statementBandOpacity: CGFloat = 0.06
+        /// Round 28.4 (B1): the bracket beside the statement's line numbers.
+        public static let statementBracketGap: CGFloat = SpacingTokens.xxs
+        public static let statementBracketWidth: CGFloat = SpacingTokens.xxxs
+        public static let statementBracketInset: CGFloat = SpacingTokens.xxxs
+        public static let statementBracketOpacity: CGFloat = 0.7
         /// QE2: the gap between a statement's last character and its run note.
         public static let runNoteGap: CGFloat = SpacingTokens.md2
     }

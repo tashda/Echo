@@ -32,17 +32,17 @@ extension AppearanceSettingsView {
                 .pickerStyle(.menu)
             }
 
-            PropertyRow(title: "Line Spacing") {
+            PropertyRow(title: "Line Height") {
                 Picker("", selection: Binding(
-                    get: { projectStore.globalSettings.defaultEditorLineHeight },
+                    get: { EditorLineHeight.nearest(to: projectStore.globalSettings.defaultEditorLineHeight) },
                     set: { newValue in
                         var settings = projectStore.globalSettings
-                        settings.defaultEditorLineHeight = newValue
+                        settings.defaultEditorLineHeight = newValue.rawValue
                         Task { try? await projectStore.updateGlobalSettings(settings) }
                     }
                 )) {
-                    ForEach(Self.lineSpacingOptions, id: \.self) { spacing in
-                        Text(Self.lineSpacingLabel(spacing)).tag(spacing)
+                    ForEach(EditorLineHeight.allCases, id: \.self) { height in
+                        Text(height.displayName).tag(height)
                     }
                 }
                 .labelsHidden()
@@ -51,7 +51,7 @@ extension AppearanceSettingsView {
 
             PropertyRow(title: "Enable Ligatures") {
                 Toggle("", isOn: Binding(
-                    get: { projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true },
+                    get: { projectStore.globalSettings.ligaturesEnabled(for: projectStore.globalSettings.defaultEditorFontFamily) },
                     set: { newValue in
                         var settings = projectStore.globalSettings
                         settings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] = newValue
@@ -72,9 +72,4 @@ extension AppearanceSettingsView {
             : String(format: "%.1f pt", size).replacingOccurrences(of: ".", with: ",")
     }
 
-    static let lineSpacingOptions: [Double] = [1.0, 1.2, 1.35, 1.55, 1.75, 2.0]
-
-    static func lineSpacingLabel(_ spacing: Double) -> String {
-        spacing == 1.0 ? "Single" : spacing.formatted(.number.precision(.fractionLength(0...2)))
-    }
 }
