@@ -120,20 +120,19 @@ enum WindowSpec {
                            .row("Nothing to show", "the tree stays hidden and ⌃⌘S does nothing until a server connects or you pick a tool", token: "WorkspaceTreeAvailability.hasContent"),
                            .row("Button", "Hide Sidebar or Show Sidebar (⌃⌘S); disabled, with a reason, while there is nothing to show")),
             ], files: [workspace]),
-            SpecElement(number: "3.3", name: "Peek", summary: "Click a server with the tree hidden.", groups: [
-                .material(.row("Card", "glass, 18pt corners, over the cards", token: "LayoutTokens.FloatingSurface.cornerRadius")),
-                .behaviour(.row("Plain click", "the tree slides out over the cards, which don't move"),
-                           .row("Puts it away", "a click on the cards, Esc, opening a tab, showing the tree, or a plain click on the server that is peeking"),
-                           .row("⌘-click or double-click", "shows the tree for good"),
-                           .row("Setting", "Collapsed Server Click: peek and ⌘-click (default), always peek, always show the tree", token: "CollapsedServerClickBehavior")),
-                .motion(.row("Peek", "house spring, 0.45s")),
-            ], files: [workspace]),
+            SpecElement(number: "3.3", name: "Peek", summary: "The tree sliding out on glass over the cards when a server was clicked with it hidden. Removed in round 40, with its setting; a click opens the tree (WIN-3.5).", isRetired: true),
             SpecElement(number: "3.4", name: "Layout", summary: "How the rail, tree, cards and inspector share the window.", groups: [
                 .layout(.row("Order", "rail · tree · cards · inspector column, on the canvas"),
                         .row("Top", "the rail and tree start half the tab strip's spare height below the toolbar, so the rail, tree and tab plate line up"),
                         .row("Gutters", "the gutter setting on the outer edges; the tree's trailing gutter is its resize handle")),
                 .behaviour(.row("Tree width", "remembered", token: "workspace.treeWidth")),
             ], files: [workspace]),
+            SpecElement(number: "3.5", name: "Server click with the tree hidden", summary: "Opens the tree, scrolled to that server (round 40, RC1).", groups: [
+                .behaviour(.row("Click", "shows the tree and selects the server; any click, no modifiers or settings", token: "WorkspaceRailColumn.selectSession"),
+                           .row("Arrival", "nothing more: the rail's disc shows which server it is (SM1)"),
+                           .row("Tree showing", "the tree scrolls to the server's card, as before (TV0)")),
+                .motion(.row("Together", "the tree slides in on the house spring (0.45s) while it scrolls to the server (smooth, 0.40s), one movement (OM0)", token: "echoMotion.standard / echoMotion.reveal")),
+            ], rounds: ["ongoing.rail-click-hidden-tree-r40"], files: [workspace]),
         ]),
         SpecPart(number: "4", name: "Empty states", summary: "What the content area shows without a tab.", elements: [
             SpecElement(number: "4.1", name: "Welcome", summary: "No server and no tab. Sits on the canvas, with no card.", groups: [

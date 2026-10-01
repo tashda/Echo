@@ -33,7 +33,6 @@
 Morphing is wanted wherever it explains a change. The owner loves native glass morphing. *Decided.*
 
 - A new server grows out of the server pill.
-- The server peek card grows out of its server.
 - Toolbar groups merge and split.
 - Toasts stack and merge.
 - A new tab grows out of +.

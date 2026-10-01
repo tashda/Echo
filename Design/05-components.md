@@ -12,13 +12,13 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Hover** shows the system tooltip (name and host). No custom hover cards. *Decided.*
 - **Status:**
   - A connecting server's monogram breathes (opacity) until it connects. The first version was judged too subtle; the stronger values in `06-tokens.md` need a quick check in the Echo Labs. *Decided*, stronger version confirmed.
-  - Running queries show nothing in the rail; the tooltip and the peek list them. *Decided.*
+  - Running queries show nothing in the rail; the tooltip lists them. *Decided.*
   - A lost connection dims the monogram to 40%, and the tooltip says why. *Decided.*
   - Rings, comets, count badges and extra dots were rejected.
 - **A + ends the server pill** and opens the connections menu; it is never selected and the disc never moves onto it. It replaced the toolbar's Connections button. *Decided* (2026-09-29).
 - **The selection disc is inset 3pt** inside its item, so a single server never looks like a pill inside a pill. *Decided* (2026-09-29).
 - Item size: medium (34pt) default, with small and large as a setting. *Decided.*
-- **Clicking a server with the tree hidden:** a plain click peeks (the tree for that server slides out over the cards; a click away or Esc slides it back), and ⌘-click or double-click reopens the tree for good. *Decided.* A setting lets users choose instead "always peek" or "always reopen the tree". The glance card and "switch context only" were rejected.
+- **Clicking a server with the tree hidden** (round 40): the tree opens, sliding in while it scrolls to that server; the rail's disc shows which server it is. No peek and no setting. *Decided* (replaces the peek with ⌘-click to reopen, and its setting; ⌥-click to peek and a flash on arrival were rejected).
 
 ## Server page
 

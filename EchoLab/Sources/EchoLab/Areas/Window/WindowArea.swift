@@ -16,7 +16,7 @@ enum WindowArea {
             stageHeight: 520,
             behaviours: [
                 .init(trigger: "Click a server in the rail", result: "With the tree showing, the tree glides to that server and the rail keeps it selected while it does. While you scroll, the rail marks the server whose card is at the top."),
-                .init(trigger: "Click a server with the tree hidden", result: "A plain click peeks: the tree slides back out on glass over the cards, without moving them. A click on the cards, Esc, opening a tab or showing the tree puts it away; a plain click on the server that is peeking does too. ⌘-click or double-click shows the tree for good. The Collapsed Server Click setting changes this: peek and ⌘-click (default), always peek, or always show the tree."),
+                .init(trigger: "Click a server with the tree hidden", result: "The tree opens and, as it slides in, scrolls to that server; the rail's disc shows which one (round 40). The glass peek and its setting are gone."),
                 .init(trigger: "Refresh in the toolbar", result: "Only while the front tab can reload (tool tabs; never a query tab). It shows only its own reload: a spinner, then ✓ or ✗. ⌘R (View › Reload Tab) does the same (round 34)."),
                 .init(trigger: "Server connecting", result: "Its monogram breathes until it connects; with Reduce Motion it stays still and dimmed."),
                 .init(trigger: "Connection lost", result: "The monogram dims to 40%; the tooltip says why."),
@@ -27,7 +27,7 @@ enum WindowArea {
                 .init(trigger: "No server and no tab", result: "The welcome sits on the canvas with no card: Echo's icon and name; Connect… (glass, prominent), Quick Connect and Manage (glass); then Recent, the latest five connections on one small card, each with its monogram in its colour, name, host and how long ago."),
                 .init(trigger: "Server active, no tab", result: "The server page on the canvas: the name large, its version as one quiet line, its tools on glass buttons (New Query first), and a databases card with a filter. Its top lines up with the rail's."),
                 .init(trigger: "Nothing to show in the tree", result: "The tree stays hidden and ⌃⌘S does nothing until a server connects or you pick a tool."),
-                .init(trigger: "While the tree, inspector, peek, tab overview or an Explorer switch animates, and while the Explorer tree scrolls", result: "The window can't be dragged for those few hundred milliseconds (WindowDragPause). Otherwise AppKit recomputed the window's drag regions on every frame, walking the whole window's focus order."),
+                .init(trigger: "While the tree, inspector, tab overview or an Explorer switch animates, and while the Explorer tree scrolls", result: "The window can't be dragged for those few hundred milliseconds (WindowDragPause). Otherwise AppKit recomputed the window's drag regions on every frame, walking the whole window's focus order."),
             ],
             motions: [
                 .init(name: "Rail selection", curve: "liquid stretch: the leading edge races, the trailing edge follows", duration: "0.28s and 0.55s", note: "echoMotion.liquidLead and liquidTrail"),
@@ -35,7 +35,6 @@ enum WindowArea {
                 .init(name: "Hide the tree", curve: "smooth, no overshoot", duration: "0.45s", note: "echoMotion.settle; the tree slides left behind the rail"),
                 .init(name: "Show the tree", curve: "house spring", duration: "0.45s"),
                 .init(name: "Connecting monogram", curve: "ease in-out, opacity and a small dip in size", duration: "0.7s half cycle", note: "echoMotion.pulseHalfPeriod; minimum opacity 15%"),
-                .init(name: "Peek", curve: "house spring", duration: "0.45s"),
                 .init(name: "Monogram hover and select", curve: "hover and press curves", duration: "0.12s and 0.16s"),
             ],
             measurements: [
@@ -47,7 +46,6 @@ enum WindowArea {
                 .init(label: "Rail pill padding", value: "4pt", token: "LayoutTokens.Rail.pillPadding"),
                 .init(label: "Selection disc", value: "the item minus 3pt on every side, filled with the text background, shadow black 16% radius 1.5 y 0.5", token: "ColorTokens.Workspace.railSelection / ShadowTokens.railSelection / LayoutTokens.Rail.selectionInset"),
                 .init(label: "Tool symbols", value: "13pt; filled in the accent colour when its page shows", token: "LayoutTokens.Rail.toolSymbolSize"),
-                .init(label: "Peek card", value: "glass, 18pt corners", token: "LayoutTokens.FloatingSurface.cornerRadius"),
                 .init(label: "Welcome", value: "420pt wide, icon 32pt, title 26pt bold, recents on a card with 28pt rows", token: "LayoutTokens.Welcome"),
                 .init(label: "Server page", value: "600pt wide, name 26pt bold", token: "LayoutTokens.ServerPage"),
                 .init(label: "Tool button height", value: "30pt", token: "LayoutTokens.Rail.toolHeight"),

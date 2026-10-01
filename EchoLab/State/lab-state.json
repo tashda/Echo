@@ -1916,6 +1916,10 @@
       {
         "date": "2026-10-01T14:40:37Z",
         "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T15:00:09Z",
+        "text": "Built into Echo (3416c997): with the tree hidden a click on a server opens the tree, sliding in while it scrolls to the server; nothing more on arrival; with the tree showing it scrolls as before. The peek and the Collapsed Server Click setting are removed (your choice). Window page: WIN-3.3 retired, WIN-3.5 added; not stamped, it carries drift from other rounds."
       }
     ],
     "needsMore": [],
@@ -1929,12 +1933,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "header-agent",
-      "date": "2026-10-01T14:40:37Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.refresh-and-activity-r34": {

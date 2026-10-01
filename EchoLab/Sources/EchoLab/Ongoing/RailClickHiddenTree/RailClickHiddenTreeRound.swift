@@ -5,6 +5,9 @@ import SwiftUI
 /// "peeks": the tree slides out on glass over the cards, without moving them, until a click outside
 /// or Esc; ⌘-click or a double-click shows the tree for good. The owner wants a click to open the
 /// tree with that server selected.
+///
+/// Accepted 2026-10-01: RC1, OM0, SM1 (the owner's pick over the flash) and TV0; the owner then
+/// chose to remove the peek and its setting too. Built into Echo as WIN-3.5 (WIN-3.3 retired).
 @MainActor
 enum RailClickHiddenTreeRound {
     enum Click: String, CaseIterable {
@@ -42,7 +45,7 @@ enum RailClickHiddenTreeRound {
                 question: "Watch the tree come in. Should it scroll while it slides, or after?",
                 recommend: .together,
                 why: "One movement ending on the server reads as 'here it is'; slide-then-scroll is two motions and takes twice as long."),
-            .of("mark", "Arrival", Mark.self, default: .flash,
+            .of("mark", "Arrival", Mark.self, default: .none,
                 question: "Once the server is in view, should its card say so?",
                 recommend: .flash,
                 why: "With three cards in the column, a brief flash (the selection fill fading in and out once) tells your eye which card the click went to; the rail alone is 300pt away."),

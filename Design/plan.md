@@ -56,6 +56,7 @@ Notes from building it:
 | S5 | **Hide tree.** The tree shrinks into the rail and fades while the cards grow, with the house spring. | Shell | Matches the lab 👁 | ☑ 14e2310, 👁 pending |
 | S6 | **Peek.** With the tree hidden, a click on a server slides that server's tree out over the cards; a click outside or Esc closes it; ⌘-click or double-click reopens the tree. Behaviour follows the `collapsedServerClick` setting. | Shell + rail | All three setting values work | ☑ dc3524b, 👁 pending |
 | S7 | **Remove the old placement.** Delete `FloatingServerRail`, `QueryGlancePanel` and its toggle, the in-sidebar rail layout, and the ⌥⌘G menu item. Keep the reusable logic. | ObjectBrowser components | No dead code left; builds | ☑ eab78b7 |
+| S8 | **Round 40, a server click with the tree hidden:** the tree opens, sliding in while it scrolls to the server (RC1, OM0); nothing more on arrival (SM1). The peek (S6), `AppState.peekedServerID`, `ServerRailClick` and the `collapsedServerClick` setting are removed (owner, after the round). | `WorkspaceShell`, `ServerRail`, `GlobalSettings`, `SidebarSettingsView` | A click with the tree hidden opens it on that server 👁 | ☑ 3416c997, 👁 pending |
 
 ## Phase 2 · Explorer tree
 

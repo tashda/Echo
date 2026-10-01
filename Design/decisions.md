@@ -2,6 +2,16 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 40 accepted: a server click opens the hidden tree
+
+Echo Labs › Window and cards › Clicking a server while the tree is hidden · round 40. Built in 3416c997.
+
+- **A click (RC1):** with the tree hidden, a click on a server **opens the tree, scrolled to that server**, selected in the rail. The owner asked for it ("I hate" the peek).
+- **Motion (OM0):** the tree slides in **while** it scrolls to the server, one movement.
+- **Arrival (SM1, owner's pick over a flash):** nothing more; the rail's disc shows which server it is.
+- **With the tree showing (TV0, owner's pick over a flash):** it scrolls to the card, as before.
+- **The peek and its setting are removed** (owner, asked after the round): no glass peek, no ⌘-click to reopen, no Collapsed Server Click setting. Replaces the 2026-09 decision "Server click with the tree hidden: peek, ⌘-click reopens". → WIN-3.5 (WIN-3.3 retired), 05-components › Server rail
+
 ## 2026-10-01 · Round 35.1 accepted: the tab overview becomes the ⌘K palette
 
 Echo Labs › Tabs › Tab overview: the direction · round 35.1. Asked: the overview looked hideous. The owner picked TO6 over the recommended TO1 (Safari's grid), and took OR1 and OS0. Follow-up in chat: ⌘K stays the Command Palette; the overview is a feature inside it.

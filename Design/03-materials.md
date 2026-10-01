@@ -8,7 +8,7 @@
 | Toolbar items | System toolbar glass; Echo controls the grouping | Decided |
 | Toasts | Interactive regular glass, stacking in one `GlassEffectContainer` | Decided |
 | Explorer tree | Opaque cards per server, never glass (review round 4); the pinned card header is glass because it holds controls (round 6) | Decided |
-| Floating cards (server peek, connect picker, notification history, search results) | Regular glass, drawn in the window by Echo, no arrow | Decided |
+| Floating cards (connect picker, notification history, search results) | Regular glass, drawn in the window by Echo, no arrow | Decided |
 | Tab strip plate | Keeps today's look (grey plate, white active tab), tokenised, Safari-like | Decided |
 | Tree, editor, results, inspector content | Opaque; no glass | Decided |
 | Sheets | Opaque; macOS sheets can't be glass | System limit |
