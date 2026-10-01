@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r46", label: "Round 46", title: "Server card: opening and closing", date: "1 Oct 2026",
+             asked: "Expanding and collapsing a server card is barebones: the card's edge moves, but the dock and the tree just appear. Look at how switching sections animates and find a proper way to bring in the dock.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.server-card-unfold-r46"]),
         Info(id: "r45", label: "Round 45", title: "Tool tabs: the main action in the toolbar", date: "1 Oct 2026",
              asked: "Main actions such as New Policy or Start Trace / Stop Trace should live in a separate group in the window toolbar, like the Run button or a + sign, and running could use the toolbar's Run button (owner's feedback on 37.3).",
              outcome: "Being judged.",
