@@ -19,6 +19,22 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r35", label: "Round 35", title: "Tab overview: opening, closing and keys", date: "1 Oct 2026",
+             asked: "The tab overview looks hideous; many more suggestions and ways of looking at it.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.tab-overview-motion-r35"]),
+        Info(id: "r35", label: "Round 35", title: "Tab overview: grouping, order and search", date: "1 Oct 2026",
+             asked: "The tab overview looks hideous; many more suggestions and ways of looking at it.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.tab-overview-grouping-r35"]),
+        Info(id: "r35", label: "Round 35", title: "Tab overview: the card", date: "1 Oct 2026",
+             asked: "The tab overview looks hideous; many more suggestions and ways of looking at it.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.tab-overview-card-r35"]),
+        Info(id: "r35", label: "Round 35", title: "Tab overview: the direction", date: "1 Oct 2026",
+             asked: "The tab overview looks hideous and not how I remembered the earlier round. Bring it back with many more suggestions and many different ways of looking at it.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.tab-overview-direction-r35"]),
         Info(id: "r34", label: "Round 34", title: "Refresh and the activity signal", date: "1 Oct 2026",
              asked: "After a query runs, both Run and Refresh show a checkmark; only Run should. Do we still need the Refresh button, and what is it for?",
              outcome: "Being judged.",

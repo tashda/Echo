@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -368,6 +368,34 @@
         status: .judging,
         summary: "Today Refresh (RefreshToolbarButton) does two jobs: it reloads the front tab (a tool tab's data, or a query tab's database schema) and it mirrors every ActivityEngine operation for the server, query runs included, with a spinner, ✓ or ✗. Run then shows its own ✓ too. Where activity should show, where Refresh should live, and what it does on a query tab.",
         spec: RefreshAndActivityRound.spec)
+
+    /// Round 35: Tab overview: the direction.
+    static let tabOverviewDirection = LabPage.round(
+        id: "ongoing.tab-overview-direction-r35", group: "Tabs", title: "Tab overview: the direction · round 35", symbol: "square.grid.2x2",
+        status: .judging,
+        summary: "Eight whole directions for the overview, from Echo today to a Safari grid, server columns, a list, stacks, a timeline, a palette and a sidebar with a grid, all with the same nine tabs on two servers. Later pages decide the card, grouping and motion.",
+        spec: TabOverviewDirectionRound.spec)
+
+    /// Round 35: Tab overview: the card.
+    static let tabOverviewCard = LabPage.round(
+        id: "ongoing.tab-overview-card-r35", group: "Tabs", title: "Tab overview: the card · round 35", symbol: "rectangle.portrait",
+        status: .judging,
+        summary: "The card that stands for a tab: what its picture shows, what it says, its status and size.",
+        spec: TabOverviewCardRound.spec)
+
+    /// Round 35: Tab overview: grouping, order and search.
+    static let tabOverviewGrouping = LabPage.round(
+        id: "ongoing.tab-overview-grouping-r35", group: "Tabs", title: "Tab overview: grouping, order and search · round 35", symbol: "line.3.horizontal.decrease",
+        status: .judging,
+        summary: "How tabs are grouped and ordered, what the header says, and finding a tab by typing.",
+        spec: TabOverviewGroupingRound.spec)
+
+    /// Round 35: Tab overview: opening, closing and keys.
+    static let tabOverviewMotion = LabPage.round(
+        id: "ongoing.tab-overview-motion-r35", group: "Tabs", title: "Tab overview: opening, closing and keys · round 35", symbol: "arrow.up.left.and.arrow.down.right",
+        status: .judging,
+        summary: "How the overview opens from the tab you are in and returns into the one you pick, and what the keyboard does.",
+        spec: TabOverviewMotionRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

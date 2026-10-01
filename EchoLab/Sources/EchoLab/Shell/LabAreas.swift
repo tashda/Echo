@@ -112,6 +112,10 @@ enum LabAreas {
         "ongoing.agent-jobs-tab-r33": "tool-tabs",
         "ongoing.agent-job-step-sheet-r33": "tool-tabs",
         "ongoing.refresh-and-activity-r34": "window",
+        "ongoing.tab-overview-direction-r35": "tabs",
+        "ongoing.tab-overview-card-r35": "tabs",
+        "ongoing.tab-overview-grouping-r35": "tabs",
+        "ongoing.tab-overview-motion-r35": "tabs",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
