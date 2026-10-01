@@ -85,7 +85,8 @@ struct LabQEEditor: View {
     @ViewBuilder
     private func findBar(_ place: LabQEFindBarPlace) -> some View {
         if place.isImmersive {
-            LabQEGlassFindBar(place: place, count: style.findCount, replace: style.replaceStyle, scope: style.findScope, showsReplace: scene.showsReplace)
+            LabQEGlassFindBar(place: place, count: style.findCount, replace: style.replaceStyle, scope: style.findScope,
+                              showsReplace: scene.showsReplace, hasSelection: scene.selection)
         } else {
             LabQEFindBar(place: place, options: style.findOptions, count: style.findCount, showsReplace: scene.showsReplace)
         }

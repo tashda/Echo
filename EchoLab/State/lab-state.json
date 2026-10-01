@@ -200,9 +200,14 @@
         "date": "2026-10-01T11:54:16Z",
         "id": "736B54A1-610E-4F6B-B6B8-66DDD0BCC4B6",
         "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where: picked FB2 \u00b7 A glass strip along the top; NEEDS MORE OPTIONS; note: I like this, but currently the \"find\" has a white background and it is not an immersive \"search glass capsule\". Please take this round to another level with a LOT more suggestions!\n3. Options: picked O0 \u00b7 In the field's menu (today)\n4. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n5. Regular expressions: picked RX0 \u00b7 No (today)\n6. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n7. Starting from a selection: picked SE1 \u00b7 The selection, every time\nOverall: Also give me options on how to \"Search and replace\" and if it should search only \"Selected text\" or entire editor"
+      },
+      {
+        "date": "2026-10-01T12:08:45Z",
+        "id": "16B5FA80-F598-48BF-8A5E-19F1741F25E5",
+        "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where and how: picked FB5 \u00b7 A capsule with glass buttons beside it; note: fb5 is beautiful and perfect\n3. Replace: NEEDS MORE OPTIONS; note: I can't see how this looks in the previews. Needs way better previews that actually work\n4. What it searches: picked SS2 \u00b7 An In Selection button; NEEDS MORE OPTIONS; note: Both SS1 and SS2. When something is selected, the \"Selection\" button is toggled on (accent) When something isn't selected, there should only be a button if the user selects something\n5. Options: picked O0 \u00b7 In the field's menu (today)\n6. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n7. Regular expressions: picked RX0 \u00b7 No (today)\n8. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n9. Starting from a selection: picked SE1 \u00b7 The selection, every time"
       }
     ],
-    "generalNote": "Also give me options on how to \"Search and replace\" and if it should search only \"Selected text\" or entire editor",
+    "generalNote": "",
     "history": [
       {
         "date": "2026-10-01T11:54:16Z",
@@ -211,25 +216,37 @@
       {
         "date": "2026-10-01T12:01:33Z",
         "text": "Revision 2: Immersive glass find bars, Replace and what it searches"
+      },
+      {
+        "date": "2026-10-01T12:08:45Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T12:11:02Z",
+        "text": "Revision 3: Replace that works, and your Selection button"
       }
     ],
     "needsMore": [
-      "findBar"
+      "replaceStyle",
+      "findScope"
     ],
     "optionNotes": {},
     "pickNotes": {
-      "findBar": "I like this, but currently the \"find\" has a white background and it is not an immersive \"search glass capsule\". Please take this round to another level with a LOT more suggestions!"
+      "findBar": "fb5 is beautiful and perfect",
+      "findScope": "Both SS1 and SS2. When something is selected, the \"Selection\" button is toggled on (accent) When something isn't selected, there should only be a button if the user selects something",
+      "replaceStyle": "I can't see how this looks in the previews. Needs way better previews that actually work"
     },
     "picks": {
       "exhibit": "proposal",
-      "findBar": "FB2 \u00b7 A glass strip along the top",
+      "findBar": "FB5 \u00b7 A capsule with glass buttons beside it",
       "findCount": "C0 \u00b7 \u201c2 found\u201d (today)",
       "findOptions": "O0 \u00b7 In the field's menu (today)",
+      "findScope": "SS2 \u00b7 An In Selection button",
       "regex": "no",
       "scope": "editor",
       "selection": "fill"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -240,6 +257,16 @@
         "date": "2026-10-01T12:01:33Z",
         "number": 2,
         "summary": "Immersive glass find bars, Replace and what it searches"
+      },
+      {
+        "changes": [
+          "New: four Replace playgrounds on FB5's glass that work (type, Replace, All, reset), one per style; RP3 shows every replacement in place",
+          "New: SS4, your design: a Selection button that appears with a selection, already on; a Finding in a selection scene",
+          "FB5, your pick, is now the recommendation"
+        ],
+        "date": "2026-10-01T12:11:02Z",
+        "number": 3,
+        "summary": "Replace that works, and your Selection button"
       }
     ],
     "status": "Judging",

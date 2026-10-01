@@ -65,7 +65,7 @@ struct LabQEStyle {
         runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .gutterLine,
         zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always, errorGlow: .hairlineHalo,
         runningMark: .breathe, errorBubble: .card)
-        .with { $0.findBar = .safari; $0.replaceStyle = .preview; $0.findScope = .selectionAuto }
+        .with { $0.findBar = .safari; $0.replaceStyle = .preview; $0.findScope = .selectionButton }
 
     func with(_ change: (inout LabQEStyle) -> Void) -> LabQEStyle {
         var copy = self
@@ -146,6 +146,7 @@ enum LabQESceneChoice: String, CaseIterable {
     case selection = "Text selected"
     case find = "Finding “orders”"
     case replace = "Replacing “orders”"
+    case findInSelection = "Finding in a selection"
     case liveError = "A mistake while typing"
     case liveErrorCaret = "A mistake, caret on its line"
     case running = "Running"
@@ -159,6 +160,7 @@ enum LabQESceneChoice: String, CaseIterable {
         case .selection: LabQEScene(selection: true)
         case .find: LabQEScene(wordHighlight: false, find: true)
         case .replace: LabQEScene(wordHighlight: false, find: true, showsReplace: true)
+        case .findInSelection: LabQEScene(selection: true, wordHighlight: false, find: true)
         case .liveError: LabQEScene(misspelled: true, liveError: true)
         case .liveErrorCaret: LabQEScene(misspelled: true, liveError: true, caretOnError: true)
         case .running: LabQEScene(isRunning: true)

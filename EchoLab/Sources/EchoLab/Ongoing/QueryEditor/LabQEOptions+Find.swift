@@ -120,6 +120,7 @@ enum LabQEFindScope: String, CaseIterable {
     case selectionAuto = "SS1 · The selection, when it spans lines"
     case selectionToggle = "SS2 · An In Selection button"
     case segmented = "SS3 · Script, Statement or Selection"
+    case selectionButton = "SS4 · A Selection button that appears with a selection, on"
 
     var summary: String {
         switch self {
@@ -127,6 +128,7 @@ enum LabQEFindScope: String, CaseIterable {
         case .selectionAuto: "Select several lines and press ⌘F: only they are searched, and the bar says “in selection”; select a word and it becomes the search instead."
         case .selectionToggle: "A small button in the bar limits the search to the selection; off by default."
         case .segmented: "A small three-way switch in the bar: the whole script, the statement at the caret, or the selection."
+        case .selectionButton: "Your design (rev 3): with nothing selected there is no button; select text and a Selection button appears, already on in the accent, so the search stays inside it; click it to search the whole script."
         }
     }
 }
