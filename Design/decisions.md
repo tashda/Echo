@@ -6,6 +6,14 @@ The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 /
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 37.5 in Echo, changed: native toolbar buttons, no tab symbol
+
+The owner after checking round 37.5 in the running app: some buttons were very small, the highlight came and went, the tab's symbol "looks hideous", and switching tabs blinked instead of morphing. Same rules for what goes where; built in 3f9e54d2.
+
+- **No tab symbol** in the toolbar (TT8 dropped).
+- **Native toolbar items:** the special button and each group of the other buttons are real toolbar items (buttons, toggles, menus) that the toolbar sizes and highlights; groups are separate native items rather than one capsule with hairlines (GR1 dropped). The query editor's Run keeps its own red glass (round 24).
+- **Switching:** fixed slots that only hide, so a switch changes the buttons in place; the system's own hide and show for slots a tab doesn't need. → TLT-10.3 to 10.5, TLT-8.2
+
 ## 2026-10-01 · Round 48 accepted: opening, connecting and closing the last tab
 
 Echo Labs › Window and cards › round 48. The owner accepted every recommendation except one: **LV2** (the pills echo out) instead of LV1.

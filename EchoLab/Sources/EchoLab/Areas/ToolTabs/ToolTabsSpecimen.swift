@@ -47,12 +47,11 @@ struct ToolTabsSpecimen: View {
         .frame(height: 40)
     }
 
-    /// The window toolbar's right side with this tab's section (TLT-10.3): its symbol in grey, Pause,
-    /// Refresh in the group, then the window's icons.
+    /// The window toolbar's right side with this tab's buttons (TLT-10.3): Pause, Refresh in the
+    /// group, then the window's icons.
     private var toolbar: some View {
         HStack(spacing: SpacingTokens.xs) {
             Spacer()
-            Image(systemName: "waveform.path.ecg").font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
             glassPill { Image(systemName: "pause.fill").foregroundStyle(ColorTokens.accent); Text("Pause").foregroundStyle(ColorTokens.Text.secondary) }
                 .fontWeight(.medium)
                 .specAnchor("8.1")
