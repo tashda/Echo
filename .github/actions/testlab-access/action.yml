@@ -22,6 +22,9 @@ runs:
         oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
         oauth-secret: ${{ inputs.tailscale-oauth-secret }}
         tags: tag:ci
+        # The runner keeps its own DNS: Tailscale's took over and GitHub's artifact upload could
+        # not resolve its host (ENOTFOUND). testlab is reached by IP address.
+        args: --accept-dns=false
 
     - shell: bash
       env:
