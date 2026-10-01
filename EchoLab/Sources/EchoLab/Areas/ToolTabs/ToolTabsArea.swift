@@ -18,7 +18,7 @@ enum ToolTabsArea {
         summary: "Every tool tab starts with one header on the canvas; its panes are cards a gutter apart; monitoring tools open on dashboard tiles.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "2ee48ea8", date: "2026-10-01",
+                level: .code, commit: "b6c8b5d5", date: "2026-10-01",
                 note: "Read from ToolTabHeader, ToolTabContainer, CardSplitView, ActivityMonitorSparklineStrip and Design/05-components. The specimen is a stand-in Activity Monitor; not compared with the running app."),
             stageHeight: 380,
             behaviours: [
