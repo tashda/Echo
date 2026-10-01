@@ -80,7 +80,7 @@ enum EditorSpec {
             ], rounds: ["ongoing.editor-caret-line-r28"], files: [textView, tokens]),
             SpecElement(number: "2.5", name: "Selection", summary: "The system's selection colour with rounded corners (round 28.3).", groups: [
                 .material(.row("Colour", "the system selection colour; grey while the editor isn't focused")),
-                .layout(.row("Corners", "3pt by default; Square, 2, 3, 4 or 6pt in Settings", token: "EditorSelectionCorners / SQLLayoutManager.fillBackgroundRectArray")),
+                .layout(.row("Corners", "the marks' corners: round by default; Settings › Editor › Marks › Corners (round 28.15)", token: "EditorMarkCorners / SQLLayoutManager.fillBackgroundRectArray")),
             ], rounds: ["ongoing.editor-caret-line-r28"], files: [textView]),
             SpecElement(number: "2.6", name: "Caret", summary: "The system's insertion point (round 28.3).", groups: [
                 .material(.row("Colour", "the accent colour", token: "NSColor.textInsertionPointColor")),

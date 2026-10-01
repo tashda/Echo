@@ -64,7 +64,7 @@ enum EditorArea {
                 .init(label: "Run arrow", value: "8pt triangle at the gutter's leading edge, tertiary grey, accent under the pointer", token: "LayoutTokens.EditorGutter.runArrowSize"),
                 .init(label: "Statement bracket", value: "2pt accent capsule at 70%, 4pt after the numbers, inset 2pt; solid for a selected result's statement", token: "LayoutTokens.EditorGutter.statementBracket*"),
                 .init(label: "Current line", value: "No band (round 28.3)"),
-                .init(label: "Selection", value: "System selection colour, 3pt corners (setting)", token: "EditorSelectionCorners / SQLLayoutManager"),
+                .init(label: "Selection", value: "System selection colour, the marks' corners (setting)", token: "EditorMarkCorners / SQLLayoutManager"),
                 .init(label: "Caret", value: "The system insertion point (accent)", token: "NSColor.textInsertionPointColor"),
                 .init(label: "Run note", value: "11pt, 20pt after the last character", token: "LayoutTokens.EditorGutter.runNoteGap"),
                 .init(label: "Empty prompt", value: "“Start typing a query”, the editor's font, placeholder colour, at the caret on line 1", token: "SQLTextView.emptyPrompt"),
@@ -93,7 +93,6 @@ enum EditorArea {
             code: [
                 "Echo/Sources/Features/QueryWorkspace/Views/Query/SQLTextView/",
                 "Echo/Sources/Features/QueryWorkspace/Views/Query/LineNumberRulerView.swift",
-                "Echo/Sources/Features/AppHost/Views/Tabs/EditorContainer/EmptyQueryHints.swift",
                 "Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/QueryRunToolbarControl.swift",
                 "Echo/Sources/Features/AppHost/EchoApp+QueryMenu.swift",
                 "Echo/Sources/Shared/DesignSystem/Components/ContentPanelCards.swift",
