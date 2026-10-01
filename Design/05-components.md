@@ -68,6 +68,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - Monochrome mode defaults to **monochrome with accent on expanded folders**, so you see your path. A sub-setting switches to pure monochrome.
   - Colours are picked by the node's role, never by its title (tree blueprints, plan Phase 2b).
 - **Expanding:** rows slide down with a fade (native table animation), scaled by the speed setting. *Decided.*
+- **Folding a server card** (round 30.2): click the header; the card's edge glides (`expand`, 0.22s) while the dock and rows fade and are cut by it (CM2), and it opens the same way. The chevron sits at the trailing edge, centred on the name and product line (CP1), shown on hover while open and always while closed; a closed card is the header only, its name, product line and chevron centred in it. *Decided.*
 - **Loading:** a folder shows a quiet skeleton (row-shaped placeholders at the child indent, only after a quarter second), then the rows fade in. A section's first load is Folders first (above). *Decided* (round 16; replaces the shimmer).
 - **No search field in the tree.** *Decided.*
 - **Empty folders** are hidden by default, with a setting to show them. *Decided.*

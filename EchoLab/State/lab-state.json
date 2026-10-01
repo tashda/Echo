@@ -12,6 +12,10 @@
       {
         "date": "2026-10-01T14:22:17Z",
         "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T14:23:29Z",
+        "text": "Taken by agent-jobs-r33"
       }
     ],
     "needsMore": [
@@ -32,6 +36,11 @@
     "reviewedRevision": 1,
     "revisions": [],
     "status": "New feedback",
+    "takenBy": {
+      "agent": "agent-jobs-r33",
+      "date": "2026-10-01T14:23:29Z",
+      "status": "New feedback"
+    },
     "verdicts": {}
   },
   "ongoing.agent-jobs-tab-r33": {
@@ -2353,6 +2362,10 @@
       {
         "date": "2026-10-01T13:59:16Z",
         "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T14:23:54Z",
+        "text": "Built into Echo (7503bb42): the chevron centred on the name and product line; the card's edge glides while the dock and rows fade and are cut by it; a closed card centres its header and chevron. Tests: ExplorerDockTests (closed server header, fold edge)."
       }
     ],
     "needsMore": [],
@@ -2370,12 +2383,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "header-agent",
-      "date": "2026-10-01T13:59:16Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.server-header-look-r30": {

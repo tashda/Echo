@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 30.2 accepted: a server card folds while its rows fade
+
+Echo Labs › Explorer tree › Server card: collapsing · round 30.2. Every recommendation was taken. Built in 7503bb42.
+
+- **Chevron (CP1):** at the trailing edge, **centred on the name and product line** (it sat level with the name's top). Shown on hover while open, always while closed (CV0, as before); › turning down (CS0, as before). → TREE-2.4
+- **Motion (CM2):** the card's **edge glides** on `expand` (0.22s) while the dock and rows **fade and are cut by the edge** and its rounded corners, so nothing floats on the canvas; the cards below follow on the same curve. The card used to snap while its rows faded. → TREE-2.5
+- **Closed card (CC0):** the header only, with the owner's note: **the name, product line and chevron centred in the closed card**; they glide between that and their open place. → TREE-2.1, 2.5
+
 ## 2026-10-01 · Round 33 accepted: the Agent Jobs tab, finished
 
 Echo Labs › Tool tabs › SQL Server Agent Jobs: the tab · round 33. The Proposal was accepted; the owner's pick where it differs from the recommendation is marked.
