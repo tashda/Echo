@@ -2816,6 +2816,10 @@
       {
         "date": "2026-10-01T14:41:12Z",
         "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T15:08:50Z",
+        "text": "Built into Echo (9498ca2b): Security Overview is the first row of every SQL Server Security (server and each database) and opens that Security tab; every tool row ends in a grey \u2197 (arrow.up.right, no square), always, sheets included. Tests: ExplorerBlueprintTests."
       }
     ],
     "needsMore": [],
@@ -2832,12 +2836,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "header-agent",
-      "date": "2026-10-01T14:41:12Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.zoom-pill-footer-r31": {

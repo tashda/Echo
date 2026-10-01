@@ -29,7 +29,7 @@ enum ExplorerTreeArea {
         summary: "Each server sits on its own card: quiet 28pt rows, duotone icons, and a dock of section icons pinned under the server's name.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "24edc421", date: "2026-10-01",
+                level: .code, commit: "9498ca2b", date: "2026-10-01",
                 note: "Read from SidebarRow, SidebarRowConstants, ExplorerDock, ExplorerDockRow, ObjectBrowserRowView+Headers, ObjectBrowserSidebarView+Dock, ExplorerMotion, ExplorerTreeVeilLayer, ExplorerTreeScrollState, ExplorerBlueprint+SQLServer and the tokens, as of round 19 and the 2026-10-01 smoothness work. The specimen is a self-contained copy of the server card."),
             stageHeight: 540,
             behaviours: [
@@ -46,6 +46,7 @@ enum ExplorerTreeArea {
                 .init(trigger: "Scroll the rows", result: "Rows pass under the pinned name and dock; once they do, a light wash of the card colour appears behind them and the rows blur and fade at the edge. The capsule has a hairline edge and a soft shadow."),
                 .init(trigger: "Right-click", result: "A menu for that node kind, from the database type's blueprint."),
                 .init(trigger: "Schema prefix", result: "Dimmed on tables outside the default schema."),
+                .init(trigger: "A row that opens a tab", result: "Agent Jobs Overview, Security Overview, Management's tools (a sheet too) end in a grey ↗, always. Every SQL Server Security, the server's and each database's, starts with Security Overview (round 38)."),
                 .init(trigger: "A database with no views", result: "Views is still there, dimmed with no count; it opens to a grey “No views” row. Tables, Views, Functions and Procedures always show; Synonyms, Sequences and the other rare folders only when they have something (round 30.3)."),
             ],
             motions: [

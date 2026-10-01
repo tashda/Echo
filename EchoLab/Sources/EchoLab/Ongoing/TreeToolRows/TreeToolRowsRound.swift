@@ -6,6 +6,9 @@ import SwiftUI
 /// "Open Security Management" is only in the right-click menu of the server's and each database's
 /// Security (ObjectBrowserSidebarView+ServerMenus, +DatabaseMenus). Tool rows look like any row: a
 /// tinted symbol and a title, nothing to say a click opens a tab (Database Mail opens a sheet).
+///
+/// Accepted 2026-10-01: SN1, OT1 drawn without its square (the owner's note), MS0 (the owner's pick
+/// over hover), DB0, SH0. Built into Echo as TREE-6.3.
 @MainActor
 enum TreeToolRowsRound {
     enum Name: String, CaseIterable {
@@ -50,7 +53,7 @@ enum TreeToolRowsRound {
                 recommend: .arrow,
                 why: "The arrow is the system's 'goes elsewhere' mark and says it at the place you click. The window symbol reads as 'new window', which a tab isn't; the tile is lovely but changes the S4 Quiet rows you chose.",
                 summary: \.summary),
-            .of("shows", "When", MarkShows.self, default: .hover,
+            .of("shows", "When", MarkShows.self, default: .always,
                 question: "Should the mark always show, or only when you point at the row?",
                 recommend: .hover,
                 why: "Management is a column of ten tools: ten arrows down the right edge are noise; on hover the mark answers 'what happens if I click' at the moment you ask."),

@@ -212,7 +212,9 @@ enum ExplorerTreeSpec {
                 .material(.row("Item icon", "secondary; quaternary when disabled"), .row("Item label", "primary; secondary when disabled"),
                           .row("Tool icon", "its role colour, like a folder's")),
                 .type(.row("Detail", "11pt tertiary at the right, when the item has one")),
-            ], files: [components + "ObjectBrowserRowView+Components.swift"]),
+                .behaviour(.row("Opens elsewhere", "a tool row (it opens a tab, a window or a sheet) ends in arrow.up.right, 11pt tertiary, always shown (round 38: OT1 without its square, MS0, SH0)"),
+                           .row("Security Overview", "the first row of every SQL Server Security, the server's and each database's; it opens that Security tab (SN1, DB0)", token: "ExplorerNodeKind.securityOverview")),
+            ], rounds: ["ongoing.tree-tool-rows-r38"], files: [components + "ObjectBrowserRowView+Components.swift", "Echo/Sources/Features/ObjectBrowser/Blueprint/ExplorerBlueprint+SQLServer.swift"]),
             SpecElement(number: "6.4", name: "Column rows", summary: "Under a table.", groups: [
                 .material(.row("Primary key", "a filled key in orange"), .row("Foreign key", "an arrow.turn.down.right in the info colour", token: "ColorTokens.Status.info"),
                           .row("Other columns", "no icon")),

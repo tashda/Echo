@@ -2,6 +2,13 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 38 accepted: Security Overview, and a ↗ on rows that open a tab
+
+Echo Labs › Explorer tree › Tree rows that open a tab · round 38. Built in 9498ca2b.
+
+- **Row (SN1):** **Security Overview**, like Agent Jobs Overview, the **first row in every SQL Server Security**, the server's and each database's (DB0). It opens what Open Security Management opens.
+- **Mark (OT1, with the owner's note):** a grey **↗ (arrow.up.right, without the square)** at the right of every row that opens a tab, a window or a sheet (SH0), **always shown** (MS0, owner's pick over on hover). → TREE-6.3
+
 ## 2026-10-01 · The blur under the footer: ten small steps instead of a frosted bar
 
 Round 27 (U5), the owner's note on the running app: the blur was "a bar of blur", not smoothing to clear as it goes up. The blur is stacked layers, each a real blur of what is under it, faded in by a mask; a layer that fades in shows a mix of two blurs, and when they differ a lot the mix reads as haze with an edge. It is now **ten small steps from sharp to 12pt**, easing in (level k is 12 × (k/10)^1.5, so the smallest steps are at the top), each adding just enough to reach its level and fading in over one and a half bands so neighbours overlap. The card tint under the footer eases in along the same S curve instead of a straight ramp. Replaces the six near-equal radii of f756a13b and the six 0.75 to 10pt steps before it. → FTR blur, `LayoutTokens.EdgeBlur`
