@@ -42,12 +42,6 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
         return cell
     }
 
-    /// Whether `cellFrame` is the empty header past the table's last column.
-    static func isFiller(_ cellFrame: NSRect, in controlView: NSView) -> Bool {
-        guard let header = controlView as? NSTableHeaderView, let table = header.tableView, table.numberOfColumns > 0 else { return false }
-        return cellFrame.minX >= header.headerRect(ofColumn: table.numberOfColumns - 1).maxX - 0.5
-    }
-
     /// Where the sort arrow sits inside a header cell's frame.
     static func sortIndicatorRect(in cellFrame: NSRect) -> NSRect {
         let size = ResultsGridMetrics.sortIndicatorSize
@@ -81,9 +75,6 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
     }
 
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
-        // AppKit draws the empty header past the last column with a copy of the last cell (its
-        // title cleared): its type and arrow there read as an extra, nameless column.
-        if Self.isFiller(cellFrame, in: controlView) { return }
         if let sensitivity = columnSensitivity {
             drawClassificationDot(sensitivity: sensitivity, in: cellFrame)
         }

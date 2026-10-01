@@ -165,7 +165,7 @@ enum FooterResultsSpec {
                           .row("Column dividers", "short separators between columns, kept: they mark where to drag a width (VD0)", token: "NSColor.separatorColor")),
                 .behaviour(.row("Sort arrow", "a 14pt box at the trailing edge, shown while hovered or sorted; click it to sort, click elsewhere to select the column",
                                 token: "ResultsGridMetrics.sortIndicatorSize"),
-                           .row("Past the last column", "the header stays empty: AppKit draws it with a copy of the last cell, which shows no type or arrow there")),
+                           .row("Past the last column", "the header stays empty: AppKit paints it with a copy of the last cell, and a cell draws only for a column of the table")),
             ], rounds: ["decided.results-grid", r41Header], files: [grid + "Cells/ResultTableHeaderCell.swift", grid + "Cells/ResultTableHeaderView.swift"]),
             SpecElement(number: "4.3", name: "Row hover", summary: "A faint rounded tint on the row under the pointer.", groups: [
                 .material(.row("Fill", "hover fill", token: "ColorTokens.Sidebar.hoverFill")),
