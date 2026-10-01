@@ -9,7 +9,7 @@ import Synchronization
 /// with `SERVERLAB_INTEGRATION=1` (the EchoTests plan); skipped otherwise.
 class MSSQLLabTestCase: XCTestCase {
     /// The recipe of the shared server. A suite that needs other content overrides it.
-    class var recipe: String { "mssql-2022-agent" }
+    class var recipe: String { LabRecipes.sqlServer }
 
     private(set) var server: LabServer!
     private(set) var session: DatabaseSession!

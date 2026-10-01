@@ -68,6 +68,9 @@
             reference = "container:SQLiteIntegrationTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
+            reference = "container:SQLServerVersions.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
             reference = "container:EchoUITests.xctestplan">
          </TestPlanReference>
       </TestPlans>

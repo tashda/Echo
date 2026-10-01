@@ -15,7 +15,6 @@ xcodebuild test -project Echo.xcodeproj -scheme Echo -testPlan EchoTests -only-t
 ### F1. A query tab reads table structure from the wrong database (Echo, SQL Server)
 
 - **Issue:** [tashda/Echo#28](https://github.com/tashda/Echo/issues/28)
-
 - **Test:** `MSSQLIntegrationTests/testDedicatedSessionCanQueryAdventureWorksEmployeeAndContinue`
   (recipe `mssql-2022-adventureworks`).
 - **What happens:** a query tab on AdventureWorks reads `HumanResources.Employee`, but
@@ -30,7 +29,6 @@ xcodebuild test -project Echo.xcodeproj -scheme Echo -testPlan EchoTests -only-t
 ### F2. Bundled pg_dump and pg_restore do not start (Echo packaging, Postgres)
 
 - **Issue:** [tashda/Echo#29](https://github.com/tashda/Echo/issues/29)
-
 - **Test:** `PostgresBackupRestoreIntegrationTests` (27 of 29 fail).
 - **What happens:** `pg_dump` and `pg_restore` in `Tools/PostgresTools` exit with status 6:
   dyld cannot load `/opt/homebrew/Cellar/openssl@3/3.6.1/lib/libcrypto.3.dylib`. The copied
@@ -45,7 +43,6 @@ xcodebuild test -project Echo.xcodeproj -scheme Echo -testPlan EchoTests -only-t
 ### F3. A Postgres INSERT reports 0 affected rows (Postgres driver)
 
 - **Issue:** [tashda/Echo#30](https://github.com/tashda/Echo/issues/30)
-
 - **Test:** `PostgresIntegrationTests/testExecuteUpdateDDL`.
 - **What happens:** `executeUpdate("INSERT … VALUES ('Alice'), ('Bob')")` on a `PostgresSession`
   returns 0 instead of 2.
@@ -54,7 +51,6 @@ xcodebuild test -project Echo.xcodeproj -scheme Echo -testPlan EchoTests -only-t
 ### F4. Echo cannot log in to MySQL 8.4 without TLS (MySQL driver)
 
 - **Issue:** [tashda/Echo#31](https://github.com/tashda/Echo/issues/31)
-
 - **Test:** `MySQLIntegrationTests` (all 4), recipe `mysql-8.4-empty`.
 - **What happens:** "Access denied for user 'root'" with the right password. MySQL 8.4 logs in
   with `caching_sha2_password`, whose first login without TLS needs the RSA key exchange that

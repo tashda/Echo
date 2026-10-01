@@ -32,6 +32,7 @@ actor LabSharedServers {
         do {
             let server = try await start.value
             LabSharedServerRemoval.started(server.containerName)
+            print("[serverlab] \(recipe): \(server.containerName) at \(server.host):\(server.port)")
             return server
         } catch {
             // The next suite tries again rather than failing on a start that never happened.
