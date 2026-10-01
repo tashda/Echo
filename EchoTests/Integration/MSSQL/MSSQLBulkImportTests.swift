@@ -6,14 +6,13 @@ import SQLServerKit
 ///
 /// Verifies that the MSSQL-specific import path in BulkImportViewModel correctly
 /// uses the sqlserver-nio bulk copy API to insert data from CSV and XLSX files.
-final class MSSQLBulkImportTests: MSSQLDockerTestCase {
+final class MSSQLBulkImportTests: MSSQLLabTestCase {
 
     // MARK: - CSV Import via BCP
 
     func testBulkCopyCSVIntoTable() async throws {
         let tableName = uniqueTableName(prefix: "bcp_csv")
-        try await execute("CREATE TABLE dbo.\(tableName) (id INT, name NVARCHAR(100), email NVARCHAR(200))")
-        cleanupSQL("DROP TABLE IF EXISTS dbo.\(tableName)")
+        try await createTable(tableName, [.column("id", .int), .column("name", .nvarchar(length: .length(100))), .column("email", .nvarchar(length: .length(200)))])
 
         let csv = "id,name,email\n1,Alice,alice@example.com\n2,Bob,bob@example.com\n3,Charlie,charlie@test.org"
         let url = try writeTempCSV(content: csv)
@@ -38,7 +37,7 @@ final class MSSQLBulkImportTests: MSSQLDockerTestCase {
             identityInsert: false
         )
 
-        let summary = try await sqlserverClient.bulkCopy.copy(rows: bcpRows, options: options)
+        let summary = try await sqlserverClient.bulk.copy(rows: bcpRows, options: options)
         XCTAssertEqual(summary.totalRows, 3)
 
         let result = try await query("SELECT * FROM dbo.\(tableName) ORDER BY id")
@@ -49,8 +48,7 @@ final class MSSQLBulkImportTests: MSSQLDockerTestCase {
 
     func testBulkCopyLargeBatch() async throws {
         let tableName = uniqueTableName(prefix: "bcp_large")
-        try await execute("CREATE TABLE dbo.\(tableName) (id INT, value NVARCHAR(200))")
-        cleanupSQL("DROP TABLE IF EXISTS dbo.\(tableName)")
+        try await createTable(tableName, [.column("id", .int), .column("value", .nvarchar(length: .length(200)))])
 
         var csvLines = ["id,value"]
         for i in 0..<500 {
@@ -72,7 +70,7 @@ final class MSSQLBulkImportTests: MSSQLDockerTestCase {
             identityInsert: false
         )
 
-        let summary = try await sqlserverClient.bulkCopy.copy(rows: bcpRows, options: options)
+        let summary = try await sqlserverClient.bulk.copy(rows: bcpRows, options: options)
         XCTAssertEqual(summary.totalRows, 500)
         XCTAssertGreaterThanOrEqual(summary.batchesExecuted, 5)
 
@@ -82,8 +80,7 @@ final class MSSQLBulkImportTests: MSSQLDockerTestCase {
 
     func testBulkCopyWithNullValues() async throws {
         let tableName = uniqueTableName(prefix: "bcp_null")
-        try await execute("CREATE TABLE dbo.\(tableName) (id INT, name NVARCHAR(100), note NVARCHAR(200))")
-        cleanupSQL("DROP TABLE IF EXISTS dbo.\(tableName)")
+        try await createTable(tableName, [.column("id", .int), .column("name", .nvarchar(length: .length(100))), .column("note", .nvarchar(length: .length(200)))])
 
         let csv = "id,name,note\n1,Alice,\n2,,hello\n3,,"
         let url = try writeTempCSV(content: csv)
@@ -106,7 +103,7 @@ final class MSSQLBulkImportTests: MSSQLDockerTestCase {
             identityInsert: false
         )
 
-        let summary = try await sqlserverClient.bulkCopy.copy(rows: bcpRows, options: options)
+        let summary = try await sqlserverClient.bulk.copy(rows: bcpRows, options: options)
         XCTAssertEqual(summary.totalRows, 3)
 
         let result = try await query("SELECT * FROM dbo.\(tableName) ORDER BY id")
@@ -119,8 +116,7 @@ final class MSSQLBulkImportTests: MSSQLDockerTestCase {
 
     func testBulkCopyXLSXIntoTable() async throws {
         let tableName = uniqueTableName(prefix: "bcp_xlsx")
-        try await execute("CREATE TABLE dbo.\(tableName) (id INT, name NVARCHAR(100), score DECIMAL(5,2))")
-        cleanupSQL("DROP TABLE IF EXISTS dbo.\(tableName)")
+        try await createTable(tableName, [.column("id", .int), .column("name", .nvarchar(length: .length(100))), .column("score", .decimal(precision: 5, scale: 2))])
 
         let headers = ["id", "name", "score"]
         let rows: [[String?]] = [["1", "Alice", "95.50"], ["2", "Bob", "87.00"]]
@@ -142,7 +138,7 @@ final class MSSQLBulkImportTests: MSSQLDockerTestCase {
             identityInsert: false
         )
 
-        let summary = try await sqlserverClient.bulkCopy.copy(rows: bcpRows, options: options)
+        let summary = try await sqlserverClient.bulk.copy(rows: bcpRows, options: options)
         XCTAssertEqual(summary.totalRows, 2)
 
         let result = try await query("SELECT * FROM dbo.\(tableName) ORDER BY id")
@@ -154,8 +150,7 @@ final class MSSQLBulkImportTests: MSSQLDockerTestCase {
 
     func testBulkCopyTSV() async throws {
         let tableName = uniqueTableName(prefix: "bcp_tsv")
-        try await execute("CREATE TABLE dbo.\(tableName) (id INT, name NVARCHAR(100))")
-        cleanupSQL("DROP TABLE IF EXISTS dbo.\(tableName)")
+        try await createTable(tableName, [.column("id", .int), .column("name", .nvarchar(length: .length(100)))])
 
         let tsv = "id\tname\n1\tAlice\n2\tBob"
         let url = try writeTempCSV(content: tsv, filename: "test.tsv")
@@ -174,7 +169,7 @@ final class MSSQLBulkImportTests: MSSQLDockerTestCase {
             identityInsert: false
         )
 
-        let summary = try await sqlserverClient.bulkCopy.copy(rows: bcpRows, options: options)
+        let summary = try await sqlserverClient.bulk.copy(rows: bcpRows, options: options)
         XCTAssertEqual(summary.totalRows, 2)
 
         let result = try await query("SELECT * FROM dbo.\(tableName) ORDER BY id")

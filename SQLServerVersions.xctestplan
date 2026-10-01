@@ -157,6 +157,7 @@
         "MSSQLAgentManagementTests",
         "MSSQLAgentTests",
         "MSSQLBackupRestoreTests",
+        "MSSQLBulkImportTests",
         "MSSQLColumnTests",
         "MSSQLConnectionTests",
         "MSSQLConstraintTests",
