@@ -172,6 +172,7 @@ Rules: `05-components` › Results card.
 | R17 | **Error banner (round 41.3):** a banner at the top of the card with chips and Copy Error; Running, No rows, Cancelled the same. | `ResultsStateBanner`, `QueryFailureView`, `QueryResultsSection+Views` | Matches the lab 👁 | ☑, 👁 pending |
 | R18 | **Messages (round 41.4):** grouped by statement, quiet errors, counts that filter and a ⋯ menu; no Echo lines or metrics; the symbol of a server message opens what the server returned. | `ExecutionConsoleView` (+Counts, +Messages), `ServerMessagePopover`, `QueryMessageStatement`, `QueryEditorState+Execution` | Matches the lab 👁 | ☑, 👁 pending |
 | R19 | **A popover per pill (round 41.5):** selection, rows, time and status each open their own; no Export, Copy All, Messages or Run Again in them (the grid's right-click menu has the export and copy). Server CPU and SPID wait for the drivers. | `BottomPanelStatusBar+Metrics`, `FooterPopovers/`, `QueryRunRecord`, `QueryRunTimeline` | Matches the lab 👁 | ☑, 👁 pending |
+| R20 | **Row numbers (round 47):** follow the editor's gutter style (default now Hairline); fit the digits (3 at least); the Hairline's edge below the header; the `#` selects all; selected rows tinted; the system's header lines hidden. | `ResultTableRowNumberView`, `ResultTableContainerView`, `ResultsGridMetrics`, `SystemHeaderLineHider`, `GlobalSettings.editorGutterStyle` | Matches the lab 👁 | ☑, 👁 pending |
 
 ### Notes from building it (Phase 5)
 

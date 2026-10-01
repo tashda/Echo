@@ -63,8 +63,17 @@ final class ResultTableContainerView: NSView {
     }
 
     /// Accent row numbers for the selected rows and the hovered row.
-    func setAccentRows(_ rows: IndexSet) {
+    func setAccentRows(_ rows: IndexSet, selected: IndexSet = []) {
         rowNumberView.accentRows = rows
+        rowNumberView.selectedRows = selected
+    }
+
+    /// The gutter follows the editor's gutter style (round 47); its width changes with it.
+    func setGutter(style: EditorGutterStyle, cardCornerRadius: CGFloat) {
+        rowNumberView.cardCornerRadius = cardCornerRadius
+        guard rowNumberView.gutterStyle != style else { return }
+        rowNumberView.gutterStyle = style
+        updateLeadingWidth(showRowNumbers ? rowNumberView.requiredWidth : 0)
     }
 
     func updateRowNumbers(count: Int) {
@@ -100,8 +109,10 @@ final class ResultTableContainerView: NSView {
         onExtendSelect: @escaping (Int) -> Void,
         onDrag: @escaping (NSEvent) -> Void,
         onDragEnded: @escaping () -> Void,
-        onContextMenu: @escaping (Int) -> NSMenu?
+        onContextMenu: @escaping (Int) -> NSMenu?,
+        onSelectAll: @escaping () -> Void
     ) {
+        rowNumberView.onSelectAll = onSelectAll
         rowNumberView.onRowSelect = onSelect
         rowNumberView.onRowExtendSelect = onExtendSelect
         rowNumberView.onRowDragEvent = onDrag

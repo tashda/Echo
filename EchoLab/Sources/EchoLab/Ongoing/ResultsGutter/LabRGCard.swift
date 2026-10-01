@@ -156,7 +156,10 @@ struct LabRGCard: View {
                 Color.clear.frame(width: gutterWidth)
             }
             if hasEdge {
-                Rectangle().fill(ColorTokens.Separator.primary).frame(width: 0.5).offset(x: gutterWidth - 0.5)
+                // Below the header only for the Hairline: no vertical line through its header row (Echo today runs it the full height).
+                let top = look.style == .column || look.style == .today ? 0 : headerHeight
+                Rectangle().fill(ColorTokens.Separator.primary).frame(width: 0.5).padding(.top, top)
+                    .frame(maxHeight: .infinity, alignment: .bottom).offset(x: gutterWidth - 0.5)
             }
         }
         .frame(maxHeight: .infinity, alignment: .leading)

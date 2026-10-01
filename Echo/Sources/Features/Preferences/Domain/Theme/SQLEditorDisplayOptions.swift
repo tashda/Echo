@@ -38,7 +38,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         statementFocusEnabled: Bool = true,
         outlineEdgeEnabled: Bool = false,
         ghostTextEnabled: Bool = false,
-        gutterStyle: EditorGutterStyle = .subtle,
+        gutterStyle: EditorGutterStyle = .hairline,
         markCorners: EditorMarkCorners = .round,
         markStrength: EditorMarkStrength = .standard,
         cardCornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius

@@ -29,7 +29,7 @@ struct EditorSettingsView: View {
             toggleRow("Line Numbers", \.editorShowLineNumbers)
             PropertyRow(
                 title: "Style",
-                info: "Subtle shows numbers only; Column adds a faint full-height column; Lane a rounded, inset lane; Hairline only a thin edge.",
+                info: "Also the row numbers of the results. Subtle shows numbers only; Column adds a faint full-height column; Lane a rounded, inset lane; Hairline only a thin edge.",
                 resetAction: projectStore.resetAction(\.editorGutterStyle)
             ) {
                 PictureChoicePicker(

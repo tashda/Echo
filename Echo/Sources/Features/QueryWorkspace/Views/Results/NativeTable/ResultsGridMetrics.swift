@@ -2,11 +2,13 @@ import Foundation
 
 enum ResultsGridMetrics {
     static let contentHorizontalPadding: CGFloat = SpacingTokens.xs2
-    static let rowNumberLeadingPadding: CGFloat = SpacingTokens.xxxs
-    static let rowNumberTrailingPadding: CGFloat = SpacingTokens.xxs1
+    /// The row numbers' side padding (round 47: 8pt, as the editor's gutter).
+    static let rowNumberLeadingPadding: CGFloat = SpacingTokens.xs
+    static let rowNumberTrailingPadding: CGFloat = SpacingTokens.xs
     static let rowNumberFontSize: CGFloat = SpacingTokens.sm
     static let cellFontSize: CGFloat = SpacingTokens.sm
-    static let minimumRowNumberDigits = 6
+    /// The gutter fits the digits, at least three, and grows (round 47, GW1).
+    static let minimumRowNumberDigits = 3
     static let maxAutoWidthSampleCount = 200
     static let minimumColumnWidth: CGFloat = 56
     static let maximumColumnWidth: CGFloat = 420

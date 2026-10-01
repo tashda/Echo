@@ -11,6 +11,10 @@ import SwiftUI
 /// extends the selection (and scrolls), a right-click opens the row menu, numbers turn accent for
 /// selected and hovered rows, its width is reserved so it doesn't jump while rows stream in, and
 /// Settings › Results › Show row numbers. Changes FTR-4.2 and FTR-4.5.
+///
+/// Accepted 2026-10-01: GS2 (the Hairline, its edge starting below the header), NA0, GW1, HA0, GC2, SR1, RS1
+/// and SS0, the results following the editor's gutter style with Hairline the default for both. Built into
+/// Echo as FTR-4.5.
 @MainActor
 enum ResultsGutterRound {
     enum Style: String, CaseIterable {
@@ -82,9 +86,9 @@ enum ResultsGutterRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("style", "Gutter", Style.self, default: .subtle,
+            .of("style", "Gutter", Style.self, default: .hairline,
                 question: "Compare the five in the Every style exhibit, then the Proposal in light and dark at Card Corners 10 and 26. Which gutter should the results have?",
-                recommend: .subtle,
+                recommend: Style.hairline,
                 why: "The numbers are reference marks, not content, so they should be as quiet as the editor's: GS1 is the editor's default and needs no edge line next to the row selection's own outline. GS3 and GS4 are the editor's options if you want the gutter to read as a column; on a grid with striped rows a tint beside the stripes adds a third shade. GS2 keeps one vertical line, which is what Echo has now.",
                 summary: \.summary),
             .of("align", "Numbers", Align.self, default: .right,
@@ -96,9 +100,9 @@ enum ResultsGutterRound {
                 recommend: .fits,
                 why: "The editor's rule, so both gutters follow the digits and nothing is reserved that isn't needed: six digits wide wastes 25pt on a 20-row result. It only changes at a power of ten, and Echo reserves for the row count it knows, so it doesn't jump while rows stream in.",
                 summary: \.summary),
-            .of("headers", "Column names", Headers.self, default: .data,
+            .of("headers", "Column names", Headers.self, default: .left,
                 question: "Look at BusinessEntityID, SalesQuota and rowguid against their figures. Where should a column's name sit?",
-                recommend: .data,
+                recommend: Headers.data,
                 why: "Today a number column's name sits at the left of a column whose figures are at its right, so the header and the numbers under it don't line up (the owner's screenshot). Aligning the header with its data is what Numbers, Xcode's tables and Finder do; text columns stay left. Centring everything makes the left edge ragged. The sort arrow moves to the text's other side."),
             .of("corner", "Header corner", Corner.self, default: .selectAll,
                 question: "Hover and click the corner in the Proposal. What should the gutter's header hold?",
@@ -109,7 +113,7 @@ enum ResultsGutterRound {
                 recommend: .tint,
                 why: "The selection is one tinted block with an outline; carrying the tint through the gutter makes the row numbers part of it, and the accent number stays for hover and as the cue. An edge bar (SR2) is the editor's statement bracket, but a row range is a block, not a bracket.",
                 summary: nil),
-            .of("cross", "Stripes under the numbers", StripeCross.self, default: .cross,
+            .of("cross", "Stripes under the numbers", StripeCross.self, default: .stop,
                 question: "With Alternate row shading on, should a shaded row run under its number too?",
                 recommend: .cross,
                 why: "A stripe that stops at the gutter makes every row look cut off from its number; letting it cross ties the number to its row. With a tinted gutter (GS3, GS4) the tint stays on top, so this only matters for the plain styles."),

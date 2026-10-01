@@ -132,6 +132,7 @@ extension QueryResultsSection {
             isResizing: isResizingResults,
             alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
             showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
+            gutterStyle: projectStore.globalSettings.editorGutterStyle,
             colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
             isDarkMode: appearanceStore.effectiveColorScheme == .dark,
             monospacedCells: projectStore.globalSettings.resultsMonospacedCells

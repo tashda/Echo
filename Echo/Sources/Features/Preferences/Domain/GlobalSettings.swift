@@ -190,7 +190,8 @@ struct GlobalSettings: Codable, Hashable {
     /// Each database type's dock (keyed by `DatabaseType.rawValue`): the sections shown, in
     /// order, as section keys. A type missing here uses its blueprint's default.
     var sidebarDockSections: [String: [String]] = [:]
-    var editorGutterStyle: EditorGutterStyle = .subtle
+    /// Round 47: also the style of the results' row numbers; Hairline by default.
+    var editorGutterStyle: EditorGutterStyle = .hairline
     /// Round 28.15: the corner of every mark and of the selection, and how strong marks are.
     var editorMarkCorners: EditorMarkCorners = .round
     var editorMarkStrength: EditorMarkStrength = .standard
@@ -415,7 +416,7 @@ struct GlobalSettings: Codable, Hashable {
         serverHeaderColorSource = (try? container.decodeIfPresent(ServerHeaderColorSource.self, forKey: .serverHeaderColorSource)) ?? .server
         sidebarDockCurrentIconTint = (try? container.decodeIfPresent(SidebarDockCurrentIconTint.self, forKey: .sidebarDockCurrentIconTint)) ?? .header
         sidebarDockSections = (try? container.decodeIfPresent([String: [String]].self, forKey: .sidebarDockSections)) ?? [:]
-        editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
+        editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .hairline
         editorMarkCorners = (try? container.decodeIfPresent(EditorMarkCorners.self, forKey: .editorMarkCorners)) ?? .round
         editorMarkStrength = (try? container.decodeIfPresent(EditorMarkStrength.self, forKey: .editorMarkStrength)) ?? .standard
         let typographyRevision = try container.decodeIfPresent(Int.self, forKey: .editorTypographyRevision) ?? 0

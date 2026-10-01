@@ -103,3 +103,27 @@ struct SelectionPillFiguresTests {
         #expect(GlobalSettings().resultsSelectionPill == .count)
     }
 }
+
+@MainActor
+@Suite("Results round 47: the row-number gutter")
+struct ResultsGutterTests {
+    @Test func theGutterFitsTheDigitsWithThreeAtLeast() {
+        let few = ResultTableRowNumberView(); few.update(rowCount: 9, reservedCount: 9)
+        let hundreds = ResultTableRowNumberView(); hundreds.update(rowCount: 999, reservedCount: 999)
+        let thousands = ResultTableRowNumberView(); thousands.update(rowCount: 1_000, reservedCount: 1_000)
+        #expect(few.requiredWidth == hundreds.requiredWidth)
+        #expect(thousands.requiredWidth > hundreds.requiredWidth)
+        #expect(few.requiredWidth < 50)
+    }
+
+    @Test func theLaneAddsItsInsetEitherSide() {
+        let plain = ResultTableRowNumberView(); plain.update(rowCount: 9, reservedCount: 9)
+        let lane = ResultTableRowNumberView(); lane.gutterStyle = .lane; lane.update(rowCount: 9, reservedCount: 9)
+        #expect(abs((lane.requiredWidth - plain.requiredWidth) - 2 * LayoutTokens.EditorGutter.laneInset) < 0.001)
+    }
+
+    @Test func hairlineIsTheDefaultGutterForBoth() {
+        #expect(GlobalSettings().editorGutterStyle == .hairline)
+        #expect(ResultTableRowNumberView().gutterStyle == .hairline)
+    }
+}

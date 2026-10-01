@@ -6,6 +6,19 @@ The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 /
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 47 accepted: the results' row numbers follow the editor's gutter
+
+Echo Labs › Footer and results › round 47. Asked: the names over the figures and the two lines under the header looked off; make the gutter as good and consistent as the editor's, keeping everything it does.
+
+- **One setting for both (SS0):** the results' row numbers follow **Settings › Editor › Gutter › Style** (Subtle, Column, Lane, Hairline), drawn as the editor's. **The default for both becomes Hairline** (owner, asked in chat: the round's pick of GS2 with "follows the editor"); it was Subtle, which is no longer the default. A stored choice stays; Reset puts back Hairline. → FTR-4.5, EDT-2.1
+- **Hairline (GS2):** one line at the gutter's right edge, **starting below the header**: no vertical line through the header row, so the `#` and the first column's name have none (owner's note). Column keeps its edge the full height; Lane and Subtle have none.
+- **Numbers (NA0, GW1):** right-aligned, as before; the gutter **fits the digits, at least three, and grows** (it was six digits wide always, about 50pt), with 8pt either side. Echo still reserves for the row count it knows, so it doesn't jump while rows stream in.
+- **Column names (HA0):** stay left-aligned (the proposed alignment with the data was not taken).
+- **Header corner (GC2):** the `#` selects every cell when clicked (new), with a hover tint and the tooltip Select All.
+- **Selected rows (SR1):** the row's number turns accent **on the selection's own tint** (accent at 18%, like the cells); hovered rows keep the accent number.
+- **Stripes (RS1):** the shaded rows stop at the gutter, as today.
+- **The two lines under the header:** the system's 1pt lines in its scroll pocket and header banner (4pt above Echo's) are hidden, so the one line, level with the gutter's, is the only one. The system's views are found by name (`SystemHeaderLineHider`). → FTR-4.2
+
 ## 2026-10-01 · Agent Jobs after checking it in Echo
 
 The owner, after trying rounds 33 and 33.2 in Echo ("apart from that it looks good"):

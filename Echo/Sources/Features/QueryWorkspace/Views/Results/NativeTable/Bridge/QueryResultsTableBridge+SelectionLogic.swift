@@ -291,8 +291,9 @@ extension QueryResultsTableView.Coordinator {
             if range.lowerBound >= 0 { rows.insert(integersIn: range.lowerBound...range.upperBound) }
         }
         rows.formUnion(tableView.selectedRowIndexes)
+        let selected = rows
         if let hoveredRow { rows.insert(hoveredRow) }
-        (tableView.enclosingScrollView?.superview as? ResultTableContainerView)?.setAccentRows(rows)
+        (tableView.enclosingScrollView?.superview as? ResultTableContainerView)?.setAccentRows(rows, selected: selected)
     }
 }
 #endif

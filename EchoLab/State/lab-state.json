@@ -2524,6 +2524,50 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.results-gutter-r47": {
+    "comments": [
+      {
+        "date": "2026-10-01T20:46:22Z",
+        "id": "55BE1492-2F12-4954-8715-27201D1B31B7",
+        "text": "Review of Results: the row-number gutter and the column header\n1. Which one?: picked Proposal\n2. Gutter: picked GS2 \u00b7 Hairline: only the edge; note: No hairline in the top row vertical, so in the example # and BusinessEntityID has no hairline\n3. Numbers: picked NA0 \u00b7 Right-aligned (today)\n4. Width: picked GW1 \u00b7 Fits the digits, at least three, and grows\n5. Column names: picked HA0 \u00b7 Left-aligned (today)\n6. Header corner: picked GC2 \u00b7 A # that selects every cell when clicked\n7. Selected rows: picked SR1 \u00b7 The number turns accent on the selection's own tint\n8. Stripes under the numbers: picked RS1 \u00b7 No: it stops at the gutter (today)\n9. One setting or two: picked SS0 \u00b7 It follows the editor's gutter style: one setting for both"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:46:22Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:46:34Z",
+        "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T21:09:58Z",
+        "text": "Built into Echo: the row numbers follow Settings \u203a Editor \u203a Gutter \u203a Style, and Hairline is now the default for both; the Hairline's edge starts below the header; the gutter fits the digits (3 at least) with 8pt either side; the # selects every cell (hover tint, tooltip Select All); selected rows' numbers are accent on the selection's tint; column names stay left, shaded rows stop at the gutter. The system's own 1pt header lines are hidden so one line remains. Please check: one line under the header, no vertical line in the header row, and clicking the #. A stored Subtle choice stays until you change it in Settings."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "style": "No hairline in the top row vertical, so in the example # and BusinessEntityID has no hairline"
+    },
+    "picks": {
+      "align": "NA0 \u00b7 Right-aligned (today)",
+      "corner": "GC2 \u00b7 A # that selects every cell when clicked",
+      "cross": "RS1 \u00b7 No: it stops at the gutter (today)",
+      "exhibit": "proposal",
+      "headers": "HA0 \u00b7 Left-aligned (today)",
+      "selected": "SR1 \u00b7 The number turns accent on the selection's own tint",
+      "setting": "follows",
+      "style": "GS2 \u00b7 Hairline: only the edge",
+      "width": "GW1 \u00b7 Fits the digits, at least three, and grows"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.results-header-lines-r41": {
     "comments": [
       {

@@ -160,7 +160,7 @@ enum FooterResultsSpec {
             SpecElement(number: "4.2", name: "Column header", summary: "The column's name over its type, on two lines.", groups: [
                 .type(.row("Name", "12pt semibold"), .row("Type", "10pt monospaced, under the name")),
                 .layout(.row("Height", "36pt", token: "ResultsGridMetrics.headerHeight")),
-                .material(.row("Line under it", "one hairline at the header's true bottom, level with the row-number column's: the header paints its full height in the card's colour and draws it, because the system's scroll pocket behind it stops about 4pt short of 36pt on macOS 26 (round 41.1, HL1, and the owner's note after)"),
+                .material(.row("Line under it", "one hairline at the header's true bottom, level with the row-number column's: the header paints its full height in the card's colour and draws it, and the system's own 1pt lines in its scroll pocket and header banner (4pt higher) are hidden (round 41.1, HL1, and round 47)"),
                           .row("Column dividers", "short separators between columns, kept: they mark where to drag a width (VD0)", token: "NSColor.separatorColor")),
                 .behaviour(.row("Sort arrow", "a 14pt box at the trailing edge, shown while hovered or sorted; click it to sort, click elsewhere to select the column",
                                 token: "ResultsGridMetrics.sortIndicatorSize")),
@@ -175,10 +175,17 @@ enum FooterResultsSpec {
                           .row("Active cell", "accent ring, 2pt, 4pt corner", token: "ResultsGridMetrics.activeCellRingWidth / activeCellCornerRadius")),
                 .behaviour(.row("Row numbers", "of the selected rows turn accent")),
             ], rounds: ["decided.results-grid"], files: [grid + "Cells/ResultTableRowView.swift", grid + "Cells/ResultTableRowNumberView.swift"]),
-            SpecElement(number: "4.5", name: "Row numbers", summary: "A column of monospaced numbers at the left.", groups: [
-                .type(.row("Font", "12pt monospaced digits", token: "ResultsGridMetrics.rowNumberFontSize")),
-                .layout(.row("Width", "at least 6 digits", token: "ResultsGridMetrics.minimumRowNumberDigits"), .row("Padding", "2pt leading, 5pt trailing")),
-            ], files: [grid + "Cells/ResultTableRowNumberView.swift"]),
+            SpecElement(number: "4.5", name: "Row numbers", summary: "The gutter at the left: the editor's gutter style, right-aligned numbers (round 47).", groups: [
+                .type(.row("Font", "12pt monospaced digits, tertiary; accent for selected and hovered rows", token: "ResultsGridMetrics.rowNumberFontSize"),
+                      .row("Alignment", "right (NA0)")),
+                .layout(.row("Width", "fits the digits, at least 3, and grows; reserved for the known row count so it doesn't move while rows stream in (GW1)", token: "ResultsGridMetrics.minimumRowNumberDigits"),
+                        .row("Padding", "8pt either side (the lane adds its 5pt inset)", token: "ResultsGridMetrics.rowNumberLeadingPadding / rowNumberTrailingPadding")),
+                .material(.row("Style", "follows Settings › Editor › Gutter › Style, Hairline by default: Subtle only numbers; Hairline a 0.5pt edge below the header (none through the header row); Column a quiet full-height tint with an edge; Lane an inset 5pt rounded lane, no edge (SS0, GS2)", token: "GlobalSettings.editorGutterStyle"),
+                          .row("Selected rows", "the number accent on the selection's own tint, accent at 18% (SR1)"),
+                          .row("Shaded rows", "stop at the gutter (RS1)")),
+                .behaviour(.row("Click a number", "selects its row"), .row("Drag", "extends the selection and autoscrolls"), .row("Right-click", "the row menu"),
+                           .row("The # in the corner", "selects every cell; a hover tint and the tooltip Select All (GC2)"), .row("Setting", "Settings › Results › Show row numbers")),
+            ], rounds: ["ongoing.results-gutter-r47"], files: [grid + "Cells/ResultTableRowNumberView.swift", grid + "SystemHeaderLineHider.swift"]),
             SpecElement(number: "4.6", name: "Scroll bars", summary: "The system's bar on the footer's top edge, as wide as the footer, on the footer's material.", groups: [
                 .layout(.row("Horizontal", "its thumb ends 42pt above the card's edge: 9pt above the footer's pills, the gap the pills keep above the edge", token: "LayoutTokens.Footer.scrollBarBottom"),
                         .row("Length", "as wide as the footer: from its left padding, over the row numbers, to its right padding (round 27, L2)", token: "SpacingTokens.sm"),
