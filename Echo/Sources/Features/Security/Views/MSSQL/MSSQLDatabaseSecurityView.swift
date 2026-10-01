@@ -4,6 +4,7 @@ struct MSSQLDatabaseSecurityView: View {
     @Bindable var viewModel: DatabaseSecurityViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
     @Environment(EnvironmentState.self) private var environmentState
 
     @State var showNewRoleSheet = false
@@ -39,7 +40,7 @@ struct MSSQLDatabaseSecurityView: View {
         }
         .onChange(of: viewModel.selectedDatabase) { _, newDB in
             guard let newDB else { return }
-            if let tab = tabStore.activeTab, tab.databaseSecurity != nil {
+            if let tab = hostTab, tab.databaseSecurity != nil {
                 tab.title = "Database Security (\(newDB))"
                 tab.activeDatabaseName = newDB
             }
@@ -103,7 +104,7 @@ struct MSSQLDatabaseSecurityView: View {
     }
 
     private var connectionText: String {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
+        let connText = hostTab?.connection.connectionName ?? "Server"
         let db = viewModel.selectedDatabase
         return db.map { "\(connText) \u{2022} \($0)" } ?? connText
     }

@@ -7,7 +7,7 @@ struct QueryRunToolbarItem: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab, tab.query != nil {
+        if tabStore.activeTabToolbarContext.isQuery, let tab = tabStore.activeTab, tab.query != nil {
             // No `.id(tab.id)`: a new identity per tab re-creates the window's toolbar items on
             // every tab switch. The control takes the new tab's state itself.
             QueryRunToolbarControl(tabStore: tabStore)
@@ -21,7 +21,7 @@ struct QueryEditorEnhanceToolbarControls: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab, tab.query != nil {
+        if tabStore.activeTabToolbarContext.isQuery, let tab = tabStore.activeTab, tab.query != nil {
             HStack(spacing: SpacingTokens.none) {
                 QueryFormatToolbarButton(tabStore: tabStore)
                 QueryValidateToolbarButton(tabStore: tabStore)

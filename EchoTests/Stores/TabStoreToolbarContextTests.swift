@@ -28,6 +28,7 @@ struct TabStoreToolbarContextTests {
         await Task.yield()
         await Task.yield()
         #expect(store.activeTabToolbarContext.isQuery)
+        #expect(store.activeTabKind == .query)
     }
 
     /// Switching between tabs that need the same toolbar must not touch the context, or the

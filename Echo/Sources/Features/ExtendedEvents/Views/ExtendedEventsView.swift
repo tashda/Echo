@@ -8,6 +8,8 @@ struct ExtendedEventsView: View {
     var onDoubleClick: (() -> Void)?
     
     @Environment(TabStore.self) var tabStore
+    
+    @Environment(\.workspaceTab) var hostTab
     @Environment(ProjectStore.self) private var projectStore
 
     init(

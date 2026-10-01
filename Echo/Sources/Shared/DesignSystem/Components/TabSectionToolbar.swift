@@ -132,6 +132,14 @@ struct CenteredTabSectionBarLayout: Layout {
         )
     }
 
+    // Nothing aligns to the bar's guides; the default answers by placing and measuring the
+    // subviews again on every query.
+    func explicitAlignment(of guide: HorizontalAlignment, in bounds: CGRect, proposal: ProposedViewSize,
+                           subviews: Subviews, cache: inout Sizes?) -> CGFloat? { nil }
+
+    func explicitAlignment(of guide: VerticalAlignment, in bounds: CGRect, proposal: ProposedViewSize,
+                           subviews: Subviews, cache: inout Sizes?) -> CGFloat? { nil }
+
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Sizes?) {
         guard let sizes = cache else { return }
         let center = ProposedViewSize(sizes.center)

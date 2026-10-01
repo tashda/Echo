@@ -15,7 +15,7 @@ struct TableStructureToolbarItem: View {
     @State private var applyReview: ApplyReviewPresentation?
 
     var body: some View {
-        if let tab = tabStore.activeTab, let vm = tab.structureEditor {
+        if tabStore.activeTabKind == .structure, let tab = tabStore.activeTab, let vm = tab.structureEditor {
             structureControls(viewModel: vm, tab: tab)
         } else {
             EmptyView()

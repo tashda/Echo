@@ -2,7 +2,7 @@ import SwiftUI
 
 extension ExtendedEventsView {
     var statusBarConfig: BottomPanelStatusBarConfiguration {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
+        let connText = hostTab?.connection.connectionName ?? "Server"
 
         var config = BottomPanelStatusBarConfiguration(
             serverName: connText,

@@ -6,7 +6,7 @@ struct ActivityMonitorToolbarItem: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab, let vm = tab.activityMonitor {
+        if tabStore.activeTabKind == .activityMonitor, let vm = tabStore.activeTab?.activityMonitor {
             Button {
                 if vm.isRunning { vm.stopStreaming() } else { vm.startStreaming() }
             } label: {
@@ -30,7 +30,7 @@ struct JobQueuePlayToolbarItem: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab, let vm = tab.jobQueue, vm.selectedJobID != nil {
+        if tabStore.activeTabKind == .jobQueue, let vm = tabStore.activeTab?.jobQueue, vm.selectedJobID != nil {
             ToolbarRunButton(
                 isRunning: vm.isJobRunning,
                 idleLabel: "Start Job",
@@ -53,7 +53,7 @@ struct JobQueuePopOutToolbarItem: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        if let tab = tabStore.activeTab, tab.kind == .jobQueue {
+        if tabStore.activeTabKind == .jobQueue, let tab = tabStore.activeTab {
             Button {
                 if let sessionID = environmentState.popOutJobQueueTab(tab) {
                     openWindow(id: JobQueueWindow.sceneID, value: sessionID)
@@ -75,7 +75,8 @@ struct TabContextToolbarButton: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab {
+        let kind = tabStore.activeTabKind
+        if kind == .mssqlMaintenance || kind == .maintenance, let tab = tabStore.activeTab {
             tabControls(for: tab)
         }
     }

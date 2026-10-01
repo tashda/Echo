@@ -5,6 +5,7 @@ struct SchemaDiffView: View {
     @Bindable var viewModel: SchemaDiffViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
     @Environment(EnvironmentState.self) private var environmentState
 
     @State private var diffListFraction: CGFloat = 0.45
@@ -24,8 +25,8 @@ struct SchemaDiffView: View {
     }
 
     private var connectionText: String {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
-        let db = tabStore.activeTab?.activeDatabaseName
+        let connText = hostTab?.connection.connectionName ?? "Server"
+        let db = hostTab?.activeDatabaseName
         return db.map { "\(connText) \u{2022} \($0)" } ?? connText
     }
 

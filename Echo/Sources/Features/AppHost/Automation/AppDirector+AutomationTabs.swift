@@ -9,8 +9,9 @@ import Foundation
 ///     { "action": "tab", "target": "next" }        // or "previous", "first", "last", or an index
 ///     { "action": "closeTab" }
 ///     { "action": "window", "target": "sidebar" }  // or "inspector", "overview"
+///     { "action": "page", "target": "next" }       // a tool tab's next page, or a page's title
 extension AppDirector {
-    static let appAutomationActions: Set<String> = ["query", "tool", "tab", "closeTab", "window"]
+    static let appAutomationActions: Set<String> = ["query", "tool", "tab", "closeTab", "window", "page"]
 
     /// Performs an app step; the server is looked up by its automation name.
     func performAppAutomationStep(_ step: AutomationScript.Step, connections: [String: SavedConnection]) {
@@ -24,6 +25,15 @@ extension AppDirector {
             openAutomationTool(target, connectionID: connectionID)
         case "tab":
             selectAutomationTab(step.target ?? "next")
+        case "page":
+            guard let tab = tabStore.activeTab, !tab.toolPages.isEmpty else { return }
+            if step.target == "next" || step.target == nil {
+                let pages = tab.toolPages
+                let index = tab.currentToolPage.flatMap { pages.firstIndex(of: $0) } ?? -1
+                tab.selectToolPage(pages[(index + 1) % pages.count])
+            } else if let page = step.target {
+                tab.selectToolPage(page)
+            }
         case "closeTab":
             if let id = tabStore.activeTabId { tabStore.closeTab(id: id) }
         case "window":

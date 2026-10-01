@@ -5,7 +5,7 @@ struct ErrorLogCycleToolbarItem: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab, let vm = tab.errorLogVM {
+        if tabStore.activeTabKind == .errorLog, let vm = tabStore.activeTab?.errorLogVM {
             Button {
                 Task { await vm.cycleLog() }
             } label: {

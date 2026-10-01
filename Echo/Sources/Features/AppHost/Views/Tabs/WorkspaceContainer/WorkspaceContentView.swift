@@ -25,6 +25,7 @@ struct WorkspaceContentView: View {
 
             tabContentView
         }
+        .environment(\.workspaceTab, tab)
         .sheet(item: $selectedSQLContext) { context in
             SQLInspectorSheet(context: context) { sql, database in
                 if let session = environmentState.sessionGroup.sessionForConnection(tab.connection.id) {

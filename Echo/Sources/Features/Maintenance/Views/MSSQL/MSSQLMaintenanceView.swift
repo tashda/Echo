@@ -40,14 +40,16 @@ struct MSSQLMaintenanceView: View {
         }
         .onChange(of: viewModel.selectedDatabase) { _, newDB in
             guard let newDB else { return }
-            if let tab = tabStore.activeTab, tab.mssqlMaintenance != nil {
+            // This tab's own, not the active one: it may be kept mounted behind another tab.
+            if let tab = tabStore.tabs.first(where: { $0.mssqlMaintenance === viewModel }) {
                 tab.title = "Maintenance (\(newDB))"
             }
         }
     }
 
     private var connectionText: String {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
+        // The tab's own server; reading the active tab re-rendered this view on every tab switch.
+        let connText = session?.connection.connectionName ?? "Server"
         let db = viewModel.selectedDatabase
         return db.map { "\(connText) \u{2022} \($0)" } ?? connText
     }
