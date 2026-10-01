@@ -19,14 +19,16 @@ enum WindowSpec {
     private static let parts: [SpecPart] = [
         SpecPart(number: "1", name: "Canvas and cards", summary: "A canvas holds the rail, the tree and the content cards.", elements: [
             SpecElement(number: "1.1", name: "Canvas", summary: "The window's background, behind everything.", groups: [
-                .material(.row("Fill", "the workspace canvas", token: "ColorTokens.Workspace.canvas", swatch: ColorTokens.Workspace.canvas),
+                .material(.row("Fill", "the window background in light; white 9.5% in dark, just under the cards (round 32.2, DC6)", token: "ColorTokens.Workspace.canvas", swatch: ColorTokens.Workspace.canvas),
                           .row("Glass", "none")),
             ], rounds: [canvasRound], files: [workspace]),
             SpecElement(number: "1.2", name: "Card", summary: "The one card look: the tree, editor and results all use it.", groups: [
                 .material(.row("Fill", "opaque; the shadow is drawn by the fill behind the content, so AppKit content is never rendered offscreen for it", token: "ColorTokens.Workspace.card", swatch: ColorTokens.Workspace.card),
                           .row("Glass", "never on a card: glass over a flat canvas has nothing to refract and reads as a grey box"),
-                          .row("Edge", "0.5pt, 35% separator", token: "cardEdgeWidth / cardEdgeOpacity"),
-                          .row("Shadow", "black 12%, blur 10, y 4", token: "ShadowTokens.workspaceCard")),
+                          .row("Edge", "0.5pt at 35%: the separator in light, white 20% in dark (a 7% hairline; round 32.2, DE5)", token: "cardEdgeWidth / cardEdgeOpacity"),
+                          .row("Lit top edge", "dark only: 1pt, primary 10% fading out by the card's middle (DE5)"),
+                          .row("Increase Contrast", "a solid 1pt separator edge instead, no lit edge (IC0)"),
+                          .row("Shadow", "light: black 12%, blur 10, y 4; dark: contact black 60%, blur 3, y 1 over ambient black 40%, blur 24, y 10 (DS5)", token: "ShadowTokens.workspaceCard / workspaceCardContact / workspaceCardAmbient")),
                 .layout(.row("Corner", "continuous, from the Card Corners setting: 10, 12, 16 (default), 20 or 26pt", token: "workspaceCardCornerRadius / LayoutTokens.Workspace.cardCornerRadius"),
                         .row("Why 16", "the macOS 27 window corner, measured from a screenshot")),
                 .behaviour(.row("Chrome", "a card whose content lays out cards of its own has no fill, shadow or edge, so theirs aren't cut off"),

@@ -16,11 +16,12 @@ struct TrackedOperation: Identifiable {
 
 // MARK: - Operation Result
 
-/// The outcome of a completed operation, displayed briefly in the toolbar.
+/// The outcome of a finished operation, handed to `ActivityEngine.onFinish`.
 struct OperationResult: Identifiable {
     let id: UUID
     let label: String
     let connectionSessionID: UUID?
+    let showsOnBell: Bool
     let outcome: Outcome
     let completedAt: Date
     let duration: TimeInterval

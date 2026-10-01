@@ -14,6 +14,10 @@ final class ActivityEngine: @unchecked Sendable {
     /// All currently-running operations, keyed by ID.
     private(set) var operations: [UUID: TrackedOperation] = [:]
 
+    /// Called when an operation finishes, so a long one can say so if it posted nothing itself
+    /// (`OperationFinishNotifier`, round 34).
+    @ObservationIgnored var onFinish: ((OperationResult) -> Void)?
+
     // MARK: - Begin
 
     /// Start tracking a new operation. Returns a handle the caller uses to
@@ -53,7 +57,16 @@ final class ActivityEngine: @unchecked Sendable {
     }
 
     func finishOperation(_ id: UUID, outcome: OperationResult.Outcome) {
-        operations.removeValue(forKey: id)
+        guard let operation = operations.removeValue(forKey: id) else { return }
+        onFinish?(OperationResult(
+            id: operation.id,
+            label: operation.label,
+            connectionSessionID: operation.connectionSessionID,
+            showsOnBell: operation.showsOnBell,
+            outcome: outcome,
+            completedAt: Date(),
+            duration: Date().timeIntervalSince(operation.startedAt)
+        ))
     }
 
     // MARK: - Queries

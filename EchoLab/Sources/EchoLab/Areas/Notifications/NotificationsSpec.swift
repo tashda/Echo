@@ -37,7 +37,9 @@ enum NotificationsSpec {
             ], rounds: [r18], files: [views]),
             SpecElement(number: "1.4", name: "Buttons", summary: "Shown when the toast is hovered: Open Tab or Show Server, Copy, Show All.", states: [SpecState(key: "toastOpen", name: "Toast hovered open")], defaultState: "toastOpen", groups: [
                 .layout(.row("Style", "small bordered buttons, the same as the history's", token: ".bordered, .small"),
-                        .row("Indent", "24pt, under the title", token: "SpacingTokens.lg")),
+                        .row("Indent", "24pt, under the title", token: "SpacingTokens.lg"),
+                        .row("Gap", "6pt under the text", token: "SpacingTokens.xxs2")),
+                .behaviour(.row("Action", "a notification can carry one more button while it still applies: Reconnect (a lost PostgreSQL connection) or Go to Error (a failed query)", token: "NotificationAction")),
                 .motion(.row("Opens", "house spring, 0.45s: the toast grows downwards only, so nothing jumps sideways")),
             ], rounds: [r18, r15], files: [views]),
             SpecElement(number: "1.5", name: "Dismissing", summary: "A flick to the right, or ×.", states: [SpecState(key: "toastOpen", name: "Toast hovered open")], defaultState: "toastOpen", groups: [
@@ -63,6 +65,8 @@ enum NotificationsSpec {
                            .row("Errors", "until dismissed", token: "Toast.staysUntilDismissed"), .row("Hovered", "waits until the pointer leaves"),
                            .row("A query fails", "a toast only when its tab isn't in front; the results card shows the error"),
                            .row("Delivery", "each category can be off; delivery is an in-app toast, a native macOS notification, or both", token: "NotificationDelivery"),
+                           .row("A long query", "30 s or more, ending while Echo isn't in front: a macOS banner whatever the delivery setting (\"Query 1 finished in 1:12\"); a success is also recorded", token: "LongQueryNotice.threshold"),
+                           .row("A long operation", "5 s or more on the bell that posted nothing of its own within 2 s of its end: \"Backup shop finished in 1:12\" or \"… failed: reason\" (round 34)", token: "OperationFinishNotifier.minimumDuration"),
                            .row("VoiceOver", "each toast is announced")),
             ], rounds: [r18], files: [presenter]),
         ]),
@@ -92,7 +96,7 @@ enum NotificationsSpec {
                 .type(.row("Title", "13pt; semibold while new, regular after"), .row("Time", "11pt tertiary, relative")),
             ], rounds: [r17], files: [views]),
             SpecElement(number: "3.6", name: "Opened card", summary: "Click a card: it fades open to the whole message.", states: [SpecState(key: "history", name: "History open")], defaultState: "history", groups: [
-                .behaviour(.row("Shows", "the server, the rest of the message (selectable, monospaced 11pt), small Open Tab or Show Server (when the tab or server still exists) and Copy buttons"),
+                .behaviour(.row("Shows", "the server, the rest of the message (selectable, monospaced 11pt), small Open Tab or Show Server (when the tab or server still exists) and Copy buttons, and the notification's action (Reconnect, Go to Error) while it still applies"),
                            .row("Indent", "24pt", token: "SpacingTokens.lg")),
                 .motion(.row("Opens", "fade, 0.45s")),
             ], rounds: [r17], files: [views]),

@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 34 follow-up: no long operation ends silently
+
+Asked in chat ("fix the open points"). A long operation shown on the bell (5 s or more, not cancelled) that posted no notification of its own within 2 s of its end now gets one: "Backup shop finished in 1:12" or "Backup shop failed: reason" (`OperationFinishNotifier`, hooked to `ActivityEngine.onFinish`). Operations that post their own are not doubled. → Echo Labs › Notifications NTF-2.2
+
 ## 2026-10-01 · Round 40 accepted: a server click opens the hidden tree
 
 Echo Labs › Window and cards › Clicking a server while the tree is hidden · round 40. Built in 3416c997.

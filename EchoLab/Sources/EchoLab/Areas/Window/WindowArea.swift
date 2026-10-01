@@ -12,7 +12,7 @@ enum WindowArea {
         asBuilt: AsBuiltPage(
             verification: .init(
                 level: .code, commit: "ef1c3bba", date: "2026-10-01",
-                note: "Read from WorkspaceShell, ServerRail, ServerRailEntry, ServerRailMonogram, WorkspaceWelcomeView, ConnectionDashboardView and the workspace, rail and welcome tokens. The specimen is the Echo Labs rail (servers and the tool pill) with a stand-in tree and two cards."),
+                note: "Read from WorkspaceShell, ServerRail, ServerRailEntry, ServerRailMonogram, WorkspaceWelcomeView, ConnectionDashboardView and the workspace, rail and welcome tokens. The specimen is the Echo Labs rail (servers and the tool pill) with a stand-in tree and two cards. 2026-10-01: checked the commits since ef1c3bba (round 32.2's dark canvas, card edges and shadows; round 30.1's always-coloured monogram; round 34's Refresh); the LayoutToken changes in that range are the editor's and results'."),
             stageHeight: 520,
             behaviours: [
                 .init(trigger: "Click a server in the rail", result: "With the tree showing, the tree glides to that server and the rail keeps it selected while it does. While you scroll, the rail marks the server whose card is at the top."),
@@ -39,8 +39,9 @@ enum WindowArea {
             ],
             measurements: [
                 .init(label: "Card corners", value: "16pt (setting: 10 to 26)", token: "LayoutTokens.Workspace.cardCornerRadius"),
-                .init(label: "Card edge", value: "0.5pt, 35% separator", token: "cardEdgeWidth / cardEdgeOpacity"),
-                .init(label: "Card shadow", value: "black 12%, blur 10, y 4", token: "ShadowTokens.workspaceCard"),
+                .init(label: "Card edge", value: "0.5pt at 35%: the separator in light, white 20% (a 7% hairline) in dark, plus a lit top edge in dark (primary 10% fading by the middle, 1pt); Increase Contrast: a solid 1pt separator", token: "cardEdgeWidth / cardEdgeOpacity / ColorTokens.Workspace.cardEdge"),
+                .init(label: "Card shadow", value: "light: black 12%, blur 10, y 4; dark: a contact shadow (black 60%, blur 3, y 1) over an ambient one (black 40%, blur 24, y 10)", token: "ShadowTokens.workspaceCard / workspaceCardContact / workspaceCardAmbient"),
+                .init(label: "Canvas", value: "light: the window background; dark: white 9.5%, just under the cards", token: "ColorTokens.Workspace.canvas"),
                 .init(label: "Rail item", value: "28 · 34 (default) · 40pt, a setting", token: "RailItemSize.points"),
                 .init(label: "Monogram", value: "37% of the item: 12.5pt at 34pt, rounded design; bold when selected", token: "LayoutTokens.Rail.monogramFontRatio"),
                 .init(label: "Rail pill padding", value: "4pt", token: "LayoutTokens.Rail.pillPadding"),
