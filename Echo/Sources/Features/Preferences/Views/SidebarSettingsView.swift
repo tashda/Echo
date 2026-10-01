@@ -8,9 +8,15 @@ struct SidebarSettingsView: View {
     }
 
     var body: some View {
-        Form {
+        SettingsPage(
+            previewHeight: 230,
+            resetPage: projectStore.resetPage(Self.resettable),
+            preview: { SidebarSettingsPreview(settings: settings) }
+        ) {
             Section {
-                Toggle("Expand one connection at a time", isOn: expandOneConnectionToggle)
+                PropertyRow(title: "Expand one connection at a time", resetAction: projectStore.resetAction(\.sidebarExpandOneConnectionAtATime)) {
+                    Toggle("", isOn: expandOneConnectionToggle).labelsHidden().toggleStyle(.switch)
+                }
             } header: {
                 Text("Object Browser")
             } footer: {
@@ -18,24 +24,17 @@ struct SidebarSettingsView: View {
             }
 
             Section {
-                Toggle("Show empty folders", isOn: emptyFoldersToggle)
-                Toggle("Show scroll bar", isOn: scrollBarToggle)
-            } footer: {
-                Text("Empty folders such as Views or Functions with nothing in them are hidden unless shown here. The scroll bar is hidden unless shown here; the rail shows which server you're in.")
-            }
-
-            Section {
-                Picker("Clicking a server while the Explorer is hidden", selection: projectStore.globalSettingBinding(\.collapsedServerClick)) {
-                    ForEach(CollapsedServerClickBehavior.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                PropertyRow(title: "Show scroll bar", resetAction: projectStore.resetAction(\.sidebarShowsScrollBar)) {
+                    Toggle("", isOn: scrollBarToggle).labelsHidden().toggleStyle(.switch)
                 }
-            } header: {
-                Text("Server Rail")
             } footer: {
-                Text("Peek slides that server's tree out over your work; click anywhere else to close it.")
+                Text("The scroll bar is hidden unless shown here; the rail shows which server you're in.")
             }
 
             Section("Databases") {
-                Toggle("Hide offline databases by default", isOn: hideOfflineToggle)
+                PropertyRow(title: "Hide offline databases by default", resetAction: projectStore.resetAction(\.sidebarHideOfflineDatabasesByDefault)) {
+                    Toggle("", isOn: hideOfflineToggle).labelsHidden().toggleStyle(.switch)
+                }
             }
 
             Section("General") {
@@ -68,9 +67,14 @@ struct SidebarSettingsView: View {
                 )
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
     }
+
+    /// Everything Reset This Page puts back.
+    static let resettable: [ResettableSetting] = [
+        .init(\.sidebarExpandOneConnectionAtATime), .init(\.sidebarShowsScrollBar),
+        .init(\.sidebarHideOfflineDatabasesByDefault), .init(\.sidebarAutoExpandSections),
+        .init(\.sidebarCustomizePerDatabaseType),
+    ]
 
     // MARK: - Hide offline toggle
 
@@ -80,17 +84,6 @@ struct SidebarSettingsView: View {
             set: { enabled in
                 var updated = settings
                 updated.sidebarExpandOneConnectionAtATime = enabled
-                Task { try? await projectStore.updateGlobalSettings(updated) }
-            }
-        )
-    }
-
-    private var emptyFoldersToggle: Binding<Bool> {
-        Binding(
-            get: { settings.sidebarShowsEmptyFolders },
-            set: { enabled in
-                var updated = settings
-                updated.sidebarShowsEmptyFolders = enabled
                 Task { try? await projectStore.updateGlobalSettings(updated) }
             }
         )

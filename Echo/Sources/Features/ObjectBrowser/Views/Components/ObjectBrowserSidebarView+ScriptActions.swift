@@ -216,15 +216,16 @@ extension ObjectBrowserSidebarView {
     }
 
     func executeStatement(for object: SchemaObjectInfo, databaseType: DatabaseType) -> String {
+        ExecuteStatementBuilder.sql(
+            qualifiedName: qualifiedName(for: object, databaseType: databaseType),
+            parameters: object.parameters,
+            databaseType: databaseType
+        )
+    }
+
+    func truncateStatement(for object: SchemaObjectInfo, databaseType: DatabaseType) -> String {
         let qualified = qualifiedName(for: object, databaseType: databaseType)
-        return switch databaseType {
-        case .microsoftSQL:
-            "EXEC \(qualified);"
-        case .postgresql:
-            "SELECT * FROM \(qualified)();"
-        case .mysql, .sqlite:
-            "CALL \(qualified)();"
-        }
+        return databaseType == .sqlite ? "DELETE FROM \(qualified);" : "TRUNCATE TABLE \(qualified);"
     }
 
     func dropStatement(for object: SchemaObjectInfo, databaseType: DatabaseType, includeIfExists: Bool) -> String {

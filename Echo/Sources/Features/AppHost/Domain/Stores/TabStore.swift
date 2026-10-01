@@ -19,6 +19,11 @@ final class TabStore {
     /// Checked before a tab closes; returns true when it takes the close over (it asks first and
     /// closes the tab later). Set by EnvironmentState for open PostgreSQL transactions.
     @ObservationIgnored var closeGuard: ((WorkspaceTab) -> Bool)?
+    /// Holds back closing a tab with unsaved changes while it asks; true when it held it back.
+    @ObservationIgnored var unsavedChangesGuard: ((WorkspaceTab) -> Bool)?
+    /// Closing several tabs at once: given the tabs and the close to run, asks once when several
+    /// have unsaved changes; true when it took over the close.
+    @ObservationIgnored var severalUnsavedGuard: (([WorkspaceTab], @escaping @MainActor () -> Void) -> Bool)?
 
     // MARK: - State
 
@@ -43,8 +48,6 @@ final class TabStore {
     @ObservationIgnored private var toolbarContextTask: Task<Void, Never>?
 
     /// Alert state for confirming close of tabs with pending changes.
-    var showPendingChangesAlert = false
-    var pendingCloseTabID: UUID?
 
     // MARK: - Initialization
 
@@ -97,33 +100,31 @@ final class TabStore {
     }
 
     func closeOtherTabs(keeping id: UUID) {
+        let director = tabDirector
+        if severalUnsavedGuard?(tabs.filter { $0.id != id }, { director.closeOtherTabs(keeping: id) }) == true { return }
         tabDirector.closeOtherTabs(keeping: id)
     }
 
     func closeTabsLeft(of id: UUID) {
+        let director = tabDirector
+        if severalUnsavedGuard?(Array(tabs.prefix(while: { $0.id != id })), { director.closeTabsLeft(of: id) }) == true { return }
         tabDirector.closeTabsLeft(of: id)
     }
 
     func closeTabsRight(of id: UUID) {
+        let director = tabDirector
+        if severalUnsavedGuard?(Array(tabs.drop(while: { $0.id != id }).dropFirst()), { director.closeTabsRight(of: id) }) == true { return }
         tabDirector.closeTabsRight(of: id)
     }
 
     func closeAllTabs() {
+        let director = tabDirector
+        if severalUnsavedGuard?(tabs, { director.closeAllTabs() }) == true { return }
         tabDirector.closeAllTabs()
     }
 
     func index(of id: UUID) -> Int? {
         tabs.firstIndex(where: { $0.id == id })
-    }
-
-    func confirmCloseTabWithPendingChanges() {
-        guard let id = pendingCloseTabID else { return }
-        pendingCloseTabID = nil
-        tabDirector.removeTab(withID: id)
-    }
-
-    func cancelCloseTabWithPendingChanges() {
-        pendingCloseTabID = nil
     }
 
     func clearActiveTab() {
@@ -150,16 +151,23 @@ final class TabStore {
         refreshToolbarContext()
     }
 
+    /// A tab's content set new toolbar buttons (round 37.5); the front tab's may change the toolbar's
+    /// shape.
+    func toolbarSectionDidChange(for tab: WorkspaceTab) {
+        if tab.id == activeTabId { refreshToolbarContext() }
+    }
+
     private func refreshToolbarContext() {
         let tab = activeTab
-        let context = WorkspaceToolbarContext(kind: tab?.kind, databaseType: tab?.connection.databaseType)
+        let context = WorkspaceToolbarContext(kind: tab?.kind, databaseType: tab?.connection.databaseType, section: tab?.toolbarSection)
         guard context != activeTabToolbarContext || tab?.kind != activeTabKind else { return }
         // A frame later: re-creating the toolbar's items takes ~50 ms, and done in the same update
         // it held back the new tab itself. The tab shows first, the toolbar follows.
         toolbarContextTask?.cancel()
         toolbarContextTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
-            let current = WorkspaceToolbarContext(kind: self.activeTab?.kind, databaseType: self.activeTab?.connection.databaseType)
+            let current = WorkspaceToolbarContext(kind: self.activeTab?.kind, databaseType: self.activeTab?.connection.databaseType,
+                                                  section: self.activeTab?.toolbarSection)
             if current != self.activeTabToolbarContext { self.activeTabToolbarContext = current }
             if self.activeTab?.kind != self.activeTabKind { self.activeTabKind = self.activeTab?.kind }
         }
@@ -178,11 +186,7 @@ extension TabStore: TabDirectorDelegate {
         // A PostgreSQL transaction that would be lost asks first (round 21); the guard closes the
         // tab itself once it is resolved.
         if closeGuard?(tab) == true { return false }
-        if case .structure(let editor) = tab.content, editor.hasPendingChanges {
-            pendingCloseTabID = tab.id
-            showPendingChangesAlert = true
-            return false
-        }
+        if unsavedChangesGuard?(tab) == true { return false }
         return true
     }
 

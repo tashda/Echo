@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The tab's one line (design board, 2026-09-30): its kind's icon, or a spinner while it runs,
 /// then the title. The database and running time are in the tooltip. An active tool tab with
-/// pages unfolds them after its title (ST2).
+/// pages shows them after its title, past a short hairline (ST2, round 36.1).
 extension QueryTabButton {
     @ViewBuilder
     var tabTitleContent: some View {
@@ -27,14 +27,24 @@ extension QueryTabButton {
                 .accessibilityHidden(true)
 
                 Text(displayedTitle)
-                    .font(tabTitleFont)
+                    .font(showsToolPages ? TypographyTokens.detail.weight(.medium) : tabTitleFont)
                     .lineLimit(1)
                     .foregroundStyle(tabTitleColor)
                     .layoutPriority(1)
 
-                if isActive, !tab.toolPages.isEmpty {
+                if let serverDotColor {
+                    Circle()
+                        .fill(serverDotColor)
+                        .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
+                        .accessibilityHidden(true)
+                }
+
+                if showsToolPages {
+                    // UF1: the pages fade out before the tab narrows, and in once it has widened.
                     TabPageChips(pages: tab.toolPages, selected: tab.currentToolPage) { tab.selectToolPage($0) }
-                        .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
+                        .transition(.asymmetric(
+                            insertion: .opacity.animation(motion.press.delay(motion.settleDuration * 0.4)),
+                            removal: .opacity.animation(motion.press)))
                 }
             }
             .help(tabTooltip)
@@ -42,6 +52,9 @@ extension QueryTabButton {
             .accessibilityLabel(runningSince == nil ? displayedTitle : "\(displayedTitle), running")
         }
     }
+
+    /// The active tool tab shows its pages after its title (ST2, round 36.1).
+    var showsToolPages: Bool { isActive && !tab.isPinned && !tab.toolPages.isEmpty }
 
     /// Title, database, and when a running query started.
     var tabTooltip: String {

@@ -14,7 +14,7 @@ extension JobQueueViewModel {
         return try await body(agent)
     }
 
-    private func performAction(_ action: @escaping (SQLServerAgentOperations) async throws -> Void) async {
+    func performAction(_ action: @escaping (SQLServerAgentOperations) async throws -> Void) async {
         do {
             try await withAgentClient { agent in
                 try await action(agent)
@@ -26,7 +26,7 @@ extension JobQueueViewModel {
 
     // MARK: - Job Name Lookup
 
-    private func selectedJobName() -> String? {
+    func selectedJobName() -> String? {
         guard let jobID = selectedJobID, !jobID.isEmpty else { return nil }
         return jobs.first(where: { $0.id == jobID })?.name
     }
@@ -112,49 +112,7 @@ extension JobQueueViewModel {
         await loadJobs(); await loadDetails()
     }
 
-    // MARK: - Actions (Steps)
-
-    func addStep(name: String, subsystem: String, database: String?, command: String, proxyName: String? = nil, outputFile: String? = nil) async {
-        guard let jobName = selectedJobName() else {
-            errorMessage = "No job selected"
-            return
-        }
-        let previousStepCount = steps.count
-        await performAction { agent in
-            try await agent.addStep(
-                jobName: jobName,
-                stepName: name,
-                subsystem: subsystem,
-                command: command,
-                database: database,
-                proxyName: proxyName,
-                outputFile: outputFile
-            )
-            // If there were existing steps, set the previous last step to "Go to next step"
-            // so multi-step jobs execute all steps in sequence
-            if previousStepCount > 0, let lastStep = self.steps.last {
-                try await agent.configureStep(
-                    jobName: jobName,
-                    stepName: lastStep.name,
-                    onSuccessAction: 3  // Go to next step
-                )
-            }
-        }
-        await loadDetails()
-    }
-
-    func updateStep(stepName: String, newCommand: String, database: String?) async {
-        guard let jobName = selectedJobName() else { return }
-        await performAction { agent in
-            try await agent.updateTSQLStep(
-                jobName: jobName,
-                stepName: stepName,
-                newCommand: newCommand,
-                database: database
-            )
-        }
-        await loadDetails()
-    }
+    // MARK: - Actions (Steps): JobQueueViewModel+Steps.swift
 
     func deleteStep(stepName: String) async {
         guard let jobName = selectedJobName() else { return }
@@ -231,7 +189,7 @@ extension JobQueueViewModel {
 
         // Optimistically update local state
         steps = reordered.enumerated().map { (index, step) in
-            StepRow(id: index + 1, name: step.name, subsystem: step.subsystem, database: step.database, command: step.command)
+            StepRow(id: index + 1, name: step.name, subsystem: step.subsystem, database: step.database, command: step.command, outcome: step.outcome)
         }
 
         await performAction { agent in

@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , toolTabToolbar , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder , settingsPreview , settingsPictures , settingsControls , settingsTemplate , settingsScenarios , footerBlur , toolTabMainAction , serverCardUnfold , resultsGutter , openingAndClosing /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -368,6 +368,258 @@
         status: .judging,
         summary: "Today Refresh (RefreshToolbarButton) does two jobs: it reloads the front tab (a tool tab's data, or a query tab's database schema) and it mirrors every ActivityEngine operation for the server, query runs included, with a spinner, ✓ or ✗. Run then shows its own ✓ too. Where activity should show, where Refresh should live, and what it does on a query tab.",
         spec: RefreshAndActivityRound.spec)
+
+    /// Round 35: Tab overview: the direction.
+    static let tabOverviewDirection = LabPage.round(
+        id: "ongoing.tab-overview-direction-r35", group: "Tabs", title: "Tab overview: the direction · round 35", symbol: "square.grid.2x2",
+        status: .judging,
+        summary: "Accepted: TO6, the palette, built into Echo as the ⌘K palette turned to this window's tabs. Trimmed to it; 35.2 to 35.4 were withdrawn with the grid.",
+        spec: TabOverviewDirectionRound.spec)
+
+    /// Round 36: Tool tabs with pages: the tab bar.
+    static let toolTabPages = LabPage.round(
+        id: "ongoing.tool-tab-pages-r36", group: "Tabs", title: "Tool tabs with pages: the tab bar · round 36", symbol: "rectangle.split.3x1",
+        status: .judging,
+        summary: "Changes ST2 (round 14): how a tool's pages sit in its tab (today a grey track capsule inside the tab), how the strip looks with one tab, and how the tab unfolds.",
+        spec: ToolTabPagesRound.spec)
+
+    /// Round 36: Tool tabs with pages: which tools.
+    static let toolTabPagesWhere = LabPage.round(
+        id: "ongoing.tool-tab-pages-where-r36", group: "Tabs", title: "Tool tabs with pages: which tools · round 36", symbol: "square.stack.3d.up",
+        status: .judging,
+        summary: "Nine other tools switch sections with a segmented control inside the tab. Which should get pages in the tab bar, and what happens when there are more pages than fit (Database Security has nine).",
+        spec: ToolTabPagesWhereRound.spec)
+
+    /// Round 37: Tool tabs: the families.
+    static let toolTabFamilies = LabPage.round(
+        id: "ongoing.tool-tab-families-r37", group: "Tool tabs", title: "Tool tabs: the families · round 37", symbol: "square.grid.3x2",
+        status: .judging,
+        summary: "Every tool tab Echo has, sorted into five families by the shape of their work (monitor, manage, health, properties, canvas). Decide the families first; 37.2 to 37.4 design them.",
+        spec: ToolTabFamiliesRound.spec)
+
+    /// Round 37: Tool tabs: the header and toolbar row.
+    static let toolTabHeader = LabPage.round(
+        id: "ongoing.tool-tab-header-r37", group: "Tool tabs", title: "Tool tabs: the header and toolbar row · round 37", symbol: "rectangle.topthird.inset.filled",
+        status: .judging,
+        summary: "The one header and toolbar row for every tool tab (changes TLT-1 and TLT-2): five layouts drawn on SQL Profiler, Policy Management and Activity Monitor.",
+        spec: ToolTabHeaderRound.spec)
+
+    /// Round 37: Tool tabs: buttons and controls.
+    static let toolTabControls = LabPage.round(
+        id: "ongoing.tool-tab-controls-r37", group: "Tool tabs", title: "Tool tabs: buttons and controls · round 37", symbol: "button.horizontal",
+        status: .judging,
+        summary: "The vocabulary: a primary action like Start Trace, icon buttons, pickers like Database: All Databases, a running status and search, in the editor's glass language.",
+        spec: ToolTabControlsRound.spec)
+
+    /// Round 37: Tool tabs: a theme per family.
+    static let toolTabThemes = LabPage.round(
+        id: "ongoing.tool-tab-themes-r37", group: "Tool tabs", title: "Tool tabs: a theme per family · round 37", symbol: "paintpalette",
+        status: .judging,
+        summary: "Each family's tab in the unified design: monitor, manage, health, properties and canvas.",
+        spec: ToolTabThemesRound.spec)
+
+    /// Round 37.5: the tab's own buttons in the toolbar, tied to the tab.
+    static let toolTabToolbar = LabPage.round(
+        id: "ongoing.tool-tab-toolbar-r37", group: "Tool tabs", title: "Tool tabs: the tab's own buttons in the toolbar · round 37", symbol: "menubar.rectangle",
+        status: .judging,
+        summary: "Every tab's dedicated buttons go in the window toolbar, at the right before the window's icons, and show that they belong to the tab in front: eight ties, four ways to show several groups (the query editor has three), three Runs, what moves from a tool's header line, and the motion when you switch tabs. Replaces round 45; changes TLT-10 and the editor's toolbar (EDT Run).",
+        spec: ToolTabToolbarRound.spec)
+
+    /// Round 38: Tree rows that open a tab.
+    static let treeToolRows = LabPage.round(
+        id: "ongoing.tree-tool-rows-r38", group: "Explorer tree", title: "Tree rows that open a tab · round 38", symbol: "arrow.up.right.square",
+        status: .judging,
+        summary: "Today Open Security Management is only in the right-click menus of the server's and a database's Security; Agent Jobs Overview is a row that opens a tab but looks like any other row. Where the new row goes, what it's called, and the mark for rows that open a tab or a window.",
+        spec: TreeToolRowsRound.spec)
+
+    /// Round 39: Rail tools: keep, merge or move.
+    static let railTools = LabPage.round(
+        id: "ongoing.rail-tools-r39", group: "Window and cards", title: "Rail tools: keep, merge or move · round 39", symbol: "square.stack",
+        status: .judging,
+        summary: "Today each opens in place of the tree. History is a Coming Soon placeholder, Snippets is the built-in catalog only, Clipboard is Echo's own copy history (macOS 26 has one in Spotlight), Bookmarks saves SQL per server. Which stay, where they live, and how you reach them.",
+        spec: RailToolsRound.spec)
+
+    /// Round 39: Rail tools: Bookmarks.
+    static let railBookmarks = LabPage.round(
+        id: "ongoing.rail-bookmarks-r39", group: "Window and cards", title: "Rail tools: Bookmarks · round 39", symbol: "bookmark",
+        status: .judging,
+        summary: "How you save a query to Bookmarks, what a bookmark holds, how the list looks and what opening one does.",
+        spec: RailBookmarksRound.spec)
+
+    /// Round 39: Rail tools: Snippets.
+    static let railSnippets = LabPage.round(
+        id: "ongoing.rail-snippets-r39", group: "Window and cards", title: "Rail tools: Snippets · round 39", symbol: "curlybraces",
+        status: .judging,
+        summary: "Built-in and your own snippets: how you find them, insert them (click, drag, typing) and write your own.",
+        spec: RailSnippetsRound.spec)
+
+    /// Round 39: Rail tools: History.
+    static let railHistory = LabPage.round(
+        id: "ongoing.rail-history-r39", group: "Window and cards", title: "Rail tools: History · round 39", symbol: "clock.arrow.circlepath",
+        status: .judging,
+        summary: "A real query history in place of today's Coming Soon: what is kept, how it reads, search, and running a query again.",
+        spec: RailHistoryRound.spec)
+
+    /// Round 39: Rail tools: Clipboard.
+    static let railClipboard = LabPage.round(
+        id: "ongoing.rail-clipboard-r39", group: "Window and cards", title: "Rail tools: Clipboard · round 39", symbol: "list.clipboard",
+        status: .judging,
+        summary: "Whether Echo needs its own clipboard history now that macOS 26 keeps one in Spotlight, and what to keep from it.",
+        spec: RailClipboardRound.spec)
+
+    /// Round 40: Clicking a server while the tree is hidden.
+    static let railClickHiddenTree = LabPage.round(
+        id: "ongoing.rail-click-hidden-tree-r40", group: "Window and cards", title: "Clicking a server while the tree is hidden · round 40", symbol: "sidebar.left",
+        status: .judging,
+        summary: "Today (WorkspaceShell, ServerRailClick) a plain click peeks: the tree slides out on glass over the cards until you click outside or press Esc; ⌘-click or a double-click shows the tree. Changes the rail decision (round 3–8) as you asked; this page decides the details.",
+        spec: RailClickHiddenTreeRound.spec)
+
+    /// Round 41: Results: the column header's lines.
+    static let resultsHeaderLines = LabPage.round(
+        id: "ongoing.results-header-lines-r41", group: "Footer and results", title: "Results: the column header's lines · round 41", symbol: "line.3.horizontal",
+        status: .judging,
+        summary: "Measured in your screenshot: a 1pt line under the header and a second 0.5pt line about 4pt below it. ResultTableHeaderView.draw adds a full-width separator on top of the one the system header draws. One line, which, or none.",
+        spec: ResultsHeaderLinesRound.spec)
+
+    /// Round 41: Results: the selection summary.
+    static let resultsSelectionSummary = LabPage.round(
+        id: "ongoing.results-selection-summary-r41", group: "Footer and results", title: "Results: the selection summary · round 41", symbol: "sum",
+        status: .judging,
+        summary: "The selection pill (today 89 cells · Sum 34.630.054.833.231 · Avg …) made compact, with a popover of exact figures you can copy.",
+        spec: ResultsSelectionSummaryRound.spec)
+
+    /// Round 41: Results: the error page and its neighbours.
+    static let resultsErrorPage = LabPage.round(
+        id: "ongoing.results-error-page-r41", group: "Footer and results", title: "Results: the error page and its neighbours · round 41", symbol: "exclamationmark.octagon",
+        status: .judging,
+        summary: "How a failed query shows in the results card beside the other states (rows affected, no rows, cancelled, lost connection, running), and whether the editor highlights the statement's first word.",
+        spec: ResultsErrorPageRound.spec)
+
+    /// Round 41: Results: the Messages panel.
+    static let resultsMessages = LabPage.round(
+        id: "ongoing.results-messages-r41", group: "Footer and results", title: "Results: the Messages panel · round 41", symbol: "text.bubble",
+        status: .judging,
+        summary: "The Messages panel without its distractions: categories, two time columns, pink rows, debug metrics and a trash button over Warnings.",
+        spec: ResultsMessagesRound.spec)
+
+    /// Round 41: Results: a popover for each footer pill.
+    static let resultsPillPopovers = LabPage.round(
+        id: "ongoing.results-pill-popovers-r41", group: "Footer and results", title: "Results: a popover for each footer pill · round 41", symbol: "rectangle.3.group.bubble",
+        status: .judging,
+        summary: "Rows, time and status each open their own popover with what that pill is about, instead of one general one.",
+        spec: ResultsPillPopoversRound.spec)
+
+    /// Round 42: Context menus: the rules.
+    static let contextMenuAnatomy = LabPage.round(
+        id: "ongoing.context-menu-anatomy-r42", group: "Explorer tree", title: "Context menus: the rules · round 42", symbol: "contextualmenu.and.cursorarrow",
+        status: .judging,
+        summary: "One set of rules for every menu, from Apple's guidelines (short, about three groups, most used first, one level of submenus, hide what doesn't apply, no shortcuts, destructive last, familiar icons): order, icons, where Properties and Drop go, a title, Copy Name. Pages 42.2 to 42.6 apply them object by object.",
+        spec: ContextMenuAnatomyRound.spec)
+
+    /// Round 42: Context menus: server.
+    static let contextMenuServer = LabPage.round(
+        id: "ongoing.context-menu-server-r42", group: "Explorer tree", title: "Context menus: server · round 42", symbol: "server.rack",
+        status: .judging,
+        summary: "The server's menu: today Refresh All, New Query, Activity Monitor, five tools, Manage Connection, Disconnect, Properties in six groups.",
+        spec: ContextMenuServerRound.spec)
+
+    /// Round 42: Context menus: database.
+    static let contextMenuDatabase = LabPage.round(
+        id: "ongoing.context-menu-database-r42", group: "Explorer tree", title: "Context menus: database · round 42", symbol: "cylinder",
+        status: .judging,
+        summary: "The database's menu: today Refresh Schema, New Query, Maintenance, Tasks (up to 14 items), Advanced Objects, Drop and Properties.",
+        spec: ContextMenuDatabaseRound.spec)
+
+    /// Round 42: Context menus: tables and views.
+    static let contextMenuTable = LabPage.round(
+        id: "ongoing.context-menu-table-r42", group: "Explorer tree", title: "Context menus: tables and views · round 42", symbol: "tablecells",
+        status: .judging,
+        summary: "The table's and view's menu, as in your screenshot: New Query, Data, Structure, Diagram, Script as, Tasks, Drop Table, Properties in five groups.",
+        spec: ContextMenuTableRound.spec)
+
+    /// Round 42: Context menus: columns, routines and the rest.
+    static let contextMenuColumn = LabPage.round(
+        id: "ongoing.context-menu-column-r42", group: "Explorer tree", title: "Context menus: columns, routines and the rest · round 42", symbol: "list.bullet.indent",
+        status: .judging,
+        summary: "Columns have no menu today; procedures, functions, logins and jobs each have their own. What each should offer.",
+        spec: ContextMenuColumnRound.spec)
+
+    /// Round 42: Context menus: folders and sections.
+    static let contextMenuFolder = LabPage.round(
+        id: "ongoing.context-menu-folder-r42", group: "Explorer tree", title: "Context menus: folders and sections · round 42", symbol: "folder",
+        status: .judging,
+        summary: "Tables, Security, Agent Jobs and the other folders: what right-clicking a folder offers.",
+        spec: ContextMenuFolderRound.spec)
+
+    /// Round 43: Settings: the page and its preview.
+    static let settingsPreview = LabPage.round(
+        id: "ongoing.settings-preview-r43", group: "Foundations", title: "Settings: the page and its preview · round 43", symbol: "gearshape",
+        status: .judging,
+        summary: "Today Settings › Editor has one font preview near the top that scrolls away, and a gutter style explained in a sentence. Where a live preview sits so every change shows (top, pinned, per section, beside the settings), drawn on an editor that follows every Editor setting.",
+        spec: SettingsPreviewRound.spec)
+
+    /// Round 43: Settings: a picture for every choice.
+    static let settingsPictures = LabPage.round(
+        id: "ongoing.settings-pictures-r43", group: "Foundations", title: "Settings: a picture for every choice · round 43", symbol: "photo.on.rectangle",
+        status: .judging,
+        summary: "Choices shown as what they look like (gutter styles, mark corners and strength as small renderings) instead of words, and the preview pointing at what a setting changed.",
+        spec: SettingsPicturesRound.spec)
+
+    /// Round 43: Settings: controls and words.
+    static let settingsControls = LabPage.round(
+        id: "ongoing.settings-controls-r43", group: "Foundations", title: "Settings: controls and words · round 43", symbol: "switch.2",
+        status: .judging,
+        summary: "One vocabulary for settings: switches, choices, numbers, descriptions, the info button and resetting a single setting.",
+        spec: SettingsControlsRound.spec)
+
+    /// Round 43: Settings: the template on other pages.
+    static let settingsTemplate = LabPage.round(
+        id: "ongoing.settings-template-r43", group: "Foundations", title: "Settings: the template on other pages · round 43", symbol: "rectangle.stack",
+        status: .judging,
+        summary: "The Editor page's design applied to Results, Sidebar and Appearance, to check it works as the template for every page.",
+        spec: SettingsTemplateRound.spec)
+
+    /// Round 43: Settings: search, reset and overrides.
+    static let settingsScenarios = LabPage.round(
+        id: "ongoing.settings-scenarios-r43", group: "Foundations", title: "Settings: search, reset and overrides · round 43", symbol: "magnifyingglass",
+        status: .judging,
+        summary: "Finding a setting, seeing what you changed, resetting, settings per connection, and what syncs.",
+        spec: SettingsScenariosRound.spec)
+
+    /// Round 44: The blur under the footer.
+    static let footerBlur = LabPage.round(
+        id: "ongoing.footer-blur-r44", group: "Footer and results", title: "The blur under the footer · round 44", symbol: "drop.halffull",
+        status: .judging,
+        summary: "Changes FTR's footer blur (LayoutTokens.EdgeBlur, BackdropEdgeBlur). Every technique that can blur the rows under the footer, each drawn over the same real AppKit grid with Echo's footer, with shared controls for strength, height, curve and tint.",
+        spec: FooterBlurRound.spec)
+
+    /// Round 45: Tool tabs: the main action in the toolbar.
+    static let toolTabMainAction = LabPage.round(
+        id: "ongoing.tool-tab-main-action-r45", group: "Tool tabs", title: "Tool tabs: the main action in the toolbar · round 45", symbol: "play.rectangle",
+        status: .judging,
+        summary: "Moves each tool's main action out of its header into the window toolbar: start-and-stop actions in Run's place, with Run's running look; actions that create something as a +. Changes 37.3's PA1 and ST1 placement (TLT-2).",
+        spec: ToolTabMainActionRound.spec)
+
+    /// Round 46: Server card: opening and closing.
+    static let serverCardUnfold = LabPage.round(
+        id: "ongoing.server-card-unfold-r46", group: "Explorer tree", title: "Server card: opening and closing · round 46", symbol: "rectangle.expand.vertical",
+        status: .judging,
+        summary: "How the dock and the rows arrive when a server card opens, and leave when it closes, beside Echo today and a section switch. Changes TREE-2.5.",
+        spec: ServerCardUnfoldRound.spec)
+
+    /// Round 47: Results: the row-number gutter and the column header.
+    static let resultsGutter = LabPage.round(
+        id: "ongoing.results-gutter-r47", group: "Footer and results", title: "Results: the row-number gutter and the column header · round 47", symbol: "list.number",
+        status: .judging,
+        summary: "The results' row-number column and column header look off (the header's names don't line up with the right-aligned numbers, two lines under the header); make the gutter as good and consistent as the editor's, keeping everything it does.",
+        spec: ResultsGutterRound.spec)
+
+    /// Round 48: Opening, connecting and closing the last tab.
+    static let openingAndClosing = LabPage.round(
+        id: "ongoing.opening-and-closing-r48", group: "Window and cards", title: "Opening, connecting and closing the last tab · round 48", symbol: "play.rectangle",
+        status: .judging,
+        summary: "Three moments at the edges of a session, drawn as one staged story. The welcome loses the name and the mark echoes in as on echodb.dev; connecting stops shoving the welcome aside and lets the server page arrive; closing the last tab returns to the connected server's page instead of the welcome (today the tab delegate clears the active session). Touches WIN-welcome and server page elements.",
+        spec: OpeningAndClosingRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

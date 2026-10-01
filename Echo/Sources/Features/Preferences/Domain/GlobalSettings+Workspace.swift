@@ -91,22 +91,6 @@ enum RailItemSize: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// What clicking a server in the rail does while the tree is hidden.
-enum CollapsedServerClickBehavior: String, Codable, CaseIterable, Sendable {
-    /// Peek at the server's tree; ⌘-click or double-click reopens the tree.
-    case peekCommandReopens
-    case alwaysPeek
-    case alwaysReopen
-
-    var displayName: String {
-        switch self {
-        case .peekCommandReopens: return "Peek, ⌘-click to show the tree"
-        case .alwaysPeek: return "Always peek"
-        case .alwaysReopen: return "Always show the tree"
-        }
-    }
-}
-
 /// Look of monochrome Explorer icons.
 enum SidebarMonochromeVariant: String, Codable, CaseIterable, Sendable {
     /// Expanded folders take the accent colour, so you can see your path.

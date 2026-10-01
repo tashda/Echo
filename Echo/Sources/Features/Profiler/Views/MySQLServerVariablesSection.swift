@@ -9,58 +9,6 @@ struct MySQLServerVariablesSection: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabSectionToolbar {
-                HStack(spacing: SpacingTokens.sm) {
-                    TextField("", text: $viewModel.searchText, prompt: Text("Filter variables"))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 260)
-
-                    Picker("Category", selection: $selectedCategory) {
-                        Text("All").tag("All")
-                        ForEach(viewModel.variableCategories, id: \.self) { category in
-                            Text(category).tag(category)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 160)
-                }
-            } controls: {
-                Button("Refresh") {
-                    Task { await viewModel.loadCurrentSection() }
-                }
-                .buttonStyle(.borderless)
-
-                Button("Script SET") {
-                    if let sql = selectedVariable.map(setSQL(for:)) {
-                        openQueryTab(sql)
-                    }
-                }
-                .buttonStyle(.borderless)
-                .disabled(selectedVariable == nil)
-
-                Button("Script RESET") {
-                    if let sql = selectedVariable.map(resetSQL(for:)) {
-                        openQueryTab(sql)
-                    }
-                }
-                .buttonStyle(.borderless)
-                .disabled(selectedVariable == nil)
-
-                Button("Reset") {
-                    Task { await viewModel.resetSelectedVariable() }
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.selectedVariable == nil)
-
-                Button("Edit…") {
-                    showVariableEditor = true
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.selectedVariable == nil)
-            }
-
-            Divider()
-
             ServerPropertiesVariablesTable(
                 items: filteredVariables,
                 selection: $viewModel.selectedVariableID
@@ -70,6 +18,36 @@ struct MySQLServerVariablesSection: View {
 
             variableDetailPanel
         }
+        .toolTabHeaderControls { headerControls }
+        .tabToolbar(special: editItem, groups: [toolbarGroup])
+    }
+
+    /// Category and search on the tool's header line (round 37.2).
+    @ViewBuilder
+    private var headerControls: some View {
+        ToolTabPickerPill(title: "Category", systemImage: "line.3.horizontal.decrease", selection: $selectedCategory,
+                          options: ["All"] + viewModel.variableCategories, label: { $0 })
+        ToolTabSearchField(prompt: "Filter variables", text: $viewModel.searchText)
+    }
+
+    /// Round 37.5: Edit is the special button; the scripts, Reset and Refresh the group.
+    private var editItem: TabToolbarItem {
+        TabToolbarItem(id: "edit", title: "Edit", symbol: "pencil", isDisabled: viewModel.selectedVariable == nil) { showVariableEditor = true }
+    }
+
+    private var toolbarGroup: [TabToolbarItem] {
+        [
+            TabToolbarItem(id: "scriptSet", title: "Script SET", symbol: "doc.text", isDisabled: selectedVariable == nil) {
+                if let sql = selectedVariable.map(setSQL(for:)) { openQueryTab(sql) }
+            },
+            TabToolbarItem(id: "scriptReset", title: "Script RESET", symbol: "doc.text.below.ecg", isDisabled: selectedVariable == nil) {
+                if let sql = selectedVariable.map(resetSQL(for:)) { openQueryTab(sql) }
+            },
+            TabToolbarItem(id: "reset", title: "Reset to Default", symbol: "arrow.uturn.backward", isDisabled: viewModel.selectedVariable == nil) { [viewModel] in
+                Task { await viewModel.resetSelectedVariable() }
+            },
+            .refresh { [viewModel] in Task { await viewModel.loadCurrentSection() } },
+        ]
     }
 
     private var filteredVariables: [ServerPropertiesViewModel.PropertyItem] {

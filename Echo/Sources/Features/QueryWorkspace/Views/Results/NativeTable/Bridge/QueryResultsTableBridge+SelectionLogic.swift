@@ -149,8 +149,8 @@ extension QueryResultsTableView.Coordinator {
 
         var converted = rowView.convert(rect, from: tableView)
 
-        let topInset: CGFloat = isTop ? 2 : 0
-        let bottomInset: CGFloat = isBottom ? 2 : 0
+        let topInset: CGFloat = isTop ? ResultsGridMetrics.selectionEndInset : 0
+        let bottomInset: CGFloat = isBottom ? ResultsGridMetrics.selectionEndInset : 0
 
         if rowView.isFlipped {
             converted.origin.y += topInset
@@ -162,8 +162,8 @@ extension QueryResultsTableView.Coordinator {
 
         converted.size.height = max(converted.size.height, 0)
 
-        let topRadiusRaw: CGFloat = isTop ? 6 : 0
-        let bottomRadiusRaw: CGFloat = isBottom ? 6 : 0
+        let topRadiusRaw: CGFloat = isTop ? ResultsGridMetrics.selectionCornerRadius : 0
+        let bottomRadiusRaw: CGFloat = isBottom ? ResultsGridMetrics.selectionCornerRadius : 0
         let (topRadius, bottomRadius): (CGFloat, CGFloat)
         if rowView.isFlipped {
             topRadius = bottomRadiusRaw
@@ -256,7 +256,8 @@ extension QueryResultsTableView.Coordinator {
         updateAccentRowNumbers(in: tableView)
     }
 
-    /// Sums the selected cells for the footer (plan R5); huge selections are only counted.
+    /// The selected cells' figures for the footer's pill and its popover (round 41.2); huge
+    /// selections are only counted.
     func updateSelectionSummary(for region: SelectedRegion?) {
         guard let region else {
             if queryState.gridSelectionSummary != nil { queryState.gridSelectionSummary = nil }
@@ -276,7 +277,9 @@ extension QueryResultsTableView.Coordinator {
                 }
             }
         }
-        let summary = GridSelectionSummary.summarize(values, cellCount: cellCount)
+        let columnsShown = queryState.displayedColumns
+        let columnName = columns.count == 1 && columnsShown.indices.contains(columns.lowerBound) ? columnsShown[columns.lowerBound].name : nil
+        let summary = GridSelectionSummary.summarize(values, cellCount: cellCount, columnName: columnName)
         if queryState.gridSelectionSummary != summary { queryState.gridSelectionSummary = summary }
     }
 
@@ -288,8 +291,9 @@ extension QueryResultsTableView.Coordinator {
             if range.lowerBound >= 0 { rows.insert(integersIn: range.lowerBound...range.upperBound) }
         }
         rows.formUnion(tableView.selectedRowIndexes)
+        let selected = rows
         if let hoveredRow { rows.insert(hoveredRow) }
-        (tableView.enclosingScrollView?.superview as? ResultTableContainerView)?.setAccentRows(rows)
+        (tableView.enclosingScrollView?.superview as? ResultTableContainerView)?.setAccentRows(rows, selected: selected)
     }
 }
 #endif

@@ -22,7 +22,7 @@
 | Folder expand | Rows slide down with a fade (native table animation), scaled by speed | Decided |
 | Objects loading | Shimmer placeholder rows, then crossfade to the real rows | Decided |
 | Switching tabs | Instant, like Safari | Decided |
-| Tab overview | The active tab zooms out into its card; picking a card zooms back in | Decided |
+| Tab overview | The ⌘K palette's own scale-and-fade; turning it to the tabs swaps the rows in place (round 35.1) | Decided |
 | Toasts | Stack and melt together; a toast expands into a card on hover | Decided |
 | Floating cards | Grow out of their button (glass morph); close with a click outside or Esc | Decided |
 | Toolbar | Items that come and go per tab morph into their group | Decided |
@@ -33,7 +33,6 @@
 Morphing is wanted wherever it explains a change. The owner loves native glass morphing. *Decided.*
 
 - A new server grows out of the server pill.
-- The server peek card grows out of its server.
 - Toolbar groups merge and split.
 - Toasts stack and merge.
 - A new tab grows out of +.

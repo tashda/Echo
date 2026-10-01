@@ -11,6 +11,14 @@ enum FooterResultsSpec {
     private static let grid = "Echo/Sources/Features/QueryWorkspace/Views/Results/NativeTable/"
     private static let r9 = "decided.round9-footer-scroller-tabs"
     private static let r10 = "decided.round10-footer-and-switcher"
+    private static let r41Header = "ongoing.results-header-lines-r41"
+    private static let r41Selection = "ongoing.results-selection-summary-r41"
+    private static let r41Error = "ongoing.results-error-page-r41"
+    private static let r41Messages = "ongoing.results-messages-r41"
+    private static let r41Pills = "ongoing.results-pill-popovers-r41"
+    private static let section = "Echo/Sources/Features/QueryWorkspace/Views/Results/Section/"
+    private static let popovers = section + "FooterPopovers/"
+    private static let console = "Echo/Sources/Features/QueryWorkspace/Views/Results/ExecutionConsole/"
 
     static func spec<Specimen: View>(stageHeight: CGFloat, @ViewBuilder specimen: @escaping () -> Specimen) -> AreaSpec {
         AreaSpec(code: "FTR", stageHeight: stageHeight, parts: parts, specimen: specimen)
@@ -27,6 +35,17 @@ enum FooterResultsSpec {
                 .motion(.row("Curve", "smooth, no overshoot", token: "echoMotion.settle"), .row("Duration", "0.45s"),
                         .row("Card chrome", "fades out while it folds")),
             ], rounds: [r10], files: [panels]),
+            SpecElement(number: "1.3", name: "State banner", summary: "What the card says when it has no rows: a banner at the top left (round 41.3, EP1).", groups: [
+                .layout(.row("Place", "top left of the card, 16pt padding; symbol, then title and detail, then chips and actions", token: "SpacingTokens.md"),
+                        .row("Symbol", "title 3, in the state's tint; a small spinner while running", token: "TypographyTokens.title3")),
+                .type(.row("Title", "13pt semibold", token: "TypographyTokens.standard"), .row("Detail", "13pt secondary, selectable")),
+                .states(.row("Failed", "red octagon, \"Failed on line 7\", the message; SQL Server's Msg · Level · State as quiet chips (ED0)", token: "ColorTokens.Sidebar.hoverFill"),
+                        .row("Running", "spinner, \"Running\", Waiting for the first rows."), .row("No rows", "\"No rows\" and the command tag, or The query ran and returned nothing."),
+                        .row("Cancelled", "orange stop, \"Cancelled\", You stopped the query after 4 s.")),
+                .behaviour(.row("Actions on a failure", "Show in Editor (default), Messages, Copy Error, small (EA1); Copy Error copies the numbers' line and the message"),
+                           .row("In the editor", "unchanged: the red pill on the statement's first word (HL0)"),
+                           .row("Rejected", "the centred poster (EP0), no page (EP2), the Messages row (EP3)")),
+            ], rounds: [r41Error], files: [section + "ResultsStateBanner.swift", section + "QueryFailureView.swift"]),
         ]),
         SpecPart(number: "2", name: "Footer", summary: "The floating strip at the bottom of the card.", elements: [
             SpecElement(number: "2.1", name: "Footer", summary: "Floats on the card rather than fixing to its edge (FP1).", groups: [
@@ -35,15 +54,15 @@ enum FooterResultsSpec {
                 .material(.row("Background", "none: no bar and no solid band")),
                 .behaviour(.row("Empty space", "click to open or close the panel"), .row("Order", "chip · segments · mode chips · space · metrics")),
             ], rounds: [r9], files: [bar]),
-            SpecElement(number: "2.2", name: "Soft blur behind", summary: "Rows scroll under the footer and blur away softly (FB1).", groups: [
-                .material(.row("Blur radii", "0.75 · 1.5 · 3 · 5 · 7.5 · 10pt, strongest at the edge, a real blur of the AppKit content (round 27: finer steps, was 1 · 3 · 6 · 10)", token: "LayoutTokens.EdgeBlur.radii"),
-                          .row("Fades beyond the footer", "24pt (round 27, was 16)", token: "LayoutTokens.EdgeBlur.fade"),
-                          .row("Step fade", "45% of each step's reach, along an S curve", token: "LayoutTokens.EdgeBlur.step"),
-                          .row("Card tint", "the card colour at 35%, a gradient growing towards the bottom, so the footer stays readable", token: "LayoutTokens.EdgeBlur.tintOpacity")),
-                .behaviour(.row("SwiftUI content", "isn't blurred: only the grid and the editor"),
-                           .row("Where it lives", "in the scroll view's clip view, under the scroll bars, following the visible area (round 27)")),
+            SpecElement(number: "2.2", name: "Soft blur behind", summary: "Rows scroll under the footer and soften into the system's material (FB1, round 44).", groups: [
+                .material(.row("Material", "the system's ultra-thin material (BT4); stacked blur steps, one Core Image variable blur and a plain fade were not chosen"),
+                          .row("Reach", "the footer and 40pt above it (BH3)", token: "LayoutTokens.EdgeBlur.materialReach"),
+                          .row("Fade", "from clear at the top to full at the card's edge, (e^(4.5t) − 1) / (e^4.5 − 1): half way up it is only 10%, so no row meets it at once (CV6)", token: "LayoutTokens.EdgeBlur.materialGrowth"),
+                          .row("Card tint", "the card colour at 15% over the material, faded the same way (TT1)", token: "LayoutTokens.EdgeBlur.materialTintOpacity")),
+                .behaviour(.row("Only query tabs", "the results and the editor; other tabs' footers keep a light card tint (35%, easing in), as the owner asked after round 44"),
+                           .row("Where it lives", "behind the footer in the card (ContentPanelCards), over the grid and its scroll bars (round 44)")),
                 .behaviour(.row("Why", "a hard edge left a solid band; a glass bar with glass pills inside would be glass on glass")),
-            ], rounds: [r9], files: [blur]),
+            ], rounds: [r9, "ongoing.footer-blur-r44"], files: [blur, "Echo/Sources/Shared/DesignSystem/Components/FooterMaterialBlur.swift"]),
             SpecElement(number: "2.3", name: "Segments", summary: "One glass pill of icons beside the chip: Results, Messages, Execution Plan.", groups: [
                 .material(.row("Glass", "one Liquid Glass capsule"), .row("Active", "a card-coloured capsule with a soft shadow", token: "ShadowTokens.railSelection")),
                 .layout(.row("Segment", "28 × 20pt", token: "LayoutTokens.Footer.segmentWidth"), .row("Pill padding", "2pt", token: "LayoutTokens.Footer.pillPadding")),
@@ -61,6 +80,7 @@ enum FooterResultsSpec {
                 .material(.row("Glass", "Liquid Glass capsule; interactive when the tab can switch database")),
                 .layout(.row("Height", "24pt", token: "LayoutTokens.Footer.chipHeight"), .row("Horizontal padding", "10pt", token: "LayoutTokens.Footer.chipHorizontalPadding")),
                 .type(.row("Font", "11pt primary: server · database, truncated in the middle", token: "TypographyTokens.detail")),
+                .material(.row("Server dot", "with Server Header Color set to Server's Color, a 6pt dot of the server's colour before the name, 6pt from it (round 30.1, CO2)", token: "EnvironmentValues.serverPillColor")),
                 .behaviour(.row("Click", "opens the database switcher"), .row("Can't switch", "disabled; the tooltip is the name"), .row("Tooltip", "Switch Database")),
             ], rounds: [r10], files: [bar]),
             SpecElement(number: "2.5", name: "Metric pills", summary: "A glass pill per entry at the right: status, selection summary, rows and time.", groups: [
@@ -68,9 +88,32 @@ enum FooterResultsSpec {
                 .layout(.row("Spacing", "4pt between pills", token: "SpacingTokens.xxs"), .row("Order", "selection summary, rows, time, then the status at the far right")),
                 .type(.row("Selection summary", "11pt tabular digits, secondary"), .row("Rows", "the count in 11pt monospaced medium, its label tertiary"),
                       .row("Time", "11pt monospaced medium, secondary")),
-                .behaviour(.row("Click", "opens or closes the panel, or toggles the statistics popover when the tab has one"),
+                .behaviour(.row("Click", "a pill opens its own popover above it (round 41.5, PP2); a pill without one, or the space between, opens or closes the panel"),
                            .row("Why one each", "one big pill and plain text were rejected"), .row("Style", "pill per entry", token: "FooterMetricsStyle.pillPerEntry")),
-            ], rounds: [r10], files: [bar]),
+            ], rounds: [r10, r41Pills], files: [bar, "Echo/Sources/Shared/DesignSystem/Components/BottomPanelStatusBar+Metrics.swift"]),
+            SpecElement(number: "2.8", name: "Selection pill", summary: "The count, \"89 cells\", and by Setting the sum and/or average; the exact figures in its popover (round 41.2).", groups: [
+                .type(.row("Pill", "11pt tabular digits, secondary: \"89 cells\" (SP3)"),
+                      .row("Setting", "Settings › Results › Selection summary: Count (default), Count and sum, Count and average, Count, sum and average, in the locale's short form: \"89 cells · Sum 34.6T · Avg 389B\"; text stays a count", token: "GlobalSettings.resultsSelectionPill")),
+                .layout(.row("Popover", "260pt: the title (\"89 cells in bagno\" for one column) and Copy All, then a line per figure", token: "LayoutTokens.FloatingSurface.smallWidth")),
+                .behaviour(.row("Figures, numbers", "Count, Sum, Average, Min, Max, Median, Distinct, Empty (FG1); exact, with the selection's decimals", token: "GridSelectionSummary.figures"),
+                           .row("Figures, text", "Count, Distinct, Empty (TX0)"), .row("Copy", "a Copy button on the line under the pointer; Copy All as label–tab–value lines (PO1)"),
+                           .row("Shown", "for two cells or more; over 50,000 cells only counted", token: "GridSelectionSummary.maximumSummedCells")),
+            ], rounds: [r41Selection], files: [popovers + "SelectionSummaryPopover.swift", popovers + "FooterPopoverContent.swift"]),
+            SpecElement(number: "2.9", name: "Rows popover", summary: "What the rows are and what to do with them (round 41.5, PR0).", groups: [
+                .layout(.row("Width", "260pt", token: "LayoutTokens.FloatingSurface.smallWidth"), .row("Title", "1,204 rows · 3 columns")),
+                .behaviour(.row("Lines", "Result 1 of 3 (with several sets), Loaded 1,204 of 1,204, In memory"), .row("Actions", "none: exporting and copying results is the grid's right-click menu (Copy, Copy with Headers, Copy as Shown, Copy As, Save As, Select All)")),
+            ], rounds: [r41Pills], files: [popovers + "RowsPillPopover.swift"]),
+            SpecElement(number: "2.10", name: "Time popover", summary: "Where the time went (round 41.5, PT0).", groups: [
+                .layout(.row("Width", "320pt", token: "LayoutTokens.FloatingSurface.mediumWidth"), .row("Bar", "8pt capsule: sending (tertiary), waiting for the first row (orange), reading rows (accent)", token: "QueryRunTimeline")),
+                .behaviour(.row("Lines", "Started, Finished, Last runs (this tab's previous runs, newest first, up to 4)"), .row("Actions", "none (no Run Again)"),
+                           .row("Not yet", "server CPU: Echo doesn't get it from the drivers")),
+            ], rounds: [r41Pills], files: [popovers + "TimePillPopover.swift"]),
+            SpecElement(number: "2.11", name: "Status popover", summary: "What happened and when, and what to do next (round 41.5, PS0).", groups: [
+                .layout(.row("Width", "320pt", token: "LayoutTokens.FloatingSurface.mediumWidth"), .row("Title", "Completed at 15:34:51, Failed on line 7, Running, Cancelled at …")),
+                .behaviour(.row("Lines", "the error message, Transaction (None open, Open since, Failed), Messages (count)"),
+                           .row("Actions", "Cancel while running; Commit and Roll Back in a transaction (round 21, TA2, now in the popover); Show in Editor after an error. No Messages or Run Again (owner)"),
+                           .row("Not yet", "the session (SPID): Echo doesn't get it from the drivers")),
+            ], rounds: [r41Pills, "ongoing.pg-transaction-state-r21"], files: [popovers + "StatusPillPopover.swift"]),
             SpecElement(number: "2.6", name: "Status", summary: "A dot and a word: Ready, Running, Error; or an icon and a word in a tint.", groups: [
                 .type(.row("Font", "detail 11pt, secondary", token: "TypographyTokens.detail"),
                       .row("With an icon", "the icon 11pt semibold and the word both in the tint (round 21, TL2)")),
@@ -118,13 +161,15 @@ enum FooterResultsSpec {
                 .type(.row("Name", "12pt semibold"), .row("Type", "10pt monospaced, under the name"),
                       .row("Type wording", "as the server names it; on PostgreSQL without the OID Echo carries for decoding (DATE, not DATE(1082))")),
                 .layout(.row("Height", "36pt", token: "ResultsGridMetrics.headerHeight")),
+                .material(.row("Line under it", "one hairline at the header's true bottom, level with the row-number column's: the header paints its full height in the card's colour and draws it, and the header cells draw only their text and arrow, as the system's cell drawing adds a second line 4pt higher (round 41.1, HL1, and round 47)"),
+                          .row("Column dividers", "short separators between columns, kept: they mark where to drag a width (VD0)", token: "NSColor.separatorColor")),
                 .behaviour(.row("Sort arrow", "a 14pt box at the trailing edge, shown while hovered or sorted; click it to sort, click elsewhere to select the column",
                                 token: "ResultsGridMetrics.sortIndicatorSize"),
                            .row("Past the last column", "the header stays empty: AppKit draws it with a copy of the last cell, which shows no type or arrow there")),
-            ], rounds: ["decided.results-grid"], files: [grid + "Cells/ResultTableHeaderCell.swift", grid + "Cells/ResultTableHeaderView.swift"]),
+            ], rounds: ["decided.results-grid", r41Header], files: [grid + "Cells/ResultTableHeaderCell.swift", grid + "Cells/ResultTableHeaderView.swift"]),
             SpecElement(number: "4.3", name: "Row hover", summary: "A faint rounded tint on the row under the pointer.", groups: [
                 .material(.row("Fill", "hover fill", token: "ColorTokens.Sidebar.hoverFill")),
-                .layout(.row("Inset", "2pt by 1pt", token: "ResultsGridMetrics.hoverHorizontalInset / hoverVerticalInset"), .row("Corner", "5pt", token: "ResultsGridMetrics.hoverCornerRadius")),
+                .layout(.row("Inset", "8pt by 1pt, the shaded rows' shape: Echo draws the shaded rows itself so a hovered row is never wider than its shade", token: "ResultsGridMetrics.hoverHorizontalInset / hoverVerticalInset"), .row("Corner", "6pt", token: "ResultsGridMetrics.hoverCornerRadius")),
                 .behaviour(.row("Row number", "turns accent")),
             ], rounds: ["decided.results-grid"], files: [grid + "Cells/ResultTableRowView.swift"]),
             SpecElement(number: "4.4", name: "Selection", summary: "One rounded outline around the selected range and a stronger ring on the active cell.", groups: [
@@ -132,26 +177,52 @@ enum FooterResultsSpec {
                           .row("Active cell", "accent ring, 2pt, 4pt corner", token: "ResultsGridMetrics.activeCellRingWidth / activeCellCornerRadius")),
                 .behaviour(.row("Row numbers", "of the selected rows turn accent")),
             ], rounds: ["decided.results-grid"], files: [grid + "Cells/ResultTableRowView.swift", grid + "Cells/ResultTableRowNumberView.swift"]),
-            SpecElement(number: "4.5", name: "Row numbers", summary: "A column of monospaced numbers at the left.", groups: [
-                .type(.row("Font", "12pt monospaced digits", token: "ResultsGridMetrics.rowNumberFontSize")),
-                .layout(.row("Width", "at least 6 digits", token: "ResultsGridMetrics.minimumRowNumberDigits"), .row("Padding", "2pt leading, 5pt trailing")),
-            ], files: [grid + "Cells/ResultTableRowNumberView.swift"]),
-            SpecElement(number: "4.6", name: "Scroll bars", summary: "The system's bar on the footer's top edge, as wide as the footer; the blur rises past it while it shows.", groups: [
+            SpecElement(number: "4.5", name: "Row numbers", summary: "The gutter at the left, in its own style, with right-aligned numbers (round 47).", groups: [
+                .type(.row("Font", "12pt monospaced digits, tertiary; accent for selected and hovered rows", token: "ResultsGridMetrics.rowNumberFontSize"),
+                      .row("Alignment", "right (NA0)")),
+                .layout(.row("Width", "fits the digits, at least 3, and grows; reserved for the known row count so it doesn't move while rows stream in (GW1)", token: "ResultsGridMetrics.minimumRowNumberDigits"),
+                        .row("Padding", "8pt either side (the lane adds its 5pt inset)", token: "ResultsGridMetrics.rowNumberLeadingPadding / rowNumberTrailingPadding")),
+                .material(.row("Style", "Settings › Results › Row Number Style, Hairline by default, apart from the editor's gutter: Subtle only numbers; Hairline a 0.5pt edge below the header (none through the header row); Column a quiet full-height tint with an edge; Lane an inset 5pt rounded lane, no edge (SS0, GS2)", token: "GlobalSettings.resultsGutterStyle"),
+                          .row("Selected rows", "the number accent on the selection's own tint, accent at 18% (SR1): one rounded block per run of selected rows, inset 4pt from the gutter's sides, ends 2pt in and 6pt round like the selection beside it; a hovered row has the grid's hover tint", token: "ResultsGridMetrics.gutterTintInset / selectionCornerRadius"),
+                          .row("Shaded rows", "stop at the gutter (RS1)")),
+                .behaviour(.row("Click a number", "selects its row"), .row("Drag", "extends the selection and autoscrolls"), .row("Right-click", "the row menu"),
+                           .row("The # in the corner", "selects every cell on a click, with the tooltip Select All and no hover tint, as no column header has one (GC2)"), .row("Setting", "Settings › Results › Show row numbers")),
+            ], rounds: ["ongoing.results-gutter-r47"], files: [grid + "Cells/ResultTableRowNumberView.swift", grid + "SystemHeaderLineHider.swift"]),
+            SpecElement(number: "4.6", name: "Scroll bars", summary: "The system's bar on the footer's top edge, as wide as the footer, on the footer's material.", groups: [
                 .layout(.row("Horizontal", "its thumb ends 42pt above the card's edge: 9pt above the footer's pills, the gap the pills keep above the edge", token: "LayoutTokens.Footer.scrollBarBottom"),
                         .row("Length", "as wide as the footer: from its left padding, over the row numbers, to its right padding (round 27, L2)", token: "SpacingTokens.sm"),
                         .row("How", "the footer's room as the content inset, and a 1pt scroller inset on top (AppKit adds them; the thumb sits 3pt inside its frame)", token: "LayoutTokens.Footer.scrollerInset(overFooter:)"),
                         .row("Vertical", "runs down to the horizontal bar"),
-                        .row("Soft edges", "the rows fade 32pt into the card's colour at a side where more columns wait", token: "LayoutTokens.EdgeBlur.sideFadeWidth")),
+                        .row("Sides", "no soft edge: the rows stay sharp at both sides (round 27's X1 was removed after round 47: it veiled the first and last column)"),
+                        .row("After the last column", "44pt of empty room, so its right edge can be grabbed and widened", token: "ResultsGridMetrics.trailingColumnRoom")),
                 .material(.row("Look", "the system's overlay bar, no track (T1)")),
-                .motion(.row("Blur rises", "while the bar shows, the blur rises past its widest thumb in 0.32s and settles 0.9s after the last scroll, in 0.5s (U5); only the blur's masks move, on the render server", token: "LayoutTokens.EdgeBlur.raiseDuration / settleDuration / raisedHold")),
+                .motion(.row("Blur rises", "under a footer, nothing rises: the footer's material already reaches past the bar (round 44); elsewhere, while the bar shows, the blur rises past its widest thumb in 0.32s and settles 0.9s after the last scroll, in 0.5s (U5)", token: "LayoutTokens.EdgeBlur.raiseDuration / settleDuration / raisedHold")),
                 .behaviour(.row("Shown", "while scrolling, as macOS does"),
-                           .row("Under the footer", "the bars sit above the footer's blur, which lives in the clip view under them"),
-                           .row("Everywhere", "every overlay horizontal bar in Echo gets the same rising blur, SwiftUI tables included (ScrollBarBlur, installed once at launch)"),
+                           .row("Under the footer", "the footer's material lies over the bars too, at about 6% where they are, so they stay clear"),
+                           .row("Only here", "only the results grid and the editor: the owner took back the blur behind every other bar in Echo after round 44 (it looked wrong in tool tabs such as Agent Jobs)"),
                            .row("Same footer placement", "the editor, Messages and Extended Events place their bars the same way (footerScrollRoom for SwiftUI)")),
             ], rounds: ["ongoing.results-scrollers-r27"],
                files: [grid + "ResultTableContainerView.swift", "Echo/Sources/Shared/DesignSystem/Components/FooterScrollOverlay.swift",
-                       "Echo/Sources/Shared/DesignSystem/Components/ScrollBarBlur.swift", "Echo/Sources/Shared/DesignSystem/Components/ScrollSideFades.swift",
-                       "Echo/Sources/Shared/DesignSystem/Components/FooterScrollRoom.swift"]),
+                       "Echo/Sources/Shared/DesignSystem/Components/ScrollBarBlur.swift", "Echo/Sources/Shared/DesignSystem/Components/FooterScrollRoom.swift"]),
+        ]),
+        SpecPart(number: "5", name: "Messages", summary: "What the server said, by statement (round 41.4).", elements: [
+            SpecElement(number: "5.1", name: "Top", summary: "No strip: the counts, which filter, and a ⋯ menu (MT1).", groups: [
+                .type(.row("Counts", "11pt: \"1 error\" semibold red, \"2 warnings\" orange, \"3 messages\" secondary; only those there are", token: "TypographyTokens.detail")),
+                .behaviour(.row("Click a count", "shows only those, on a selected capsule; click again for all", token: "ColorTokens.Sidebar.selectedFill"),
+                           .row("⋯ menu", "Copy All Messages, Clear Messages")),
+            ], rounds: [r41Messages], files: [console + "ExecutionConsoleView+Counts.swift"]),
+            SpecElement(number: "5.2", name: "Statement groups", summary: "Each statement a heading, its messages under it (ML1).", groups: [
+                .type(.row("Heading", "\"Line 7\" 11pt semibold, the statement's first line 11pt monospaced, both secondary; the time at the right, tertiary")),
+                .layout(.row("Messages", "12pt in from the heading", token: "SpacingTokens.sm"), .row("Between groups", "8pt", token: "SpacingTokens.xs")),
+                .behaviour(.row("Line 7", "puts the editor on that line"), .row("Scripts", "a PostgreSQL script's statements each head their own line"),
+                           .row("No statement", "a connection's or a maintenance task's messages have no heading")),
+            ], rounds: [r41Messages], files: [console + "ExecutionConsoleView.swift", console + "ExecutionConsoleView+Messages.swift", "Echo/Sources/Features/QueryWorkspace/Domain/QueryMessageStatement.swift"]),
+            SpecElement(number: "5.3", name: "Message", summary: "A symbol and the text; errors red symbol, semibold text, no fill (EE1).", groups: [
+                .type(.row("Text", "13pt primary; an error's semibold", token: "TypographyTokens.standard"),
+                      .row("SQL Server's numbers", "under an error: Msg 248, Level 16, State 1, Line 7 in 11pt tertiary, the line a link (EM1, LL1)")),
+                .behaviour(.row("Symbol", "for a message from the server it opens \"From the server\": number, level, state, line, procedure and server (SQL Server), other fields the driver passed on (PostgreSQL's SQLSTATE, detail, hint) and the text as sent, with Copy; Echo's own lines have a plain symbol", token: "ServerMessagePopover"),
+                           .row("Time", "on hover"), .row("Gone", "the category and delta columns, Echo's own started/finished/failed lines (EM0), the execution metrics row (DM1: in the time popover)")),
+            ], rounds: [r41Messages], files: [console + "ExecutionConsoleView+Messages.swift", console + "ServerMessagePopover.swift"]),
         ]),
     ]
 }

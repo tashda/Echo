@@ -25,11 +25,34 @@ public enum ShadowTokens {
     )
 
     /// Editor and results cards lifted off the canvas (Design/06-tokens.md).
+    /// Light mode only: on a dark canvas it can't be seen, so dark mode uses the two below (round 32, DS5).
     public static let workspaceCard = Shadow(
-        color: Color.black.opacity(0.12),
+        color: Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .clear : NSColor.black.withAlphaComponent(0.12)
+        }),
         radius: 10,
         x: 0,
         y: 4
+    )
+
+    /// Dark mode only: a small contact shadow that grounds the card.
+    public static let workspaceCardContact = Shadow(
+        color: Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor.black.withAlphaComponent(0.6) : .clear
+        }),
+        radius: 3,
+        x: 0,
+        y: 1
+    )
+
+    /// Dark mode only: a wide ambient shadow under the contact one.
+    public static let workspaceCardAmbient = Shadow(
+        color: Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor.black.withAlphaComponent(0.4) : .clear
+        }),
+        radius: 24,
+        x: 0,
+        y: 10
     )
 
     /// Room a view needs around a workspace card so its shadow isn't cut off.

@@ -4,16 +4,14 @@ import SwiftUI
 /// once rows scroll under it, a light wash of the card colour, strongest at the top. The rows
 /// blur and fade themselves (`ExplorerRowEdgeBlur`), so together they read like the system's
 /// soft scroll edge. It replaces the grey material.
+///
+/// It fades in over the first 12pt the rows scroll under the header, as a visual effect from
+/// where the scroll view has the header, so a scrolled frame doesn't run its body (2026-10-01).
 public struct ExplorerPinnedHeaderWash: View {
-    let restingMinY: CGFloat
-    let scroll: ExplorerTreeScrollState
+    /// How far rows have to scroll under the header for the wash to show fully.
+    public nonisolated static let fadeDistance: CGFloat = SpacingTokens.sm
 
-    public init(restingMinY: CGFloat, scroll: ExplorerTreeScrollState) {
-        self.restingMinY = restingMinY
-        self.scroll = scroll
-    }
-
-    private var isPinned: Bool { scroll.offset > restingMinY + SpacingTokens.micro }
+    public init() {}
 
     public var body: some View {
         LinearGradient(stops: [
@@ -21,8 +19,10 @@ public struct ExplorerPinnedHeaderWash: View {
             .init(color: ColorTokens.Workspace.card.opacity(0.45), location: 0.55),
             .init(color: ColorTokens.Workspace.card.opacity(0), location: 1),
         ], startPoint: .top, endPoint: .bottom)
-        .opacity(isPinned ? 1 : 0)
-        .animation(.easeOut(duration: 0.12), value: isPinned)
+        .visualEffect { effect, proxy in
+            let scrolledUnder = -proxy.frame(in: .scrollView).minY
+            return effect.opacity(min(max(scrolledUnder / Self.fadeDistance, 0), 1))
+        }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

@@ -14,7 +14,7 @@ struct ObjectBrowserSidebarView: View {
     @State var viewModel = ObjectBrowserSidebarViewModel()
     @State var sheetState = SidebarSheetState()
 
-    private var sessions: [ConnectionSession] {
+    var sessions: [ConnectionSession] {
         environmentState.sessionGroup.sessions
     }
 
@@ -116,7 +116,11 @@ struct ObjectBrowserSidebarView: View {
                     fadingConnectionIDs: viewModel.dockFadingConnectionIDs,
                     switchingConnectionIDs: viewModel.dockSwitchingConnectionIDs,
                     hiddenRowsConnectionIDs: viewModel.dockHiddenRowsConnectionIDs,
+                    foldingConnectionIDs: viewModel.foldingConnectionIDs,
+                    foldAnchor: viewModel.foldAnchor,
                     contextMenu: { contextMenu(for: $0) },
+                    doubleClick: { doubleClickAction(for: $0) },
+                    emptySpaceMenu: { emptySpaceMenu() },
                     revealAnimated: viewModel.revealAnimated
                 )
                 .background(Color.clear)
@@ -264,6 +268,8 @@ struct ObjectBrowserSidebarView: View {
     private func handleSelectionChange(_ node: ObjectBrowserNode?) {
         guard let node else { return }
         viewModel.selectedNodeID = node.id
+        ExplorerSelectionMenu.shared.update(menu: contextMenu(for: node))
+        viewModel.onColumnRename = { owner, column, name in showRename(of: column, in: owner, to: name) }
         guard let session = node.row.session else { return }
         selectedConnectionID = session.connection.id
         environmentState.sessionGroup.setActiveSession(session.id)
@@ -286,8 +292,8 @@ struct ObjectBrowserSidebarView: View {
                 databaseName: databaseName,
                 objectID: object.id
             )
-        case .action(_, let kind):
-            perform(action: kind, session: session)
+        case .action(_, let kind, let databaseName):
+            perform(action: kind, session: session, databaseName: databaseName)
         default:
             break
         }
@@ -296,6 +302,10 @@ struct ObjectBrowserSidebarView: View {
     /// Opens or closes a row. Folders and servers animate with `expand`, the same animation the
     /// list uses for rows arriving after a load, so everything that moves shares one curve.
     func handleExpansionChange(of node: ObjectBrowserNode, isExpanded: Bool, animated: Bool = true) {
+        if animated, case .server(let session) = node.row {
+            foldServerCard(of: session, isExpanded: isExpanded)
+            return
+        }
         if animated { WindowDragPause.pauseWorkspace(for: 0.22 * motion.durationScale + 0.1) }
         withAnimation(animated ? motion.expand : nil) {
             if case .server(let session) = node.row {
@@ -321,10 +331,18 @@ struct ObjectBrowserSidebarView: View {
         }
     }
 
-    private func perform(action: ExplorerNodeKind, session: ConnectionSession) {
+    private func perform(action: ExplorerNodeKind, session: ConnectionSession, databaseName: String?) {
         let connectionID = session.connection.id
 
         switch action {
+        case .securityOverview:
+            // Round 38: the row under a Security folder opens what its menu's Open Security
+            // Management opens, for the server or for that database.
+            if let databaseName {
+                environmentState.openDatabaseSecurityTab(connectionID: connectionID, databaseName: databaseName)
+            } else {
+                environmentState.openServerSecurityTab(connectionID: connectionID)
+            }
         case .maintenance:
             environmentState.openMaintenanceTab(connectionID: connectionID)
         case .serverProperties:

@@ -9,6 +9,7 @@ extension ExplorerBlueprint {
             ItemFolder(.databaseSnapshots, loading: .databaseSnapshots)
         }
         Folder(.serverSecurity, loading: .serverSecurity) {
+            Tool(.securityOverview)
             Folder(.logins) {
                 Items(.logins)
                 Folder(.certificateLogins, hidesWhenEmpty: true) {
@@ -41,6 +42,7 @@ extension ExplorerBlueprint {
         ObjectFolders(.tables, .views, .functions, .procedures, .triggers, .synonyms)
         WhenOnline {
             Folder(.databaseSecurity, loading: .databaseSecurity) {
+                Tool(.securityOverview)
                 ItemFolder(.users)
                 ItemFolder(.databaseRoles)
                 ItemFolder(.applicationRoles)

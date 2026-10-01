@@ -1,0 +1,17 @@
+{
+  "title": "Demo: fast rounds",
+  "area": "window",
+  "date": "2026-10-02",
+  "feedback": "Make fast rounds text only.",
+  "summary": "This is a demo to check the Inbox; delete it after.",
+  "analysis": [
+    {
+      "heading": "What I checked",
+      "body": "The Inbox reading pane renders this from **State/fast-rounds**."
+    }
+  ],
+  "recommendation": "Accept to see the status move.",
+  "changes": [
+    "Nothing"
+  ]
+}

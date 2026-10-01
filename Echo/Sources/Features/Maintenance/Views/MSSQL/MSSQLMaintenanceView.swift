@@ -18,17 +18,13 @@ struct MSSQLMaintenanceView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            TabSectionPicker(
-                "Maintenance Section",
-                selection: $viewModel.selectedSection,
-                itemCount: MSSQLMaintenanceViewModel.MaintenanceSection.allCases.count
-            ) {
-                ForEach(MSSQLMaintenanceViewModel.MaintenanceSection.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            }
-        } content: {
+            // Its pages are in the tab (round 36.2); the database on the header line (37.2).
             sectionContent
+        }
+        .toolTabHeaderControls {
+            ToolTabDatabasePill(databases: viewModel.databaseList, selected: viewModel.selectedDatabase) { database in
+                Task { await viewModel.selectDatabase(database) }
+            }
         }
         .task {
             await viewModel.loadDatabases()

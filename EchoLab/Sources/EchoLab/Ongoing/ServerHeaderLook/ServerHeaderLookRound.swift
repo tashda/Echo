@@ -8,6 +8,10 @@ import SwiftUI
 ///
 /// Rev 2 (the owner's notes): only HD0, HD4, HD5 (a better line), HD7 and HD8 stay, with variations
 /// on each; plain (HD0), the header's colour and the dock icon's colour become settings.
+///
+/// Accepted 2026-10-01: HD4 by default, with HD0, HD12, HD7 and HD16 to choose in Settings ›
+/// Appearance › Server Header; CS1 by default with None and Accent in Server Header Color; SL0;
+/// DK1 as Current Dock Icon; HS0 as that menu; CO2; SC1. Built into Echo as TREE-2.6.
 @MainActor
 enum ServerHeaderLookRound {
     private static let cardWidth = LayoutTokens.Workspace.treeIdealWidth + SpacingTokens.lg
@@ -15,7 +19,7 @@ enum ServerHeaderLookRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("style", "Header", LabSHStyle.self, default: .glow,
+            .of("style", "Header", LabSHStyle.self, default: .wash,
                 question: "Try the headers in the Proposal and compare them in Every header, then look at Three servers. Which one should Echo draw when the header is coloured?",
                 recommend: .glow,
                 why: "A close call with HD4, which you picked: HD10 keeps its soft colour but puts it behind the name, where you look, so the dock and the first rows stay on the plain card and a red production server reads as marked, not as an alarm. HD9 and the banners colour more of the card than you want to look at all day; the lines are calm but carry little colour; the plates put glass on the card, which the window rules keep for controls.",

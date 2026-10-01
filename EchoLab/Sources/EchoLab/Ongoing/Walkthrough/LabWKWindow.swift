@@ -14,6 +14,13 @@ struct LabWKSurfaces {
     var topHighlight: Color?
     var shadowOpacity: Double = 0.12
     var shadowRadius: CGFloat = 10
+    var shadowY: CGFloat = 4
+    /// A second, wider shadow under the first (a contact shadow plus an ambient one).
+    var ambientShadowOpacity: Double = 0
+    var ambientShadowRadius: CGFloat = 24
+    var ambientShadowY: CGFloat = 10
+    /// A line just outside the edge.
+    var outerLine: Color?
 
     static let echo = LabWKSurfaces()
 }
@@ -29,7 +36,12 @@ struct LabWKCard: ViewModifier {
         content
             .clipShape(shape)
             .background {
-                shape.fill(fill).shadow(color: .black.opacity(surfaces.shadowOpacity), radius: surfaces.shadowRadius, y: 4)
+                shape.fill(fill)
+                    .shadow(color: .black.opacity(surfaces.shadowOpacity), radius: surfaces.shadowRadius, y: surfaces.shadowY)
+                    .shadow(color: .black.opacity(surfaces.ambientShadowOpacity), radius: surfaces.ambientShadowRadius, y: surfaces.ambientShadowY)
+            }
+            .background {
+                if let outer = surfaces.outerLine { shape.inset(by: -0.5).stroke(outer, lineWidth: 1) }
             }
             .overlay {
                 shape.strokeBorder(surfaces.edge, lineWidth: surfaces.edgeWidth).allowsHitTesting(false)

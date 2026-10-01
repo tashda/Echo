@@ -43,7 +43,6 @@ private struct JobQueueWindowContent: View {
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
     @State private var showInspector = false
-    @State private var showNewJobSheet = false
     @State private var refreshPhase: RefreshPhase = .idle
     @State private var refreshClearTask: Task<Void, Never>?
 
@@ -78,36 +77,7 @@ private struct JobQueueWindowContent: View {
                 .inspectorColumnWidth(min: 220, ideal: 280, max: 400)
         }
         .toolbar(id: "jobqueue-window") {
-            // Play + New Job (same group)
-            ToolbarItem(id: "jobqueue.play", placement: .primaryAction) {
-                if let vm = viewModel, vm.selectedJobID != nil {
-                    ToolbarRunButton(
-                        isRunning: vm.isJobRunning,
-                        idleLabel: "Start Job",
-                        runningLabel: "Stop Job"
-                    ) {
-                        Task {
-                            if vm.isJobRunning {
-                                await vm.stopSelectedJob()
-                            } else {
-                                await vm.startSelectedJob()
-                            }
-                        }
-                    }
-                    .disabled(!(connectionSession?.permissions?.canManageAgent ?? true))
-                }
-            }
-
-            ToolbarItem(id: "jobqueue.newjob", placement: .primaryAction) {
-                Button {
-                    showNewJobSheet = true
-                } label: {
-                    Label("New Job", systemImage: "plus")
-                }
-                .help("New Job")
-                .disabled(!(connectionSession?.permissions?.canManageAgent ?? true))
-            }
-
+            // Start/Stop and New Job are on the Jobs pane's header, as in the tab (round 33, JA1).
             // Refresh (separate group)
             ToolbarItem(id: "jobqueue.refresh", placement: .primaryAction) {
                 refreshButton
@@ -126,14 +96,6 @@ private struct JobQueueWindowContent: View {
                 .glassEffect(.regular.interactive())
             }
             .sharedBackgroundVisibility(.hidden)
-        }
-        .sheet(isPresented: $showNewJobSheet) {
-            if let session = connectionSession {
-                NewAgentJobSheet(session: session, environmentState: environmentState) {
-                    showNewJobSheet = false
-                    Task { await viewModel?.reloadJobs() }
-                }
-            }
         }
         .onChange(of: environmentState.dataInspectorContent) { _, newValue in
             if newValue != nil && !showInspector {

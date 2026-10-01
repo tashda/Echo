@@ -68,11 +68,15 @@ struct ObjectBrowserRowView: View {
             folderRow(folder)
         case .object(let session, _, let object):
             objectRow(object, session: session)
-        case .column(let column):
-            columnRow(column: column)
+        case .column(let column, let owner):
+            if owner.isRenaming {
+                ExplorerColumnRenameRow(name: column.name, depth: depth, commit: owner.commitRename, cancel: owner.cancelRename)
+            } else {
+                columnRow(column: column, databaseType: owner.session.connection.databaseType)
+            }
         case .item(let row):
             itemRow(row)
-        case .action(let session, let kind):
+        case .action(let session, let kind, _):
             actionRow(kind, session: session)
         case .placeholder(let title, let kind):
             SidebarRow(
@@ -101,9 +105,12 @@ struct ObjectBrowserRowView: View {
                 layout: layout,
                 selectedID: selectedID,
                 style: projectStore.globalSettings.sidebarDockIconStyle,
-                accentColor: resolvedAccentColor(for: session.connection),
+                // The current section: the header's colour (round 30.1, DK1) or the accent.
+                accentColor: serverHeaderPaint(for: session.connection).dockColor,
                 duotoneColor: { $0.mix(with: ColorTokens.Text.secondary, by: ColorTokens.Explorer.colorfulSoftening) }
             )
+        case .filter(let filter):
+            ExplorerFolderFilterRow(filter: filter, depth: depth)
         case .message(let title, let systemImage):
             SidebarRow(
                 depth: depth,

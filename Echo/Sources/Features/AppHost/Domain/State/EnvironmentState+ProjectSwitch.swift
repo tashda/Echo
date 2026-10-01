@@ -20,7 +20,14 @@ extension EnvironmentState {
     func confirmProjectSwitch() {
         guard let project = pendingProjectSwitch else { return }
         pendingProjectSwitch = nil
-        executeProjectSwitch(to: project)
+        // Unsaved query tabs ask before the connections close (owner, 2026-10-01); Cancel keeps
+        // the current project.
+        let tabs = tabStore.tabs
+        Task { @MainActor [weak self] in
+            guard let self, await self.confirmUnsavedChangesBeforeLosing(tabs) else { return }
+            self.confirmUnsavedCloses(of: tabs)
+            self.executeProjectSwitch(to: project)
+        }
     }
 
     /// Called when the user cancels the project switch alert.

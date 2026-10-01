@@ -2,8 +2,8 @@ import CoreGraphics
 import Foundation
 
 /// The rows grouped for pinning (TC1): a server with a dock pins its name and dock while its
-/// rows scroll under them, until the next server pushes them away. Everything else is a group
-/// without a header.
+/// rows scroll under them, until the next server pushes them away. A closed server is a header
+/// with no rows. Everything else is a group without a header.
 extension ExplorerTreeLayout {
     public struct Group: Identifiable {
         public let id: String
@@ -30,6 +30,13 @@ extension ExplorerTreeLayout {
                 if index + 1 < rows.count, case .dock = rows[index + 1].role.kind {
                     header = [row, rows[index + 1]]
                     index += 2
+                    continue
+                }
+                // A closed server is a header of its own, as when open, so its name stays the
+                // same view while the card folds and opens (round 30.2).
+                if index + 1 == rows.count || rows[index + 1].role.startsCard || rows[index + 1].role.isSpacer {
+                    header = [row]
+                    index += 1
                     continue
                 }
                 body.append(row)

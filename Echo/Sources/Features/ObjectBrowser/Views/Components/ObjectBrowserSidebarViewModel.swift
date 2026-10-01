@@ -5,6 +5,15 @@ final class ObjectBrowserSidebarViewModel {
     var expandedNodeIDs: Set<String> = []
     var selectedNodeID: String?
     var hideOfflineDatabasesBySession: [UUID: Bool] = [:]
+    /// The column row being renamed in place, and what to do with the new name.
+    var renamingColumnNodeID: String?
+    @ObservationIgnored var onColumnRename: ((ExplorerColumnOwner, ColumnInfo, String) -> Void)?
+    /// Folders whose filter field is open, with what it says (round 42.6). Not kept between launches.
+    var folderFilters: [String: String] = [:]
+    /// Show the rarer object folders even when empty (round 42.6, Show Empty Folders).
+    var showsEmptyFolders = ExplorerStateStore.bool(forKey: "echo.sidebar.showsEmptyFolders") ?? false {
+        didSet { ExplorerStateStore.set(showsEmptyFolders, forKey: "echo.sidebar.showsEmptyFolders") }
+    }
     var revealedNodeID: String?
     var revealRequestID = 0
     /// False makes the next reveal a jump (a dock switch returning to its place, round 19).
@@ -16,6 +25,13 @@ final class ObjectBrowserSidebarViewModel {
     var dockSwitchingConnectionIDs: Set<UUID> = []
     /// Servers whose new rows wait, invisible, until the card has its new size.
     var dockHiddenRowsConnectionIDs: Set<UUID> = []
+    /// Servers whose cards are folding or opening (round 30.2): set just before the change, so
+    /// the rows that leave already carry the fold's transition, and cleared when it ends.
+    var foldingConnectionIDs: Set<UUID> = []
+    /// Counts folds, so one that ends while a newer one runs leaves the newer one's cards alone.
+    @ObservationIgnored var foldGeneration = 0
+    /// The card about to close, so the tree first brings its header to its own place.
+    var foldAnchor: ExplorerFoldAnchor?
     var highlightedNodeID: String?
     var highlightPulse = false
     /// Everything loaded for folders beyond the schema (logins, jobs, queues…), by source.

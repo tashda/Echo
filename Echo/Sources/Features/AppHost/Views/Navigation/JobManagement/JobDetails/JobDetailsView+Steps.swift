@@ -6,37 +6,21 @@ extension JobDetailsView {
 
     var stepsTab: some View {
         VStack(spacing: 0) {
-            List {
+            List(selection: $selectedStepID) {
                 ForEach(viewModel.steps) { step in
                     stepListRow(step)
-                        .contextMenu {
-                            Button {
-                                editingStep = step
-                            } label: {
-                                Label("Edit Step", systemImage: "pencil")
-                            }
-
-                            if step.command != nil {
-                                Button {
-                                    openCommandEditor(text: step.command ?? "", stepName: step.name)
-                                } label: {
-                                    Label("Open Command in Editor", systemImage: "arrow.up.right.square")
-                                }
-                            }
-
-                            Divider()
-
-                            Button(role: .destructive) {
-                                pendingDeleteStepName = step.name
-                                showDeleteStepAlert = true
-                            } label: {
-                                Label("Delete Step", systemImage: "trash")
-                            }
-                        }
                 }
                 .onMove(perform: moveSteps)
             }
-            .listStyle(.inset(alternatesRowBackgrounds: true))
+            // A double-click (or Return) on a step opens Edit Step.
+            .contextMenu(forSelectionType: Int.self) { ids in
+                if let step = ids.first.flatMap({ id in viewModel.steps.first { $0.id == id } }) {
+                    stepMenu(step)
+                }
+            } primaryAction: { ids in
+                editingStep = ids.first.flatMap { id in viewModel.steps.first { $0.id == id } }
+            }
+            .listStyle(.inset(alternatesRowBackgrounds: false))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay {
                 if viewModel.steps.isEmpty {
@@ -61,20 +45,16 @@ extension JobDetailsView {
         }
         .sheet(isPresented: $showAddStepSheet) {
             AgentJobStepEditorSheet(
+                jobName: selectedJobName,
+                otherSteps: stepNames(excluding: nil),
                 databaseNames: viewModel.databaseNames,
                 proxyNames: viewModel.proxyNames,
-                title: "New Step",
-                actionLabel: "Add Step",
-                onSaveAsync: { name, subsystem, database, command, proxy, output in
-                    let beforeError = viewModel.errorMessage
-                    await viewModel.addStep(name: name, subsystem: subsystem, database: database, command: command, proxyName: proxy, outputFile: output)
-                    if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {
-                        showAddStepSheet = false
-                        return nil
-                    }
-                    let err = viewModel.errorMessage
-                    viewModel.errorMessage = nil
-                    return err
+                onParse: { try await viewModel.parseCommand($0) },
+                onSave: { draft in
+                    await saveStep {
+                        await viewModel.addStep(name: draft.name, subsystem: draft.subsystem, database: draft.database, command: draft.command,
+                                                proxyName: draft.proxyName, outputFile: draft.outputFile, outcome: draft.outcome)
+                    } onSuccess: { showAddStepSheet = false }
                 },
                 onCancel: { showAddStepSheet = false }
             )
@@ -93,27 +73,64 @@ extension JobDetailsView {
         }
         .sheet(item: $editingStep) { step in
             AgentJobStepEditorSheet(
-                name: step.name,
-                subsystem: step.subsystem,
-                database: step.database ?? "",
-                command: step.command ?? "",
+                step: step,
+                jobName: selectedJobName,
+                otherSteps: stepNames(excluding: step.id),
+                lastRunLine: AgentJobStepLastRun.line(stepID: step.id, history: viewModel.history),
                 databaseNames: viewModel.databaseNames,
                 proxyNames: viewModel.proxyNames,
-                title: "Edit Step",
-                actionLabel: "Save",
-                onSaveAsync: { _, _, database, command, _, _ in
-                    let beforeError = viewModel.errorMessage
-                    await viewModel.updateStep(stepName: step.name, newCommand: command, database: database)
-                    if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {
-                        editingStep = nil
-                        return nil
-                    }
-                    let err = viewModel.errorMessage
-                    viewModel.errorMessage = nil
-                    return err
+                onParse: { try await viewModel.parseCommand($0) },
+                onSave: { draft in
+                    await saveStep {
+                        await viewModel.updateStep(stepName: step.name, newCommand: draft.command, database: draft.database, outcome: draft.outcome)
+                    } onSuccess: { editingStep = nil }
                 },
                 onCancel: { editingStep = nil }
             )
+        }
+    }
+
+    private var selectedJobName: String? {
+        viewModel.jobs.first { $0.id == viewModel.selectedJobID }?.name
+    }
+
+    private func stepNames(excluding id: Int?) -> [Int: String] {
+        Dictionary(uniqueKeysWithValues: viewModel.steps.filter { $0.id != id }.map { ($0.id, $0.name) })
+    }
+
+    /// Runs a step save; returns the error it caused, or closes the sheet.
+    private func saveStep(_ action: () async -> Void, onSuccess: () -> Void) async -> String? {
+        let beforeError = viewModel.errorMessage
+        await action()
+        if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {
+            onSuccess()
+            return nil
+        }
+        let error = viewModel.errorMessage
+        viewModel.errorMessage = nil
+        return error
+    }
+
+    @ViewBuilder
+    func stepMenu(_ step: JobQueueViewModel.StepRow) -> some View {
+        Button {
+            editingStep = step
+        } label: {
+            Label("Edit Step", systemImage: "pencil")
+        }
+        if step.command != nil {
+            Button {
+                openCommandEditor(text: step.command ?? "", stepName: step.name)
+            } label: {
+                Label("Open Command in Editor", systemImage: "arrow.up.right.square")
+            }
+        }
+        Divider()
+        Button(role: .destructive) {
+            pendingDeleteStepName = step.name
+            showDeleteStepAlert = true
+        } label: {
+            Label("Delete Step", systemImage: "trash")
         }
     }
 

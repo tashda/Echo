@@ -25,5 +25,7 @@ struct CommandPaletteItem: Identifiable {
     let systemImage: String
     /// Extra words that match but aren't shown, such as the server of a "New Query" action.
     var keywords: String = ""
+    /// Rows that change what the palette shows (Tab Overview) instead of leaving it.
+    var keepsPaletteOpen = false
     let perform: @MainActor () -> Void
 }

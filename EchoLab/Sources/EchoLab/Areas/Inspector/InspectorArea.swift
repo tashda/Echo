@@ -8,18 +8,18 @@ enum InspectorArea {
         id: "inspector",
         title: "Inspector",
         symbol: "sidebar.right",
-        summary: "A column on the canvas mirroring the tree: one card, sections as grouped boxes with a header over rounded rows, like System Settings.",
+        summary: "A column on the canvas mirroring the tree: Details, Bookmarks and History share one column; details sections are grouped boxes with a header over rounded rows, like System Settings.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "2776c002", date: "2026-09-30",
+                level: .code, commit: "b113aaa2", date: "2026-10-01",
                 note: "Read from WorkspaceInspectorColumn, InfoSidebarView, InspectorSection and InspectorSectionRow, WorkspaceColumnResizeHandle and the Inspector tokens. The specimen is the Echo Labs copy of the grouped-box column."),
             stageHeight: 640,
             behaviours: [
                 .init(trigger: "Point at something", result: "The inspector shows what you pointed at: a database object's details, a foreign key's record and related records, a cell value, the JSON viewer, Agent job history, or SQL keyword help."),
-                .init(trigger: "Nothing selected", result: "\"No Selection\" and \"Select an object, a cell or a row to inspect its details.\""),
+                .init(trigger: "Nothing selected", result: "\"No Selection\" and \"Select an object, a cell or a row.\""),
                 .init(trigger: "Select text in a value", result: "Values are selectable; right-click a row for Copy Value. A link row opens what it names."),
                 .init(trigger: "Show JSON", result: "The column widens to at least 520pt with one spring and returns to the width you chose afterwards; it is never narrowed."),
-                .init(trigger: "Toggle the inspector", result: "The column shows or hides with the tree's motion."),
+                .init(trigger: "Toggle the inspector", result: "The column shows or hides with the tree's motion; from library or notifications it switches to Details. View › Bookmarks / Query History and the inspector menu open the library without changing the tree (round 39; awaiting verification)."),
                 .init(trigger: "Drag its edge", result: "One smooth width change (no stepped jumps), between 260 and 640pt; double-click the edge to reset to 300pt. The width is remembered."),
                 .init(trigger: "Click the bell", result: "The column switches to the notification history and back; the two cross-fade."),
             ],
@@ -43,8 +43,8 @@ enum InspectorArea {
                 .init(text: "Grouped boxes in one card, not a card per section",
                       why: "Stacked shadows were cut off at the column's edges; one card with inset groups avoids it.",
                       rounds: ["ported.Round 15 · inspector"]),
-                .init(text: "One job: details of what you pointed at",
-                      why: "Notifications moved to the bell, so the inspector shows details only."),
+                .init(text: "Details and saved SQL share the column",
+                      why: "Round 39 RT2 keeps Bookmarks and History beside the tab without replacing the Explorer; the bell still opens notifications.", rounds: ["ongoing.rail-tools-r39"]),
                 .init(text: "Configuration stays in the tab",
                       why: "Read-only detail, such as a job's history, may use the inspector."),
             ],
@@ -54,10 +54,12 @@ enum InspectorArea {
                 "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken+Inspector.swift",
                 "Echo/Sources/Features/AppHost/Views/Inspector/InfoSidebar/InfoSidebarView.swift",
                 "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceInspectorColumn.swift",
+                "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceInspectorPicker.swift",
+                "Echo/Sources/Features/QueryWorkspace/Views/Results/QueryHistoryPanelView.swift",
             ]
         ) {
-            LabInspectorColumn(look: .groupedBoxes)
+            InspectorLibrarySpecimen()
         },
-        spec: InspectorSpec.spec(stageHeight: 640) { LabInspectorColumn(look: .groupedBoxes).specAnchor("1.1") }
+        spec: InspectorSpec.spec(stageHeight: 640) { InspectorLibrarySpecimen().specAnchor("1.1") }
     )
 }

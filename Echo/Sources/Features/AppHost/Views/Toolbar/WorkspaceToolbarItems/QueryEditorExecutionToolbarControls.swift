@@ -15,8 +15,7 @@ struct QueryRunToolbarItem: View {
     }
 }
 
-/// Format + Estimated Plan grouped — "enhance my SQL" actions.
-/// Separate Liquid Glass group, positioned after the Run button.
+/// Format, Validate, Context Help and Estimated Plan: the query tab's own group, after Run.
 struct QueryEditorEnhanceToolbarControls: View {
     @Environment(TabStore.self) private var tabStore
 

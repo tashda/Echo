@@ -48,6 +48,11 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("i", modifiers: [.command, .option])
             .disabled(!navigationStore.isWorkspaceWindowKey)
 
+            Button("Bookmarks", systemImage: "bookmark") { appState.showWorkspaceLibrary(.bookmarks) }
+                .disabled(!navigationStore.isWorkspaceWindowKey)
+            Button("Query History", systemImage: "clock") { appState.showWorkspaceLibrary(.history) }
+                .disabled(!navigationStore.isWorkspaceWindowKey)
+
             Button {
                 tabStore.activeTab?.panelState.isOpen.toggle()
             } label: {
@@ -99,16 +104,27 @@ struct ViewMenuCommands: Commands {
 
             Divider()
 
+            // Round 35.1 (TO6): the tab overview is the ⌘K palette showing this window's tabs.
             Button {
-                appState.showTabOverview.toggle()
+                appState.toggleTabOverview()
             } label: {
                 Label(
-                    appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview",
+                    appState.isTabOverviewVisible ? "Hide Tab Overview" : "Show Tab Overview",
                     systemImage: "square.grid.2x2"
                 )
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
             .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
+
+            // Round 34 (KR0): ⌘R reloads the front tool tab, as Refresh in the toolbar does.
+            Button {
+                guard let tab = reloadableTab else { return }
+                environmentState.tabReloader.reload(tab, environmentState: environmentState)
+            } label: {
+                Label("Reload Tab", systemImage: "arrow.clockwise")
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .disabled(reloadableTab == nil)
 
             Divider()
 
@@ -123,6 +139,11 @@ struct ViewMenuCommands: Commands {
                 .keyboardShortcut("0", modifiers: .command)
                 .disabled(editorQuery == nil)
         }
+    }
+
+    private var reloadableTab: WorkspaceTab? {
+        guard navigationStore.isWorkspaceWindowKey, let tab = tabStore.activeTab, TabReloader.canReload(tab.kind) else { return nil }
+        return tab
     }
 
     private var editorQuery: QueryEditorState? {

@@ -26,6 +26,8 @@ final class EnvironmentState {
     var recentConnections: [RecentConnectionRecord] = []
     /// Tables opened recently, for the empty query tab's starting points (QE6).
     let recentTables = RecentTableStore()
+    /// Reloads the front tab for Refresh and ⌘R (round 34).
+    let tabReloader = TabReloader()
     var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
     var userEditorViewModels: [UserEditorWindowValue: UserEditorViewModel] = [:]
     var loginEditorViewModels: [LoginEditorWindowValue: LoginEditorViewModel] = [:]
@@ -142,6 +144,10 @@ final class EnvironmentState {
 
         self.tabStore.delegate = self
         self.tabStore.closeGuard = { [weak self] tab in self?.holdCloseForOpenTransaction(tab) ?? false }
+        self.tabStore.unsavedChangesGuard = { [weak self] tab in self?.holdCloseForUnsavedChanges(tab) ?? false }
+        self.tabStore.severalUnsavedGuard = { [weak self] tabs, close in
+            self?.holdSeveralClosesForUnsavedChanges(tabs, close: close) ?? false
+        }
         setupBindings()
         loadRecentConnections()
     }

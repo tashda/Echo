@@ -22,11 +22,13 @@ final class ResultTableHeaderView: NSTableHeaderView {
         wantsLayer = true
     }
 
+    /// One hairline at the header's true bottom, level with the row-number column's (round 41.1,
+    /// round 47). The header paints its full height and its cells without the system's own bottom
+    /// line, which a standard-height header draws 4pt higher.
     override func draw(_ dirtyRect: NSRect) {
+        NSColor(ColorTokens.Background.primary).setFill()
+        dirtyRect.fill()
         super.draw(dirtyRect)
-
-        // Draw bottom separator line spanning full width — the native header view
-        // doesn't always draw this depending on table configuration.
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1
         let lineWidth = 1 / max(scale, 1)
         NSColor.separatorColor.setFill()

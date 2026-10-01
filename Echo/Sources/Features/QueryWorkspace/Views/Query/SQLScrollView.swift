@@ -9,7 +9,7 @@ final class SQLScrollView: NSScrollView {
     private var displayOptions: SQLEditorDisplayOptions
     private let lineNumberRuler: LineNumberRulerView
     private var backgroundOverride: NSColor?
-    private lazy var footerOverlay = FooterScrollOverlay(scrollView: self, softEdges: false)
+    private lazy var footerOverlay = FooterScrollOverlay(scrollView: self)
     private let outlineStrip = EditorOutlineStripView()
 
     /// Room for the footer floating over the editor while there are no results, the soft blur

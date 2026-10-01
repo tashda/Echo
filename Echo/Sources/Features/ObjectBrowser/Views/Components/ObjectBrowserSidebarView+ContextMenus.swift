@@ -5,6 +5,10 @@ import SwiftUI
 /// `+ServerMenus`, `+DatabaseMenus`, `+ObjectMenus`.
 extension ObjectBrowserSidebarView {
     func contextMenu(for node: ObjectBrowserNode) -> NSMenu? {
+        rawContextMenu(for: node)?.applyingExplorerRules()
+    }
+
+    private func rawContextMenu(for node: ObjectBrowserNode) -> NSMenu? {
         switch node.row {
         case .pendingConnection(let pending):
             pendingConnectionMenu(for: pending)
@@ -17,8 +21,10 @@ extension ObjectBrowserSidebarView {
         case .object(let session, let databaseName, let object):
             objectMenu(for: object, databaseName: databaseName, session: session)
         case .item(let row):
-            itemMenu(row)
-        case .topSpacer, .column, .action, .placeholder, .loading, .message, .dock:
+            itemMenu(row)?.insertingCopyName(row.item.name)
+        case .column(let column, let owner):
+            columnMenu(for: column, owner: owner)
+        case .topSpacer, .action, .placeholder, .loading, .message, .filter, .dock:
             nil
         }
     }
@@ -64,7 +70,7 @@ extension ObjectBrowserSidebarView {
         case .serverTrigger:
             return serverTriggerMenu(trigger: row.item, session: session)
         case .ssisFolder, .plain:
-            return row.kind == .agentJob ? agentJobMenu(for: session) : nil
+            return row.kind == .agentJob ? agentJobMenu(for: session, jobID: row.item.id) : nil
         }
     }
 
@@ -97,52 +103,59 @@ extension ObjectBrowserSidebarView {
 
     func connectionMenu(for session: ConnectionSession) -> NSMenu {
         let menu = NSMenu()
+        let isSQLServer = session.connection.databaseType == .microsoftSQL
 
-        menu.addActionItem("Refresh All", systemImage: "arrow.clockwise") {
+        menu.addActionItem("New Query", systemImage: "plus.rectangle") {
+            environmentState.openQueryTab(for: session)
+        }
+        menu.addActionItem("Activity Monitor", systemImage: "gauge.with.dots.needle.33percent") {
+            environmentState.openActivityMonitorTab(connectionID: session.connection.id)
+        }
+        let openMaintenance = {
+            environmentState.openMaintenanceTab(connectionID: session.connection.id)
+        }
+        if isSQLServer {
+            menu.addSubmenu("Open Tool", systemImage: "wrench.and.screwdriver") { sub in
+                sub.addActionItem("Maintenance", systemImage: "wrench.and.screwdriver", action: openMaintenance)
+                sub.addActionItem("Extended Events", systemImage: "waveform.path.ecg") {
+                    environmentState.openActivityMonitorTab(connectionID: session.connection.id, section: "XEvents")
+                }
+                sub.addActionItem("Database Mail", systemImage: "envelope") {
+                    let value = environmentState.prepareDatabaseMailEditorWindow(connectionSessionID: session.connection.id)
+                    openWindow(id: DatabaseMailEditorWindow.sceneID, value: value)
+                }
+                sub.addActionItem("Availability Groups", systemImage: "server.rack") {
+                    environmentState.openAvailabilityGroupsTab(connectionID: session.connection.id)
+                }
+                sub.addActionItem("Central Management Servers", systemImage: "server.rack") {
+                    sheetState.cmsConnectionID = session.connection.id
+                    sheetState.showCMSSheet = true
+                }
+            }
+        } else {
+            menu.addActionItem("Maintenance", systemImage: "wrench.and.screwdriver", action: openMaintenance)
+        }
+
+        menu.addDivider()
+        menu.addCopyName(session.connection.connectionName)
+        addServerColorMenu(to: menu, session: session)
+
+        menu.addDivider()
+        menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
             Task {
                 let handle = AppDirector.shared.activityEngine.begin("Refreshing all databases", connectionSessionID: session.id)
                 await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
                 handle.succeed()
             }
         }
-        menu.addActionItem("New Query", systemImage: "doc.text") {
-            environmentState.openQueryTab(for: session)
-        }
-        menu.addDivider()
-        menu.addActionItem("Activity Monitor", systemImage: "gauge.with.dots.needle.33percent") {
-            environmentState.openActivityMonitorTab(connectionID: session.connection.id)
-        }
-        menu.addDivider()
-        menu.addActionItem("Maintenance", systemImage: "wrench.and.screwdriver") {
-            environmentState.openMaintenanceTab(connectionID: session.connection.id)
-        }
-
-        if session.connection.databaseType == .microsoftSQL {
-            menu.addActionItem("Database Mail", systemImage: "envelope") {
-                let value = environmentState.prepareDatabaseMailEditorWindow(connectionSessionID: session.connection.id)
-                openWindow(id: DatabaseMailEditorWindow.sceneID, value: value)
-            }
-            menu.addActionItem("Central Management Servers", systemImage: "server.rack") {
-                sheetState.cmsConnectionID = session.connection.id
-                sheetState.showCMSSheet = true
-            }
-            menu.addActionItem("Extended Events", systemImage: "waveform.path.ecg") {
-                environmentState.openActivityMonitorTab(connectionID: session.connection.id, section: "XEvents")
-            }
-            menu.addActionItem("Availability Groups", systemImage: "server.rack") {
-                environmentState.openAvailabilityGroupsTab(connectionID: session.connection.id)
-            }
-            menu.addDivider()
-
+        if isSQLServer {
             let connID = session.connection.id
             let item = menu.addActionItem(hideOfflineDatabasesTitle(for: connID), systemImage: "eye.slash") {
                 self.toggleHideOffline(for: connID)
             }
             item.state = (viewModel.hideOfflineDatabasesBySession[connID] ?? false) ? .on : .off
         }
-
-        menu.addDivider()
-        menu.addActionItem("Manage Connection", systemImage: "slider.horizontal.3") {
+        menu.addActionItem("Edit Connection", systemImage: "slider.horizontal.3") {
             ManageConnectionsWindowController.shared.present(
                 initialSection: .connections,
                 selectedConnectionID: session.connection.id
@@ -153,13 +166,13 @@ extension ObjectBrowserSidebarView {
         }
 
         menu.addDivider()
-        if session.connection.databaseType == .microsoftSQL {
+        if isSQLServer {
             menu.addActionItem("Properties", systemImage: "info.circle") {
                 let value = environmentState.prepareServerEditorWindow(connectionSessionID: session.connection.id)
                 openWindow(id: ServerEditorWindow.sceneID, value: value)
             }
         } else if session.connection.databaseType == .mysql {
-            menu.addActionItem("Server Properties", systemImage: "info.circle") {
+            menu.addActionItem("Properties", systemImage: "info.circle") {
                 environmentState.openServerPropertiesTab(connectionID: session.connection.id)
             }
         }

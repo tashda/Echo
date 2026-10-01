@@ -5,42 +5,8 @@ struct MySQLServerControlSection: View {
     let customToolPath: String?
 
     var body: some View {
+        // Start, Stop and Restart in the window toolbar (37.5), the state after the server (37.2).
         VStack(spacing: 0) {
-            TabSectionToolbar {
-                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                    Text("Server Control")
-                        .font(TypographyTokens.prominent.weight(.semibold))
-                    Text(statusText)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(statusColor)
-                }
-            } controls: {
-                Button("Refresh") {
-                    Task { await viewModel.loadCurrentSection() }
-                }
-                .buttonStyle(.borderless)
-
-                Button("Start") {
-                    Task { await viewModel.startLocalMySQLServer(customToolPath: customToolPath) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(!canStart)
-
-                Button("Stop") {
-                    Task { await viewModel.stopLocalMySQLServer(customToolPath: customToolPath) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(!canStop)
-
-                Button("Restart") {
-                    Task { await viewModel.restartLocalMySQLServer(customToolPath: customToolPath) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(!canRestart)
-            }
-
-            Divider()
-
             Form {
                 Section("Status") {
                     PropertyRow(title: "Connection Host") {
@@ -111,6 +77,22 @@ struct MySQLServerControlSection: View {
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
         }
+        .toolTabHeaderDetail(statusText)
+        // Round 37.5: Start is the special button; Stop, Restart and Refresh the group.
+        .tabToolbar(
+            special: TabToolbarItem(id: "start", title: "Start", symbol: "play.fill", isDisabled: !canStart) { [viewModel, customToolPath] in
+                Task { await viewModel.startLocalMySQLServer(customToolPath: customToolPath) }
+            },
+            groups: [[
+                TabToolbarItem(id: "stop", title: "Stop", symbol: "stop.fill", isDisabled: !canStop) { [viewModel, customToolPath] in
+                    Task { await viewModel.stopLocalMySQLServer(customToolPath: customToolPath) }
+                },
+                TabToolbarItem(id: "restart", title: "Restart", symbol: "arrow.clockwise.circle", isDisabled: !canRestart) { [viewModel, customToolPath] in
+                    Task { await viewModel.restartLocalMySQLServer(customToolPath: customToolPath) }
+                },
+                .refresh { [viewModel] in Task { await viewModel.loadCurrentSection() } },
+            ]]
+        )
     }
 
     private var canStart: Bool {

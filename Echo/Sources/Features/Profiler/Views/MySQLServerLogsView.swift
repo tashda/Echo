@@ -47,30 +47,21 @@ struct MySQLServerLogsView: View {
 
             Divider()
 
-            TabSectionToolbar {
-                Text("Error Log")
-                    .font(TypographyTokens.prominent.weight(.semibold))
-            }
+            PaneHeader("Error Log")
 
             logTable(viewModel.errorLogRows, emptyTitle: "No Error Log Rows", emptyMessage: "No readable error log entries were found from the configured MySQL error log path.")
                 .frame(minHeight: 180)
 
             Divider()
 
-            TabSectionToolbar {
-                Text("General Log")
-                    .font(TypographyTokens.prominent.weight(.semibold))
-            }
+            PaneHeader("General Log")
 
             logTable(viewModel.generalLogRows, emptyTitle: "No General Log Rows", emptyMessage: "Enable table-based general logging to inspect recent rows here.")
                 .frame(minHeight: 180)
 
             Divider()
 
-            TabSectionToolbar {
-                Text("Slow Log")
-                    .font(TypographyTokens.prominent.weight(.semibold))
-            }
+            PaneHeader("Slow Log")
 
             logTable(viewModel.slowLogRows, emptyTitle: "No Slow Log Rows", emptyMessage: "Enable table-based slow logging to inspect recent rows here.")
                 .frame(minHeight: 180)

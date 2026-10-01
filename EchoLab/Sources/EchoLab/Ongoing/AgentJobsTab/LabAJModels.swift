@@ -53,7 +53,7 @@ struct LabAJLook {
 
     @MainActor static func from(_ v: RoundValues) -> LabAJLook {
         LabAJLook(headers: .init(rawValue: v["headers"]) ?? .unified, layout: .init(rawValue: v["layout"]) ?? .jobsFull,
-                  sections: .init(rawValue: v["sections"]) ?? .header, columns: .init(rawValue: v["columns"]) ?? .compact,
+                  sections: .init(rawValue: v["sections"]) ?? .today, columns: .init(rawValue: v["columns"]) ?? .compact,
                   empty: .init(rawValue: v["empty"]) ?? .plain)
     }
 }

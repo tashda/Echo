@@ -17,40 +17,7 @@ struct MySQLDatabaseSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            CenteredTabSectionLayout {
-                TabSectionPicker(
-                    "Security Section",
-                    selection: $viewModel.selectedSection,
-                    itemCount: MySQLDatabaseSecurityViewModel.Section.allCases.count
-                ) {
-                    ForEach(MySQLDatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
-                        Text(section.rawValue).tag(section)
-                    }
-                }
-            } controls: {
-                switch viewModel.selectedSection {
-                case .users:
-                    Button { showNewUserSheet = true } label: {
-                        Label("New User", systemImage: "person.badge.plus")
-                    }
-                    .buttonStyle(.borderless)
-                case .roles:
-                    Button { showNewRoleSheet = true } label: {
-                        Label("New Role", systemImage: "person.2.badge.plus")
-                    }
-                    .buttonStyle(.borderless)
-                case .privileges:
-                    Button {
-                        showGrantPrivilegesSheet = true
-                    } label: {
-                        Label("Grant…", systemImage: "key.fill")
-                    }
-                    .buttonStyle(.borderless)
-                case .advancedObjects, .passwordPolicies, .dataMasking, .encryption, .audit, .firewall:
-                    EmptyView()
-                }
-            }
-        } content: {
+            // Its pages are in the tab (round 36.2); its special button in the window toolbar (37.5).
             VStack(spacing: 0) {
                 switch viewModel.selectedSection {
                 case .users:
@@ -75,6 +42,7 @@ struct MySQLDatabaseSecurityView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .tabToolbar(special: primaryAction)
         .task {
             await viewModel.initialize()
         }
@@ -109,6 +77,17 @@ struct MySQLDatabaseSecurityView: View {
             } onDismiss: {
                 showGrantPrivilegesSheet = false
             }
+        }
+    }
+
+
+    /// The page's special button in the window toolbar (round 37.5): what you make on this page.
+    private var primaryAction: TabToolbarItem? {
+        switch viewModel.selectedSection {
+        case .users: TabToolbarItem(id: "newUser", title: "New User", symbol: "person.badge.plus") { showNewUserSheet = true }
+        case .roles: TabToolbarItem(id: "newRole", title: "New Role", symbol: "person.2.badge.plus") { showNewRoleSheet = true }
+        case .privileges: TabToolbarItem(id: "grant", title: "Grant", symbol: "key.fill") { showGrantPrivilegesSheet = true }
+        case .advancedObjects, .passwordPolicies, .dataMasking, .encryption, .audit, .firewall: nil
         }
     }
 

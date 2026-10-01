@@ -12,12 +12,7 @@ struct JobHistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("History").font(TypographyTokens.headline)
-                Spacer()
-            }
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.vertical, SpacingTokens.xxs2)
+            PaneHeader("History", count: viewModel.history.count)
 
             Table(of: JobQueueViewModel.HistoryRow.self, selection: Binding(
                 get: { viewModel.selectedHistoryRowID.flatMap { Set([$0]) } ?? [] },
@@ -60,7 +55,7 @@ struct JobHistoryView: View {
             } rows: {
                 ForEach(sortedHistory) { h in TableRow(h) }
             }
-            .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableStyle(.inset(alternatesRowBackgrounds: false))
             .tableColumnAutoResize()
         }
     }

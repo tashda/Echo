@@ -9,15 +9,30 @@ public struct ExplorerTreeCardsLayer<CardBackground: View>: View {
     /// its rows (Design/05-components › Explorer tree › Switching).
     let switchingCardIDs: Set<String>
     let edgeAnimation: Animation?
+    /// Cards folding or opening (round 30.2, CM2): their edge glides with `foldAnimation` while
+    /// their rows fade and are cut by it (`ExplorerTreeFoldTransition`).
+    let foldingCardIDs: Set<String>
+    let foldAnimation: Animation?
     let card: () -> CardBackground
 
     public init(cards: [ExplorerTreeCard], scroll: ExplorerTreeScrollState, switchingCardIDs: Set<String> = [],
-                edgeAnimation: Animation? = nil, @ViewBuilder card: @escaping () -> CardBackground) {
+                edgeAnimation: Animation? = nil, foldingCardIDs: Set<String> = [], foldAnimation: Animation? = nil,
+                @ViewBuilder card: @escaping () -> CardBackground) {
         self.cards = cards
         self.scroll = scroll
         self.switchingCardIDs = switchingCardIDs
         self.edgeAnimation = edgeAnimation
+        self.foldingCardIDs = foldingCardIDs
+        self.foldAnimation = foldAnimation
         self.card = card
+    }
+
+    /// A folding card may also be marked as switching (its rows come in under the switch's veil,
+    /// round 46); its edge still moves with the fold, on the rows' curve.
+    private func animation(for card: ExplorerTreeCard) -> Animation? {
+        if foldingCardIDs.contains(card.id) { return foldAnimation }
+        if switchingCardIDs.contains(card.id) { return edgeAnimation }
+        return nil
     }
 
     public var body: some View {
@@ -33,7 +48,7 @@ public struct ExplorerTreeCardsLayer<CardBackground: View>: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: bottom - top)
                         .offset(y: top)
-                        .animation(switchingCardIDs.contains(card.id) ? edgeAnimation : nil, value: card.height)
+                        .animation(animation(for: card), value: card.height)
                 }
             }
         }

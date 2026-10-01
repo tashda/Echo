@@ -3,32 +3,16 @@ import SQLServerKit
 
 struct TuningAdvisorView: View {
     @Bindable var viewModel: TuningAdvisorViewModel
-    @Environment(ProjectStore.self) private var projectStore
     @State private var recommendationsFraction: CGFloat = 0.55
 
     var body: some View {
-        // TT1: the toolbar on the canvas; recommendations and their detail are two cards.
-        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
-            CenteredTabSectionToolbar {
-                TabSectionPicker(
-                    "Tuning Section",
-                    selection: $viewModel.selectedTab,
-                    itemCount: TuningAdvisorViewModel.TuningTab.allCases.count
-                ) {
-                    ForEach(TuningAdvisorViewModel.TuningTab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-            } controls: {
-                toolbarControls
-            }
-            .tabSectionToolbarOnCanvas()
-
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .adaptiveWorkspaceCard()
-        }
-        .tabContentFrame()
+        // TT1: recommendations and their detail are two cards; the pages are in the tab (36.2)
+        // and Refresh in the window toolbar (37.5).
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .adaptiveWorkspaceCard()
+            .tabContentFrame()
+            .tabToolbar(groups: [[.refresh(isBusy: viewModel.isRefreshing) { [viewModel] in viewModel.refreshSelectedTab() }]])
         .onAppear {
             viewModel.refresh()
         }
@@ -43,11 +27,7 @@ struct TuningAdvisorView: View {
         }
     }
 
-    private var toolbarControls: some View {
-        TabRefreshButton(isRefreshing: viewModel.isRefreshing) {
-            viewModel.refreshSelectedTab()
-        }
-    }
+
 
     @ViewBuilder
     private var content: some View {

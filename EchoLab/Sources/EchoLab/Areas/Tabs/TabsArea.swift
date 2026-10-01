@@ -6,6 +6,7 @@ import SwiftUI
 enum TabsArea {
     private static let model = TabsSpecimenModel()
     private static let files = "Echo/Sources/Features/AppHost/Views/Tabs/TabStrip/"
+    private static let palette = "Echo/Sources/Features/CommandPalette/"
 
     static let area = LabArea(
         id: "tabs",
@@ -14,7 +15,7 @@ enum TabsArea {
         summary: "Safari-style tabs on one line: a grey plate with a raised white active tab, a glass + at the end, and a tool's pages unfolding inside its own tab.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "ef1c3bba", date: "2026-10-01",
+                level: .code, commit: "0476995a", date: "2026-10-01",
                 note: "Read from QueryTabStrip, QueryTabButton (+Title, +CloseButton, +Appearance), TabPageChips and the tab tokens. The specimen is drawn with the same tokens and metrics."),
             stageHeight: 150,
             behaviours: [
@@ -25,11 +26,13 @@ enum TabsArea {
                 .init(trigger: "Query running", result: "A spinner replaces the tab's icon."),
                 .init(trigger: "Many tabs", result: "Tabs share the width equally and simply get narrower. There is no minimum width and no collapse to icons in the code; the earlier plan (B3) was superseded."),
                 .init(trigger: "Click +", result: "Opens a new query tab."),
-                .init(trigger: "Open a tool with pages", result: "The active tool tab widens and shows its pages as chips after its title; the other tabs share what is left."),
+                .init(trigger: "Open a tool with pages", result: "The active tool tab shows a short hairline after its title, then its pages on the tab itself, the shown one semibold on a soft pill; it is exactly as wide as that, and the other tabs share what is left. Alone, it keeps that width at the leading edge (round 36.1)."),
                 .init(trigger: "Drag a tab", result: "It follows the pointer; the others make room; separators next to it hide."),
+                .init(trigger: "Close a query tab you changed", result: "A standard alert: Save (to a bookmark), Save As (a .sql file), Don't Save, Cancel. Several at once ask once (TABS-8)."),
+                .init(trigger: "⇧⌘O, the overview button, a pinch in, or \"Tab Overview\" in ⌘K", result: "The ⌘K palette turns to this window's tabs, grouped by server, each with its live state (round 35.1). ↩ goes to the tab; ⌫ closes it, ⌘D duplicates it, ⌥⌫ closes the others, and the palette stays open."),
             ],
             motions: [
-                .init(name: "Unfold pages", curve: "snappy, extra bounce 0.06", duration: "0.32s", note: "QueryTabStrip.unfoldAnimation; only when the unfolded tab changes, not on a plain switch"),
+                .init(name: "Unfold pages", curve: "house spring (EchoMotion.standard)", duration: "0.45s", note: "QueryTabStrip.unfoldAnimation; only when the unfolded tab changes, not on a plain switch. The pages fade out first and in once the tab has widened (round 36.1, UF1)"),
                 .init(name: "Plain tab switch", curve: "none", duration: "instant", note: "decided 2026-10-01"),
                 .init(name: "Reorder while dragging", curve: "interactive spring, response 0.2, damping 0.9", duration: "interactive", note: "tabReorderAnimation"),
                 .init(name: "Page chip selection", curve: "snappy", duration: "0.22s"),
@@ -59,8 +62,12 @@ enum TabsArea {
                 .init(text: "A tool's pages unfold inside its tab (ST2)",
                       why: "Replaces the segmented control at the top of tool tabs.",
                       rounds: ["ported.Round 14 · tab bar and pages"]),
+                .init(text: "The title, a hairline, then the pages on the tab itself, the tab exactly as wide as that (round 36.1)",
+                      why: "Today's grey track in a stretched tab read as a pill inside a pill, the grey off centre. On the tab itself, one size, the tab hugging its content, the line reads as one sentence.",
+                      rounds: ["ongoing.tool-tab-pages-r36"]),
             ],
-            code: [files, files + "QueryTabButton*.swift", files + "TabPageChips.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/ColorToken.swift"]
+            code: [files, files + "QueryTabButton*.swift", files + "TabPageChips.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/ColorToken.swift",
+                   palette + "Views/TabOverviewPaletteList.swift", palette + "Views/TabOverviewPaletteRow.swift", palette + "Views/CommandPaletteCard+TabOverview.swift"]
         ) {
             TabsSpecimen(model: model)
         },
@@ -108,6 +115,7 @@ enum TabsArea {
                       .row("Lines", "1, truncated at the end"),
                       .row("Active colour", "label", token: "NSColor.labelColor"),
                       .row("Inactive colour", "secondary label", token: "NSColor.secondaryLabelColor")),
+                .behaviour(.row("Server dot", "with Server Header Color set to Server's Color, a 6pt dot of the server's colour after the title (round 30.1, CO2); not on pinned tabs", token: "QueryTabButton.serverDotColor")),
             ], files: [files + "QueryTabButton+Title.swift"]),
             SpecElement(number: "2.4", name: "Active tab", summary: "The raised white tab. No glass.", states: [SpecState(key: "hoverActive", name: "Hovered")], groups: [
                 .material(.row("Fill", "vertical gradient, near white", token: "ColorTokens.TabStrip.ActiveTab.Light", swatch: ColorTokens.TabStrip.ActiveTab.Light.top),
@@ -170,26 +178,85 @@ enum TabsArea {
                 .behaviour(.row("Tooltip", "New Tab")),
             ], files: [files + "QueryTabStrip.swift"]),
         ]),
-        SpecPart(number: "5", name: "Tool pages", summary: "A tool's pages, shown inside its active tab.", elements: [
-            SpecElement(number: "5.1", name: "Page chips", summary: "Small chips after the tool tab's title (ST2). Turn on \"Tool pages\" and select Activity Monitor.", groups: [
-                .material(.row("Track", "capsule, primary at 6%", token: "TabStrip.Pages.track"),
-                          .row("Selected chip", "text background with a faint shadow", token: "Pages.selected / selectedShadow")),
-                .type(.row("Font", "10pt; selected semibold", token: "TypographyTokens.label")),
-                .layout(.row("Track height", "20pt", token: "LayoutTokens.TabPages.chipHeight"),
-                        .row("Chip padding", "8pt horizontal", token: "chipHorizontalPadding"),
-                        .row("Chip spacing", "2pt", token: "TabPages.spacing")),
-                .motion(.row("Selection", "snappy, 0.22s")),
-            ], rounds: ["ported.Round 14 · tab bar and pages"], files: [files + "TabPageChips.swift"]),
-            SpecElement(number: "5.2", name: "Unfolded width", summary: "How wide the tool tab becomes.", groups: [
-                .layout(.row("Ideal width", "title + pages + 76pt chrome", token: "TabPageChipsMetrics.idealWidth"),
-                        .row("Never narrower", "than its equal share of the strip"), .row("Largest share of the strip", "62%", token: "LayoutTokens.TabPages.maxShareOfStrip"),
-                        .row("Other tabs", "share what is left equally")),
-                .motion(.row("Unfold", "snappy, extra bounce 0.06, 0.32s; only when the unfolded tab changes", token: "unfoldAnimation"),
+        SpecPart(number: "5", name: "Tool pages", summary: "A tool's pages, shown inside its active tab (ST2, refined in round 36.1).", elements: [
+            SpecElement(number: "5.1", name: "Pages", summary: "The pages on the tab itself, after the title and a hairline. Turn on \"Tool pages\" and select Activity Monitor.", groups: [
+                .material(.row("Track", "none: the pages sit on the white tab (RT2)"),
+                          .row("Shown page", "a soft pill, primary at 6% (RC0 as drawn)", token: "TabStrip.Pages.selected")),
+                .type(.row("Font", "11pt like the title, on one baseline; the shown page semibold (RX1)", token: "TypographyTokens.detail"),
+                      .row("Title", "medium while the pages show")),
+                .layout(.row("Pill height", "20pt", token: "LayoutTokens.TabPages.chipHeight"),
+                        .row("Page padding", "10pt horizontal", token: "chipHorizontalPadding"),
+                        .row("Page spacing", "2pt", token: "TabPages.spacing")),
+                .motion(.row("Selection", "the pill slides to the page, press curve", token: "EchoMotion.press")),
+            ], rounds: ["ported.Round 14 · tab bar and pages", "ongoing.tool-tab-pages-r36"], files: [files + "TabPageChips.swift"]),
+            SpecElement(number: "5.2", name: "Width", summary: "Exactly as wide as the title, hairline and pages (RW1).", groups: [
+                .layout(.row("Width", "title (medium) + pages (each measured semibold) + chrome", token: "TabPageChipsMetrics.idealWidth"),
+                        .row("Chrome", "icon, gaps, hairline, close button and padding: 87pt", token: "LayoutTokens.TabPages.tabChrome"),
+                        .row("Largest share of the strip", "62%", token: "LayoutTokens.TabPages.maxShareOfStrip"),
+                        .row("Other tabs", "share what is left equally, wider or narrower than before")),
+                .motion(.row("Unfold", "house spring, only when the unfolded tab changes; the pages fade out first and in once the tab has widened (UF1)", token: "unfoldAnimation"),
                         .row("Plain switch", "instant")),
-            ], files: [files + "QueryTabStrip+Unfold.swift"]),
+            ], rounds: ["ongoing.tool-tab-pages-r36"], files: [files + "QueryTabStrip+Unfold.swift", files + "QueryTabButton+Title.swift"]),
+            SpecElement(number: "5.3", name: "Hairline", summary: "A short line between the title and the pages (RD1).", groups: [
+                .material(.row("Colour", "separator", token: "ColorTokens.Separator.primary")),
+                .layout(.row("Size", "1 × 12pt", token: "TabPages.dividerWidth / dividerHeight"),
+                        .row("Space", "8pt either side", token: "TabPages.dividerPadding + the title's 6pt gap")),
+            ], rounds: ["ongoing.tool-tab-pages-r36"], files: [files + "TabPageChips.swift"]),
+            SpecElement(number: "5.4", name: "Alone", summary: "A tool tab with pages as the only tab keeps its own width at the leading edge, on the full grey plate (SW1).", groups: [
+                .layout(.row("Wider than the strip", "fills it")),
+            ], rounds: ["ongoing.tool-tab-pages-r36"], files: [files + "QueryTabStrip.swift", files + "QueryTabStrip+Unfold.swift"]),
+            SpecElement(number: "5.5", name: "More", summary: "Pages that don't fit go into More at the end of the tab (round 36.2, OF1); the shown page stays visible, taking the last slot.", groups: [
+                .type(.row("Label", "More and a small chevron, 11pt secondary", token: "TypographyTokens.detail")),
+                .behaviour(.row("Fits", "as many pages as fit in order, leaving room for More", token: "TabPageOverflow.split")),
+            ], rounds: ["ongoing.tool-tab-pages-where-r36"], files: [files + "TabPageChips.swift"]),
         ]),
         SpecPart(number: "6", name: "Not built", summary: "Things the plan mentioned that Echo does not do (yet).", elements: [
             SpecElement(number: "6.1", name: "Collapse inactive tabs to icons", summary: "Plan B3: a minimum tab width, then inactive tabs shrink to their icon. Not in the code; tabs only get narrower.", isRetired: true),
+        ]),
+        SpecPart(number: "7", name: "Tab overview", summary: "The ⌘K palette turned to this window's tabs (round 35.1, TO6). The full-window grid is gone.", elements: [
+            SpecElement(number: "7.1", name: "Opening", summary: "A \"Tab Overview\" row in ⌘K (it keeps the palette open), ⇧⌘O, the toolbar's overview button and a trackpad pinch in (below 0.8). Esc or a click outside closes it.", groups: [
+                .behaviour(.row("Which tabs", "this window's (OS0)"), .row("Placeholder", "Tab Overview: search this window's tabs"),
+                           .row("Field symbol", "square.grid.2x2")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/CommandPaletteCard.swift", "Echo/Sources/Features/AppHost/Domain/State/AppState.swift"]),
+            SpecElement(number: "7.2", name: "Tab row", summary: "The kind's icon, the title (semibold for the front tab), the database or the tool's name, a pin, and the state on the right.", groups: [
+                .layout(.row("Row height", "28pt", token: "LayoutTokens.FloatingSurface.rowHeight"),
+                        .row("Selected fill", "the tree's selection, 10pt corners", token: "ColorTokens.Sidebar.selectedFill / FloatingSurface.rowCornerRadius"),
+                        .row("Status dot", "6pt", token: "SpacingTokens.xxs2")),
+                .type(.row("Title", "13pt", token: "TypographyTokens.standard"), .row("Database and state", "11pt", token: "TypographyTokens.detail")),
+                .states(.row("Running", "orange, Running m:ss", token: "Status.warning"), .row("Failed", "red", token: "Status.error"),
+                        .row("Rows", "green, N rows", token: "Status.success"), .row("Not run, Cancelled", "grey", token: "Text.tertiary")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/TabOverviewPaletteRow.swift", palette + "Domain/TabOverviewStatus.swift"]),
+            SpecElement(number: "7.3", name: "Grouping and search", summary: "Under each server's name with a count, servers in strip order; typing filters by title, server, database and the SQL's first line, keeping strip order.", groups: [
+                .layout(.row("Server heading", "11pt semibold, 22pt high", token: "LayoutTokens.CommandPalette.sectionHeaderHeight"),
+                        .row("List", "up to 360pt, then scrolls", token: "LayoutTokens.CommandPalette.listMaxHeight")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/TabOverviewPaletteList.swift", palette + "Domain/TabOverviewEntry.swift"]),
+            SpecElement(number: "7.4", name: "Keys", summary: "↑↓ move; ↩ or a click goes to the tab. ⌫ closes the selected tab while nothing is typed, ⌘⌫ always; ⌘D duplicates; ⌥⌫ closes the others. The selection moves to the next row; the hint line lists the keys.", groups: [
+                .behaviour(.row("After a key", "the palette stays open"), .row("Closing refused", "unsaved work keeps the tab and the selection"),
+                           .row("⌘D and Esc", "taken by a key monitor while the tabs show, before the menus and wherever focus is")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/CommandPaletteCard+TabOverview.swift", palette + "Views/CommandPaletteSearchField.swift"]),
+            SpecElement(number: "7.5", name: "Duplicate", summary: "⌘D opens a new query tab on the same server and database with the same SQL, right after the original. Tool tabs aren't duplicated.", groups: [
+                .behaviour(.row("Selection", "moves to the copy")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: ["Echo/Sources/Features/AppHost/Domain/State/EnvironmentState+TabManagement.swift"]),
+        ]),
+        SpecPart(number: "8", name: "Unsaved changes", summary: "Query tabs, and table structures with changes not applied, ask before their changes are lost (owner, 1 Oct 2026), in one alert built by one component.", elements: [
+            SpecElement(number: "8.1", name: "Unsaved", summary: "The SQL differs from what the tab opened with or was last saved as, and isn't empty. A script Echo generated asks only once you edit it.", groups: [
+                .behaviour(.row("Tracked by", "QueryEditorState.savedSQL")),
+            ], files: ["Echo/Sources/Features/QueryWorkspace/Domain/QueryEditorState/QueryEditorState+SaveState.swift"]),
+            SpecElement(number: "8.2", name: "Closing one tab", summary: "A standard alert as a sheet, from anywhere (×, ⌘W, ⌫ in the overview): \"Do you want to save the changes to “Query 1”?\"", groups: [
+                .behaviour(.row("Buttons", "Save (default), Save As, Don't Save (destructive), Cancel"),
+                           .row("Save", "the tab's bookmark, or a new bookmark named after the tab"),
+                           .row("Save As", "a .sql file; the tab takes its name")),
+            ], files: ["Echo/Sources/Features/AppHost/Domain/State/EnvironmentState+UnsavedChanges.swift", "Echo/Sources/Features/AppHost/Domain/State/WindowAlert.swift"]),
+            SpecElement(number: "8.5", name: "Table structure", summary: "A structure tab with changes not applied asks the same way: \"Do you want to apply the changes to “orders”?\" Buttons: Apply Changes (alters the table now; a failed apply keeps the tab open), Discard Changes (destructive), Cancel. It joins the several-tabs question.", groups: [
+                .behaviour(.row("Same component", "WindowAlert, through the tab store's unsaved guard; the old SwiftUI alert is gone")),
+            ], files: ["Echo/Sources/Features/AppHost/Domain/State/EnvironmentState+UnsavedChanges.swift"]),
+            SpecElement(number: "8.3", name: "Closing several", summary: "Close Others, Close Tabs to the Left or Right, Close All, quitting and switching project ask once when two or more are unsaved: \"3 tabs have unsaved changes\", listing them.", groups: [
+                .behaviour(.row("Buttons", "Review Each, Close Without Saving (destructive), Cancel"),
+                           .row("Review Each", "brings each tab to the front and asks about it; Cancel stops")),
+            ], files: ["Echo/Sources/Features/AppHost/Domain/Stores/TabStore.swift", "Echo/Sources/Features/AppHost/EchoAppDelegate.swift"]),
+            SpecElement(number: "8.4", name: "Save and Save As", summary: "File › Save (⌘S) saves to a bookmark; File › Save As (⇧⌘S) writes a .sql file. Both for the front query tab.", groups: [
+                .behaviour(.row("Shortcuts", "rebindable as Save and Save As")),
+            ], files: ["Echo/Sources/Features/AppHost/EchoApp.swift"]),
         ]),
     ]
 }

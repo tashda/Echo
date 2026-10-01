@@ -7,18 +7,8 @@ extension SidebarMenu {
         case .folder:
             // Rendered separately by `SidebarMenu` so it stays alive while other tools show.
             EmptyView()
-        case .bookmark:
-            BookmarksSidebarView()
-        case .clipboard:
-            ClipboardHistoryView()
-        case .snippets:
-            SnippetsSidebarView()
-        case .history:
-            HistorySidebarView(
-                icon: "clock.fill",
-                title: "History",
-                description: "Recent database operations and query history"
-            )
+        case .bookmark, .clipboard, .snippets, .history:
+            EmptyView() // Removed rail destinations; library lives in the inspector (round 39).
         case .connections:
             ConnectionsSidebarView(
                 selectedConnectionID: $selectedConnectionID,

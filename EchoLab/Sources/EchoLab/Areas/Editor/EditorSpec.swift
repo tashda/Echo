@@ -33,10 +33,13 @@ enum EditorSpec {
                 .layout(.row("Place", "on the first line, at the caret")),
                 .behaviour(.row("Offers", "nothing else: the recent tables and snippets (QE6) were dropped"), .row("Goes", "with the first character")),
             ], rounds: ["ongoing.editor-empty-r28"], files: [textView]),
-            SpecElement(number: "1.4", name: "Zoom", summary: "A glass “100%” pill at the editor's bottom left (round 28.8).", groups: [
-                .material(.row("Pill", "Liquid Glass capsule, 11pt secondary, a menu of 50% to 200% and Actual Size")),
+            SpecElement(number: "1.4", name: "Zoom", summary: "A glass “100%” pill at the editor's bottom left, placed like the footer's pills (rounds 28.8, 31).", groups: [
+                .material(.row("Pill", "Liquid Glass capsule, 24pt like the footer's pills, 11pt primary text, a menu of 50% to 200% and Actual Size", token: "LayoutTokens.Footer.chipHeight / chipHorizontalPadding")),
+                .layout(.row("With results", "12pt in, 9pt up: where the server pill sits in the results card", token: "LayoutTokens.Footer.pillInset"),
+                        .row("Without results", "above the server pill, left edges aligned, 9pt between (42pt up)", token: "EditorZoomControl.bottomInset")),
+                .motion(.row("Results grow or fold", "rides on the editor card's visible edge, a moment behind with a small bounce", token: "echoMotion.liquidTrail")),
                 .behaviour(.row("Keys", "⌘+, ⌘− and ⌘0 in the View menu, and pinch"), .row("Scope", "this tab, until it closes; the editor's font and gutter, not the results")),
-            ], rounds: ["ongoing.editor-zoom-r28"], files: [textView, "Echo/Sources/Features/QueryWorkspace/Views/Query/EditorZoomControl.swift"]),
+            ], rounds: ["ongoing.editor-zoom-r28", "ongoing.zoom-pill-footer-r31"], files: [textView, "Echo/Sources/Features/QueryWorkspace/Views/Query/EditorZoomControl.swift"]),
             SpecElement(number: "1.5", name: "Typing", summary: "Tab, Return, pairs and comments (round 28.9).", groups: [
                 .behaviour(.row("Tab", "spaces to the next stop of four; on several lines, indents them; ⇧Tab outdents"),
                            .row("Return", "keeps the line's indent"),
@@ -126,22 +129,26 @@ enum EditorSpec {
             ], rounds: ["ongoing.editor-run-note-r28"], files: [textView, tokens]),
         ]),
         SpecPart(number: "4", name: "Run", summary: "A plain ▶ in a capsule of its own, like its neighbours.", elements: [
-            SpecElement(number: "4.1", name: "Idle", summary: "A standard toolbar button, icon only, in its own toolbar group.", groups: [
-                .material(.row("Glass", "the system's toolbar glass"), .row("Tint", "none, and no chevron")),
-                .states(.row("Disabled", "while the script is empty or a query is running")),
+            SpecElement(number: "4.1", name: "Idle", summary: "A plain ▶ in a glass capsule of its own, sized like its neighbours (rounds 15, 20).", groups: [
+                .material(.row("Glass", "its own interactive glass capsule", token: "LayoutTokens.Toolbar.capsuleHorizontalPadding"), .row("Tint", "none, and no chevron")),
+                .states(.row("Disabled", "grey while there is nothing to run", token: "ColorTokens.Text.tertiary"),
+                        .row("Help", "where it will run: “Run in sales on prod (⌘↩)”; “Type a query to run”", token: "QueryRunButtonText")),
                 .behaviour(.row("Why", "changing Run must not move anything else in the toolbar; the accent-glass Run was replaced")),
             ], rounds: [r15], files: [run]),
             SpecElement(number: "4.2", name: "With a selection", summary: "▶ turns the accent colour: Run will run only the selection.", groups: [
                 .states(.row("Colour", "accent", token: "ColorTokens.accent"), .row("Help", "Run Selection (⌘↩)")), .motion(.row("Change", "ease out, 0.12s", token: "echoMotion.hover")),
             ], rounds: [r15], files: [run]),
-            SpecElement(number: "4.3", name: "Running", summary: "The whole capsule turns red with ■ and the elapsed time.", groups: [
-                .material(.row("Fill", "the system's prominent glass, tinted red", token: "ColorTokens.Status.error")),
-                .behaviour(.row("⌘↩ or click ▶", "runs the query"), .row("Click ■", "cancels; ⌥⌘. also cancels")),
-                .motion(.row("Run to running", "house spring, 0.45s; the capsule's contents change in place and nothing else moves")),
-            ], rounds: [r15], files: [run]),
-            SpecElement(number: "4.4", name: "Result", summary: "✓ or ! shows for a moment, then it settles back to ▶.", groups: [
-                .motion(.row("Hold", "2.4s", token: "QueryRunToolbarControl.resultHold")),
-            ], rounds: [r15], files: [run]),
+            SpecElement(number: "4.3", name: "Running", summary: "▶ becomes ■ as the capsule fades to red; after 3 s it widens for the time (rounds 20, 24).", groups: [
+                .material(.row("Fill", "a red fill inside the glass; ■ and the time in white", token: "ColorTokens.Status.error / ColorTokens.Text.onFill")),
+                .behaviour(.row("⌘↩ or click ▶", "runs the query"), .row("Click ■ or ⌘↩", "stops it; ⌥⌘. also cancels"),
+                           .row("Stopping", "a spinner and “Stopping” on a 60% red until the server stops"),
+                           .row("Time", "“5 s”, then “1:05”", token: "ElapsedTimeText")),
+                .motion(.row("Run to running", "▶ to ■ and the red first, the width and the time once the query has run 3 s (QueryRunTimeReveal); echoMotion.settle, 0.45s; nothing else in the toolbar moves")),
+            ], rounds: [r15, "ongoing.run-button-running-r20", "ongoing.run-into-running-r24"], files: [run]),
+            SpecElement(number: "4.4", name: "Result", summary: "The red drains as a green ✓ draws itself, or a red ! shows, then ▶ again.", groups: [
+                .motion(.row("Hold", "2.4s", token: "QueryRunToolbarControl.resultHold"), .row("✓", "draws itself (symbol draw-on)")),
+                .behaviour(.row("After a cancel", "straight back to ▶")),
+            ], rounds: [r15, "ongoing.run-button-look-r20"], files: [run]),
             SpecElement(number: "4.5", name: "Run menu", summary: "Right-click Run for the other modes.", groups: [
                 .behaviour(.row("Items", "Run, Run Statement at Cursor, Explain, Explain Analyze (also in the Query menu)", token: "QueryRunMode"),
                            .row("Explain modes", "offered only for engines with execution plans; each item is disabled when it can't run")),

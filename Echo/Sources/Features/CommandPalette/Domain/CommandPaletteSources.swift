@@ -10,12 +10,14 @@ struct CommandPaletteSources {
     let connectionStore: ConnectionStore
     let navigationStore: NavigationStore
     let clipboardHistory: ClipboardHistoryStore
+    /// Turns the palette to this window's tabs (round 35.1).
+    let showTabOverview: @MainActor () -> Void
 
     /// Rows are built when the palette opens; history is capped so matching stays instant.
     static let historyLimit = 50
 
     func localItems() -> [CommandPaletteItem] {
-        actionItems() + tabItems() + historyItems() + snippetItems()
+        actionItems() + tabItems()
     }
 
     func objectItem(for result: GlobalSearchResult) -> CommandPaletteItem? {
@@ -45,6 +47,15 @@ struct CommandPaletteSources {
     private func actionItems() -> [CommandPaletteItem] {
         var items: [CommandPaletteItem] = []
         let environmentState = environmentState
+
+        // Round 35.1 (TO6): the tab overview lives in the palette; this row turns it to the tabs.
+        if tabStore.hasTabs {
+            items.append(CommandPaletteItem(
+                id: "tabOverview", section: .actions, title: "Tab Overview", subtitle: "⇧⌘O",
+                systemImage: "square.grid.2x2", keywords: "show all open tabs", keepsPaletteOpen: true,
+                perform: showTabOverview
+            ))
+        }
 
         if let tab = tabStore.activeTab, tab.query != nil {
             for mode in QueryRunMode.allCases where tab.canRun(mode) {
@@ -101,49 +112,4 @@ struct CommandPaletteSources {
         }
     }
 
-    private func historyItems() -> [CommandPaletteItem] {
-        let environmentState = environmentState
-        return clipboardHistory.entries
-            .filter { $0.source == .queryEditor }
-            .prefix(Self.historyLimit)
-            .map { entry in
-                CommandPaletteItem(
-                    id: "history.\(entry.id)", section: .history, title: entry.previewText,
-                    subtitle: [entry.metadata.serverName, entry.metadata.databaseName, entry.timestampDisplay]
-                        .compactMap { $0 }.joined(separator: " · "),
-                    systemImage: "clock.arrow.circlepath",
-                    perform: { environmentState.openQueryTab(presetQuery: entry.content) }
-                )
-            }
-    }
-
-    private func snippetItems() -> [CommandPaletteItem] {
-        guard let databaseType = environmentState.sessionGroup.activeSession?.connection.databaseType else { return [] }
-        let tabStore = tabStore
-        let environmentState = environmentState
-        return SQLSnippetCatalog.snippets(for: SQLDialect(databaseType)).map { snippet in
-            CommandPaletteItem(
-                id: "snippet.\(snippet.id)", section: .snippets, title: snippet.title,
-                subtitle: snippet.detail, systemImage: "text.badge.plus",
-                perform: {
-                    if let query = tabStore.activeTab?.query {
-                        query.sql = query.sql.isEmpty ? snippet.insertText : query.sql + "\n" + snippet.insertText
-                    } else {
-                        environmentState.openQueryTab(presetQuery: snippet.insertText)
-                    }
-                }
-            )
-        }
-    }
-}
-
-private extension SQLDialect {
-    init(_ databaseType: DatabaseType) {
-        switch databaseType {
-        case .postgresql: self = .postgresql
-        case .mysql: self = .mysql
-        case .sqlite: self = .sqlite
-        case .microsoftSQL: self = .microsoftSQL
-        }
-    }
 }

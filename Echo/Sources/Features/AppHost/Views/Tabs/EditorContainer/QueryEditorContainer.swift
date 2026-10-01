@@ -33,7 +33,8 @@ struct QueryEditorContainer: View {
             panelState: panelState,
             isPanelOnly: query.isResultsOnly,
             minContentFraction: minRatio,
-            maxContentFraction: maxRatio
+            maxContentFraction: maxRatio,
+            softensUnderFooter: true
         ) {
             VStack(spacing: SpacingTokens.none) {
                 if tab.isDedicatedSessionFailed {

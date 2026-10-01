@@ -16,6 +16,7 @@ extension WorkspaceTabContainerView {
 
         let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
         let baseSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
+        guard confirmsRun(of: baseSQL, on: tab.connection) else { return }
         await prepareQueryTimeLimit(tab: tab, queryState: queryState, sql: sql)
 
         // MSSQL: split at GO boundaries and route to multi-batch execution if needed
@@ -199,7 +200,7 @@ extension WorkspaceTabContainerView {
         }
         let foreignKeySource = resolveSchemaAndTable(for: inferredObject, connection: tab.connection)
 
-        let activityHandle = AppDirector.shared.activityEngine.begin("Executing query", connectionSessionID: tab.connectionSessionID)
+        let activityHandle = AppDirector.shared.activityEngine.begin("Executing query", connectionSessionID: tab.connectionSessionID, showsOnBell: false)
         let sentSQL = effectiveSQL
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
@@ -280,13 +281,7 @@ extension WorkspaceTabContainerView {
                         databaseType: tab.connection.databaseType,
                         state: state
                     )
-                    appState.addToQueryHistory(
-                        effectiveSQL,
-                        connectionID: tab.connection.id,
-                        databaseName: tab.activeDatabaseName ?? tab.connection.database,
-                        resultCount: result.rows.count,
-                        duration: state.lastExecutionTime ?? 0
-                    )
+                    recordQueryHistory(sql: baseSQL, tab: tab, state: state, resultCount: state.results?.totalRowCount ?? state.results?.rows.count)
 
                     // Detect USE [database] in the original SQL and update tab context
                     detectAndApplyDatabaseSwitch(originalSQL: trimmedSQL, tab: tab)
@@ -309,6 +304,7 @@ extension WorkspaceTabContainerView {
                 await MainActor.run {
                     activityHandle.cancel()
                     state.markCancellationCompleted()
+                    recordQueryHistory(sql: baseSQL, tab: tab, state: state, outcome: "Cancelled")
                 }
             } catch {
                 let shouldTreatAsCancellation = await MainActor.run {
@@ -324,12 +320,14 @@ extension WorkspaceTabContainerView {
                     if shouldTreatAsCancellation {
                         activityHandle.cancel()
                         state.markCancellationCompleted()
+                    recordQueryHistory(sql: baseSQL, tab: tab, state: state, outcome: "Cancelled")
                     } else {
                         activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
                         presentServerMessages(of: error, sentSQL: sentSQL, state: state)
                         state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
                         presentErrorLocation(of: error, sentSQL: sentSQL, tab: tab, state: state)
+                        recordQueryHistory(sql: baseSQL, tab: tab, state: state, outcome: "Failed")
                         reportQueryFailure(error.localizedDescription, tab: tab)
                     }
                 }

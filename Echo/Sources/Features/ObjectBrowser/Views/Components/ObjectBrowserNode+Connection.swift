@@ -9,14 +9,14 @@ extension ObjectBrowserNode.Row {
         case .server(let session),
              .database(let session, _, _),
              .object(let session, _, _),
-             .action(let session, _),
+             .action(let session, _, _),
              .dock(let session, _, _):
             return session
         case .section(let folder), .folder(let folder):
             return folder.session
         case .item(let row):
             return row.session
-        case .topSpacer, .pendingConnection, .column, .placeholder, .loading, .message:
+        case .topSpacer, .pendingConnection, .column, .placeholder, .loading, .message, .filter:
             return nil
         }
     }

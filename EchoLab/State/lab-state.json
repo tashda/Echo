@@ -1,4 +1,121 @@
 {
+  "ongoing.agent-job-step-sheet-r33": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:22:17Z",
+        "id": "5C27B247-FE21-42E0-9DC2-1DFF71B42736",
+        "text": "Review of SQL Server Agent Jobs: New Step\n1. Which sheet?: picked Proposal\n2. Layout: picked NS1 \u00b7 Three sections: Step, Command, When it finishes; NEEDS MORE OPTIONS; note: I don't like the hairline seperating the bottom and top of these. Please make more radical suggestions, even though your 3 sections are good.\n3. Command: picked CE2 \u00b7 CE1 with Parse, which checks the T-SQL before you save\n4. When it finishes: picked OC1 \u00b7 On success, On failure, Retry attempts and interval\n5. Add Step: picked PB1 \u00b7 Prominent, as every sheet\n6. Editing a step: picked ES1 \u00b7 A line under the title: Last run 26 Sep 23:00 \u00b7 Succeeded \u00b7 14 min"
+      },
+      {
+        "date": "2026-10-01T14:31:50Z",
+        "id": "020D50A4-308C-4492-AA6C-556D69ED7D9E",
+        "text": "Review of SQL Server Agent Jobs: New Step\n1. Which sheet?: picked Proposal\n2. Layout: picked NS4 \u00b7 Wide: the command full height, the settings in a sidebar at the right, like Xcode's inspector\n3. Edges: picked SE1 \u00b7 No hairlines: title, content and buttons on one surface\n4. Command: picked CE2 \u00b7 CE1 with Parse, which checks the T-SQL before you save\n5. When it finishes: picked OC1 \u00b7 On success, On failure, Retry attempts and interval\n6. Add Step: picked PB1 \u00b7 Prominent, as every sheet\n7. Editing a step: picked ES1 \u00b7 A line under the title: Last run 26 Sep 23:00 \u00b7 Succeeded \u00b7 14 min"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:22:17Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T14:23:29Z",
+        "text": "Taken by agent-jobs-r33"
+      },
+      {
+        "date": "2026-10-01T14:26:32Z",
+        "text": "Revision 2: Four more radical layouts and the sheet's edges as a choice; your three sections kept"
+      },
+      {
+        "date": "2026-10-01T14:31:50Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:15:06Z",
+        "text": "Taken by agent-jobs-r33"
+      },
+      {
+        "date": "2026-10-01T18:49:24Z",
+        "text": "Built into Echo: the command at the left in the SQL editor with Parse, settings sidebar with On success, On failure and retries, last run on Edit Step; SheetLayout one surface with a prominent default button for every sheet (b6c8b5d5)"
+      },
+      {
+        "date": "2026-10-01T20:30:47Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "command": "CE2 \u00b7 CE1 with Parse, which checks the T-SQL before you save",
+      "completion": "OC1 \u00b7 On success, On failure, Retry attempts and interval",
+      "edges": "SE1 \u00b7 No hairlines: title, content and buttons on one surface",
+      "edit": "lastRun",
+      "exhibit": "proposal",
+      "primary": "PB1 \u00b7 Prominent, as every sheet",
+      "structure": "NS4 \u00b7 Wide: the command full height, the settings in a sidebar at the right, like Xcode's inspector"
+    },
+    "reviewedRevision": 2,
+    "revisions": [
+      {
+        "changes": [
+          "New layouts: NS3 the command fills the sheet (settings on one line, what happens next as a sentence; now my recommendation), NS4 inspector sidebar, NS5 the job's steps as a flow with success and failure arrows, NS6 your three sections as cards with nothing between",
+          "New control: Edges, SE0 hairlines (every sheet today), SE1 none (recommended), SE2 buttons on glass; SE1 would change every Echo sheet (SheetLayout)",
+          "New presets: Your three sections, Inspector, In the job's flow"
+        ],
+        "date": "2026-10-01T14:26:32Z",
+        "number": 2,
+        "summary": "Four more radical layouts and the sheet's edges as a choice; your three sections kept"
+      }
+    ],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.agent-jobs-tab-r33": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:12:46Z",
+        "id": "1708A23F-84D5-414F-80F9-F2C469911962",
+        "text": "Review of SQL Server Agent Jobs: the tab\n1. Finished?: picked Proposal\n2. Headers: picked JH1 \u00b7 One header for every pane\n3. Layout: picked JL1 \u00b7 Jobs the full height on the left; Details over History on the right\n4. Details sections: picked DT0 \u00b7 Segmented, centred under the title (today)\n5. Jobs columns: picked JC1 \u00b7 Status, Name, Last run, Next run\n6. Empty rows: picked ER1 \u00b7 Plain white below the last row\n7. Job actions: picked JA1 \u00b7 New Job and Start/Stop on the Jobs header; the rest in \u22ef and right-click\n8. A running job: picked JR1 \u00b7 A spinning symbol and its elapsed time in Last run"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:12:46Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:13:19Z",
+        "text": "Taken by agent-jobs-r33"
+      },
+      {
+        "date": "2026-10-01T14:22:57Z",
+        "text": "Built into Echo: one pane header, Jobs full height beside Details over History, Status/Name/Last Run/Next Run with a spinning running job and its elapsed time, New Job and Start/Stop on the header, no stripes (85dca995)"
+      },
+      {
+        "date": "2026-10-01T20:30:44Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "actions": "header",
+      "columns": "JC1 \u00b7 Status, Name, Last run, Next run",
+      "empty": "ER1 \u00b7 Plain white below the last row",
+      "exhibit": "proposal",
+      "headers": "JH1 \u00b7 One header for every pane",
+      "layout": "JL1 \u00b7 Jobs the full height on the left; Details over History on the right",
+      "running": "time",
+      "sections": "DT0 \u00b7 Segmented, centred under the title (today)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
   "ongoing.content-during-slide-r26": {
     "comments": [
       {
@@ -16,6 +133,10 @@
       {
         "date": "2026-10-01T10:09:20Z",
         "text": "Revision 2: Kept A, live reflow, on every tab: nothing to build, it is how Echo works"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -25,7 +146,7 @@
       "mode": "A \u00b7 Reflow live",
       "scope": "all"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -36,6 +157,228 @@
         "summary": "Kept A, live reflow, on every tab: nothing to build, it is how Echo works"
       }
     ],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.context-menu-anatomy-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:47:52Z",
+        "id": "5E881842-99F2-43F0-9B16-8C787EFAD459",
+        "text": "Review of Context menus: the rules\n1. Icons: picked MI1 \u00b7 Icons only for familiar actions: New, Copy, Refresh, Properties, Drop\n2. Properties and Drop: picked PL0 \u00b7 Drop, then Properties last (today)\n3. Title: picked MT0 \u00b7 No title (today)\n4. Copy Name: picked CN1 \u00b7 Copy Name in every object's menu\n5. Drop: picked DR0 \u00b7 In ordinary text, in its own group (today)\n6. One order for every menu: picked MO0 \u00b7 Yes, one order everywhere\n7. Commands that don't apply: picked HD0 \u00b7 Hidden\n8. The same commands in the menu bar: picked MB0 \u00b7 Yes: an Object menu (New Query, Open Data, Script as, Properties, Drop\u2026)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:47:52Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:09Z",
+        "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:24:50Z",
+        "text": "Built into Echo: one order, familiar icons only, no title, Copy Name everywhere, hidden not dimmed, an Object menu in the menu bar"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "copyName": "CN1 \u00b7 Copy Name in every object's menu",
+      "disabled": "hide",
+      "drop": "DR0 \u00b7 In ordinary text, in its own group (today)",
+      "icons": "MI1 \u00b7 Icons only for familiar actions: New, Copy, Refresh, Properties, Drop",
+      "menuBar": "yes",
+      "order": "yes",
+      "properties": "PL0 \u00b7 Drop, then Properties last (today)",
+      "title": "MT0 \u00b7 No title (today)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.context-menu-column-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:50:32Z",
+        "id": "490E19CC-0F16-4400-B65C-CFE701995B94",
+        "text": "Review of Context menus: columns, routines and the rest\n1. Insert in Query: picked IQ0 \u00b7 Yes, and dragging a column into the editor does the same\n2. Rename from the tree: picked RN0 \u00b7 Yes: the name becomes editable, then Echo shows the ALTER it will run\n3. Execute a procedure: picked EX1 \u00b7 A new tab with EXEC and the parameters to fill in"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:50:32Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:24:51Z",
+        "text": "Built into Echo: Insert in Query (and drag), Rename in place that opens the ALTER in a query tab to run, Execute opens EXEC with its parameters"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "execute": "script",
+      "insert": "yes",
+      "rename": "inline"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.context-menu-database-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:48:57Z",
+        "id": "9437E4EA-2923-46C8-A910-6B42BE5C728D",
+        "text": "Review of Context menus: database\n1. Back Up: picked BU1 \u00b7 Back Up and Restore in the menu itself\n2. Visual Query Builder: picked QB0 \u00b7 Beside New Query and Diagram, as Query Builder\n3. Advanced Objects: picked AO0 \u00b7 Fold it into Open Tool with Maintenance and Security Overview"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:48:57Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:00:58Z",
+        "text": "Built into Echo: Back Up and Restore in the menu, Query Builder beside New Query, Open Tool with Maintenance, Security Overview and the advanced objects as flat items; no Diagram yet because Echo has no database diagram (0176b416)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "advanced": "tool",
+      "backUp": "BU1 \u00b7 Back Up and Restore in the menu itself",
+      "queryBuilder": "top"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.context-menu-folder-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:51:17Z",
+        "id": "46FB450D-10D4-445C-A27E-D3BEB9F81197",
+        "text": "Review of Context menus: folders and sections\n1. A folder's first item: picked FF0 \u00b7 Yes\n2. Filter: picked FL0 \u00b7 Yes, in every object folder\n3. Empty space: picked ES0 \u00b7 New Connection, Refresh All Servers, Show Empty Folders"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:51:17Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:24:51Z",
+        "text": "Built into Echo: creation first, Filter in every object folder, empty-space menu with Show Empty Folders"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "empty": "connection",
+      "filter": "yes",
+      "first": "yes"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.context-menu-server-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:48:27Z",
+        "id": "2FD049F8-447C-42FC-BF47-CBC86D6329A5",
+        "text": "Review of Context menus: server\n1. Tools: picked ST1 \u00b7 The tools in an Open Tool submenu\n2. Refresh All: picked SR0 \u00b7 Refresh, as on every other object\n3. Manage Connection: picked SC0 \u00b7 Edit Connection"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:48:27Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:00:58Z",
+        "text": "Built into Echo: Open Tool submenu, Refresh, Edit Connection, Copy Name, one order (0176b416)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "connection": "edit",
+      "refresh": "refresh",
+      "tools": "ST1 \u00b7 The tools in an Open Tool submenu"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.context-menu-table-r42": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:49:42Z",
+        "id": "72F5D03B-BA4B-49C0-9D29-1AAFF5ABE62A",
+        "text": "Review of Context menus: tables and views\n1. Words: picked TN1 \u00b7 Open Data, Edit Structure, Diagram\n2. Double-click: picked DC0 \u00b7 Open Data (the first item in its menu)\n3. Truncate: picked TR0 \u00b7 Yes\n4. Views: picked VW0 \u00b7 Yes, the same shape"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:49:42Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:52:12Z",
+        "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:24:51Z",
+        "text": "Built into Echo: Open Data and Edit Structure, double-click opens data, Truncate Table in Tasks, views the same shape"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "names": "TN1 \u00b7 Open Data, Edit Structure, Diagram",
+      "openDefault": "data",
+      "truncate": "yes",
+      "view": "same"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
     "status": "In Echo",
     "verdicts": {}
   },
@@ -56,6 +399,10 @@
       {
         "date": "2026-10-01T11:40:00Z",
         "text": "Built into Echo (9715ce3b): no current-line band; the system selection with 3pt corners, Settings \u203a Selection Corners (Square, 2, 3, 4, 6pt); the system caret. Correction: Echo already drew the system selection colour, not the palette's blue"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -74,7 +421,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-design-language-r28": {
@@ -94,6 +441,10 @@
       {
         "date": "2026-10-01T13:45:00Z",
         "text": "Built into Echo (ac5089f6): EditorMarkTokens: round ends by default, soft 10% and strong 22%, colour by meaning, the letters' height; Settings \u203a Editor \u203a Marks (Corners, Strength) replaces Selection Corners and Highlight Corners"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -111,7 +462,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-empty-r28": {
@@ -131,6 +482,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (433f34e1): the prompt on the first line where you type, in the editor's font; no chips"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -145,7 +500,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-errors-r28": {
@@ -200,6 +555,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (306a8fb2): one tinted pill for every error (E10), its message in a glass popover with a pointer (BB3) on hover or with the caret on the line; the live check when you leave the line or after 2 s"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -241,7 +600,7 @@
         "summary": "Everything for the wrong word, more glows, and new bubbles"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-find-bar-r28": {
@@ -304,6 +663,10 @@
       {
         "date": "2026-10-01T13:45:00Z",
         "text": "Built into Echo (ac5089f6): Echo's own find bar replaces the system's: FB5 glass capsule with glass buttons, the Selection button for a multi-line selection (SS4), a selected word becomes the search (SE1), options in the magnifier's menu, \u201c2 found\u201d"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -364,7 +727,7 @@
         "summary": "Replace continues on 28.13"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-find-typing-r28": {
@@ -388,6 +751,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (8464a8c1): Go to Line as a glass field; Tab is 4 spaces, \u21e7Tab outdents; Return keeps the indent; brackets and quotes close themselves; \u2318/ toggles --"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [
@@ -403,7 +770,7 @@
       "tab": "spaces",
       "wrap": "wrap"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -414,7 +781,7 @@
         "summary": "Find moved to page 28.12; the rest accepted in chat"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-gutter-lane-r28": {
@@ -438,6 +805,10 @@
       {
         "date": "2026-10-01T13:51:29Z",
         "text": "Taken by lane-agent"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -453,12 +824,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
-    "takenBy": {
-      "agent": "lane-agent",
-      "date": "2026-10-01T13:51:29Z",
-      "status": "In Echo"
-    },
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-gutter-r28": {
@@ -478,6 +844,10 @@
       {
         "date": "2026-10-01T11:40:00Z",
         "text": "Built into Echo (9715ce3b): SF digits 2pt under the code, tertiary, the caret line's number in the text colour; Hairline added beside Subtle, Column and Lane in Settings (your note)"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -497,7 +867,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-marks-r28": {
@@ -530,6 +900,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (56799682): the word's other uses in a soft tint as high as the letters, with Settings \u203a Highlight Corners (3pt); typing ) flashes its (. Find waits for 28.12"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -562,7 +936,7 @@
         "summary": "Find matches drawn in the editor, more corners"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-run-note-r28": {
@@ -608,6 +982,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (f530ad91): the note on a glass pill with a symbol (R10), one per statement of a script (MS0); the bracket breathes while it runs (RR1), a gutter line fades when it ends (H9)"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -646,7 +1024,7 @@
         "summary": "While running: what the bracket does while the query runs"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-search-replace-r28": {
@@ -679,6 +1057,10 @@
       {
         "date": "2026-10-01T13:45:00Z",
         "text": "Built into Echo (ac5089f6): Replace opens inside the capsule as it grows (RP1, AN1); each match shows its replacement in the marks' language (PV6); \u2318F, \u2325\u2318F; Return replaces and moves on; Replace All is one undo and says \u201cReplaced 12\u201d"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -706,7 +1088,7 @@
         "summary": "PV2 in the editor's design language"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-settings-r28": {
@@ -726,6 +1108,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (c30bc3e7): one Settings \u203a Editor pane; switches for line numbers, word highlight and wrapping; only Aurora and Midnight; whole font sizes"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -746,7 +1132,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-statement-r28": {
@@ -766,6 +1152,10 @@
       {
         "date": "2026-10-01T11:40:00Z",
         "text": "Built into Echo (9715ce3b): a bracket beside the statement's numbers, solid for a selected result's statement; the Run arrow grey, accent under the pointer"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -781,7 +1171,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-text-r28": {
@@ -801,6 +1191,10 @@
       {
         "date": "2026-10-01T11:40:00Z",
         "text": "Built into Echo (9715ce3b): lines 1.55 \u00d7 the size (20pt at 13pt); Line Height Compact, Comfortable, Relaxed; SF Mono by default; ligatures off; code 16pt after the numbers; 8pt above the first line"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -818,7 +1212,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-zoom-r28": {
@@ -838,6 +1232,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (a80770d9): a glass 100% pill at the bottom left with a menu; \u2318+ \u2318\u2212 \u23180 and pinch; per tab, editor only"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -855,7 +1253,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.empty-folders-r30": {
@@ -871,6 +1269,18 @@
       {
         "date": "2026-10-01T13:58:07Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:04:29Z",
+        "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T14:53:09Z",
+        "text": "Built into Echo (5be677fc): Tables, Views, Functions and Procedures always show; an empty one is dimmed with no count and opens to a grey 'No views' row; Show empty folders removed from Settings \u203a Sidebar. Test: ExplorerBlueprintTests.mainObjectFoldersShowEvenWhenEmpty."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -885,7 +1295,54 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.footer-blur-r44": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:26:20Z",
+        "id": "EA237946-3AB0-4397-8887-D6FC76951E34",
+        "text": "Review of The blur under the footer\n1. Which technique?: picked BT4 \u00b7 The system's material\n2. Strongest blur: picked BS2 \u00b7 12pt (Echo today)\n3. How high it reaches: picked BH3 \u00b7 40pt above the footer\n4. How it grows: picked CV6 \u00b7 Grows like the eye sees it (exponential)\n5. Tint: picked TT1 \u00b7 15% of the card's colour\n6. Steps (BT1): picked ST2 \u00b7 16 steps"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:26:20Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:30:38Z",
+        "text": "Taken by editor-r28"
+      },
+      {
+        "date": "2026-10-01T18:45:16Z",
+        "text": "Built into Echo (b5eebdb9): the system's ultra-thin material with a 15% card tint under every floating footer, faded in exponentially from 40pt above it; the AppKit blur stays off under footers"
+      },
+      {
+        "date": "2026-10-01T19:59:30Z",
+        "text": "Also at the editor's bottom (bf7c0b2c), the owner's ask: with the results open the editor card gets the same material at the same height, and the text runs under it"
+      },
+      {
+        "date": "2026-10-01T20:23:19Z",
+        "text": "Only query tabs (bd137299): the material is under a query tab's footer and the editor's bottom; other tabs keep the light tint"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "curve": "CV6 \u00b7 Grows like the eye sees it (exponential)",
+      "exhibit": "material",
+      "reach": "BH3 \u00b7 40pt above the footer",
+      "steps": "ST2 \u00b7 16 steps",
+      "strength": "BS2 \u00b7 12pt (Echo today)",
+      "tint": "TT1 \u00b7 15% of the card's colour"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.mssql-always-encrypted-r29": {
@@ -949,6 +1406,10 @@
       {
         "date": "2026-09-30T15:27:07Z",
         "text": "Built into Echo (057a797b): Mandatory default, menu says what is checked, Trust dims under Strict, Allow TLS 1.0 per connection, Test names the failed check with a fix button"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -964,7 +1425,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.mssql-errors-r22": {
@@ -984,6 +1445,10 @@
       {
         "date": "2026-09-30T17:09:29Z",
         "text": "Built into Echo (8e8ea135, d6cf8cf3): every message in order under the SSMS header, Line N selects the line, COMMIT outcome unknown wording, severity 20 as a lost connection, and the shared error mark"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1000,7 +1465,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.mssql-import-r25": {
@@ -1020,6 +1485,10 @@
       {
         "date": "2026-10-01T10:07:06Z",
         "text": "Built into Echo (2a235de8): an Options section (empty cells, keep identity values, check constraints, fire triggers, lock the table), the import in one transaction, 10,000-row batches and a note when INSERT statements were used"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1035,7 +1504,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.mssql-sessions-r22": {
@@ -1073,6 +1542,10 @@
       {
         "date": "2026-09-30T17:09:29Z",
         "text": "Built into Echo (057a797b, c051c455, a5ed0ffb, 20688328): no 45 s limit, cancel keeps the session and looks like PostgreSQL, Transaction rolled back, APP_NAME Echo, dropped connection with Reconnect, extra result sets spooled"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1088,7 +1561,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.mssql-values-r22": {
@@ -1108,6 +1581,10 @@
       {
         "date": "2026-09-30T15:48:44Z",
         "text": "Built into Echo (ce98d8e4): every row is spooled as wire bytes and formatted by the driver, so rows after 200 read like the preview (dates, datetimeoffset, money, geography, code-page varchar)"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1123,7 +1600,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.notification-history-r17": {
@@ -1193,6 +1670,10 @@
       {
         "date": "2026-10-01T12:00:41Z",
         "text": "Revision 2: Checked against Echo with verify-round.py: PASS"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1210,7 +1691,7 @@
       "material": "M1 \u00b7 Liquid Glass (today)",
       "stacking": "S1 \u00b7 List of three (today)"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -1223,7 +1704,181 @@
         "summary": "Checked against Echo with verify-round.py: PASS"
       }
     ],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.opening-and-closing-r48": {
+    "comments": [
+      {
+        "date": "2026-10-01T21:20:57Z",
+        "id": "7E598CF3-7121-4C2E-9E48-96171BC80FFD",
+        "text": "Review of Opening, connecting and closing the last tab\n1. Which opening?: picked Proposal\n2. Mark: picked WM2 \u00b7 The mark alone, the pills echo in (echodb.dev)\n3. Buttons and recents: picked WR1 \u00b7 They rise in under the mark, one after the other\n4. Welcome on connect: picked LV2 \u00b7 The pills echo out to the left, then the columns come in\n5. Rail and tree: picked CO1 \u00b7 The server appears in the rail, then the tree slides out\n6. Server page: picked AR2 \u00b7 The page builds up: name, version, tools, databases\n7. After the last tab: picked CW1 \u00b7 The page of the server the tab belonged to\n8. Closing animation: picked CH1 \u00b7 The page was underneath: the card lifts away and reveals it\n9. When the mark plays: picked Every time the welcome appears"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T21:20:57Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T21:21:17Z",
+        "text": "Taken by welcome-agent"
+      },
+      {
+        "date": "2026-10-01T21:32:43Z",
+        "text": "Built into Echo: the mark alone echoing in, pills echoing out on connect, rail then tree, the page building up, closing the last tab keeps the server and lifts the card (d1fb73aa)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "arrive": "AR2 \u00b7 The page builds up: name, version, tools, databases",
+      "closeHow": "CH1 \u00b7 The page was underneath: the card lifts away and reveals it",
+      "closeWhere": "CW1 \u00b7 The page of the server the tab belonged to",
+      "columns": "CO1 \u00b7 The server appears in the rail, then the tree slides out",
+      "exhibit": "proposal",
+      "leave": "LV2 \u00b7 The pills echo out to the left, then the columns come in",
+      "mark": "WM2 \u00b7 The mark alone, the pills echo in (echodb.dev)",
+      "plays": "every",
+      "rest": "WR1 \u00b7 They rise in under the mark, one after the other"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
     "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Quit and open Echo: the mark echoes in with no name, then the buttons and recents rise",
+        "Connect to a server: the pills echo out, then the server grows into the rail, the tree slides out and the server page builds up",
+        "Open a tab, then close it: you land on the server's page (the card lifts away), not the welcome",
+        "Fail a connection (wrong host): the welcome comes back and echoes in again"
+      ],
+      "done": [],
+      "shots": [],
+      "summary": "Welcome, connect and closing the last tab animate as you picked in round 48 (LV2 instead of LV1)"
+    }
+  },
+  "ongoing.panel-fills-dark-r32": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:08:12Z",
+        "id": "5AF90B7C-2340-46AE-8A46-DDA8C78C0C33",
+        "text": "Review of Panels in dark mode\n1. Which dark window?: no answer yet\n2. Canvas: NEEDS MORE OPTIONS; note: Don't like the look of any of them.\n3. Cards: picked DD0 \u00b7 Text background, 30 (today, the Midnight editor's colour)\n4. Edge: NEEDS MORE OPTIONS; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode\n5. Shadow: NEEDS MORE OPTIONS; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode\n6. Increase Contrast: NEEDS MORE OPTIONS; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode"
+      },
+      {
+        "date": "2026-10-01T14:18:52Z",
+        "id": "E92C29D5-1914-4105-A59C-9F848564567A",
+        "text": "Review of Panels in dark mode\n1. Which dark window?: picked Proposal\n2. Canvas: picked DC6 \u00b7 Just under the cards, about 24\n3. Cards: picked DD0 \u00b7 Text background, 30 (today, the Midnight editor's colour)\n4. Edge: picked DE5 \u00b7 A 7% hairline and a lit top edge, the quietest; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode\n5. Shadow: picked DS5 \u00b7 A small contact shadow and a wide ambient one\n6. Increase Contrast: picked IC0 \u00b7 A solid 1pt edge in the separator colour"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:08:12Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T14:09:24Z",
+        "text": "Taken by panels-agent"
+      },
+      {
+        "date": "2026-10-01T14:12:29Z",
+        "text": "Revision 2: More canvas, edge, shadow and Increase Contrast options, and every option shown in light mode too"
+      },
+      {
+        "date": "2026-10-01T14:18:52Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:23:03Z",
+        "text": "Built into Echo: dark canvas 24 (DC6), cards 30, 7% hairline with lit top (DE5), contact + ambient shadow (DS5), solid 1pt edge with Increase Contrast (IC0). Light mode unchanged. Edge note 'need to see more options' was the earlier note, taken as stale since DE5 was picked"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "edge": "Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode"
+    },
+    "picks": {
+      "canvas": "DC6 \u00b7 Just under the cards, about 24",
+      "card": "DD0 \u00b7 Text background, 30 (today, the Midnight editor's colour)",
+      "contrast": "IC0 \u00b7 A solid 1pt edge in the separator colour",
+      "edge": "DE5 \u00b7 A 7% hairline and a lit top edge, the quietest",
+      "exhibit": "proposal",
+      "shadow": "DS5 \u00b7 A small contact shadow and a wide ambient one"
+    },
+    "reviewedRevision": 2,
+    "revisions": [
+      {
+        "changes": [
+          "New canvas: DC4 cool graphite, DC5 warm graphite, DC6 just under the cards, DC7 under-page colour, DC8 accent tint",
+          "New edges: DE3 1pt stronger, DE4 bevel with outer line, DE5 quiet lit",
+          "New shadows: DS2 tight, DS3 wide and soft, DS4 none, DS5 contact plus ambient",
+          "New Increase Contrast: IC2 2pt edge, IC3 edge and canvas pushed, IC4 crisp no shadow; now a control with its own exhibits",
+          "New exhibits: Increase Contrast on, light mode today, Proposal in light mode, light with Increase Contrast"
+        ],
+        "date": "2026-10-01T14:12:29Z",
+        "number": 2,
+        "summary": "More canvas, edge, shadow and Increase Contrast options, and every option shown in light mode too"
+      }
+    ],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.panel-fills-light-r32": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:05:26Z",
+        "id": "E4F672E9-31CF-4E67-9944-871657DCF601",
+        "text": "Review of Panels: is the inspector whiter?\n1. Zebra rows: picked ZB0 \u00b7 Zebra rows in grids and tool-tab tables (today)\n2. Side cards: picked SC0 \u00b7 Every card white (today)\n3. Empty inspector: picked EI2 \u00b7 Centred, with a symbol, like the system's empty views\n4. Is it true?: picked Yes: it's the stripes and the empty card"
+      },
+      {
+        "date": "2026-10-01T14:05:27Z",
+        "id": "9F70C950-50DB-4FCC-8563-55F030778265",
+        "text": "Review of Panels: is the inspector whiter?\n1. Zebra rows: picked ZB0 \u00b7 Zebra rows in grids and tool-tab tables (today)\n2. Side cards: picked SC0 \u00b7 Every card white (today)\n3. Empty inspector: picked EI2 \u00b7 Centred, with a symbol, like the system's empty views\n4. Is it true?: picked Yes: it's the stripes and the empty card"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:05:26Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:05:27Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T14:06:14Z",
+        "text": "Taken by panels-agent"
+      },
+      {
+        "date": "2026-10-01T14:09:21Z",
+        "text": "Built into Echo: empty inspector centred with a symbol (EI2); zebra and white cards unchanged. Compile of InfoSidebarView not separately confirmed: build blocked by another agent's ObjectBrowserSidebarView+Fold.swift"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "emptyInspector": "EI2 \u00b7 Centred, with a symbol, like the system's empty views",
+      "measured": "yes",
+      "sideCards": "SC0 \u00b7 Every card white (today)",
+      "zebra": "ZB0 \u00b7 Zebra rows in grids and tool-tab tables (today)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-cancel-r21": {
@@ -1243,6 +1898,10 @@
       {
         "date": "2026-09-30T15:48:42Z",
         "text": "Built into Echo (plan R9): footer Cancelling (no dots), partial rows marked, Force Stop after 5 s, run note and Messages 'Cancelled after \u2026', ROLLBACK note inside a transaction; \u2325\u2318. only. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1262,7 +1921,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-client-key-password-r23": {
@@ -1286,6 +1945,10 @@
       {
         "date": "2026-09-30T20:36:28Z",
         "text": "Owner confirmed in chat: accept .p12/.pfx files (PF2); the saved pick said PF1."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1302,7 +1965,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-connection-lost-r21": {
@@ -1322,6 +1985,10 @@
       {
         "date": "2026-09-30T14:45:57Z",
         "text": "Built into Echo (plan N6): told at once in Messages and a notification with Reconnect; footer Disconnected; runs wait for Reconnect; idle drops quiet. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1341,7 +2008,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-error-location-r21": {
@@ -1361,6 +2028,10 @@
       {
         "date": "2026-09-30T17:09:29Z",
         "text": "Built into Echo (d6cf8cf3) for PostgreSQL and SQL Server: squiggle with bubble, Fix, cleared by an edit or the next run, ! Error run note with a Settings choice, Go to Error on the notification"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1380,7 +2051,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-failover-hosts-r23": {
@@ -1400,6 +2071,10 @@
       {
         "date": "2026-09-30T20:26:49Z",
         "text": "Built into Echo: + Add Server rows, Connect To, Test checks every server, pasted multi-server URLs, footer chip and notification after a failover. Check in the running app."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1418,7 +2093,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-kerberos-signin-r23": {
@@ -1438,6 +2113,10 @@
       {
         "date": "2026-09-30T20:26:49Z",
         "text": "Built into Echo: Mechanism Password or Kerberos, ticket line with Open Ticket Viewer, Kerberos Service in the disclosure, user name from the ticket, Test fixes (NT1, KF1). Check in the running app."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1456,7 +2135,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-open-transaction-guard-r21": {
@@ -1476,6 +2155,10 @@
       {
         "date": "2026-09-30T18:22:07Z",
         "text": "Built into Echo (plan R11): alert before closing, switching database, disconnecting and quitting; Commit default; time and statements; failed offers Roll Back; quitting lists the tabs. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1493,7 +2176,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-script-results-r21": {
@@ -1513,6 +2196,10 @@
       {
         "date": "2026-09-30T15:34:34Z",
         "text": "Built into Echo (plan R8): statement list at the left, first-word labels, command entries, one Messages line per statement, the selected result lights its statement, stop on a failed statement (setting to continue), Run as One Transaction. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1530,7 +2217,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-timeouts-r21": {
@@ -1563,6 +2250,10 @@
       {
         "date": "2026-09-30T18:31:46Z",
         "text": "Built into Echo (plan R12): Settings default + connection override, old 60 s reset with a one-time notice, statement_timeout per tab, footer 0:12 / 0:30, stop explained with Run Without Limit, server limit named, Waiting for lock with the holder on hover. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1599,7 +2290,7 @@
         "summary": "Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-transaction-state-r21": {
@@ -1619,6 +2310,10 @@
       {
         "date": "2026-09-30T15:56:46Z",
         "text": "Built into Echo (plan R10): footer status pill Transaction (orange, time after a minute) or Failed \u2014 roll back (red), Commit and Roll Back in its menu, a notification after 15 minutes idle, state from the statements. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1637,7 +2332,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {
       "exhibit/proposal": "no",
       "exhibit/today": "no"
@@ -1660,6 +2355,10 @@
       {
         "date": "2026-09-30T14:17:25Z",
         "text": "Built into Echo (plan R7): array count and items, JSON summary, binary kind and size, decimal-point alignment, Copy as Shown. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1675,6 +2374,533 @@
       "numbers": "VN2 \u00b7 Aligned on the decimal point",
       "scope": "all",
       "special": "keep"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.rail-bookmarks-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:37:26Z",
+        "id": "13124FAB-D4A4-4D15-8234-798DB744A2BA",
+        "text": "Review of Rail tools: Bookmarks\n1. Saving: picked BS2 \u00b7 BS1, and saving opens a small popover: name, folder, note\n2. A bookmark holds: picked BH1 \u00b7 BH0, plus a folder and a note\n3. List: picked BL2 \u00b7 BL1 with the SQL shown under the selected bookmark; NEEDS MORE OPTIONS; note: This, but it needs to look better.\n4. Opening: picked BO1 \u00b7 Click opens a new tab; \u2325-click or drag inserts at the caret\n5. Bookmarks with blanks: picked BP0 \u00b7 Not now; snippets have placeholders (39.3)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:37:26Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T21:00:35Z",
+        "text": "Revision 2: Two native inspector layouts with clearer SQL previews."
+      }
+    ],
+    "needsMore": [
+      "list"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "list": "This, but it needs to look better."
+    },
+    "picks": {
+      "holds": "BH1 \u00b7 BH0, plus a folder and a note",
+      "list": "BL2 \u00b7 BL1 with the SQL shown under the selected bookmark",
+      "open": "BO1 \u00b7 Click opens a new tab; \u2325-click or drag inserts at the caret",
+      "parameters": "later",
+      "save": "BS2 \u00b7 BS1, and saving opens a small popover: name, folder, note"
+    },
+    "reviewedRevision": 2,
+    "revisions": [
+      {
+        "changes": [
+          "BL3: folder list with selected SQL and note inline; recommended for keeping context beside the editor.",
+          "BL4: folder list above a fixed SQL and note detail pane; keeps the list height stable.",
+          "Original choices and all save, metadata and opening decisions are retained."
+        ],
+        "date": "2026-10-01T21:00:35Z",
+        "number": 2,
+        "summary": "Two native inspector layouts with clearer SQL previews."
+      }
+    ],
+    "status": "Judging",
+    "verdicts": {}
+  },
+  "ongoing.rail-click-hidden-tree-r40": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:40:02Z",
+        "id": "79315CF3-19AA-4815-9B10-DF394536ABBB",
+        "text": "Review of Clicking a server while the tree is hidden\n1. A click: picked RC1 \u00b7 Open the tree, scrolled to the server and its card selected\n2. Motion: picked OM0 \u00b7 The tree slides in while it scrolls to the server\n3. Arrival: picked SM1 \u00b7 Nothing more: the rail shows which server it is\n4. With the tree showing: picked TV0 \u00b7 Scrolls the tree to its card (today)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:40:02Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:40:37Z",
+        "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T15:00:09Z",
+        "text": "Built into Echo (3416c997): with the tree hidden a click on a server opens the tree, sliding in while it scrolls to the server; nothing more on arrival; with the tree showing it scrolls as before. The peek and the Collapsed Server Click setting are removed (your choice). Window page: WIN-3.3 retired, WIN-3.5 added; not stamped, it carries drift from other rounds."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "click": "RC1 \u00b7 Open the tree, scrolled to the server and its card selected",
+      "mark": "SM1 \u00b7 Nothing more: the rail shows which server it is",
+      "motion": "OM0 \u00b7 The tree slides in while it scrolls to the server",
+      "visible": "scroll"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.rail-clipboard-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:39:31Z",
+        "id": "2548E577-5BD3-4ACC-8922-2408F45FDE3F",
+        "text": "Review of Rail tools: Clipboard\n1. Clipboard: picked CB1 \u00b7 Drop it; the system's clipboard history covers it\n2. The rail's bottom pill: picked BP0 \u00b7 It goes; the rail is only servers and +"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:39:31Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T21:00:35Z",
+        "text": "Built into Echo: removed Echo clipboard capture, browsing, cache settings and export; ordinary system clipboard copying remains. Legacy archives still decode without importing or capturing history. Build/run and tests pass."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "fate": "CB1 \u00b7 Drop it; the system's clipboard history covers it",
+      "railAfter": "remove"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Check there is no bottom tool pill or Clipboard History entry.",
+        "Copy SQL or a result normally; use the system clipboard as before."
+      ],
+      "done": [],
+      "shots": [
+        "1.png"
+      ],
+      "summary": "Clipboard capture and the bottom tool pill are gone."
+    }
+  },
+  "ongoing.rail-history-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:39:07Z",
+        "id": "45A33194-9B2C-4973-A62F-A17304FF0D46",
+        "text": "Review of Rail tools: History\n1. Grouping: picked HG0 \u00b7 By day, newest first\n2. Rows: picked HR0 \u00b7 The first line of SQL, then database \u00b7 result \u00b7 time\n3. Kept for: picked HK1 \u00b7 The last 5,000 runs; note: Remember cache settings in Settings and to take them into consideration\n4. A past query: picked HA1 \u00b7 Open in a new tab only\n5. Servers you don't want recorded: picked HP0 \u00b7 Yes: Don't keep history, in the connection's settings"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:39:07Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T21:00:35Z",
+        "text": "Built into Echo: accepted day groups, first SQL line with database/result/time, default 5000 runs, separate Cache controls and per-connection opt-out. Build/run and 37 tests pass; live SELECT persisted after relaunch and opened Ready without executing."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "keep": "Remember cache settings in Settings and to take them into consideration"
+    },
+    "picks": {
+      "actions": "open",
+      "grouping": "HG0 \u00b7 By day, newest first",
+      "keep": "HK1 \u00b7 The last 5,000 runs",
+      "row": "HR0 \u00b7 The first line of SQL, then database \u00b7 result \u00b7 time",
+      "sensitive": "yes"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Run a query, find it in History, then click it: a new tab should open Ready on the original database.",
+        "Inspect Settings > Cache for history count, expiry and Clear; connection settings include Don\u2019t keep query history."
+      ],
+      "done": [],
+      "shots": [
+        "1.png"
+      ],
+      "summary": "Query History lives beside the editor and opens SQL safely in a new tab."
+    }
+  },
+  "ongoing.rail-snippets-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:38:02Z",
+        "id": "7375BA25-155C-4D00-85B9-034AE234BCA4",
+        "text": "Review of Rail tools: Snippets\n1. Snippets: no answer yet\n2. Inserting: no answer yet\n3. Blanks: no answer yet\n4. Making one: no answer yet\nOverall: Remove snippets"
+      }
+    ],
+    "generalNote": "Remove snippets",
+    "history": [
+      {
+        "date": "2026-10-01T18:38:02Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T21:00:35Z",
+        "text": "Built into Echo: removed Snippets panel and palette snippets as requested in 39.3 and accepted as KS2 in 39.1. SQL autocomplete remains a separate feature. Build/run and focused tests pass."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Check the rail, inspector selector and command palette have no Snippets entry."
+      ],
+      "done": [],
+      "shots": [
+        "1.png"
+      ],
+      "summary": "Snippets removed from the workspace."
+    }
+  },
+  "ongoing.rail-tools-r39": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:35:31Z",
+        "id": "7ECE66DC-2ADC-4BB1-8657-DEF494C887BE",
+        "text": "Review of Rail tools: keep, merge or move\n1. Which placement?: picked RT2 \u00b7 Panels in the inspector column, beside the tab\n2. Where they live: picked RT2 \u00b7 Panels in the inspector column, beside the tab\n3. Bookmarks: picked KB0 \u00b7 Keep, redesigned (39.2)\n4. Snippets: picked KS2 \u00b7 Drop\n5. History: picked KH0 \u00b7 Build it (39.4), and remove Coming Soon\n6. Clipboard: picked KC0 \u00b7 Drop it: macOS 26 keeps clipboard history in Spotlight (39.5)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:35:31Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:18:58Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-01T20:59:58Z",
+        "text": "Built into Echo: RT2 inspector placement; removed Snippets, clipboard capture and bottom tool pill. Build/run and 37 focused tests pass; live recording and safe history opening verified. Bookmarks redesign remains Judging in 39.2."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "bookmarks": "keep",
+      "clipboard": "drop",
+      "exhibit": "inspector",
+      "history": "build",
+      "placement": "RT2 \u00b7 Panels in the inspector column, beside the tab",
+      "snippets": "drop"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Use the inspector menu or View to open Bookmarks and History; switch back to Details.",
+        "Check the Explorer stays visible and the rail has only servers and +."
+      ],
+      "done": [],
+      "shots": [
+        "1.png"
+      ],
+      "summary": "Bookmarks and History share the inspector; Explorer stays visible."
+    }
+  },
+  "ongoing.refresh-and-activity-r34": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:27:38Z",
+        "id": "54291FD7-2C69-4CA6-ADB5-00FF7340A23E",
+        "text": "Review of Refresh and the activity signal\n1. Activity: picked AS2 \u00b7 Refresh shows only its own reload; long operations report through the bell\n2. Refresh: picked RL1 \u00b7 In the toolbar only while the front tab can reload\n3. Refresh on a query tab: picked QR1 \u00b7 Nothing; the schema reloads from the tree's menu and after DDL\n4. \u2318R: picked KR0 \u00b7 Reload the front tool tab"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:27:38Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:32:06Z",
+        "text": "Taken by agent-jobs-r33"
+      },
+      {
+        "date": "2026-10-01T14:51:10Z",
+        "text": "Built into Echo: Refresh only while the front tab can reload and only its own reload; \u2318R reloads the front tool tab; the bell spins for long operations, query runs off it (8fad4a2d)"
+      },
+      {
+        "date": "2026-10-01T20:30:54Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "place": "RL1 \u00b7 In the toolbar only while the front tab can reload",
+      "queryTab": "nothing",
+      "shortcut": "tab",
+      "signal": "AS2 \u00b7 Refresh shows only its own reload; long operations report through the bell"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.results-error-page-r41": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:48:13Z",
+        "id": "0C8A8CCA-7F50-410B-9BCD-4CDFB0AF7E09",
+        "text": "Review of Results: the error page and its neighbours\n1. The page: picked EP1 \u00b7 A banner at the top of the card: symbol, message, line and actions in one block\n2. In the editor: picked HL0 \u00b7 A red pill on the statement's first word (today)\n3. SQL Server's numbers: picked ED0 \u00b7 Quiet chips after the message\n4. Actions: picked EA1 \u00b7 EA0 and Copy Error"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:48:13Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:48:57Z",
+        "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60): a banner at the top left with Failed on line N, the message, Msg/Level/State chips, Show in Editor, Messages, Copy Error; Running, No rows and Cancelled use the same banner; the editor's red pill unchanged (HL0)."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "actions": "three",
+      "details": "chips",
+      "highlight": "HL0 \u00b7 A red pill on the statement's first word (today)",
+      "page": "EP1 \u00b7 A banner at the top of the card: symbol, message, line and actions in one block"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.results-gutter-r47": {
+    "comments": [
+      {
+        "date": "2026-10-01T20:46:22Z",
+        "id": "55BE1492-2F12-4954-8715-27201D1B31B7",
+        "text": "Review of Results: the row-number gutter and the column header\n1. Which one?: picked Proposal\n2. Gutter: picked GS2 \u00b7 Hairline: only the edge; note: No hairline in the top row vertical, so in the example # and BusinessEntityID has no hairline\n3. Numbers: picked NA0 \u00b7 Right-aligned (today)\n4. Width: picked GW1 \u00b7 Fits the digits, at least three, and grows\n5. Column names: picked HA0 \u00b7 Left-aligned (today)\n6. Header corner: picked GC2 \u00b7 A # that selects every cell when clicked\n7. Selected rows: picked SR1 \u00b7 The number turns accent on the selection's own tint\n8. Stripes under the numbers: picked RS1 \u00b7 No: it stops at the gutter (today)\n9. One setting or two: picked SS0 \u00b7 It follows the editor's gutter style: one setting for both"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:46:22Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:46:34Z",
+        "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T21:09:58Z",
+        "text": "Built into Echo: the row numbers follow Settings \u203a Editor \u203a Gutter \u203a Style, and Hairline is now the default for both; the Hairline's edge starts below the header; the gutter fits the digits (3 at least) with 8pt either side; the # selects every cell (hover tint, tooltip Select All); selected rows' numbers are accent on the selection's tint; column names stay left, shaded rows stop at the gutter. The system's own 1pt header lines are hidden so one line remains. Please check: one line under the header, no vertical line in the header row, and clicking the #. A stored Subtle choice stays until you change it in Settings."
+      },
+      {
+        "date": "2026-10-01T22:19:50Z",
+        "text": "Revised after the owner's notes and agreed suggestions: the gutter's tint is a rounded block like the grid's selection, the hover and the shaded rows share one rounded shape (a hovered row is no wider than its shade), the results have their own Row Number Style, and the exhibits now draw this."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "style": "No hairline in the top row vertical, so in the example # and BusinessEntityID has no hairline"
+    },
+    "picks": {
+      "align": "NA0 \u00b7 Right-aligned (today)",
+      "corner": "GC2 \u00b7 A # that selects every cell when clicked",
+      "cross": "RS1 \u00b7 No: it stops at the gutter (today)",
+      "exhibit": "proposal",
+      "headers": "HA0 \u00b7 Left-aligned (today)",
+      "selected": "SR1 \u00b7 The number turns accent on the selection's own tint",
+      "setting": "follows",
+      "style": "GS2 \u00b7 Hairline: only the edge",
+      "width": "GW1 \u00b7 Fits the digits, at least three, and grows"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.results-header-lines-r41": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:44:05Z",
+        "id": "E8118B15-6B52-4A60-9CE8-2747A28A1BA5",
+        "text": "Review of Results: the column header's lines\n1. Under the header: picked HL1 \u00b7 One hairline: the system header's own\n2. Column dividers: picked VD0 \u00b7 Keep: they mark where to drag a column's width"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:44:05Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:48:57Z",
+        "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60): ResultTableHeaderView no longer draws its own line; the system header's hairline is the only one; the column dividers stay. Please check: one line under the header, and the row-number column's line meets it."
+      },
+      {
+        "date": "2026-10-01T19:32:32Z",
+        "text": "Revised after the owner's notes (see decisions, After round 41): the header paints its full height and draws the one line at its true bottom (the system pocket stopped 4pt short)."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "rule": "HL1 \u00b7 One hairline: the system header's own",
+      "verticals": "keep"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.results-messages-r41": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:50:26Z",
+        "id": "828C9E44-5D06-4611-8371-BA19A8F1E199",
+        "text": "Review of Results: the Messages panel\n1. Layout: picked ML1 \u00b7 Grouped by statement: the SQL's first line, then what it said\n2. Errors: picked EE1 \u00b7 Red symbol and a semibold message; no fill\n3. Execution metrics: picked DM1 \u00b7 Gone from Messages; in the time pill's popover (41.5)\n4. Top: picked MT1 \u00b7 No strip: '1 error \u00b7 2 messages' as filters, copy and clear in a \u22ef menu\n5. Echo's own lines: picked EM0 \u00b7 Drop them: the footer's status says it"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:50:26Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:51:52Z",
+        "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60): grouped by statement (Line N heading), red symbol and semibold errors, counts that filter, copy and clear in a \u22ef menu; Echo's own lines and the metrics row gone. SQL Server GO batches share the run's heading for now."
+      },
+      {
+        "date": "2026-10-01T19:32:32Z",
+        "text": "Revised after the owner's notes (see decisions, After round 41): the symbol of a server message opens what the server returned."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "echoMessages": "drop",
+      "errors": "EE1 \u00b7 Red symbol and a semibold message; no fill",
+      "layout": "ML1 \u00b7 Grouped by statement: the SQL's first line, then what it said",
+      "metrics": "DM1 \u00b7 Gone from Messages; in the time pill's popover (41.5)",
+      "toolbar": "MT1 \u00b7 No strip: '1 error \u00b7 2 messages' as filters, copy and clear in a \u22ef menu"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.results-pill-popovers-r41": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:51:35Z",
+        "id": "E862ABEA-929D-48DC-82D7-06880416C496",
+        "text": "Review of Results: a popover for each footer pill\n1. Popovers: picked PP2 \u00b7 Each pill its own popover, with the actions that go with it\n2. Rows: picked PR0 \u00b7 Rows and columns, result sets (1 of 3), loaded vs total, memory; Export and Copy All\n3. Time: picked PT0 \u00b7 A timeline: sent, first row, last row; server CPU; started and finished at; the last runs of this tab\n4. Status: picked PS0 \u00b7 What happened and when, the session (SPID 52), transaction state, and Show in Editor / Messages / Run Again"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:51:35Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:51:52Z",
+        "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60): selection, rows, time and status each open their own popover with their actions; the status's Commit/Roll Back moved from its menu into the popover. Not yet: server CPU and the session (SPID); the drivers don't report them."
+      },
+      {
+        "date": "2026-10-01T19:32:32Z",
+        "text": "Revised after the owner's notes (see decisions, After round 41): no Messages or Run Again in Status, no Run Again in Time, no Export or Copy All in Rows (the grid menu has them)."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "rows": "full",
+      "status": "context",
+      "style": "PP2 \u00b7 Each pill its own popover, with the actions that go with it",
+      "time": "timeline"
     },
     "reviewedRevision": 1,
     "revisions": [],
@@ -1750,6 +2976,26 @@
       {
         "date": "2026-10-01T13:58:54Z",
         "text": "Revision 6: Built into Echo: as wide as the footer, the blur rising past the bar while it shows, everywhere"
+      },
+      {
+        "date": "2026-10-01T14:28:07Z",
+        "text": "Taken by editor-r28"
+      },
+      {
+        "date": "2026-10-01T14:36:51Z",
+        "text": "Fixed in Echo (f756a13b), the owner's note that the blur cut in a straight line: near-equal radii with overlapping fades, so it grows evenly from sharp to about 12pt"
+      },
+      {
+        "date": "2026-10-01T15:07:42Z",
+        "text": "Changed in Echo, the owner's note that the blur was still a bar: ten small steps from sharp to 12pt, easing in, overlapping fades; the tint eases in too"
+      },
+      {
+        "date": "2026-10-01T20:23:19Z",
+        "text": "Changed in Echo (bd137299), the owner's call after round 44: the blur behind every horizontal bar is taken back (it looked wrong in Agent Jobs); only the results grid and the editor keep it"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1770,7 +3016,7 @@
       "vertical": "R2 \u00b7 Runs down to the horizontal bar",
       "visibility": "V1 \u00b7 While scrolling"
     },
-    "reviewedRevision": 5,
+    "reviewedRevision": 6,
     "revisions": [
       {
         "changes": [
@@ -1820,6 +3066,47 @@
         "summary": "Built into Echo: as wide as the footer, the blur rising past the bar while it shows, everywhere"
       }
     ],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.results-selection-summary-r41": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:46:01Z",
+        "id": "CFE4DD33-FAD5-4E37-9082-E86E27882C9F",
+        "text": "Review of Results: the selection summary\n1. Pill: picked SP3 \u00b7 Only the count: 89 cells\n2. Popover: picked PO1 \u00b7 A list with a Copy button on each row and Copy All\n3. Which figures: picked FG1 \u00b7 FG0, plus Distinct, Empty (NULL) and Median\n4. Text cells: picked TX0 \u00b7 The count; the popover lists Distinct and Empty"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:46:01Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:48:58Z",
+        "text": "Taken by results-agent"
+      },
+      {
+        "date": "2026-10-01T15:19:40Z",
+        "text": "Built into Echo (6e4a0e60, EchoSense 2aa1815): the pill is only the count; clicking it opens the figures (Count, Sum, Average, Min, Max, Median, Distinct, Empty; text: Count, Distinct, Empty), exact, with Copy per line and Copy All."
+      },
+      {
+        "date": "2026-10-01T19:32:32Z",
+        "text": "Revised after the owner's notes (see decisions, After round 41): Settings \u203a Results \u203a Selection summary adds the sum and/or average to the pill."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "figures": "more",
+      "pill": "SP3 \u00b7 Only the count: 89 cells",
+      "popover": "PO1 \u00b7 A list with a Copy button on each row and Copy All",
+      "text": "count"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
     "status": "In Echo",
     "verdicts": {}
   },
@@ -1840,6 +3127,10 @@
       {
         "date": "2026-09-30T20:28:22Z",
         "text": "Built into Echo: tooltip says where it runs or why it can't (U1, T1), never in the toolbar overflow (V1), \u2318\u21a9 toggles Run and Stop"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1865,7 +3156,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.run-button-running-r20": {
@@ -1885,6 +3176,14 @@
       {
         "date": "2026-09-30T20:28:22Z",
         "text": "Built into Echo: timer \"5 s, then 1:05\" (K1), \u2713 draws itself (E1), Stopping on a slow cancel (J1), macOS notification for a query of 30 s or more while away (N1). The change into running went to round 24"
+      },
+      {
+        "date": "2026-10-01T14:36:51Z",
+        "text": "Changed in Echo (f756a13b), the owner's call after round 31: the capsule widens for the time only once the query has run 3 s (was at once, G0)"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1913,7 +3212,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.run-into-running-r24": {
@@ -1933,6 +3232,10 @@
       {
         "date": "2026-09-30T20:28:22Z",
         "text": "Built into Echo: one button in its own glass; \u25b6 replaced by \u25a0 in place (M1), the glass fades to red (F1), then it grows and the time fades in (W1, K2 staged); the red drains as the \u2713 draws (B0); Echo draws the red (Y)"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1949,7 +3252,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.section-dock-capsule-r19": {
@@ -1969,6 +3272,10 @@
       {
         "date": "2026-09-30T13:00:00Z",
         "text": "Built into Echo"
+      },
+      {
+        "date": "2026-10-01T20:29:20Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1984,7 +3291,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.section-dock-sections-r19": {
@@ -2022,6 +3329,10 @@
       {
         "date": "2026-09-30T13:00:00Z",
         "text": "Built into Echo"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2036,7 +3347,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.section-dock-switching-r19": {
@@ -2056,6 +3367,10 @@
       {
         "date": "2026-09-30T13:00:00Z",
         "text": "Built into Echo"
+      },
+      {
+        "date": "2026-10-01T20:29:14Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2068,7 +3383,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.server-card-r16": {
@@ -2114,6 +3429,10 @@
       {
         "date": "2026-09-30T11:45:00Z",
         "text": "Built into Echo"
+      },
+      {
+        "date": "2026-10-01T20:29:23Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2139,6 +3458,43 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.server-card-unfold-r46": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:28:21Z",
+        "id": "219B492E-A7B9-4D28-9218-8B57FFC1DB91",
+        "text": "Review of Server card: opening and closing\n1. Which opening?: picked Proposal\n2. Dock: picked DA2 \u00b7 Grows out of the header\n3. Rows: picked RA1 \u00b7 Under the section switch's veil\n4. Closing: picked CL2 \u00b7 The veil covers the rows, then the card folds\nOverall: During the animation it shows the headers \"gradient color\" with a line at the bottom and when expanded it is THEN blurred - needs to be blurred immediately so the user dont see a hard line during animation"
+      }
+    ],
+    "generalNote": "During the animation it shows the headers \"gradient color\" with a line at the bottom and when expanded it is THEN blurred - needs to be blurred immediately so the user dont see a hard line during animation",
+    "history": [
+      {
+        "date": "2026-10-01T18:28:21Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:30:36Z",
+        "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T18:45:50Z",
+        "text": "Built into Echo (9aaec7e9): opening, the dock grows out of the header without fading (its glass blurs from the first frame) while the rows wait under the section switch's veil, which fades away once the edge settles; closing, the veil covers the rows, then the card folds as the dock shrinks back. The cause of the abrupt dock and rows (animation turned off on any dock-selection change) is fixed for folds."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "close": "CL2 \u00b7 The veil covers the rows, then the card folds",
+      "dock": "DA2 \u00b7 Grows out of the header",
+      "exhibit": "proposal",
+      "rows": "RA1 \u00b7 Under the section switch's veil"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
     "status": "In Echo",
     "verdicts": {}
   },
@@ -2155,6 +3511,18 @@
       {
         "date": "2026-10-01T13:56:27Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T13:59:16Z",
+        "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T14:23:54Z",
+        "text": "Built into Echo (7503bb42): the chevron centred on the name and product line; the card's edge glides while the dock and rows fade and are cut by it; a closed card centres its header and chevron. Tests: ExplorerDockTests (closed server header, fold edge)."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2172,7 +3540,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.server-header-look-r30": {
@@ -2181,6 +3549,11 @@
         "date": "2026-10-01T13:50:10Z",
         "id": "DA61B730-99FA-470C-9CBA-645F94F2B242",
         "text": "Review of Server card: the header\n1. Which header?: picked Proposal\n2. Header: picked HD4 \u00b7 A wash of colour behind the header; NEEDS MORE OPTIONS; note: I like HD0 (Should be able to be selected by the user), HD4, HD5 (with a better looking line), HD7 and HD8. Please adjust this round with only these and extend further on these ideas.\n3. Colour: picked CS1 \u00b7 The server's colour; note: Should be a setting in Settings if it should use No color, Servers Color or Accent Color\n4. Second line: picked SL0 \u00b7 Product \u00b7 section (today)\n5. Dock icon: picked DK1 \u00b7 The header's colour; note: Should be a setting in Settings alongside \"Monochrome/Duotone\" menu icons.\n6. One colour per server: picked CO2 \u00b7 CO1, and a dot on the server's tabs and the footer's server pill\n7. Setting the colour: picked SC1 \u00b7 Also from the header's right-click menu, with the swatches"
+      },
+      {
+        "date": "2026-10-01T14:03:59Z",
+        "id": "FF54CCCA-76A7-4103-961D-DD753294A571",
+        "text": "Review of Server card: the header\n1. Which header?: picked Proposal\n2. Header: picked HD4 \u00b7 A wash of colour behind the header; note: I want HD4 to be the default. Also available for the user to select is: HD0, HD12, HD7 and HD16\n3. Colour: picked CS1 \u00b7 The server's colour; note: Should be a setting in Settings if it should use No color, Servers Color or Accent Color\n4. Second line: picked SL0 \u00b7 Product \u00b7 section (today)\n5. Dock icon: picked DK1 \u00b7 The header's colour; note: Should be a setting in Settings alongside \"Monochrome/Duotone\" menu icons.\n6. Plain header as a setting: picked HS0 \u00b7 Server Header: Plain or Coloured (the header chosen here); note: We have a round for optimizing the Echo Settings. For now put it where it makes sense\n7. One colour per server: picked CO2 \u00b7 CO1, and a dot on the server's tabs and the footer's server pill\n8. Setting the colour: picked SC1 \u00b7 Also from the header's right-click menu, with the swatches"
       }
     ],
     "generalNote": "",
@@ -2196,27 +3569,43 @@
       {
         "date": "2026-10-01T13:58:52Z",
         "text": "Revision 2: Only HD0, HD4, HD5, HD7 and HD8, with variations on each; colour, dock icon and plain header as settings"
+      },
+      {
+        "date": "2026-10-01T14:03:59Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:04:28Z",
+        "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T14:53:09Z",
+        "text": "Built into Echo (5be677fc): HD4 wash by default; Plain, Bar, Glass Plate and Banner in Settings \u203a Appearance \u203a Server Header; Server Header Color (server, accent, none); Current Dock Icon beside Section Dock Icons; with the server's colour the rail's monogram is always coloured and tabs and the footer's server pill carry a dot; Color swatches in the header's right-click menu. Tabs, Window and Footer pages got rows for the dot and the monogram but were not stamped (they had drift from other rounds). Tests: ServerHeaderPaintTests."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
-    "needsMore": [
-      "style"
-    ],
+    "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
       "dockTint": "Should be a setting in Settings alongside \"Monochrome/Duotone\" menu icons.",
+      "plainSetting": "We have a round for optimizing the Echo Settings. For now put it where it makes sense",
       "source": "Should be a setting in Settings if it should use No color, Servers Color or Accent Color",
-      "style": "I like HD0 (Should be able to be selected by the user), HD4, HD5 (with a better looking line), HD7 and HD8. Please adjust this round with only these and extend further on these ideas."
+      "style": "I want HD4 to be the default. Also available for the user to select is: HD0, HD12, HD7 and HD16"
     },
     "picks": {
       "colourSet": "menu",
       "colourShared": "tabs",
       "dockTint": "DK1 \u00b7 The header's colour",
       "exhibit": "proposal",
+      "plainSetting": "pair",
       "secondLine": "SL0 \u00b7 Product \u00b7 section (today)",
       "source": "CS1 \u00b7 The server's colour",
       "style": "HD4 \u00b7 A wash of colour behind the header"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -2236,7 +3625,836 @@
         "summary": "Only HD0, HD4, HD5, HD7 and HD8, with variations on each; colour, dock icon and plain header as settings"
       }
     ],
-    "status": "Judging",
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.settings-controls-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:54:49Z",
+        "id": "5A6733EC-56F7-4CF0-A3ED-5E9880F8C5C2",
+        "text": "Review of Settings: controls and words\n1. Descriptions: picked DS1 \u00b7 A short line only where the title isn't enough; the rest in \u24d8\n2. Back to default: picked RS1 \u00b7 A \u21ba beside any setting that isn't the default\n3. On and off: picked TG0 \u00b7 Switches (today, as System Settings)\n4. Numbers: picked NU0 \u00b7 A stepper with its unit (13 pt), typing allowed\n5. Section names: picked SN0 \u00b7 By what they change, everywhere"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:54:49Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:14Z",
+        "text": "Built into Echo: Size is a field and stepper with its pt; long descriptions moved into \u24d8 with one short line where needed; a \u21ba shows beside any Editor/Results setting that isn't the default; switches kept (6a693827)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "descriptions": "DS1 \u00b7 A short line only where the title isn't enough; the rest in \u24d8",
+      "numbers": "stepper",
+      "reset": "RS1 \u00b7 A \u21ba beside any setting that isn't the default",
+      "sections": "what",
+      "toggles": "switch"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.settings-pictures-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:53:24Z",
+        "id": "B8C4EFDD-C5FC-4C5A-89BD-6327386F850D",
+        "text": "Review of Settings: a picture for every choice\n1. Choices: picked CH1 \u00b7 Small pictures of each choice\n2. After a change: picked FB0 \u00b7 The preview just changes (today)\n3. When to use pictures: picked PC0 \u00b7 Only for choices that change a look (gutter, corners, density, icons)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:53:24Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:14Z",
+        "text": "Built into Echo: gutter style, mark corners and mark strength are small pictures of each choice (PictureChoicePicker); the preview just changes, no ring (6a693827)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "choices": "CH1 \u00b7 Small pictures of each choice",
+      "feedback": "FB0 \u00b7 The preview just changes (today)",
+      "when": "visual"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.settings-preview-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:52:36Z",
+        "id": "6FD8C87A-EFB4-4346-9916-43E1B488ABDC",
+        "text": "Review of Settings: the page and its preview\n1. Preview: picked PV1 \u00b7 One preview pinned at the top while the settings scroll\n2. What the preview shows: picked PS0 \u00b7 Yes: every setting on the page shows in it\n3. Pages with nothing to show: picked PN0 \u00b7 No preview: the page starts with its settings"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:52:36Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:13Z",
+        "text": "Built into Echo: Settings \u203a Editor has a live editor pinned above the settings that follows every setting (text, gutter, statement focus, word mark, marks, wrapping, error note, outline edge); Results and Sidebar have previews too; pages with nothing to show start with their settings (6a693827)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "noVisual": "none",
+      "placement": "PV1 \u00b7 One preview pinned at the top while the settings scroll",
+      "what": "all"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.settings-scenarios-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:57:17Z",
+        "id": "2828DE8D-C795-41A8-8389-F9F28F788E1D",
+        "text": "Review of Settings: search, reset and overrides\n1. Search: picked SE2 \u00b7 A search field that lists matching settings across pages, like System Settings\n2. What you changed: picked MD1 \u00b7 No\n3. Resetting a page: picked RP0 \u00b7 Yes, at the bottom of each page, with a confirmation\n4. Per connection: picked PC0 \u00b7 A few, chosen deliberately, shown with the connection's colour dot beside the row\n5. Sync: picked SY0 \u00b7 Everything except window sizes and this Mac's paths"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:57:17Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:14Z",
+        "text": "Built into Echo: a search field lists matching settings across pages (opens the page, highlights the group); Reset This Page with a confirmation on Editor, Results and Sidebar; no sidebar dots (MD1). NOT built yet: per-connection settings (PC0) and settings sync (SY0), tasks SE5 and SE6 in Design/plan.md (6a693827)"
+      },
+      {
+        "date": "2026-10-01T20:25:08Z",
+        "text": "Built into Echo: search across every page; Reset This Page; Per connection (PC0): Confirm Unguarded Writes (Default/Always/Never in the connection editor, listed in Settings \u203a Databases with each connection's colour dot) beside the existing per-connection query time limit; Sync (SY0): settings already synced whole, now this Mac's paths stay local (604d90f4)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "modified": "none",
+      "perConnection": "few",
+      "reset": "page",
+      "search": "SE2 \u00b7 A search field that lists matching settings across pages, like System Settings",
+      "sync": "look"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.settings-template-r43": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:56:08Z",
+        "id": "01B61DD0-8D5C-4FE1-B0EE-E2C9EE45F28D",
+        "text": "Review of Settings: the template on other pages\n1. The template: picked TP0 \u00b7 Yes: make it the template for every page with something to show\n2. One component: picked TC0 \u00b7 Yes: a SettingsPage(preview:sections:) in the design system\nOverall: For the sidebar, the Server Card shouldn't extend all the way to the side but show as a more narrow tru-to-life server card. For appearance, this template should not be true as the application we are in is the preview"
+      }
+    ],
+    "generalNote": "For the sidebar, the Server Card shouldn't extend all the way to the side but show as a more narrow tru-to-life server card. For appearance, this template should not be true as the application we are in is the preview",
+    "history": [
+      {
+        "date": "2026-10-01T18:56:08Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:57:58Z",
+        "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:14Z",
+        "text": "Built into Echo: SettingsPage(preview:sections:) in the design system; Editor, Results (grid) and Sidebar (a narrow server card, per your note) use it; Appearance does not, the app is its preview (6a693827)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "component": "yes",
+      "template": "yes"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.tab-overview-direction-r35": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:33:39Z",
+        "id": "85A751C1-8965-4EF4-BD57-E49E8564B9A5",
+        "text": "Review of Tab overview: the direction\n1. Which direction?: picked TO6 \u00b7 A floating palette over the tab; note: Please make this use Cmd + K and have that as a feature in here. Add shortcuts when in this view or options the user can select like Delete will close the tab etc.\n2. What the overview is for: picked OR1 \u00b7 See everything that's open and what state it's in\n3. Which tabs: picked OS0 \u00b7 This window's tabs (today)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:33:39Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:34:20Z",
+        "text": "Taken by tabs-agent"
+      },
+      {
+        "date": "2026-10-01T14:55:40Z",
+        "text": "Built into Echo: the tab overview is now the \u2318K palette turned to this window's tabs (a 'Tab Overview' row in \u2318K, \u21e7\u2318O, the toolbar button, a pinch in). Rows grouped by server with a live state (Running m:ss, Failed, N rows, Not run). \u232b closes the selected tab while nothing is typed (\u2318\u232b always), \u2318D duplicates, \u2325\u232b closes the others; the palette stays open. The full-window grid and its style setting are removed. Tabs As built: spec part 7 (TABS-7.1 to 7.4)."
+      },
+      {
+        "date": "2026-10-01T20:30:59Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "exhibit": "Please make this use Cmd + K and have that as a feature in here. Add shortcuts when in this view or options the user can select like Delete will close the tab etc."
+    },
+    "picks": {
+      "exhibit": "palette",
+      "role": "survey",
+      "scope": "window"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-controls-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:53:58Z",
+        "id": "DE440F8A-2A10-4E6F-A5F4-0089713333F9",
+        "text": "Review of Tool tabs: buttons and controls\n1. Main action: picked PA1 \u00b7 Glass capsule: symbol in colour, word in grey\n2. Other actions: picked SA2 \u00b7 Together in one glass capsule\n3. Pickers: picked PK1 \u00b7 One glass pill: symbol, value and a chevron\n4. Running: picked ST1 \u00b7 The primary button turns into Stop with a pulsing dot; NEEDS MORE OPTIONS; note: Can't we use the run button in the toolbar for this?\n5. Search: picked SF1 \u00b7 A glass search capsule at the right of the row\n6. Control height: picked CH0 \u00b7 28pt, as the toolbar's capsules\nOverall: For e.g. \"New Policy\" or \"Trace/Stop trace\", I feel like this should live in a seperate group in the toolbar like Ru Button or a + sign. Please give this a new round with my feedback"
+      },
+      {
+        "date": "2026-10-01T17:56:41Z",
+        "id": "CCFC6C47-4636-4928-A33A-F53573ACB180",
+        "text": "Review of Tool tabs: buttons and controls\n1. Main action: picked PA1 \u00b7 Glass capsule: symbol in colour, word in grey\n2. Other actions: picked SA2 \u00b7 Together in one glass capsule\n3. Pickers: picked PK1 \u00b7 One glass pill: symbol, value and a chevron\n4. Running: picked ST1 \u00b7 The primary button turns into Stop with a pulsing dot\n5. Search: picked SF1 \u00b7 A glass search capsule at the right of the row\n6. Control height: picked CH0 \u00b7 28pt, as the toolbar's capsules"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:53:58Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T17:56:41Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T17:58:14Z",
+        "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f): the glass main action (Stop with a pulsing dot while running), other actions in one glass capsule, glass picker pills, a glass search capsule, all 28pt, on every tool's header line."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "picker": "PK1 \u00b7 One glass pill: symbol, value and a chevron",
+      "primary": "PA1 \u00b7 Glass capsule: symbol in colour, word in grey",
+      "search": "SF1 \u00b7 A glass search capsule at the right of the row",
+      "secondary": "SA2 \u00b7 Together in one glass capsule",
+      "size": "28",
+      "status": "ST1 \u00b7 The primary button turns into Stop with a pulsing dot"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-families-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:47:22Z",
+        "id": "4770EC8B-E215-43CA-BBC2-B2AF9D9BBB21",
+        "text": "Review of Tool tabs: the families\n1. The families: picked FA0 \u00b7 Yes: monitor, manage, health, properties, canvas\n2. Query Store: picked QS1 \u00b7 Health (it finds regressions to fix)\n3. psql console: picked PS0 \u00b7 No: it follows the editor's design (round 28)\n4. One theme for all: picked UT1 \u00b7 UT0, plus pane cards, tables and empty states"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:47:22Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T17:58:13Z",
+        "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f): every tab but the query editor and the psql console has a family (ToolTabFamily); the structure editor, diagram, extension details and Agent Jobs now have the shared header too. Tables keep their zebra rows (round 32.1, ZB0)."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "families": "yes",
+      "psql": "editor",
+      "queryStore": "health",
+      "unified": "headerPanes"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-header-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:51:38Z",
+        "id": "C20BC8B3-50C1-4128-9B4F-FFBCE4257DE9",
+        "text": "Review of Tool tabs: the header and toolbar row\n1. Which header?: picked Proposal: SQL Profiler; NEEDS MORE OPTIONS; note: The pages needs to bee in the tab, so maybe we could add everything on \"one line\" where the header is. please investigate this and then make proper suggestions\n2. Layout: no answer yet\n3. Pages: no answer yet"
+      },
+      {
+        "date": "2026-10-01T17:51:40Z",
+        "id": "6735196C-FD88-43F7-8456-8E9C6D68AAAF",
+        "text": "Review of Tool tabs: the header and toolbar row\n1. Which header?: picked Proposal: SQL Profiler; NEEDS MORE OPTIONS; note: The pages needs to bee in the tab, so maybe we could add everything on \"one line\" where the header is. please investigate this and then make proper suggestions\n2. Layout: no answer yet\n3. Pages: no answer yet"
+      },
+      {
+        "date": "2026-10-01T18:22:02Z",
+        "id": "57A17214-12AB-4DF1-AABF-CC9D11DAA852",
+        "text": "Review of Tool tabs: the header and toolbar row\n1. Which header?: picked Proposal: SQL Profiler\n2. Layout: picked UH5 \u00b7 One line: tile, name and subtitle at the left, every control at the right\n3. Pages: picked PG0 \u00b7 Yes: pages in the tab (36.1), the row has filters, search and actions"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:51:38Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T17:51:40Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T17:58:14Z",
+        "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T18:09:48Z",
+        "text": "Revision 2: The header on one line; the pages are in the tab (36.1)"
+      },
+      {
+        "date": "2026-10-01T18:22:02Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f): one header line (UH5) on every tool tab: tile, name and subtitle at the left, the tool's controls at the right; the second toolbar row is gone. A tool can add a detail after the server (14 policies, 1,204 events)."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "exhibit": "profiler",
+      "header": "UH5 \u00b7 One line: tile, name and subtitle at the left, every control at the right",
+      "pagesPlace": "tab"
+    },
+    "reviewedRevision": 2,
+    "revisions": [
+      {
+        "changes": [
+          "New option: UH5 \u00b7 One line: tile, name and subtitle at the left, every control at the right (recommended)",
+          "New option: UH6 \u00b7 One slim line: name \u00b7 subtitle as text, controls at the right",
+          "New option: UH7 \u00b7 One glass line: the whole header in one floating glass capsule",
+          "New option: UH8 \u00b7 No name: the tab names the tool; subtitle and controls on one line",
+          "New exhibit: The four one-line headers, under Policy Management's tab",
+          "The proposals draw TP5's strip above the one-line headers"
+        ],
+        "date": "2026-10-01T18:09:48Z",
+        "number": 2,
+        "summary": "The header on one line; the pages are in the tab (36.1)"
+      }
+    ],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-main-action-r45": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:29:59Z",
+        "id": "2D4ED93C-0313-42B3-B8D9-9D56883CCF21",
+        "text": "Review of Tool tabs: the main action in the toolbar\n1. Which one?: NEEDS MORE OPTIONS; note: I actually don't want it in the toolbar - actions for these tabs should be within the tabs and only the query panel should use the run button. Makes it easier for the user to understand what they are doing,\n2. Main action: no answer yet\n3. Running: no answer yet\n4. More than one kind of New: no answer yet\n5. Keyboard: no answer yet\n6. The toolbar's other tool buttons: no answer yet"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:29:59Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f) as the owner's note said: tool actions stay in the tab and only the query editor uses Run. The window toolbar's tool group is removed; the structure editor's Add, Script and Apply, Activity Monitor's pause, Start Job, Open in Window, Cycle Log and Maintenance's database menu moved into their tabs."
+      },
+      {
+        "date": "2026-10-01T21:22:03Z",
+        "text": "Replaced by round 37.5 (bb8a6bee): tool buttons are back in the window toolbar, tied to the tab."
+      }
+    ],
+    "needsMore": [
+      "exhibit"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "exhibit": "I actually don't want it in the toolbar - actions for these tabs should be within the tabs and only the query panel should use the run button. Makes it easier for the user to understand what they are doing,"
+    },
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-pages-r36": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:49:22Z",
+        "id": "DFAFEB13-5779-454B-8059-0CBA63617FEA",
+        "text": "Review of Tool tabs with pages: the tab bar\n1. Which tab bar?: NEEDS MORE OPTIONS; note: I don't really like any of these. TP0 is closest, but it looks weird with how the \"sub pages\" are in a tab within the tab and the activity monitor sits on the tab. This needs to look better, but I don't enjoy any of the other suggestions\n2. Pages: no answer yet\n3. One tab: no answer yet\n4. Switching tabs: no answer yet"
+      },
+      {
+        "date": "2026-10-01T18:18:02Z",
+        "id": "63836D69-F2FB-419F-AEC4-1028D7A176E4",
+        "text": "Review of Tool tabs with pages: the tab bar\n1. Which tab bar?: NEEDS MORE OPTIONS; note: I don't really like any of these. TP0 is closest, but it looks weird with how the \"sub pages\" are in a tab within the tab and the activity monitor sits on the tab. This needs to look better, but I don't enjoy any of the other suggestions\n2. Pages: no answer yet\n3. One tab: no answer yet\n4. Switching tabs: no answer yet"
+      },
+      {
+        "date": "2026-10-01T18:45:26Z",
+        "id": "FBBE7866-A42A-41CD-A916-8003B571F9B3",
+        "text": "Review of Tool tabs with pages: the tab bar\n1. Which tab bar?: picked TP0 refined\n2. Tab width: picked RW1 \u00b7 Exactly as wide as its title and pages; the other tabs share the rest\n3. Grey track: picked RT2 \u00b7 No track: the pages sit on the tab itself\n4. Type: picked RX1 \u00b7 Title and pages at 11pt on one baseline; the title medium, the shown page semibold\n5. Between: picked RD1 \u00b7 A short hairline\n6. Shown page: picked RC0 \u00b7 A white raised pill (today)\n7. One tab: picked SW1 \u00b7 Its own width, at the leading edge\n8. Switching tabs: picked UF1 \u00b7 The house spring, the pages fading first"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:49:22Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T17:58:13Z",
+        "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T18:09:48Z",
+        "text": "Revision 2: Pages stay in the tab bar, drawn three new ways so nothing sits inside the tab"
+      },
+      {
+        "date": "2026-10-01T18:18:02Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T18:33:38Z",
+        "text": "Revision 3: TP0 refined: your favourite, with one knob per thing that looked off"
+      },
+      {
+        "date": "2026-10-01T18:45:26Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:46:14Z",
+        "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T18:58:06Z",
+        "text": "Built into Echo: the title, a hairline, then the pages at 11pt on the tab, the shown one semibold on a soft pill, no track; the tab exactly as wide as that (at most 62%), a lone one at its own width; house spring, pages fading out first (1f4414ff). Check it with Activity Monitor and with Activity Monitor alone."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "chip": "RC0 \u00b7 A white raised pill (today)",
+      "divider": "RD1 \u00b7 A short hairline",
+      "exhibit": "refined",
+      "single": "SW1 \u00b7 Its own width, at the leading edge",
+      "switching": "spring",
+      "text": "RX1 \u00b7 Title and pages at 11pt on one baseline; the title medium, the shown page semibold",
+      "track": "RT2 \u00b7 No track: the pages sit on the tab itself",
+      "width": "RW1 \u00b7 Exactly as wide as its title and pages; the other tabs share the rest"
+    },
+    "reviewedRevision": 3,
+    "revisions": [
+      {
+        "changes": [
+          "New option: TP5 \u00b7 The tool becomes a group: a tinted label, then each page a tab of its own (recommended)",
+          "New option: TP6 \u00b7 A normal tab, its pages beside it on the strip as plain words",
+          "New option: TP7 \u00b7 A normal tab, its pages in a slim row hanging under it",
+          "New exhibit: The new styles (three tabs and alone)",
+          "New exhibit: Nine pages (Database Security with a More menu, 36.2 OF1)"
+        ],
+        "date": "2026-10-01T18:09:48Z",
+        "number": 2,
+        "summary": "Pages stay in the tab bar, drawn three new ways so nothing sits inside the tab"
+      },
+      {
+        "changes": [
+          "New exhibit: TP0 refined (three tabs, alone, more tools with nine pages and a menu)",
+          "New exhibit: From today to refined, one fix at a time",
+          "New control: Tab width (RW1, as wide as its title and pages; recommended)",
+          "New control: Grey track (RT1, docked to the tab's right end with a matching curve; recommended)",
+          "New control: Type (RX1, title and pages at 11pt on one baseline; recommended)",
+          "New control: Between (hairline or not) and Shown page (white raised or tinted)",
+          "TP1 to TP7 kept under Earlier styles, no longer asked about",
+          "37.2 and round 45 now draw TP0 refined above their headers"
+        ],
+        "date": "2026-10-01T18:33:38Z",
+        "number": 3,
+        "summary": "TP0 refined: your favourite, with one knob per thing that looked off"
+      }
+    ],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-pages-where-r36": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:50:13Z",
+        "id": "01841F8F-58C4-4E93-8572-16AF534858E2",
+        "text": "Review of Tool tabs with pages: which tools\n1. Which tools: picked WP1 \u00b7 Every tool whose sections are separate views (all ten)\n2. Too many pages: picked OF1 \u00b7 The pages that don't fit go into a More menu at the end\n3. Remembering the page: picked RM0 \u00b7 History, the last page you used on this server"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:50:13Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T17:58:13Z",
+        "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f): every tool whose sections are separate views has its pages in the tab: Maintenance, Server Properties, the four security tools, Policy Management, Advanced Objects, Tuning Advisor, Error Log, Extensions and the structure editor, with Activity Monitor. A tool reopens on the last page used on that server. Query Store is a page of Maintenance, so its two views stay a picker on the header line. Not yet: the More menu for pages that don't fit; the pages scroll sideways in the tab meanwhile."
+      },
+      {
+        "date": "2026-10-01T20:31:19Z",
+        "text": "More menu added: the pages that don't fit go into More at the end of the tab, and the shown page always stays visible, taking the last slot (TabPageOverflow)."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "overflow": "OF1 \u00b7 The pages that don't fit go into a More menu at the end",
+      "remember": "last",
+      "which": "WP1 \u00b7 Every tool whose sections are separate views (all ten)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-themes-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:55:41Z",
+        "id": "0023A333-51F6-4913-A956-889F1013182D",
+        "text": "Review of Tool tabs: a theme per family\n1. Monitor: picked MO0 \u00b7 Yes, tiles first\n2. Manage: picked MA0 \u00b7 A details card beside the list (as drawn)\n3. Health: picked HE0 \u00b7 Yes: Fix, Back Up Now, Rebuild\n4. Properties: picked PR0 \u00b7 An Apply bar at the bottom with the number of changes (as drawn)\n5. Canvas: picked CA0 \u00b7 A floating glass bar at the bottom (as drawn)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:55:41Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T17:58:14Z",
+        "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T20:01:22Z",
+        "text": "Built into Echo (bb01362f, 6e27bab7): tiles on SQL Profiler and Extended Events; findings with Back Up Now, Rebuild and Vacuum on both maintenance Health pages; a details card beside Policy Management's list; an Apply bar on the structure editor and MySQL's config file; a floating glass bar on the diagram and Query Builder. The other Manage tools keep their current layouts for now."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "canvas": "floating",
+      "health": "fix",
+      "manage": "pane",
+      "monitor": "tiles",
+      "properties": "bar"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-toolbar-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T20:38:33Z",
+        "id": "2EA1E722-4C80-4329-B64B-9C9666DCB4FF",
+        "text": "Review of Tool tabs: the tab's own buttons in the toolbar\n1. Which toolbar?: no answer yet\n2. Tie to the tab: no answer yet\n3. Several groups: no answer yet\n4. Run: no answer yet\n5. What moves: no answer yet\n6. Main action: no answer yet\n7. Gap: no answer yet\n8. Switching: no answer yet\n9. A tab without buttons: no answer yet\n10. A narrow window: no answer yet\n11. The header line afterwards: no answer yet\n12. Round 45: no answer yet\nOverall: I don't like any of the styles but TT2 is the one I like the best - but the tab symbol should not be in a \"glas button\" but should somehow show. Make more suggestions and a lot of them"
+      },
+      {
+        "date": "2026-10-01T20:55:47Z",
+        "id": "276C56A3-A660-4E72-8C9F-47FE1139FDEF",
+        "text": "Review of Tool tabs: the tab's own buttons in the toolbar\n1. Which toolbar?: picked Proposal: a query tab\n2. Tie to the tab: picked TT8 \u00b7 The symbol on its own before the buttons, no shape around it\n3. Symbol colour: picked SC0 \u00b7 Grey, like a label\n4. Symbol size: picked SZ1 \u00b7 13pt, the buttons' size\n5. Several groups: picked GR1 \u00b7 One capsule, the groups split by short hairlines\n6. Run: picked RN0 \u00b7 Run keeps its own capsule that turns red (round 24)\n7. What moves: picked MV1 \u00b7 The buttons; pickers and search stay on the header line\n8. Main action: picked MA1 \u00b7 Symbol and word (37.3's PA1), the only word in the toolbar\n9. Gap: picked GP0 \u00b7 The toolbar's own fixed gap (today)\n10. Switching: picked SW2 \u00b7 The glass reshapes from one tab's groups into the next\n11. A tab without buttons: picked EM0 \u00b7 Nothing: the window's icons only\n12. A narrow window: picked NW1 \u00b7 The tab's section folds into \u22ef first, the window's icons stay\n13. The header line afterwards: picked HL0 \u00b7 Yes: the name and what you look at stay above the content\n14. Round 45: picked R45-0 \u00b7 Yes: this round's answer replaces 45\nOverall: I think I have answered this correctly but I like the \"On every tab\" section where e.g. SQL profiler has \"Start trace\" as a seperate button, Activitiy Monitor has \"pause\" as its seperate button and query has run etc. PLease make an assesment of which tabs has which \"special\" button outside of the \"tab toolbar button group\" before starting your work."
+      }
+    ],
+    "generalNote": "I think I have answered this correctly but I like the \"On every tab\" section where e.g. SQL profiler has \"Start trace\" as a seperate button, Activitiy Monitor has \"pause\" as its seperate button and query has run etc. PLease make an assesment of which tabs has which \"special\" button outside of the \"tab toolbar button group\" before starting your work.",
+    "history": [
+      {
+        "date": "2026-10-01T20:38:33Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T20:41:07Z",
+        "text": "Revision 2: Fifteen ways to show the tab's symbol without a glass button, from TT2"
+      },
+      {
+        "date": "2026-10-01T20:55:47Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T21:22:03Z",
+        "text": "Built into Echo (bb8a6bee): every tab's own buttons in the window toolbar before the window's icons, the tab's symbol in grey first, the special button with its word, the rest in one capsule split by hairlines; Run keeps its red capsule; the glass reshapes between tabs; replaces round 45. Agent Jobs' New Job and Start/Stop and SQL Server security's per-page New moved there as you answered. Check it with a query tab, SQL Profiler, Agent Jobs and a tab without buttons (Availability Groups)."
+      },
+      {
+        "date": "2026-10-01T21:52:01Z",
+        "text": "Changed after your check (3f9e54d2): no tab symbol; the special button and each group are native toolbar items the toolbar sizes and highlights; fixed slots so switching changes the buttons in place. Please check again."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "empty": "nothing",
+      "exhibit": "query",
+      "gap": "GP0 \u00b7 The toolbar's own fixed gap (today)",
+      "groups": "GR1 \u00b7 One capsule, the groups split by short hairlines",
+      "headerAfter": "keep",
+      "mainLook": "MA1 \u00b7 Symbol and word (37.3's PA1), the only word in the toolbar",
+      "motion": "SW2 \u00b7 The glass reshapes from one tab's groups into the next",
+      "move": "MV1 \u00b7 The buttons; pickers and search stay on the header line",
+      "narrow": "tabFirst",
+      "replace45": "replace",
+      "run": "RN0 \u00b7 Run keeps its own capsule that turns red (round 24)",
+      "symbolColour": "SC0 \u00b7 Grey, like a label",
+      "symbolSize": "SZ1 \u00b7 13pt, the buttons' size",
+      "tie": "TT8 \u00b7 The symbol on its own before the buttons, no shape around it"
+    },
+    "reviewedRevision": 2,
+    "revisions": [
+      {
+        "changes": [
+          "New ties: TT8 the symbol on its own (recommended), TT9 in the tab's colour, TT10 tucked against the buttons, TT11 with a hairline, TT12 with a \u203a, TT13 in a thin ring",
+          "New ties: TT14 engraved, TT15 a faint watermark, TT16 a tiny badge, TT17 a caption under the buttons, TT18 after the buttons",
+          "New ties: TT19 symbol and glass in the tab's colour, TT20 with a coloured underline, TT21 only while switching, TT22 a dot that shows the symbol and name on hover",
+          "New controls: Symbol colour and Symbol size",
+          "New exhibits: The symbol, part 1 and 2; On every tab"
+        ],
+        "date": "2026-10-01T20:41:07Z",
+        "number": 2,
+        "summary": "Fifteen ways to show the tab's symbol without a glass button, from TT2"
+      }
+    ],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.tree-tool-rows-r38": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:36:48Z",
+        "id": "0AC366FD-EC50-42C6-9A78-244EBCDF460E",
+        "text": "Review of Tree rows that open a tab\n1. Row: picked SN1 \u00b7 Security Overview, like Agent Jobs Overview\n2. Opens a tab: picked OT1 \u00b7 \u2197 in a square at the right; note: Please use the icon without the square around it\n3. When: picked MS0 \u00b7 Always\n4. In a database: picked DB0 \u00b7 Yes: first row in every Security, server and database\n5. Rows that open a sheet: picked SH0 \u00b7 The same mark: it goes somewhere else"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:36:48Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:41:12Z",
+        "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T15:08:50Z",
+        "text": "Built into Echo (9498ca2b): Security Overview is the first row of every SQL Server Security (server and each database) and opens that Security tab; every tool row ends in a grey \u2197 (arrow.up.right, no square), always, sheets included. Tests: ExplorerBlueprintTests."
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "mark": "Please use the icon without the square around it"
+    },
+    "picks": {
+      "database": "both",
+      "mark": "OT1 \u00b7 \u2197 in a square at the right",
+      "name": "SN1 \u00b7 Security Overview, like Agent Jobs Overview",
+      "sheet": "same",
+      "shows": "MS0 \u00b7 Always"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.zoom-pill-footer-r31": {
+    "comments": [
+      {
+        "date": "2026-10-01T13:59:42Z",
+        "id": "B0291702-3C4A-4A8B-BF6D-29C95F8B9483",
+        "text": "Review of Editor: the zoom pill and the footer\n1. With results: picked ZW1 \u00b7 9pt up, 12pt in: where the footer's pills sit in their card\n2. Without results: picked ZN2 \u00b7 Above the server pill, left edges aligned, 9pt between\n3. Height: picked ZH1 \u00b7 24pt, as the footer's pills\n4. Text: picked ZT1 \u00b7 Primary, as the server pill"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T13:59:42Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:00:11Z",
+        "text": "Taken by editor-r28"
+      },
+      {
+        "date": "2026-10-01T14:15:07Z",
+        "text": "Built into Echo (3626716a): 12pt in and 9pt up with results; stacked 9pt above the server pill without results; 24pt; primary text"
+      },
+      {
+        "date": "2026-10-01T14:36:51Z",
+        "text": "Changed in Echo (f756a13b), the owner's note: the pill rides on the editor card's edge while the results grow or fold, a moment behind with a small bounce"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "height": "ZH1 \u00b7 24pt, as the footer's pills",
+      "text": "ZT1 \u00b7 Primary, as the server pill",
+      "withResults": "ZW1 \u00b7 9pt up, 12pt in: where the footer's pills sit in their card",
+      "withoutResults": "ZN2 \u00b7 Above the server pill, left edges aligned, 9pt between"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ported.Round 14 \u00b7 section dock": {
+    "comments": [],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:20:18Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ported.Round 15 \u00b7 Run": {
+    "comments": [],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:20:14Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ported.Round 15 \u00b7 inspector": {
+    "comments": [],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:20:25Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ported.Round 15 \u00b7 notifications": {
+    "comments": [],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:20:22Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
     "verdicts": {}
   }
 }

@@ -59,6 +59,8 @@ final class TableStructureEditorViewModel {
     var primaryKey: PrimaryKeyModel?
     var tableProperties: TableStructureDetails.TableProperties?
     var requestedSection: TableStructureSection?
+    /// The page shown; the tab switches it (round 36.2).
+    var selectedSection: TableStructureSection = .columns
     var pendingAddAction: PendingAddAction?
 
     var isLoading: Bool = false

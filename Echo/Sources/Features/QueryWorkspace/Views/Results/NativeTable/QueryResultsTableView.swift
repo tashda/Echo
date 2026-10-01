@@ -28,6 +28,8 @@ struct QueryResultsTableView: NSViewRepresentable {
     var isResizing: Bool = false
     var alternateRowShading: Bool = false
     var showRowNumbers: Bool = true
+    /// Settings › Results › Row Number Style (round 47).
+    var gutterStyle: EditorGutterStyle = .hairline
     var colorOverrides: ResultGridColorOverrides = .init()
     var isDarkMode: Bool = false
     /// Cells in a monospaced font (Settings › Query Results › Monospaced cells).
@@ -66,6 +68,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             isResizing: isResizing,
             alternateRowShading: alternateRowShading,
             showRowNumbers: showRowNumbers,
+            gutterStyle: gutterStyle,
             colorOverrides: colorOverrides,
             isDarkMode: isDarkMode,
             monospacedCells: monospacedCells,
@@ -118,7 +121,8 @@ struct QueryResultsTableView: NSViewRepresentable {
             onExtendSelect: { [weak coordinator] row in coordinator?.extendRowSelection(to: row) },
             onDrag: { [weak coordinator] event in coordinator?.handleRowNumberDrag(event) },
             onDragEnded: { [weak coordinator] in coordinator?.endSelectionDrag() },
-            onContextMenu: { [weak coordinator] row in coordinator?.prepareRowContextMenu(at: row) }
+            onContextMenu: { [weak coordinator] row in coordinator?.prepareRowContextMenu(at: row) },
+            onSelectAll: { [weak coordinator] in coordinator?.menuSelectAll() }
         )
         return container
     }
@@ -142,6 +146,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             tableView.needsDisplay = true
         }
         context.coordinator.queryState = queryStateRef
+        container.setGutter(style: gutterStyle, cardCornerRadius: context.environment.workspaceCardCornerRadius)
         container.updateShowRowNumbers(showRowNumbers)
         let rowCount = effectiveRowOrder.isEmpty ? displayedRowCount : effectiveRowOrder.count
         container.updateRowNumbers(count: rowCount)

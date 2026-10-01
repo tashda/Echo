@@ -171,6 +171,16 @@ final class AppDirector {
         )
         environmentState.notificationEngine = notificationEngine
 
+        // Round 34: a long operation that posted nothing itself says when it ends.
+        let finishNotifier = OperationFinishNotifier(notificationEngine: notificationEngine) { [environmentState = self.environmentState] sessionID in
+            guard let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == sessionID }) else { return nil }
+            return NotificationContext(
+                serverName: session.connection.connectionName.isEmpty ? session.connection.host : session.connection.connectionName,
+                connectionID: session.connection.id
+            )
+        }
+        activityEngine.onFinish = { result in finishNotifier.operationFinished(result) }
+
         schemaDiscoveryEngine.onPersistConnections = { @MainActor [weak self] in
             await self?.environmentState.persistConnections()
         }

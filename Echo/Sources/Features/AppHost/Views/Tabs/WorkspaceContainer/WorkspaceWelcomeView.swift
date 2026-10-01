@@ -13,9 +13,10 @@ struct RecentConnectionItem: Identifiable {
 }
 
 /// What the canvas shows while no tab is open and no server is active (Design/05-components.md ›
-/// Welcome, W1b). There is no card around it: cards exist only for content. Echo's icon and
-/// name, the connect actions on glass buttons, and the latest connections on one small opaque
-/// card, each with the same monogram and colour it will have in the rail.
+/// Welcome, W1b). There is no card around it: cards exist only for content. Echo's mark alone
+/// (the three pills, no tile and no name; they echo in as on echodb.dev, round 48), the connect
+/// actions on glass buttons, and the latest connections on one small opaque card, each with the
+/// same monogram and colour it will have in the rail.
 struct WorkspaceWelcomeView: View {
     /// The welcome lists only the latest few; the rest are in the toolbar's Recent menu.
     static let maximumRecentCount = 5
@@ -24,29 +25,83 @@ struct WorkspaceWelcomeView: View {
     let onSelectRecent: (RecentConnectionItem) -> Void
 
     @Environment(AppState.self) private var appState
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(\.echoMotion) private var motion
+
+    @State private var markPhase: WelcomeMarkPhase = .hidden
+    @State private var actionsShown = false
+    @State private var recentsShown = false
+    @State private var isGone = false
+
+    /// A server is connecting: the welcome leaves, and comes back if the connection fails.
+    private var isDeparting: Bool {
+        appState.welcomeDeparture != .idle || !environmentState.pendingConnections.isEmpty
+    }
 
     var body: some View {
         VStack(spacing: SpacingTokens.lg) {
-            VStack(spacing: SpacingTokens.sm) {
-                Image(nsImage: NSApplication.shared.applicationIconImage)
-                    .resizable()
-                    .frame(width: LayoutTokens.Welcome.iconSize, height: LayoutTokens.Welcome.iconSize)
-                    .accessibilityHidden(true)
-
-                Text("Echo")
-                    .font(.system(size: LayoutTokens.Welcome.titleSize, weight: .bold))
-                    .foregroundStyle(ColorTokens.Text.primary)
-            }
+            WelcomeMark(phase: markPhase)
 
             actions
+                .modifier(WelcomeRise(isShown: actionsShown))
 
             if !recents.isEmpty {
                 recentList
+                    .modifier(WelcomeRise(isShown: recentsShown))
             }
         }
         .frame(maxWidth: LayoutTokens.Welcome.width)
         .padding(SpacingTokens.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .opacity(isGone ? 0 : 1)
+        .task(id: isDeparting, name: "welcome-motion") {
+            if isDeparting { await depart() } else { await arrive() }
+        }
+    }
+
+    /// The mark echoes in, then the buttons and the recents rise under it (round 48, WM2 and WR1),
+    /// every time the welcome appears.
+    private func arrive() async {
+        isGone = false
+        guard !motion.reduceMotion else {
+            markPhase = .resting
+            actionsShown = true
+            recentsShown = true
+            return
+        }
+        let scale = motion.durationScale
+        markPhase = .hidden
+        actionsShown = false
+        recentsShown = false
+        try? await Task.sleep(for: .seconds(WelcomeMarkMotion.startDelay * scale))
+        guard !Task.isCancelled else { return }
+        markPhase = .playing(Date())
+        try? await Task.sleep(for: .seconds(WelcomeMarkMotion.restDelay * scale))
+        guard !Task.isCancelled else { return }
+        withAnimation(.smooth(duration: WelcomeMarkMotion.riseDuration * scale)) { actionsShown = true }
+        try? await Task.sleep(for: .seconds(WelcomeMarkMotion.restGap * scale))
+        guard !Task.isCancelled else { return }
+        withAnimation(.smooth(duration: WelcomeMarkMotion.riseDuration * scale)) { recentsShown = true }
+    }
+
+    /// The pills echo out to the left, last first, and the rest fades (round 48, LV2); the rail
+    /// and the tree wait for this (WorkspaceShell+WelcomeDeparture).
+    private func depart() async {
+        guard !motion.reduceMotion else {
+            withAnimation(motion.standard) { isGone = true }
+            return
+        }
+        let scale = motion.durationScale
+        markPhase = .leaving(Date())
+        try? await Task.sleep(for: .seconds(0.1 * scale))
+        guard !Task.isCancelled else { return }
+        withAnimation(.easeOut(duration: 0.2 * scale)) {
+            actionsShown = false
+            recentsShown = false
+        }
+        try? await Task.sleep(for: .seconds((WelcomeMarkMotion.leaveTotal - 0.1) * scale))
+        guard !Task.isCancelled else { return }
+        isGone = true
     }
 
     private var actions: some View {
@@ -93,6 +148,17 @@ struct WorkspaceWelcomeView: View {
             .padding(LayoutTokens.Welcome.listPadding)
             .workspaceCard()
         }
+    }
+}
+
+/// Fades a part of the welcome in and lifts it into place.
+private struct WelcomeRise: ViewModifier {
+    let isShown: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isShown ? 1 : 0)
+            .offset(y: isShown ? 0 : WelcomeMarkMotion.riseDistance)
     }
 }
 

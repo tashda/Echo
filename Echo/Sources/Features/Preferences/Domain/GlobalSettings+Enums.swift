@@ -55,3 +55,41 @@ enum SidebarDensity: String, Codable, CaseIterable, Sendable {
         }
     }
 }
+
+/// The server card's header (round 30.1): a wash of colour by default (HD4); plain (HD0), a bar
+/// beside the name (HD12), the name on a glass plate (HD7) or a banner fading into the card (HD16).
+enum ServerHeaderStyle: String, Codable, CaseIterable, Sendable {
+    case wash, plain, bar, plate, banner
+    var displayName: String {
+        switch self {
+        case .wash: return "Wash"
+        case .plain: return "Plain"
+        case .bar: return "Bar"
+        case .plate: return "Glass Plate"
+        case .banner: return "Banner"
+        }
+    }
+}
+
+/// Where the server header's colour comes from (round 30.1): the server's own colour by default.
+enum ServerHeaderColorSource: String, Codable, CaseIterable, Sendable {
+    case none, server, accent
+    var displayName: String {
+        switch self {
+        case .none: return "None"
+        case .server: return "Server's Color"
+        case .accent: return "Accent Color"
+        }
+    }
+}
+
+/// The colour of the section dock's current icon (round 30.1, DK1): the header's by default.
+enum SidebarDockCurrentIconTint: String, Codable, CaseIterable, Sendable {
+    case header, accent
+    var displayName: String {
+        switch self {
+        case .header: return "Header's Color"
+        case .accent: return "Accent Color"
+        }
+    }
+}

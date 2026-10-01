@@ -71,7 +71,7 @@ struct ExplorerBlueprintTests {
         let nodes = build(makeSession(.postgresql), ObjectBrowserSidebarViewModel())
         let activity = try #require(nodes.first { folder($0)?.kind == .activity })
         let pages = activity.children.compactMap { node -> PostgresActivityMonitorView.PostgresActivitySection? in
-            guard case .action(_, let kind) = node.row else { return nil }
+            guard case .action(_, let kind, _) = node.row else { return nil }
             return ObjectBrowserSidebarView.postgresActivityPage(for: kind)
         }
         #expect(pages == PostgresActivityMonitorView.PostgresActivitySection.allCases.filter { pages.contains($0) })
@@ -82,7 +82,7 @@ struct ExplorerBlueprintTests {
         let nodes = build(makeSession(.postgresql), ObjectBrowserSidebarViewModel())
         let management = try #require(nodes.first { folder($0)?.kind == .management })
         let tools: [ExplorerNodeKind] = management.children.compactMap {
-            if case .action(_, let kind) = $0.row { kind } else { nil }
+            if case .action(_, let kind, _) = $0.row { kind } else { nil }
         }
         #expect(tools == [.maintenance, .backUpServer, .backUpGlobals, .psqlConsole])
     }
@@ -183,12 +183,19 @@ struct ExplorerBlueprintTests {
         )
 
         let security = try #require(build(session, viewModel).first { folder($0)?.kind == .serverSecurity })
-        let logins = try #require(security.children.first)
+        // Round 38: Security Overview comes first, then the folders.
+        if case .action(_, let kind, let databaseName) = security.children[0].row {
+            #expect(kind == .securityOverview)
+            #expect(databaseName == nil)
+        } else {
+            Issue.record("Security should start with Security Overview")
+        }
+        let logins = try #require(security.children.dropFirst().first)
         #expect(folder(logins)?.kind == .logins)
         #expect(folder(logins)?.count == 1)
         #expect(logins.children.count == 2)
         #expect(folder(logins.children[1])?.kind == .certificateLogins)
-        guard case .placeholder(let title, _) = try #require(security.children[1].children.first).row else {
+        guard case .placeholder(let title, _) = try #require(security.children[2].children.first).row else {
             Issue.record("Server Roles should say it's empty")
             return
         }
@@ -203,7 +210,7 @@ struct ExplorerBlueprintTests {
             items: [.logins: [ExplorerItem(id: "sa", name: "sa", payload: .login(type: "SQL"))]]
         )
         let security = try #require(build(session, viewModel).first { folder($0)?.kind == .serverSecurity })
-        #expect(security.children[0].children.count == 1)
+        #expect(security.children[1].children.count == 1)
     }
 
     @Test func aLoadingSectionShowsASpinnerRowAfterItsTools() throws {
@@ -214,7 +221,7 @@ struct ExplorerBlueprintTests {
         let jobs = try #require(build(session, viewModel).first { folder($0)?.kind == .agentJobs })
         #expect(folder(jobs)?.isLoading == true)
         #expect(jobs.children.count == 2)
-        if case .action(_, let kind) = jobs.children[0].row { #expect(kind == .jobQueue) } else { Issue.record("Expected the job queue tool") }
+        if case .action(_, let kind, _) = jobs.children[0].row { #expect(kind == .jobQueue) } else { Issue.record("Expected the job queue tool") }
         if case .loading(_, .spinnerRow) = jobs.children[1].row {} else { Issue.record("Expected a spinner row") }
     }
 
@@ -236,11 +243,54 @@ struct ExplorerBlueprintTests {
         }
     }
 
+    /// Round 30.3: Tables, Views, Functions and Procedures always show; an empty one opens to a
+    /// grey "No views" row, and the rarer folders still hide when empty.
+    @Test func mainObjectFoldersShowEvenWhenEmpty() throws {
+        let session = makeSession(.microsoftSQL)
+        let table = SchemaObjectInfo(name: "orders", schema: "dbo", type: .table)
+        session.databaseStructure = DatabaseStructure(serverVersion: nil, databases: [
+            DatabaseInfo(name: "AdventureWorks", schemas: [SchemaInfo(name: "dbo", objects: [table])]),
+        ])
+        let viewModel = ObjectBrowserSidebarViewModel()
+        // Only an open database builds its folders.
+        viewModel.expandedNodeIDs.insert(ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: session.connection.id, databaseName: "AdventureWorks"))
+        let databases = try #require(build(session, viewModel).first)
+        let database = try #require(databases.children.first { if case .database = $0.row { true } else { false } })
+        let kinds = database.children.compactMap { folder($0)?.kind }
+        #expect(kinds.contains(.views))
+        #expect(kinds.contains(.functions))
+        #expect(kinds.contains(.procedures))
+        #expect(!kinds.contains(.synonyms))
+        let views = try #require(database.children.first { folder($0)?.kind == .views })
+        #expect(folder(views)?.count == 0)
+        guard case .placeholder(let title, _) = try #require(views.children.first).row else {
+            Issue.record("An empty Views folder should open to a grey row")
+            return
+        }
+        #expect(title == "No views")
+    }
+
+    /// Round 38: every Security starts with Security Overview, and a database's knows its database.
+    @Test func databaseSecurityStartsWithItsOverview() throws {
+        let session = makeSession(.microsoftSQL)
+        let viewModel = ObjectBrowserSidebarViewModel()
+        viewModel.expandedNodeIDs.insert(ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: session.connection.id, databaseName: "AdventureWorks"))
+        let databases = try #require(build(session, viewModel).first)
+        let database = try #require(databases.children.first { if case .database = $0.row { true } else { false } })
+        let security = try #require(database.children.first { folder($0)?.kind == .databaseSecurity })
+        guard case .action(_, let kind, let databaseName) = try #require(security.children.first).row else {
+            Issue.record("A database's Security should start with Security Overview")
+            return
+        }
+        #expect(kind == .securityOverview)
+        #expect(databaseName == "AdventureWorks")
+    }
+
     @Test func mySQLToolsSitUnderManagement() throws {
         let nodes = build(makeSession(.mysql), ObjectBrowserSidebarViewModel())
         let management = try #require(nodes.first { folder($0)?.kind == .management })
         let tools: [ExplorerNodeKind] = management.children.compactMap {
-            if case .action(_, let kind) = $0.row { kind } else { nil }
+            if case .action(_, let kind, _) = $0.row { kind } else { nil }
         }
         #expect(tools == [.maintenance, .serverProperties, .activityMonitor])
     }

@@ -39,6 +39,26 @@ enum ExplorerLoadingStyle {
     }
 }
 
+/// A folder's filter field: what it narrows and how it reads and writes its text.
+struct ExplorerFolderFilter {
+    let folderID: String
+    let prompt: String
+    let text: () -> String
+    let setText: (String) -> Void
+    let close: () -> Void
+}
+
+/// The table or view a column row belongs to, for the column's menu.
+struct ExplorerColumnOwner {
+    let session: ConnectionSession
+    let databaseName: String
+    let object: SchemaObjectInfo
+    /// The column's name is being edited in place (round 42.2, Rename).
+    var isRenaming = false
+    var commitRename: (String) -> Void = { _ in }
+    var cancelRename: () -> Void = {}
+}
+
 @MainActor
 final class ObjectBrowserNode: NSObject {
     enum Row {
@@ -50,14 +70,18 @@ final class ObjectBrowserNode: NSObject {
         case database(ConnectionSession, DatabaseInfo, isLoading: Bool)
         case folder(ExplorerFolder)
         case object(ConnectionSession, String, SchemaObjectInfo)
-        case column(ColumnInfo)
+        case column(ColumnInfo, ExplorerColumnOwner)
         case item(ExplorerItemRow)
-        case action(ConnectionSession, ExplorerNodeKind)
+        /// A tool that opens a tab, a window or a sheet; inside a database it knows which one
+        /// (Security Overview, round 38).
+        case action(ConnectionSession, ExplorerNodeKind, databaseName: String?)
         /// Says a folder is empty ("No logins").
         case placeholder(String, kind: ExplorerNodeKind?)
         /// Something still loading: one spinner row, or skeleton rows (round 16).
         case loading(String, style: ExplorerLoadingStyle)
         case message(String, systemImage: String)
+        /// The field that narrows a folder's rows in place (round 42.6, Filter Tables).
+        case filter(ExplorerFolderFilter)
         /// The section dock under a server's name (TC1): which of the server's sections it shows.
         case dock(ConnectionSession, ExplorerDockLayout, selectedID: String)
     }

@@ -8,73 +8,40 @@ struct MySQLServerConfigurationView: View {
 
     var body: some View {
         VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
-            TabSectionToolbar {
-                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                    Text("MySQL Configuration")
-                        .font(TypographyTokens.prominent.weight(.semibold))
-                    if let selected = viewModel.selectedConfigFile {
-                        Text(selected.path)
-                            .font(TypographyTokens.Table.path)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                            .textSelection(.enabled)
-                            .lineLimit(1)
-                    }
-                }
-            } controls: {
-                Button("Choose File…") {
-                    viewModel.chooseConfigFile()
-                }
-                .buttonStyle(.borderless)
-
-                Button("Refresh") {
-                    Task { await viewModel.loadCurrentSection() }
-                }
-                .buttonStyle(.borderless)
-
-                Button("Open") {
-                    viewModel.openSelectedConfigFile()
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.selectedConfigFile?.exists != true)
-
-                Button("Reveal") {
-                    viewModel.revealSelectedConfigFile()
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.selectedConfigFile?.exists != true)
-
-                Button("Reload") {
-                    do {
-                        try viewModel.reloadSelectedConfigFile()
-                    } catch {
-                        viewModel.configStatusMessage = error.localizedDescription
-                    }
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.selectedConfigFile == nil)
-
-                Button("Revert") {
-                    viewModel.revertSelectedConfigFile()
-                }
-                .buttonStyle(.borderless)
-                .disabled(!viewModel.hasUnsavedConfigChanges)
-
-                Button("Save") {
-                    Task { await viewModel.saveSelectedConfigFile() }
-                }
-                .buttonStyle(.bordered)
-                .disabled(!canSave)
-            }
-            .tabSectionToolbarOnCanvas()
 
             // TT1: the files and the editor are two cards.
             CardSplitView(axis: .horizontal, fraction: $fileListFraction, minFraction: 0.2, maxFraction: 0.45) {
                 configFileList
             } second: {
-                configEditor
+                // Properties (round 37.4, PR0): unsaved changes wait in a bar at the bottom.
+                VStack(spacing: SpacingTokens.none) {
+                    configEditor
+                    if viewModel.hasUnsavedConfigChanges {
+                        ToolTabApplyBar(summary: "Unsaved changes", applyTitle: "Save", canApply: canSave,
+                                        onRevert: { viewModel.revertSelectedConfigFile() },
+                                        onApply: { Task { await viewModel.saveSelectedConfigFile() } })
+                    }
+                }
             }
         }
+        .tabToolbar(groups: [toolbarGroup])
+        .toolTabHeaderDetail(viewModel.selectedConfigFile?.path)
     }
+
+    /// The file's actions in the window toolbar (round 37.5); Save is in the Apply bar.
+    private var toolbarGroup: [TabToolbarItem] {
+        let exists = viewModel.selectedConfigFile?.exists == true
+        return [
+            TabToolbarItem(id: "chooseFile", title: "Choose File", symbol: "doc.badge.ellipsis") { [viewModel] in viewModel.chooseConfigFile() },
+            TabToolbarItem(id: "open", title: "Open", symbol: "arrow.up.forward.app", isDisabled: !exists) { [viewModel] in viewModel.openSelectedConfigFile() },
+            TabToolbarItem(id: "reveal", title: "Reveal in Finder", symbol: "folder", isDisabled: !exists) { [viewModel] in viewModel.revealSelectedConfigFile() },
+            TabToolbarItem(id: "reload", title: "Reload from Disk", symbol: "arrow.uturn.backward", isDisabled: viewModel.selectedConfigFile == nil) { [viewModel] in
+                do { try viewModel.reloadSelectedConfigFile() } catch { viewModel.configStatusMessage = error.localizedDescription }
+            },
+            .refresh { [viewModel] in Task { await viewModel.loadCurrentSection() } },
+        ]
+    }
+
 
     private var canSave: Bool {
         guard let selected = viewModel.selectedConfigFile else { return false }

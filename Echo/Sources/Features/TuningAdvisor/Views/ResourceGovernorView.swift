@@ -9,18 +9,16 @@ struct ResourceGovernorView: View {
     @State var pendingDropPool: String?
     @State var pendingDropGroup: String?
     @State private var poolsFraction: CGFloat = 0.5
-    @Environment(ProjectStore.self) private var projectStore
 
     var body: some View {
-        // TT1: the toolbar on the canvas, pools and workload groups as two cards.
-        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
-            toolbar
-                .tabSectionToolbarOnCanvas()
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .adaptiveWorkspaceCard()
-        }
-        .tabContentFrame()
+        // TT1: pools and workload groups as two cards; the state after the server (round 37.2),
+        // the buttons in the window toolbar (37.5).
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .adaptiveWorkspaceCard()
+            .tabContentFrame()
+            .tabToolbar(special: applyChangesItem, groups: [toolbarGroup])
+            .toolTabHeaderDetail(configurationDetail)
         .onAppear {
             viewModel.refresh()
         }
@@ -60,49 +58,33 @@ struct ResourceGovernorView: View {
         }
     }
     
-    private var toolbar: some View {
-        TabSectionToolbar {
-            configurationControls
-        } controls: {
-            TabRefreshButton(isRefreshing: viewModel.isRefreshing) {
-                viewModel.refresh()
-            }
+    /// "Enabled · classifier dbo.fn" after the server.
+    private var configurationDetail: String? {
+        guard let config = viewModel.configuration else { return nil }
+        var parts = [config.isEnabled ? "Enabled" : "Disabled"]
+        if let classifier = config.classifierFunction { parts.append("classifier \(classifier)") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Round 37.5: Apply Changes is the special button while a reconfigure is pending.
+    private var applyChangesItem: TabToolbarItem? {
+        guard viewModel.configuration?.isReconfigurationPending == true else { return nil }
+        return TabToolbarItem(id: "applyChanges", title: "Apply Changes", symbol: "checkmark.circle") { [viewModel] in
+            Task { await viewModel.reconfigure() }
         }
     }
 
-    @ViewBuilder
-    private var configurationControls: some View {
+    /// Enable or Disable, and Refresh.
+    private var toolbarGroup: [TabToolbarItem] {
+        var items: [TabToolbarItem] = []
         if let config = viewModel.configuration {
-            Label(
-                config.isEnabled ? "Enabled" : "Disabled",
-                systemImage: config.isEnabled ? "checkmark.circle.fill" : "xmark.circle.fill"
-            )
-            .font(TypographyTokens.detail)
-            .foregroundStyle(config.isEnabled ? ColorTokens.Status.success : ColorTokens.Status.error)
-
-            Button(config.isEnabled ? "Disable" : "Enable") {
+            items.append(TabToolbarItem(id: "enable", title: config.isEnabled ? "Disable Resource Governor" : "Enable Resource Governor",
+                                        symbol: "power", isDisabled: viewModel.isToggling, isOn: config.isEnabled, isToggle: true) { [viewModel] in
                 Task { await viewModel.toggleEnabled() }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(viewModel.isToggling)
-
-            if let classifier = config.classifierFunction {
-                Text("Classifier: \(classifier)")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .lineLimit(1)
-            }
-
-            if config.isReconfigurationPending {
-                Button("Apply Changes") {
-                    Task { await viewModel.reconfigure() }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(ColorTokens.Status.warning)
-            }
+            })
         }
+        items.append(.refresh(isBusy: viewModel.isRefreshing) { [viewModel] in viewModel.refresh() })
+        return items
     }
 
     @ViewBuilder

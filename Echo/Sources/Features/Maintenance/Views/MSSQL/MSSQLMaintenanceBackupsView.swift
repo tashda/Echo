@@ -22,11 +22,10 @@ struct MSSQLMaintenanceBackupsView: View {
                     Text(permissionError)
                 }
             } else {
-                VStack(spacing: 0) {
-                    toolbar
-                    Divider()
-                    historyContent
-                }
+                // New Backup is the page's special button, Restore its group (round 37.5).
+                historyContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .tabToolbar(special: newBackupItem, groups: [[restoreItem]])
                 .sheet(isPresented: $showBackupSheet) {
                     if let vm = viewModel.backupsVM {
                         MSSQLBackupSidebarSheet(viewModel: vm) {
@@ -48,29 +47,19 @@ struct MSSQLMaintenanceBackupsView: View {
         .tabContentFrame()
     }
 
-    private var toolbar: some View {
-        TabSectionToolbar {
-            EmptyView()
-        } controls: {
-            Button {
-                viewModel.backupsVM?.resetBackupState()
-                showBackupSheet = true
-            } label: {
-                Label("New Backup", systemImage: "plus")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(!(session?.permissions?.canBackupRestore ?? true))
+    private var canBackupRestore: Bool { session?.permissions?.canBackupRestore ?? true }
 
-            Button {
-                viewModel.backupsVM?.resetRestoreState()
-                showRestoreSheet = true
-            } label: {
-                Label("Restore", systemImage: "arrow.counterclockwise")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(!(session?.permissions?.canBackupRestore ?? true))
+    private var newBackupItem: TabToolbarItem {
+        TabToolbarItem(id: "newBackup", title: "New Backup", symbol: "plus", isDisabled: !canBackupRestore) {
+            viewModel.backupsVM?.resetBackupState()
+            showBackupSheet = true
+        }
+    }
+
+    private var restoreItem: TabToolbarItem {
+        TabToolbarItem(id: "restore", title: "Restore", symbol: "arrow.counterclockwise", isDisabled: !canBackupRestore) {
+            viewModel.backupsVM?.resetRestoreState()
+            showRestoreSheet = true
         }
     }
 

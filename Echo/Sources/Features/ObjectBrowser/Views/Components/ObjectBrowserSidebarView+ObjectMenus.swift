@@ -11,16 +11,7 @@ extension ObjectBrowserSidebarView {
     ) -> NSMenu {
         let menu = NSMenu()
 
-        menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
-            Task {
-                let handle = AppDirector.shared.activityEngine.begin("Refreshing \(type.pluralDisplayName)", connectionSessionID: session.id)
-                await environmentState.loadSchemaForDatabase(databaseName, connectionSession: session)
-                handle.succeed()
-            }
-        }
-
         if let title = experimentalObjectGroupCreationTitle(for: type) {
-            menu.addDivider()
             let hasDesigner = VisualEditorResolver.hasVisualEditor(for: type, databaseType: session.connection.databaseType)
 
             if hasDesigner {
@@ -53,6 +44,19 @@ extension ObjectBrowserSidebarView {
             }
         }
 
+        menu.addActionItem("Filter \(type.pluralDisplayName)", systemImage: "line.3.horizontal.decrease") {
+            startFilter(of: type, databaseName: databaseName, session: session)
+        }
+
+        menu.addDivider()
+        menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
+            Task {
+                let handle = AppDirector.shared.activityEngine.begin("Refreshing \(type.pluralDisplayName)", connectionSessionID: session.id)
+                await environmentState.loadSchemaForDatabase(databaseName, connectionSession: session)
+                handle.succeed()
+            }
+        }
+
         return menu
     }
 
@@ -63,123 +67,76 @@ extension ObjectBrowserSidebarView {
     ) -> NSMenu {
         let menu = NSMenu()
         let databaseType = session.connection.databaseType
+        let hasDesigner = VisualEditorResolver.hasVisualEditor(for: object.type, databaseType: databaseType)
 
-        menu.addActionItem("New Query", systemImage: "doc.text") {
-            environmentState.openQueryTab(for: session, database: databaseName)
-        }
-
-        if object.type == .extension {
-            menu.addActionItem("New Extension", systemImage: "puzzlepiece.extension") {
-                environmentState.openExtensionsManagerTab(connectionID: session.connection.id, databaseName: databaseName)
-            }
-        }
-
-        menu.addDivider()
-
+        // Open and create (round 42.4: Open Data, Edit Structure, Diagram).
         if object.type == .table || object.type == .view || object.type == .materializedView {
-            menu.addActionItem("Data", systemImage: "tablecells") {
-                let sql = previewQuery(for: object, databaseType: databaseType)
-                environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
-                environmentState.recordRecentTable(object, in: session, databaseName: databaseName)
+            menu.addActionItem("Open Data", systemImage: "tablecells") {
+                openObjectData(object, databaseName: databaseName, session: session)
             }
         }
-
         if object.type == .table || object.type == .extension {
-            menu.addActionItem("Structure", systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up") {
+            menu.addActionItem("Edit Structure", systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up") {
                 environmentState.openStructureTab(for: session, object: object, databaseName: databaseName)
             }
         }
-
         if object.type == .table {
             menu.addActionItem("Diagram", systemImage: "rectangle.connected.to.line.below") {
                 environmentState.openDiagramTab(for: session, object: object, activeDatabaseName: databaseName)
             }
         }
-
         if [.view, .materializedView, .function, .procedure, .trigger, .sequence, .type].contains(object.type) {
             menu.addActionItem("Definition", systemImage: "doc.text") {
                 openDefinition(for: object, databaseName: databaseName, session: session)
             }
         }
-
         if object.type == .function || object.type == .procedure {
             menu.addActionItem("Execute", systemImage: "play.circle") {
                 let sql = executeStatement(for: object, databaseType: databaseType)
                 environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
             }
         }
-
-        if VisualEditorResolver.hasVisualEditor(for: object.type, databaseType: databaseType) {
+        if hasDesigner {
             menu.addActionItem("Edit in Designer", systemImage: "rectangle.and.pencil.and.ellipsis") {
                 openObjectInDesigner(object, session: session)
             }
         }
-
         if object.type == .procedure || object.type == .function {
             menu.addActionItem("Modify", systemImage: "pencil.and.outline") {
                 openAlterDefinition(for: object, databaseName: databaseName, session: session)
             }
         }
-
-        let scriptActions = ScriptActionResolver.actions(for: object.type, databaseType: databaseType)
-        if !scriptActions.isEmpty {
-            menu.addDivider()
-            menu.addSubmenu("Script as", systemImage: "scroll") { submenu in
-                let readActions = scriptActions.filter(\.isReadGroup)
-                let createActions = scriptActions.filter(\.isCreateModifyGroup)
-                let writeActions = scriptActions.filter(\.isWriteGroup)
-                let executeActions = scriptActions.filter(\.isExecuteGroup)
-                let destroyActions = scriptActions.filter(\.isDestroyGroup)
-
-                addScriptActions(readActions, to: submenu, object: object, databaseName: databaseName, session: session)
-                if !readActions.isEmpty && !createActions.isEmpty { submenu.addDivider() }
-                addScriptActions(createActions, to: submenu, object: object, databaseName: databaseName, session: session)
-                if !createActions.isEmpty && !writeActions.isEmpty { submenu.addDivider() }
-                addScriptActions(writeActions, to: submenu, object: object, databaseName: databaseName, session: session)
-                if !writeActions.isEmpty && !executeActions.isEmpty { submenu.addDivider() }
-                if writeActions.isEmpty && !createActions.isEmpty && !executeActions.isEmpty { submenu.addDivider() }
-                addScriptActions(executeActions, to: submenu, object: object, databaseName: databaseName, session: session)
-                let hasNonDestroy = !executeActions.isEmpty || !writeActions.isEmpty || !createActions.isEmpty || !readActions.isEmpty
-                if hasNonDestroy && !destroyActions.isEmpty { submenu.addDivider() }
-                addScriptActions(destroyActions, to: submenu, object: object, databaseName: databaseName, session: session)
+        menu.addActionItem("New Query", systemImage: "plus.rectangle") {
+            environmentState.openQueryTab(for: session, database: databaseName)
+        }
+        if object.type == .extension {
+            menu.addActionItem("New Extension", systemImage: "puzzlepiece.extension") {
+                environmentState.openExtensionsManagerTab(connectionID: session.connection.id, databaseName: databaseName)
             }
         }
 
-        if databaseType == .microsoftSQL || object.type == .table || object.type == .view {
-            menu.addDivider()
-            menu.addSubmenu("Tasks", systemImage: "checklist") { submenu in
-                if databaseType == .microsoftSQL {
-                    submenu.addActionItem("Generate Scripts", systemImage: "applescript") {
-                        sheetState.generateScriptsDatabaseName = databaseName
-                        sheetState.generateScriptsConnectionID = session.connection.id
-                        sheetState.showGenerateScriptsWizard = true
-                    }
-                }
-                if object.type == .table {
-                    submenu.addActionItem("Import Data", systemImage: "square.and.arrow.down") {
-                        sheetState.quickImportDatabaseName = databaseName
-                        sheetState.quickImportConnectionID = session.connection.id
-                        sheetState.showQuickImportSheet = true
-                    }
-                }
-                if object.type == .table && databaseType == .microsoftSQL && object.isSystemVersioned != true && object.isHistoryTable != true {
-                    submenu.addActionItem("Enable System Versioning", systemImage: "clock.badge.checkmark") {
-                        sheetState.enableVersioningConnectionID = session.connection.id
-                        sheetState.enableVersioningDatabaseName = databaseName
-                        sheetState.enableVersioningSchemaName = object.schema
-                        sheetState.enableVersioningTableName = object.name
-                        sheetState.showEnableVersioningSheet = true
-                    }
-                }
+        // Copy, script and tasks.
+        menu.addDivider()
+        menu.addCopyName(object.name)
+        addScriptAsSubmenu(to: menu, object: object, databaseName: databaseName, session: session)
+        addTasksSubmenu(to: menu, object: object, databaseName: databaseName, session: session)
+
+        // Refresh.
+        menu.addDivider()
+        menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
+            Task {
+                let handle = AppDirector.shared.activityEngine.begin("Refreshing \(databaseName)", connectionSessionID: session.id)
+                await environmentState.loadSchemaForDatabase(databaseName, connectionSession: session)
+                handle.succeed()
             }
         }
 
+        // Drop, then Properties last.
         menu.addDivider()
         menu.addActionItem("Drop \(object.type.displayName)", systemImage: "trash") {
             let sql = dropStatement(for: object, databaseType: databaseType, includeIfExists: false)
             environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
         }
-
         if object.type == .table {
             menu.addDivider()
             menu.addActionItem("Properties", systemImage: "info.circle") {
@@ -191,7 +148,7 @@ extension ObjectBrowserSidebarView {
                 )
                 openWindow(id: TablePropertiesWindow.sceneID, value: value)
             }
-        } else if VisualEditorResolver.hasVisualEditor(for: object.type, databaseType: databaseType) {
+        } else if hasDesigner {
             menu.addDivider()
             menu.addActionItem("Properties", systemImage: "info.circle") {
                 openObjectInDesigner(object, session: session)
@@ -199,6 +156,75 @@ extension ObjectBrowserSidebarView {
         }
 
         return menu
+    }
+
+    /// The first item of a table's or view's menu, and what a double-click does (round 42.4, DC0).
+    func openObjectData(_ object: SchemaObjectInfo, databaseName: String, session: ConnectionSession) {
+        let sql = previewQuery(for: object, databaseType: session.connection.databaseType)
+        environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
+        environmentState.recordRecentTable(object, in: session, databaseName: databaseName)
+    }
+
+    private func addScriptAsSubmenu(to menu: NSMenu, object: SchemaObjectInfo, databaseName: String, session: ConnectionSession) {
+        let scriptActions = ScriptActionResolver.actions(for: object.type, databaseType: session.connection.databaseType)
+        guard !scriptActions.isEmpty else { return }
+        menu.addSubmenu("Script as", systemImage: "scroll") { submenu in
+            let readActions = scriptActions.filter(\.isReadGroup)
+            let createActions = scriptActions.filter(\.isCreateModifyGroup)
+            let writeActions = scriptActions.filter(\.isWriteGroup)
+            let executeActions = scriptActions.filter(\.isExecuteGroup)
+            let destroyActions = scriptActions.filter(\.isDestroyGroup)
+
+            addScriptActions(readActions, to: submenu, object: object, databaseName: databaseName, session: session)
+            if !readActions.isEmpty && !createActions.isEmpty { submenu.addDivider() }
+            addScriptActions(createActions, to: submenu, object: object, databaseName: databaseName, session: session)
+            if !createActions.isEmpty && !writeActions.isEmpty { submenu.addDivider() }
+            addScriptActions(writeActions, to: submenu, object: object, databaseName: databaseName, session: session)
+            if !writeActions.isEmpty && !executeActions.isEmpty { submenu.addDivider() }
+            if writeActions.isEmpty && !createActions.isEmpty && !executeActions.isEmpty { submenu.addDivider() }
+            addScriptActions(executeActions, to: submenu, object: object, databaseName: databaseName, session: session)
+            let hasNonDestroy = !executeActions.isEmpty || !writeActions.isEmpty || !createActions.isEmpty || !readActions.isEmpty
+            if hasNonDestroy && !destroyActions.isEmpty { submenu.addDivider() }
+            addScriptActions(destroyActions, to: submenu, object: object, databaseName: databaseName, session: session)
+        }
+    }
+
+    /// Tables and views share one Tasks submenu (round 42.4, VW0); Truncate Table closes it (TR0).
+    private func addTasksSubmenu(to menu: NSMenu, object: SchemaObjectInfo, databaseName: String, session: ConnectionSession) {
+        let databaseType = session.connection.databaseType
+        guard databaseType == .microsoftSQL || object.type == .table || object.type == .view else { return }
+        menu.addSubmenu("Tasks", systemImage: "checklist") { submenu in
+            if databaseType == .microsoftSQL {
+                submenu.addActionItem("Generate Scripts", systemImage: "applescript") {
+                    sheetState.generateScriptsDatabaseName = databaseName
+                    sheetState.generateScriptsConnectionID = session.connection.id
+                    sheetState.showGenerateScriptsWizard = true
+                }
+            }
+            if object.type == .table {
+                submenu.addActionItem("Import Data", systemImage: "square.and.arrow.down") {
+                    sheetState.quickImportDatabaseName = databaseName
+                    sheetState.quickImportConnectionID = session.connection.id
+                    sheetState.showQuickImportSheet = true
+                }
+            }
+            if object.type == .table && databaseType == .microsoftSQL && object.isSystemVersioned != true && object.isHistoryTable != true {
+                submenu.addActionItem("Enable System Versioning", systemImage: "clock.badge.checkmark") {
+                    sheetState.enableVersioningConnectionID = session.connection.id
+                    sheetState.enableVersioningDatabaseName = databaseName
+                    sheetState.enableVersioningSchemaName = object.schema
+                    sheetState.enableVersioningTableName = object.name
+                    sheetState.showEnableVersioningSheet = true
+                }
+            }
+            if object.type == .table {
+                submenu.addDivider()
+                submenu.addActionItem("Truncate Table", systemImage: "eraser") {
+                    let sql = truncateStatement(for: object, databaseType: databaseType)
+                    environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
+                }
+            }
+        }
     }
 
     func addScriptActions(

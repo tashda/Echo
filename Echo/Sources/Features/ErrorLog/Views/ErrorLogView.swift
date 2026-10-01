@@ -7,10 +7,9 @@ struct ErrorLogView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        VStack(spacing: 0) {
-            CenteredTabSectionToolbar { sectionToolbar } controls: { archivePicker }
-            Divider()
-
+        // The products are pages in the tab (round 36.2); the archive and search sit on the header
+        // line (37.2), Cycle Log and Refresh in the window toolbar (37.5).
+        Group {
             if !viewModel.isInitialized {
                 TabInitializingPlaceholder(
                     icon: "doc.text.magnifyingglass",
@@ -21,51 +20,40 @@ struct ErrorLogView: View {
                 logContent
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Background.primary)
         .tabContentFrame()
         .task { await viewModel.initialLoad() }
-    }
-
-    // MARK: - Section Toolbar
-
-    @ViewBuilder
-    private var sectionToolbar: some View {
-        TabSectionPicker(
-            "Log Product",
-            selection: Binding(
-                get: { viewModel.selectedProduct },
-                set: { product in Task { await viewModel.switchProduct(to: product) } }
-            ),
-            itemCount: ErrorLogViewModel.LogProduct.allCases.count
-        ) {
-            ForEach(ErrorLogViewModel.LogProduct.allCases) { product in
-                Text(product.rawValue).tag(product)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var archivePicker: some View {
-        Picker(selection: $viewModel.selectedArchive) {
-            if viewModel.sortedArchives.isEmpty {
-                Text("Current").tag(viewModel.selectedArchive)
-            } else {
-                ForEach(viewModel.sortedArchives) { archive in
-                    Text(archive.archiveNumber == 0
-                        ? "Current \u{2014} \(archive.date)"
-                        : "Archive #\(archive.archiveNumber) \u{2014} \(archive.date)")
-                        .tag(archive.archiveNumber)
-                }
-            }
-        } label: {
-            EmptyView()
-        }
-        .pickerStyle(.menu)
-        .fixedSize()
-        .labelsHidden()
         .onChange(of: viewModel.selectedArchive) {
             Task { await viewModel.loadEntries() }
         }
+        .toolTabHeaderControls { headerControls }
+        // Round 37.5: Cycle Log and Refresh in the window toolbar.
+        .tabToolbar(groups: [[
+            TabToolbarItem(id: "cycleLog", title: "Cycle Log: archive the current error log and start a new one",
+                           symbol: "arrow.triangle.2.circlepath") { [viewModel] in Task { await viewModel.cycleLog() } },
+            .refresh(isBusy: viewModel.isLoading) { [viewModel] in Task { await viewModel.refresh() } },
+        ]])
+    }
+
+    // MARK: - Header line
+
+    private var headerControls: some View {
+        Group {
+            ToolTabPickerPill(title: "Log", systemImage: "archivebox", selection: $viewModel.selectedArchive,
+                              options: archiveNumbers, label: archiveLabel)
+            ToolTabSearchField(prompt: "Search log", text: $viewModel.searchText)
+        }
+    }
+
+    private var archiveNumbers: [Int] {
+        let numbers = viewModel.sortedArchives.map(\.archiveNumber)
+        return numbers.isEmpty ? [viewModel.selectedArchive] : numbers
+    }
+
+    private func archiveLabel(_ number: Int) -> String {
+        guard let archive = viewModel.sortedArchives.first(where: { $0.archiveNumber == number }) else { return "Current" }
+        return number == 0 ? "Current \u{2014} \(archive.date)" : "Archive #\(number) \u{2014} \(archive.date)"
     }
 
     // MARK: - Table

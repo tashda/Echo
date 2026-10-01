@@ -5,7 +5,8 @@ struct MSSQLDatabaseSecurityView: View {
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
     @Environment(\.workspaceTab) private var hostTab
-    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(\.openWindow) var openWindow
 
     @State var showNewRoleSheet = false
     @State var showNewSchemaSheet = false
@@ -27,10 +28,13 @@ struct MSSQLDatabaseSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            sectionPicker
-        } content: {
+            // Its pages are in the tab (round 36.2); each page's New is the special button in the
+            // window toolbar (round 37.5, the owner's answer).
             sectionContent
         }
+        .tabToolbar(special: newItem, groups: [[.refresh(isBusy: statusBubble != nil) { [viewModel] in
+            Task { await viewModel.loadCurrentSection() }
+        }]])
         .task {
             await viewModel.loadDatabases()
         }
@@ -120,18 +124,5 @@ struct MSSQLDatabaseSecurityView: View {
         return nil
     }
 
-    // MARK: - Section Picker
-
-    private var sectionPicker: some View {
-        TabSectionPicker(
-            "Security Section",
-            selection: $viewModel.selectedSection,
-            itemCount: DatabaseSecurityViewModel.Section.allCases.count
-        ) {
-            ForEach(DatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
-                Text(section.rawValue).tag(section)
-            }
-        }
-    }
 
 }

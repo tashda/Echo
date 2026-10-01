@@ -6,7 +6,7 @@ extension JobDetailsView {
 
     var schedulesTab: some View {
         VStack(spacing: 0) {
-            SchedulesTableView(viewModel: viewModel, selectedScheduleID: $selectedScheduleID)
+            SchedulesTableView(viewModel: viewModel, selectedScheduleID: $selectedScheduleID) { editingSchedule = $0 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay {
                     if viewModel.schedules.isEmpty {
@@ -34,48 +34,37 @@ extension JobDetailsView {
                 title: "New Schedule",
                 actionLabel: "Create Schedule"
             ) { result in
-                let freqType: Int
-                let freqInterval: Int
-                let activeStartTime: Int? = result.startHour * 10000 + result.startMinute * 100
-                var freqRecurrenceFactor: Int? = nil
-                var activeStartDate: Int? = nil
-                var activeEndDate: Int? = nil
-
-                switch result.frequency {
-                case .daily:
-                    freqType = 4; freqInterval = result.interval
-                case .weekly:
-                    freqType = 8; freqInterval = result.weekdays.reduce(0, |); freqRecurrenceFactor = result.interval
-                case .monthly:
-                    freqType = 16; freqInterval = result.monthDay; freqRecurrenceFactor = result.interval
-                case .once:
-                    freqType = 1; freqInterval = 0
-                    let comps = Calendar.current.dateComponents([.year, .month, .day], from: result.oneTimeDate)
-                    activeStartDate = (comps.year ?? 2026) * 10000 + (comps.month ?? 1) * 100 + (comps.day ?? 1)
-                }
-
-                if result.useActiveWindow && result.frequency != .once {
-                    let startComps = Calendar.current.dateComponents([.year, .month, .day], from: result.activeStartDate)
-                    activeStartDate = (startComps.year ?? 2026) * 10000 + (startComps.month ?? 1) * 100 + (startComps.day ?? 1)
-                    let endComps = Calendar.current.dateComponents([.year, .month, .day], from: result.activeEndDate)
-                    activeEndDate = (endComps.year ?? 2027) * 10000 + (endComps.month ?? 1) * 100 + (endComps.day ?? 1)
-                }
-
+                let fields = AgentJobScheduleFields(result: result)
                 Task {
                     await viewModel.addAndAttachSchedule(
                         name: result.name,
                         enabled: result.enabled,
-                        freqType: freqType,
-                        freqInterval: freqInterval,
-                        activeStartTime: activeStartTime,
-                        freqRecurrenceFactor: freqRecurrenceFactor,
-                        activeStartDate: activeStartDate,
-                        activeEndDate: activeEndDate
+                        freqType: fields.freqType,
+                        freqInterval: fields.freqInterval,
+                        activeStartTime: fields.activeStartTime,
+                        freqRecurrenceFactor: fields.freqRecurrenceFactor,
+                        activeStartDate: fields.activeStartDate,
+                        activeEndDate: fields.activeEndDate == AgentJobScheduleFields.noEndDate ? nil : fields.activeEndDate
                     )
                     showAddScheduleSheet = false
                 }
             } onCancel: {
                 showAddScheduleSheet = false
+            }
+        }
+        .sheet(item: $editingSchedule) { schedule in
+            AgentJobScheduleEditorSheet(
+                title: "Edit Schedule",
+                actionLabel: "Save",
+                initial: ScheduleEditorInitialValues(schedule: schedule) ?? ScheduleEditorInitialValues()
+            ) { result in
+                Task {
+                    await viewModel.updateSchedule(originalName: schedule.name, name: result.name, enabled: result.enabled,
+                                                   fields: AgentJobScheduleFields(result: result))
+                    editingSchedule = nil
+                }
+            } onCancel: {
+                editingSchedule = nil
             }
         }
     }
@@ -86,6 +75,7 @@ extension JobDetailsView {
 private struct SchedulesTableView: View {
     var viewModel: JobQueueViewModel
     @Binding var selectedScheduleID: Set<String>
+    let onEdit: (JobQueueViewModel.ScheduleRow) -> Void
     @State private var sortOrder: [KeyPathComparator<JobQueueViewModel.ScheduleRow>] = [
         .init(\.name, order: .forward)
     ]
@@ -130,14 +120,28 @@ private struct SchedulesTableView: View {
                 TableRow(sch)
             }
         }
-        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: false))
         .tableColumnAutoResize()
+        // A double-click (or Return) on a schedule opens Edit Schedule.
         .contextMenu(forSelectionType: String.self) { items in
             if let id = items.first, let sch = viewModel.schedules.first(where: { $0.id == id }) {
+                Button {
+                    onEdit(sch)
+                } label: {
+                    Label("Edit Schedule", systemImage: "pencil")
+                }
+                .disabled(ScheduleEditorInitialValues(schedule: sch) == nil)
+                .help(ScheduleEditorInitialValues(schedule: sch) == nil ? "This kind of schedule can't be edited in Echo yet" : "")
+                Divider()
                 Button("Detach Schedule", role: .destructive) {
                     pendingDetachName = sch.name
                     showDetachAlert = true
                 }
+            }
+        } primaryAction: { items in
+            if let id = items.first, let sch = viewModel.schedules.first(where: { $0.id == id }),
+               ScheduleEditorInitialValues(schedule: sch) != nil {
+                onEdit(sch)
             }
         }
         .alert("Detach Schedule?", isPresented: $showDetachAlert) {

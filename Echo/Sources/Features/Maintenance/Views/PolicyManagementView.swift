@@ -3,38 +3,21 @@ import SQLServerKit
 
 struct PolicyManagementView: View {
     @Bindable var viewModel: PolicyManagementViewModel
+    @State private var listFraction: CGFloat = 0.64
     
     var body: some View {
-        VStack(spacing: 0) {
-            CenteredTabSectionToolbar {
-                TabSectionPicker(
-                    "Policy Section",
-                    selection: $viewModel.selectedTab,
-                    itemCount: PolicyManagementViewModel.PolicyTab.allCases.count
-                ) {
-                    ForEach(PolicyManagementViewModel.PolicyTab.allCases) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-            } controls: {
-                toolbarControls
-            }
-            Divider()
-
-            content
-        }
-        .background(ColorTokens.Background.primary)
+        // Its pages are in the tab (round 36.2); Refresh in the window toolbar (37.5).
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(ColorTokens.Background.primary)
+            .tabToolbar(groups: [[.refresh(isBusy: viewModel.isRefreshing) { [viewModel] in viewModel.refresh() }]])
         .tabContentFrame()
         .onAppear {
             viewModel.refresh()
         }
     }
 
-    private var toolbarControls: some View {
-        TabRefreshButton(isRefreshing: viewModel.isRefreshing) {
-            viewModel.refresh()
-        }
-    }
+
     
     @ViewBuilder
     private var content: some View {
@@ -46,7 +29,12 @@ struct PolicyManagementView: View {
                 if viewModel.policies.isEmpty {
                     emptyState("No Policies", systemImage: "checklist", description: "No Policy-Based Management policies are configured on this server.")
                 } else {
-                    policiesTable
+                    // Manage (round 37.4, MA0): the selected policy's details on a card beside the list.
+                    CardSplitView(axis: .horizontal, fraction: $listFraction, minFraction: 0.4, maxFraction: 0.8) {
+                        policiesTable
+                    } second: {
+                        PolicyDetailsPane(viewModel: viewModel)
+                    }
                 }
             case .conditions:
                 if viewModel.conditions.isEmpty {

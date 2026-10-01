@@ -1,6 +1,301 @@
 # Decision log
 
+## 2026-10-01 · Round 39 accepted: saved SQL beside the tab
+
+The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 / HP0 in #39.4 and CB1 / BP0 in #39.5. Bookmarks and query history share the trailing inspector column; the Explorer stays in place. The rail contains only servers and +. Snippets and Echo clipboard history are removed. History groups newest first by day, shows the first SQL line with database, outcome and time, keeps 5,000 runs by default, opens only in a new tab without executing, and can be disabled per connection. Separate Cache controls govern run count, expiry and clearing; result-cache expiry continues to govern result data. #39.2 remains under review: revision 2 adds two native list options while retaining the owner's selected save, folder/note and insertion behaviour. Built and run successfully; 37 focused Swift Testing tests passed, including legacy decoding, privacy, retention and clearing. A live Test Postgres SELECT was recorded; clicking history opened the original SQL in a new, unexecuted tab on the original database. Owner confirmation in Echo is pending.
+
+
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
+
+## 2026-10-02 · The tree places its rows; folding a card keeps the tree in view
+
+The owner's bugs after round 46: cards overlapped the next server's card when a server connected while a card was open, and collapsing the bottom server while scrolled into it left the tree out of view. Built in 38e19682.
+
+- **Rows at their exact places.** The lazy stack's height estimates put rows up to several rows from the layout that places the cards; the rows are now placed by the tree itself, building only those near the view. Nothing visible changes otherwise (Design/swiftui-tree.md).
+- **N2 gains an exception for folds:** closing a card you are scrolled into brings its header to its own place first, and when the fold leaves the tree shorter than the view, the view glides back with the fold until the tree fills it. Section switches still keep the room. → 05-components › Explorer tree › The other cards
+- **The pinned header's wash** fades in with the first 12pt of rows passing under it rather than in 0.12s once they do. → TREE-2.3
+
+## 2026-10-01 · The soft side edges of the results grid are removed
+
+The owner asked why a white glow covers the left and right of the results ("I want it removed"). It was round 27's X1, soft edges where more columns wait: a 32pt gradient in the card's colour over each side that could still scroll, which veiled the first and last column's text. **Removed entirely** (`ScrollSideFades`, `LayoutTokens.EdgeBlur.sideFadeWidth`): the rows stay sharp at both sides, and the scroll bar shows that more columns wait. The 44pt of room after the last column stays, so its right edge can be grabbed. This supersedes X1 and the entry above that made the edges follow the scroll position. → FTR-4.6
+
+## 2026-10-01 · After round 47: two gutter settings, one header line for real, sorting that doesn't freeze
+
+The owner's notes on the running app, decided in chat. These change what round 47's entry says where they differ.
+
+- **Two settings, not one (changes SS0):** the owner changed their mind: **Settings › Results › Row Number Style** is its own setting (Subtle, Column, Lane, Hairline; **default Hairline**, the round's GS2), and **Settings › Editor › Gutter › Style** is the editor's alone, **back to Subtle** as its default (it was moved to Hairline for the shared setting). A stored choice stays. → FTR-4.5, EDT-2.1
+- **The line under the column header, found (changes 41.1 and round 47):** the system's second line came from the header cells' own drawing (`NSTableHeaderCell.draw(withFrame:in:)`, a line along the bottom of a standard-height header, 4pt above Echo's), not from the scroll pocket. Hiding the pocket's views by name did nothing and was removed. The header cell now draws only its text and arrow, so Echo's one hairline is the only one. Checked on a real window: the extra line 4.5pt above the bottom is gone.
+- **Sorting a big result no longer freezes Echo:** a column sort compared two rows by fetching, trimming and parsing both values on every comparison, on the main thread; with 121,000 rows Echo stopped answering and had to be force-quit. Each row's key is made once, and a result over 20,000 rows is sorted off the main thread (`ResultRowSorter`). The order is the same as before: numbers by value, NULLs last when ascending and first when descending, text ignoring case, ties in row order. → FTR-4.2
+- **The soft side edges follow the scroll position:** they fade in over 32pt as more columns wait beyond a side and are gone at the end, instead of switching on and off, and the grid has 44pt of empty room after the last column so its right edge can be grabbed and widened. → FTR-4.6
+- **Gutter style pictures in Settings** no longer wrap their names letter by letter ("H a ir li n e").
+- **One row shape (bug: the hover was wider than its shaded row):** the system drew the shaded rows inset about 8pt with rounded ends while Echo's hover was inset 2pt, so a hovered row stuck out past its shade. Echo now draws the shaded rows itself in the hover's shape (inset 8pt by 1pt, 6pt corners), so shade, hover and selection agree. → FTR-4.3
+- **A rounded gutter tint (owner: the grid's highlights are rounded and the gutter's was a sharp box):** the selected rows' tint in the gutter is now one rounded block per run of selected rows, inset 4pt from the gutter's sides, its ends 2pt in and 6pt round like the selection beside it, and a hovered row's number sits on the grid's hover tint. → FTR-4.5
+- **Two fixes after trying it (owner):** the empty header past the last column showed the last column's type again as a column of its own (AppKit copies the last header cell to paint it; the cell now draws only for a real column), and the `#` corner has **no hover tint** (no other column header has one; it keeps the Select All tooltip and the click). → FTR-4.2, FTR-4.5
+
+## 2026-10-01 · Round 37.5 in Echo, changed: native toolbar buttons, no tab symbol
+
+The owner after checking round 37.5 in the running app: some buttons were very small, the highlight came and went, the tab's symbol "looks hideous", and switching tabs blinked instead of morphing. Same rules for what goes where; built in 3f9e54d2.
+
+- **No tab symbol** in the toolbar (TT8 dropped).
+- **Native toolbar items:** the special button and each group of the other buttons are real toolbar items (buttons, toggles, menus) that the toolbar sizes and highlights; groups are separate native items rather than one capsule with hairlines (GR1 dropped). The query editor's Run keeps its own red glass (round 24).
+- **Switching:** fixed slots that only hide, so a switch changes the buttons in place; the system's own hide and show for slots a tab doesn't need. → TLT-10.3 to 10.5, TLT-8.2
+
+## 2026-10-01 · Round 48 accepted: opening, connecting and closing the last tab
+
+Echo Labs › Window and cards › round 48. The owner accepted every recommendation except one: **LV2** (the pills echo out) instead of LV1.
+- The welcome shows **the mark alone** (WM2): the pills echo in as on echodb.dev (`Mark.astro`: 0.9 s, cubic-bezier(0.3, 1.3, 0.5, 1), 0.12 s apart), then the buttons and the recents rise after it (WR1, 0.15 s apart). It plays every time the welcome appears.
+- **Connecting** (LV2, CO1, AR2): the pills echo out to the left, last first (0.46 s); then the server grows into the rail, the tree slides out 0.12 s later, and the server page builds up (name, version, tools, databases, 0.06 s apart). If the connection fails the welcome comes back.
+- **Closing the last tab** (CW1, CH1): the server stays active, so the canvas shows its page; the page stays mounted under the tabs and the card lifts away (0.28 s). The cause was `AppDirector+TabDelegate` clearing `activeSessionID` when no tab was left.
+- Opening a tab is unchanged. Rule: `Design/05-components.md` › Welcome and Server page. Built in this commit; awaiting the owner's check in the running app.
+
+## 2026-10-01 · Round 37.5 accepted: every tab's own buttons in the window toolbar, tied to the tab
+
+Echo Labs › Tool tabs › round 37.5, revision 2 (the owner liked TT2 best but not the symbol inside a glass button). **Replaces round 45** (R45-0). Built in bb8a6bee.
+
+- **Where:** a tab's dedicated buttons are in the window toolbar, at the right before the window's icons (GP0, the toolbar's own gap). Pickers and search stay on the tool's header line (MV1); the header line stays (HL0).
+- **Tie (TT8, SC0, SZ1):** the tab's own symbol, in grey at the buttons' size, stands before its buttons with no glass around it.
+- **Buttons (MA1, GR1):** the tab's special button is a glass capsule with its word (Start Trace, New Backup, Pause); its other buttons share one glass capsule, groups split by short hairlines. The query editor keeps Run's own red capsule (RN0).
+- **Motion and edges (SW2, EM0, NW1):** the glass reshapes from one tab's buttons into the next; a tab without buttons shows nothing; in a narrow window the window's icons stay and the tab's buttons give way first.
+- **The assessment, the owner's answers:** Agent Jobs' New Job is its special button and Start/Stop joins its group (changing round 33's JA1); SQL Server security's pages get their New as the special button; a tool's special button follows its page. Open in New Window stays its own group (the owner, 2026-10-01). → TLT-10.3 to 10.5 (10.1 retired), TLT-8.1, 8.2
+
+## 2026-10-01 · Round 47 accepted: the results' row numbers follow the editor's gutter
+
+Echo Labs › Footer and results › round 47. Asked: the names over the figures and the two lines under the header looked off; make the gutter as good and consistent as the editor's, keeping everything it does.
+
+- **One setting for both (SS0):** the results' row numbers follow **Settings › Editor › Gutter › Style** (Subtle, Column, Lane, Hairline), drawn as the editor's. **The default for both becomes Hairline** (owner, asked in chat: the round's pick of GS2 with "follows the editor"); it was Subtle, which is no longer the default. A stored choice stays; Reset puts back Hairline. → FTR-4.5, EDT-2.1
+- **Hairline (GS2):** one line at the gutter's right edge, **starting below the header**: no vertical line through the header row, so the `#` and the first column's name have none (owner's note). Column keeps its edge the full height; Lane and Subtle have none.
+- **Numbers (NA0, GW1):** right-aligned, as before; the gutter **fits the digits, at least three, and grows** (it was six digits wide always, about 50pt), with 8pt either side. Echo still reserves for the row count it knows, so it doesn't jump while rows stream in.
+- **Column names (HA0):** stay left-aligned (the proposed alignment with the data was not taken).
+- **Header corner (GC2):** the `#` selects every cell when clicked (new), with a hover tint and the tooltip Select All.
+- **Selected rows (SR1):** the row's number turns accent **on the selection's own tint** (accent at 18%, like the cells); hovered rows keep the accent number.
+- **Stripes (RS1):** the shaded rows stop at the gutter, as today.
+- **The two lines under the header:** the system's 1pt lines in its scroll pocket and header banner (4pt above Echo's) are hidden, so the one line, level with the gutter's, is the only one. The system's views are found by name (`SystemHeaderLineHider`). → FTR-4.2
+
+## 2026-10-01 · Agent Jobs after checking it in Echo
+
+The owner, after trying rounds 33 and 33.2 in Echo ("apart from that it looks good"):
+
+- **Open in New Window is in the window toolbar**, its own glass group at the start of the right-hand side, shown only while Agent Jobs is in front; it left the tool's header. This takes Open in Window back out of round 45's "every tool action in the tab". → TLT-10.2
+- **Agent Jobs in its own window** shows no ▶ Start and no New Job in the toolbar: they are on the Jobs pane, as in the tab (JA1). Refresh and the inspector stay.
+- **The header uses the tree's symbol**: Agent Jobs' clock, in the jobs colour (it was a gear in the accent colour). → TLT-7.8
+- **A double-click opens a step or a schedule** (Edit Step, Edit Schedule). **Schedules can be edited**: the schedule sheet opens on the schedule, which changes in place for every job it is attached to; monthly-relative, Agent-start and idle schedules can't be edited in Echo yet. sqlserver-nio's `updateSchedule` had never worked (`sp_update_schedule` takes `@name`), and now also sets the active window's end. → TLT-7.9
+- **Refresh in the toolbar stays for now**: the owner has another idea for it, for another agent.
+
+## 2026-10-01 · The blur only in the results: taken back everywhere else
+
+The owner, after round 44: the blur in other tables, such as SQL Server Agent Jobs, looked awful; for now it belongs only in the result panel. This takes back round 27's "every scroll bar in a card" and the owner's later ask for the same blur behind every horizontal bar in Echo. `ScrollBarBlur` now only serves the results grid and the editor (`FooterScrollOverlay`), and the footer's material (round 44) is only under a query tab's footer and the editor's bottom; every other tab's footer keeps the light card tint (35%, easing in). Built in bd137299. → FTR-2.2, FTR-4.6
+
+## 2026-10-01 · Round 37.2 accepted and round 45 decided: one header line, tool actions in the tab
+
+Echo Labs › Tool tabs › round 37.2 (revision 2) and round 45. Built in bb01362f and 6e27bab7 with 36.2, 37.1, 37.3 and 37.4.
+
+- **37.2 Header (UH5, PG0):** **one line**: the tool's tinted tile, name and subtitle at the left, every control at the right (picker, search, other actions, main action); the pages are in the tab (36.1). The second toolbar row is gone from every tool. A tool sets its controls from inside its content; a page can replace them. → TLT-1.5 (TLT-2.1 retired)
+- **Round 45 (the owner's note, sent back with no option picked):** "actions for these tabs should be within the tabs and only the query panel should use the run button." The main action stays in the tool's header (37.3's glass capsule, Stop with a pulsing dot while running), and **the window toolbar has no tool group any more**: the structure editor's Add, Script and Apply, Activity Monitor's pause, Start Job, Open in Window, Cycle Log and Maintenance's database menu moved into their tabs. → TLT-10.1
+- **37.4 as built:** tiles on SQL Profiler and Extended Events (with Activity Monitor's); findings with fixes on SQL Server's and PostgreSQL's maintenance Health; a details card beside Policy Management's list (Agent Jobs had one); an Apply bar on the structure editor and MySQL's config file; a floating glass bar on the diagram and Query Builder. The other Manage tools keep their current layouts for now. → TLT-9
+
+## 2026-10-01 · The editor's bottom softens like the results'
+
+The owner, on round 44 in the running app: "absolutely perfect", and the same for the editor. With the results in their own card the editor card's bottom gets the same material (`FooterMaterialBlur`) at the same height, and the editor's text now runs to the card's edge with the footer's 38pt of room instead of stopping 20pt above it, so lines scroll down under the material and the last one rests above the pills. Built in bf7c0b2c. → EDT margins, FTR-2.2
+
+## 2026-10-01 · Round 42 built into Echo
+
+Every pick of round 42 is in the running app except a database's Diagram (Echo draws only tables). Where a pick needed a choice: **Rename** opens the ALTER in a query tab to read and run, as Drop does, instead of running it from the tree; **Advanced Objects** are four flat items in Open Tool (one level of submenus); **New Connection** in the empty space opens Manage Connections. The Object menu in the menu bar is the selected row's context menu, built by the same code.
+
+## 2026-10-01 · After round 41: one real header line, fewer buttons in the popovers, the pill's Setting, the server's own message
+
+The owner's notes on the running app, decided in chat. These change what round 41's entry above says where they differ.
+
+- **One line under the column header, for real (41.1):** removing Echo's own line was not enough. On macOS 26 the grid's rows scroll under the header and the header paints nothing; the system's scroll pocket behind it has its own line but stops about 4pt short of Echo's 36pt header, so a sliver of rows and a second line showed. **The header now paints its full height in the card's colour and draws the one hairline at its bottom**, level with the row-number column's. → FTR-4.2
+- **Fewer buttons in the pill popovers (41.5):** the status popover has **no Messages and no Run Again** (Cancel, Commit / Roll Back and Show in Editor stay); the time popover has **no Run Again**; the rows popover has **no Export and no Copy All**. Export and copy of the results belong to the grid's right-click menu (Copy, Copy with Headers, Copy as Shown, Copy As, Save As, Select All), which already has them. → FTR-2.9 to 2.11
+- **A Setting for the selection pill (41.2):** Settings › Results › **Selection summary** adds the sum and/or the average to the pill: Count (the default) · Count and sum · Count and average · Count, sum and average, in the locale's short form ("89 cells · Sum 34.6T · Avg 389B"). Text selections stay a count. The popover always lists every exact figure. → FTR-2.8, `GlobalSettings.resultsSelectionPill`
+- **What the server returned (41.4):** the symbol on a message **from the server** opens a popover, "From the server": number, level, state, line, procedure and server for SQL Server, any other fields the driver passed on (PostgreSQL's SQLSTATE, detail, hint), and the text as sent, selectable, with Copy. Echo's own lines (a connection, a script, SQLCMD) keep a plain symbol. → FTR-5.3
+
+## 2026-10-01 · Round 43 accepted: Settings › Editor is the template for every settings page
+
+Echo Labs › Foundations › Settings (43.1 to 43.5). Accepted: **one live preview pinned above the settings** (PV1) that follows every setting on the page (PS0); **no preview on pages with nothing to show** (PN0); **small pictures for choices that change a look** (CH1, PC0), the preview just changing, no ring (FB0); **a short line only where the title isn't enough, the rest in ⓘ** (DS1); **a ↺ beside a setting that isn't the default** (RS1); **switches** (TG0); **a stepper with its unit, typing allowed** (NU0); **sections named by what they change** (SN0); the template for every page with something to show (TP0) as **one `SettingsPage(preview:sections:)`** in the design system (TC0); **a search field listing matching settings across pages** (SE2); **Reset This Page at the bottom with a confirmation** (RP0); **a few settings per connection, chosen deliberately** (PC0); **sync everything except window sizes and this Mac's paths** (SY0). Not wanted: a dot beside pages with changes (MD1).
+
+- The owner's notes: on **Sidebar** the preview is **a narrow, true-to-life server card**, not stretched to the window's edge; on **Appearance** the template does **not** apply, because the application you are in is the preview.
+- Built: `SettingsPage`, `PictureChoicePicker`, `PropertyRow.resetAction`, the Editor page (live editor preview, pictures, stepper, ↺, Reset This Page), previews on Results and Sidebar, and Settings search. **Per connection (PC0):** the query time limit (round 21) and a new Confirm Unguarded Writes (UPDATE or DELETE without WHERE asks first; Default, Always or Never per connection; Settings › Databases lists the connections that chose, with their colour dots). **Sync (SY0):** settings already synced whole; this Mac's paths (spool folder, pg and MySQL tool paths) now stay local. Window sizes were never in settings.
+
+## 2026-10-01 · Round 42 accepted: one set of rules for every context menu
+
+Echo Labs › Explorer tree › Context menus (42.1 to 42.6). Accepted: **one order everywhere** (open and create; Copy Name, Script as, Tasks, Open Tool; Refresh and connection commands; Drop; Properties last), **icons only on familiar actions** (New, Copy, Refresh, Properties, Drop), **no title**, **Copy Name in every object's menu**, **Drop in plain text in its own group**, **inapplicable commands hidden**, and an **Object menu** in the menu bar.
+
+- **Server:** Open Tool submenu for the tools, Refresh (not Refresh All), Edit Connection.
+- **Database:** Back Up and Restore in the menu itself, Query Builder beside New Query, Advanced Objects folded into Open Tool.
+- **Table and view:** Open Data, Edit Structure, Diagram; Truncate Table in Tasks; views the same shape; double-click opens data.
+- **Column:** a menu with Open Data Sorted, Insert in Query, Copy Name and Qualified Name, inline Rename that shows the ALTER; **routines:** Execute opens a tab with EXEC and the parameters.
+- **Folders:** the first item is the thing you create there, a Filter in every object folder, and an empty-space menu (New Connection, Refresh All Servers, Show Empty Folders).
+- Built so far: the order and icon rules, server, database, table/view, column (without Insert in Query and Rename) and folder order. Still to build: Filter, empty-space menu, double-click, the Object menu, Insert in Query, inline Rename.
+
+## 2026-10-01 · Round 36.1 accepted: a tool's pages in its tab, refined
+
+Echo Labs › Tabs › Tool tabs with pages: the tab bar · round 36.1, revision 3. The owner kept TP0 (the tool's title, then its pages, in the active tab) and set every other style aside; the round refined it one fix at a time.
+
+- **Width (RW1):** the active tool tab is **exactly as wide as its title, hairline and pages** (never more than 62% of the strip); the other tabs share the rest. It no longer stretches and centres its content.
+- **Track (RT2):** **no grey track**: the pages sit on the white tab itself; **the shown page is semibold on a soft pill** (primary at 6%, RC0 as drawn).
+- **Type (RX1):** title and pages **at 11pt on one baseline**; the title medium while the pages show.
+- **Between (RD1):** **a short hairline** (1 × 12pt) between the title and the pages.
+- **Alone (SW1):** a lone tool tab keeps its own width at the leading edge, on the full grey plate.
+- **Motion (UF1):** it unfolds and folds on **the house spring**; the pages fade out first and in once the tab has widened. → TABS-5.1 to 5.4, `05-components` › Tabs
+
+## 2026-10-01 · Rounds 36.2 and 37.1, 37.3, 37.4 accepted: pages for every tool, and one design for tool tabs
+
+Echo Labs › Tabs › round 36 and Tool tabs › round 37. Asked: introduce the pages everywhere they're needed (Policy Management had none), and one design theme for every tab except the query editor. Still being judged: the header on one line (37.2, revision 2) and where the main action lives (round 45, from the owner's note on 37.3).
+
+- **36.2 Which tools (WP1, OF1, RM0):** **every tool whose sections are separate views** has its pages in the tab: Activity Monitor, Maintenance, Server Properties, Database Security, Server Security, Policy Management, Advanced Objects, Tuning Advisor and Error Log. Query Store is a page of Maintenance, so its own two views stay a segmented control inside that page. The tools' segmented control inside the tab goes. Pages that don't fit go into a **More** menu at the end. A tool reopens on **the last page you used on that server**. → `05-components` › Tabs, plan TL6
+- **37.1 Families (FA0, QS1, PS0, UT1):** tool tabs come in five families by the shape of their work: **Monitor** (Activity Monitor, SQL Profiler, Extended Events), **Manage** (Agent Jobs, Server and Database Security, Policy Management, Availability Groups, Resource Governor, Extensions, Advanced Objects, Database Mail), **Health** (Maintenance, Tuning Advisor, Error Log, and **Query Store**, since it finds regressions to fix), **Properties** (Server Properties, Table and Extension Structure) and **Canvas** (Schema Diagram, Query Builder, Schema Diff). The psql console is not a tool tab: it follows the editor (round 28). **One theme for all:** the header, plus the same pane cards, tables and empty states. → `05-components` › Tool tabs, plan TL7
+- **37.3 Controls (PA1, SA2, PK1, ST1, SF1, CH0):** the main action is a **glass capsule, its symbol in colour and its word in grey**; the other actions sit **together in one glass capsule**; a picker is **one glass pill: symbol, value and a chevron**; running, the main action **turns into Stop with a pulsing dot**; search is **a glass capsule at the right of the row**; every control is **28pt**, as the toolbar's capsules. Where the main action lives is round 45. → `05-components` › Tool tabs, plan TL8
+- **37.4 A theme per family (MO0, MA0, HE0, PR0, CA0):** Monitor opens on **tiles**; Manage shows **a details card beside the list**; Health's findings each carry **a fix** (Fix, Back Up Now, Rebuild); Properties has **an Apply bar at the bottom with the number of changes**; Canvas tools keep their tools in **a floating glass bar at the bottom**. → `05-components` › Tool tabs, plan TL9
+
+## 2026-10-01 · Round 33.2 accepted: New Step and Edit Step
+
+Echo Labs › Tool tabs › SQL Server Agent Jobs: New Step · round 33, page 2, revision 2. The owner's picks where they differ from the recommendation are marked.
+
+- **Layout (NS4, owner's pick over NS3):** wide, 760 by 480pt at least: the command **full height at the left**, the settings in a **sidebar at the right** (300pt, the canvas colour): Step, then When it finishes. The title names the job ("New Step · Nightly").
+- **Edges (SE1):** **no hairlines**: title, content and buttons on one surface. This is `SheetLayout`, so **every sheet** loses the hairline over its buttons (VISUAL_GUIDELINES › Sheets updated).
+- **Command (CE2):** Echo's SQL editor (highlighting, line numbers) with **Parse**, which checks the T-SQL without running it (`SET PARSEONLY`, sqlserver-nio `scripts.parse`) and marks the failing line in the editor as a failed query's is. Open in Editor stays. Other step types keep a plain monospaced editor.
+- **When it finishes (OC1):** On success and On failure (go to the next step, quit reporting success or failure, go to step N), Retry attempts and Retry interval, saved with `configureStep`. A new step goes to the next step on success and quits reporting failure, as SSMS does.
+- **Add Step (PB1):** prominent while it can be pressed, as every sheet: `SheetLayout` now makes its default button prominent when enabled (it was always bordered), and `SheetLayout.primaryButton` serves custom footers.
+- **Editing a step (ES1):** a line under the title, "Last run 26 Sep 23:00 · Succeeded · 14 min", from the job's history. Edit Step shows the name and type without letting them change, since the driver can't rename a step or change its type (they were editable and silently ignored). → `05-components` › Tool tabs, plan TL5
+
+## 2026-10-01 · After round 35.1: ⌘D, Esc, and unsaved tabs
+
+The owner's notes on the running app, decided in chat.
+
+- **⌘D** didn't duplicate: `duplicateTab` was an empty stub. It now opens a copy of a query tab right after it. **Esc** now closes the tab overview wherever focus is. → TABS-7.4, 7.5
+- **Unsaved changes:** a query tab asks before its changes are lost, in a standard alert (owner: "a pop up like when closing a page with unsaved changes"). Save keeps it as a bookmark, Save As writes a .sql file ("Both"); a tab is unsaved once you changed it (recommended); several at once ask once (recommended). Quitting and switching project ask too, since Echo doesn't restore tabs. → `05-components` › Tab overview, TABS-8, plan O5
+- **Table structure uses the same alert** (owner, 2026-10-01): the editor's own SwiftUI "Unsaved Changes" alert is gone; a structure with changes not applied asks through `WindowAlert` with Apply Changes, Discard Changes, Cancel. → TABS-8.5
+
+## 2026-10-01 · Round 46 accepted: a server card opens and closes like a section switch
+
+Echo Labs › Explorer tree › Server card: opening and closing · round 46, after the owner checked 30.2 in Echo (the dock and rows "just appeared": the list turned animation off whenever dock selections changed, which opening a docked server does). Every recommendation was taken. Built in 9aaec7e9.
+
+- **Dock (DA2):** grows out of the header, from 92% and slightly out of focus, as the edge uncovers it. **It never fades** (owner's note: the glass must blur from the first frame, with no hard line during the animation).
+- **Rows (RA1):** they come in **under the section switch's veil**: hidden under the card's colour while the edge glides, then the veil fades away (0.22s).
+- **Closing (CL2):** the veil covers the rows (0.12s), then the card folds as the dock shrinks back into the header.
+- A fold keeps the list's animation; only a section switch turns it off. → TREE-2.5
+
+## 2026-10-01 · Round 44 accepted: the rows soften into the system's material under the footer
+
+Echo Labs › Footer and results › The blur under the footer · round 44, after the owner saw the blur as a band twice. The round showed every technique over the same real grid; looking at them showed why the band never went away: the stacked blur layers show either full or not at all instead of fading in, so a row went from sharp to mush at once whatever the steps. Built in b5eebdb9.
+
+- **Technique: BT4 · the system's material** (the owner's pick over my recommendation, one Core Image variable blur): the ultra-thin material behind every floating footer. Stacked steps (Echo until now), one Core Image variable blur and a plain fade to the card were not chosen. → FTR-2.2
+- **Reach: BH3 · 40pt above the footer** (`EdgeBlur.materialReach`); **growth: CV6 · exponential**, (e^(4.5t) − 1) / (e^4.5 − 1), only 10% half way up, so no row meets it at once; **tint: TT1 · 15%** of the card's colour over it.
+- **The scroll bar under a footer:** the material already reaches past it, so the AppKit blur that rose past the bar (round 27, U5) is off under footers; the material lies over the bar at about 6%. Every other horizontal bar in Echo keeps its rising blur. → FTR-4.6
+
+## 2026-10-01 · The footer's row count only counts up
+
+Asked in chat: while a query runs, the footer's rows pill shows the rows the server has sent so far, counting up ("12K rows"), never "12K of 1.2M". Replaces plan R5's "rows loaded of total". → `GridSelectionSummary.rowCountText`, Echo Labs › Footer and results
+
+## 2026-10-01 · Round 41 accepted: the results card's header line, selection pill, error banner, Messages and pill popovers
+
+Echo Labs › Footer and results › round 41, five pages. Asked: double lines under the column header, a selection pill too wide to read, the error page, a noisy Messages panel, and one popover for every footer pill.
+
+- **41.1 Header line (HL1, VD0):** one hairline under the column header, the system header's own; Echo's extra full-width line is gone. The short column dividers stay (they show where to drag a width). → FTR-4.2
+- **41.2 Selection (SP3, the owner's pick over SP1; PO1, FG1, TX0):** the pill is **only the count** ("89 cells"). Clicking it opens a popover with the exact figures: Count, Sum, Average, Min, Max, Median, Distinct and Empty (NULL) for numbers; Count, Distinct and Empty for text. Each line has a Copy button under the pointer; Copy All copies label–tab–value lines. Figures are exact (decimal arithmetic), keeping the selection's decimals. → FTR-2.8
+- **41.3 Error page (EP1, HL0, ED0, EA1):** a failure is **a banner at the top left of the card**: the red symbol, "Failed on line 7", the message, SQL Server's Msg · Level · State as quiet chips, and Show in Editor, Messages and **Copy Error**. Running, No rows and Cancelled use the same banner. The editor keeps its red pill on the statement's first word (the owner's pick over HL2). → FTR-1.3
+- **41.4 Messages (ML1, EE1, DM1, MT1, EM0):** grouped **by statement** (a "Line 7 · select …" heading, its messages under it); errors are a red symbol and a semibold message with no fill; the counts at the top ("1 error · 2 messages") filter, copy and clear are in a ⋯ menu; the grey strip, category and delta columns, Echo's own started/finished/failed lines and the execution metrics row are gone (the metrics moved to the time popover). → FTR-5.1 to 5.3
+- **41.5 Pill popovers (PP2, PR0, PT0, PS0):** **each pill opens its own popover with its actions.** Rows: rows and columns, result set N of M, loaded of total, memory; Export… and Copy All. Time: a timeline (sending, waiting for the first row, reading rows), started and finished, this tab's last runs; Run Again. Status: what happened and when, the transaction; Cancel, Commit / Roll Back (round 21's status menu, now in the popover), Show in Editor, Messages, Run Again. **Not yet:** server CPU and the session (SPID): the drivers don't report them to Echo. → FTR-2.5, 2.9 to 2.11
+
+## 2026-10-01 · Round 38 accepted: Security Overview, and a ↗ on rows that open a tab
+
+Echo Labs › Explorer tree › Tree rows that open a tab · round 38. Built in 9498ca2b.
+
+- **Row (SN1):** **Security Overview**, like Agent Jobs Overview, the **first row in every SQL Server Security**, the server's and each database's (DB0). It opens what Open Security Management opens.
+- **Mark (OT1, with the owner's note):** a grey **↗ (arrow.up.right, without the square)** at the right of every row that opens a tab, a window or a sheet (SH0), **always shown** (MS0, owner's pick over on hover). → TREE-6.3
+
+## 2026-10-01 · The blur under the footer: ten small steps instead of a frosted bar
+
+Round 27 (U5), the owner's note on the running app: the blur was "a bar of blur", not smoothing to clear as it goes up. The blur is stacked layers, each a real blur of what is under it, faded in by a mask; a layer that fades in shows a mix of two blurs, and when they differ a lot the mix reads as haze with an edge. It is now **ten small steps from sharp to 12pt**, easing in (level k is 12 × (k/10)^1.5, so the smallest steps are at the top), each adding just enough to reach its level and fading in over one and a half bands so neighbours overlap. The card tint under the footer eases in along the same S curve instead of a straight ramp. Replaces the six near-equal radii of f756a13b and the six 0.75 to 10pt steps before it. → FTR blur, `LayoutTokens.EdgeBlur`
+
+## 2026-10-01 · Round 34 follow-up: no long operation ends silently
+
+Asked in chat ("fix the open points"). A long operation shown on the bell (5 s or more, not cancelled) that posted no notification of its own within 2 s of its end now gets one: "Backup shop finished in 1:12" or "Backup shop failed: reason" (`OperationFinishNotifier`, hooked to `ActivityEngine.onFinish`). Operations that post their own are not doubled. → Echo Labs › Notifications NTF-2.2
+
+## 2026-10-01 · Round 40 accepted: a server click opens the hidden tree
+
+Echo Labs › Window and cards › Clicking a server while the tree is hidden · round 40. Built in 3416c997.
+
+- **A click (RC1):** with the tree hidden, a click on a server **opens the tree, scrolled to that server**, selected in the rail. The owner asked for it ("I hate" the peek).
+- **Motion (OM0):** the tree slides in **while** it scrolls to the server, one movement.
+- **Arrival (SM1, owner's pick over a flash):** nothing more; the rail's disc shows which server it is.
+- **With the tree showing (TV0, owner's pick over a flash):** it scrolls to the card, as before.
+- **The peek and its setting are removed** (owner, asked after the round): no glass peek, no ⌘-click to reopen, no Collapsed Server Click setting. Replaces the 2026-09 decision "Server click with the tree hidden: peek, ⌘-click reopens". → WIN-3.5 (WIN-3.3 retired), 05-components › Server rail
+
+## 2026-10-01 · Round 35.1 accepted: the tab overview becomes the ⌘K palette
+
+Echo Labs › Tabs › Tab overview: the direction · round 35.1. Asked: the overview looked hideous. The owner picked TO6 over the recommended TO1 (Safari's grid), and took OR1 and OS0. Follow-up in chat: ⌘K stays the Command Palette; the overview is a feature inside it.
+
+- **Direction (TO6):** no full-window view. The tab overview is **the ⌘K palette turned to this window's tabs**: a "Tab Overview" row in ⌘K, ⇧⌘O, the toolbar's overview button and a pinch open it there. The grouped grid, its pinch-out, and the Tab Overview style setting are removed (owner: "Remove it"). → `05-components` › Tab overview, plan O4
+- **For (OR1):** each row shows the tab's state live (Running 0:12, Failed, N rows, Not run), grouped by server.
+- **Keys (owner's note):** ⌫ closes the selected tab while nothing is typed (⌘⌫ always), ⌘D duplicates, ⌥⌫ closes the others; the palette stays open. Run/stop from the palette was offered and not taken.
+- **Which tabs (OS0):** this window's only.
+- Pages 35.2 to 35.4 (card, grouping and order, opening and closing) were written for a full-window overview; see their status in Echo Labs.
+
+## 2026-10-01 · Round 30.1 accepted: the server header in the server's colour
+
+Echo Labs › Explorer tree › Server card: the header · round 30.1, revision 2. The owner's picks where they differ from the recommendation are marked. Built in 5be677fc.
+
+- **Header (HD4, owner's pick over HD10's glow):** a **wash of the colour** at 20% from the card's top edge, fading to clear through the dock; on a closed card it covers the card. **Settings › Appearance › Server Header** also offers **Plain (HD0), Bar (HD12), Glass Plate (HD7) and Banner (HD16)** (owner's list; HS0 with the note "put it where it makes sense", so it sits in Appearance until the Settings round). → TREE-2.6
+- **Colour (CS1):** the **server's colour** by default; **Server Header Color** offers None and Accent Color (owner's note). The custom colour (CS3) was dropped in revision 2.
+- **Second line (SL0):** product · section, as before.
+- **Dock icon (DK1):** the current icon in **the header's colour**, as a setting beside Section Dock Icons (**Current Dock Icon**, owner's note); the accent when the header has none. → TREE-3.2
+- **One colour per server (CO2):** with the server's colour, **the rail's monogram is always in it** and **the server's tabs and the footer's server pill carry a 6pt dot of it**. → WIN-2.3, TABS-2.3, FTR-2.4
+- **Setting the colour (SC1):** the header's right-click menu › **Color**, with the connection sheet's five swatches; open sessions read the colour live.
+
+## 2026-10-01 · Round 30.3 accepted: the main folders never disappear
+
+Echo Labs › Explorer tree › Database folders that are empty · round 30.3. Built in 5be677fc.
+
+- **Tables, Views, Functions and Procedures always show** (EF1); Synonyms, Sequences, Types and the other rare folders only when they have something. The owner's database really had no views: nothing was lost while loading.
+- An empty folder is **dimmed with no count** (EL1) and **opens to a grey “No views” row** (OE0).
+- **Settings › Sidebar › Show empty folders is removed** (ST1, owner's pick over keeping it). → TREE-6.2
+
+## 2026-10-01 · Round 34 accepted: Refresh and the activity signal
+
+Echo Labs › Window and cards › Refresh and the activity signal · round 34. Asked: after a query, Run and Refresh both showed ✓. Every recommendation was taken except where marked.
+
+- **Activity (AS2):** Refresh shows **only its own reload**. It no longer mirrors the `ActivityEngine` or the schema loading. **Long operations show on the bell**: a small spinner once one has run for a second, and its name in the bell's tooltip; their notifications say when they end. Query runs stay off the bell (`begin(…, showsOnBell: false)`): Run shows them.
+- **Refresh (RL1, owner's pick over RL2):** stays **in the toolbar, only while the front tab can reload** (Activity Monitor, Agent Jobs, Error Log, Extended Events, Structure, maintenance, diagrams, Profiler, Resource Governor, Tuning Advisor, Policy Management). Hidden on query tabs and with no tab.
+- **On a query tab (QR1):** nothing; the schema reloads from the tree's menu and after DDL.
+- **⌘R (KR0):** View › Reload Tab reloads the front tool tab, through the same reloader as the button, so the button shows it. → `05-components` › Toolbar, plan K6
+
+## 2026-10-01 · After round 31: Run waits 3 s for the time, the zoom pill chases the results, an even blur
+
+The owner's notes on the running app, decided in chat. Built in f756a13b.
+
+- **Run's time after 3 s** (changes round 20's G0, "at once"): ▶ still turns into ■ on red at once; the capsule widens and the time fades in only once the query has run 3 s, so a quick query never grows and shrinks. → EDT-4.3
+- **The zoom pill follows the results card:** while the results grow or fold, the pill rides on the editor card's visible edge, a moment behind with a small bounce (`liquidTrail`), instead of vanishing and reappearing in its new place. → EDT-1.4
+- **The blur fades evenly** (round 27, U5 note "hard capped"): its steps are now near-equal radii (4 to 5.5pt) with overlapping fades, so the blur grows evenly from sharp to about 12pt at the edge instead of jumping within one row. → FTR blur, `LayoutTokens.EdgeBlur`
+
+## 2026-10-01 · Round 30.2 accepted: a server card folds while its rows fade
+
+Echo Labs › Explorer tree › Server card: collapsing · round 30.2. Every recommendation was taken. Built in 7503bb42.
+
+- **Chevron (CP1):** at the trailing edge, **centred on the name and product line** (it sat level with the name's top). Shown on hover while open, always while closed (CV0, as before); › turning down (CS0, as before). → TREE-2.4
+- **Motion (CM2):** the card's **edge glides** on `expand` (0.22s) while the dock and rows **fade and are cut by the edge** and its rounded corners, so nothing floats on the canvas; the cards below follow on the same curve. The card used to snap while its rows faded. → TREE-2.5
+- **Closed card (CC0):** the header only, with the owner's note: **the name, product line and chevron centred in the closed card**; they glide between that and their open place. → TREE-2.1, 2.5
+
+## 2026-10-01 · Round 33 accepted: the Agent Jobs tab, finished
+
+Echo Labs › Tool tabs › SQL Server Agent Jobs: the tab · round 33. The Proposal was accepted; the owner's pick where it differs from the recommendation is marked.
+
+- **Headers (JH1):** one **pane header** for Jobs, Details and History: 13pt semibold title, a grey count, the pane's actions at the right, 12pt in, on one 36pt line (`PaneHeader`). Details had been a point bigger and 4pt further in and down.
+- **Layout (JL1):** Jobs takes the **full height on the left**; Details sits **over History on the right** (62% / 38%). History stays under the job it describes.
+- **Details sections (DT0, owner's pick over DT1):** Properties, Steps, Schedules and Notifications stay **segmented, centred under the header**, as today.
+- **Jobs columns (JC1):** **Status, Name, Last Run, Next Run**. One status symbol (ready, running, failed, disabled) replaces Enabled, Status and Last Outcome; Owner and Category are in Properties. A disabled job's name is dimmed and its next run says Disabled.
+- **Empty rows (ER1):** no stripes; every list in the tab ends where its rows end.
+- **Job actions (JA1):** **New Job and Start/Stop** (for the selected job) on the Jobs header; Enable, Disable, New Alert, New Proxy, Manage Categories and Refresh in ⋯; Start/Stop, Enable and Disable on right-click.
+- **A running job (JR1):** a **spinning symbol**, and its **elapsed time counting up in Last Run**, from the Agent's start time; the tab polls while any job runs. → `05-components` › Tool tabs, plan TL4
+
+## 2026-10-01 · Round 31 accepted: the zoom pill sits like the footer's pills
+
+Echo Labs › Editor and running › the zoom pill and the footer · round 31. Every recommendation was taken. Built in 3626716a.
+
+- **With results (ZW1):** the pill sits **12pt in and 9pt up** from the editor card's bottom, where the server pill sits in the results card. It had been 8pt in and 28pt up.
+- **Without results (ZN2):** the footer floats in the editor's card, so the pill **stacks above the server pill, left edges aligned, 9pt between** (42pt up). It had landed on the server pill.
+- **Height (ZH1):** **24pt**, the footer's chip height (it was about 21pt). **Text (ZT1):** **primary**, as the server pill (it was secondary). → EDT-1.4
 
 ## 2026-10-01 · Round 27 refined and accepted again: the bar as wide as the footer, the blur rising past it, everywhere
 

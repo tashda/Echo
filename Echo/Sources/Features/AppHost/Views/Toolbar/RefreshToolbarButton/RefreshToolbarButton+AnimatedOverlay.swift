@@ -2,7 +2,7 @@ import SwiftUI
 import EchoSense
 
 struct RefreshAnimatedOverlay: View {
-    let phase: RefreshButtonContent.Phase
+    let phase: TabReloader.Phase
     let showCancel: Bool
 
     // MARK: - Spinner
@@ -63,7 +63,7 @@ struct RefreshAnimatedOverlay: View {
 
     // MARK: - Transition Choreography
 
-    private func animateTransition(from oldPhase: RefreshButtonContent.Phase, to newPhase: RefreshButtonContent.Phase) {
+    private func animateTransition(from oldPhase: TabReloader.Phase, to newPhase: TabReloader.Phase) {
         switch newPhase {
         case .refreshing:
             enterRefreshing(from: oldPhase)
@@ -78,7 +78,7 @@ struct RefreshAnimatedOverlay: View {
 
     // MARK: - Enter Refreshing
 
-    private func enterRefreshing(from oldPhase: RefreshButtonContent.Phase) {
+    private func enterRefreshing(from oldPhase: TabReloader.Phase) {
         // Fade out any lingering result symbols first
         if oldPhase == .completed {
             withAnimation(.easeOut(duration: 0.15)) {
@@ -100,7 +100,7 @@ struct RefreshAnimatedOverlay: View {
 
     // MARK: - Enter Completed
 
-    private func enterCompleted(from oldPhase: RefreshButtonContent.Phase) {
+    private func enterCompleted(from oldPhase: TabReloader.Phase) {
         // Fade out spinner
         withAnimation(.easeOut(duration: 0.12)) {
             spinnerOpacity = 0
@@ -119,7 +119,7 @@ struct RefreshAnimatedOverlay: View {
 
     // MARK: - Enter Failed
 
-    private func enterFailed(from oldPhase: RefreshButtonContent.Phase) {
+    private func enterFailed(from oldPhase: TabReloader.Phase) {
         // Fade out spinner
         withAnimation(.easeOut(duration: 0.12)) {
             spinnerOpacity = 0
@@ -141,7 +141,7 @@ struct RefreshAnimatedOverlay: View {
 
     // MARK: - Exit to Idle
 
-    private func exitToIdle(from oldPhase: RefreshButtonContent.Phase) {
+    private func exitToIdle(from oldPhase: TabReloader.Phase) {
         // Gracefully shrink + fade the current result symbol
         switch oldPhase {
         case .completed:

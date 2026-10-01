@@ -15,24 +15,19 @@ extension EditorSettingsView {
                 fontSize: projectStore.globalSettings.defaultEditorFontSize
             )
 
-            PropertyRow(title: "Size") {
-                Picker("", selection: Binding(
-                    get: { projectStore.globalSettings.defaultEditorFontSize.rounded() },
-                    set: { newValue in
-                        var settings = projectStore.globalSettings
-                        settings.defaultEditorFontSize = newValue
-                        Task { try? await projectStore.updateGlobalSettings(settings) }
-                    }
-                )) {
-                    ForEach(Self.fontSizeOptions, id: \.self) { size in
-                        Text(Self.fontSizeLabel(size)).tag(size)
-                    }
+            PropertyRow(title: "Size", resetAction: projectStore.resetAction(\.defaultEditorFontSize)) {
+                HStack(spacing: SpacingTokens.xxs) {
+                    TextField("", value: fontSizeBinding, format: .number.precision(.fractionLength(0)))
+                        .labelsHidden()
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: SpacingTokens.xl)
+                    Text("pt").foregroundStyle(ColorTokens.Text.secondary)
+                    Stepper("", value: fontSizeBinding, in: Self.fontSizeRange, step: 1)
+                        .labelsHidden()
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
             }
 
-            PropertyRow(title: "Line Height") {
+            PropertyRow(title: "Line Height", resetAction: projectStore.resetAction(\.defaultEditorLineHeight)) {
                 Picker("", selection: Binding(
                     get: { EditorLineHeight.nearest(to: projectStore.globalSettings.defaultEditorLineHeight) },
                     set: { newValue in
@@ -64,11 +59,18 @@ extension EditorSettingsView {
         }
     }
 
-    /// Round 28.11 (FS1): whole sizes, “13 pt”.
-    static let fontSizeOptions: [Double] = Array(stride(from: 8.0, through: 24.0, by: 1.0))
+    /// Round 43.3 (NU0): whole sizes in a stepper with its unit; typing is allowed.
+    static let fontSizeRange: ClosedRange<Double> = 8...24
 
-    static func fontSizeLabel(_ size: Double) -> String {
-        "\(Int(size)) pt"
+    var fontSizeBinding: Binding<Double> {
+        Binding(
+            get: { projectStore.globalSettings.defaultEditorFontSize.rounded() },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.defaultEditorFontSize = min(max(newValue.rounded(), Self.fontSizeRange.lowerBound), Self.fontSizeRange.upperBound)
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
     }
 
 }

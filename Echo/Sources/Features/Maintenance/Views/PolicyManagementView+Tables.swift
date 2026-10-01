@@ -17,7 +17,7 @@ extension PolicyManagementView {
             }
             .width(60)
             TableColumn("Mode") { policy in
-                Text(executionModeLabel(policy.executionMode)).font(TypographyTokens.Table.category)
+                Text(Self.executionModeLabel(policy.executionMode)).font(TypographyTokens.Table.category)
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
@@ -101,7 +101,7 @@ extension PolicyManagementView {
         .tableColumnAutoResize()
     }
 
-    private func executionModeLabel(_ mode: Int32) -> String {
+    static func executionModeLabel(_ mode: Int32) -> String {
         switch mode {
         case 0: "On Demand"
         case 1: "On Change: Prevent"

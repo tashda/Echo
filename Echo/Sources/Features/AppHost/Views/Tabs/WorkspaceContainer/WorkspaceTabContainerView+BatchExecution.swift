@@ -104,13 +104,9 @@ extension WorkspaceTabContainerView {
                     }
                     state.finishExecution()
 
-                    appState.addToQueryHistory(
-                        batches.joined(separator: tab.connection.databaseType == .microsoftSQL ? "\nGO\n" : ";\n"),
-                        connectionID: tab.connection.id,
-                        databaseName: tab.activeDatabaseName ?? tab.connection.database,
-                        resultCount: state.results?.rows.count ?? 0,
-                        duration: state.lastExecutionTime ?? 0
-                    )
+                    recordQueryHistory(sql: trimmedSQL, tab: tab, state: state,
+                                       resultCount: state.results?.totalRowCount ?? state.results?.rows.count,
+                                       outcome: batchResults.contains { $0.error != nil } ? "Failed" : nil)
 
                     detectAndApplyDatabaseSwitch(originalSQL: trimmedSQL, tab: tab)
 
@@ -129,6 +125,7 @@ extension WorkspaceTabContainerView {
                 await MainActor.run {
                     activityHandle.cancel()
                     state.markCancellationCompleted()
+                    recordQueryHistory(sql: trimmedSQL, tab: tab, state: state, outcome: "Cancelled")
                 }
             } catch {
                 let shouldTreatAsCancellation = await MainActor.run { state.isCancellationRequested }
@@ -140,6 +137,7 @@ extension WorkspaceTabContainerView {
                     if shouldTreatAsCancellation {
                         activityHandle.cancel()
                         state.markCancellationCompleted()
+                    recordQueryHistory(sql: trimmedSQL, tab: tab, state: state, outcome: "Cancelled")
                     } else {
                         activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
@@ -147,6 +145,7 @@ extension WorkspaceTabContainerView {
                         if let failedSQL { presentServerMessages(of: error, sentSQL: failedSQL, state: state) }
                         state.failExecution(with: "Batch execution failed: \(error.localizedDescription)")
                         if let failedSQL { presentErrorLocation(of: error, sentSQL: failedSQL, tab: tab, state: state) }
+                        recordQueryHistory(sql: trimmedSQL, tab: tab, state: state, outcome: "Failed")
                         reportQueryFailure(error.localizedDescription, tab: tab)
                     }
                 }

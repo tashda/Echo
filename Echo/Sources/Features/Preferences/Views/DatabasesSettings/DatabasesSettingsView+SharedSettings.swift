@@ -32,6 +32,8 @@ extension DatabasesSettingsView {
                 }
             }
 
+            ConfirmUnguardedWritesRows()
+
             HStack {
                 Spacer()
                 Button("Revert to Default") {

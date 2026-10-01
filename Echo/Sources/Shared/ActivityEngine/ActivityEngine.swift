@@ -4,8 +4,8 @@ import Observation
 /// Central hub that tracks all long-running operations across the app.
 ///
 /// Any component can call `begin()` to register an operation. The returned
-/// `OperationHandle` is used to report progress and completion. The toolbar
-/// observes this engine to show aggregate activity state.
+/// `OperationHandle` is used to report progress and completion. The toolbar's bell
+/// observes this engine and spins while a long operation runs (round 34, AS2).
 @Observable
 final class ActivityEngine: @unchecked Sendable {
 
@@ -14,12 +14,9 @@ final class ActivityEngine: @unchecked Sendable {
     /// All currently-running operations, keyed by ID.
     private(set) var operations: [UUID: TrackedOperation] = [:]
 
-    /// The most recently completed/failed operation (auto-clears after a delay).
-    private(set) var lastResult: OperationResult?
-
-    // MARK: - Private
-
-    private var resultClearTask: Task<Void, Never>?
+    /// Called when an operation finishes, so a long one can say so if it posted nothing itself
+    /// (`OperationFinishNotifier`, round 34).
+    @ObservationIgnored var onFinish: ((OperationResult) -> Void)?
 
     // MARK: - Begin
 
@@ -29,27 +26,21 @@ final class ActivityEngine: @unchecked Sendable {
     /// - Parameters:
     ///   - label: Human-readable description shown in the toolbar tooltip (e.g. "Backup mydb").
     ///   - connectionSessionID: The connection this operation belongs to. Pass `nil` for global operations.
+    ///   - showsOnBell: False for work that shows its own progress where it was started (a query run on Run).
     /// - Returns: An `OperationHandle` — call `succeed()`, `fail()`, or `cancel()` when done.
     @discardableResult
-    func begin(_ label: String, connectionSessionID: UUID? = nil) -> OperationHandle {
+    func begin(_ label: String, connectionSessionID: UUID? = nil, showsOnBell: Bool = true) -> OperationHandle {
         let id = UUID()
         let operation = TrackedOperation(
             id: id,
             label: label,
             connectionSessionID: connectionSessionID,
             startedAt: Date(),
+            showsOnBell: showsOnBell,
             progress: nil,
             message: nil
         )
         operations[id] = operation
-
-        // Clear any lingering result when new work starts
-        if let lastResult, lastResult.connectionSessionID == connectionSessionID {
-            resultClearTask?.cancel()
-            resultClearTask = nil
-            self.lastResult = nil
-        }
-
         return OperationHandle(id: id, engine: self)
     }
 
@@ -67,21 +58,15 @@ final class ActivityEngine: @unchecked Sendable {
 
     func finishOperation(_ id: UUID, outcome: OperationResult.Outcome) {
         guard let operation = operations.removeValue(forKey: id) else { return }
-
-        let result = OperationResult(
+        onFinish?(OperationResult(
             id: operation.id,
             label: operation.label,
             connectionSessionID: operation.connectionSessionID,
+            showsOnBell: operation.showsOnBell,
             outcome: outcome,
             completedAt: Date(),
             duration: Date().timeIntervalSince(operation.startedAt)
-        )
-
-        // Only show result for non-cancelled operations
-        if case .cancelled = outcome { return }
-
-        lastResult = result
-        scheduleResultClear(isFailure: result.isFailure)
+        ))
     }
 
     // MARK: - Queries
@@ -91,6 +76,11 @@ final class ActivityEngine: @unchecked Sendable {
 
     /// Number of concurrently running operations.
     var activeCount: Int { operations.count }
+
+    /// What the bell shows while it runs, oldest first.
+    var bellOperations: [TrackedOperation] {
+        operations.values.filter(\.showsOnBell).sorted { $0.startedAt < $1.startedAt }
+    }
 
     /// Whether any operation is running for a specific connection.
     func isActive(for connectionSessionID: UUID) -> Bool {
@@ -112,18 +102,5 @@ final class ActivityEngine: @unchecked Sendable {
         operations.values.first {
             $0.connectionSessionID == connectionSessionID && $0.message != nil
         }?.message
-    }
-
-    // MARK: - Private
-
-    private func scheduleResultClear(isFailure: Bool) {
-        resultClearTask?.cancel()
-        let nanoseconds: UInt64 = isFailure ? 3_000_000_000 : 1_500_000_000
-        resultClearTask = Task {
-            try? await Task.sleep(nanoseconds: nanoseconds)
-            guard !Task.isCancelled else { return }
-            resultClearTask = nil
-            lastResult = nil
-        }
     }
 }

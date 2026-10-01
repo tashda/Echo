@@ -129,9 +129,9 @@ struct GlobalSettings: Codable, Hashable {
     var accentColorSource: AccentColorSource
     var customAccentColorHex: String?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
-    var tabOverviewStyle: TabOverviewStyle = .comfortable
     var resultsAlternateRowShading: Bool = false
     var resultsShowRowNumbers: Bool = true
+    var resultsSelectionPill: SelectionPillFigures = .count
     var resultGridColorOverrides: ResultGridColorOverrides = .init()
     var showForeignKeysInInspector: Bool = true
     var showJsonInInspector: Bool = true
@@ -162,6 +162,8 @@ struct GlobalSettings: Codable, Hashable {
     var queryTimeLimitSeconds: Int = 0
     /// Whether the one-time note that query time limits now work was shown (M3).
     var queryTimeLimitNoticeShown: Bool = false
+    /// Round 43.5 (PC0): ask before running an UPDATE or DELETE that has no WHERE; a connection can override it.
+    var confirmUnguardedWrites: Bool = false
     /// RN1 (round 21, owner's note): the run note of a failed statement shows the whole message
     /// instead of `! Error`.
     var editorErrorRunNoteShowsMessage: Bool = false
@@ -173,21 +175,24 @@ struct GlobalSettings: Codable, Hashable {
     /// Pins "server › database" above the Explorer once the server's header scrolls away.
     /// The Explorer's scroll bar; hidden by default (round 9, SB3).
     var sidebarShowsScrollBar: Bool = false
-    /// Shows object folders with nothing in them (Views, Functions…) in the Explorer.
-    var sidebarShowsEmptyFolders: Bool = false
     // Canvas-and-cards redesign (Design/01-principles.md, rule 7).
     var interfaceMotionSpeed: InterfaceMotionSpeed = .standard
     var workspaceGutter: WorkspaceGutter = .standard
     var workspaceCornerRadius: WorkspaceCornerRadius = .standard
     var railItemSize: RailItemSize = .medium
-    var collapsedServerClick: CollapsedServerClickBehavior = .peekCommandReopens
     var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
     /// The section dock's icons, apart from the tree's (round 16): mono by default.
     var sidebarDockIconStyle: SidebarDockIconStyle = .mono
+    /// Round 30.1: the server card's header, its colour, and the dock's current icon.
+    var serverHeaderStyle: ServerHeaderStyle = .wash
+    var serverHeaderColorSource: ServerHeaderColorSource = .server
+    var sidebarDockCurrentIconTint: SidebarDockCurrentIconTint = .header
     /// Each database type's dock (keyed by `DatabaseType.rawValue`): the sections shown, in
     /// order, as section keys. A type missing here uses its blueprint's default.
     var sidebarDockSections: [String: [String]] = [:]
     var editorGutterStyle: EditorGutterStyle = .subtle
+    /// The style of the results' row numbers, apart from the editor's (round 47; owner: split).
+    var resultsGutterStyle: EditorGutterStyle = .hairline
     /// Round 28.15: the corner of every mark and of the selection, and how strong marks are.
     var editorMarkCorners: EditorMarkCorners = .round
     var editorMarkStrength: EditorMarkStrength = .standard
@@ -255,8 +260,8 @@ struct GlobalSettings: Codable, Hashable {
         case editorOutlineEdge
         case editorGhostTextCompletion
         case useServerColorAsAccent, accentColorSource, customAccentColorHex
-        case workspaceTabBarStyle, tabOverviewStyle
-        case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides
+        case workspaceTabBarStyle
+        case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides, resultsSelectionPill
         case showForeignKeysInInspector, showJsonInInspector
         case resultsInitialRowLimit
         case resultSpoolMaxBytes, resultSpoolRetentionHours, resultSpoolCustomLocation
@@ -271,6 +276,7 @@ struct GlobalSettings: Codable, Hashable {
         case postgresScriptsContinueAfterError
         case queryTimeLimitSeconds
         case queryTimeLimitNoticeShown
+        case confirmUnguardedWrites
         case editorErrorRunNoteShowsMessage
         case pgToolCustomPath
         case mysqlToolCustomPath
@@ -278,16 +284,17 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarDensity
         case sidebarExpandOneConnectionAtATime
         case sidebarShowsScrollBar
-        case sidebarShowsEmptyFolders
         case interfaceMotionSpeed
         case workspaceGutter
         case workspaceCornerRadius
         case railItemSize
-        case collapsedServerClick
         case sidebarMonochromeVariant
         case sidebarDockIconStyle
+        case serverHeaderStyle
+        case serverHeaderColorSource
+        case sidebarDockCurrentIconTint
         case sidebarDockSections
-        case editorGutterStyle
+        case editorGutterStyle, resultsGutterStyle
         case editorMarkCorners
         case editorMarkStrength
         case editorTypographyRevision
@@ -340,9 +347,9 @@ struct GlobalSettings: Codable, Hashable {
         }
         customAccentColorHex = try container.decodeIfPresent(String.self, forKey: .customAccentColorHex)
         workspaceTabBarStyle = try container.decodeIfPresent(WorkspaceTabBarStyle.self, forKey: .workspaceTabBarStyle) ?? .floating
-        tabOverviewStyle = try container.decodeIfPresent(TabOverviewStyle.self, forKey: .tabOverviewStyle) ?? .comfortable
         resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
         resultsShowRowNumbers = try container.decodeIfPresent(Bool.self, forKey: .resultsShowRowNumbers) ?? true
+        resultsSelectionPill = try container.decodeIfPresent(SelectionPillFigures.self, forKey: .resultsSelectionPill) ?? .count
         resultGridColorOverrides = try container.decodeIfPresent(ResultGridColorOverrides.self, forKey: .resultGridColorOverrides) ?? .init()
         showForeignKeysInInspector = try container.decodeIfPresent(Bool.self, forKey: .showForeignKeysInInspector) ?? true
         showJsonInInspector = try container.decodeIfPresent(Bool.self, forKey: .showJsonInInspector) ?? true
@@ -369,6 +376,7 @@ struct GlobalSettings: Codable, Hashable {
         postgresScriptsContinueAfterError = try container.decodeIfPresent(Bool.self, forKey: .postgresScriptsContinueAfterError) ?? false
         queryTimeLimitSeconds = try container.decodeIfPresent(Int.self, forKey: .queryTimeLimitSeconds) ?? 0
         queryTimeLimitNoticeShown = try container.decodeIfPresent(Bool.self, forKey: .queryTimeLimitNoticeShown) ?? false
+        confirmUnguardedWrites = try container.decodeIfPresent(Bool.self, forKey: .confirmUnguardedWrites) ?? false
         editorErrorRunNoteShowsMessage = try container.decodeIfPresent(Bool.self, forKey: .editorErrorRunNoteShowsMessage) ?? false
         pgToolCustomPath = try container.decodeIfPresent(String.self, forKey: .pgToolCustomPath)
         mysqlToolCustomPath = try container.decodeIfPresent(String.self, forKey: .mysqlToolCustomPath)
@@ -398,21 +406,19 @@ struct GlobalSettings: Codable, Hashable {
 
         sidebarShowsScrollBar = try container.decodeIfPresent(Bool.self, forKey: .sidebarShowsScrollBar) ?? false
 
-        sidebarShowsEmptyFolders = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .sidebarShowsEmptyFolders
-        ) ?? false
-
         // Unknown values (from a newer build) fall back to the default instead of failing.
         interfaceMotionSpeed = (try? container.decodeIfPresent(InterfaceMotionSpeed.self, forKey: .interfaceMotionSpeed)) ?? .standard
         workspaceGutter = (try? container.decodeIfPresent(WorkspaceGutter.self, forKey: .workspaceGutter)) ?? .standard
         workspaceCornerRadius = (try? container.decodeIfPresent(WorkspaceCornerRadius.self, forKey: .workspaceCornerRadius)) ?? .standard
         railItemSize = (try? container.decodeIfPresent(RailItemSize.self, forKey: .railItemSize)) ?? .medium
-        collapsedServerClick = (try? container.decodeIfPresent(CollapsedServerClickBehavior.self, forKey: .collapsedServerClick)) ?? .peekCommandReopens
         sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
         sidebarDockIconStyle = (try? container.decodeIfPresent(SidebarDockIconStyle.self, forKey: .sidebarDockIconStyle)) ?? .mono
+        serverHeaderStyle = (try? container.decodeIfPresent(ServerHeaderStyle.self, forKey: .serverHeaderStyle)) ?? .wash
+        serverHeaderColorSource = (try? container.decodeIfPresent(ServerHeaderColorSource.self, forKey: .serverHeaderColorSource)) ?? .server
+        sidebarDockCurrentIconTint = (try? container.decodeIfPresent(SidebarDockCurrentIconTint.self, forKey: .sidebarDockCurrentIconTint)) ?? .header
         sidebarDockSections = (try? container.decodeIfPresent([String: [String]].self, forKey: .sidebarDockSections)) ?? [:]
         editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
+        resultsGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .resultsGutterStyle)) ?? .hairline
         editorMarkCorners = (try? container.decodeIfPresent(EditorMarkCorners.self, forKey: .editorMarkCorners)) ?? .round
         editorMarkStrength = (try? container.decodeIfPresent(EditorMarkStrength.self, forKey: .editorMarkStrength)) ?? .standard
         let typographyRevision = try container.decodeIfPresent(Int.self, forKey: .editorTypographyRevision) ?? 0
@@ -465,9 +471,9 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(accentColorSource, forKey: .accentColorSource)
         try container.encodeIfPresent(customAccentColorHex, forKey: .customAccentColorHex)
         try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
-        try container.encode(tabOverviewStyle, forKey: .tabOverviewStyle)
         try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
         try container.encode(resultsShowRowNumbers, forKey: .resultsShowRowNumbers)
+        try container.encode(resultsSelectionPill, forKey: .resultsSelectionPill)
         try container.encode(resultGridColorOverrides, forKey: .resultGridColorOverrides)
         try container.encode(showForeignKeysInInspector, forKey: .showForeignKeysInInspector)
         try container.encode(showJsonInInspector, forKey: .showJsonInInspector)
@@ -497,6 +503,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(postgresScriptsContinueAfterError, forKey: .postgresScriptsContinueAfterError)
         try container.encode(queryTimeLimitSeconds, forKey: .queryTimeLimitSeconds)
         try container.encode(queryTimeLimitNoticeShown, forKey: .queryTimeLimitNoticeShown)
+        try container.encode(confirmUnguardedWrites, forKey: .confirmUnguardedWrites)
         try container.encode(editorErrorRunNoteShowsMessage, forKey: .editorErrorRunNoteShowsMessage)
         try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
         try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)
@@ -504,16 +511,18 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
         try container.encode(sidebarExpandOneConnectionAtATime, forKey: .sidebarExpandOneConnectionAtATime)
         try container.encode(sidebarShowsScrollBar, forKey: .sidebarShowsScrollBar)
-        try container.encode(sidebarShowsEmptyFolders, forKey: .sidebarShowsEmptyFolders)
         try container.encode(interfaceMotionSpeed, forKey: .interfaceMotionSpeed)
         try container.encode(workspaceGutter, forKey: .workspaceGutter)
         try container.encode(workspaceCornerRadius, forKey: .workspaceCornerRadius)
         try container.encode(railItemSize, forKey: .railItemSize)
-        try container.encode(collapsedServerClick, forKey: .collapsedServerClick)
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
         try container.encode(sidebarDockIconStyle, forKey: .sidebarDockIconStyle)
+        try container.encode(serverHeaderStyle, forKey: .serverHeaderStyle)
+        try container.encode(serverHeaderColorSource, forKey: .serverHeaderColorSource)
+        try container.encode(sidebarDockCurrentIconTint, forKey: .sidebarDockCurrentIconTint)
         try container.encode(sidebarDockSections, forKey: .sidebarDockSections)
         try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
+        try container.encode(resultsGutterStyle, forKey: .resultsGutterStyle)
         try container.encode(editorMarkCorners, forKey: .editorMarkCorners)
         try container.encode(editorMarkStrength, forKey: .editorMarkStrength)
         try container.encode(editorTypographyRevision, forKey: .editorTypographyRevision)

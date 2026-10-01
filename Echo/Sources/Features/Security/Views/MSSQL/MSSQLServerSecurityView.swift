@@ -6,6 +6,7 @@ struct MSSQLServerSecurityView: View {
     @Environment(TabStore.self) private var tabStore
     @Environment(\.workspaceTab) private var hostTab
     @Environment(EnvironmentState.self) private var environmentState
+    @Environment(\.openWindow) private var openWindow
 
     @State var showNewRoleSheet = false
     @State var showNewCredentialSheet = false
@@ -22,10 +23,13 @@ struct MSSQLServerSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            sectionPicker
-        } content: {
+            // Its pages are in the tab (round 36.2); each page's New is the special button in the
+            // window toolbar (round 37.5, the owner's answer).
             sectionContent
         }
+        .tabToolbar(special: newItem, groups: [[.refresh(isBusy: statusBubble != nil) { [viewModel] in
+            Task { await viewModel.loadCurrentSection() }
+        }]])
         .task {
             await viewModel.loadInitialData()
         }
@@ -59,6 +63,23 @@ struct MSSQLServerSecurityView: View {
         }
     }
 
+    /// The page's New (round 37.5): New Login opens its window, the others their sheets.
+    private var newItem: TabToolbarItem {
+        switch viewModel.selectedSection {
+        case .logins:
+            TabToolbarItem(id: "newLogin", title: "New Login", symbol: "person.badge.plus") { [environmentState, viewModel, openWindow] in
+                let value = environmentState.prepareLoginEditorWindow(connectionSessionID: viewModel.connectionID, existingLogin: nil)
+                openWindow(id: LoginEditorWindow.sceneID, value: value)
+            }
+        case .serverRoles:
+            TabToolbarItem(id: "newServerRole", title: "New Server Role", symbol: "person.2.badge.plus") { showNewRoleSheet = true }
+        case .credentials:
+            TabToolbarItem(id: "newCredential", title: "New Credential", symbol: "key.fill") { showNewCredentialSheet = true }
+        case .audits:
+            TabToolbarItem(id: "newAudit", title: "New Audit", symbol: "plus") { showNewAuditSheet = true }
+        }
+    }
+
     private var connectionText: String {
         hostTab?.connection.connectionName ?? "Server"
     }
@@ -70,18 +91,5 @@ struct MSSQLServerSecurityView: View {
         return nil
     }
 
-    // MARK: - Section Picker
-
-    private var sectionPicker: some View {
-        TabSectionPicker(
-            "Security Section",
-            selection: $viewModel.selectedSection,
-            itemCount: ServerSecurityViewModel.Section.allCases.count
-        ) {
-            ForEach(ServerSecurityViewModel.Section.allCases, id: \.self) { section in
-                Text(section.rawValue).tag(section)
-            }
-        }
-    }
 
 }

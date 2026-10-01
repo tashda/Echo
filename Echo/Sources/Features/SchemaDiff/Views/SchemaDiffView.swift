@@ -17,10 +17,11 @@ struct SchemaDiffView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            toolbarContent
-        } content: {
             diffContent
         }
+        .toolTabHeaderControls { headerControls }
+        .tabToolbar(special: compareItem, groups: viewModel.diffs.isEmpty ? [] : [[migrationMenu]])
+        .toolTabHeaderDetail(viewModel.diffs.isEmpty ? nil : viewModel.statusSummary)
         .task { await viewModel.initialize() }
     }
 
@@ -37,102 +38,56 @@ struct SchemaDiffView: View {
         return nil
     }
 
-    // MARK: - Toolbar
+    // MARK: - Header line
 
-    private var toolbarContent: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Picker("Source", selection: $viewModel.sourceSchema) {
-                ForEach(viewModel.availableSchemas, id: \.self) { Text($0).tag($0) }
-            }
-            .pickerStyle(.menu)
-            .frame(maxWidth: 160)
-
-            Image(systemName: "arrow.right")
-                .foregroundStyle(ColorTokens.Text.secondary)
-
-            Picker("Target", selection: $viewModel.targetSchema) {
-                ForEach(viewModel.availableSchemas, id: \.self) { Text($0).tag($0) }
-            }
-            .pickerStyle(.menu)
-            .frame(maxWidth: 160)
-
-            if viewModel.canCompare {
-                Button("Compare") { Task { await viewModel.compare() } }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-            } else {
-                Button("Compare") {}
-                    .buttonStyle(.bordered)
-                    .disabled(true)
-                    .controlSize(.small)
-            }
-
-            Spacer()
-
-            if !viewModel.diffs.isEmpty {
-                TextField("", text: $viewModel.searchText, prompt: Text("Filter objects"))
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 180)
-
-                Text(viewModel.statusSummary)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-
-                objectTypePicker
-                filterPicker
-
-                Button("Copy Migration SQL") {
-                    let sql = viewModel.generateMigrationSQLForFilteredDiffs()
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(sql, forType: .string)
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
-
-                Button("Export Migration SQL") {
-                    exportMigrationSQL()
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
-
-                Menu("Export Report") {
-                    Button("Export as HTML") { exportComparisonReport(as: .html) }
-                    Button("Export as Markdown") { exportComparisonReport(as: .markdown) }
-                    Button("Export as Text") { exportComparisonReport(as: .text) }
-                }
-                .disabled(viewModel.filteredDiffs.isEmpty)
-
-                Button("Open Migration SQL") {
-                    openMigrationSQLInQueryTab()
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
-            }
+    /// Source → target on the tool's header line, with the filters once there is a comparison
+    /// (round 37.2); Compare and the migration script are in the window toolbar (37.5).
+    @ViewBuilder
+    private var headerControls: some View {
+        if !viewModel.diffs.isEmpty {
+            ToolTabSearchField(prompt: "Filter objects", text: $viewModel.searchText)
+            objectTypePicker
+            filterPicker
         }
+        ToolTabPickerPill(title: "Source", systemImage: "square.stack.3d.up", selection: $viewModel.sourceSchema,
+                          options: viewModel.availableSchemas, label: { $0 })
+        Image(systemName: "arrow.right").foregroundStyle(ColorTokens.Text.secondary).accessibilityHidden(true)
+        ToolTabPickerPill(title: "Target", systemImage: "square.stack.3d.down.right", selection: $viewModel.targetSchema,
+                          options: viewModel.availableSchemas, label: { $0 })
+    }
+
+    /// Round 37.5: Compare is the special button; the migration script and report in the group.
+    private var compareItem: TabToolbarItem {
+        TabToolbarItem(id: "compare", title: viewModel.isComparing ? "Comparing" : "Compare", symbol: "arrow.left.arrow.right",
+                       isDisabled: !viewModel.canCompare || viewModel.isComparing) { [viewModel] in Task { await viewModel.compare() } }
+    }
+
+    private var migrationMenu: TabToolbarItem {
+        let hasSQL = !viewModel.generateMigrationSQLForFilteredDiffs().isEmpty
+        return TabToolbarItem(id: "migration", title: "Migration SQL and Report", symbol: "square.and.arrow.up", menu: [
+            TabToolbarItem(id: "open", title: "Open Migration SQL", symbol: "doc.badge.plus", isDisabled: !hasSQL) { openMigrationSQLInQueryTab() },
+            TabToolbarItem(id: "copy", title: "Copy Migration SQL", symbol: "doc.on.doc", isDisabled: !hasSQL) { [viewModel] in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(viewModel.generateMigrationSQLForFilteredDiffs(), forType: .string)
+            },
+            TabToolbarItem(id: "export", title: "Export Migration SQL", symbol: "square.and.arrow.up", isDisabled: !hasSQL) { exportMigrationSQL() },
+            TabToolbarItem(id: "—", title: "—", symbol: ""),
+            TabToolbarItem(id: "html", title: "Export Report as HTML", symbol: "doc.richtext") { exportComparisonReport(as: .html) },
+            TabToolbarItem(id: "md", title: "Export Report as Markdown", symbol: "doc.plaintext") { exportComparisonReport(as: .markdown) },
+            TabToolbarItem(id: "txt", title: "Export Report as Text", symbol: "doc.text") { exportComparisonReport(as: .text) },
+        ])
     }
 
     private var filterPicker: some View {
-        Picker("Filter", selection: $viewModel.filterStatus) {
-            Text("All").tag(nil as SchemaDiffStatus?)
-            Divider()
-            ForEach(SchemaDiffStatus.allCases, id: \.self) { status in
-                Label(status.rawValue, systemImage: status.icon).tag(status as SchemaDiffStatus?)
-            }
-        }
-        .pickerStyle(.menu)
-        .frame(maxWidth: 120)
+        ToolTabPickerPill(title: "Status", systemImage: "line.3.horizontal.decrease", selection: $viewModel.filterStatus,
+                          options: [nil] + SchemaDiffStatus.allCases.map(Optional.some),
+                          label: { $0?.rawValue ?? "All Changes" })
     }
 
     private var objectTypePicker: some View {
-        Picker("Object Type", selection: $viewModel.filterObjectType) {
-            Text("All Types").tag(nil as String?)
-            Divider()
-            ForEach(viewModel.availableObjectTypes, id: \.self) { objectType in
-                Text(objectType).tag(objectType as String?)
-            }
-        }
-        .pickerStyle(.menu)
-        .frame(maxWidth: 140)
+        ToolTabPickerPill(title: "Object Type", systemImage: "square.grid.2x2", selection: $viewModel.filterObjectType,
+                          options: [nil] + viewModel.availableObjectTypes.map(Optional.some),
+                          label: { $0 ?? "All Types" })
     }
 
     // MARK: - Content

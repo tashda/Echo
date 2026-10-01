@@ -8,17 +8,20 @@ struct TrackedOperation: Identifiable {
     let label: String
     let connectionSessionID: UUID?
     let startedAt: Date
+    /// Whether the bell shows it while it runs (round 34, AS2). Query runs show on Run instead.
+    let showsOnBell: Bool
     var progress: Double?
     var message: String?
 }
 
 // MARK: - Operation Result
 
-/// The outcome of a completed operation, displayed briefly in the toolbar.
+/// The outcome of a finished operation, handed to `ActivityEngine.onFinish`.
 struct OperationResult: Identifiable {
     let id: UUID
     let label: String
     let connectionSessionID: UUID?
+    let showsOnBell: Bool
     let outcome: Outcome
     let completedAt: Date
     let duration: TimeInterval

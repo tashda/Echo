@@ -11,12 +11,17 @@ import Foundation
 ///     { "action": "window", "target": "sidebar" }  // or "inspector", "overview"
 ///     { "action": "page", "target": "next" }       // a tool tab's next page, or a page's title
 extension AppDirector {
-    static let appAutomationActions: Set<String> = ["query", "tool", "tab", "closeTab", "window", "page"]
+    static let appAutomationActions: Set<String> = ["query", "tool", "tab", "closeTab", "window", "page", "connect"]
 
     /// Performs an app step; the server is looked up by its automation name.
     func performAppAutomationStep(_ step: AutomationScript.Step, connections: [String: SavedConnection]) {
         let connectionID = step.server.flatMap { connections[$0]?.id }
         switch step.action {
+        case "connect":
+            // A server connecting while the others are open, as when you connect one from the rail.
+            guard let name = step.server, let connection = connections[name],
+                  environmentState.sessionGroup.sessionForConnection(connection.id) == nil else { return }
+            environmentState.connect(to: connection)
         case "query":
             guard let connectionID, let session = environmentState.sessionGroup.sessionForConnection(connectionID) else { return }
             environmentState.openQueryTab(for: session, presetQuery: step.target, autoExecute: step.target != nil)
@@ -40,7 +45,7 @@ extension AppDirector {
             switch step.target {
             case "sidebar": appState.isWorkspaceTreeVisible.toggle()
             case "inspector": appState.showInfoSidebar.toggle()
-            case "overview": appState.showTabOverview.toggle()
+            case "overview": appState.toggleTabOverview()
             default: break
             }
         default:

@@ -6,6 +6,7 @@ import SwiftUI
 struct ExplorerTreeSpecimen: View {
     let settings: ExplorerTreeSpecimenSettings
     @Environment(\.workspaceCardCornerRadius) private var cornerRadius
+    @State private var isHeaderHovering = false
 
     private static let dock: [(symbol: String, color: Color)] = [
         ("cylinder", ColorTokens.Explorer.databaseInstance), ("shield", ColorTokens.Explorer.security),
@@ -24,8 +25,16 @@ struct ExplorerTreeSpecimen: View {
     /// The card as it rests: name, dock, rows.
     private var card: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.none) {
-            header
-            dock
+            VStack(alignment: .leading, spacing: SpacingTokens.none) {
+                header
+                dock
+            }
+            // Round 30.1, HD4: the server's colour washes down from the top through the dock.
+            .background {
+                LinearGradient(colors: [ColorTokens.Status.info.opacity(0.2), ColorTokens.Status.info.opacity(0)], startPoint: .top, endPoint: .bottom)
+                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: cornerRadius, topTrailingRadius: cornerRadius, style: .continuous))
+                    .specAnchor("2.6")
+            }
             rows
             Spacer(minLength: 0)
         }
@@ -53,12 +62,27 @@ struct ExplorerTreeSpecimen: View {
         .specAnchor("1.2")
     }
 
+    /// The open card's header: the chevron, turned down, centred on the two lines and shown on
+    /// hover (round 30.2).
     private var header: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.micro) {
-            Text("Test MSSQL").font(SidebarRowConstants.serverHeaderFont).lineLimit(1).specAnchor("2.1")
-            Text("SQL Server 2022 · Databases").font(SidebarRowConstants.trailingFont).foregroundStyle(ColorTokens.Text.tertiary).lineLimit(1).specAnchor("2.2")
+        HStack(alignment: .center, spacing: SidebarRowConstants.iconTextSpacing) {
+            VStack(alignment: .leading, spacing: SpacingTokens.micro) {
+                Text("Test MSSQL").font(SidebarRowConstants.serverHeaderFont).lineLimit(1).specAnchor("2.1")
+                Text("SQL Server 2022 · Databases").font(SidebarRowConstants.trailingFont).foregroundStyle(ColorTokens.Text.tertiary).lineLimit(1).specAnchor("2.2")
+            }
+            Spacer(minLength: SpacingTokens.xxs)
+            Image(systemName: "chevron.right")
+                .font(SidebarRowConstants.sectionChevronFont)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .rotationEffect(.degrees(90))
+                .frame(width: SidebarRowConstants.chevronWidth)
+                .opacity(isHeaderHovering ? 1 : 0)
+                .animation(.easeInOut(duration: 0.15), value: isHeaderHovering)
+                .specAnchor("2.4")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onHover { isHeaderHovering = $0 }
+        .padding(.trailing, SidebarRowConstants.rowTrailingPadding + SidebarRowConstants.rowOuterHorizontalPadding)
         .padding(.leading, SpacingTokens.sm)
         .padding(.top, SpacingTokens.sm)
         .padding(.bottom, SpacingTokens.xxs2)
@@ -69,8 +93,9 @@ struct ExplorerTreeSpecimen: View {
             HStack(spacing: SpacingTokens.none) {
                 ForEach(Array(Self.dock.enumerated()), id: \.offset) { index, item in
                     let isCurrent = index == 0
-                    LabDuotoneSymbol(name: item.symbol, color: isCurrent ? ColorTokens.accent : item.color, mode: settings.dockMode,
-                                     monoColor: isCurrent ? ColorTokens.accent : ColorTokens.Sidebar.symbol, font: TypographyTokens.prominent.weight(.medium))
+                    // The current icon in the header's colour (round 30.1, DK1).
+                    LabDuotoneSymbol(name: item.symbol, color: isCurrent ? ColorTokens.Status.info : item.color, mode: settings.dockMode,
+                                     monoColor: isCurrent ? ColorTokens.Status.info : ColorTokens.Sidebar.symbol, font: TypographyTokens.prominent.weight(.medium))
                         .frame(maxWidth: .infinity).frame(height: 28)
                         .specAnchor(isCurrent ? "3.2" : "3.3")
                 }

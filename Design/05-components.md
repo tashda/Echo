@@ -12,13 +12,13 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Hover** shows the system tooltip (name and host). No custom hover cards. *Decided.*
 - **Status:**
   - A connecting server's monogram breathes (opacity) until it connects. The first version was judged too subtle; the stronger values in `06-tokens.md` need a quick check in the Echo Labs. *Decided*, stronger version confirmed.
-  - Running queries show nothing in the rail; the tooltip and the peek list them. *Decided.*
+  - Running queries show nothing in the rail; the tooltip lists them. *Decided.*
   - A lost connection dims the monogram to 40%, and the tooltip says why. *Decided.*
   - Rings, comets, count badges and extra dots were rejected.
 - **A + ends the server pill** and opens the connections menu; it is never selected and the disc never moves onto it. It replaced the toolbar's Connections button. *Decided* (2026-09-29).
 - **The selection disc is inset 3pt** inside its item, so a single server never looks like a pill inside a pill. *Decided* (2026-09-29).
 - Item size: medium (34pt) default, with small and large as a setting. *Decided.*
-- **Clicking a server with the tree hidden:** a plain click peeks (the tree for that server slides out over the cards; a click away or Esc slides it back), and ⌘-click or double-click reopens the tree for good. *Decided.* A setting lets users choose instead "always peek" or "always reopen the tree". The glance card and "switch context only" were rejected.
+- **Clicking a server with the tree hidden** (round 40): the tree opens, sliding in while it scrolls to that server; the rail's disc shows which server it is. No peek and no setting. *Decided* (replaces the peek with ⌘-click to reopen, and its setting; ⌥-click to peek and a flash on arrival were rejected).
 
 ## Server page
 
@@ -26,11 +26,13 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - No icon. The server name in 26pt bold, only the version under it (the host is its tooltip); the page's top lines up with the rail. *Decided* (round 8, S1a).
 - The server's tools as **Liquid Glass buttons** (`.glass`), with **New Query** first as `.glassProminent`. Tools that need a database open a menu of them. The buttons wrap when the window is narrow. *Decided.*
 - The databases on one small opaque card with a filter field, 28pt rows. Recent queries and connection details are not on this page. *Decided* (round 8).
+- **Arrival** (round 48, *Decided*): the page builds up, the name, the version, the tools and the databases each rising 8pt and fading in 0.06 s apart. It stays mounted under the tabs, so closing the last tab lifts the card away (0.28 s) and shows it; the server stays active.
 
 ## Welcome
 
 - Shown on the canvas while no tab is open and no server is active. **No card**: cards are only for content. *Decided* (2026-09-29).
-- Centred, 420pt wide: Echo's icon (64pt), **"Echo"** in 26pt bold, then glass buttons: **Connect…** (prominent, opens the connections menu), Quick Connect, Manage. No subtitle. *Decided* (round 8, W1b).
+- Centred, 420pt wide: **Echo's mark alone** (120pt wide, the three pills, no tile and no name), then glass buttons: **Connect…** (prominent, opens the connections menu), Quick Connect, Manage. No subtitle. *Decided* (round 8, W1b; the name went in round 48).
+- **Motion** (round 48, *Decided*): every time it appears the pills echo in as on echodb.dev (0.9 s, 0.12 s apart, overshoot), then the buttons and the recents rise 10pt, 0.15 s apart. When a server connects the pills echo out to the left first; the rail, the tree and the server page wait for that (`WelcomeMarkMotion`).
 - Below, "Recent" and the **5 latest connections on one small opaque card**, 28pt rows: the rail monogram in the server's colour, name, host, and when it was last used. A click connects, and the server grows into the rail. *Decided.*
 - With a server active but no tab, the server dashboard shows on a card as before.
 
@@ -52,12 +54,13 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - **At most five** sections in the capsule. Sections left out are listed by **More (»), a section of its own**: its card shows them as ordinary folders that open and right-click as usual. No database type's blueprint has more than five server-level sections.
   - **Pinned:** the name and the capsule stay at the top while the rows scroll under them. **Blur rows:** rows stay visible under the header, blurring and fading more towards the top over a light wash of the card colour. No material, no line.
   - **Switching (S3):** the card's rows fade out, swap and fade in while the card's bottom edge settles (`settle`). The view **jumps** instantly to where that section was left (while faded); a new section doesn't scroll. Each section keeps its open folders; the card remembers its section per connection.
-  - **The other cards (N2):** only a card whose own place or height changes animates, and the view never scrolls back by itself when the list gets shorter; the room below the last card stays until you scroll up.
+  - **The other cards (N2):** only a card whose own place or height changes animates, and the view never scrolls back by itself when the list gets shorter; the room below the last card stays until you scroll up. **Except folding a card** (2026-10-02, the owner's bug: collapsing the bottom server left the tree out of view): closing a card you are scrolled into first brings its header to its own place under the veil, and when the fold leaves the tree shorter than the view, the view glides back with the fold until the tree fills it. *Decided.*
   - **Initial load (I4 · Folders first):** a section's folders and tools show at once, spinning in their count slots; a level that is only items shows one spinner row. The dock icon stays still.
   - **Menus:** right-click an icon for its section's own menu, then Dock (show or hide each section, the type's dock, Customize Dock); right-click the empty capsule for Dock alone.
   - **Customize Dock:** order and visibility for every server of the type (Settings › Sidebar, synced) or one server (on the saved connection).
   - Servers with fewer than two sections have no dock.
 - **Server header:** the server's name heads its card in bold (13pt at the default size, following the sidebar size), primary, with the product and release under it in tertiary 11pt, followed by the current section when the card has a dock ("SQL Server 2022 · Security"; the full build in the tooltip). *Decided* (rounds 16 and 19).
+  - **Its colour** (round 30.1): a **wash of the server's colour** fading from the card's top edge through the dock (HD4); Settings › Appearance › Server Header also offers Plain, Bar, Glass Plate and Banner, and Server Header Color the accent or none. The dock's current icon takes the header's colour (Current Dock Icon). With the server's colour, the rail's monogram is always in it and the server's tabs and the footer's server pill carry a dot of it. The header's right-click menu sets the colour. *Decided.*
 - **Folders:** server-level groups are ordinary folder rows with children indented one level. SQL Server has five (round 19, SSMS's grouping): Databases (Database Snapshots at the end), Security, Server Objects (Linked Servers, Server Triggers), Agent Jobs and Management (with Integration Services Catalogs). MySQL's and SQLite's server tools sit under Management. *Decided* (round 19).
 - **Selection:** the row uses the semantic grey fill and its icon turns accent, inset equally on both sides (round 16). The accent is the system's, the custom one or the server's colour, per the accent setting. *Decided* (revised tree card round).
 - **Counts:** plain grey tabular digits at the right, always shown; zero is hidden. While a folder loads, a spinner takes the count's place. *Decided* (round 16; replaces "appearing on hover").
@@ -68,9 +71,11 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   - Monochrome mode defaults to **monochrome with accent on expanded folders**, so you see your path. A sub-setting switches to pure monochrome.
   - Colours are picked by the node's role, never by its title (tree blueprints, plan Phase 2b).
 - **Expanding:** rows slide down with a fade (native table animation), scaled by the speed setting. *Decided.*
+- **Folding a server card** (rounds 30.2 and 46): click the header; the card's edge glides (`expand`, 0.22s). Opening, the dock grows out of the header without fading and the rows wait under the section switch's veil, which fades away once the edge settles; closing, the veil covers the rows, then the card folds as the dock shrinks back. The chevron sits at the trailing edge, centred on the name and product line (CP1), shown on hover while open and always while closed; a closed card is the header only, its name, product line and chevron centred in it. *Decided.*
 - **Loading:** a folder shows a quiet skeleton (row-shaped placeholders at the child indent, only after a quarter second), then the rows fade in. A section's first load is Folders first (above). *Decided* (round 16; replaces the shimmer).
+- **Rows that open a tab** (round 38): a tool row (Agent Jobs Overview, Security Overview, Management's tools, a sheet too) ends in a grey ↗ (arrow.up.right), always. Every SQL Server Security, the server's and each database's, starts with **Security Overview**. *Decided.*
 - **No search field in the tree.** *Decided.*
-- **Empty folders** are hidden by default, with a setting to show them. *Decided.*
+- **Empty folders** (round 30.3): **Tables, Views, Functions and Procedures always show**, empty or not (EF1); the rarer folders (Synonyms, Sequences, Types…) only when they have something. An empty folder is **dimmed with no count** (EL1) and **opens to a grey “No views” row** (OE0). There is no setting (ST1). *Decided* (replaces “hidden by default, with a setting to show them”).
 - **How a tree is described:** each database type has an ordered **blueprint** (one file per type, built from shared fragments). The order in the blueprint is the order in the tree. Node kinds carry their title, symbol and role; the builder, rows and menus are generic. *Decided* (tree card round).
 
 ## Search
@@ -88,6 +93,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
   [Project] [Recents · Connections · Quick Connect] … [Run] [Format · Validate · Help · Plan] [MSSQL toggles] [Overview · Refresh · Bell · Inspector]
 
   Each bracket is one glass capsule.
+- **Refresh and the activity signal** (round 34): Refresh is in the right-hand capsule **only while the front tab can reload**, and shows **only its own reload** (spinner, then ✓ or ✗); ⌘R (View › Reload Tab) does the same. A query tab has no Refresh. Long operations show on the **bell**: a small spinner once one has run for a second, its name in the tooltip; query runs show only on Run. *Decided.*
 - **Tab-specific tools** (Structure add and apply, Activity Monitor pause and refresh rate, Job Queue controls, Error log cycle, maintenance database) form one contextual capsule next to Run. It appears only on tabs that need it and melts in and out as you switch tabs. *Decided.*
 - **Run** (round 15, idea 1) is a plain ▶ like its neighbours, with no tint and no chevron, in a capsule of its own so changing it moves nothing else. Running, it becomes ■ and the timer in red; a click cancels. When the query ends it shows ✓ or ! for a moment and settles back. The other modes (statement at cursor, Explain, Explain analyze) are on right-click and in the Query menu. *Decided.* The accent-glass Run with a chevron was rejected as too loud.
 - **Run, round 20** (2026-09-30): at rest as above. Its tooltip says where it runs ("Run in employees on Prod SQL (⌘↩)"), or why it can't ("Type a query to run") while dimmed. It never goes into the toolbar's » overflow. ⌘↩ toggles: while a query runs it stops it. Running, the timer reads "5 s", then "1:05"; after a cancel the server hasn't acted on yet, it dims and says Stopping with a small spinner. When the query ends, the ✓ draws itself. A query of 30 s or more that ends while Echo isn't in front posts a macOS notification. *Decided.* **Round 24:** Run is one button in glass of its own that never swaps: running, ▶ is replaced by ■ in place while the glass fades to red, then the capsule grows and the time fades in (staged, no overshoot); at the end the red drains as the ✓ draws. Echo draws the red itself. *Decided.*
@@ -107,19 +113,16 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Position: on the canvas above both cards**, the way Safari's tab bar sits above the page. *Decided.*
 - **One glass capsule** holding the tabs and the + as its last item; the active tab is the white pill (round 9, TB1). **Inactive tabs have no fill, full-strength titles and hairline dividers** (round 11, T1); every tab shows its kind's icon (a spinner while running) and two lines: the title over the database, or the timer while running (T7, round 12 L2). The bar is 10pt taller than the Classic strip. The earlier grey plate stays available as Settings › Appearance › Tab Bar › Classic, to revert to. *Replaced* (2026-09-30) by Round 9's strip on one line.
 - **Tool pages unfold in the tab** (ST2, 2026-09-30): a tool with pages (Activity Monitor, Security, Server Properties) shows its pages as small chips inside its active tab; the other tabs make room with the house spring and it folds back when you leave. Replaces the segmented control at the top of tool tabs. *Decided.*
+  - **How they look** (round 36.1, 2026-10-01): the title, a short hairline, then the pages at the title's size (11pt) on the tab itself, the shown one semibold on a soft pill; no grey track. The tab is exactly as wide as that (at most 62% of the strip) and the other tabs share the rest; alone, it keeps its width at the leading edge. It unfolds on the house spring, the pages fading out first. *Decided.*
+  - **Every tool whose sections are separate views** has pages (round 36.2: nine tools; Query Store's two views stay inside its Maintenance page); the pages that don't fit go into a More menu at the end; a tool reopens on the last page used on that server. *Decided.*
 
 ## Tab overview (open queries)
 
-- The tab overview is Echo's "open queries" view. *Decided.*
-- It opens from a toolbar button, with a trackpad pinch and ⇧⌘O. *Decided.*
-- Look:
-  - a slim header, then tabs grouped by server, active server first;
-  - calm cards with live running state (timer and stop);
-  - no gradient hero.
-
-  *Decided.*
-- Motion: the active tab zooms out into its card, and picking a card zooms back in. *Decided.*
-- Group by the tab's current database, not the connection's default. *Decided.*
+- **The tab overview is a scope of the ⌘K palette** (round 35.1, TO6, owner 2026-10-01): no full-window grid. Typing "Tab Overview" in ⌘K (a row that keeps the palette open), ⇧⌘O, the toolbar's overview button and a trackpad pinch in turn the palette to **this window's tabs** (OS0). *Decided.* Replaces the grouped card grid (O1 to O3) and its Comfortable/Compact style setting.
+- **What it is for (OR1):** seeing everything that's open and what state it's in. Each row: the kind's icon, the title (semibold for the front tab), the database (or the tool's name and database), a pin if pinned, and on the right a status dot and word, live: Running 0:12 (orange), Failed (red), N rows (green), Cancelled or Not run (grey). Tabs group under their server's name with a count, servers in strip order; rows keep strip order while you type. *Decided.*
+- **Keys (owner's note):** ↑↓ move, ↩ or a click goes to the tab and closes the palette; **⌫ closes the selected tab** (while nothing is typed; ⌘⌫ always), **⌘D duplicates it**, **⌥⌫ closes the others**; the palette stays open after these. ⎋ or a click outside closes it. The hint line lists them. *Decided.*
+- **⌘D duplicates** a query tab (same server, database and SQL, right after it); Esc closes the overview wherever focus is (owner, 2026-10-01). *Decided.*
+- **Unsaved changes** (owner, 2026-10-01): a query tab whose SQL changed since it opened or was last saved asks before closing, from anywhere, in a standard alert: Save (to a bookmark: its own, or a new one named after the tab), Save As (a .sql file; the tab takes its name), Don't Save, Cancel. Several at once (Close Others, Close All, quitting, switching project) ask once: Review Each, Close Without Saving, Cancel. File › Save ⌘S and Save As ⇧⌘S. *Decided.*
 
 ## Editor card
 
@@ -128,7 +131,7 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Editor ideas** (2026-09-30), each a setting where it adds chrome: statement focus with a Run arrow in the gutter, results inline at the end of a statement, errors written on the line, more room (the rounded current-line band was removed in round 28.3), an outline edge (setting), and faint starting points in an empty tab. *Decided.*
   - The empty tab's starting points: the four tables opened last on the tab's connection and database (Data, Structure, Diagram or search), then snippets. A table inserts its first-rows query. *Built 2026-09-30.*
 - **Gutter:**
-  - Four styles as a setting: **Subtle** (numbers only, the default), **Tinted column** (full height, cut by the card's corners, hairline edge), **Tinted lane** (inset 5pt from the card's edges, full height, corners concentric with the card's, numbers centred, no edge; round 28.14) and **Hairline** (only the edge; round 28.2). *Decided.*
+  - Four styles as a setting: **Subtle** (numbers only), **Tinted column** (full height, cut by the card's corners, hairline edge), **Tinted lane** (inset 5pt from the card's edges, full height, corners concentric with the card's, numbers centred, no edge; round 28.14) and **Hairline** (only the edge; round 28.2). *Decided.* Subtle is the default; the **results' row numbers** have their own setting with the same four styles, Hairline by default (round 47).
   - Numbers are SF digits 2pt under the code in the tertiary label colour; the caret line's number is in the text colour, at the same weight (round 28.2). *Decided.*
   - Numbers stop at the last line; the tint still runs the card's full height. *Decided.*
   - Every style gets the current-line number and validation markers (a red dot on failing lines) in a column left of the numbers. *Decided.*
@@ -178,6 +181,16 @@ Decided 2026-09-30.
   - A pane that compares or lists two things of one object (a session's events and targets, the source and target DDL) keeps them in its one card.
 - **Monitoring tools** open on dashboard tiles: the key figures as cards with sparklines above the detail. *Decided.*
 - Configuration stays in the tab; read-only detail such as a job's history may use the Inspector. *Decided.*
+- **Panes inside a tool tab share one pane header** (round 33, JH1): the title (13pt semibold), a grey count, the pane's actions at the right, on one 36pt line (`PaneHeader`). *Decided.*
+- **Agent Jobs, after checking it in Echo** (owner, 2026-10-01): Open in New Window is a toolbar item of its own at the start of the right-hand side while Agent Jobs is in front; the header uses the tree's clock in the jobs colour; a double-click opens Edit Step or Edit Schedule, and schedules can be edited. *Decided.*
+- **New Step and Edit Step** (round 33.2): the command full height at the left in Echo's SQL editor with Parse (T-SQL), the settings in a sidebar at the right (Step; When it finishes: On success, On failure, retries); Edit Step adds the step's last run under the title. *Decided.*
+- **Sheets are one surface** (round 33.2, SE1): no hairline between the content and the buttons; the default button is prominent while it can be pressed (`SheetLayout`). *Decided.*
+- **Five families** (round 37.1, 2026-10-01): Monitor, Manage, Health (Query Store included), Properties, Canvas; the psql console follows the editor instead. **One theme for all:** one header, the same pane cards, tables and empty states. *Decided.*
+- **Controls** (round 37.3): the main action a glass capsule (symbol in colour, word in grey); other actions together in one glass capsule; pickers one glass pill (symbol, value, chevron); running, the main action turns into Stop with a pulsing dot; search a glass capsule at the right; every control 28pt. *Decided.*
+- **One header line** (round 37.2, UH5): the tool's tile, name and subtitle, then its controls on the same line; no second toolbar row. *Decided.*
+- **Every tab's own buttons in the window toolbar** (round 37.5, replacing 45): at the right before the window's icons, as native toolbar items: its special button with its word, then each group of its other buttons (no tab symbol, the owner after checking it); the query editor keeps Run's red capsule; pickers and search stay on the header line; the glass reshapes as tabs switch; nothing for a tab without buttons. *Decided.*
+- **Per family** (round 37.4): Monitor opens on tiles; Manage has a details card beside the list; Health's findings each carry a fix; Properties ends in an Apply bar with the number of changes; Canvas has a floating glass bar at the bottom. *Decided.*
+- **Agent Jobs** (round 33): Jobs the full height on the left, Details over History on the right; Details' sections segmented and centred under its header; the jobs' columns Status, Name, Last Run, Next Run, a running job spinning with its elapsed time in Last Run; New Job and Start/Stop on the Jobs header, the rest in ⋯ and right-click; no stripes below the last row. *Decided.*
 
 ## Results card
 
@@ -199,17 +212,22 @@ Decided 2026-09-30.
   - Numbers line up on the decimal point (padding with figure spaces, no digit grouping). *Decided* (round 21).
   - These apply by value kind to every database. Copy, export and the inspector keep the server's text; the cell menu's **Copy as Shown** copies what is drawn. *Decided* (round 21).
 - **Header: name + type line.** Column name in 12pt semibold with the data type underneath in grey monospace. A sort arrow appears on hover and clicking it sorts; clicking elsewhere still selects the column. *Decided.* The name-only header and the type-chip-with-keys header were rejected.
+  - **One line under the header** at its true bottom, level with the row-number column's: the header paints its full height in the card's colour and draws the hairline itself, and its cells draw only their text and sort arrow (the system's cell drawing adds a second line 4pt higher); the short column dividers stay (round 41.1, HL1, VD0, and round 47). *Decided.*
+  - **Row numbers** (round 47): their style is Settings › Results › Row Number Style (Subtle, Column, Lane, Hairline; Hairline by default), apart from the editor's. Right-aligned 12pt tabular digits in the tertiary colour, the gutter **fitting the digits, at least three**, with 8pt either side; the Hairline's edge starts **below the header**; a selected row's number is accent on the selection's tint; hovered rows' numbers are accent; the `#` in the corner selects every cell and shows Select All on hover. Shaded rows stop at the gutter; column names stay left-aligned. A click on a number selects its row, a drag extends and autoscrolls, a right-click opens the row menu, and the width is reserved for the known row count so it doesn't move while rows stream in. *Decided.*
 - **Selection:**
   - One rounded outline around the whole selected range, instead of today's per-row outline that shows seams, plus a stronger ring on the active cell. *Decided* (accepted in the Echo Labs).
   - Row numbers of selected rows turn accent. *Decided.*
-  - Row hover: a faint rounded tint on the hovered row, and its row number turns accent. *Decided.*
+  - Row hover: a faint rounded tint on the hovered row (inset 8pt by 1pt, 6pt corners, the shape of the shaded rows), and its row number turns accent on the same tint in the gutter (round 47). *Decided.*
 - **Footer:**
   - Keep a footer under the results. *Decided.*
   - While streaming, show rows loaded against the total ("12 000 of 1.2 M rows"), using the existing row progress, with no progress line. *Decided.*
-  - Show a selection summary (count, sum and average of selected numeric cells). *Decided.*
+  - ~~Show a selection summary (count, sum and average of selected numeric cells).~~ The selection pill shows **the count** ("89 cells"); Settings › Results › **Selection summary** can add the sum and/or the average in the locale's short form ("89 cells · Sum 34.6T · Avg 389B"; default: count only; text stays a count). Clicking the pill opens a popover with the exact figures (Count, Sum, Average, Min, Max, Median, Distinct, Empty; for text Count, Distinct, Empty), each copyable, and Copy All (round 41.2). *Decided.*
+  - **Each right-hand pill opens its own popover** (round 41.5): rows (rows and columns, result set, loaded of total, memory), time (a timeline of sending, waiting and reading; started, finished, the tab's last runs), status (what happened and when, the transaction; Cancel, Commit / Roll Back, Show in Editor). **No Export, Copy All, Messages or Run Again buttons** in them (owner): exporting and copying results is the grid's right-click menu (Copy, Copy with Headers, Copy as Shown, Copy As, Save As, Select All). Server CPU and the session (SPID) wait for the drivers. *Decided.*
   - No Export button in the footer. *Decided.*
 - **Query errors:** shown in the results card with the message, line and a "Show in editor" button, with Messages one click away. They are also recorded in notification history. When the failing tab isn't the one on screen, a toast points to it. *Decided.*
-- **Scroll bars over the footer** (round 27): the system's overlay bar, shown while scrolling, on the footer's top edge with its thumb as far above the footer's pills as the pills sit above the card's edge (9pt; 42pt from the edge to the thumb). The vertical bar runs down to it. The rows fade softly (32pt) at a side where more columns wait. The bar runs as wide as the footer, over the row numbers (L2). While it shows, the blur rises past it and settles a moment after (U5), moving smoothly; the blur meets the rows along an S curve, not at a line. The footer's blur sits under the bars, in the scroll view's clip view. Everything that scrolls under the footer does the same: the grid, the editor, Messages, Extended Events. **Every horizontal scroll bar in Echo gets the same rising blur**, set once for the app (`ScrollBarBlur`). *Decided.*
+  - **As a banner at the top left of the card** (round 41.3, EP1): symbol, "Failed on line 7", the message, SQL Server's Msg · Level · State as quiet chips (ED0), and Show in Editor, Messages and Copy Error (EA1). Running, No rows and Cancelled use the same banner instead of a centred poster. The editor's red pill on the statement's first word stays (HL0). *Decided.*
+- **Messages** (round 41.4): grouped by statement, a "Line 7 · first line of the statement" heading over what it said (ML1); an error is a red symbol and a semibold message, no fill (EE1); no strip at the top, only the counts ("1 error · 2 messages"), which filter, and a ⋯ menu with Copy All and Clear (MT1). Messages hold what the server said: Echo's own started/finished/failed lines (EM0) and the execution metrics (DM1, now in the time pill's popover) are gone. *Decided.* The symbol of a message **from the server** opens a popover, "From the server": number, level, state, line, procedure and server (SQL Server), other fields the driver passed on (PostgreSQL's SQLSTATE, detail, hint) and the text as sent, with Copy; Echo's own lines have a plain symbol. *Decided.*
+- **Scroll bars over the footer** (round 27): the system's overlay bar, shown while scrolling, on the footer's top edge with its thumb as far above the footer's pills as the pills sit above the card's edge (9pt; 42pt from the edge to the thumb). The vertical bar runs down to it. The rows stay sharp at both sides: the soft edges where more columns wait (X1) were removed after round 47, as they veiled the first and last column. The bar runs as wide as the footer, over the row numbers (L2). While it shows, the blur rises past it and settles a moment after (U5), moving smoothly; the blur meets the rows along an S curve, not at a line. The footer's blur sits under the bars, in the scroll view's clip view. Everything that scrolls under the footer does the same: the grid, the editor, Messages, Extended Events. **Every horizontal scroll bar in Echo gets the same rising blur**, set once for the app (`ScrollBarBlur`). *Decided.*
 - **One footer, in the results card.** A single footer holds everything:
   - on the left, the server · database as a **glass chip** (no chevron). Clicking it opens the database switcher (a filter field and the databases) in a **system popover above the chip**, with its arrow: the popover's own Liquid Glass, theming and dismissal, rather than glass drawn in the window (owner, after round 10). "Switch database" is also in the ⌘K palette (DB3);
   - right beside it, the result views (Results, Messages, Plan…) as **one glass pill** of icons (moved from the middle after the first build);
@@ -224,7 +242,7 @@ Decided 2026-09-30.
 ## Inspector
 
 - **A column on the canvas** (round 10, IN1), mirroring the tree on the trailing side: **one workspace card** holding the sections as **grouped boxes** (round 15): a header (icon, title, actions) over a rounded inset group of rows, label left and selectable value right, like System Settings. It has the tree's resize edge and show/hide motion. A card per section (round 10) was replaced: the stacked shadows were cut off at the column's edges. The window reads tree · cards · inspector. It replaces the native inspector column. *Decided.* A floating card (IN2), a pane inside the results card (IN3) and the restyled native column (IN4) were rejected.
-- Its one job, once notifications move to the bell: the details of what you pointed at (object details, foreign-key records with related records, cell values, the JSON viewer, Agent job history, SQL keyword help). *Decided.*
+- **Details** shows what you pointed at (object details, foreign-key records with related records, cell values, the JSON viewer, Agent job history, SQL keyword help). **Bookmarks and History share the column** via a segmented selector (round 39, RT2); the notification bell still temporarily takes the column. *Decided; round 39 built; owner verification pending.*
 - Fixes: *Decided.*
   - one section style across every panel;
   - one smooth width change instead of today's stepped jumps;

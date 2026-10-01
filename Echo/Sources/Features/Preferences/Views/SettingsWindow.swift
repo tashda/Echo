@@ -76,6 +76,7 @@ struct SettingsView: View {
     }
 
     @State private var selection: SettingsSection? = .general
+    @State private var searchText = ""
     @State private var databaseTab: DatabasesSettingsView.DatabaseSettingsTab = .shared
     @State private var navHistory = NavigationHistory<Destination>()
     /// Suppresses history recording during programmatic back/forward navigation.
@@ -122,7 +123,16 @@ struct SettingsView: View {
             // sidebar to be collapsed to zero. Revisit when Apple fixes these issues.
         } detail: {
             Group {
-                if let selection {
+                if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+                    SettingsSearchResults(query: searchText) { entry in
+                        selection = entry.section
+                        searchText = ""
+                        Task {
+                            try? await Task.sleep(for: .seconds(0.15))
+                            NotificationCenter.default.post(name: .highlightSettingsGroup, object: entry.group)
+                        }
+                    }
+                } else if let selection {
                     sectionView(for: selection)
                         .id(selection)
                         .frame(minWidth: 620, minHeight: 420)
@@ -142,6 +152,7 @@ struct SettingsView: View {
                 restore: { restore($0) }
             )
         }
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
         .preferredColorScheme(appearanceStore.effectiveColorScheme)
         .accentColor(appearanceStore.accentColor)
         .onChange(of: selection) { oldValue, _ in

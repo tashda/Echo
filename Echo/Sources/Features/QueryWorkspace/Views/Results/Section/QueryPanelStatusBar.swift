@@ -14,7 +14,7 @@ struct QueryPanelStatusBar: View {
     /// The server a connection with several moved to (round 23, FS1).
     var serverMove: ConnectionServerMove?
 
-    @State private var showStatisticsPopover = false
+    @Environment(ProjectStore.self) private var projectStore
     @State private var showDatabasePicker = false
 
     var body: some View {
@@ -71,12 +71,7 @@ struct QueryPanelStatusBar: View {
 
         config.modeIndicators = buildModeIndicators()
 
-        if hasPerformanceReport {
-            config.statisticsPopover = AnyView(
-                QueryPerformanceReportView(query: query)
-            )
-            config.showStatisticsPopover = $showStatisticsPopover
-        }
+        config.pillPopovers = pillPopovers
 
         if !availableDatabases.isEmpty, onSwitchDatabase != nil {
             config.availableDatabases = availableDatabases
@@ -87,17 +82,31 @@ struct QueryPanelStatusBar: View {
         return config
     }
 
-    private var hasPerformanceReport: Bool {
-        query.isExecuting || query.livePerformanceReport != nil || query.lastPerformanceReport != nil
+    /// Each pill's own popover (round 41.5, PP2), and the selection's figures (round 41.2).
+    private var pillPopovers: [FooterPillKind: AnyView] {
+        guard hasActivity else { return [:] }
+        var popovers: [FooterPillKind: AnyView] = [
+            .rows: AnyView(RowsPillPopover(query: query)),
+            .time: AnyView(TimePillPopover(query: query)),
+            .status: AnyView(StatusPillPopover(query: query, panelState: panelState, transactionActions: transactionActions)),
+        ]
+        if let summary = query.gridSelectionSummary, summary.cellCount > 1 {
+            popovers[.selection] = AnyView(SelectionSummaryPopover(summary: summary))
+        }
+        return popovers
+    }
+
+    private var transactionActions: [BottomPanelStatusBarConfiguration.StatusBubble.MenuItem] {
+        switch query.transactionState {
+        case .none: []
+        case .open: transactionMenu(failed: false)
+        case .failed: transactionMenu(failed: true)
+        }
     }
 
     private func buildMetrics() -> BottomPanelStatusBarConfiguration.Metrics {
-        // Rows loaded of the total while streaming (plan R5), then the total.
-        let rowCount = GridSelectionSummary.rowCountText(
-            for: query.rowProgress,
-            isExecuting: query.isExecuting,
-            compact: EchoFormatters.compactNumber
-        )
+        // The rows the server has sent, counting up while streaming (owner, 2026-10-01: no "of total").
+        let rowCount = GridSelectionSummary.rowCountText(for: query.rowProgress, compact: EchoFormatters.compactNumber)
         var rowLabel = query.rowProgress.displayCount == 1 ? "row" : "rows"
         // Round 21, cancel CP1: rows kept after a cancel are marked as partial.
         if query.wasCancelled, !query.isExecuting, query.rowProgress.displayCount > 0 { rowLabel += ", partial" }
@@ -110,7 +119,10 @@ struct QueryPanelStatusBar: View {
         }
 
         var metrics = BottomPanelStatusBarConfiguration.Metrics(rowCountText: rowCount, rowCountLabel: rowLabel, durationText: durationText)
-        metrics.selectionText = query.gridSelectionSummary.flatMap { $0.cellCount > 1 ? $0.text : nil }
+        let figures = projectStore.globalSettings.resultsSelectionPill
+        metrics.selectionText = query.gridSelectionSummary.flatMap {
+            $0.cellCount > 1 ? $0.pillText(showsSum: figures.showsSum, showsAverage: figures.showsAverage) : nil
+        }
         return metrics
     }
 

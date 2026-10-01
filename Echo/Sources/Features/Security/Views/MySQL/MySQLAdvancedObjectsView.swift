@@ -4,7 +4,6 @@ struct MySQLAdvancedObjectsView: View {
     @Bindable var viewModel: MySQLDatabaseSecurityViewModel
 
     @State private var draftKind: DraftKind?
-    @Environment(ProjectStore.self) private var projectStore
 
     enum DraftKind: String, Identifiable {
         case function
@@ -15,43 +14,27 @@ struct MySQLAdvancedObjectsView: View {
         var id: String { rawValue }
     }
 
+    @ViewBuilder
+    private var headerControls: some View {
+        ToolTabPickerPill(title: "Object Type", systemImage: "square.stack.3d.up",
+                          selection: $viewModel.selectedAdvancedObjectSection,
+                          options: MySQLDatabaseSecurityViewModel.AdvancedObjectSection.allCases, label: \.rawValue)
+        ToolTabPickerPill(title: "Database", systemImage: "cylinder", selection: $viewModel.advancedObjectSchemaFilter,
+                          options: viewModel.availableObjectSchemas, label: { $0 })
+    }
+
     var body: some View {
-        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
-            TabSectionToolbar {
-                HStack(spacing: SpacingTokens.sm) {
-                    Picker("Object Type", selection: $viewModel.selectedAdvancedObjectSection) {
-                        ForEach(MySQLDatabaseSecurityViewModel.AdvancedObjectSection.allCases, id: \.self) {
-                            Text($0.rawValue).tag($0)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 170)
-
-                    Picker("Database", selection: $viewModel.advancedObjectSchemaFilter) {
-                        ForEach(viewModel.availableObjectSchemas, id: \.self) { Text($0).tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 200)
-
-                    if viewModel.isLoadingAdvancedObjects {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-                }
-            } controls: {
-                Button {
-                    draftKind = draftKindForCurrentSection
-                } label: {
-                    Label(newButtonTitle, systemImage: "plus")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
-            .tabSectionToolbarOnCanvas()
-
+        // Its object type and database sit on the header line (37.2), New in the toolbar (37.5).
+        VStack(spacing: SpacingTokens.none) {
             MySQLAdvancedObjectsContent(viewModel: viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .toolTabHeaderControls { headerControls }
+        // Round 37.5: New Function, Procedure, Trigger or Event is the page's special button.
+        .tabToolbar(
+            special: TabToolbarItem(id: "newObject", title: newButtonTitle, symbol: "plus") { draftKind = draftKindForCurrentSection },
+            groups: [[.refresh(isBusy: viewModel.isLoadingAdvancedObjects) { [viewModel] in Task { await viewModel.loadCurrentSection() } }]]
+        )
         .task {
             guard !viewModel.isInitialized else { return }
             await viewModel.initialize()

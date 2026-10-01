@@ -41,23 +41,4 @@ extension ApplicationCacheSettingsView {
         )
     }
 
-    var clipboardEnabledBinding: Binding<Bool> {
-        Binding(
-            get: { clipboardHistory.isEnabled },
-            set: { newValue in
-                if newValue {
-                    clipboardHistory.setEnabled(true)
-                } else {
-                    confirmDisableHistory = true
-                }
-            }
-        )
-    }
-
-    var clipboardStorageLimitBinding: Binding<Int> {
-        Binding(
-            get: { clipboardHistory.storageLimit },
-            set: { clipboardHistory.updateStorageLimit($0) }
-        )
-    }
 }

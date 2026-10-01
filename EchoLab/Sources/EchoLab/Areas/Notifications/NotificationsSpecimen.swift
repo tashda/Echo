@@ -148,7 +148,8 @@ private struct NotificationsSpecimenToast: View {
     var body: some View {
         let parts = toast.message.components(separatedBy: ": ")
         let detail = parts.count > 1 ? parts.dropFirst().joined(separator: ": ") : nil
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+        // As StatusToastRow: the buttons sit 6pt under the text (round 18, conformance).
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.xs) {
                 Image(systemName: toast.icon)
                     .font(TypographyTokens.standard.weight(.semibold))

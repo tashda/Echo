@@ -20,6 +20,7 @@ struct JobDetailsView: View {
     // Schedule editing
     @State var showAddScheduleSheet = false
     @State var selectedScheduleID: Set<String> = []
+    @State var editingSchedule: JobQueueViewModel.ScheduleRow?
 
     enum DetailSection: String, CaseIterable, Identifiable {
         case properties = "Properties"
@@ -38,13 +39,7 @@ struct JobDetailsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Details")
-                    .font(TypographyTokens.prominent.weight(.semibold))
-                Spacer()
-            }
-            .padding(.horizontal, SpacingTokens.md)
-            .padding(.vertical, SpacingTokens.sm)
+            PaneHeader("Details")
 
             if viewModel.properties != nil {
                 TabSectionPicker(
@@ -59,6 +54,7 @@ struct JobDetailsView: View {
                         Text(section.rawValue).tag(section)
                     }
                 }
+                // DT0: the sections stay centred under the header.
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.bottom, SpacingTokens.xs)
 

@@ -24,6 +24,8 @@ struct QueryTabButton: View {
     let onHoverChanged: (Bool) -> Void
     var availableDatabases: [String] = []
     var onSwitchDatabase: ((String) -> Void)?
+    /// A dot of the server's colour after the title (round 30.1, CO2); nil without one.
+    var serverDotColor: Color?
 
     @State var isHovering = false
     @State var isHoveringClose = false
@@ -41,6 +43,7 @@ struct QueryTabButton: View {
 #if os(macOS)
     @Environment(\.colorScheme) var colorScheme
 #endif
+    @Environment(\.echoMotion) var motion
 
     var tabCornerRadius: CGFloat { 15 }
 

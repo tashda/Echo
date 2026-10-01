@@ -32,6 +32,7 @@ extension QueryEditorState {
         prepareSpoolForNewExecution()
         didReceiveStreamingUpdate = false
         executionStartTime = Date()
+        runStartedAt = executionStartTime
         currentExecutionTime = 0
         lastSpoolStatsRowCount = 0
         hasAppliedFinalSpoolStats = false
@@ -55,6 +56,7 @@ extension QueryEditorState {
         executingTask?.cancel(); executingTask = nil
 
         messages.removeAll()
+        messageStatement = lastRunRange.flatMap { QueryMessageStatement.heading(for: sql, range: $0) }
         runNote = nil
         errorMark = nil
         messageLineMapper = nil
@@ -73,7 +75,8 @@ extension QueryEditorState {
         dataClassification = nil
         markResultDataChanged()
 
-        appendMessage(message: "Query execution started", severity: .info, timestamp: executionStartTime ?? Date(), duration: nil)
+        // Round 41.4, EM0: Messages holds what the server said; Echo's own "started", "finished"
+        // and "failed" lines are gone (the footer's status says it).
 
         executionTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -95,9 +98,7 @@ extension QueryEditorState {
         executionTimer?.invalidate(); executionTimer = nil
         streamingMode = .completed
         let endTime = Date()
-        if let startTime = executionStartTime {
-            appendMessage(message: "Query execution finished", severity: .success, timestamp: endTime, duration: endTime.timeIntervalSince(startTime))
-        }
+        recordRun(startedAt: executionStartTime, finishedAt: endTime, outcome: .succeeded)
         executionStartTime = nil
         visibleRowLimit = isResultsOnly ? initialVisibleRowBatch : nil
 
@@ -126,7 +127,11 @@ extension QueryEditorState {
         executionTimer?.invalidate(); executionTimer = nil
         let endTime = Date()
         if let startTime = executionStartTime { lastExecutionTime = endTime.timeIntervalSince(startTime) }
-        appendMessage(message: "Query execution failed", severity: .error, timestamp: endTime, duration: executionStartTime.map { endTime.timeIntervalSince($0) }, metadata: ["error": error])
+        // The error itself, when the server's messages didn't carry it (Echo's own "failed" line is gone, EM0).
+        if !messages.contains(where: { $0.severity == .error }) {
+            appendMessage(message: errorMessage ?? error, severity: .error, category: "Server Response", timestamp: endTime)
+        }
+        recordRun(startedAt: executionStartTime, finishedAt: endTime, outcome: .failed)
         executionStartTime = nil; shouldPersistResults = false
         finalizeSpoolOnCompletion(cancelled: false)
         streamingColumns.removeAll(); streamingRows.removeAll(); results = nil
@@ -171,6 +176,7 @@ extension QueryEditorState {
         let cancelledRows = streamingRows.isEmpty ? (results?.rows.count ?? 0) : streamingRows.count
         appendMessage(message: QueryRunNote.cancelledText(duration: lastExecutionTime, rows: cancelledRows), severity: .warning, timestamp: endTime, duration: executionStartTime.map { endTime.timeIntervalSince($0) })
         runNote = QueryRunNote.cancelled(range: lastRunRange, duration: lastExecutionTime, rows: cancelledRows)
+        recordRun(startedAt: executionStartTime, finishedAt: endTime, outcome: .cancelled)
         executionStartTime = nil; streamingColumns.removeAll(); streamingRows.removeAll()
         if results == nil { visibleRowLimit = nil; materializedHighWaterMark = 0; rowProgress = RowProgress() }
         if isResultsOnly, var preview = dataPreviewState { preview.isFetching = false; dataPreviewState = preview }

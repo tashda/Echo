@@ -25,6 +25,19 @@ struct VisualQueryBuilderView: View {
                 sqlPreview
             }
         }
+        .toolTabHeaderControls { limitField }
+        // Round 37.5: Add Join is the special button; DISTINCT and Add Filter the group.
+        .tabToolbar(
+            special: TabToolbarItem(id: "addJoin", title: "Add Join", symbol: "arrow.triangle.swap",
+                                    isDisabled: viewModel.tables.count < 2) { showAddJoinSheet = true },
+            groups: [[
+                TabToolbarItem(id: "distinct", title: "DISTINCT", symbol: "square.on.square.dashed", isOn: viewModel.distinct, isToggle: true) { [viewModel] in
+                    viewModel.distinct.toggle()
+                },
+                TabToolbarItem(id: "addFilter", title: "Add Filter", symbol: "line.3.horizontal.decrease",
+                               isDisabled: viewModel.tables.isEmpty) { showAddWhereSheet = true },
+            ]]
+        )
         .task {
             await viewModel.loadSchemas()
         }
@@ -132,8 +145,17 @@ struct VisualQueryBuilderView: View {
                 )
             }
 
-            // Toolbar overlay
-            canvasToolbar
+            // Canvas (round 37.4, CA0): the view controls float at the bottom of the drawing.
+            VStack {
+                Spacer()
+                CanvasFloatingBar {
+                    CanvasZoomControls(zoom: canvasZoom, range: 0.4...2.5, onZoom: { canvasZoom = $0 }) {
+                        canvasZoom = 1
+                        canvasOffset = .zero
+                        lastDragOffset = .zero
+                    }
+                }
+            }
         }
         .clipped()
         .gesture(
@@ -171,52 +193,18 @@ struct VisualQueryBuilderView: View {
         }
     }
 
-    private var canvasToolbar: some View {
-        VStack {
-            HStack {
-                Spacer()
-                HStack(spacing: SpacingTokens.xs) {
-                    Button {
-                        showAddJoinSheet = true
-                    } label: {
-                        Label("Add Join", systemImage: "arrow.triangle.swap")
-                            .labelStyle(.titleAndIcon)
-                    }
-                    .controlSize(.small)
-                    .disabled(viewModel.tables.count < 2)
-
-                    Button {
-                        showAddWhereSheet = true
-                    } label: {
-                        Label("Add Filter", systemImage: "line.3.horizontal.decrease")
-                            .labelStyle(.titleAndIcon)
-                    }
-                    .controlSize(.small)
-                    .disabled(viewModel.tables.isEmpty)
-
-                    Toggle("DISTINCT", isOn: $viewModel.distinct)
-                        .toggleStyle(.checkbox)
-                        .controlSize(.small)
-
-                    Divider().frame(height: 16)
-
-                    HStack(spacing: 4) {
-                        Text("LIMIT")
-                            .font(TypographyTokens.compact)
-                        TextField("", value: $viewModel.limit, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 60)
-                    }
-                    .controlSize(.small)
-                }
-                .padding(.horizontal, SpacingTokens.sm)
-                .padding(.vertical, SpacingTokens.xs)
-                .background(.ultraThinMaterial, in: Capsule())
-                .shadow(color: .black.opacity(0.1), radius: 8)
-                .padding(SpacingTokens.sm)
-            }
-            Spacer()
+    /// The limit on the tool's header line (round 37.2); the buttons are in the window toolbar.
+    private var limitField: some View {
+        HStack(spacing: SpacingTokens.xxs2) {
+            Text("Limit").foregroundStyle(ColorTokens.Text.secondary)
+            TextField("Limit", value: $viewModel.limit, format: .number, prompt: Text("None"))
+                .textFieldStyle(.plain)
+                .frame(width: SpacingTokens.xxxl)
         }
+        .font(TypographyTokens.standard)
+        .padding(.horizontal, SpacingTokens.sm)
+        .frame(height: LayoutTokens.ToolTab.controlHeight)
+        .glassEffect(.regular, in: .capsule)
     }
 
     // MARK: - SQL Preview

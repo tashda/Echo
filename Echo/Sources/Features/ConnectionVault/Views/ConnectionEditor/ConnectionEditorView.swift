@@ -55,6 +55,8 @@ struct ConnectionEditorView: View {
     @State internal var connectionTimeout: TimeInterval
     /// The query time limit override in seconds (round 21, TW2): empty uses the Settings default.
     @State internal var queryTimeLimit: TimeInterval?
+    @State internal var confirmUnguardedWrites: Bool?
+    @State internal var keepsQueryHistory = true
     @State internal var colorHex: String
     /// Round 23: several PostgreSQL servers (FH1), which to use (FT1), and load balancing from a
     /// pasted URL (FL1).
@@ -144,6 +146,8 @@ struct ConnectionEditorView: View {
         _allowLegacyTLS = State(initialValue: model.allowLegacyTLS)
         _connectionTimeout = State(initialValue: model.connectionTimeout)
         _queryTimeLimit = State(initialValue: model.queryTimeLimit)
+        _confirmUnguardedWrites = State(initialValue: model.confirmUnguardedWrites)
+        _keepsQueryHistory = State(initialValue: model.keepsQueryHistory)
         _additionalHosts = State(initialValue: model.additionalHosts)
         _targetSessionAttributes = State(initialValue: model.targetSessionAttributes)
         _loadBalanceHosts = State(initialValue: model.loadBalanceHosts)

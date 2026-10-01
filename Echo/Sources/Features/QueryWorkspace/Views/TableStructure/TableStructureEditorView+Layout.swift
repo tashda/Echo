@@ -13,67 +13,32 @@ extension TableStructureEditorView {
         }
     }
     
-    internal var header: some View {
-        CenteredTabSectionToolbar {
-            structureSectionPicker
-        }
-    }
-    
-    private var structureSectionPicker: some View {
-        let sections = TableStructureSection.sections(for: viewModel.databaseType)
-        return TabSectionPicker(
-            "Table Structure Section",
-            selection: $selectedSection,
-            itemCount: sections.count
-        ) {
-            ForEach(sections) { section in
-                Text(section.displayName).tag(section)
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private var sectionAddButton: some View {
+    /// The page's Add as the tab's special button in the window toolbar (round 37.5).
+    internal var sectionAddItem: TabToolbarItem? {
         switch selectedSection {
         case .columns:
-            Button { presentNewColumn() } label: {
-                Label("Add", systemImage: "plus")
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            
+            TabToolbarItem(id: "addColumn", title: "Add Column", symbol: "plus") { presentNewColumn() }
         case .indexes:
-            Button { presentNewIndex() } label: {
-                Label("Add", systemImage: "plus")
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            
+            TabToolbarItem(id: "addIndex", title: "Add Index", symbol: "plus") { presentNewIndex() }
         case .constraints:
-            Menu {
-                if viewModel.primaryKey == nil {
-                    Button("Primary Key") { presentPrimaryKeyEditor(isNew: true) }
-                }
-                Button("Unique Constraint") { presentNewUniqueConstraint() }
-                Button("Check Constraint") { presentNewCheckConstraint() }
-            } label: {
-                Label("Add", systemImage: "plus")
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            
+            TabToolbarItem(id: "addConstraint", title: "Add", symbol: "plus", menu: constraintItems)
         case .relations:
-            Button { presentNewForeignKey() } label: {
-                Label("Add", systemImage: "plus")
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            
+            TabToolbarItem(id: "addForeignKey", title: "Add Foreign Key", symbol: "plus") { presentNewForeignKey() }
         case .partitions, .inheritance:
-            EmptyView()
+            nil
         }
     }
-    
+
+    private var constraintItems: [TabToolbarItem] {
+        var items: [TabToolbarItem] = []
+        if viewModel.primaryKey == nil {
+            items.append(TabToolbarItem(id: "primaryKey", title: "Primary Key", symbol: "key") { presentPrimaryKeyEditor(isNew: true) })
+        }
+        items.append(TabToolbarItem(id: "unique", title: "Unique Constraint", symbol: "checkmark.shield") { presentNewUniqueConstraint() })
+        items.append(TabToolbarItem(id: "check", title: "Check Constraint", symbol: "checkmark.rectangle.stack") { presentNewCheckConstraint() })
+        return items
+    }
+
     internal var content: some View {
         VStack(spacing: 0) {
             if viewModel.isLoading && viewModel.columns.isEmpty {

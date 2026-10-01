@@ -13,6 +13,7 @@ enum ExplorerTreeSpec {
     private static let r19Switching = "ongoing.section-dock-switching-r19"
     private static let r19Capsule = "ongoing.section-dock-capsule-r19"
     private static let r19Sections = "ongoing.section-dock-sections-r19"
+    private static let r30Collapse = "ongoing.server-header-collapse-r30"
 
     static func spec(settings: ExplorerTreeSpecimenSettings) -> AreaSpec {
         AreaSpec(code: "TREE", stageHeight: 400, parts: parts) { ExplorerTreeSpecimen(settings: settings) }
@@ -32,15 +33,16 @@ enum ExplorerTreeSpec {
             ], rounds: ["decided.window-canvas-and-cards"], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeCardsLayer.swift"]),
             SpecElement(number: "1.2", name: "One card per server", summary: "Servers are never merged into one list; a server's card is as tall as its rows.", groups: [
                 .behaviour(.row("Rail", "Clicking a server in the rail jumps to its card; the rail marks the card at the top while you scroll"),
-                           .row("Holding view (N2)", "when a card gets shorter, a spacer under the last card keeps the bottom where it was, so the cards above don't move; it gives the room back as you scroll up and can't be stretched by overscrolling", token: "ExplorerTreeHold.spacerHeight"),
-                           .row("Row slot", "each row sits in a slot exactly its kind's height, sized without asking the row, so scrolling never measures rows again", token: "ExplorerTreeRowSlot")),
+                           .row("Holding view (N2)", "when a card gets shorter, a spacer under the last card keeps the bottom where it was, so the cards above don't move; it gives the room back as you scroll up and can't be stretched by overscrolling. A fold that leaves the tree shorter than the view glides back with it instead (2026-10-02)", token: "ExplorerTreeScrollState.holdHeight"),
+                           .row("Row slot", "each row sits in a slot exactly its kind's height, sized without asking the row, so scrolling never measures rows again", token: "ExplorerTreeRowSlot"),
+                           .row("Placed, not stacked", "rows sit at their exact layout places (no estimated heights), built only near the view: the view and an eighth of a view each side (2026-10-02)", token: "ExplorerTreeCanvasLayout / ExplorerTreeWindow")),
             ], rounds: ["decided.rail-servers", r19Switching], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeLayout.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeRowSlot.swift","Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeScrollState.swift", components + "ObjectBrowserNode+TreeRole.swift"]),
         ]),
         SpecPart(number: "2", name: "Header", summary: "The server's name and version at the top of its card.", elements: [
             SpecElement(number: "2.1", name: "Server name", summary: "Bold, at the top left of the card, sized by the sidebar size.", groups: [
                 .type(.row("Font", "bold; compact 11 · small 10 · medium 13 · large 14pt", token: "serverNameFont / SidebarRowConstants.serverHeaderFont"),
                       .row("Colour", "primary"), .row("Lines", "1")),
-                .layout(.row("Padding", "12pt leading and top", token: "SpacingTokens.sm"), .row("Trailing", "8pt + 6pt")),
+                .layout(.row("Padding", "12pt leading; 12pt top while open, centred in the card while closed (round 30.2)", token: "SpacingTokens.sm / treeCardBottomPadding"), .row("Trailing", "8pt + 6pt")),
                 .states(.row("Connecting or testing", "a mini spinner at the trailing edge")),
             ], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserRowView+Headers.swift"]),
             SpecElement(number: "2.2", name: "Product line", summary: "The product and release under the name, then the dock's current section (round 19).", groups: [
@@ -53,9 +55,41 @@ enum ExplorerTreeSpec {
                 .material(.row("At rest", "nothing behind it"),
                           .row("Once rows scroll under it", "a wash of the card colour: 85% at the top, 45% at 55%, clear at the bottom", token: "ExplorerPinnedHeaderWash"),
                           .row("Rows", "blur and fade as they pass under it", token: "ExplorerRowEdgeBlur")),
-                .motion(.row("Wash in", "ease out, 0.12s")),
+                .motion(.row("Wash in", "follows the scroll: full once rows have passed 12pt under the header (2026-10-02; was ease out 0.12s)", token: "ExplorerPinnedHeaderWash.fadeDistance"),
+                        .row("Pinning", "a visual effect from where the scroll view has the header, so a scrolled frame runs no bodies", token: "ExplorerTreePinnedHeader")),
                 .behaviour(.row("No line and no grey material", "the soft blur is the only edge")),
             ], rounds: ["decided.tree-sticky-header", round16], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerPinnedHeaderWash.swift"]),
+            SpecElement(number: "2.4", name: "Collapse chevron", summary: "At the trailing edge, centred on the name and product line (CP1); › turning down when open (CS0).", groups: [
+                .type(.row("Chevron", "semibold 11pt, tertiary", token: "SidebarRowConstants.sectionChevronFont")),
+                .layout(.row("Place", "trailing, centred on the two lines, open or closed", token: "HStack(alignment: .center)")),
+                .behaviour(.row("Shows", "on hover while open, always while closed (CV0)"), .row("Turns", "90° when open")),
+                .motion(.row("Turn", "ease in-out, 0.22s", token: "echoMotion.expand"), .row("Show and hide", "ease in-out, 0.15s")),
+            ], rounds: [r30Collapse], files: [components + "ObjectBrowserRowView+Headers.swift"]),
+            SpecElement(number: "2.5", name: "Folding the card", summary: "Click the header: the card opens with its dock growing out of the header and its rows under the section switch's veil, and closes by covering the rows, then folding (rounds 30.2 and 46).", groups: [
+                .layout(.row("Closed card", "the header only (CC0): the slot plus 4pt, the name, product line and chevron centred in it")),
+                .motion(.row("Card edge", "ease in-out, 0.22s", token: "echoMotion.expand / ExplorerTreeCardsLayer.foldingCardIDs"),
+                        .row("Dock (DA2)", "grows from 92% and 3pt out of focus to full size, anchored at its top, cut by the moving edge; it never fades, so its glass blurs from the first frame", token: "ExplorerTreeFoldTransition.Style.grow"),
+                        .row("Rows, opening (RA1)", "hidden under an opaque veil in the card's colour that grows with the edge; when the edge settles they show and the veil fades away, ease out 0.22s", token: "ExplorerDockSwitchTiming.fadeIn"),
+                        .row("Rows, closing (CL2)", "the veil fades over them, ease out 0.12s; then they go at once under it and the edge closes as the dock shrinks back", token: "ExplorerDockSwitchTiming.fadeOut"),
+                        .row("Other cards' rows", "when one server's opening closes another, its rows fade and are cut by its edge", token: "ExplorerTreeFoldTransition"),
+                        .row("Header", "glides between its open place (12pt down) and the centre of the closed card")),
+                .behaviour(.row("Two steps", "the cards are marked as folding first, then the server opens or closes, so leaving rows carry the fold", token: "ObjectBrowserSidebarView.foldServerCard"),
+                           .row("The cards below", "move with the edge, on the same curve"),
+                           .row("Animation", "a fold keeps the list's animation: only a section switch turns it off", token: "ObjectBrowserOutlineView.dockSwitchKey")),
+            ], rounds: [r30Collapse, "ongoing.server-card-unfold-r46"], files: [components + "ObjectBrowserSidebarView+Fold.swift", components + "ObjectBrowserOutlineView+Fold.swift",
+                                              "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeFoldTransition.swift"]),
+            SpecElement(number: "2.6", name: "Header colour", summary: "Settings › Appearance › Server Header and Server Header Color (round 30.1): a wash of the server's colour by default.", groups: [
+                .material(.row("Wash (HD4, default)", "the colour at 20% at the card's top edge, fading to clear through the dock (8% grey with None); the whole card when closed", token: "ServerHeaderBackdrop"),
+                          .row("Plain (HD0)", "the name and product line alone"),
+                          .row("Bar (HD12)", "a 3pt rounded bar of the colour in the leading padding, beside the two lines"),
+                          .row("Glass Plate (HD7)", "the name on a glass capsule tinted 28% with the colour"),
+                          .row("Banner (HD16)", "the colour at 95%, 80% halfway, clear by the dock's bottom; white name, product line and chevron; a closed card is all banner")),
+                .layout(.row("Reach", "the header slot and the dock slot while open, the closed card while closed, 0.5pt inside the card's edge, its top corners the card's", token: "ObjectBrowserRowView.serverBackdropHeight")),
+                .behaviour(.row("Colour", "the server's colour by default; the accent, or none, in Settings", token: "ServerHeaderColorSource"),
+                           .row("Server's colour elsewhere", "with the server's colour: the rail's monogram always (WIN-2.3), a dot on its tabs (TABS-2.3) and on the footer's server pill (FTR-2.4)", token: "ServerHeaderPaint.marksServer"),
+                           .row("Setting it", "the header's right-click menu › Color, with the connection sheet's five swatches; it saves the connection's colour and shows at once", token: "ObjectBrowserSidebarView.addServerColorMenu")),
+            ], rounds: ["ongoing.server-header-look-r30"], files: ["Echo/Sources/Features/ObjectBrowser/Domain/ServerHeaderPaint.swift", components + "ServerHeaderBackdrop.swift",
+                                                                    components + "ObjectBrowserRowView+ServerHeader.swift", components + "ObjectBrowserSidebarView+ServerColor.swift"]),
         ]),
         SpecPart(number: "3", name: "Dock", summary: "The section icons under the server's name.", elements: [
             SpecElement(number: "3.1", name: "Capsule", summary: "A Liquid Glass capsule as wide as the card, with a hairline edge and a soft shadow (C5). The only glass in the card.", groups: [
@@ -69,7 +103,7 @@ enum ExplorerTreeSpec {
             ], rounds: [round16, round14, r19Capsule], files: [components + "ExplorerDockRow.swift"]),
             SpecElement(number: "3.2", name: "Current section icon", summary: "The section shown, in the accent colour. It has no fill.", groups: [
                 .type(.row("Symbol", "medium weight; 14pt at the default size (compact 11, small 10, large: display medium)", token: "ExplorerDockRow.iconFont")),
-                .states(.row("Colour", "accent", token: "ColorTokens.accent"), .row("Fill", "none")),
+                .states(.row("Colour", "the header's colour by default (Settings › Appearance › Current Dock Icon: Header's Color, round 30.1, DK1); the accent with Accent Color or when the header has no colour", token: "ServerHeaderPaint.dockColor"), .row("Fill", "none")),
                 .layout(.row("Slot", "equal share of the capsule, as tall as the capsule"), .row("Hit area", "the whole slot")),
             ], rounds: [round16], files: [components + "ExplorerDockRow.swift"]),
             SpecElement(number: "3.3", name: "Other section icons", summary: "Grey by default; duotone in the tree's colours is a setting (Dock icons).", groups: [
@@ -167,21 +201,41 @@ enum ExplorerTreeSpec {
             SpecElement(number: "4.10", name: "Context menu", summary: "Right-click a row.", groups: [
                 .behaviour(.row("Items", "for that node kind, from the database type's blueprint"),
                            .row("Reveal in the tree", "smooth scroll, 0.40s", token: "echoMotion.reveal")),
-            ], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarView+ContextMenus.swift"]),
+                .behaviour(.row("Order (round 42.1)", "one in every menu: open and create | Copy Name, Script as, Tasks, Open Tool | Refresh and connection | Drop | Properties last"),
+                           .row("Icons", "only New, Copy, Refresh, Properties and Drop carry one; ExplorerMenuRules strips the rest"),
+                           .row("Hidden, not dimmed", "a command that doesn't apply is left out"), .row("Title", "none")),
+                .behaviour(.row("Server (42.5)", "New Query, Activity Monitor, Open Tool ▸ (Maintenance, Extended Events, Database Mail, Availability Groups, CMS) | Copy Name, Color | Refresh, Hide Offline Databases, Edit Connection, Disconnect | Properties")),
+                .behaviour(.row("Database (42.3)", "New Query, Query Builder | Back Up, Restore, Copy Name, Tasks ▸, Open Tool ▸ (Maintenance, Security Overview, the advanced objects) | Refresh | Drop | Properties")),
+                .behaviour(.row("Table and view (42.4)", "Open Data, Edit Structure, Diagram, New Query | Copy Name, Script as, Tasks ▸ (…, Truncate Table) | Refresh | Drop | Properties; a view has the same shape without what doesn't apply")),
+                .behaviour(.row("Column (42.2)", "Open Data Sorted by This Column, Insert in Query | Copy Name, Copy Qualified Name | Rename | Drop Column | Properties (opens Edit Structure)"),
+                           .row("Insert in Query", "puts the quoted name at the caret of the query tab on screen (a new tab if none); dragging the column into the editor does the same"),
+                           .row("Rename", "the name becomes a field; Return opens the ALTER (sp_rename on SQL Server) in a query tab to read and run; Escape cancels"),
+                           .row("Execute a routine (42.2)", "a new tab with EXEC and one line per parameter")),
+                .behaviour(.row("Folder (42.6)", "what you can create there first | Filter Tables (an inline field at the top of the folder narrows it as you type; Escape or × removes it) | Refresh last")),
+                .behaviour(.row("Empty space (42.6)", "New Connection, Refresh All Servers, Show Empty Folders (the rarer object folders show even when empty; kept between launches)"),
+                           .row("Double-click", "a table or view opens its data (Open Data, the first item in its menu)"),
+                           .row("Object menu", "the menu bar's Object menu is the selected row's context menu, built by the same code"),
+                           .row("check:", "a database has no Diagram yet (Echo only draws a table's); Advanced Objects are four flat items in Open Tool")),
+            ], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarView+ContextMenus.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ExplorerMenuRules.swift"]),
         ]),
         SpecPart(number: "6", name: "Row kinds and loading", summary: "The other rows a card holds, and how a loading section looks.", elements: [
             SpecElement(number: "6.1", name: "Database row", summary: "A cylinder, the name, and its state.", groups: [
                 .behaviour(.row("Offline or no access", "the row is at 50%; the state (OFFLINE and so on) or NO ACCESS shows in 9pt uppercase quaternary at the right"),
                            .row("No access", "the label is secondary"), .row("Loading", "a mini spinner at the right")),
             ], files: [components + "ObjectBrowserRowView+Components.swift"]),
-            SpecElement(number: "6.2", name: "Empty object folder", summary: "Kept, because its menu creates objects, but it steps back.", groups: [
-                .states(.row("Icon", "quaternary"), .row("Label", "tertiary"), .row("Count and chevron", "none")),
-            ], files: [components + "ObjectBrowserRowView+Components.swift"]),
+            SpecElement(number: "6.2", name: "Empty object folder", summary: "Tables, Views, Functions and Procedures always show, empty or not (EF1, round 30.3); the rarer folders only when they have something. An empty one steps back (EL1).", groups: [
+                .states(.row("Icon", "quaternary"), .row("Label", "tertiary"), .row("Count", "none")),
+                .behaviour(.row("Always shown", "Tables, Views, Functions, Procedures", token: "ExplorerBlueprintWalker.alwaysShownObjectTypes"),
+                           .row("Opening it", "it opens like any folder, to a grey “No views” row (OE0)", token: "ExplorerBlueprintWalker.emptyFolderRow"),
+                           .row("Setting", "none: Show Empty Folders was removed (ST1)")),
+            ], rounds: ["ongoing.empty-folders-r30"], files: [components + "ObjectBrowserRowView+Components.swift", "Echo/Sources/Features/ObjectBrowser/Blueprint/ExplorerBlueprintWalker.swift"]),
             SpecElement(number: "6.3", name: "Item and tool rows", summary: "A loaded item, or a tool the folder offers.", groups: [
                 .material(.row("Item icon", "secondary; quaternary when disabled"), .row("Item label", "primary; secondary when disabled"),
                           .row("Tool icon", "its role colour, like a folder's")),
                 .type(.row("Detail", "11pt tertiary at the right, when the item has one")),
-            ], files: [components + "ObjectBrowserRowView+Components.swift"]),
+                .behaviour(.row("Opens elsewhere", "a tool row (it opens a tab, a window or a sheet) ends in arrow.up.right, 11pt tertiary, always shown (round 38: OT1 without its square, MS0, SH0)"),
+                           .row("Security Overview", "the first row of every SQL Server Security, the server's and each database's; it opens that Security tab (SN1, DB0)", token: "ExplorerNodeKind.securityOverview")),
+            ], rounds: ["ongoing.tree-tool-rows-r38"], files: [components + "ObjectBrowserRowView+Components.swift", "Echo/Sources/Features/ObjectBrowser/Blueprint/ExplorerBlueprint+SQLServer.swift"]),
             SpecElement(number: "6.4", name: "Column rows", summary: "Under a table.", groups: [
                 .material(.row("Primary key", "a filled key in orange"), .row("Foreign key", "an arrow.turn.down.right in the info colour", token: "ColorTokens.Status.info"),
                           .row("Other columns", "no icon")),

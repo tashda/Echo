@@ -16,11 +16,17 @@ public enum ColorTokens {
     /// The canvas-and-cards window (Design/02-layout.md, 06-tokens.md).
     public enum Workspace {
         /// The window canvas behind the rail, tree, tab strip and cards.
-        public static let canvas = Color(nsColor: .windowBackgroundColor)
+        /// Dark: about 24 out of 255, just under the cards (round 32, DC6); light is the window background.
+        public static let canvas = Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.095, alpha: 1) : .windowBackgroundColor
+        })
         /// Fill of the editor and results cards.
         public static let card = Color(nsColor: .textBackgroundColor)
         /// The separator edge around a card, at `LayoutTokens.Workspace.cardEdgeOpacity`.
-        public static let cardEdge = Color(nsColor: .separatorColor)
+        /// Dark: white that comes out as a 7% hairline at that opacity (round 32, DE5); light is the separator colour.
+        public static let cardEdge = Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 1, alpha: 0.2) : .separatorColor
+        })
         /// A grouped box or a compact card inside a workspace card (the inspector's sections, the
         /// notification history's cards). The system's fill for group boxes, so it shows on a white
         /// card in light mode and adapts to dark and Increase Contrast.

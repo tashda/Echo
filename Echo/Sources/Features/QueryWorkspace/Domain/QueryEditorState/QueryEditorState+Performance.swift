@@ -10,8 +10,9 @@ extension QueryEditorState {
         )
         lastPerformanceReport = report
         livePerformanceReport = report
+        // Round 41.4, DM1: the metrics are in the time pill's popover, not in Messages.
         if !alreadyReported {
-            appendPerformanceMessage(report: report)
+            logPerformance(report: report)
         }
     }
 
@@ -22,7 +23,7 @@ extension QueryEditorState {
         )
     }
 
-    private func appendPerformanceMessage(report: QueryPerformanceTracker.Report) {
+    private func logPerformance(report: QueryPerformanceTracker.Report) {
         var segments: [String] = []
 
         if let dispatch = report.timings.startToDispatch {
@@ -82,84 +83,6 @@ extension QueryEditorState {
             consoleSegments.append("wait \(EchoFormatters.duration(backend.networkWaitDuration))")
         }
         print("[QueryPerformance] \(consoleSegments.joined(separator: ", "))")
-
-        var metadata: [String: String] = [
-            "rows": "\(report.totalRows)",
-            "batchCount": "\(report.batchCount)",
-            "largestBatchSize": "\(report.largestBatchSize)",
-            "initialBatchTarget": "\(report.initialBatchTarget)",
-            "cancelled": report.cancelled ? "true" : "false",
-            "timelineSamples": "\(report.timeline.count)"
-        ]
-        if let firstBatch = report.firstBatchSize {
-            metadata["firstBatchSize"] = "\(firstBatch)"
-        }
-        if let memory = report.estimatedMemoryBytes {
-            metadata["estimatedMemoryBytes"] = "\(memory)"
-            metadata["estimatedMemoryDisplay"] = EchoFormatters.bytes(memory)
-        }
-
-        if let cpuUser = report.cpuUserSeconds {
-            metadata["cpuUserSeconds"] = String(format: "%.6f", cpuUser)
-        }
-        if let cpuSystem = report.cpuSystemSeconds {
-            metadata["cpuSystemSeconds"] = String(format: "%.6f", cpuSystem)
-        }
-        if let cpuTotal = report.cpuTotalSeconds {
-            metadata["cpuTotalSeconds"] = String(format: "%.6f", cpuTotal)
-        }
-        if let resident = report.residentMemoryBytes {
-            metadata["residentMemoryBytes"] = "\(resident)"
-            metadata["residentMemoryDisplay"] = EchoFormatters.bytes(resident)
-        }
-        if let residentDelta = report.residentMemoryDeltaBytes {
-            metadata["residentMemoryDeltaBytes"] = "\(residentDelta)"
-            metadata["residentMemoryDeltaDisplay"] = formattedSignedBytes(residentDelta)
-        }
-        if let maxResident = report.maxResidentMemoryBytes {
-            metadata["maxResidentMemoryBytes"] = "\(maxResident)"
-            metadata["maxResidentMemoryDisplay"] = EchoFormatters.bytes(maxResident)
-        }
-        if let virtual = report.virtualMemoryBytes {
-            metadata["virtualMemoryBytes"] = "\(virtual)"
-            metadata["virtualMemoryDisplay"] = EchoFormatters.bytes(virtual)
-        }
-        if let value = millisecondsString(report.timings.startToDispatch) {
-            metadata["startToDispatchMs"] = value
-        }
-        if let value = millisecondsString(report.timings.dispatchToFirstUpdate) {
-            metadata["dispatchToFirstUpdateMs"] = value
-        }
-        if let value = millisecondsString(report.timings.startToFirstUpdate) {
-            metadata["startToFirstUpdateMs"] = value
-        }
-        if let value = millisecondsString(report.timings.startToInitialBatch) {
-            metadata["startToInitialBatchMs"] = value
-        }
-        if let value = millisecondsString(report.timings.startToVisibleInitialLimit) {
-            metadata["startToVisibleInitialLimitMs"] = value
-        }
-        if let value = millisecondsString(report.timings.startToResultSet) {
-            metadata["startToResultSetMs"] = value
-        }
-        if let value = millisecondsString(report.timings.startToFinish) {
-            metadata["startToFinishMs"] = value
-        }
-        if let value = millisecondsString(report.timings.resultSetToFinish) {
-            metadata["resultSetToFinishMs"] = value
-        }
-
-        appendMessage(
-            message: "Execution metrics: \(segments.joined(separator: ", "))",
-            severity: .debug,
-            category: "Performance",
-            metadata: metadata
-        )
-    }
-
-    private func millisecondsString(_ value: TimeInterval?) -> String? {
-        guard let value else { return nil }
-        return String(format: "%.2f", value * 1_000)
     }
 
     private func formattedSignedBytes(_ bytes: Int) -> String {

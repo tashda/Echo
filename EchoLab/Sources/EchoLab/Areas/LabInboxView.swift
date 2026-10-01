@@ -34,7 +34,21 @@ struct LabInboxView: View {
 
     @AppStorage("lab.inbox.filter") private var filter: Filter = .all
     @AppStorage("lab.inbox.selected") private var selectedID: String?
+    /// Group titles the owner folded, comma-separated.
+    @AppStorage("lab.inbox.collapsed") private var collapsedText = ""
+    @State private var selection: Set<String> = []
+    @State private var rejecting: [LabPage] = []
     @State private var search = ""
+
+    private var collapsed: Set<String> { Set(collapsedText.split(separator: ",").map(String.init)) }
+
+    private func toggle(_ turn: Group) {
+        var now = collapsed
+        if now.contains(turn.rawValue) { now.remove(turn.rawValue) } else { now.insert(turn.rawValue) }
+        collapsedText = now.sorted().joined(separator: ",")
+    }
+
+    private func pages(_ ids: Set<String>) -> [LabPage] { items.filter { ids.contains($0.id) } }
 
 
     private var items: [LabPage] {
@@ -84,27 +98,52 @@ struct LabInboxView: View {
     }
 
     private var list: some View {
-        List(selection: $selectedID) {
+        List(selection: $selection) {
             ForEach(Group.allCases) { turn in
                 let group = items.filter { store.status(of: $0).map(turn.includes) ?? false }
                 if !group.isEmpty {
                     Section {
+                        if !collapsed.contains(turn.rawValue) || search.isEmpty == false {
                         ForEach(group) { page in
                             row(page, status: store.status(of: page) ?? .judging).tag(page.id)
                                 .contentShape(Rectangle())
                                 .onTapGesture(count: 2) { navigator.openPage(page.id) }
                         }
-                    } header: {
-                        HStack(spacing: 6) {
-                            Text(turn.rawValue).fontWeight(.semibold)
-                            Text("\(group.count)").foregroundStyle(ColorTokens.Text.tertiary)
                         }
-                        .font(TypographyTokens.detail)
+                    } header: {
+                        Button { withAnimation(.snappy(duration: 0.2)) { toggle(turn) } } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold))
+                                    .rotationEffect(.degrees(collapsed.contains(turn.rawValue) ? 0 : 90))
+                                Text(turn.rawValue).fontWeight(.semibold)
+                                Text("\(group.count)").foregroundStyle(ColorTokens.Text.tertiary)
+                                Spacer()
+                            }
+                            .font(TypographyTokens.detail).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(collapsed.contains(turn.rawValue) ? "Show \(turn.rawValue)" : "Hide \(turn.rawValue)")
                     }
                 }
             }
         }
         .listStyle(.inset)
+        .contextMenu(forSelectionType: String.self) { ids in
+            let picked = pages(ids).filter { store.status(of: $0) == .inEcho }
+            if picked.isEmpty {
+                Text("Nothing here is waiting to be checked in Echo")
+            } else {
+                Button(picked.count == 1 ? "Accept" : "Accept \(picked.count) Items", systemImage: "checkmark") {
+                    picked.forEach(store.confirm)
+                }
+                Button(picked.count == 1 ? "Reject" : "Reject \(picked.count) Items", systemImage: "arrow.uturn.backward") {
+                    rejecting = picked
+                }
+            }
+        }
+        .sheet(isPresented: Binding(get: { !rejecting.isEmpty }, set: { if !$0 { rejecting = [] } })) {
+            LabRejectSheet(pages: rejecting)
+        }
         .overlay {
             if items.isEmpty {
                 ContentUnavailableView(search.isEmpty ? "All caught up" : "No matches",
@@ -112,7 +151,11 @@ struct LabInboxView: View {
                                        description: Text(search.isEmpty ? "Nothing is waiting for you or the agent." : "Try a different search."))
             }
         }
-        .onAppear { if selectedID == nil || !items.contains(where: { $0.id == selectedID }) { selectedID = items.first?.id } }
+        .onAppear {
+            if let selectedID, items.contains(where: { $0.id == selectedID }) { selection = [selectedID] }
+            else if let first = items.first?.id { selection = [first] }
+        }
+        .onChange(of: selection) { _, new in if new.count == 1 { selectedID = new.first } }
     }
 
     private func row(_ page: LabPage, status: LabStatus) -> some View {
@@ -126,7 +169,8 @@ struct LabInboxView: View {
                 }
                 HStack(spacing: 5) {
                     Text(areaTitle(page)).font(TypographyTokens.detail).foregroundStyle(.secondary)
-                    LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
+                    if FastRoundStore.shared.round(forPage: page.id) != nil { LabTag(text: "Fast", symbol: "bolt") }
+                    else { LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath") }
                     LabClaimTag(page: page)
                     if store.revision(of: page) > store.reviewedRevision(of: page) {
                         Text("New since rev \(store.reviewedRevision(of: page))")
@@ -143,8 +187,10 @@ struct LabInboxView: View {
 
     @ViewBuilder
     private var reading: some View {
-        if let id = selectedID, let page = items.first(where: { $0.id == id }) ?? LabRegistry.page(id: id) {
-            LabMailPageDetail(page: page)
+        if selection.count > 1 {
+            LabInboxBulkPane(pages: pages(selection))
+        } else if let id = selection.first ?? selectedID, let page = items.first(where: { $0.id == id }) ?? LabRegistry.page(id: id) {
+            LabMailPageDetail(page: page).id(page.id)
         } else {
             LabMailEmpty(title: "Select an item", symbol: "tray")
         }
@@ -175,28 +221,37 @@ struct LabMailPageDetail: View {
 
     var body: some View {
         let info = LabRounds.info(forPage: page.id)
+        let fast = FastRoundStore.shared.round(forPage: page.id)
         let areaTitle = LabAreas.area(id: LabAreas.areaID(ofPage: page.id))?.title
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.md) {
                 VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                    Text([info?.date, areaTitle].compactMap { $0 }.joined(separator: " · "))
+                    Text([info?.date ?? fast?.date, areaTitle].compactMap { $0 }.joined(separator: " · "))
                         .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                     LabRoundTitle(text: page.title, pageID: page.id, font: .system(size: 26, weight: .bold), badgeSize: 16)
                     HStack(spacing: 6) {
                         if let status = store.status(of: page) { LabStatusChip(status: status) }
-                        LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
+                        if fast != nil { LabTag(text: "Fast round", symbol: "bolt") }
+                        else { LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath") }
                         if let areaTitle { LabTag(text: areaTitle, symbol: "square.grid.2x2") }
                     }
                     HStack(spacing: SpacingTokens.xs) {
-                        Button { navigator.openPage(page.id) } label: { Label("Open", systemImage: "arrow.up.right.square") }
-                            .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true))
+                        if fast == nil {
+                            Button { navigator.openPage(page.id) } label: { Label("Open", systemImage: "arrow.up.right.square") }
+                                .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true))
+                        }
                         LabAgentHandoffButton(page: page).buttonStyle(LabPillButtonStyle())
                         LabClaimTag(page: page)
                     }
                     .padding(.top, 4)
                 }
+                if store.status(of: page) == .inEcho { LabInboxCheckCard(page: page) }
+                if fast != nil {
+                    if store.status(of: page) == .judging { FastRoundDecisionCard(page: page) }
+                    FastRoundBody(pageID: page.id)
+                }
                 sinceReview
-                if !page.summary.isEmpty {
+                if fast == nil, !page.summary.isEmpty {
                     LabReadingCard(title: "What it's about", symbol: "text.alignleft") {
                         Text(page.summary).font(TypographyTokens.prominent).fixedSize(horizontal: false, vertical: true)
                     }

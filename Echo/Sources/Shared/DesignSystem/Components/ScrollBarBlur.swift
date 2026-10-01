@@ -1,14 +1,11 @@
 import AppKit
 import ObjectiveC
 
-/// The blur behind every horizontal scroll bar in Echo (owner, after round 27): while the bar
-/// shows, the content under it softens, the blur rising past the thumb (U5), and it settles a
-/// moment after the bar fades. Under a footer (the results grid, the editor) it also rests at the
-/// footer's height (round 9, FB1), and the bar can run as wide as the footer (L2).
-///
-/// Nothing has to ask for it: `ScrollBarBlurHook` attaches one to every scroll view that lays out
-/// an overlay horizontal bar, SwiftUI's tables included. `FooterScrollOverlay` sets the footer's
-/// room and the bar's span on the one it uses.
+/// The horizontal bar of the results grid and the editor (`FooterScrollOverlay` attaches it): the
+/// bar runs as wide as the footer (round 27, L2), and without a footer a blur rises past it while it
+/// shows (U5). Under a footer the footer's material softens the rows instead (round 44,
+/// `FooterMaterialBlur`). No other scroll view in Echo gets it: the owner took back the blur behind
+/// every bar after round 44.
 @MainActor
 final class ScrollBarBlur {
     private weak var scrollView: NSScrollView?
@@ -54,13 +51,11 @@ final class ScrollBarBlur {
     }
 
     /// Called after every scroll view lays out its bars (`ScrollBarBlurHook`).
+    /// Only scroll views that asked for it (the results grid and the editor, through
+    /// `FooterScrollOverlay`): the owner took back the blur behind every other bar in Echo (after
+    /// round 44; it looked wrong in tool tabs such as Agent Jobs).
     static func scrollViewDidTile(_ scrollView: NSScrollView) {
-        if let attached = existing(for: scrollView) {
-            attached.didTile()
-        } else if scrollView.hasHorizontalScroller, scrollView.scrollerStyle == .overlay,
-                  scrollView.window != nil, scrollView.documentView != nil {
-            attachment(for: scrollView).didTile()
-        }
+        existing(for: scrollView)?.didTile()
     }
 
     // MARK: - Layout
@@ -79,12 +74,17 @@ final class ScrollBarBlur {
         if frame != bar.frame { bar.frame = frame }
     }
 
-    /// The blur's heights above the visible bottom: resting under a footer, raised past the
-    /// bar's widest thumb.
+    /// The blur's heights above the visible bottom, raised past the bar's widest thumb. Under a
+    /// footer there is none: the footer's material softens the rows and reaches past the bar
+    /// (round 44, `FooterMaterialBlur`).
     private func refresh() {
         guard let scrollView else { return }
+        guard footerRoom == 0 else {
+            blur.update(edge: .bottom, height: 0, radii: [])
+            return
+        }
         let fade = LayoutTokens.EdgeBlur.fade
-        let rest = footerRoom > 0 ? footerRoom + fade : 0
+        let rest: CGFloat = 0
         var raised = rest
         if let thumbBottom = Self.thumbBottom(in: scrollView) {
             raised = max(rest, thumbBottom + LayoutTokens.Footer.overlayThumbMaxHeight + fade)
@@ -125,8 +125,8 @@ final class ScrollBarBlur {
     }
 }
 
-/// Puts a `ScrollBarBlur` behind every horizontal scroll bar in the app, by running it after
-/// every `NSScrollView.tile()`, the point where AppKit lays out its bars. Installed once at launch.
+/// Runs an attached `ScrollBarBlur` after every `NSScrollView.tile()`, the point where AppKit lays
+/// out its bars, so the bar can be stretched and its blur placed. Installed once at launch.
 @MainActor
 enum ScrollBarBlurHook {
     private static var isInstalled = false

@@ -1,12 +1,5 @@
 import SwiftUI
 
-extension EnvironmentValues {
-    /// How tall the footer floating over the bottom of a card is, so the content under it
-    /// (the results grid, the editor, a message list) can scroll clear of it and blur beneath it
-    /// (round 9, FB1).
-    @Entry var cardFooterOverlayHeight: CGFloat = 0
-}
-
 /// A tab's content card with its panel card below, one gutter apart on the canvas: the query
 /// tab's editor and results (Design/02-layout.md, 05-components.md › Editor card), and every tool
 /// tab's content and bottom panel (TT1).
@@ -27,6 +20,9 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
     var isPanelOnly = false
     var minContentFraction: CGFloat = 0.25
     var maxContentFraction: CGFloat = 0.8
+    /// The query tab's cards: the rows under the footer soften into the system's material (round
+    /// 44). Other tabs keep the light tint, as the owner asked after round 44.
+    var softensUnderFooter = false
     @ViewBuilder let content: () -> Content
     @ViewBuilder let panel: () -> Panel
     @ViewBuilder let footer: () -> Footer
@@ -71,7 +67,7 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
                 // Laid out at the size it starts or ends at; the clip does the moving.
                 let contentLayoutHeight = showsPanel && !isAnimating ? split : closed
                 ZStack(alignment: .top) {
-                    contentCard(visibleHeight: closed + (split - closed) * progress)
+                    contentCard(visibleHeight: closed + (split - closed) * progress, layoutHeight: contentLayoutHeight)
                         .frame(height: contentLayoutHeight, alignment: .top)
                     if hasMountedPanel {
                         VStack(spacing: SpacingTokens.none) {
@@ -173,11 +169,13 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
 
     private var footerInContentCard: Bool { !showsPanel && !contentHasCards }
 
-    private func contentCard(visibleHeight: CGFloat) -> some View {
+    private func contentCard(visibleHeight: CGFloat, layoutHeight: CGFloat) -> some View {
         ZStack(alignment: .bottom) {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .environment(\.cardFooterOverlayHeight, footerInContentCard ? footerZone : 0)
+                .environment(\.cardHiddenBottom, max(layoutHeight - visibleHeight, 0))
+                .environment(\.cardFooterRestsInCard, !contentHasCards && (!showsPanel || openProgress == 0))
                 .onPreferenceChange(ContainsWorkspaceCardKey.self) { contentHasCards = $0 }
             if footerInContentCard {
                 footerOverlay
@@ -220,16 +218,24 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
         .workspaceCard()
     }
 
-    /// A light card tint towards the bottom keeps the footer readable over the blur.
+    /// In a query tab the rows under the footer soften into the system's material (round 44);
+    /// elsewhere a light card tint towards the bottom keeps the footer readable.
     private var footerOverlay: some View {
         footer()
             .padding(.bottom, LayoutTokens.Footer.bottomLift)
             .background(alignment: .bottom) {
-                ColorTokens.Workspace.card
-                    .opacity(LayoutTokens.EdgeBlur.tintOpacity)
-                    .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom))
-                    .frame(height: footerZone + LayoutTokens.EdgeBlur.fade)
-                    .allowsHitTesting(false)
+                if softensUnderFooter {
+                    FooterMaterialBlur()
+                } else {
+                    ColorTokens.Workspace.card
+                        .opacity(LayoutTokens.EdgeBlur.tintOpacity)
+                        // An S curve, so the tint has no edge where it starts.
+                        .mask(LinearGradient(stops: BackdropEdgeBlurLayerView.fadeAlphas.reversed().enumerated().map { index, alpha in
+                            .init(color: .black.opacity(Double(alpha)), location: CGFloat(index) / CGFloat(BackdropEdgeBlurLayerView.fadeAlphas.count - 1))
+                        }, startPoint: .top, endPoint: .bottom))
+                        .frame(height: footerZone + LayoutTokens.EdgeBlur.fade)
+                        .allowsHitTesting(false)
+                }
             }
     }
 

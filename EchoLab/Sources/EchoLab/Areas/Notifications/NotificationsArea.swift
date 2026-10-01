@@ -13,8 +13,8 @@ enum NotificationsArea {
         summary: "Toasts stack at the top right of the tab's first card. The bell opens the history in the inspector's column.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "d4659ef6", date: "2026-09-30",
-                note: "Read from StatusToastRow, StatusToastStack, StatusToastPresenter, ToastOverlay, NotificationHistoryPanel and Card, NotificationBellToolbarButton, NotificationEngine, NotificationEvent, NotificationHistory, AppState and the Toast and Inspector tokens as of round 18. The specimen copies them."),
+                level: .code, commit: "ec188205", date: "2026-10-01",
+                note: "Read from StatusToastRow, StatusToastStack, StatusToastPresenter, ToastOverlay, NotificationHistoryPanel and Card, NotificationBellToolbarButton, NotificationEngine (+LongQuery), NotificationEvent, NotificationHistory, NotificationRecord, OperationFinishNotifier, AppState and the Toast and Inspector tokens. 2026-10-01: checked the commits since d4659ef6 (toast buttons 6pt under the text, the long-query banner, notification actions, round 34's bell spinner and finish notices). The specimen copies them."),
             stageHeight: 560,
             behaviours: [
                 .init(trigger: "An event happens", result: "A toast appears in the top-right corner of the tab's first card (inside the editor card on a query tab), below the tab bar and left of the inspector."),
@@ -25,6 +25,10 @@ enum NotificationsArea {
                 .init(trigger: "Other toasts", result: "They go after 3 seconds; 5 for connection failures, database switch failures and job errors. A hovered toast waits until the pointer leaves."),
                 .init(trigger: "Delivery setting", result: "Each category can be off, and delivery is an in-app toast, a native macOS notification, or both. History records the event either way."),
                 .init(trigger: "Click the bell", result: "The history takes the inspector's column; the badge clears. Click again to put it away."),
+                .init(trigger: "A long query ends while Echo isn't in front", result: "30 s or more: a macOS banner, \"Query 1 finished in 1:12\" or \"… failed after 1:12\", whatever the delivery setting (round 20)."),
+                .init(trigger: "A long operation ends", result: "Its own notification says so. One of 5 s or more that posted nothing gets \"Backup shop finished in 1:12\" or \"Backup shop failed: reason\" (round 34)."),
+                .init(trigger: "A notification with an action", result: "Its toast and history card add Reconnect or Go to Error while it still applies."),
+                .init(trigger: "A long operation runs", result: "After a second a small spinner sits on the bell and its tooltip names the operation; query runs show only on Run (round 34)."),
                 .init(trigger: "Click the inspector button", result: "From the history it switches the column to the details."),
                 .init(trigger: "The history", result: "Compact cards grouped Today, Yesterday, then by date: an icon, the message's first part and the time on one line. What was new when the bell opened is bold and counted beside the title."),
                 .init(trigger: "Click a card", result: "It fades open to the server, the rest of the message (selectable) and small Open Tab or Show Server and Copy buttons."),

@@ -8,28 +8,59 @@ import SwiftUI
         let statements: [String]
     }
 
+    /// Where the welcome is in leaving when a server connects (round 48, LV2 and CO1): the pills
+    /// echo out first, then the server grows into the rail, then the tree slides out.
+    enum WelcomeDeparture: Equatable {
+        case idle
+        /// The pills are leaving; the rail, the tree and the server page wait.
+        case leaving
+        /// The rail shows the server; the tree and the page follow.
+        case railIn
+    }
+
     // MARK: - UI State
+    var welcomeDeparture: WelcomeDeparture = .idle
     var isLoading = false
     var currentError: DatabaseError?
     var showingError = false
     var activeSheet: ActiveSheet?
     var structureScriptData: StructureScriptPreviewData?
-    var showTabOverview = false
     /// The notification history, in the inspector's column (plan N3, round 15 option B). While
     /// it shows, the column shows it instead of the details.
     var isNotificationHistoryVisible = false
+    /// Round 39: saved SQL lives beside the tab, independently of the Explorer tree.
+    var workspaceLibrary: WorkspaceLibrarySection?
     /// The ⌘K palette (plan K4).
-    var isCommandPaletteVisible = false
+    var isCommandPaletteVisible = false {
+        didSet {
+            if !isCommandPaletteVisible { commandPaletteScope = .everything }
+        }
+    }
+    /// What the palette lists: everything, or this window's tabs (the tab overview, round 35.1).
+    var commandPaletteScope: CommandPaletteScope = .everything
+
+    /// The tab overview is the palette showing this window's tabs (round 35.1, TO6).
+    var isTabOverviewVisible: Bool { isCommandPaletteVisible && commandPaletteScope == .tabs }
+
+    /// ⇧⌘O, the toolbar button and a pinch: opens the palette on the tabs, or closes it.
+    func toggleTabOverview() {
+        if isTabOverviewVisible {
+            isCommandPaletteVisible = false
+        } else {
+            commandPaletteScope = .tabs
+            isCommandPaletteVisible = true
+        }
+    }
     /// The inspector's details. Showing them puts the notification history away, so any request
     /// for details (a double-click, JSON, a cell) lands on the details.
     var showInfoSidebar = false {
         didSet {
-            if showInfoSidebar && !oldValue { isNotificationHistoryVisible = false }
+            if showInfoSidebar { isNotificationHistoryVisible = false; workspaceLibrary = nil }
         }
     }
 
     /// Whether the trailing column is out, for the details or the history.
-    var isInspectorColumnVisible: Bool { showInfoSidebar || isNotificationHistoryVisible }
+    var isInspectorColumnVisible: Bool { showInfoSidebar || isNotificationHistoryVisible || workspaceLibrary != nil }
 
     /// The bell: shows the history in the column, or, if it is showing, closes the column. The
     /// column holds one thing at a time, so closing it never falls back to the details.
@@ -44,14 +75,16 @@ import SwiftUI
     /// Shows the history in the column in place of the details.
     func showNotificationHistory() {
         showInfoSidebar = false
+        workspaceLibrary = nil
         isNotificationHistoryVisible = true
     }
 
     /// The inspector button and ⌥⌘I: from the history they switch to the details, otherwise they
     /// show or hide the column.
     func toggleInspector() {
-        if isNotificationHistoryVisible {
+        if isNotificationHistoryVisible || workspaceLibrary != nil {
             isNotificationHistoryVisible = false
+            workspaceLibrary = nil
             showInfoSidebar = true
         } else {
             showInfoSidebar.toggle()
@@ -59,8 +92,6 @@ import SwiftUI
     }
     /// Whether the Explorer tree shows beside the rail (⌃⌘S). The rail always shows.
     var isWorkspaceTreeVisible = true
-    /// The server whose tree is peeking out over the cards while the tree is hidden.
-    var peekedServerID: UUID?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
 
     // MARK: - Query State
@@ -76,7 +107,11 @@ import SwiftUI
 
     @ObservationIgnored private var errorDismissTask: Task<Void, Never>?
 
-    init() {
+    @ObservationIgnored var historySaveTask: Task<Void, Never>?
+    @ObservationIgnored let historyDefaults: UserDefaults
+
+    init(historyDefaults: UserDefaults = .standard) {
+        self.historyDefaults = historyDefaults
         loadQueryHistory()
     }
 
@@ -106,32 +141,6 @@ import SwiftUI
         isLoading = false
     }
 
-    // MARK: - Query Management
-
-    func addToQueryHistory(_ query: String, connectionID: UUID? = nil, databaseName: String? = nil, resultCount: Int? = nil, duration: TimeInterval? = nil) {
-        let item = QueryHistoryItem(
-            query: query,
-            timestamp: Date(),
-            connectionID: connectionID,
-            databaseName: databaseName,
-            resultCount: resultCount,
-            duration: duration
-        )
-        queryHistory.insert(item, at: 0)
-
-        // Keep only the last 500 queries
-        if queryHistory.count > 500 {
-            queryHistory = Array(queryHistory.prefix(500))
-        }
-
-        saveQueryHistory()
-    }
-
-    func clearQueryHistory() {
-        queryHistory.removeAll()
-        saveQueryHistory()
-    }
-
     // MARK: - Sheet Management
 
     func showSheet(_ sheet: ActiveSheet) {
@@ -159,27 +168,7 @@ import SwiftUI
         }
     }
 
-    private func loadQueryHistory() {
-        if let data = UserDefaults.standard.data(forKey: "queryHistory"),
-        let history = try? JSONDecoder().decode([QueryHistoryItem] .self, from: data) {
-            queryHistory = history
-        }
-    }
 
-    private var historySaveTask: Task<Void, Never>?
-
-    private func saveQueryHistory() {
-        historySaveTask?.cancel()
-        historySaveTask = Task {
-            try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled else { return }
-            let history = queryHistory
-            let data = try? JSONEncoder().encode(history)
-            if let data {
-                UserDefaults.standard.set(data, forKey: "queryHistory")
-            }
-        }
-    }
 }
 
 // MARK: - Supporting Types
@@ -194,39 +183,5 @@ enum ActiveSheet: String, Identifiable {
 
     var id: String {
         rawValue
-    }
-}
-
-struct QueryHistoryItem: Codable, Identifiable {
-    let id: UUID
-    let query: String
-    let timestamp: Date
-    let connectionID: UUID?
-    let databaseName: String?
-    let resultCount: Int?
-    let duration: TimeInterval?
-
-    init(id: UUID = UUID(), query: String, timestamp: Date, connectionID: UUID? = nil, databaseName: String? = nil, resultCount: Int? = nil, duration: TimeInterval? = nil) {
-        self.id = id
-        self.query = query
-        self.timestamp = timestamp
-        self.connectionID = connectionID
-        self.databaseName = databaseName
-        self.resultCount = resultCount
-        self.duration = duration
-    }
-
-    var formattedTimestamp: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter.string(from: timestamp)
-    }
-
-    var formattedDuration: String? {
-        guard let duration = duration else {
-            return nil
-        }
-        return String(format: "%.3fs", duration)
     }
 }

@@ -41,7 +41,8 @@ extension ObjectBrowserRowView {
                 depth: depth,
                 icon: .system(folder.kind.symbol),
                 label: folder.kind.title,
-                isExpanded: isEmptyObjectFolder ? nil : expansionBinding,
+                // An empty folder still opens, to its grey "No views" row (round 30.3, OE0).
+                isExpanded: expansionBinding,
                 isSelected: isSelected,
                 iconColor: isEmptyObjectFolder ? ColorTokens.Text.quaternary : explorerIconColor(folder.kind.role.color),
                 labelColor: isEmptyObjectFolder ? ColorTokens.Text.tertiary : ColorTokens.Text.primary,
@@ -96,6 +97,8 @@ extension ObjectBrowserRowView {
         }
     }
 
+    /// A tool row: it opens a tab, a window or a sheet, so it always ends in ↗ (round 38, OT1
+    /// without its square, MS0, SH0).
     func actionRow(_ kind: ExplorerNodeKind, session: ConnectionSession) -> some View {
         buttonRow {
             SidebarRow(
@@ -105,12 +108,24 @@ extension ObjectBrowserRowView {
                 isSelected: isSelected,
                 iconColor: explorerIconColor(kind.role.color),
                 accentColor: resolvedAccentColor(for: session.connection)
-            )
+            ) {
+                Image(systemName: "arrow.up.right")
+                    .font(SidebarRowConstants.trailingFont)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .accessibilityLabel("Opens elsewhere")
+            }
         }
     }
 
     @ViewBuilder
-    func columnRow(column: ColumnInfo) -> some View {
+    func columnRow(column: ColumnInfo, databaseType: DatabaseType) -> some View {
+        // Dragging it into the editor inserts the quoted name, as Insert in Query does.
+        columnRowContent(column: column)
+            .draggable(ColumnNameQuoting.quoted(column.name, databaseType: databaseType))
+    }
+
+    @ViewBuilder
+    private func columnRowContent(column: ColumnInfo) -> some View {
         let typeLabel = trailingDetail(EchoFormatters.abbreviatedSQLType(column.dataType))
         if column.isPrimaryKey {
             SidebarRow(depth: depth, icon: .system("key.fill"), label: column.name, iconColor: Color.orange) {

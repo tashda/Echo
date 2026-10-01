@@ -522,8 +522,17 @@ extension EnvironmentState {
         }
     }
 
+    /// A new query tab on the same server and database with the same SQL, right after the
+    /// original (round 35.1, ⌘D in the tab overview). Tool tabs aren't duplicated: a second copy
+    /// of a tool shows the same thing.
     func duplicateTab(_ tab: WorkspaceTab) {
-        // Implementation
+        guard let query = tab.query,
+              let session = sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }),
+              let originalIndex = tabStore.index(of: tab.id) else { return }
+        let before = Set(tabStore.tabs.map(\.id))
+        openQueryTab(for: session, presetQuery: query.sql, database: tab.activeDatabaseName)
+        guard let copy = tabStore.tabs.first(where: { !before.contains($0.id) }) else { return }
+        tabStore.moveTab(id: copy.id, to: originalIndex + 1)
     }
 
     // MARK: - Security Tabs

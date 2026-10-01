@@ -8,7 +8,8 @@ extension QueryResultsTableView.Coordinator {
         guard let tableView, let scrollView else { return }
         cachedViewportSize = scrollView.contentView.bounds.size
         let contentWidth = tableView.tableColumns.reduce(CGFloat(0)) { $0 + $1.width }
-        let targetWidth = max(contentWidth, scrollView.contentSize.width)
+        // Room after the last column, so its edge can be reached and dragged wider (owner, after round 47).
+        let targetWidth = max(contentWidth + ResultsGridMetrics.trailingColumnRoom, scrollView.contentSize.width)
         if abs(tableView.frame.width - targetWidth) > 0.5 {
             CATransaction.begin(); CATransaction.setDisableActions(true)
             tableView.setFrameSize(NSSize(width: targetWidth, height: tableView.frame.height))

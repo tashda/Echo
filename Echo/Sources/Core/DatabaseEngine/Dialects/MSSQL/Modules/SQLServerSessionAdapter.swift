@@ -114,6 +114,7 @@ nonisolated final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     var dac: SQLServerDACClient { client.dac }
     var bulk: SQLServerBulkClient { SQLServerBulkClient(client: client) }
     var ssis: SQLServerSSISClient { client.ssis }
+    var scripts: SQLServerScriptClient { client.scripts }
 
     func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
         let nioResult = try await client.maintenance.rebuildIndex(schema: schema, table: table, name: index)

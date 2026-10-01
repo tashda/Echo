@@ -16,8 +16,9 @@ struct BottomPanelStatusBarConfiguration {
     var modeIndicators: [ModeIndicator] = []
     /// How the status, selection, rows and time sit on the right (round 10, judged in the lab).
     var metricsStyle: FooterMetricsStyle = .pillPerEntry
-    var statisticsPopover: AnyView?
-    var showStatisticsPopover: Binding<Bool>?
+    /// What each right-hand pill opens when clicked (round 41.5, PP2); a pill without one opens or
+    /// closes the panel, as empty footer space does.
+    var pillPopovers: [FooterPillKind: AnyView] = [:]
 
     /// Database switching support — nil means no switching available.
     var availableDatabases: [String]?
@@ -48,7 +49,7 @@ struct BottomPanelStatusBarConfiguration {
         let rowCountText: String
         let rowCountLabel: String
         let durationText: String?
-        /// The selected cells' count, sum and average (plan R5).
+        /// The selected cells' count (round 41.2, SP3); the figures are in its popover.
         var selectionText: String? = nil
     }
 
@@ -90,6 +91,9 @@ struct BottomPanelStatusBar: View {
     let configuration: BottomPanelStatusBarConfiguration
 
     @Environment(\.echoMotion) private var motion
+    @Environment(\.serverPillColor) private var serverPillColor
+    /// The pill whose popover is open (round 41.5).
+    @State var openPillPopover: FooterPillKind?
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
@@ -160,14 +164,23 @@ struct BottomPanelStatusBar: View {
     }
 
     private var chipLabel: some View {
-        Text(connectionText)
-            .font(TypographyTokens.detail)
-            .foregroundStyle(ColorTokens.Text.primary)
-            .lineLimit(1)
-            .truncationMode(.middle)
-            .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
-            .frame(height: LayoutTokens.Footer.chipHeight)
-            .contentShape(Capsule())
+        HStack(spacing: SpacingTokens.xxs2) {
+            // Round 30.1, CO2: a dot of the server's colour, as on its tabs.
+            if let serverPillColor {
+                Circle()
+                    .fill(serverPillColor)
+                    .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
+                    .accessibilityHidden(true)
+            }
+            Text(connectionText)
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.primary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
+        .frame(height: LayoutTokens.Footer.chipHeight)
+        .contentShape(Capsule())
     }
 
     // MARK: - Views
@@ -229,4 +242,10 @@ struct BottomPanelStatusBar: View {
             .help(indicator.help ?? "")
         }
     }
+}
+
+extension EnvironmentValues {
+    /// The colour of the server a tab belongs to, for a dot on the footer's server pill (round
+    /// 30.1, CO2); nil when the server's colour doesn't mark it.
+    @Entry var serverPillColor: Color?
 }

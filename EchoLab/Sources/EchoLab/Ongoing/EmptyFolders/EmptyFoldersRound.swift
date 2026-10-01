@@ -4,6 +4,9 @@ import SwiftUI
 /// Echo loads views (SQLServerSessionAdapter+Metadata), but `ExplorerBlueprintWalker.objectFolderNodes`
 /// hides every object folder with no items unless Settings › Sidebar › Show Empty Folders is on
 /// (off by default), so a database without views has no Views folder; Synonyms disappears the same way.
+///
+/// Accepted 2026-10-01: EF1, EL1, OE0, the database really has no views, and ST1 (the setting is
+/// removed, the owner's pick over keeping it). Built into Echo as TREE-6.2.
 @MainActor
 enum EmptyFoldersRound {
     enum Policy: String, CaseIterable {

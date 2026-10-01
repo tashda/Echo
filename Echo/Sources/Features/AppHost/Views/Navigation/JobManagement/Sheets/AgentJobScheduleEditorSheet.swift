@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Shared sheet for creating a schedule for an Agent Job.
-/// Used by both the "New Job" modal and the "Details" pane.
+/// Shared sheet for creating or editing a schedule of an Agent Job.
+/// Used by both the "New Job" modal and the "Details" pane; Edit Schedule opens it on the schedule.
 struct AgentJobScheduleEditorSheet: View {
     @State var name: String = ""
     @State var enabled: Bool = true
@@ -29,9 +29,22 @@ struct AgentJobScheduleEditorSheet: View {
     init(
         title: String = "New Schedule",
         actionLabel: String = "Create Schedule",
+        initial: ScheduleEditorInitialValues = ScheduleEditorInitialValues(),
         onSave: @escaping (ScheduleEditorResult) -> Void,
         onCancel: @escaping () -> Void
     ) {
+        self._name = State(initialValue: initial.name)
+        self._enabled = State(initialValue: initial.enabled)
+        self._frequency = State(initialValue: initial.frequency)
+        self._interval = State(initialValue: initial.interval)
+        self._startHour = State(initialValue: initial.startHour)
+        self._startMinute = State(initialValue: initial.startMinute)
+        self._weekdays = State(initialValue: initial.weekdays)
+        self._monthDay = State(initialValue: initial.monthDay)
+        self._oneTimeDate = State(initialValue: initial.oneTimeDate)
+        self._useActiveWindow = State(initialValue: initial.useActiveWindow)
+        self._activeStartDate = State(initialValue: initial.activeStartDate)
+        self._activeEndDate = State(initialValue: initial.activeEndDate)
         self.title = title
         self.actionLabel = actionLabel
         self.onSave = onSave
@@ -43,7 +56,7 @@ struct AgentJobScheduleEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        SheetLayoutCustomFooter(title: title) {
             Form {
                 Section(title) {
                     TextField("Name", text: $name, prompt: Text("e.g. Daily 9 AM"))
@@ -81,28 +94,21 @@ struct AgentJobScheduleEditorSheet: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-
-            Divider()
-
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel, action: onCancel)
-                    .keyboardShortcut(.cancelAction)
-                Button(actionLabel) {
-                    onSave(ScheduleEditorResult(
-                        name: name, enabled: enabled, frequency: frequency,
-                        interval: interval, startHour: startHour, startMinute: startMinute,
-                        weekdays: weekdays, monthDay: monthDay, startDate: startDate,
-                        oneTimeDate: oneTimeDate, useActiveWindow: useActiveWindow,
-                        activeStartDate: activeStartDate, activeEndDate: activeEndDate,
-                        activeStartHour: activeStartHour, activeStartMinute: activeStartMinute,
-                        activeEndHour: activeEndHour, activeEndMinute: activeEndMinute
-                    ))
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!isValid)
+        } footer: {
+            Spacer()
+            Button("Cancel", role: .cancel, action: onCancel)
+                .keyboardShortcut(.cancelAction)
+            SheetLayout.primaryButton(actionLabel, canSubmit: isValid) {
+                onSave(ScheduleEditorResult(
+                    name: name, enabled: enabled, frequency: frequency,
+                    interval: interval, startHour: startHour, startMinute: startMinute,
+                    weekdays: weekdays, monthDay: monthDay, startDate: startDate,
+                    oneTimeDate: oneTimeDate, useActiveWindow: useActiveWindow,
+                    activeStartDate: activeStartDate, activeEndDate: activeEndDate,
+                    activeStartHour: activeStartHour, activeStartMinute: activeStartMinute,
+                    activeEndHour: activeEndHour, activeEndMinute: activeEndMinute
+                ))
             }
-            .padding(SpacingTokens.md2)
         }
         .frame(minWidth: 420, minHeight: 360)
     }
@@ -134,7 +140,7 @@ struct AgentJobScheduleEditorSheet: View {
             .labelsHidden()
             Text(":")
             Picker("Minute", selection: $startMinute) {
-                ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { m in
+                ForEach(0..<60, id: \.self) { m in
                     Text(String(format: "%02d", m)).tag(m)
                 }
             }
@@ -156,7 +162,7 @@ struct AgentJobScheduleEditorSheet: View {
             .labelsHidden()
             Text(":")
             Picker("Minute", selection: minute) {
-                ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { m in
+                ForEach(0..<60, id: \.self) { m in
                     Text(String(format: "%02d", m)).tag(m)
                 }
             }

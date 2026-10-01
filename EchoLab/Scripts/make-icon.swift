@@ -1,31 +1,11 @@
 import AppKit
 
-// Builds Echo Labs' icon: Echo's app icon with LABS written across the lower part.
+// Builds Echo Labs' icon from the Acid master (Design/AppIcon/EchoIcon-Labs.svg, made by
+// Design/AppIcon/build_icon.py): the same three rows on a darker tile in lab colours.
 // Usage: swift Scripts/make-icon.swift   (run from EchoLab/)
-let source = "../Echo/Assets.xcassets/AppIcon.appiconset/Echo-mac-1024.png"
-guard let base = NSImage(contentsOfFile: source) else { fatalError("Echo icon not found") }
+let source = "../Design/AppIcon/EchoIcon-Labs.png"
+guard let image = NSImage(contentsOfFile: source) else { fatalError("Labs icon master not found; run Design/AppIcon/build_icon.py") }
 let size = NSSize(width: 1024, height: 1024)
-let image = NSImage(size: size)
-image.lockFocus()
-base.draw(in: NSRect(origin: .zero, size: size))
-
-let font = NSFont.systemFont(ofSize: 150, weight: .heavy)
-let rounded = font.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: 150) } ?? font
-let shadow = NSShadow()
-shadow.shadowColor = NSColor.black.withAlphaComponent(0.55)
-shadow.shadowBlurRadius = 24
-shadow.shadowOffset = NSSize(width: 0, height: -6)
-let attributes: [NSAttributedString.Key: Any] = [
-    .font: rounded,
-    .foregroundColor: NSColor.white.withAlphaComponent(0.96),
-    .kern: 26,
-    .shadow: shadow,
-]
-let text = NSAttributedString(string: "LABS", attributes: attributes)
-let textSize = text.size()
-text.draw(at: NSPoint(x: (size.width - textSize.width + 26) / 2, y: 168))
-image.unlockFocus()
-
 let rep = NSBitmapImageRep(data: image.tiffRepresentation!)!
 try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "Resources/EchoLab-1024.png"))
 

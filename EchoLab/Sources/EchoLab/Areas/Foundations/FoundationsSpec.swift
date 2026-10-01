@@ -90,5 +90,24 @@ enum FoundationsSpec {
             ], files: ["Design/03-materials.md"]),
             rule("5.4", "Accessibility is not optional", "Reduce Motion, Reduce Transparency and Increase Contrast must all look right; every control has a label."),
         ]),
+        SpecPart(number: "6", name: "Settings pages", summary: "Settings › Editor is the template (round 43); every page with something to show follows it.", elements: [
+            SpecElement(number: "6.1", name: "A live preview, pinned", summary: "One preview above the settings that stays while they scroll, drawn from the page's own settings.", groups: [
+                .behaviour(.row("Preview", "pinned above the grouped form, 170pt high (Editor and Results 190, Sidebar 230)"), .row("Shows", "every setting on the page that changes a look"),
+                           .row("Pages with nothing to show", "no preview: the page starts with its settings"), .row("Appearance", "none: the window you are in is the preview")),
+            ], files: ["Echo/Sources/Shared/DesignSystem/Components/SettingsPage.swift"]),
+            SpecElement(number: "6.2", name: "Pictures for looks", summary: "A choice that changes a look is a row of small pictures with the name beneath; the chosen one is ringed.", groups: [
+                .behaviour(.row("Used for", "gutter style, mark corners and strength, density, icons"), .row("Not used for", "choices that change no look: they stay a menu or switch"), .row("Chosen", "2pt accent ring")),
+            ], files: ["Echo/Sources/Shared/DesignSystem/Components/PictureChoicePicker.swift"]),
+            SpecElement(number: "6.3", name: "One vocabulary for rows", summary: "Switches for on and off, a stepper with its unit for numbers, a short line only where the title isn't enough, the rest in ⓘ.", groups: [
+                .behaviour(.row("On and off", "a switch"), .row("Numbers", "a field and stepper with the unit (13 pt); typing is allowed"),
+                           .row("Description", "one short line, or ⓘ for the long one"), .row("Sections", "named for what they change")),
+            ], files: ["Echo/Sources/Shared/DesignSystem/Components/PropertyRow.swift"]),
+            SpecElement(number: "6.4", name: "Back to default", summary: "A ↺ beside any setting that isn't at its default; Reset This Page at the bottom asks first.", groups: [
+                .behaviour(.row("Row", "↺ shows only when the value differs from GlobalSettings()"), .row("Page", "Reset This Page, a confirmation, then every setting the page lists goes back in one save")),
+            ], files: ["Echo/Sources/Features/Preferences/Views/GlobalSettingBinding.swift"]),
+            SpecElement(number: "6.5", name: "Search", summary: "A search field in the sidebar lists matching settings across pages; choosing one opens its page and highlights its group.", groups: [
+                .behaviour(.row("Matches", "every word, in the title, page or group"), .row("Index", "SettingsSearchIndex, one entry per row: add a row, add its entry")),
+            ], files: ["Echo/Sources/Features/Preferences/Views/SettingsSearchIndex.swift"]),
+        ]),
     ]
 }

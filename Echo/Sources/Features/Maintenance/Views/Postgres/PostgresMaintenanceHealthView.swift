@@ -2,6 +2,8 @@ import SwiftUI
 
 struct PostgresMaintenanceHealthView: View {
     var viewModel: MaintenanceViewModel
+    /// The finding whose fix is running.
+    @State var fixing: HealthFinding.Fix?
 
     var body: some View {
         if let health = viewModel.healthStats {
@@ -22,7 +24,9 @@ struct PostgresMaintenanceHealthView: View {
     }
 
     private func healthContent(_ health: PostgresMaintenanceHealth) -> some View {
+        // Health (round 37.4, HE0): what is wrong first, each with its fix; the figures below.
         Form {
+            findingsSection(health)
             Section("Database") {
                 PropertyRow(title: "Database") {
                     Text(health.databaseName)

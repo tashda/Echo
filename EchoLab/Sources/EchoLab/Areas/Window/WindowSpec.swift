@@ -19,14 +19,16 @@ enum WindowSpec {
     private static let parts: [SpecPart] = [
         SpecPart(number: "1", name: "Canvas and cards", summary: "A canvas holds the rail, the tree and the content cards.", elements: [
             SpecElement(number: "1.1", name: "Canvas", summary: "The window's background, behind everything.", groups: [
-                .material(.row("Fill", "the workspace canvas", token: "ColorTokens.Workspace.canvas", swatch: ColorTokens.Workspace.canvas),
+                .material(.row("Fill", "the window background in light; white 9.5% in dark, just under the cards (round 32.2, DC6)", token: "ColorTokens.Workspace.canvas", swatch: ColorTokens.Workspace.canvas),
                           .row("Glass", "none")),
             ], rounds: [canvasRound], files: [workspace]),
             SpecElement(number: "1.2", name: "Card", summary: "The one card look: the tree, editor and results all use it.", groups: [
                 .material(.row("Fill", "opaque; the shadow is drawn by the fill behind the content, so AppKit content is never rendered offscreen for it", token: "ColorTokens.Workspace.card", swatch: ColorTokens.Workspace.card),
                           .row("Glass", "never on a card: glass over a flat canvas has nothing to refract and reads as a grey box"),
-                          .row("Edge", "0.5pt, 35% separator", token: "cardEdgeWidth / cardEdgeOpacity"),
-                          .row("Shadow", "black 12%, blur 10, y 4", token: "ShadowTokens.workspaceCard")),
+                          .row("Edge", "0.5pt at 35%: the separator in light, white 20% in dark (a 7% hairline; round 32.2, DE5)", token: "cardEdgeWidth / cardEdgeOpacity"),
+                          .row("Lit top edge", "dark only: 1pt, primary 10% fading out by the card's middle (DE5)"),
+                          .row("Increase Contrast", "a solid 1pt separator edge instead, no lit edge (IC0)"),
+                          .row("Shadow", "light: black 12%, blur 10, y 4; dark: contact black 60%, blur 3, y 1 over ambient black 40%, blur 24, y 10 (DS5)", token: "ShadowTokens.workspaceCard / workspaceCardContact / workspaceCardAmbient")),
                 .layout(.row("Corner", "continuous, from the Card Corners setting: 10, 12, 16 (default), 20 or 26pt", token: "workspaceCardCornerRadius / LayoutTokens.Workspace.cardCornerRadius"),
                         .row("Why 16", "the macOS 27 window corner, measured from a screenshot")),
                 .behaviour(.row("Chrome", "a card whose content lays out cards of its own has no fill, shadow or edge, so theirs aren't cut off"),
@@ -55,7 +57,7 @@ enum WindowSpec {
                 .motion(.row("Capsule", "fades in on hover, 0.12s", token: "echoMotion.hover")),
             ], files: [workspace, tokens]),
         ]),
-        SpecPart(number: "2", name: "Server rail", summary: "Two glass pills down the window's left edge: servers, and tools.", elements: [
+        SpecPart(number: "2", name: "Server rail", summary: "One server glass pill down the window's left edge; saved SQL uses the inspector column (round 39).", elements: [
             SpecElement(number: "2.1", name: "Rail", summary: "The server pill on top, the tool pill at the bottom, and the space between.", groups: [
                 .layout(.row("Width", "item + 2 × pill padding: 42pt at the default", token: "LayoutTokens.Rail.width(itemSize:)"),
                         .row("Smallest gap between pills", "12pt", token: "LayoutTokens.Rail.minimumPillGap")),
@@ -70,7 +72,8 @@ enum WindowSpec {
             SpecElement(number: "2.3", name: "Server item", summary: "A two-letter monogram.", groups: [
                 .layout(.row("Size", "28 · 34 (default) · 40pt, a setting", token: "RailItemSize.points")),
                 .type(.row("Monogram", "37% of the size: 12.5pt at 34pt, rounded design", token: "LayoutTokens.Rail.monogramFontRatio"),
-                      .row("Unselected", "semibold, secondary; primary while hovered"), .row("Selected", "bold, in the server's colour")),
+                      .row("Unselected", "semibold, secondary; primary while hovered"), .row("Selected", "bold, in the server's colour"),
+                      .row("Server Header Color: Server's Color", "always in the server's colour, bold when selected (round 30.1, CO1); the colour is read live, so one set from the header's menu shows at once", token: "ServerRailItem.isAlwaysColored")),
                 .behaviour(.row("Letters", "numbers-only words: the last two digits; two words: their initials; a name ending in two digits: those digits; otherwise its first two letters", token: "ServerRailMonogram.make"),
                            .row("Tooltip", "name · host, then Connecting…, Connection lost: reason, or N queries running", token: "ServerRailEntry.tooltip"),
                            .row("Why a monogram", "colour dots and engine badges were rejected")),
@@ -96,15 +99,9 @@ enum WindowSpec {
                 .behaviour(.row("Click", "opens the connections menu: open sessions, saved connections by folder, Manage Connections, Quick Connect", token: "ConnectionsMenuContent"),
                            .row("Never selected", "the disc never moves onto it"), .row("Tooltip", "Connect to a Server")),
             ], rounds: [railRound], files: [rail]),
-            SpecElement(number: "2.9", name: "Tool pill", summary: "A glass capsule of four tool buttons at the bottom of the rail.", groups: [
-                .layout(.row("Tools", "Bookmarks, Snippets, History, Clipboard", token: "SidebarMenu.NavSection.railTools"),
-                        .row("Button", "the server pill's width, 30pt high", token: "LayoutTokens.Rail.toolHeight"), .row("Spacing", "2pt", token: "LayoutTokens.Rail.toolSpacing"),
-                        .row("Padding", "4pt on every side, like the server pill", token: "LayoutTokens.Rail.pillPadding")),
-                .type(.row("Symbols", "13pt; secondary, primary on hover", token: "LayoutTokens.Rail.toolSymbolSize")),
-                .states(.row("Showing", "the filled symbol in the accent colour")),
-                .behaviour(.row("Click", "its page shows in the tree's place and the tree opens if hidden"), .row("Click the one showing", "back to the tree"),
-                           .row("Tooltip", "the tool's name")),
-            ], rounds: [railRound], files: [rail]),
+            SpecElement(number: "2.9", name: "Tool pill (retired)", summary: "Removed in round 39; Bookmarks and History moved to the inspector column.", groups: [
+                .behaviour(.row("Removed", "Snippets and Echo clipboard history are gone; rail is servers and + only")),
+            ], rounds: ["ongoing.rail-tools-r39", "ongoing.rail-clipboard-r39"], files: [rail], isRetired: true),
         ]),
         SpecPart(number: "3", name: "Tree column", summary: "The Explorer's cards, between the rail and the content.", elements: [
             SpecElement(number: "3.1", name: "Column", summary: "One card per server; see the Explorer tree area.", groups: [
@@ -119,36 +116,47 @@ enum WindowSpec {
                            .row("Nothing to show", "the tree stays hidden and ⌃⌘S does nothing until a server connects or you pick a tool", token: "WorkspaceTreeAvailability.hasContent"),
                            .row("Button", "Hide Sidebar or Show Sidebar (⌃⌘S); disabled, with a reason, while there is nothing to show")),
             ], files: [workspace]),
-            SpecElement(number: "3.3", name: "Peek", summary: "Click a server with the tree hidden.", groups: [
-                .material(.row("Card", "glass, 18pt corners, over the cards", token: "LayoutTokens.FloatingSurface.cornerRadius")),
-                .behaviour(.row("Plain click", "the tree slides out over the cards, which don't move"),
-                           .row("Puts it away", "a click on the cards, Esc, opening a tab, showing the tree, or a plain click on the server that is peeking"),
-                           .row("⌘-click or double-click", "shows the tree for good"),
-                           .row("Setting", "Collapsed Server Click: peek and ⌘-click (default), always peek, always show the tree", token: "CollapsedServerClickBehavior")),
-                .motion(.row("Peek", "house spring, 0.45s")),
-            ], files: [workspace]),
+            SpecElement(number: "3.3", name: "Peek", summary: "The tree sliding out on glass over the cards when a server was clicked with it hidden. Removed in round 40, with its setting; a click opens the tree (WIN-3.5).", isRetired: true),
             SpecElement(number: "3.4", name: "Layout", summary: "How the rail, tree, cards and inspector share the window.", groups: [
                 .layout(.row("Order", "rail · tree · cards · inspector column, on the canvas"),
                         .row("Top", "the rail and tree start half the tab strip's spare height below the toolbar, so the rail, tree and tab plate line up"),
                         .row("Gutters", "the gutter setting on the outer edges; the tree's trailing gutter is its resize handle")),
                 .behaviour(.row("Tree width", "remembered", token: "workspace.treeWidth")),
             ], files: [workspace]),
+            SpecElement(number: "3.5", name: "Server click with the tree hidden", summary: "Opens the tree, scrolled to that server (round 40, RC1).", groups: [
+                .behaviour(.row("Click", "shows the tree and selects the server; any click, no modifiers or settings", token: "WorkspaceRailColumn.selectSession"),
+                           .row("Arrival", "nothing more: the rail's disc shows which server it is (SM1)"),
+                           .row("Tree showing", "the tree scrolls to the server's card, as before (TV0)")),
+                .motion(.row("Together", "the tree slides in on the house spring (0.45s) while it scrolls to the server (smooth, 0.40s), one movement (OM0)", token: "echoMotion.standard / echoMotion.reveal")),
+            ], rounds: ["ongoing.rail-click-hidden-tree-r40"], files: [workspace]),
         ]),
         SpecPart(number: "4", name: "Empty states", summary: "What the content area shows without a tab.", elements: [
             SpecElement(number: "4.1", name: "Welcome", summary: "No server and no tab. Sits on the canvas, with no card.", groups: [
-                .layout(.row("Width", "420pt", token: "LayoutTokens.Welcome.width"), .row("Icon", "32pt", token: "LayoutTokens.Welcome.iconSize"),
-                        .row("Title", "Echo, 26pt bold", token: "LayoutTokens.Welcome.titleSize")),
+                .layout(.row("Width", "420pt", token: "LayoutTokens.Welcome.width"), .row("Mark", "120pt wide, the three pills alone: no tile, no name", token: "LayoutTokens.Welcome.markWidth")),
                 .behaviour(.row("Buttons", "Connect… (glass, prominent, opens the connections menu), Quick Connect and Manage (glass), large"),
                            .row("Recent", "the latest five connections on one small card: monogram in its colour, name, host, how long ago; a click connects", token: "WorkspaceWelcomeView.maximumRecentCount"),
                            .row("Why no card", "cards are only for content")),
-            ], rounds: [canvasRound], files: [welcome]),
+                .motion(.row("Arrives", "each time the welcome appears: the pills echo in (0.9s, 0.12s apart, overshoot), then the buttons and the recents rise 10pt, 0.15s apart", token: "WelcomeMarkMotion"),
+                        .row("Leaves", "when a server connects the pills echo out to the left (0.46s) and the rest fades; the rail, the tree and the page wait", token: "AppState.welcomeDeparture")),
+            ], rounds: [canvasRound, "ongoing.opening-and-closing-r48"], files: [welcome]),
             SpecElement(number: "4.2", name: "Server page", summary: "A server is active but no tab is open. Sits on the canvas, with no card.", groups: [
                 .layout(.row("Width", "600pt", token: "LayoutTokens.ServerPage.width"), .row("Name", "26pt bold", token: "LayoutTokens.ServerPage.nameSize"),
                         .row("Top", "lines up with the rail's top")),
                 .type(.row("Version", "13pt secondary, one line")),
                 .behaviour(.row("Content", "the name (a Beta badge for beta engines), the version, the server's tools on glass buttons with New Query first, and a databases card with a filter"),
                            .row("Tooltip", "the host")),
-            ], rounds: [canvasRound], files: [serverPage]),
+                .motion(.row("Arrives", "builds up: name, version, tools, databases rise 8pt and fade in, 0.06s apart", token: "WelcomeMarkMotion.pieceGap"),
+                        .row("Closing the last tab", "the server stays active; the page sits under the tabs and the card lifts away in 0.28s", token: "WelcomeMarkMotion.revealDuration")),
+            ], rounds: [canvasRound, "ongoing.opening-and-closing-r48"], files: [serverPage]),
+        ]),
+        SpecPart(number: "5", name: "Refresh", summary: "The toolbar's Refresh and ⌘R (round 34).", elements: [
+            SpecElement(number: "5.1", name: "Refresh button", summary: "In the right-hand capsule, before the bell, only while the front tab can reload.", groups: [
+                .behaviour(.row("Shown", "Activity Monitor, Agent Jobs, Error Log, Extended Events, Structure, maintenance, diagrams, Profiler, Resource Governor, Tuning Advisor, Policy Management", token: "TabReloader.canReload"),
+                           .row("Hidden", "query tabs and no tab: the schema reloads from the tree's menu and after DDL"),
+                           .row("Shows", "only its own reload: a spinner, ✓ for 1.2 s or ✗ for 2 s; hover after 3 s to cancel"),
+                           .row("⌘R", "View › Reload Tab, the same reload")),
+            ], files: ["Echo/Sources/Features/AppHost/Views/Toolbar/RefreshToolbarButton/RefreshToolbarButton.swift",
+                       "Echo/Sources/Features/AppHost/Views/Toolbar/RefreshToolbarButton/TabReloader.swift"]),
         ]),
     ]
 }

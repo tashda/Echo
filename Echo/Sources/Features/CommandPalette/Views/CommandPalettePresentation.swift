@@ -13,6 +13,7 @@ struct CommandPalettePresentation: ViewModifier {
     @Environment(\.echoMotion) private var motion
 
     @State private var palette = CommandPaletteModel()
+    @State private var tabOverview = TabOverviewPaletteModel()
 
     func body(content: Content) -> some View {
         content
@@ -20,6 +21,7 @@ struct CommandPalettePresentation: ViewModifier {
             .onChange(of: appState.isCommandPaletteVisible) { _, isVisible in
                 if isVisible { fill(palette) }
             }
+            .onChange(of: appState.commandPaletteScope) { _, _ in tabOverview.reset() }
             .animation(motion.standard, value: appState.isCommandPaletteVisible)
     }
 
@@ -33,7 +35,9 @@ struct CommandPalettePresentation: ViewModifier {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture { appState.isCommandPaletteVisible = false }
-                CommandPaletteCard(model: palette) { appState.isCommandPaletteVisible = false }
+                CommandPaletteCard(model: palette, tabOverview: tabOverview, scope: appState.commandPaletteScope) {
+                    appState.isCommandPaletteVisible = false
+                }
                     .padding(.top, LayoutTokens.CommandPalette.topInset)
                     .transition(.scale(scale: 0.96, anchor: .top).combined(with: .opacity))
             }
@@ -48,9 +52,11 @@ struct CommandPalettePresentation: ViewModifier {
             tabStore: tabStore,
             connectionStore: connectionStore,
             navigationStore: navigationStore,
-            clipboardHistory: clipboardHistory
+            clipboardHistory: clipboardHistory,
+            showTabOverview: { [appState] in appState.commandPaletteScope = .tabs }
         )
         model.reset()
+        tabOverview.reset()
         model.localItems = sources.localItems()
         model.objectItem = { sources.objectItem(for: $0) }
         model.objectSearch.applySettings(projectStore.globalSettings)

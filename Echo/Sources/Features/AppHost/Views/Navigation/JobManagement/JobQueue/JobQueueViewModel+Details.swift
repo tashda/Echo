@@ -36,7 +36,10 @@ extension JobQueueViewModel {
             // Steps
             let stepDetails = try await agent.listSteps(jobName: jobName)
             self.steps = stepDetails.map { step in
-                StepRow(id: step.stepId, name: step.name, subsystem: step.subsystem, database: step.databaseName, command: step.command)
+                StepRow(id: step.stepId, name: step.name, subsystem: step.subsystem, database: step.databaseName, command: step.command,
+                        outcome: AgentJobStepOutcome(onSuccessAction: step.onSuccessAction, onSuccessStepID: step.onSuccessStepId,
+                                                     onFailureAction: step.onFailureAction, onFailureStepID: step.onFailureStepId,
+                                                     retryAttempts: step.retryAttempts, retryIntervalMinutes: step.retryIntervalMinutes))
             }
 
             // Schedules
@@ -49,7 +52,11 @@ extension JobQueueViewModel {
                     enabled: sch.enabled,
                     freqType: sch.freqType,
                     freqInterval: sch.freqInterval ?? 0,
-                    next: nextRunStr
+                    next: nextRunStr,
+                    freqRecurrenceFactor: sch.freqRecurrenceFactor,
+                    activeStartDate: sch.activeStartDate,
+                    activeStartTime: sch.activeStartTime,
+                    activeEndDate: sch.activeEndDate
                 )
             }
         } catch {

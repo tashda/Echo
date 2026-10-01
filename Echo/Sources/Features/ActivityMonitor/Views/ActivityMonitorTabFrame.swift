@@ -25,7 +25,9 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
         // own card. The pages are chosen in the tab itself (ST2).
         VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
             ToolTabHeader(systemImage: "waveform.path.ecg", tint: ColorTokens.Status.warning,
-                          title: "Activity Monitor", subtitle: headerSubtitle)
+                          title: "Activity Monitor", subtitle: headerSubtitle) {
+                headerControls
+            }
             if !hasPermission {
                 permissionDeniedView.workspaceCard()
             } else if !hasSnapshot {
@@ -38,12 +40,37 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
             }
         }
         .tabContentFrame()
+        // Round 37.5: Pause or Resume is the special button, Refresh Now in the group.
+        .tabToolbar(
+            special: TabToolbarItem(id: "pause", title: viewModel.isRunning ? "Pause" : "Resume",
+                                    symbol: viewModel.isRunning ? "pause.fill" : "play.fill") { [viewModel] in
+                if viewModel.isRunning { viewModel.stopStreaming() } else { viewModel.startStreaming() }
+            },
+            groups: [[TabToolbarItem(id: "refreshNow", title: "Refresh Now", symbol: "arrow.clockwise") { [viewModel] in viewModel.refresh() }]]
+        )
         .sheet(item: $selectedSQLContext) { context in
             SQLInspectorSheet(context: context) { sql, database in
                 onOpenInQueryWindow(sql, database)
             }
         }
     }
+
+    /// How often it samples, on the header line (round 37.2); Pause and Refresh are in the window
+    /// toolbar (round 37.5).
+    @ViewBuilder
+    private var headerControls: some View {
+        ToolTabPickerPill(
+            title: "Refresh Interval", systemImage: "timer",
+            selection: Binding(get: { viewModel.refreshInterval }, set: { interval in
+                viewModel.refreshInterval = interval
+                if viewModel.isRunning { viewModel.startStreaming() }
+            }),
+            options: Self.intervals,
+            label: { "Every \(Int($0)) s" }
+        )
+    }
+
+    private static var intervals: [TimeInterval] { [1, 2, 5, 10, 30] }
 
     /// The server, and how fresh the figures are.
     private var headerSubtitle: Text {

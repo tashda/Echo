@@ -13,9 +13,18 @@ final class JobQueueViewModel {
         var lastRunDateSortKey: String { lastRunDate ?? "" }
         var nextRunSortKey: String { nextRun ?? "" }
     }
-    struct StepRow: Identifiable, Hashable { let id: Int; let name: String; let subsystem: String; let database: String?; let command: String? }
+    struct StepRow: Identifiable, Hashable {
+        let id: Int; let name: String; let subsystem: String; let database: String?; let command: String?
+        /// Where it goes on success and failure, and its retries (round 33.2, OC1).
+        var outcome = AgentJobStepOutcome()
+    }
     struct ScheduleRow: Identifiable, Hashable {
         let id: String; let name: String; let enabled: Bool; let freqType: Int; let freqInterval: Int; let next: String?
+        /// What Edit Schedule needs to open on the schedule as it is.
+        var freqRecurrenceFactor: Int?
+        var activeStartDate: Int?
+        var activeStartTime: Int?
+        var activeEndDate: Int?
         var enabledSortKey: String { enabled ? "1" : "0" }
         var nextSortKey: String { next ?? "" }
     }
@@ -71,6 +80,8 @@ final class JobQueueViewModel {
     var manuallyStartedJobName: String?
     @ObservationIgnored var manualStartHandle: OperationHandle?
     var runningJobNames: Set<String> = []
+    /// When each running job started, by name, from the Agent's activity (round 33, JR1).
+    var runningJobStartDates: [String: Date] = [:]
     var errorMessage: String?
     var selectedDetailSection: String = "Properties"
     var activeStepInfo: ActiveStepInfo?
@@ -127,6 +138,7 @@ final class JobQueueViewModel {
             await checkJobActivity()
             if isJobRunning { startActivityPolling() }
         }
+        if !isJobRunning, !runningJobNames.isEmpty { startActivityPolling() }
     }
 
     func resolveAndSelect(jobIdentifier: String) {
@@ -240,7 +252,7 @@ final class JobQueueViewModel {
         await loadDetails()
         await loadHistory(all: selectedJobID == nil || selectedJobID?.isEmpty == true)
         await checkJobActivity()
-        if isJobRunning { startActivityPolling() }
+        if isJobRunning || !runningJobNames.isEmpty { startActivityPolling() }
     }
 
     // MARK: - Date Formatting

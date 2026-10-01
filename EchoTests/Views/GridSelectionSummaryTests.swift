@@ -1,4 +1,5 @@
 import EchoSense
+import Foundation
 import Testing
 @testable import Echo
 
@@ -10,7 +11,22 @@ struct GridSelectionSummaryTests {
         #expect(summary.numericCount == 2)
         #expect(summary.sum == 30)
         #expect(summary.average == 15)
-        #expect(summary.text.hasPrefix("4 cells · Sum 30"))
+        #expect(summary.text == "4 cells")
+        #expect(summary.distinctCount == 3)
+        #expect(summary.emptyCount == 1)
+    }
+
+    @Test func thePopoverListsEveryFigureForNumbers() {
+        let summary = GridSelectionSummary.summarize(["3", "1", "2", nil], cellCount: 4, columnName: "bagno")
+        let english = Locale(identifier: "en_US")
+        #expect(summary.columnName == "bagno")
+        #expect(summary.figures(locale: english).map { $0.label } == ["Count", "Sum", "Average", "Min", "Max", "Median", "Distinct", "Empty"])
+        #expect(summary.copyAllText(locale: english).hasPrefix("Count\t4\nSum\t6\n"))
+    }
+
+    @Test func textCellsListOnlyCountDistinctAndEmpty() {
+        let summary = GridSelectionSummary.summarize(["DK", "SE", "DK"], cellCount: 3)
+        #expect(summary.figures(locale: Locale(identifier: "en_US")).map { $0.label } == ["Count", "Distinct", "Empty"])
     }
 
     @Test func hugeSelectionsAreOnlyCounted() {
@@ -19,12 +35,17 @@ struct GridSelectionSummaryTests {
         #expect(!summary.text.contains("Sum"))
     }
 
-    @Test func rowCountShowsLoadedOfTotalWhileStreaming() {
+    @Test func rowCountShowsOnlyTheRowsSentWhileStreaming() {
         var progress = RowProgress()
         progress.totalReported = 1_000
         progress.materialized = 200
         let compact: (Int) -> String = { String($0) }
-        #expect(GridSelectionSummary.rowCountText(for: progress, isExecuting: true, compact: compact) == "200 of 1000")
-        #expect(GridSelectionSummary.rowCountText(for: progress, isExecuting: false, compact: compact) == "1000")
+        #expect(GridSelectionSummary.rowCountText(for: progress, compact: compact) == "1000")
+    }
+
+    @Test func rowCountFallsBackToRowsReceived() {
+        var progress = RowProgress()
+        progress.totalReceived = 42
+        #expect(GridSelectionSummary.rowCountText(for: progress, compact: { String($0) }) == "42")
     }
 }

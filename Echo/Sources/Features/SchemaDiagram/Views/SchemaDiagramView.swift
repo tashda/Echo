@@ -145,12 +145,10 @@ struct SchemaDiagramView: View {
                     .padding(.leading, SpacingTokens.md)
                 }
             }
-            .overlay(alignment: .topTrailing) {
-                toolbarOverlay
-                    .padding(.top, SpacingTokens.md)
-                    .padding(.trailing, SpacingTokens.md)
-            }
         }
+        .toolTabHeaderControls { headerControls }
+        .tabToolbar(groups: toolbarGroups)
+        .toolTabHeaderDetail(loadSourceDetail)
         .navigationTitle(viewModel.title)
     }
 

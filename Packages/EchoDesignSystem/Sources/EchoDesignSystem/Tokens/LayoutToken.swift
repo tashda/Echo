@@ -108,21 +108,39 @@ public enum LayoutTokens {
         /// How far the blur keeps fading beyond the control it sits under (round 27: longer, so
         /// the blur meets the sharp rows gradually instead of at a line).
         public static let fade: CGFloat = SpacingTokens.lg
-        /// Blur radii from where it meets the sharp content to the edge: more, smaller steps at
-        /// the top, so no single step reads as an edge (round 27; was 1 · 3 · 6 · 10).
-        public static let radii: [CGFloat] = [0.75, 1.5, 3, 5, 7.5, 10]
-        /// Share of each step's reach over which it fades out, along a smooth S curve.
-        public static let step: CGFloat = 0.45
+        /// The blur at the edge, and how many steps it takes to get there from sharp.
+        public static let strongest: CGFloat = 12
+        public static let levels = 10
+        /// How the blur eases in from sharp: level k is strongest × (k / levels)^1.5, so it starts
+        /// with the smallest steps, where the eye notices them most.
+        public static let curve: CGFloat = 1.5
+        /// Blur radii from where it meets the sharp content to the edge. The steps stack (each
+        /// blurs what the ones before it made), so each adds just enough to reach the next level,
+        /// and where one fades in it only ever mixes two nearly equal blurs. That reads as one
+        /// smooth blur, not a frosted bar (owner, after round 27: six large steps read as a bar).
+        public static var radii: [CGFloat] {
+            (1...levels).map { k in (pow(level(k), 2) - pow(level(k - 1), 2)).squareRoot() }
+        }
+        /// Share of the blur's reach over which each step fades in: one and a half bands, so
+        /// neighbouring steps overlap.
+        public static var band: CGFloat { 1.5 / CGFloat(levels) }
+
+        private static func level(_ k: Int) -> CGFloat {
+            strongest * pow(CGFloat(k) / CGFloat(levels), curve)
+        }
         /// The blur rising past a horizontal scroll bar while it shows, and settling back after
         /// (round 27, U5).
         public static let raiseDuration: Double = 0.32
         public static let settleDuration: Double = 0.5
         /// How long the blur stays raised after the last scroll: the system's bar fades about then.
         public static let raisedHold: Double = 0.9
+        /// Round 44: how far above the footer the material under it reaches (BH3), how fast it
+        /// grows (CV6: (e^(g·t) − 1) / (e^g − 1)), and the card's colour over it (TT1).
+        public static let materialReach: CGFloat = SpacingTokens.xxl + SpacingTokens.xs
+        public static let materialGrowth: CGFloat = 4.5
+        public static let materialTintOpacity: Double = 0.15
         /// Card-coloured tint over the blur, so the control on it stays readable.
         public static let tintOpacity: Double = 0.35
-        /// How wide the rows fade at a side where more columns wait (round 27, X1).
-        public static let sideFadeWidth: CGFloat = SpacingTokens.xl
     }
 
     /// The SQL editor's line-number gutter (Design/05-components.md › Editor card).
@@ -188,7 +206,8 @@ public enum LayoutTokens {
     /// The welcome on the canvas while no tab is open.
     public enum Welcome {
         public static let width: CGFloat = FloatingSurface.largeWidth
-        public static let iconSize: CGFloat = SpacingTokens.xxxl
+        /// Width of Echo's mark (the three rows without the tile); the height follows its aspect.
+        public static let markWidth: CGFloat = 120
         public static let titleSize: CGFloat = 26
         /// Inset around the recent connections inside their card.
         public static let listPadding: CGFloat = SpacingTokens.xxs

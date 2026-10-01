@@ -2,8 +2,10 @@ import SwiftUI
 
 /// The Explorer tree, in SwiftUI (Design/05-components.md › Explorer tree, Design/swiftui-tree.md).
 ///
-/// Rows are a flat, lazy list with a fixed height per row kind, so every row's position is known
-/// from `ObjectBrowserTreeLayout` without measuring. Behind the list, one card per server is drawn with
+/// Rows have a fixed height per row kind, so every row's position is known from
+/// `ObjectBrowserTreeLayout` without measuring, and the tree places them there itself
+/// (`ExplorerTreeCanvasLayout`), building only the rows near the view (ObjectBrowserOutlineView+Rows).
+/// Behind the rows, one card per server is drawn with
 /// the editor card's own modifier, cut to the visible area with rounded corners where the tree's
 /// edge cuts it (round 7, F2). The list itself is clipped to the same rounded shape.
 ///
@@ -34,8 +36,17 @@ struct ObjectBrowserOutlineView: View {
     /// Servers whose new rows wait, invisible under the veil, until the card has reached its
     /// new size, so no row ever shows outside the card while its edge moves.
     var hiddenRowsConnectionIDs: Set<UUID> = []
+    /// Servers whose cards are folding or opening (round 30.2): the edge glides and the rows fade
+    /// and are cut by it (ObjectBrowserOutlineView+Fold).
+    var foldingConnectionIDs: Set<UUID> = []
+    /// A card about to close: the view is brought to its header first (ObjectBrowserOutlineView+Fold).
+    var foldAnchor: ExplorerFoldAnchor?
     /// A row's context menu; the tree has one menu host for all rows (ExplorerTreeContextMenuHost).
     var contextMenu: (ObjectBrowserNode) -> NSMenu? = { _ in nil }
+    /// What a double-click on a row does (round 42.4: a table or view opens its data).
+    var doubleClick: (ObjectBrowserNode) -> (() -> Void)? = { _ in nil }
+    /// The menu for the empty space around and below the cards (round 42.6).
+    var emptySpaceMenu: () -> NSMenu? = { nil }
     /// False makes the next reveal a jump, as a dock switch returning to its place (round 19).
     var revealAnimated = true
 
@@ -54,50 +65,39 @@ struct ObjectBrowserOutlineView: View {
         }
     }
 
-    @Environment(\.echoMotion) private var motion
-    @State private var scroll = ExplorerTreeScrollState()
-    @State private var position = ScrollPosition(edge: .top)
+    @Environment(\.echoMotion) var motion
+    @State var scroll = ExplorerTreeScrollState()
+    @State var position = ScrollPosition(edge: .top)
     @State private var handledRevealRequestID = 0
     /// How far the view was scrolled into a server's card when it left a section, by
     /// "connection|section".
     @State private var dockPlaces: [String: CGFloat] = [:]
     /// The row whose context menu is open, drawn with the context highlight.
     @State private var contextMenuNodeID: String?
+    /// Each card's top before the last change, so rows arriving with a card that moved start
+    /// where the card was (ObjectBrowserOutlineView+Rows).
+    @State var previousCardTops: [String: CGFloat] = [:]
 
     var body: some View {
         let baseRowHeight = Self.baseRowHeight(for: density)
         let layout = ObjectBrowserTreeLayout(roots: roots, expandedNodeIDs: expandedNodeIDs, baseRowHeight: baseRowHeight)
         let rowIDs = layout.rows.map(\.id)
         let dockSelections = layout.dockSelections
+        // Opening or closing a docked server adds or removes its dock, which changes the
+        // selections too; that is a fold, not a switch, so it keeps its animation (round 46).
+        let dockSwitchKey = foldingConnectionIDs.isEmpty ? dockSelections : [:]
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         ScrollView(.vertical) {
             VStack(spacing: SpacingTokens.none) {
-                // A server with a dock pins its name and dock while its rows scroll (TC1).
-                LazyVStack(spacing: SpacingTokens.none, pinnedViews: [.sectionHeaders]) {
-                    ForEach(layout.groups) { group in
-                        if group.header.isEmpty {
-                            rows(group.rows)
-                        } else {
-                            Section {
-                                rows(group.rows, underHeaderOf: group.header.reduce(SpacingTokens.none) { $0 + $1.height },
-                                     isSwitching: isSwitching(group))
-                                    .opacity(hidesRows(group) ? 0 : 1)
-                            } header: {
-                                VStack(spacing: SpacingTokens.none) { rows(group.header) }
-                                    .background { ExplorerPinnedHeaderWash(restingMinY: group.header[0].minY, scroll: scroll) }
-                            }
-                        }
-                    }
-                }
-                .padding(.bottom, LayoutTokens.Workspace.treeCardBottomPadding)
+                rowsCanvas(layout)
                 // A dock switch lays the rows out at once, under the veil: nothing inside the
                 // scroll view changes size frame by frame (which made AppKit recheck the window's
                 // regions every frame). Only the card's background and veil move its edge. This is
                 // the inner modifier, so it wins over `expand` when both change.
-                .animation(nil, value: dockSelections)
+                .animation(nil, value: dockSwitchKey)
                 .animation(motion.expand, value: rowIDs)
-                ExplorerTreeHoldSpacer(scroll: scroll, contentHeight: layout.contentHeight)
+                ExplorerTreeHoldSpacer(scroll: scroll)
             }
         }
         .scrollPosition($position)
@@ -109,7 +109,8 @@ struct ObjectBrowserOutlineView: View {
         .overlay(alignment: .top) {
             ExplorerTreeVeilLayer(veils: layout.veils(switching: switchingConnectionIDs, opaque: fadingConnectionIDs),
                                   scroll: scroll, cornerRadius: cornerRadius)
-                .animation(motion.dockEdge, value: dockSelections)
+                // In a fold the veil grows and shrinks with the card's edge (round 46).
+                .animation(foldingConnectionIDs.isEmpty ? motion.dockEdge : motion.expand, value: dockSelections)
         }
         .overlay {
             ExplorerTreeContextMenuHost(target: { contextTarget(at: $0, in: layout) }, onMenu: { contextMenuNodeID = $0 })
@@ -128,25 +129,38 @@ struct ObjectBrowserOutlineView: View {
             // frame (a sixth of the main thread, traced 2026-10-01).
             if old.offset != metrics.offset { WindowDragPause.pauseWorkspace(for: 0.3) }
             scroll.offset = metrics.offset
+            let window = ExplorerTreeWindow.around(offset: metrics.offset, viewport: metrics.viewportHeight)
+            if scroll.window != window { scroll.window = window }
             scroll.viewportHeight = metrics.viewportHeight
             scroll.contentWidth = metrics.contentWidth
             scroll.totalHeight = metrics.totalHeight
+            scroll.updateHold(contentHeight: layout.contentHeight)
             reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
         }
         // A background never sizes its view, so the cards can't make the tree (or the
         // window) taller than its space.
         .background(alignment: .top) {
             ExplorerTreeCardsLayer(cards: layout.cards, scroll: scroll,
-                                   switchingCardIDs: switchingCardIDs(in: layout), edgeAnimation: motion.dockEdge) {
+                                   switchingCardIDs: switchingCardIDs(in: layout), edgeAnimation: motion.dockEdge,
+                                   foldingCardIDs: foldingCardIDs(in: layout), foldAnimation: motion.expand) {
                 // The editor card's modifier, so the tree's cards match it exactly.
                 Color.clear.workspaceCard()
             }
-                .animation(nil, value: dockSelections)
+                .animation(nil, value: dockSwitchKey)
                 .animation(motion.expand, value: rowIDs)
         }
         .frame(minHeight: SpacingTokens.none)
+        // The rows changed height: hold the room below before AppKit can move the view (N2).
+        .onChange(of: layout.contentHeight) { _, height in
+            scroll.updateHold(contentHeight: height)
+        }
         .onChange(of: rowIDs) { _, _ in
+            previousCardTops = Self.cardTops(layout)
+            settleAfterFold(in: layout)
             reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
+        }
+        .onChange(of: foldAnchor) { _, anchor in
+            if let anchor { anchorClosingCard(anchor.connectionID, in: layout) }
         }
         .onChange(of: revealRequestID) { _, _ in
             reveal(in: layout)
@@ -159,24 +173,43 @@ struct ObjectBrowserOutlineView: View {
             returnToDockPlaces(changedFrom: old, to: new, in: layout)
         }
         .onAppear {
+            previousCardTops = Self.cardTops(layout)
             reveal(in: layout)
             reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
         }
     }
 
-    /// Arriving rows fade in with the list's animation while their neighbours move; leaving rows
-    /// fade out quickly, so they never sit under rows moving over them. A card mid-switch swaps
-    /// its rows with no transitions at all: the whole card fades instead.
-    private func rows(_ rows: [ObjectBrowserTreeLayout.Row], underHeaderOf headerHeight: CGFloat = 0, isSwitching: Bool = false) -> some View {
-        ForEach(rows) { row in
-            let node = row.node
-            ExplorerTreeRowSlot(height: row.height) {
-                rowContent(node, expandedNodeIDs.contains(node.id), row.depth, 0, { activate(node) })
+    /// One row in its slot. Arriving rows fade in with the list's animation while their
+    /// neighbours move; leaving rows fade out quickly, so they never sit under rows moving over
+    /// them. A card mid-switch swaps its rows with no transitions at all: the whole card fades.
+    func rowSlot(_ row: ObjectBrowserTreeLayout.Row, underHeaderOf headerHeight: CGFloat = 0, isSwitching: Bool = false,
+                 fold: ExplorerTreeFold? = nil, arrivingFrom shift: CGFloat = 0) -> some View {
+        let node = row.node
+        let isExpanded = expandedNodeIDs.contains(node.id)
+        let hasContextMenu = contextMenuNodeID == node.id
+        // Nodes are rebuilt whenever anything they show changes, so the node itself, with what this
+        // view adds, says whether the row has to be drawn again.
+        let key = RowKey(node: ObjectIdentifier(node), isExpanded: isExpanded, depth: row.depth, height: row.height,
+                         headerHeight: headerHeight, hasContextMenu: hasContextMenu)
+        return ExplorerTreeRowSlot(height: row.height) {
+            ExplorerTreeRowHost(key: key) {
+                rowContent(node, isExpanded, row.depth, 0, { activate(node) })
                     .modifier(ExplorerRowEdgeBlur(headerHeight: headerHeight))
-                    .environment(\.sidebarContextMenuActive, contextMenuNodeID == node.id)
+                    .environment(\.sidebarContextMenuActive, hasContextMenu)
             }
-            .transition(isSwitching ? .identity : Self.rowTransition(motion))
+            .equatable()
         }
+        .transition(isSwitching ? .identity : rowTransition(for: row, fold: fold, arrivingFrom: shift))
+    }
+
+    /// What decides whether a row is drawn again (`ExplorerTreeRowHost`).
+    struct RowKey: Equatable, Sendable {
+        let node: ObjectIdentifier
+        let isExpanded: Bool
+        let depth: Int
+        let height: CGFloat
+        let headerHeight: CGFloat
+        let hasContextMenu: Bool
     }
 
     static func rowTransition(_ motion: EchoMotion) -> AnyTransition {
@@ -212,20 +245,24 @@ struct ObjectBrowserOutlineView: View {
             let maxOffset = max(0, layout.contentHeight - scroll.viewportHeight)
             var transaction = Transaction()
             transaction.disablesAnimations = true
-            withTransaction(transaction) { position.scrollTo(y: min(top + place, maxOffset)) }
+            let y = min(top + place, maxOffset)
+            prepareWindow(for: y)
+            withTransaction(transaction) { position.scrollTo(y: y) }
         }
     }
 
     /// The row under a point in the tree's view (a pinned header covers the top), unless it is
     /// the dock, whose icons have menus of their own.
     private func contextTarget(at point: CGPoint, in layout: ObjectBrowserTreeLayout) -> ExplorerTreeContextTarget? {
-        guard let row = row(at: point.y, in: layout) else { return nil }
+        guard let row = row(at: point.y, in: layout) else {
+            return ExplorerTreeContextTarget(nodeID: "", menu: emptySpaceMenu)
+        }
         switch row.node.row {
         case .dock, .topSpacer: return nil
         default: break
         }
         let node = row.node
-        return ExplorerTreeContextTarget(nodeID: node.id, menu: { contextMenu(node) })
+        return ExplorerTreeContextTarget(nodeID: node.id, menu: { contextMenu(node) }, doubleClick: doubleClick(node))
     }
 
     private func row(at y: CGFloat, in layout: ObjectBrowserTreeLayout) -> ObjectBrowserTreeLayout.Row? {
@@ -235,8 +272,8 @@ struct ObjectBrowserOutlineView: View {
             let headerHeight = group.header.reduce(SpacingTokens.none) { $0 + $1.height }
             let cardBottom = card.minY + card.height
             guard group.header[0].minY < offset, offset < cardBottom else { continue }
-            // Pinned, or being pushed up by the next card.
-            var top = min(SpacingTokens.none, cardBottom - offset - headerHeight)
+            // Pinned, or being pushed up by the card's last row (ExplorerTreePinnedHeader).
+            var top = min(SpacingTokens.none, cardBottom - LayoutTokens.Workspace.treeCardBottomPadding - offset - headerHeight)
             guard y >= top, y < top + headerHeight else { continue }
             for row in group.header {
                 if y < top + row.height { return row }
@@ -256,12 +293,12 @@ struct ObjectBrowserOutlineView: View {
         })
     }
 
-    private func hidesRows(_ group: ObjectBrowserTreeLayout.Group) -> Bool {
+    func hidesRows(_ group: ObjectBrowserTreeLayout.Group) -> Bool {
         guard let connectionID = group.header.first?.node.row.connectionID else { return false }
         return hiddenRowsConnectionIDs.contains(connectionID)
     }
 
-    private func isSwitching(_ group: ObjectBrowserTreeLayout.Group) -> Bool {
+    func isSwitching(_ group: ObjectBrowserTreeLayout.Group) -> Bool {
         guard let connectionID = group.header.first?.node.row.connectionID else { return false }
         return switchingConnectionIDs.contains(connectionID)
     }
@@ -275,6 +312,7 @@ struct ObjectBrowserOutlineView: View {
 
         let maxOffset = max(0, layout.contentHeight - scroll.viewportHeight)
         let y = min(max(0, target), maxOffset)
+        prepareWindow(for: y)
         withAnimation(revealAnimated ? motion.reveal : nil) {
             position.scrollTo(y: y)
         }

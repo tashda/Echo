@@ -49,6 +49,7 @@ struct QueryResultsGridView: View {
             persistedState: gridState,
             alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
             showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
+            gutterStyle: projectStore.globalSettings.resultsGutterStyle,
             colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
             isDarkMode: appearanceStore.effectiveColorScheme == .dark,
             monospacedCells: projectStore.globalSettings.resultsMonospacedCells,

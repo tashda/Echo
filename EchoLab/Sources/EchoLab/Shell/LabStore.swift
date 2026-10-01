@@ -38,6 +38,16 @@ final class LabStore {
         var status: LabStatus
     }
 
+    /// What the owner should check in the running Echo after a round is built, written by
+    /// `lab-status.py --check/--shot`. Screenshots are file names under `State/shots/<page-id>/`.
+    struct Verification: Codable, Equatable {
+        var summary: String = ""
+        var checks: [String] = []
+        var shots: [String] = []
+        /// Indices of `checks` the owner ticked off.
+        var done: [Int] = []
+    }
+
     struct Item: Codable, Equatable {
         var status: LabStatus
         var comments: [Comment] = []
@@ -58,6 +68,7 @@ final class LabStore {
         var reviewedRevision: Int = 1
         /// The agent that took the round, written by `lab-brief.py --take`.
         var takenBy: Claim?
+        var verification: Verification?
 
         init(status: LabStatus) { self.status = status }
 
@@ -75,6 +86,7 @@ final class LabStore {
             revisions = try container.decodeIfPresent([Revision].self, forKey: .revisions) ?? []
             reviewedRevision = try container.decodeIfPresent(Int.self, forKey: .reviewedRevision) ?? 1
             takenBy = try? container.decodeIfPresent(Claim.self, forKey: .takenBy)
+            verification = try? container.decodeIfPresent(Verification.self, forKey: .verification)
         }
     }
 
@@ -153,6 +165,27 @@ final class LabStore {
     }
     func history(for page: LabPage) -> [Event] { items[page.id]?.history ?? [] }
 
+    // MARK: Checking in Echo
+
+    func verification(of page: LabPage) -> Verification? { items[page.id]?.verification }
+
+    /// The note of the last "Built into Echo" event, for a round whose agent gave no checklist.
+    func builtNote(of page: LabPage) -> String? {
+        items[page.id]?.history.last(where: { $0.text.hasPrefix("Built into Echo") || $0.text.hasPrefix("Changed in Echo") })?.text
+    }
+
+    func shotURL(_ page: LabPage, name: String) -> URL {
+        fileURL.deletingLastPathComponent().appending(path: "shots/\(page.id)/\(name)")
+    }
+
+    func toggleCheck(_ page: LabPage, index: Int) {
+        guard var item = items[page.id], var verification = item.verification else { return }
+        if let at = verification.done.firstIndex(of: index) { verification.done.remove(at: at) } else { verification.done.append(index) }
+        item.verification = verification
+        items[page.id] = item
+        save()
+    }
+
     /// Items waiting for the owner: to judge, or to check in Echo.
     var attentionCount: Int {
         LabRegistry.pages.filter { [.judging, .inEcho].contains(status(of: $0)) }.count
@@ -176,7 +209,7 @@ final class LabStore {
     func confirm(_ page: LabPage) { move(page, to: .decided, note: "Confirmed in Echo") }
 
     /// Feedback always sends the item back to New feedback, from any status.
-    func sendFeedback(_ page: LabPage, comment: String, element: String? = nil) {
+    func sendFeedback(_ page: LabPage, comment: String, element: String? = nil, event: String? = nil) {
         reload()  // build on what agents wrote since (lab-revise.py), not on a stale copy
         let text = comment.trimmingCharacters(in: .whitespacesAndNewlines)
         var item = items[page.id] ?? Item(status: status(of: page) ?? .newFeedback)
@@ -184,9 +217,15 @@ final class LabStore {
         item.status = .newFeedback
         item.reviewedRevision = item.revisions.last?.number ?? 1
         if !text.isEmpty { item.comments.append(Comment(date: .now, text: text, element: element)) }
-        item.history.append(Event(date: .now, text: wasDecided ? "Reopened with feedback" : "Feedback sent"))
+        item.history.append(Event(date: .now, text: event ?? (wasDecided ? "Reopened with feedback" : "Feedback sent")))
         items[page.id] = item
         save()
+    }
+
+    /// The owner checked the built result and it is not right: back to the agent with a note.
+    func reject(_ page: LabPage, note: String) {
+        let text = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        sendFeedback(page, comment: "Rejected in Echo: " + (text.isEmpty ? "no note" : text), event: "Rejected in Echo")
     }
 
     /// Moves a decided or in-Echo item back to New feedback without a comment.

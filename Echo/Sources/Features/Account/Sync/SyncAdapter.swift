@@ -39,6 +39,7 @@ struct SyncAdapter: Sendable {
         fields["connectionTimeout"] = try field(connection.connectionTimeout, hlc: hlc)
         fields["queryTimeout"] = try field(connection.queryTimeout, hlc: hlc)
         fields["queryTimeLimit"] = try field(connection.queryTimeLimit, hlc: hlc)
+        fields["confirmUnguardedWrites"] = try field(connection.confirmUnguardedWrites, hlc: hlc)
         fields["databaseType"] = try field(connection.databaseType, hlc: hlc)
         fields["colorHex"] = try field(connection.colorHex, hlc: hlc)
         fields["explorerDockSections"] = try field(connection.explorerDockSections, hlc: hlc)
@@ -89,6 +90,7 @@ struct SyncAdapter: Sendable {
         if let v: TimeInterval = try value(doc, "connectionTimeout") { conn.connectionTimeout = v }
         if let v: TimeInterval = try value(doc, "queryTimeout") { conn.queryTimeout = v }
         if let v: TimeInterval? = try optionalValue(doc, "queryTimeLimit") { conn.queryTimeLimit = v }
+        if let v: Bool? = try optionalValue(doc, "confirmUnguardedWrites") { conn.confirmUnguardedWrites = v }
         if let v: DatabaseType = try value(doc, "databaseType") { conn.databaseType = v }
         if let v: String = try value(doc, "colorHex") { conn.colorHex = v }
         if let v: [String]? = try optionalValue(doc, "explorerDockSections") { conn.explorerDockSections = v }
@@ -274,7 +276,7 @@ struct SyncAdapter: Sendable {
     /// automatically picks up new settings fields.
     func toSyncDocument(settings: GlobalSettings, projectID: UUID, hlc: UInt64) throws -> SyncDocument {
         var fields: [String: SyncField] = [:]
-        fields["payload"] = try field(settings, hlc: hlc)
+        fields["payload"] = try field(settings.withoutThisMacsValues(), hlc: hlc)
 
         return SyncDocument(
             id: settingsDocumentID(for: projectID),
@@ -288,7 +290,8 @@ struct SyncAdapter: Sendable {
         guard let payload: GlobalSettings = try value(doc, "payload") else {
             return existing ?? GlobalSettings()
         }
-        return payload
+        // SY0: this Mac keeps its own paths.
+        return existing.map { payload.keepingThisMacsValues(from: $0) } ?? payload
     }
 
     /// Deterministic ID for a project's settings document.

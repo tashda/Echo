@@ -12,10 +12,16 @@ final class EchoAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let environment = AppDirector.shared.environmentState
-        let tabs = environment.tabStore.tabs.filter { environment.mayHaveOpenTransaction($0) }
-        guard !tabs.isEmpty else { return .terminateNow }
+        let allTabs = environment.tabStore.tabs
+        let tabs = allTabs.filter { environment.mayHaveOpenTransaction($0) }
+        // Echo doesn't restore tabs, so unsaved queries ask first (owner, 2026-10-01).
+        let hasUnsaved = allTabs.contains { environment.hasUnsavedChanges($0) }
+        guard !tabs.isEmpty || hasUnsaved else { return .terminateNow }
         Task { @MainActor in
-            let mayQuit = await environment.confirmOpenTransactions(in: tabs, for: .quit)
+            var mayQuit = await environment.confirmUnsavedChangesBeforeLosing(allTabs)
+            if mayQuit, !tabs.isEmpty {
+                mayQuit = await environment.confirmOpenTransactions(in: tabs, for: .quit)
+            }
             sender.reply(toApplicationShouldTerminate: mayQuit)
         }
         return .terminateLater

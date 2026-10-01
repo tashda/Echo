@@ -1,3 +1,4 @@
+import EchoSense
 import SwiftUI
 
 extension QueryResultsSection {
@@ -131,6 +132,7 @@ extension QueryResultsSection {
             isResizing: isResizingResults,
             alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
             showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
+            gutterStyle: projectStore.globalSettings.resultsGutterStyle,
             colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
             isDarkMode: appearanceStore.effectiveColorScheme == .dark,
             monospacedCells: projectStore.globalSettings.resultsMonospacedCells,
@@ -220,7 +222,8 @@ extension QueryResultsSection {
         ExecutionConsoleView(
             executionMessages: query.messages,
             onClear: { query.messages.removeAll() },
-            onGoToLine: { query.goToLine(of: $0) }
+            onGoToLine: { query.goToLine(of: $0) },
+            onGoToEditorLine: { query.editorLineRequest = EditorLineRequest(line: $0) }
         )
     }
 
@@ -239,31 +242,26 @@ extension QueryResultsSection {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Round 41.3 (EP1): the results card's states are banners at the top, like the error.
     var executingView: some View {
-        VStack(spacing: SpacingTokens.md) {
-            ProgressView()
-                .controlSize(.large)
-            Text("Executing query...")
-                .font(TypographyTokens.headline)
-            Text("Please wait while we fetch your data.")
-                .font(TypographyTokens.subheadline)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ResultsStateBanner(mark: .progress, title: "Running", detail: "Waiting for the first rows.")
     }
 
+    @ViewBuilder
     var noRowsReturnedView: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "tablecells.badge.ellipsis")
-                .font(TypographyTokens.hero)
-                .foregroundStyle(ColorTokens.Text.secondary)
-            Text("No Rows Returned")
-                .font(TypographyTokens.headline)
-            Text("The query executed successfully but returned no data.")
-                .font(TypographyTokens.subheadline)
-                .foregroundStyle(ColorTokens.Text.secondary)
+        if query.wasCancelled {
+            ResultsStateBanner(
+                mark: .symbol("stop.circle.fill", tint: ColorTokens.Status.warning),
+                title: "Cancelled",
+                detail: query.lastExecutionTime.map { "You stopped the query after \(QueryRunNote.formatted($0))." } ?? "You stopped the query."
+            )
+        } else {
+            ResultsStateBanner(
+                mark: .symbol("tablecells.badge.ellipsis", tint: ColorTokens.Text.secondary),
+                title: "No rows",
+                detail: query.results?.commandTag ?? "The query ran and returned nothing."
+            )
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
 #if os(macOS)

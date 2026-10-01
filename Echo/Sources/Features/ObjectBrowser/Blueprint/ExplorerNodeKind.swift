@@ -13,7 +13,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
 
     // Tools
     case maintenance, serverProperties, activityMonitor, extendedEvents, databaseMail, sqlProfiler
-    case resourceGovernor, tuningAdvisor, policyManagement, sqlServerLogs, jobQueue
+    case resourceGovernor, tuningAdvisor, policyManagement, sqlServerLogs, jobQueue, securityOverview
     case backUpServer, backUpGlobals, psqlConsole
     // PostgreSQL Activity Monitor pages, each a tool that opens the monitor on that page
     case pgSessions, pgLocks, pgDatabaseStatistics, pgOperations, pgQueries, pgReplication
@@ -59,6 +59,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .policyManagement: return "Policy Management"
         case .sqlServerLogs: return "SQL Server Logs"
         case .jobQueue: return "Agent Jobs Overview"
+        case .securityOverview: return "Security Overview"
         case .activity: return "Activity"
         case .serverObjects: return "Server Objects"
         case .tablespaces: return "Tablespaces"
@@ -153,6 +154,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .serverProperties: return "gearshape.2"
         case .activityMonitor: return "gauge.high"
         case .extendedEvents, .jobQueue: return "list.bullet.rectangle"
+        case .securityOverview: return "lock.shield"
         case .databaseMail: return "envelope"
         case .sqlProfiler: return "chart.line.uptrend.xyaxis"
         case .resourceGovernor: return "slider.horizontal.3"
@@ -188,7 +190,7 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .activity, .pgSessions, .pgLocks, .pgDatabaseStatistics, .pgOperations, .pgQueries, .pgReplication,
              .pgIOStatistics, .pgWAL, .pgBackgroundWriter, .pgPreparedTransactions, .pgConfiguration: .activityMonitor
         case .tablespaces, .tablespace: .extensions
-        case .serverSecurity, .databaseSecurity: .security
+        case .serverSecurity, .databaseSecurity, .securityOverview: .security
         case .logins, .certificateLogins, .loginRoles, .login: .logins
         case .groupRoles, .databaseRoles, .applicationRoles, .schemas, .databaseRole, .applicationRole, .schema: .roles
         case .serverRoles, .serverRole: .serverRoles
