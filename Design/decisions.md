@@ -55,12 +55,13 @@ Echo Labs › Tool tabs › SQL Server Agent Jobs: New Step · round 33, page 2,
 - **Add Step (PB1):** prominent while it can be pressed, as every sheet: `SheetLayout` now makes its default button prominent when enabled (it was always bordered), and `SheetLayout.primaryButton` serves custom footers.
 - **Editing a step (ES1):** a line under the title, "Last run 26 Sep 23:00 · Succeeded · 14 min", from the job's history. Edit Step shows the name and type without letting them change, since the driver can't rename a step or change its type (they were editable and silently ignored). → `05-components` › Tool tabs, plan TL5
 
-## 2026-10-01 · After round 35.1: ⌘D, Esc, and unsaved query tabs
+## 2026-10-01 · After round 35.1: ⌘D, Esc, and unsaved tabs
 
 The owner's notes on the running app, decided in chat.
 
 - **⌘D** didn't duplicate: `duplicateTab` was an empty stub. It now opens a copy of a query tab right after it. **Esc** now closes the tab overview wherever focus is. → TABS-7.4, 7.5
 - **Unsaved changes:** a query tab asks before its changes are lost, in a standard alert (owner: "a pop up like when closing a page with unsaved changes"). Save keeps it as a bookmark, Save As writes a .sql file ("Both"); a tab is unsaved once you changed it (recommended); several at once ask once (recommended). Quitting and switching project ask too, since Echo doesn't restore tabs. → `05-components` › Tab overview, TABS-8, plan O5
+- **Table structure uses the same alert** (owner, 2026-10-01): the editor's own SwiftUI "Unsaved Changes" alert is gone; a structure with changes not applied asks through `WindowAlert` with Apply Changes, Discard Changes, Cancel. → TABS-8.5
 
 ## 2026-10-01 · Round 46 accepted: a server card opens and closes like a section switch
 

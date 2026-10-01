@@ -17,6 +17,7 @@ struct UnsavedChangesTests {
         #expect(plain.title == "Do you want to save the changes to \u{201C}Query 1\u{201D}?")
         #expect(plain.message.contains("bookmark in the project"))
         #expect(UnsavedChangesAlert.texts(tab: "Query 1", bookmark: "Daily").message.contains("\u{201C}Daily\u{201D}"))
+        #expect(UnsavedChangesAlert.structureTexts(tab: "orders").title == "Do you want to apply the changes to \u{201C}orders\u{201D}?")
         #expect(UnsavedChangesAlert.severalTexts(["A", "B", "C"]).title == "3 tabs have unsaved changes")
     }
 }

@@ -234,7 +234,7 @@ enum TabsArea {
                 .behaviour(.row("Selection", "moves to the copy")),
             ], rounds: ["ongoing.tab-overview-direction-r35"], files: ["Echo/Sources/Features/AppHost/Domain/State/EnvironmentState+TabManagement.swift"]),
         ]),
-        SpecPart(number: "8", name: "Unsaved changes", summary: "Query tabs ask before their changes are lost (owner, 1 Oct 2026). The structure editor keeps its own Discard Changes alert.", elements: [
+        SpecPart(number: "8", name: "Unsaved changes", summary: "Query tabs, and table structures with changes not applied, ask before their changes are lost (owner, 1 Oct 2026), in one alert built by one component.", elements: [
             SpecElement(number: "8.1", name: "Unsaved", summary: "The SQL differs from what the tab opened with or was last saved as, and isn't empty. A script Echo generated asks only once you edit it.", groups: [
                 .behaviour(.row("Tracked by", "QueryEditorState.savedSQL")),
             ], files: ["Echo/Sources/Features/QueryWorkspace/Domain/QueryEditorState/QueryEditorState+SaveState.swift"]),
@@ -243,6 +243,9 @@ enum TabsArea {
                            .row("Save", "the tab's bookmark, or a new bookmark named after the tab"),
                            .row("Save As", "a .sql file; the tab takes its name")),
             ], files: ["Echo/Sources/Features/AppHost/Domain/State/EnvironmentState+UnsavedChanges.swift", "Echo/Sources/Features/AppHost/Domain/State/WindowAlert.swift"]),
+            SpecElement(number: "8.5", name: "Table structure", summary: "A structure tab with changes not applied asks the same way: \"Do you want to apply the changes to “orders”?\" Buttons: Apply Changes (alters the table now; a failed apply keeps the tab open), Discard Changes (destructive), Cancel. It joins the several-tabs question.", groups: [
+                .behaviour(.row("Same component", "WindowAlert, through the tab store's unsaved guard; the old SwiftUI alert is gone")),
+            ], files: ["Echo/Sources/Features/AppHost/Domain/State/EnvironmentState+UnsavedChanges.swift"]),
             SpecElement(number: "8.3", name: "Closing several", summary: "Close Others, Close Tabs to the Left or Right, Close All, quitting and switching project ask once when two or more are unsaved: \"3 tabs have unsaved changes\", listing them.", groups: [
                 .behaviour(.row("Buttons", "Review Each, Close Without Saving (destructive), Cancel"),
                            .row("Review Each", "brings each tab to the front and asks about it; Cancel stops")),

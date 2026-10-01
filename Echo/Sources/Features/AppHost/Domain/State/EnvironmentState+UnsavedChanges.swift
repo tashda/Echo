@@ -7,12 +7,15 @@ import UniformTypeIdentifiers
 extension EnvironmentState {
     enum UnsavedChoice: Equatable { case save, saveAs, dontSave, cancel }
     enum SeveralUnsavedChoice: Equatable { case reviewEach, closeWithoutSaving, cancel }
+    enum StructureChoice: Equatable { case apply, discard, cancel }
 
     /// Tabs whose unsaved changes were dealt with, so their close goes ahead without asking again.
     @MainActor private static var confirmedUnsavedCloses: Set<UUID> = []
 
+    /// A query tab you changed, or a table structure with changes not applied yet.
     func hasUnsavedChanges(_ tab: WorkspaceTab) -> Bool {
-        tab.query?.hasUnsavedChanges ?? false
+        if let query = tab.query { return query.hasUnsavedChanges }
+        return tab.structureEditor?.hasPendingChanges ?? false
     }
 
     /// The tab store's close check: holds back a tab with unsaved changes, asks, and closes it once
@@ -43,6 +46,7 @@ extension EnvironmentState {
 
     /// Asks about one tab; true when it may close (saved, or Don't Save).
     func confirmUnsavedChanges(in tab: WorkspaceTab) async -> Bool {
+        if let editor = tab.structureEditor { return await confirmPendingStructureChanges(in: tab, editor: editor) }
         switch await UnsavedChangesAlert.ask(tab: tab.title, bookmark: tab.bookmarkContext?.displayName) {
         case .save: return await saveToBookmark(tab)
         case .saveAs: return await saveAsFile(tab)
@@ -80,6 +84,18 @@ extension EnvironmentState {
                 guard await confirmUnsavedChanges(in: tab) else { return false }
             }
             return true
+        }
+    }
+
+    /// A table structure with changes not applied: the same alert, with Apply Changes for Save.
+    private func confirmPendingStructureChanges(in tab: WorkspaceTab, editor: TableStructureEditorViewModel) async -> Bool {
+        switch await UnsavedChangesAlert.askAboutStructure(tab: tab.title) {
+        case .apply:
+            await editor.applyChanges()
+            // A failed apply keeps the tab open so the error stays visible.
+            return !editor.hasPendingChanges
+        case .discard: return true
+        case .cancel: return false
         }
     }
 
@@ -148,6 +164,22 @@ enum UnsavedChangesAlert {
                                               message: texts(tab: tab, bookmark: bookmark).message,
                                               buttons: choices.map(\.0))
         return choices[index].1
+    }
+
+    static func askAboutStructure(tab: String) async -> EnvironmentState.StructureChoice {
+        let choices: [(WindowAlert.Button, EnvironmentState.StructureChoice)] = [
+            (.init(title: "Apply Changes"), .apply),
+            (.init(title: "Discard Changes", isDestructive: true), .discard),
+            (.init(title: "Cancel"), .cancel),
+        ]
+        let text = structureTexts(tab: tab)
+        let index = await WindowAlert.present(title: text.title, message: text.message, buttons: choices.map(\.0))
+        return choices[index].1
+    }
+
+    static func structureTexts(tab: String) -> (title: String, message: String) {
+        ("Do you want to apply the changes to \u{201C}\(tab)\u{201D}?",
+         "Your changes will be lost if you don't apply them. Apply Changes alters the table now.")
     }
 
     static func askForSeveral(_ tabs: [String]) async -> EnvironmentState.SeveralUnsavedChoice {
