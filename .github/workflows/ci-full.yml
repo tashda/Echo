@@ -14,14 +14,14 @@ concurrency:
 jobs:
   build-and-test:
     name: "Step 1: Build & Test"
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
     - uses: actions/checkout@v4
 
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '26'
+        xcode-version: '27'
 
     - name: Install PostgreSQL tools
       run: |
@@ -96,7 +96,7 @@ jobs:
 
   lab-tests:
     name: "Step 2: Database tests on the lab"
-    runs-on: macos-26
+    runs-on: xcode-27
     needs: [build-and-test]
     timeout-minutes: 120
     concurrency:
@@ -108,7 +108,7 @@ jobs:
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '26'
+        xcode-version: '27'
 
     - name: Access to echo-server-lab
       uses: ./.github/actions/lab-repo-access
@@ -185,7 +185,7 @@ jobs:
 
   release:
     name: "Step 3: Production Build & Release"
-    runs-on: macos-26
+    runs-on: xcode-27
     needs: [build-and-test, lab-tests]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
@@ -196,7 +196,7 @@ jobs:
         fetch-depth: 0
     - uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '26'
+        xcode-version: '27'
     - name: Install PostgreSQL tools
       run: |
         brew list libpq >/dev/null 2>&1 || brew install libpq

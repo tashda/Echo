@@ -30,14 +30,14 @@ env:
 jobs:
   build-and-test:
     name: "Build & Test"
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
     - uses: actions/checkout@v4
 
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '26'
+        xcode-version: '27'
 
     - name: Install PostgreSQL tools
       run: ${{ env.PG_TOOLS_SCRIPT }}
