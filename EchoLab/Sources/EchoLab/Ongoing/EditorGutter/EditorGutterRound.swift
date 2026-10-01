@@ -37,7 +37,7 @@ enum EditorGutterRound {
             LabQERound.baseControl,
         ],
         exhibits: [
-            LabQERound.today("SF digits 11pt in #6D6D6D, the caret's line semibold in #D9D9DC, dot and arrow in an 11pt column on the left, no surface (Subtle).", scene: .typing),
+            LabQERound.today("SF digits 11pt in #6D6D6D, the caret's line semibold in #D9D9DC, dot and arrow in an 11pt column on the left, no surface (Subtle).", scene: .typing, before28: true),
             LabQERound.proposal("Built from the controls; the rest of the editor as you choose under Rest of the editor.", scene: .typing),
             LabQERound.gallery("Surfaces", "Every gutter surface on the proposal.", LabQEGutterSurface.self, \.gutter, scene: .typing),
         ],

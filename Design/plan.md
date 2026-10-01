@@ -357,6 +357,18 @@ Rules: `decisions.md` › 2026-09-30 rounds 20 and 24.
 | RB5 | **Long query notification (N1).** | `NotificationEngine+LongQuery`, `LongQueryNotice`, `QueryEditorState.runEndedHandler` | `QueryRunButtonTests` 👁 | ☑ built, 👁 pending |
 | RB6 | **▶ into ■ (round 24):** one button in its own glass; ■ replaces ▶ in place, the glass fades to red, then it grows and the time fades in; the red drains as the ✓ draws. | `QueryRunToolbarControl(+Components)`, `WorkspaceToolbarItems`, `LayoutTokens.Toolbar`, `ColorTokens.Text.onFill` | Matches the lab 👁 | ☑ built, 👁 pending: the glass Echo draws must match its neighbours' height and the red the system's prominent red |
 
+## Phase 20 · Query editor (round 28)
+
+Rules: `decisions.md` › 2026-10-01 round 28; `05-components` › Editor card.
+
+| ID | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| QE1 | **Text (28.1):** lines 1.55 × the size; Line Height Compact, Comfortable, Relaxed; SF Mono default (moved once); ligatures off; code 16pt after the numbers; 8pt top. | `SQLLayoutManager.lineHeight`, `EditorLineHeight`, `GlobalSettings` (typography revision 2), `SQLEditorTheme`, `AppearanceSettingsView+EditorFont`, `MonospacedFontPicker`, `LayoutTokens.EditorGutter.numberTrailing` | `EditorTypographySettingsTests` 👁 | ☑ 9715ce3b, 👁 pending |
+| QE2 | **Gutter (28.2):** numbers 2pt under the code, tertiary, the caret line's in the text colour; Hairline style. | `LineNumberRulerView`, `EditorGutterStyle` | `LineNumberRulerTests` 👁 | ☑ 9715ce3b, 👁 pending |
+| QE3 | **Caret line and selection (28.3):** no band; system selection with corners from Settings (3pt); system caret. | `SQLTextView`, `SQLLayoutManager.fillBackgroundRectArray`, `EditorSelectionCorners`, `AppearanceSettingsView+Selection` | `EditorTypographySettingsTests` 👁 | ☑ 9715ce3b, 👁 pending |
+| QE4 | **Statement (28.4):** a bracket beside the numbers, solid for a selected result's statement; grey Run arrow, accent on hover. | `SQLTextView+StatementFocus`, `LineNumberRulerView+StatementBracket`, `LayoutTokens.EditorGutter.statementBracket*` | `StatementFocusTests` 👁 | ☑ 9715ce3b, 👁 pending |
+| QE5 | **Run note count:** every row the server sent, as the footer. | `QueryEditorState+Execution` | `QueryEditorStateRunNoteTests` | ☑ 18b2898d |
+
 ## Phase 10 · Finish
 
 | ID | Task | Done when | Status |

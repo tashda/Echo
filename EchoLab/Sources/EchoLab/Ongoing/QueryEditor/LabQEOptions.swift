@@ -157,13 +157,13 @@ enum LabQECurrentLine: String, CaseIterable {
 }
 
 enum LabQESelectionColour: String, CaseIterable {
-    case palette = "S0 · Palette blue (today)"
+    case palette = "S0 · Palette blue"
     case system = "S1 · System selection colour"
     case accent = "S2 · Accent at 25%"
 
     var summary: String {
         switch self {
-        case .palette: "Aurora #CCE8FF, Midnight #264F78: the same blue whatever the accent colour."
+        case .palette: "Aurora #CCE8FF, Midnight #264F78: the same blue whatever the accent colour. (The page first said Echo drew this; it never did: NSTextView already used the system colour.)"
         case .system: "selectedTextBackgroundColor: follows the accent colour and turns grey when the window is in the background, like every text field."
         case .accent: "A lighter accent wash."
         }

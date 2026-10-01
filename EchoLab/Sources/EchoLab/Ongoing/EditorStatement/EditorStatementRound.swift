@@ -23,7 +23,7 @@ enum EditorStatementRound {
             LabQERound.baseControl,
         ],
         exhibits: [
-            LabQERound.today("A 6% accent band behind lines 1 to 8 and an accent triangle on line 1.", scene: .typing),
+            LabQERound.today("A 6% accent band behind lines 1 to 8 and an accent triangle on line 1.", scene: .typing, before28: true),
             LabQERound.proposal("Built from the controls; the rest of the editor as you choose under Rest of the editor.", scene: .typing),
             LabQERound.gallery("Statement looks", "Every way of showing the statement, on the proposal.", LabQEStatementLook.self, \.statement, scene: .typing),
         ],

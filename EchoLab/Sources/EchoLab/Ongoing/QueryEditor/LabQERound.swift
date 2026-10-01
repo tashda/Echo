@@ -24,9 +24,10 @@ enum LabQERound {
     }
 
     static func today(_ summary: String, scene fallback: LabQESceneChoice, outlineEdge: Bool = false,
-                      hints: LabQEHintsPlace? = nil) -> RoundSpec.Exhibit {
-        .init(id: "today", title: "Echo today", summary: summary, isEchoToday: true, designWidth: width, designHeight: height) { values in
-            LabQEEditor(style: .today, scene: scene(values, fallback), outlineEdge: outlineEdge, hints: hints)
+                      hints: LabQEHintsPlace? = nil, before28: Bool = false) -> RoundSpec.Exhibit {
+        .init(id: "today", title: before28 ? "Echo before round 28" : "Echo today", summary: summary, isEchoToday: true,
+              designWidth: width, designHeight: height) { values in
+            LabQEEditor(style: before28 ? .before28 : .today, scene: scene(values, fallback), outlineEdge: outlineEdge, hints: hints)
         }
     }
 

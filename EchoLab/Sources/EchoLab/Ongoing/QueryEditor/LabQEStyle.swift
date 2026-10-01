@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Round 28: everything about how the editor draws, in one value. `today` is Echo as built
-/// (read from SQLTextView, LineNumberRulerView, SQLLayoutManager and the Aurora/Midnight
-/// palettes); `recommended` is every page's recommendation together. A page's controls override
+/// Round 28: everything about how the editor draws, in one value. `before28` is Echo as it was
+/// when round 28 began (read from SQLTextView, LineNumberRulerView, SQLLayoutManager and the
+/// Aurora/Midnight palettes); `today` is Echo with the accepted pages built in (28.1 to 28.4);
+/// `recommended` is every page's recommendation, with the owner's answers where there are some. A page's controls override
 /// the parts they name (`applying(_:)`), on top of whichever base the owner picks.
 struct LabQEStyle {
     var font = LabQEFont.jetBrains
@@ -17,7 +18,7 @@ struct LabQEStyle {
     var currentNumber = LabQECurrentNumber.today
     var markers = LabQEMarkerPlace.left
     var currentLine = LabQECurrentLine.band
-    var selectionColour = LabQESelectionColour.palette
+    var selectionColour = LabQESelectionColour.system
     var selectionShape = LabQESelectionShape.square
     var caret = LabQECaretColour.operatorColour
     var statement = LabQEStatementLook.band
@@ -37,12 +38,19 @@ struct LabQEStyle {
     var zoomLook = LabQEZoomLook.menu
     var zoomShows = LabQEZoomShows.always
 
-    static let today = LabQEStyle()
+    static let before28 = LabQEStyle()
+
+    /// Built into Echo: 28.1 text, 28.2 gutter, 28.3 caret line and selection, 28.4 statement.
+    static let today = LabQEStyle(
+        font: .sfMono, size: .s13, ligatures: .off, lineHeight: .comfortable, codeGap: .g16, topMargin: .m8,
+        gutter: .subtle, numberFont: .smaller, numberColour: .tertiary, currentNumber: .primary, markers: .left,
+        currentLine: .noBand, selectionColour: .system, selectionShape: .rounded, caret: .accent,
+        statement: .bracket, runArrow: .symbol)
 
     static let recommended = LabQEStyle(
         font: .sfMono, size: .s13, ligatures: .off, lineHeight: .comfortable, codeGap: .g16, topMargin: .m8,
         gutter: .subtle, numberFont: .smaller, numberColour: .tertiary, currentNumber: .primary, markers: .left,
-        currentLine: .noBand, selectionColour: .system, selectionShape: .square, caret: .accent,
+        currentLine: .noBand, selectionColour: .system, selectionShape: .rounded, caret: .accent,
         statement: .bracket, runArrow: .symbol, wordHighlight: .soft, markCorner: .c3, markHeight: .letters,
         errorWord: .squiggle, errorMessage: .hover, errorDot: .dot,
         runNoteLook: .quiet, runNotePlace: .lineEnd, ranHighlight: .flash,

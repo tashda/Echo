@@ -39,7 +39,7 @@ enum EditorTextRound {
             LabQERound.baseControl,
         ],
         exhibits: [
-            LabQERound.today("JetBrains Mono 13pt in 31pt lines, ligatures on, code 21pt after the numbers, 4pt from the top.", scene: .typing),
+            LabQERound.today("JetBrains Mono 13pt in 31pt lines, ligatures on, code 21pt after the numbers, 4pt from the top.", scene: .typing, before28: true),
             LabQERound.proposal("Built from the controls; the rest of the editor as you choose under Rest of the editor.", scene: .typing),
             LabQERound.gallery("Line heights", "Every line height on the proposal.", LabQELineHeight.self, \.lineHeight, scene: .typing),
             .init(id: "fonts", title: "Fonts", summary: "Every bundled font and SF Mono at the proposal's size, with and without ligatures.",

@@ -39,6 +39,172 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.editor-caret-line-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T11:01:39Z",
+        "id": "90D8BF18-F0FB-46FB-BE25-86ADEAAFED0A",
+        "text": "Review of Editor: caret, current line and selection\n1. Which caret line?: picked Proposal\n2. Current line: picked CL1 \u00b7 None\n3. Selection colour: picked S1 \u00b7 System selection colour\n4. Selection shape: picked Rounded 3pt; note: I need more options for how rounded it should be. Please add this as a setting in Settings with Rounded 3 pt as default\n5. Caret colour: picked I1 \u00b7 System accent\n6. Blinking: picked B0 \u00b7 As the system sets it (today)\n7. When the editor isn't focused: picked U0 \u00b7 Grey selection, no caret (native)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T11:01:39Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T11:40:00Z",
+        "text": "Built into Echo (9715ce3b): no current-line band; the system selection with 3pt corners, Settings \u203a Selection Corners (Square, 2, 3, 4, 6pt); the system caret. Correction: Echo already drew the system selection colour, not the palette's blue"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "selectionShape": "I need more options for how rounded it should be. Please add this as a setting in Settings with Rounded 3 pt as default"
+    },
+    "picks": {
+      "blink": "system",
+      "caret": "I1 \u00b7 System accent",
+      "currentLine": "CL1 \u00b7 None",
+      "exhibit": "proposal",
+      "focus": "system",
+      "selectionColour": "S1 \u00b7 System selection colour",
+      "selectionShape": "Rounded 3pt"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.editor-gutter-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T10:59:48Z",
+        "id": "742CFADB-59B5-497D-9F3A-FC99444DBDDB",
+        "text": "Review of Editor: gutter\n1. Which gutter?: picked Proposal\n2. The caret line's number: picked K1 \u00b7 Primary colour\n3. Number colour: picked C1 \u00b7 Tertiary label\n4. Number font: picked N1 \u00b7 SF digits, 2pt under the code\n5. Surface: picked G0 \u00b7 Numbers only (today's default); note: Every option needs to be selectable in Settings, so we should do each of them (maybe they are in a different round? If not create them)\n6. Error dot and Run arrow: picked M0 \u00b7 A column left of the numbers (today)\n7. Wrapped lines: picked W0 \u00b7 Nothing (today)\n8. Clicking a number: picked C0 \u00b7 Select the line, drag for more (today)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T10:59:48Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T11:40:00Z",
+        "text": "Built into Echo (9715ce3b): SF digits 2pt under the code, tertiary, the caret line's number in the text colour; Hairline added beside Subtle, Column and Lane in Settings (your note)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "gutter": "Every option needs to be selectable in Settings, so we should do each of them (maybe they are in a different round? If not create them)"
+    },
+    "picks": {
+      "click": "select",
+      "currentNumber": "K1 \u00b7 Primary colour",
+      "exhibit": "proposal",
+      "gutter": "G0 \u00b7 Numbers only (today's default)",
+      "markers": "M0 \u00b7 A column left of the numbers (today)",
+      "numberColour": "C1 \u00b7 Tertiary label",
+      "numberFont": "N1 \u00b7 SF digits, 2pt under the code",
+      "wrapped": "blank"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.editor-marks-r28": {
+    "comments": [],
+    "generalNote": "",
+    "history": [],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "markCorner": "3pt",
+      "markHeight": "The letters' height",
+      "wordHighlight": "H1 \u00b7 Soft rounded tint"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Judging",
+    "verdicts": {}
+  },
+  "ongoing.editor-statement-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T11:03:34Z",
+        "id": "7A1B8FE1-E11C-4EE6-AA94-5CE5E3FB19F4",
+        "text": "Review of Editor: the statement at the caret\n1. Which statement mark?: picked Proposal\n2. How the statement shows: picked B1 \u00b7 A bracket in the gutter\n3. Run arrow: picked A1 \u00b7 \u25b6 in the gutter's grey, accent on hover\n4. When it shows: picked W0 \u00b7 Only with two or more statements (today)\n5. A selected result's statement: picked SR1 \u00b7 Like the statement look, in the accent\n6. Where a statement ends: picked SE0 \u00b7 Semicolon, GO or a blank line (today)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T11:03:34Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T11:40:00Z",
+        "text": "Built into Echo (9715ce3b): a bracket beside the statement's numbers, solid for a selected result's statement; the Run arrow grey, accent under the pointer"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "ends": "today",
+      "exhibit": "proposal",
+      "result": "follow",
+      "runArrow": "A1 \u00b7 \u25b6 in the gutter's grey, accent on hover",
+      "statement": "B1 \u00b7 A bracket in the gutter",
+      "when": "several"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.editor-text-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T10:57:21Z",
+        "id": "3DE74BFD-92D8-4BB2-8C55-9E7AAB88EB9C",
+        "text": "Review of Editor: text and line height\n1. Which text?: picked Proposal\n2. Line height: picked L2 \u00b7 20pt, 1.55 \u00d7 the size\n3. Default font: picked SF Mono\n4. Default size: picked 13pt (today)\n5. Ligatures: picked Off\n6. Numbers to code: picked 16pt\n7. Above the first line: picked 8pt\n8. The Line Spacing setting: picked LS1 \u00b7 Compact, Comfortable, Relaxed"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T10:57:21Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T11:40:00Z",
+        "text": "Built into Echo (9715ce3b): lines 1.55 \u00d7 the size (20pt at 13pt); Line Height Compact, Comfortable, Relaxed; SF Mono by default; ligatures off; code 16pt after the numbers; 8pt above the first line"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "codeGap": "16pt",
+      "exhibit": "proposal",
+      "font": "SF Mono",
+      "ligatures": "Off",
+      "lineHeight": "L2 \u00b7 20pt, 1.55 \u00d7 the size",
+      "size": "13pt (today)",
+      "spacingSetting": "names",
+      "topMargin": "8pt"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.mssql-encryption-r22": {
     "comments": [
       {

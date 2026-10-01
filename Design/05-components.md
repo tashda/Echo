@@ -124,13 +124,16 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 ## Editor card
 
 - Opaque card; SQL editor inside. *Decided.*
-- **Fonts** (2026-09-30): JetBrains Mono, Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Monaspace and Commit Mono, all SIL OFL. The default is still to be picked by the owner. **13pt with 1.55 line spacing** by default; both are settings. *Decided.*
-- **Editor ideas** (2026-09-30), each a setting where it adds chrome: statement focus with a Run arrow in the gutter, results inline at the end of a statement, errors written on the line, a rounded current-line band with more room, an outline edge (setting), and faint starting points in an empty tab. *Decided.*
+- **Fonts** (2026-09-30): JetBrains Mono, Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Monaspace and Commit Mono, all SIL OFL. **SF Mono is the default** (round 28.1); ligatures off unless turned on for a font. **13pt, lines 1.55 × the size** (20pt); Line Height is Compact (1.3), Comfortable (1.55) or Relaxed (1.75). The code starts 16pt after the line numbers, 8pt below the card's top. *Decided, round 28.1.*
+- **Editor ideas** (2026-09-30), each a setting where it adds chrome: statement focus with a Run arrow in the gutter, results inline at the end of a statement, errors written on the line, more room (the rounded current-line band was removed in round 28.3), an outline edge (setting), and faint starting points in an empty tab. *Decided.*
   - The empty tab's starting points: the four tables opened last on the tab's connection and database (Data, Structure, Diagram or search), then snippets. A table inserts its first-rows query. *Built 2026-09-30.*
 - **Gutter:**
-  - Three styles as a setting (2026-09-30): **Subtle** (numbers only), **Tinted column** (full height, cut by the card's corners, hairline edge) and **Tinted lane** (inset 5pt, rounded, no edge). *Decided.*
+  - Four styles as a setting: **Subtle** (numbers only, the default), **Tinted column** (full height, cut by the card's corners, hairline edge), **Tinted lane** (inset 5pt, rounded, no edge) and **Hairline** (only the edge; round 28.2). *Decided.*
+  - Numbers are SF digits 2pt under the code in the tertiary label colour; the caret line's number is in the text colour, at the same weight (round 28.2). *Decided.*
   - Numbers stop at the last line; the tint still runs the card's full height. *Decided.*
-  - Both get current-line emphasis and validation markers (a red dot on failing lines). *Decided.*
+  - Every style gets the current-line number and validation markers (a red dot on failing lines) in a column left of the numbers. *Decided.*
+- **Caret line and selection (round 28.3):** nothing behind the caret's line; the system selection colour with 3pt corners (Selection Corners: Square, 2, 3, 4, 6pt); the system insertion point. *Decided.*
+- **Statement at the caret (round 28.4):** a thin accent bracket beside its line numbers, solid for a selected script result's statement; the Run arrow is grey and turns accent under the pointer. *Decided.*
   - Fixes that apply either way: one number per logical line, width that grows with digit count, and using the theme's gutter colours. *Decided.*
 - **After the first run, the results grow up out of the footer** (round 10, RS2): the footer detaches from the editor card as a footer-high results card, then the seam travels up to the split line while the rows fade in. The editor keeps its scroll position, undo and focus. *Decided.*
 - **Resizing:** drag the canvas gap between the cards; a grab capsule appears on hover. *Decided.* **Double-click the gap to maximise the results**: the editor shrinks to a one-line card. Double-click again to restore. It is also available as a menu item with a shortcut. *Decided.*

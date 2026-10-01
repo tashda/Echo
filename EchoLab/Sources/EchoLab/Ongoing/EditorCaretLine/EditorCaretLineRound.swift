@@ -31,7 +31,7 @@ enum EditorCaretLineRound {
             LabQERound.baseControl,
         ],
         exhibits: [
-            LabQERound.today("A rounded grey band on line 5, the palette's blue selection, the caret in the operator colour.", scene: .typing),
+            LabQERound.today("A rounded grey band on line 5, the system's selection (corrected: the page first said the palette's blue), the caret in the operator colour.", scene: .typing, before28: true),
             LabQERound.proposal("Built from the controls; the rest of the editor as you choose under Rest of the editor.", scene: .typing),
             LabQERound.gallery("Current line", "Every current-line choice on the proposal.", LabQECurrentLine.self, \.currentLine, scene: .typing),
         ],

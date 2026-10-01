@@ -19,6 +19,7 @@ final class RunSpecimenState {
         case "column": gutter = .column
         case "lane": gutter = .lane
         case "subtle": gutter = .subtle
+        case "hairline": gutter = .hairline
         case "error": showsError = true
         default: break
         }
@@ -26,7 +27,7 @@ final class RunSpecimenState {
 }
 
 enum EditorGutterLook: String, CaseIterable, Identifiable {
-    case subtle = "Subtle (default)", column = "Column", lane = "Lane"
+    case subtle = "Subtle (default)", column = "Column", lane = "Lane", hairline = "Hairline"
     var id: String { rawValue }
 }
 
@@ -63,22 +64,23 @@ struct RunButtonSpecimen: View {
         }
     }
 
-    /// The editor card as `SQLTextView` and `LineNumberRulerView` draw it: the gutter in its
-    /// chosen style, the caret's line as a rounded band, the statement band and Run arrow when the
-    /// script has more than one statement, an error dot, and the run note after a run.
+    /// The editor card as `SQLTextView` and `LineNumberRulerView` draw it (rounds 28.1 to 28.4):
+    /// the gutter in its chosen style, no band on the caret's line (its number in the text
+    /// colour), the statement bracket and grey Run arrow when the script has more than one
+    /// statement, an error dot, the rounded system selection, and the run note after a run.
     private var editorCard: some View {
         let lines = ["select *", "from employees.employee", "where hire_date > '2020-01-01';", "", "select count(*) from departments;"]
-        let gutterWidth: CGFloat = 4 + 5 + 2 + 2 * 6.7 + 12
+        let gutterWidth: CGFloat = 4 + 5 + 2 + 2 * 6.7 + LayoutTokens.EditorGutter.numberTrailing
         return ZStack(alignment: .topLeading) {
             gutterBackground(width: gutterWidth)
-            // The caret's line: a band inset 6pt, corner 6pt.
-            RoundedRectangle(cornerRadius: LayoutTokens.EditorGutter.currentLineCornerRadius, style: .continuous)
-                .fill(ColorTokens.Text.primary.opacity(0.05))
-                .frame(height: 20).padding(.horizontal, LayoutTokens.EditorGutter.currentLineInset)
-                .offset(y: 8 + 20 * 1).specAnchor("2.4")
+            // No band on the caret's line (round 28.3): the anchor marks where it was.
+            Color.clear.frame(height: 20).offset(y: 8 + 20 * 1).specAnchor("2.4")
             if state.statementFocus {
-                Rectangle().fill(ColorTokens.accent.opacity(LayoutTokens.EditorGutter.statementBandOpacity))
-                    .frame(height: 60).offset(y: 8).specAnchor("3.1")
+                Capsule().fill(ColorTokens.accent.opacity(LayoutTokens.EditorGutter.statementBracketOpacity))
+                    .frame(width: LayoutTokens.EditorGutter.statementBracketWidth, height: 60 - LayoutTokens.EditorGutter.statementBracketInset * 2)
+                    .offset(x: gutterWidth - LayoutTokens.EditorGutter.numberTrailing + LayoutTokens.EditorGutter.statementBracketGap,
+                            y: 8 + LayoutTokens.EditorGutter.statementBracketInset)
+                    .specAnchor("3.1")
             }
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(lines.enumerated()), id: \.offset) { index, text in
@@ -87,17 +89,18 @@ struct RunButtonSpecimen: View {
                             if state.showsError && index == 2 {
                                 Circle().fill(ColorTokens.Status.error).frame(width: 5, height: 5).offset(x: LayoutTokens.EditorGutter.markerLeading).specAnchor("2.3")
                             } else if state.statementFocus && index == 0 {
-                                Image(systemName: "arrowtriangle.right.fill").font(.system(size: 8)).foregroundStyle(ColorTokens.accent)
+                                Image(systemName: "arrowtriangle.right.fill").font(.system(size: 8)).foregroundStyle(ColorTokens.Text.tertiary)
                                     .offset(x: LayoutTokens.EditorGutter.markerLeading).specAnchor("3.2")
                             }
-                            Text("\(index + 1)").font(.system(size: 11, weight: index == 1 ? .semibold : .regular).monospacedDigit())
-                                .foregroundStyle(index == 1 ? ColorTokens.accent : ColorTokens.Text.tertiary)
+                            Text("\(index + 1)").font(.system(size: 11).monospacedDigit())
+                                .foregroundStyle(index == 1 ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
                                 .frame(width: gutterWidth - LayoutTokens.EditorGutter.numberTrailing, alignment: .trailing)
                                 .optionalSpecAnchor(index == 0 ? "2.2" : nil)
                         }
                         .frame(width: gutterWidth, alignment: .leading)
                         HStack(spacing: LayoutTokens.EditorGutter.runNoteGap) {
-                            Text(text).background(index == 1 && state.hasSelection ? ColorTokens.accent.opacity(0.25) : .clear)
+                            Text(text).background(index == 1 && state.hasSelection ? Color(nsColor: .selectedTextBackgroundColor) : .clear,
+                                                  in: RoundedRectangle(cornerRadius: SpacingTokens.nano))
                             if index == 2, case .succeeded(let rows, let seconds) = state.simulation.phase {
                                 Text("✓ \(rows.formatted()) rows · \(seconds.formatted(.number.precision(.fractionLength(1)))) s")
                                     .font(TypographyTokens.detail).foregroundStyle(.green).transition(.opacity).specAnchor("3.3")
@@ -131,6 +134,12 @@ struct RunButtonSpecimen: View {
                     .fill(ColorTokens.Text.primary.opacity(0.04))
                     .frame(width: max(width - LayoutTokens.EditorGutter.laneInset * 2, 0))
                     .padding(LayoutTokens.EditorGutter.laneInset)
+                Spacer()
+            }.specAnchor("2.1")
+        case .hairline:
+            HStack(spacing: 0) {
+                Spacer().frame(width: width - LayoutTokens.EditorGutter.edgeWidth)
+                Rectangle().fill(.separator).frame(width: LayoutTokens.EditorGutter.edgeWidth)
                 Spacer()
             }.specAnchor("2.1")
         }

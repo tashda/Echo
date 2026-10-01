@@ -21,8 +21,10 @@ enum EditorSpec {
                 .material(.row("Fill", "opaque", token: "ColorTokens.Workspace.card"), .row("Glass", "none")),
             ], rounds: ["decided.window-canvas-and-cards"], files: ["Echo/Sources/Shared/DesignSystem/Components/ContentPanelCards.swift"]),
             SpecElement(number: "1.2", name: "Text", summary: "The code's font, size and line spacing are settings.", groups: [
-                .type(.row("Size", "13pt (setting)", token: "SQLEditorTheme.defaultFontSize"), .row("Line spacing", "1.55 (setting), counted twice: a 13pt line is 31pt high", token: "SQLEditorTheme.defaultLineHeight / SQLLayoutManager"),
-                      .row("Default font", "JetBrains Mono", token: "SQLEditorTheme.defaultFontName"),
+                .type(.row("Size", "13pt (setting)", token: "SQLEditorTheme.defaultFontSize"), .row("Line height", "Comfortable: 1.55 × the size, 20pt at 13pt (Compact 1.3, Relaxed 1.75)", token: "EditorLineHeight / SQLLayoutManager.lineHeight"),
+                      .row("Default font", "SF Mono (round 28.1)", token: "SQLEditorTheme.defaultFontName"),
+                      .row("Ligatures", "off unless turned on for a font"),
+                      .row("Margins", "8pt above the first line, the code 16pt after the numbers", token: "textContainerInset"),
                       .row("Why", "more room reads calmer")),
                 .behaviour(.row("Bundled fonts", "Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Commit Mono and five Monaspace variants", token: "SQLEditorTheme.bundledFontFamilies")),
             ], rounds: ["ongoing.editor-text-r28"], files: [textView]),
@@ -34,18 +36,19 @@ enum EditorSpec {
             ], rounds: ["ongoing.editor-empty-r28"], files: [textView]),
         ]),
         SpecPart(number: "2", name: "Gutter", summary: "The strip of line numbers at the left.", elements: [
-            SpecElement(number: "2.1", name: "Style", summary: "Subtle (the default), Column or Lane (a setting).", states: [SpecState(key: "column", name: "Column"), SpecState(key: "lane", name: "Lane"), SpecState(key: "subtle", name: "Subtle")], defaultState: "column", groups: [
+            SpecElement(number: "2.1", name: "Style", summary: "Subtle (the default), Column, Lane or Hairline (a setting).", states: [SpecState(key: "column", name: "Column"), SpecState(key: "lane", name: "Lane"), SpecState(key: "subtle", name: "Subtle"), SpecState(key: "hairline", name: "Hairline")], defaultState: "column", groups: [
                 .material(.row("Subtle", "numbers only"),
                           .row("Column", "a faint full-height column in the theme's gutter colour with a 0.5pt separator edge towards the text", token: "LayoutTokens.EditorGutter.edgeWidth"),
-                          .row("Lane (GT2)", "the same colour as a rounded lane inset 5pt, corner 8pt, no edge", token: "laneInset / laneCornerRadius")),
+                          .row("Lane (GT2)", "the same colour as a rounded lane inset 5pt, corner 8pt, no edge", token: "laneInset / laneCornerRadius"),
+                          .row("Hairline (round 28.2)", "no fill, only the 0.5pt separator edge", token: "LayoutTokens.EditorGutter.edgeWidth")),
                 .behaviour(.row("Tint height", "always the card's full height, even below the last line (GL1)")),
             ], rounds: ["ongoing.editor-gutter-r28"], files: [textView, tokens]),
             SpecElement(number: "2.2", name: "Numbers", summary: "Line numbers with room to breathe (QE4).", groups: [
-                .type(.row("Font", "11pt monospaced digits; the caret's line semibold in the gutter accent", token: "LineNumberRulerView.numberFont"),
-                      .row("Colours", "the palette's gutter text (#6D6D6D, #858585); the caret's line in its gutter accent (#D9D9DC, #2D2D30), the faintest")),
-                .layout(.row("Width", "4pt + 5pt dot + 2pt + the digits + 12pt", token: "LineNumberRulerView.thickness(forDigits:)"),
+                .type(.row("Font", "SF digits 2pt under the code (11pt at 13pt)", token: "LineNumberRulerView.numberFont(forCodeSize:)"),
+                      .row("Colours", "tertiary label; the caret's line in the text colour, same weight (round 28.2)")),
+                .layout(.row("Width", "4pt + 5pt dot + 2pt + the digits + 7pt", token: "LineNumberRulerView.thickness(forDigits:codeSize:)"),
                         .row("Minimum digits", "2, so the gutter doesn't jump at line 10", token: "LayoutTokens.EditorGutter.minimumDigits"),
-                        .row("Gap to the code", "12pt", token: "LayoutTokens.EditorGutter.numberTrailing")),
+                        .row("Gap to the code", "16pt: 7pt to the gutter's edge, then the text view's 9pt", token: "LayoutTokens.EditorGutter.numberTrailing")),
                 .behaviour(.row("Wrapped lines", "one number per logical line; continuations stay blank"), .row("After a final newline", "the empty line is numbered")),
             ], rounds: ["ongoing.editor-gutter-r28"], files: [textView, tokens]),
             SpecElement(number: "2.3", name: "Validation marker", summary: "A red dot on a failing line.", states: [SpecState(key: "error", name: "Error line")], defaultState: "error", groups: [
@@ -53,21 +56,28 @@ enum EditorSpec {
                 .material(.row("Colour", "error", token: "ColorTokens.Status.error")),
                 .behaviour(.row("Wins over the Run arrow", "a line with an error dot shows no Run arrow")),
             ], rounds: ["ongoing.editor-errors-r28"], files: [textView, tokens]),
-            SpecElement(number: "2.4", name: "Current line", summary: "A rounded band inside the card.", groups: [
-                .layout(.row("Inset", "6pt from the card's edges", token: "LayoutTokens.EditorGutter.currentLineInset"),
-                        .row("Corner", "6pt", token: "currentLineCornerRadius")),
-                .behaviour(.row("Shown", "only while nothing is selected")),
+            SpecElement(number: "2.4", name: "Current line", summary: "No band behind the caret's line (round 28.3, CL1); its number is in the text colour.", groups: [
+                .behaviour(.row("Shown", "nothing; before round 28 a rounded band inset 6pt, corner 6pt")),
             ], rounds: ["ongoing.editor-caret-line-r28"], files: [textView, tokens]),
+            SpecElement(number: "2.5", name: "Selection", summary: "The system's selection colour with rounded corners (round 28.3).", groups: [
+                .material(.row("Colour", "the system selection colour; grey while the editor isn't focused")),
+                .layout(.row("Corners", "3pt by default; Square, 2, 3, 4 or 6pt in Settings", token: "EditorSelectionCorners / SQLLayoutManager.fillBackgroundRectArray")),
+            ], rounds: ["ongoing.editor-caret-line-r28"], files: [textView]),
+            SpecElement(number: "2.6", name: "Caret", summary: "The system's insertion point (round 28.3).", groups: [
+                .material(.row("Colour", "the accent colour", token: "NSColor.textInsertionPointColor")),
+                .behaviour(.row("Blinking", "as the system sets it")),
+            ], rounds: ["ongoing.editor-caret-line-r28"], files: [textView]),
         ]),
         SpecPart(number: "3", name: "Statement", summary: "The statement the caret is in.", elements: [
-            SpecElement(number: "3.1", name: "Statement band", summary: "A faint band on the statement at the caret (QE1).", groups: [
-                .material(.row("Fill", "accent at 6%, across the card's width", token: "LayoutTokens.EditorGutter.statementBandOpacity")),
+            SpecElement(number: "3.1", name: "Statement bracket", summary: "A thin bracket beside the statement's line numbers (QE1; a band before round 28.4).", groups: [
+                .material(.row("Bracket", "2pt accent capsule at 70%, 4pt after the numbers, inset 2pt", token: "LayoutTokens.EditorGutter.statementBracket*"),
+                          .row("A selected result's statement", "the same bracket, solid (SK2, SR1)")),
                 .behaviour(.row("Shown", "with Statement Focus on (the default) and more than one statement in the script")),
             ], rounds: ["ongoing.editor-statement-r28"], files: [textView, tokens]),
             SpecElement(number: "3.2", name: "Run arrow", summary: "A small arrow in the gutter that runs just that statement.", groups: [
                 .layout(.row("Size", "8pt high, 6.8pt wide, at the gutter's leading edge", token: "LayoutTokens.EditorGutter.runArrowSize")),
-                .material(.row("Colour", "the system accent")),
-                .behaviour(.row("Click", "runs only that statement"), .row("Shown", "on the statement's first line, under the same conditions as the band")),
+                .material(.row("Colour", "tertiary grey; the accent under the pointer (round 28.4, A1)")),
+                .behaviour(.row("Click", "runs only that statement"), .row("Shown", "on the statement's first line, under the same conditions as the bracket")),
             ], rounds: ["ongoing.editor-statement-r28"], files: [textView, tokens]),
             SpecElement(number: "3.3", name: "Run note", summary: "After a run: the rows and time, or the error, at the end of the statement (QE2).", groups: [
                 .layout(.row("Gap after the last character", "20pt", token: "LayoutTokens.EditorGutter.runNoteGap")),

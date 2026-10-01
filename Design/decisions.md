@@ -2,6 +2,16 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 28 accepted: the editor's text, gutter, caret line and statement (28.1 to 28.4)
+
+Echo Labs › Editor and running › Query editor · round 28, pages 28.1 to 28.4. Every recommendation was taken except where marked. Built in 9715ce3b.
+
+- **Text (28.1):** a line is **1.55 × the font size** (20pt at 13pt, L2); the Line Spacing setting had been counted twice (31pt). Line Height becomes **Compact (1.3), Comfortable (1.55, the default) or Relaxed (1.75)** (LS1); older values land on the nearest. **SF Mono** is the default font (settings still on JetBrains Mono move to it once); **ligatures off** by default; 13pt stays; the code starts **16pt** after the numbers; **8pt** above the first line. 17pt and 23pt lines, and JetBrains Mono as the default, were not chosen. → EDT-1.2, 05-components › Editor card
+- **Gutter (28.2):** SF digits **2pt under the code** (N1) in the **tertiary label** colour (C1); the caret line's number in the **text colour**, same weight (K1; it had been the faintest). Subtle stays the default; **owner's note: every surface is a setting**, so **Hairline** (G3) joins Column and Lane. Error dot and Run arrow keep their own column (M0); wrapped lines stay blank; a click on a number selects the line. → EDT-2.1, 2.2
+- **Caret line and selection (28.3):** **no current-line band** (CL1). The **system selection colour** (S1; NSTextView already drew it, the page had said otherwise), **rounded 3pt, the owner's pick over Square**, and a setting: Square, 2, 3, 4 or 6pt. The caret is the **system insertion point** (accent, I1); blinking as the system sets it; grey selection when the editor isn't focused. → EDT-2.4 to 2.6
+- **Statement (28.4):** a **bracket beside the statement's line numbers** instead of the band (B1); the **Run arrow grey, accent under the pointer** (A1); only with two or more statements; a selected script result's statement gets the **bracket, solid** (SR1); statements end at a semicolon, GO or a blank line. → EDT-3.1, 3.2
+- Also fixed: the run note counts every row the server sent (18b2898d; round 28.7 asks the rest). → Phase 20
+
 ## 2026-10-01 · Round 27 accepted: the scroll bars over the footer
 
 Echo Labs › Footer and results › Results scroll bars and the footer · round 27. Echo gave the grid's and the editor's scroll views the footer's room twice (content inset and scroller inset, which AppKit adds), so the horizontal bar floated over the rows a footer's height above the footer.
