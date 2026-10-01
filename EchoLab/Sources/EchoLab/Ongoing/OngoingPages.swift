@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , toolTabToolbar , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder , settingsPreview , settingsPictures , settingsControls , settingsTemplate , settingsScenarios , toolTabMainAction , serverCardUnfold, footerBlur , resultsGutter , openingAndClosing /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , toolTabToolbar , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder , settingsPreview , settingsPictures , settingsControls , settingsTemplate , settingsScenarios , footerBlur , toolTabMainAction , serverCardUnfold , resultsGutter , openingAndClosing /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -586,6 +586,13 @@
         summary: "Finding a setting, seeing what you changed, resetting, settings per connection, and what syncs.",
         spec: SettingsScenariosRound.spec)
 
+    /// Round 44: The blur under the footer.
+    static let footerBlur = LabPage.round(
+        id: "ongoing.footer-blur-r44", group: "Footer and results", title: "The blur under the footer · round 44", symbol: "drop.halffull",
+        status: .judging,
+        summary: "Changes FTR's footer blur (LayoutTokens.EdgeBlur, BackdropEdgeBlur). Every technique that can blur the rows under the footer, each drawn over the same real AppKit grid with Echo's footer, with shared controls for strength, height, curve and tint.",
+        spec: FooterBlurRound.spec)
+
     /// Round 45: Tool tabs: the main action in the toolbar.
     static let toolTabMainAction = LabPage.round(
         id: "ongoing.tool-tab-main-action-r45", group: "Tool tabs", title: "Tool tabs: the main action in the toolbar · round 45", symbol: "play.rectangle",
@@ -600,12 +607,6 @@
         summary: "How the dock and the rows arrive when a server card opens, and leave when it closes, beside Echo today and a section switch. Changes TREE-2.5.",
         spec: ServerCardUnfoldRound.spec)
 
-    /// Round 44: The blur under the footer.
-    static let footerBlur = LabPage.round(
-        id: "ongoing.footer-blur-r44", group: "Footer and results", title: "The blur under the footer · round 44", symbol: "drop.halffull",
-        status: .judging,
-        summary: "Changes FTR's footer blur (LayoutTokens.EdgeBlur, BackdropEdgeBlur). Every technique that can blur the rows under the footer, each drawn over the same real AppKit grid with Echo's footer, with shared controls for strength, height, curve and tint.",
-        spec: FooterBlurRound.spec)
     /// Round 47: Results: the row-number gutter and the column header.
     static let resultsGutter = LabPage.round(
         id: "ongoing.results-gutter-r47", group: "Footer and results", title: "Results: the row-number gutter and the column header · round 47", symbol: "list.number",
@@ -617,7 +618,7 @@
     static let openingAndClosing = LabPage.round(
         id: "ongoing.opening-and-closing-r48", group: "Window and cards", title: "Opening, connecting and closing the last tab · round 48", symbol: "play.rectangle",
         status: .judging,
-        summary: "Three moments at the edges of a session, drawn as one staged story. The welcome loses the name and the mark echoes in as on echodb.dev; connecting stops shoving the welcome aside and lets the server page arrive; closing the last tab returns to the connected server's page instead of the welcome (today the tab delegate clears the active session). Touches the welcome and server page rules of the Window and cards area.",
+        summary: "Three moments at the edges of a session, drawn as one staged story. The welcome loses the name and the mark echoes in as on echodb.dev; connecting stops shoving the welcome aside and lets the server page arrive; closing the last tab returns to the connected server's page instead of the welcome (today the tab delegate clears the active session). Touches WIN-welcome and server page elements.",
         spec: OpeningAndClosingRound.spec)
 
     // ROUNDS-DEFINITIONS

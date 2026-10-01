@@ -35,12 +35,17 @@ struct GridSelectionSummaryTests {
         #expect(!summary.text.contains("Sum"))
     }
 
-    @Test func rowCountShowsLoadedOfTotalWhileStreaming() {
+    @Test func rowCountShowsOnlyTheRowsSentWhileStreaming() {
         var progress = RowProgress()
         progress.totalReported = 1_000
         progress.materialized = 200
         let compact: (Int) -> String = { String($0) }
-        #expect(GridSelectionSummary.rowCountText(for: progress, isExecuting: true, compact: compact) == "200 of 1000")
-        #expect(GridSelectionSummary.rowCountText(for: progress, isExecuting: false, compact: compact) == "1000")
+        #expect(GridSelectionSummary.rowCountText(for: progress, compact: compact) == "1000")
+    }
+
+    @Test func rowCountFallsBackToRowsReceived() {
+        var progress = RowProgress()
+        progress.totalReceived = 42
+        #expect(GridSelectionSummary.rowCountText(for: progress, compact: { String($0) }) == "42")
     }
 }

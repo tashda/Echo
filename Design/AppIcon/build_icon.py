@@ -1,71 +1,140 @@
-import math
-# Apple-like continuous squircle (superellipse) path
-def squircle(cx,cy,r,n=4.8,steps=360):
-    pts=[]
+#!/usr/bin/env python3
+"""Builds Echo's app icons: three rows on a squircle, in three looks.
+
+  EchoIcon.svg        Light  (default)  white-to-grey tile
+  EchoIcon-Navy.svg   Navy   (dark appearance)
+  EchoIcon-Labs.svg   Acid   (Echo Labs)
+  EchoMark.svg        the three rows alone, for the start page (no tile)
+
+Usage (macOS):  python3 Design/AppIcon/build_icon.py
+Writes the SVG masters here and renders 1024 px PNG masters next to them
+(via headless Chrome). `render_sizes` then cuts the
+smaller sizes with sips.
+"""
+import math, os, subprocess, sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Apple-like continuous squircle (superellipse); 824 pt inside the 1024 grid.
+def squircle(cx, cy, r, n=4.8, steps=360):
+    pts = []
     for i in range(steps):
-        t=2*math.pi*i/steps
-        c,s=math.cos(t),math.sin(t)
-        x=cx+r*math.copysign(abs(c)**(2/n),c); y=cy+r*math.copysign(abs(s)**(2/n),s)
-        pts.append(f"{x:.2f},{y:.2f}")
-    return "M"+" L".join(pts)+"Z"
-SQ=squircle(512,512,412)
-W,H,R=400,112,56
-rows=[(228.5,318.5),(312.5,456.5),(396.5,594.5)]
-def row(i,x,y):
-    return f'''
-  <g id="row{i}">
-   <!-- wide soft glow -->
-   <rect x="{x}" y="{y+16}" width="{W}" height="{H}" rx="{R}" fill="url(#g{i})" filter="url(#blurL)" opacity="{[.7,.7,.85][i-1]}"/>
-   <!-- tight glow -->
-   <rect x="{x}" y="{y}" width="{W}" height="{H}" rx="{R}" fill="url(#g{i})" filter="url(#blurS)" opacity=".8"/>
-   <!-- glass body -->
-   <rect x="{x}" y="{y}" width="{W}" height="{H}" rx="{R}" fill="url(#g{i})" opacity=".93"/>
-   <rect x="{x}" y="{y}" width="{W}" height="{H}" rx="{R}" fill="url(#body{i})" style="mix-blend-mode:screen"/>
-   <rect x="{x}" y="{y}" width="{W}" height="{H}" rx="{R}" fill="url(#depth)"/>
-   <!-- inner colored bloom -->
-   <ellipse cx="{x+W*[.82,.78,.86][i-1]}" cy="{y+H*.55}" rx="{W*.26}" ry="{H*.62}" fill="url(#bloom{i})" clip-path="url(#clip{i})" filter="url(#blurM)"/>
-   <!-- rim: bright top edge, soft bottom edge -->
-   <rect x="{x+5}" y="{y+5}" width="{W-10}" height="{H-10}" rx="{R-5}" fill="none" stroke="url(#rim)" stroke-width="9" opacity=".45" filter="url(#blurE)" clip-path="url(#clip{i})"/>
-   <rect x="{x+1.5}" y="{y+1.5}" width="{W-3}" height="{H-3}" rx="{R-1.5}" fill="none" stroke="url(#rim)" stroke-width="2.5" opacity=".7" filter="url(#blurR)"/>
-   <!-- soft lower caustic -->
-   <ellipse cx="{x+W*.5}" cy="{y+H*.9}" rx="{W*.38}" ry="{H*.16}" fill="#fff" opacity=".13" filter="url(#blurE)" clip-path="url(#clip{i})"/>
-   <!-- specular sheen -->
-   <path d="M{x+R*.9},{y+7} H{x+W-R*.9} Q{x+W-R*.35},{y+7} {x+W-R*.2},{y+R*.42} Q{x+W-R*.55},{y+H*.34} {x+W-R*1.4},{y+H*.34} H{x+R*1.4} Q{x+R*.55},{y+H*.34} {x+R*.2},{y+R*.42} Q{x+R*.35},{y+7} {x+R*.9},{y+7}Z" fill="url(#sheen)" filter="url(#blurR)"/>
-  </g>'''
-grads = {
- 1:("#8B4BFF","#6F6CFF","#2AA9FF","#2ACBFF"),
- 2:("#9166F0","#A660D6","#FF6E60","#FF9B78"),
- 3:("#FFA087","#FF7C8C","#FF5AA3","#FF78B8"),
+        t = 2 * math.pi * i / steps
+        c, s = math.cos(t), math.sin(t)
+        pts.append(f"{cx + r * math.copysign(abs(c) ** (2 / n), c):.2f},{cy + r * math.copysign(abs(s) ** (2 / n), s):.2f}")
+    return "M" + " L".join(pts) + "Z"
+
+SQ = squircle(512, 512, 412)
+W, H = 424, 128
+POS = [(206, 290), (300, 448), (394, 606)]  # the three rows, centred on the tile
+
+def stops(*cs):
+    offs = [0, .5, .88, 1] if len(cs) == 4 else [0, 1]
+    return list(zip(offs, cs))
+
+ECHO_ROWS = [stops("#8B4BFF", "#6F6CFF", "#2AA9FF", "#2ACBFF"),
+             stops("#9166F0", "#A660D6", "#FF6E60", "#FF9B78"),
+             stops("#FFA087", "#FF7C8C", "#FF5AA3", "#FF78B8")]
+ECHO_GLOW = ["#2AA9FF", "#FF6E60", "#FF5AA3"]
+ACID_ROWS = [stops("#00C2D4", "#00D6B0", "#2BE88A", "#5CF59A"),
+             stops("#12C97A", "#3FDC5A", "#8CEB3A", "#C6F54A"),
+             stops("#9BE63A", "#C6EE3A", "#F0F03A", "#FFF26B")]
+ACID_GLOW = ["#2BE88A", "#8CEB3A", "#F0F03A"]
+
+# name: (file, tile gradient top/bottom, rows, glow colours, dark?)
+LOOKS = {
+    "light": ("EchoIcon.svg", "#FFFFFF", "#D8DBEC", ECHO_ROWS, ECHO_GLOW, False),
+    "navy": ("EchoIcon-Navy.svg", "#3A3B5C", "#25263E", ECHO_ROWS, ECHO_GLOW, True),
+    "labs": ("EchoIcon-Labs.svg", "#15201D", "#080C0B", ACID_ROWS, ACID_GLOW, True),
 }
-defs=""
-for i,(a,b,c,d) in grads.items():
-    defs+=f'''
- <linearGradient id="g{i}" x1="0" y1="0" x2="1" y2="0.25"><stop offset="0" stop-color="{a}"/><stop offset=".5" stop-color="{b}"/><stop offset=".88" stop-color="{c}"/><stop offset="1" stop-color="{d}"/></linearGradient>
- <linearGradient id="body{i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".30"/><stop offset=".42" stop-color="#fff" stop-opacity=".05"/><stop offset=".75" stop-color="#fff" stop-opacity=".02"/><stop offset="1" stop-color="#fff" stop-opacity=".22"/></linearGradient>
- <radialGradient id="bloom{i}"><stop offset="0" stop-color="{c}" stop-opacity=".5"/><stop offset="1" stop-color="{c}" stop-opacity="0"/></radialGradient>
- <clipPath id="clip{i}"><rect x="{rows[i-1][0]}" y="{rows[i-1][1]}" width="{W}" height="{H}" rx="{R}"/></clipPath>'''
-svg=f'''<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-<defs>
- <clipPath id="sq"><path d="{SQ}"/></clipPath>
- <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A3B5C"/><stop offset=".55" stop-color="#2F3050"/><stop offset="1" stop-color="#25263E"/></linearGradient>
- <radialGradient id="vig" cx=".5" cy=".55" r=".75"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#0d0d1e" stop-opacity=".35"/></radialGradient>
- <linearGradient id="topsheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".10"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/></linearGradient>
- <linearGradient id="depth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#1b0f3a" stop-opacity=".18"/></linearGradient>
- <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".62"/><stop offset=".25" stop-color="#fff" stop-opacity=".12"/><stop offset=".75" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#fff" stop-opacity=".38"/></linearGradient>
- <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".32"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
- <filter id="blurL" x="-40%" y="-120%" width="180%" height="340%"><feGaussianBlur stdDeviation="38"/></filter>
- <filter id="blurM" x="-50%" y="-100%" width="200%" height="300%"><feGaussianBlur stdDeviation="14"/></filter>
- <filter id="blurE" x="-10%" y="-40%" width="120%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
- <filter id="blurR" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="1.4"/></filter>
- <filter id="blurS" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="10"/></filter>
- {defs}
-</defs>
-<g clip-path="url(#sq)">
- <rect x="80" y="80" width="864" height="864" fill="url(#bg)"/>
- <rect x="80" y="80" width="864" height="864" fill="url(#vig)"/>
- <rect x="80" y="80" width="864" height="500" fill="url(#topsheen)"/>
- {''.join(row(i+1,*rows[i]) for i in range(3))}
-</g>
-<path d="{SQ}" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="2"/>
-</svg>'''
-open("EchoIcon.svg","w").write(svg)
+
+def linear(i, st, x2=1, y2=.25):
+    body = "".join(f'<stop offset="{o}" stop-color="{c}"/>' for o, c in st)
+    return f'<linearGradient id="{i}" x1="0" y1="0" x2="{x2}" y2="{y2}">{body}</linearGradient>'
+
+def row(i, x, y, glow, dark):
+    r = H / 2
+    glow_op, sheen_op = (.5, .4) if dark else (.35, .45)
+    out = f'<rect x="{x}" y="{y + 22}" width="{W}" height="{H}" rx="{r}" fill="{glow}" filter="url(#soft)" opacity="{glow_op}"/>'
+    out += f'<clipPath id="c{i}"><rect x="{x}" y="{y}" width="{W}" height="{H}" rx="{r}"/></clipPath>'
+    out += f'<rect x="{x}" y="{y}" width="{W}" height="{H}" rx="{r}" fill="url(#p{i})"/>'
+    out += f'<g clip-path="url(#c{i})"><rect x="{x}" y="{y}" width="{W}" height="{H * .5}" fill="url(#sheen)" opacity="{sheen_op}"/></g>'
+    if dark:
+        out += f'<rect x="{x + 1.5}" y="{y + 1.5}" width="{W - 3}" height="{H - 3}" rx="{r - 1.5}" fill="none" stroke="url(#rim)" stroke-width="3" opacity=".35"/>'
+    return out
+
+def build(name):
+    file, top, bottom, rows, glows, dark = LOOKS[name]
+    defs = linear("tile", [(0, top), (1, bottom)], 0, 1)
+    for i, st in enumerate(rows):
+        defs += linear(f"p{i}", st)
+    defs += ('<linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+             '<linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".35"/></linearGradient>'
+             '<filter id="soft" x="-30%" y="-80%" width="160%" height="300%"><feGaussianBlur stdDeviation="16"/></filter>')
+    tile = '<rect x="60" y="60" width="904" height="904" fill="url(#tile)"/>'
+    if dark:
+        defs += '<linearGradient id="top" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+        tile += '<rect x="60" y="60" width="904" height="500" fill="url(#top)"/>'
+    rows_svg = "".join(row(i, x, y, glows[i], dark) for i, (x, y) in enumerate(POS))
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">'
+           f'<defs><clipPath id="sq"><path d="{SQ}"/></clipPath>{defs}</defs>'
+           f'<g clip-path="url(#sq)">{tile}{rows_svg}</g></svg>\n')
+    with open(os.path.join(HERE, file), "w") as f:
+        f.write(svg)
+    return file
+
+CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+def render_master(svg_file):
+    """1024 px PNG master with a transparent margin, via headless Chrome."""
+    svg = os.path.join(HERE, svg_file)
+    png = svg.replace(".svg", ".png")
+    page = png + ".html"
+    with open(page, "w") as f:
+        f.write(f'<!doctype html><body style="margin:0;background:transparent"><img src="file://{svg}" width="1024" height="1024" style="display:block">')
+    subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+                    "--default-background-color=00000000", "--window-size=1024,1024",
+                    f"--screenshot={png}", f"file://{page}"], check=True, capture_output=True)
+    os.remove(page)
+    return png
+
+# The rows without the tile, on a tight 568 x 388 canvas (start page).
+def build_mark():
+    rows, defs, body = ECHO_ROWS, "", ""
+    for i, st in enumerate(rows):
+        defs += linear(f"p{i}", st)
+        x, y = i * 84, i * 138
+        body += (f'<clipPath id="c{i}"><rect x="{x}" y="{y}" width="400" height="112" rx="56"/></clipPath>'
+                 f'<rect x="{x}" y="{y}" width="400" height="112" rx="56" fill="url(#p{i})"/>'
+                 f'<g clip-path="url(#c{i})"><rect x="{x}" y="{y}" width="400" height="56" fill="url(#sheen)" opacity=".4"/></g>')
+    defs += '<linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+    with open(os.path.join(HERE, "EchoMark.svg"), "w") as f:
+        f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="568" height="388" viewBox="0 0 568 388"><defs>{defs}</defs>{body}</svg>\n')
+
+def render_mark(out_dir, width=120):
+    """PNGs at 1x/2x/3x of a `width` pt mark, transparent, via headless Chrome."""
+    svg = os.path.join(HERE, "EchoMark.svg")
+    for scale in (1, 2, 3):
+        w = width * scale
+        h = round(w * 388 / 568)
+        page = os.path.join(HERE, "mark.html")
+        with open(page, "w") as f:
+            f.write(f'<!doctype html><body style="margin:0;background:transparent"><img src="file://{svg}" width="{w}" height="{h}" style="display:block">')
+        subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+                        "--default-background-color=00000000", f"--window-size={w},{h}",
+                        f"--screenshot={os.path.join(out_dir, f'EchoMark@{scale}x.png')}", f"file://{page}"],
+                       check=True, capture_output=True)
+        os.remove(page)
+
+def render_sizes(master, out_dir, prefix, sizes=(16, 32, 64, 128, 256, 512, 1024)):
+    for s in sizes:
+        out = os.path.join(out_dir, f"{prefix}-{s}.png")
+        if s == 1024:
+            subprocess.run(["cp", master, out], check=True)
+        else:
+            subprocess.run(["sips", "-z", str(s), str(s), master, "--out", out], check=True, capture_output=True)
+
+if __name__ == "__main__":
+    for look in LOOKS:
+        print(render_master(build(look)))
+    build_mark()

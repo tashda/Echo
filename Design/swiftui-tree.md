@@ -2,6 +2,14 @@
 
 Written 2026-09-29 for review round 8, sections 2 (tree cards) and 3 (pinned path header). Status: **decided and built**. The owner chose a full replacement with no debug switch. Built as `ExplorerTreeLayout` (fixed-height rows, so card positions, reveal offsets and the top-visible row are computed rather than measured) plus the SwiftUI `ObjectBrowserOutlineView`: one flat `LazyVStack` of rows, and a cards layer behind it using `.workspaceCard()`. The stress fixture (step 10) is still to do.
 
+## Update 2026-10-02: the rows are placed, not stacked
+
+The owner found cards overlapping the next server's card after a server connected, and the tree vanishing after collapsing the bottom server. Both came from the `LazyVStack`: it estimates the height of rows it hasn't built, so after a jump deep into a long card (the dock's return to a section's place, a reveal) or a new server arriving, the rows it showed sat up to several rows from where `ExplorerTreeLayout` had them, and everything placed from the layout (the cards, the veil, reveals, right-clicks) was off by that much. The room held below the last card (N2) grew with the error, so scrolling down could run past the end. Measured with a scripted run: the scroll content was 14,971pt against a 7,460pt layout.
+
+The rows are now placed by `ExplorerTreeCanvasLayout` at their exact layout positions, as tall as the layout says, building only the rows in `ExplorerTreeWindow` (the view and an eighth of a view each side, moved in steps of that size; `ExplorerTreeWindowed` is the only view that reads it). Unchanged rows keep their bodies across steps (`ExplorerTreeRowHost`, keyed by the node, which is rebuilt whenever what it shows changes). A server's name and dock pin with a visual effect (`ExplorerTreePinnedHeader`), and the wash behind them fades in with the first 12pt of rows passing under (`ExplorerPinnedHeaderWash`), so a scrolled frame runs no bodies. The hold is stored (`ExplorerTreeScrollState.holdHeight`) and updated only when it changes. Rows that arrive because their card moved start where the card was and travel with it.
+
+Cost, measured against the lazy stack with a scripted scroll (Debug build): about 1ms more main-thread work per scrolled frame. About a third of the main thread while scrolling, in both versions, is the window being laid out on every frame because the cards layer resizes cards cut by the tree's edge; that is the next thing to remove.
+
 ## Where we are
 
 - **The rows are already SwiftUI.** `ObjectBrowserRowView` is a SwiftUI view. Only the list around them is AppKit: an `NSTableView` in an `NSScrollView` (`ObjectBrowserOutlineView`), with one `NSHostingView` per visible row.

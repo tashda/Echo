@@ -4,7 +4,16 @@
 
 The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 / HP0 in #39.4 and CB1 / BP0 in #39.5. Bookmarks and query history share the trailing inspector column; the Explorer stays in place. The rail contains only servers and +. Snippets and Echo clipboard history are removed. History groups newest first by day, shows the first SQL line with database, outcome and time, keeps 5,000 runs by default, opens only in a new tab without executing, and can be disabled per connection. Separate Cache controls govern run count, expiry and clearing; result-cache expiry continues to govern result data. #39.2 remains under review: revision 2 adds two native list options while retaining the owner's selected save, folder/note and insertion behaviour. Built and run successfully; 37 focused Swift Testing tests passed, including legacy decoding, privacy, retention and clearing. A live Test Postgres SELECT was recorded; clicking history opened the original SQL in a new, unexecuted tab on the original database. Owner confirmation in Echo is pending.
 
+
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
+
+## 2026-10-02 · The tree places its rows; folding a card keeps the tree in view
+
+The owner's bugs after round 46: cards overlapped the next server's card when a server connected while a card was open, and collapsing the bottom server while scrolled into it left the tree out of view. Built in 38e19682.
+
+- **Rows at their exact places.** The lazy stack's height estimates put rows up to several rows from the layout that places the cards; the rows are now placed by the tree itself, building only those near the view. Nothing visible changes otherwise (Design/swiftui-tree.md).
+- **N2 gains an exception for folds:** closing a card you are scrolled into brings its header to its own place first, and when the fold leaves the tree shorter than the view, the view glides back with the fold until the tree fills it. Section switches still keep the room. → 05-components › Explorer tree › The other cards
+- **The pinned header's wash** fades in with the first 12pt of rows passing under it rather than in 0.12s once they do. → TREE-2.3
 
 ## 2026-10-01 · The soft side edges of the results grid are removed
 
@@ -88,6 +97,10 @@ Echo Labs › Tool tabs › round 37.2 (revision 2) and round 45. Built in bb013
 
 The owner, on round 44 in the running app: "absolutely perfect", and the same for the editor. With the results in their own card the editor card's bottom gets the same material (`FooterMaterialBlur`) at the same height, and the editor's text now runs to the card's edge with the footer's 38pt of room instead of stopping 20pt above it, so lines scroll down under the material and the last one rests above the pills. Built in bf7c0b2c. → EDT margins, FTR-2.2
 
+## 2026-10-01 · Round 42 built into Echo
+
+Every pick of round 42 is in the running app except a database's Diagram (Echo draws only tables). Where a pick needed a choice: **Rename** opens the ALTER in a query tab to read and run, as Drop does, instead of running it from the tree; **Advanced Objects** are four flat items in Open Tool (one level of submenus); **New Connection** in the empty space opens Manage Connections. The Object menu in the menu bar is the selected row's context menu, built by the same code.
+
 ## 2026-10-01 · After round 41: one real header line, fewer buttons in the popovers, the pill's Setting, the server's own message
 
 The owner's notes on the running app, decided in chat. These change what round 41's entry above says where they differ.
@@ -96,10 +109,6 @@ The owner's notes on the running app, decided in chat. These change what round 4
 - **Fewer buttons in the pill popovers (41.5):** the status popover has **no Messages and no Run Again** (Cancel, Commit / Roll Back and Show in Editor stay); the time popover has **no Run Again**; the rows popover has **no Export and no Copy All**. Export and copy of the results belong to the grid's right-click menu (Copy, Copy with Headers, Copy as Shown, Copy As, Save As, Select All), which already has them. → FTR-2.9 to 2.11
 - **A Setting for the selection pill (41.2):** Settings › Results › **Selection summary** adds the sum and/or the average to the pill: Count (the default) · Count and sum · Count and average · Count, sum and average, in the locale's short form ("89 cells · Sum 34.6T · Avg 389B"). Text selections stay a count. The popover always lists every exact figure. → FTR-2.8, `GlobalSettings.resultsSelectionPill`
 - **What the server returned (41.4):** the symbol on a message **from the server** opens a popover, "From the server": number, level, state, line, procedure and server for SQL Server, any other fields the driver passed on (PostgreSQL's SQLSTATE, detail, hint), and the text as sent, selectable, with Copy. Echo's own lines (a connection, a script, SQLCMD) keep a plain symbol. → FTR-5.3
-
-## 2026-10-01 · Round 42 built into Echo
-
-Every pick of round 42 is in the running app except a database's Diagram (Echo draws only tables). Where a pick needed a choice: **Rename** opens the ALTER in a query tab to read and run, as Drop does, instead of running it from the tree; **Advanced Objects** are four flat items in Open Tool (one level of submenus); **New Connection** in the empty space opens Manage Connections. The Object menu in the menu bar is the selected row's context menu, built by the same code.
 
 ## 2026-10-01 · Round 43 accepted: Settings › Editor is the template for every settings page
 
@@ -174,6 +183,10 @@ Echo Labs › Footer and results › The blur under the footer · round 44, afte
 - **Technique: BT4 · the system's material** (the owner's pick over my recommendation, one Core Image variable blur): the ultra-thin material behind every floating footer. Stacked steps (Echo until now), one Core Image variable blur and a plain fade to the card were not chosen. → FTR-2.2
 - **Reach: BH3 · 40pt above the footer** (`EdgeBlur.materialReach`); **growth: CV6 · exponential**, (e^(4.5t) − 1) / (e^4.5 − 1), only 10% half way up, so no row meets it at once; **tint: TT1 · 15%** of the card's colour over it.
 - **The scroll bar under a footer:** the material already reaches past it, so the AppKit blur that rose past the bar (round 27, U5) is off under footers; the material lies over the bar at about 6%. Every other horizontal bar in Echo keeps its rising blur. → FTR-4.6
+
+## 2026-10-01 · The footer's row count only counts up
+
+Asked in chat: while a query runs, the footer's rows pill shows the rows the server has sent so far, counting up ("12K rows"), never "12K of 1.2M". Replaces plan R5's "rows loaded of total". → `GridSelectionSummary.rowCountText`, Echo Labs › Footer and results
 
 ## 2026-10-01 · Round 41 accepted: the results card's header line, selection pill, error banner, Messages and pill popovers
 

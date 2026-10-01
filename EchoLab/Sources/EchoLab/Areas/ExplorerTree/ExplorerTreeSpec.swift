@@ -33,8 +33,9 @@ enum ExplorerTreeSpec {
             ], rounds: ["decided.window-canvas-and-cards"], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeCardsLayer.swift"]),
             SpecElement(number: "1.2", name: "One card per server", summary: "Servers are never merged into one list; a server's card is as tall as its rows.", groups: [
                 .behaviour(.row("Rail", "Clicking a server in the rail jumps to its card; the rail marks the card at the top while you scroll"),
-                           .row("Holding view (N2)", "when a card gets shorter, a spacer under the last card keeps the bottom where it was, so the cards above don't move; it gives the room back as you scroll up and can't be stretched by overscrolling", token: "ExplorerTreeHold.spacerHeight"),
-                           .row("Row slot", "each row sits in a slot exactly its kind's height, sized without asking the row, so scrolling never measures rows again", token: "ExplorerTreeRowSlot")),
+                           .row("Holding view (N2)", "when a card gets shorter, a spacer under the last card keeps the bottom where it was, so the cards above don't move; it gives the room back as you scroll up and can't be stretched by overscrolling. A fold that leaves the tree shorter than the view glides back with it instead (2026-10-02)", token: "ExplorerTreeScrollState.holdHeight"),
+                           .row("Row slot", "each row sits in a slot exactly its kind's height, sized without asking the row, so scrolling never measures rows again", token: "ExplorerTreeRowSlot"),
+                           .row("Placed, not stacked", "rows sit at their exact layout places (no estimated heights), built only near the view: the view and an eighth of a view each side (2026-10-02)", token: "ExplorerTreeCanvasLayout / ExplorerTreeWindow")),
             ], rounds: ["decided.rail-servers", r19Switching], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeLayout.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeRowSlot.swift","Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeScrollState.swift", components + "ObjectBrowserNode+TreeRole.swift"]),
         ]),
         SpecPart(number: "2", name: "Header", summary: "The server's name and version at the top of its card.", elements: [
@@ -54,7 +55,8 @@ enum ExplorerTreeSpec {
                 .material(.row("At rest", "nothing behind it"),
                           .row("Once rows scroll under it", "a wash of the card colour: 85% at the top, 45% at 55%, clear at the bottom", token: "ExplorerPinnedHeaderWash"),
                           .row("Rows", "blur and fade as they pass under it", token: "ExplorerRowEdgeBlur")),
-                .motion(.row("Wash in", "ease out, 0.12s")),
+                .motion(.row("Wash in", "follows the scroll: full once rows have passed 12pt under the header (2026-10-02; was ease out 0.12s)", token: "ExplorerPinnedHeaderWash.fadeDistance"),
+                        .row("Pinning", "a visual effect from where the scroll view has the header, so a scrolled frame runs no bodies", token: "ExplorerTreePinnedHeader")),
                 .behaviour(.row("No line and no grey material", "the soft blur is the only edge")),
             ], rounds: ["decided.tree-sticky-header", round16], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerPinnedHeaderWash.swift"]),
             SpecElement(number: "2.4", name: "Collapse chevron", summary: "At the trailing edge, centred on the name and product line (CP1); › turning down when open (CS0).", groups: [

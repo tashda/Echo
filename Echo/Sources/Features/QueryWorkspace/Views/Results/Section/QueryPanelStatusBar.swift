@@ -105,12 +105,8 @@ struct QueryPanelStatusBar: View {
     }
 
     private func buildMetrics() -> BottomPanelStatusBarConfiguration.Metrics {
-        // Rows loaded of the total while streaming (plan R5), then the total.
-        let rowCount = GridSelectionSummary.rowCountText(
-            for: query.rowProgress,
-            isExecuting: query.isExecuting,
-            compact: EchoFormatters.compactNumber
-        )
+        // The rows the server has sent, counting up while streaming (owner, 2026-10-01: no "of total").
+        let rowCount = GridSelectionSummary.rowCountText(for: query.rowProgress, compact: EchoFormatters.compactNumber)
         var rowLabel = query.rowProgress.displayCount == 1 ? "row" : "rows"
         // Round 21, cancel CP1: rows kept after a cancel are marked as partial.
         if query.wasCancelled, !query.isExecuting, query.rowProgress.displayCount > 0 { rowLabel += ", partial" }

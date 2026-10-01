@@ -16,19 +16,21 @@ enum DatabaseType: String, Sendable, Codable, CaseIterable {
         }
     }
 
+    /// The custom symbol for this engine (`Assets.xcassets/DatabaseSFSymbols`).
     nonisolated var iconName: String {
         switch self {
-        case .postgresql: return "PostgreSQL"
-        case .mysql: return "MySQL"
-        case .microsoftSQL: return "MicrosoftSQLServer"
-        case .sqlite: return "SQLite"
+        case .postgresql: return "postgresql"
+        case .mysql: return "mysql"
+        case .microsoftSQL: return "mssql"
+        case .sqlite: return "sqlite"
         }
     }
 
+    /// The engine symbols are monochrome, so they are tinted like any SF Symbol.
     nonisolated var usesTemplateIcon: Bool {
         switch self {
         case .postgresql, .mysql, .microsoftSQL, .sqlite:
-            return false
+            return true
         }
     }
 
