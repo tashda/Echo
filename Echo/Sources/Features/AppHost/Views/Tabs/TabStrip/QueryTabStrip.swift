@@ -22,6 +22,7 @@ struct QueryTabStrip: View {
     @Environment(EnvironmentState.self) var environmentState
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.echoMotion) var motion
     @Environment(AppearanceStore.self) private var appearanceStore
 
     @State var hoveredTabID: UUID?
@@ -89,7 +90,9 @@ struct QueryTabStrip: View {
             let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
             let unfoldedWidths = tabWidths(for: orderedTabs, equalWidth: tabWidth, totalWidth: effectiveWidth)
             let tabContentWidth = max(tabWidth * CGFloat(orderedTabs.count), 0)
-            let widthSource = measuredTabGroupWidth > 0 ? measuredTabGroupWidth : tabContentWidth
+            // A lone tool tab at its own width (SW1) still sits on the full grey plate.
+            let isLoneAtOwnWidth = orderedTabs.count == 1 && !unfoldedWidths.isEmpty
+            let widthSource = !isLoneAtOwnWidth && measuredTabGroupWidth > 0 ? measuredTabGroupWidth : tabContentWidth
             let basePlateLeading = max(effectiveLeadingPadding - basePlateExtension - basePlateEdgeInset, 0)
             let basePlateTrailing = max(effectiveTrailingPadding - basePlateExtension - basePlateEdgeInset, 0)
             let plateAvailableWidth = max(geo.size.width - basePlateLeading - basePlateTrailing, 0)

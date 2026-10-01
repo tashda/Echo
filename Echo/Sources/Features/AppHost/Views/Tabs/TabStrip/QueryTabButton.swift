@@ -43,6 +43,7 @@ struct QueryTabButton: View {
 #if os(macOS)
     @Environment(\.colorScheme) var colorScheme
 #endif
+    @Environment(\.echoMotion) var motion
 
     var tabCornerRadius: CGFloat { 15 }
 

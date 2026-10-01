@@ -298,6 +298,7 @@ Rules: `05-components` › Tabs. Replaces the glass capsule with two-line tabs (
 |---|---|---|---|---|
 | B6 | **Round 9's strip as the only style:** the grey plate and white active tab, one line, the kind's icon (a spinner while running), the database in the tooltip. The bar returns to the Classic height. Remove the glass capsule and the Tab Bar setting. | `QueryTabStrip`, `QueryTabButton*`, `TabStripGlassTabs`, Appearance settings | One line everywhere 👁 | ☑ built, 👁 pending |
 | B7 | **Tool pages unfold in the tab (ST2):** a tool with pages (Activity Monitor for SQL Server, Postgres and MySQL) shows them as small chips inside its active tab, scrolling sideways past 62% of the strip; the other tabs make room with the house spring. The tool's own segmented control goes. | Strip + tool tabs | Matches Round 14 · tab bar and pages 👁 | ☑ built, 👁 pending |
+| B7b | **Tool pages refined (round 36.1):** title, hairline, pages at 11pt on the tab (no track), the shown one on a soft pill; the tab exactly as wide as that, a lone one at its own width; house spring, pages fading first. | `TabPageChips`, `QueryTabStrip+Unfold`, `QueryTabButton+Title` | Owner checks it in Echo 👁 | ☑ built, 👁 pending |
 
 ## Phase 15 · Tool tabs
 
@@ -310,6 +311,10 @@ Rules: `05-components` › Tool tabs.
 | TL4 | **Agent Jobs finished (round 33):** one `PaneHeader` per pane; Jobs full height beside Details over History; columns Status, Name, Last Run, Next Run; a running job spins and counts up; New Job and Start/Stop on the header; no stripes. | `JobManagement/*`, `PaneHeader` | Owner checks it in Echo 👁 | ☑ built, 👁 pending |
 | TL5 | **New Step and Edit Step (round 33.2):** command at the left in the SQL editor with Parse, settings sidebar with On success / On failure / retries, last run on Edit Step; `SheetLayout` one surface with a prominent default button. | `JobManagement/Sheets/AgentJobStepEditorSheet*`, `SheetLayout`, sqlserver-nio `scripts.parse` | Owner checks it in Echo 👁 | ☑ built, 👁 pending |
 | TL3 | **Dashboard tiles (TT3)** for monitoring tools: Activity Monitor's figures as cards with sparklines. | `ActivityMonitor/*` | 👁 | ☑ built, 👁 pending |
+| TL6 | **Pages for every tool (round 36.2):** the nine tools whose sections are separate views get pages in the tab instead of their segmented control; More menu for pages that don't fit; reopen on the last page used on that server. | `WorkspaceTab+ToolPages`, `TabPageChips`, the nine tools | Owner checks it in Echo 👁 | ◐ started: `.planning/round36-2-tool-pages.patch` |
+| TL7 | **Families and one theme (round 37.1):** every tool tab knows its family; one header, pane cards, tables and empty states for all. The header's layout follows round 37.2. | `ToolTabContainer`, tool views | No tool tab drawn its own way 👁 | ☐ |
+| TL8 | **Controls (round 37.3):** glass capsule main action, one glass capsule of other actions, glass picker pill, Stop with a pulsing dot, glass search capsule, all 28pt. Where the main action lives follows round 45. | `DesignSystem/Components`, tool toolbars | Every tool's row uses them 👁 | ☐ |
+| TL9 | **A theme per family (round 37.4):** tiles for Monitor, a details card beside the list for Manage, a fix per finding for Health, an Apply bar with the count for Properties, a floating glass bar for Canvas. | Tool views by family | Owner checks it in Echo 👁 | ☐ |
 
 ## Phase 16 · Section dock
 

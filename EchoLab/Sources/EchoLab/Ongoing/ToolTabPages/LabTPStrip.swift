@@ -155,7 +155,7 @@ struct LabTPStrip: View {
                 let on = name == selected(tab)
                 Text(name).font(TypographyTokens.label.weight(on ? .semibold : .regular))
                     .foregroundStyle(on ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
-                    .padding(.horizontal, LayoutTokens.TabPages.chipHorizontalPadding)
+                    .padding(.horizontal, SpacingTokens.xs)
                     .frame(height: LayoutTokens.TabPages.chipHeight - LayoutTokens.TabPages.spacing * 2)
                     .background { if on { Capsule().fill(ColorTokens.Workspace.card).shadow(ShadowTokens.railSelection) } }
                     .onTapGesture { withAnimation(motion.press) { page[tab.id] = name } }

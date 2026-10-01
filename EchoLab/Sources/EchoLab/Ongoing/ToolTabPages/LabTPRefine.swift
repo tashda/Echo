@@ -11,6 +11,8 @@ struct LabTPRefine: Equatable {
     var chip: LabTPChip = .raised
 
     static let recommended = LabTPRefine()
+    /// What the owner accepted and Echo draws (round 36.1).
+    static let accepted = LabTPRefine(width: .hug, track: .none, text: .matched, divider: .hairline, chip: .raised)
 
     @MainActor static func from(_ values: RoundValues) -> LabTPRefine {
         LabTPRefine(width: .init(rawValue: values["width"]) ?? .hug, track: .init(rawValue: values["track"]) ?? .docked,
@@ -95,7 +97,7 @@ extension LabTPStrip {
         }
         .padding(.horizontal, pad)
         .frame(height: height)
-        .background { if refine.track != .none { Capsule().fill(ColorTokens.TabStrip.Pages.track) } }
+        .background { if refine.track != .none { Capsule().fill(ColorTokens.TabStrip.Pages.formerTrack) } }
     }
 
     private func refinedChip(_ tab: LabTPTab, _ name: String, _ refine: LabTPRefine, height: CGFloat) -> some View {
@@ -105,17 +107,17 @@ extension LabTPStrip {
             .font(font.weight(on ? .semibold : .regular))
             .foregroundStyle(on ? (refine.chip == .tint ? tab.tint : ColorTokens.Text.primary) : ColorTokens.Text.secondary)
             .lineLimit(1).fixedSize()
-            .padding(.horizontal, refine.text == .matched ? SpacingTokens.xs2 : LayoutTokens.TabPages.chipHorizontalPadding)
+            .padding(.horizontal, refine.text == .matched ? SpacingTokens.xs2 : SpacingTokens.xs)
             .frame(height: height)
             .background {
                 if on {
                     switch refine.chip {
                     case .raised:
                         if refine.track == .none {
-                            Capsule().fill(ColorTokens.TabStrip.Pages.track)
-                        } else {
                             Capsule().fill(ColorTokens.TabStrip.Pages.selected)
-                                .shadow(color: ColorTokens.TabStrip.Pages.selectedShadow, radius: 0.5, y: 0.5)
+                        } else {
+                            Capsule().fill(ColorTokens.TabStrip.Pages.formerRaised)
+                                .shadow(color: ColorTokens.TabStrip.Pages.formerRaisedShadow, radius: 0.5, y: 0.5)
                         }
                     case .tint:
                         Capsule().fill(tab.tint.opacity(0.16))

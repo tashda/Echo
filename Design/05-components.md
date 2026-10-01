@@ -111,6 +111,8 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 - **Position: on the canvas above both cards**, the way Safari's tab bar sits above the page. *Decided.*
 - **One glass capsule** holding the tabs and the + as its last item; the active tab is the white pill (round 9, TB1). **Inactive tabs have no fill, full-strength titles and hairline dividers** (round 11, T1); every tab shows its kind's icon (a spinner while running) and two lines: the title over the database, or the timer while running (T7, round 12 L2). The bar is 10pt taller than the Classic strip. The earlier grey plate stays available as Settings › Appearance › Tab Bar › Classic, to revert to. *Replaced* (2026-09-30) by Round 9's strip on one line.
 - **Tool pages unfold in the tab** (ST2, 2026-09-30): a tool with pages (Activity Monitor, Security, Server Properties) shows its pages as small chips inside its active tab; the other tabs make room with the house spring and it folds back when you leave. Replaces the segmented control at the top of tool tabs. *Decided.*
+  - **How they look** (round 36.1, 2026-10-01): the title, a short hairline, then the pages at the title's size (11pt) on the tab itself, the shown one semibold on a soft pill; no grey track. The tab is exactly as wide as that (at most 62% of the strip) and the other tabs share the rest; alone, it keeps its width at the leading edge. It unfolds on the house spring, the pages fading out first. *Decided.*
+  - **Every tool whose sections are separate views** has pages (round 36.2: nine tools; Query Store's two views stay inside its Maintenance page); the pages that don't fit go into a More menu at the end; a tool reopens on the last page used on that server. *Decided.*
 
 ## Tab overview (open queries)
 
@@ -180,6 +182,9 @@ Decided 2026-09-30.
 - **Panes inside a tool tab share one pane header** (round 33, JH1): the title (13pt semibold), a grey count, the pane's actions at the right, on one 36pt line (`PaneHeader`). *Decided.*
 - **New Step and Edit Step** (round 33.2): the command full height at the left in Echo's SQL editor with Parse (T-SQL), the settings in a sidebar at the right (Step; When it finishes: On success, On failure, retries); Edit Step adds the step's last run under the title. *Decided.*
 - **Sheets are one surface** (round 33.2, SE1): no hairline between the content and the buttons; the default button is prominent while it can be pressed (`SheetLayout`). *Decided.*
+- **Five families** (round 37.1, 2026-10-01): Monitor, Manage, Health (Query Store included), Properties, Canvas; the psql console follows the editor instead. **One theme for all:** one header, the same pane cards, tables and empty states. *Decided.*
+- **Controls** (round 37.3): the main action a glass capsule (symbol in colour, word in grey); other actions together in one glass capsule; pickers one glass pill (symbol, value, chevron); running, the main action turns into Stop with a pulsing dot; search a glass capsule at the right; every control 28pt. Where the main action lives: round 45. *Decided.*
+- **Per family** (round 37.4): Monitor opens on tiles; Manage has a details card beside the list; Health's findings each carry a fix; Properties ends in an Apply bar with the number of changes; Canvas has a floating glass bar at the bottom. *Decided.*
 - **Agent Jobs** (round 33): Jobs the full height on the left, Details over History on the right; Details' sections segmented and centred under its header; the jobs' columns Status, Name, Last Run, Next Run, a running job spinning with its elapsed time in Last Run; New Job and Start/Stop on the Jobs header, the rest in ⋯ and right-click; no stripes below the last row. *Decided.*
 
 ## Results card

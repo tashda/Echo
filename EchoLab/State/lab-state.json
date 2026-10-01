@@ -4,12 +4,12 @@
       {
         "date": "2026-10-01T14:22:17Z",
         "id": "5C27B247-FE21-42E0-9DC2-1DFF71B42736",
-        "text": "Review of SQL Server Agent Jobs: New Step\n1. Which sheet?: picked Proposal\n2. Layout: picked NS1 · Three sections: Step, Command, When it finishes; NEEDS MORE OPTIONS; note: I don't like the hairline seperating the bottom and top of these. Please make more radical suggestions, even though your 3 sections are good.\n3. Command: picked CE2 · CE1 with Parse, which checks the T-SQL before you save\n4. When it finishes: picked OC1 · On success, On failure, Retry attempts and interval\n5. Add Step: picked PB1 · Prominent, as every sheet\n6. Editing a step: picked ES1 · A line under the title: Last run 26 Sep 23:00 · Succeeded · 14 min"
+        "text": "Review of SQL Server Agent Jobs: New Step\n1. Which sheet?: picked Proposal\n2. Layout: picked NS1 \u00b7 Three sections: Step, Command, When it finishes; NEEDS MORE OPTIONS; note: I don't like the hairline seperating the bottom and top of these. Please make more radical suggestions, even though your 3 sections are good.\n3. Command: picked CE2 \u00b7 CE1 with Parse, which checks the T-SQL before you save\n4. When it finishes: picked OC1 \u00b7 On success, On failure, Retry attempts and interval\n5. Add Step: picked PB1 \u00b7 Prominent, as every sheet\n6. Editing a step: picked ES1 \u00b7 A line under the title: Last run 26 Sep 23:00 \u00b7 Succeeded \u00b7 14 min"
       },
       {
         "date": "2026-10-01T14:31:50Z",
         "id": "020D50A4-308C-4492-AA6C-556D69ED7D9E",
-        "text": "Review of SQL Server Agent Jobs: New Step\n1. Which sheet?: picked Proposal\n2. Layout: picked NS4 · Wide: the command full height, the settings in a sidebar at the right, like Xcode's inspector\n3. Edges: picked SE1 · No hairlines: title, content and buttons on one surface\n4. Command: picked CE2 · CE1 with Parse, which checks the T-SQL before you save\n5. When it finishes: picked OC1 · On success, On failure, Retry attempts and interval\n6. Add Step: picked PB1 · Prominent, as every sheet\n7. Editing a step: picked ES1 · A line under the title: Last run 26 Sep 23:00 · Succeeded · 14 min"
+        "text": "Review of SQL Server Agent Jobs: New Step\n1. Which sheet?: picked Proposal\n2. Layout: picked NS4 \u00b7 Wide: the command full height, the settings in a sidebar at the right, like Xcode's inspector\n3. Edges: picked SE1 \u00b7 No hairlines: title, content and buttons on one surface\n4. Command: picked CE2 \u00b7 CE1 with Parse, which checks the T-SQL before you save\n5. When it finishes: picked OC1 \u00b7 On success, On failure, Retry attempts and interval\n6. Add Step: picked PB1 \u00b7 Prominent, as every sheet\n7. Editing a step: picked ES1 \u00b7 A line under the title: Last run 26 Sep 23:00 \u00b7 Succeeded \u00b7 14 min"
       }
     ],
     "generalNote": "",
@@ -43,13 +43,13 @@
     "optionNotes": {},
     "pickNotes": {},
     "picks": {
-      "command": "CE2 · CE1 with Parse, which checks the T-SQL before you save",
-      "completion": "OC1 · On success, On failure, Retry attempts and interval",
-      "edges": "SE1 · No hairlines: title, content and buttons on one surface",
+      "command": "CE2 \u00b7 CE1 with Parse, which checks the T-SQL before you save",
+      "completion": "OC1 \u00b7 On success, On failure, Retry attempts and interval",
+      "edges": "SE1 \u00b7 No hairlines: title, content and buttons on one surface",
       "edit": "lastRun",
       "exhibit": "proposal",
-      "primary": "PB1 · Prominent, as every sheet",
-      "structure": "NS4 · Wide: the command full height, the settings in a sidebar at the right, like Xcode's inspector"
+      "primary": "PB1 \u00b7 Prominent, as every sheet",
+      "structure": "NS4 \u00b7 Wide: the command full height, the settings in a sidebar at the right, like Xcode's inspector"
     },
     "reviewedRevision": 2,
     "revisions": [
@@ -3247,6 +3247,10 @@
       {
         "date": "2026-10-01T18:45:26Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:46:14Z",
+        "text": "Taken by Opus r36-37"
       }
     ],
     "needsMore": [],
@@ -3293,6 +3297,11 @@
       }
     ],
     "status": "Accepted",
+    "takenBy": {
+      "agent": "Opus r36-37",
+      "date": "2026-10-01T18:46:14Z",
+      "status": "Accepted"
+    },
     "verdicts": {}
   },
   "ongoing.tool-tab-pages-where-r36": {

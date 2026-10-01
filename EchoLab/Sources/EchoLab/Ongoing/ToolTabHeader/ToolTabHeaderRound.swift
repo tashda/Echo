@@ -38,7 +38,7 @@ enum ToolTabHeaderRound {
             .init(id: "oneLines", title: "The four one-line headers", summary: "UH5 to UH8 on Policy Management, under its tab (36.1, TP0 refined).",
                   isWide: true, addedIn: 2, designWidth: 860, designHeight: 340) { _ in
                 VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    LabTPStrip(tabs: [.query2, .policy], activeID: LabTPTab.policy.id, style: .today, refine: .recommended)
+                    LabTPStrip(tabs: [.query2, .policy], activeID: LabTPTab.policy.id, style: .today, refine: .accepted)
                     ForEach(LabTTHeaderStyle.revision2, id: \.self) { style in
                         Text(style.rawValue).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                         LabTTHeaderView(tool: .policy, look: { var look = LabTTLook(); look.header = style; return look }())

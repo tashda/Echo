@@ -33,6 +33,7 @@ final class TabsSpecimenModel {
 struct TabsSpecimen: View {
     @Bindable var model: TabsSpecimenModel
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.echoMotion) private var motion
     @State private var hovered: Int?
     @State private var closeHovered = false
     @State private var plusHovered = false
@@ -122,8 +123,9 @@ struct TabsSpecimen: View {
                 }
                 .frame(height: stripHeight)
                 .specAnchor("1.1")
-                // As in Echo: only a tool tab unfolding or folding springs; a plain switch is instant.
-                .animation(.snappy(duration: 0.32, extraBounce: 0.06), value: unfoldedKey)
+                // As in Echo: only a tool tab unfolding or folding springs (the house spring, round
+                // 36.1); a plain switch is instant.
+                .animation(motion.standard, value: unfoldedKey)
             }
             .frame(maxHeight: .infinity, alignment: .center)
         }
@@ -135,14 +137,16 @@ struct TabsSpecimen: View {
         let base = Array(repeating: equal, count: list.count)
         guard list.indices.contains(model.active), model.showsPages, !list[model.active].pages.isEmpty, list.count > 1 else { return base }
         let item = list[model.active]
-        let title = (item.title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 11)]).width
+        let size = TypographyTokens.AppKit.detail.pointSize
+        let title = (item.title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: .medium)]).width
         let pages = item.pages.reduce(CGFloat.zero) {
-            $0 + ($1 as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 10)]).width
+            $0 + ($1 as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: .semibold)]).width
                 + LayoutTokens.TabPages.chipHorizontalPadding * 2 + LayoutTokens.TabPages.spacing
         }
         let ideal = ceil(title + pages + LayoutTokens.TabPages.tabChrome)
-        let unfolded = min(max(equal, ideal), total * LayoutTokens.TabPages.maxShareOfStrip)
-        guard unfolded > equal else { return base }
+        // Round 36.1 (RW1): exactly its content's width, at most 62% of the strip.
+        let unfolded = min(ideal, total * LayoutTokens.TabPages.maxShareOfStrip)
+        guard unfolded != equal else { return base }
         let others = max((total - unfolded) / CGFloat(list.count - 1), 0)
         return list.indices.map { $0 == model.active ? unfolded : others }
     }
@@ -196,7 +200,9 @@ struct TabsSpecimen: View {
                     }
                 }
                 .frame(width: SpacingTokens.sm2)
-                Text(item.title).font(TypographyTokens.detail).lineLimit(1).layoutPriority(1)
+                Text(item.title)
+                    .font(isActive && model.showsPages && !item.pages.isEmpty ? TypographyTokens.detail.weight(.medium) : TypographyTokens.detail)
+                    .lineLimit(1).layoutPriority(1)
                     .foregroundStyle(titleColor(isActive, pinned: false))
                     .specAnchorIf(anchored, "2.3")
                 if isActive && model.showsPages && !item.pages.isEmpty {
@@ -285,30 +291,29 @@ struct TabsSpecimen: View {
     }
 
     private func pageChips(_ pages: [String]) -> some View {
-        HStack(spacing: LayoutTokens.TabPages.spacing) {
-            ForEach(pages, id: \.self) { page in
-                let isSelected = page == selectedPage
-                Text(page)
-                    .font(TypographyTokens.label.weight(isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
-                    .lineLimit(1).fixedSize()
-                    .padding(.horizontal, LayoutTokens.TabPages.chipHorizontalPadding)
-                    .frame(height: LayoutTokens.TabPages.chipHeight - LayoutTokens.TabPages.spacing * 2)
-                    .background {
-                        if isSelected {
-                            Capsule().fill(ColorTokens.TabStrip.Pages.selected)
-                                .shadow(color: ColorTokens.TabStrip.Pages.selectedShadow, radius: 0.5, y: 0.5)
-                        }
-                    }
-                    .contentShape(Capsule())
-                    .onTapGesture { withAnimation(.snappy(duration: 0.22)) { selectedPage = page } }
+        HStack(spacing: SpacingTokens.xxs2) {
+            Rectangle().fill(ColorTokens.Separator.primary)
+                .frame(width: LayoutTokens.TabPages.dividerWidth, height: LayoutTokens.TabPages.dividerHeight)
+                .padding(.horizontal, LayoutTokens.TabPages.dividerPadding)
+                .specAnchor("5.3")
+            HStack(spacing: LayoutTokens.TabPages.spacing) {
+                ForEach(pages, id: \.self) { page in
+                    let isSelected = page == selectedPage
+                    Text(page)
+                        .font(TypographyTokens.detail.weight(isSelected ? .semibold : .regular))
+                        .foregroundStyle(isSelected ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+                        .lineLimit(1).fixedSize()
+                        .padding(.horizontal, LayoutTokens.TabPages.chipHorizontalPadding)
+                        .frame(height: LayoutTokens.TabPages.chipHeight)
+                        .background { if isSelected { Capsule().fill(ColorTokens.TabStrip.Pages.selected) } }
+                        .contentShape(Capsule())
+                        .onTapGesture { withAnimation(motion.press) { selectedPage = page } }
+                }
             }
         }
-        .padding(.horizontal, LayoutTokens.TabPages.spacing)
-        .frame(height: LayoutTokens.TabPages.chipHeight)
-        .background(ColorTokens.TabStrip.Pages.track, in: .capsule)
     }
 }
+
 
 extension View {
     /// `specAnchor` only when `condition` holds.

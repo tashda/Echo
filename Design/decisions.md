@@ -2,6 +2,26 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 36.1 accepted: a tool's pages in its tab, refined
+
+Echo Labs › Tabs › Tool tabs with pages: the tab bar · round 36.1, revision 3. The owner kept TP0 (the tool's title, then its pages, in the active tab) and set every other style aside; the round refined it one fix at a time.
+
+- **Width (RW1):** the active tool tab is **exactly as wide as its title, hairline and pages** (never more than 62% of the strip); the other tabs share the rest. It no longer stretches and centres its content.
+- **Track (RT2):** **no grey track**: the pages sit on the white tab itself; **the shown page is semibold on a soft pill** (primary at 6%, RC0 as drawn).
+- **Type (RX1):** title and pages **at 11pt on one baseline**; the title medium while the pages show.
+- **Between (RD1):** **a short hairline** (1 × 12pt) between the title and the pages.
+- **Alone (SW1):** a lone tool tab keeps its own width at the leading edge, on the full grey plate.
+- **Motion (UF1):** it unfolds and folds on **the house spring**; the pages fade out first and in once the tab has widened. → TABS-5.1 to 5.4, `05-components` › Tabs
+
+## 2026-10-01 · Rounds 36.2 and 37.1, 37.3, 37.4 accepted: pages for every tool, and one design for tool tabs
+
+Echo Labs › Tabs › round 36 and Tool tabs › round 37. Asked: introduce the pages everywhere they're needed (Policy Management had none), and one design theme for every tab except the query editor. Still being judged: the header on one line (37.2, revision 2) and where the main action lives (round 45, from the owner's note on 37.3).
+
+- **36.2 Which tools (WP1, OF1, RM0):** **every tool whose sections are separate views** has its pages in the tab: Activity Monitor, Maintenance, Server Properties, Database Security, Server Security, Policy Management, Advanced Objects, Tuning Advisor and Error Log. Query Store is a page of Maintenance, so its own two views stay a segmented control inside that page. The tools' segmented control inside the tab goes. Pages that don't fit go into a **More** menu at the end. A tool reopens on **the last page you used on that server**. → `05-components` › Tabs, plan TL6
+- **37.1 Families (FA0, QS1, PS0, UT1):** tool tabs come in five families by the shape of their work: **Monitor** (Activity Monitor, SQL Profiler, Extended Events), **Manage** (Agent Jobs, Server and Database Security, Policy Management, Availability Groups, Resource Governor, Extensions, Advanced Objects, Database Mail), **Health** (Maintenance, Tuning Advisor, Error Log, and **Query Store**, since it finds regressions to fix), **Properties** (Server Properties, Table and Extension Structure) and **Canvas** (Schema Diagram, Query Builder, Schema Diff). The psql console is not a tool tab: it follows the editor (round 28). **One theme for all:** the header, plus the same pane cards, tables and empty states. → `05-components` › Tool tabs, plan TL7
+- **37.3 Controls (PA1, SA2, PK1, ST1, SF1, CH0):** the main action is a **glass capsule, its symbol in colour and its word in grey**; the other actions sit **together in one glass capsule**; a picker is **one glass pill: symbol, value and a chevron**; running, the main action **turns into Stop with a pulsing dot**; search is **a glass capsule at the right of the row**; every control is **28pt**, as the toolbar's capsules. Where the main action lives is round 45. → `05-components` › Tool tabs, plan TL8
+- **37.4 A theme per family (MO0, MA0, HE0, PR0, CA0):** Monitor opens on **tiles**; Manage shows **a details card beside the list**; Health's findings each carry **a fix** (Fix, Back Up Now, Rebuild); Properties has **an Apply bar at the bottom with the number of changes**; Canvas tools keep their tools in **a floating glass bar at the bottom**. → `05-components` › Tool tabs, plan TL9
+
 ## 2026-10-01 · Round 33.2 accepted: New Step and Edit Step
 
 Echo Labs › Tool tabs › SQL Server Agent Jobs: New Step · round 33, page 2, revision 2. The owner's picks where they differ from the recommendation are marked.
