@@ -39,6 +39,7 @@ final class ResultTableHeaderView: NSTableHeaderView {
 
     override func layout() {
         super.layout()
+        if let scrollView = enclosingScrollView { SystemHeaderLineHider.hideLines(in: scrollView) }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1

@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r47", label: "Round 47", title: "Results: the row-number gutter and the column header", date: "1 Oct 2026",
+             asked: "The results' row-number column and column header look off (the header's names don't line up with the right-aligned numbers, two lines under the header); make the gutter as good and consistent as the editor's, keeping everything it does.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.results-gutter-r47"]),
         Info(id: "r44", label: "Round 44", title: "The blur under the footer", date: "1 Oct 2026",
              asked: "The blur under the results footer still doesn't look smooth: test every way to blur the rows away under the footer and make it look perfect.",
              outcome: "Being judged.",
