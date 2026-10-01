@@ -61,20 +61,16 @@ extension JobDetailsView {
         }
         .sheet(isPresented: $showAddStepSheet) {
             AgentJobStepEditorSheet(
+                jobName: selectedJobName,
+                otherSteps: stepNames(excluding: nil),
                 databaseNames: viewModel.databaseNames,
                 proxyNames: viewModel.proxyNames,
-                title: "New Step",
-                actionLabel: "Add Step",
-                onSaveAsync: { name, subsystem, database, command, proxy, output in
-                    let beforeError = viewModel.errorMessage
-                    await viewModel.addStep(name: name, subsystem: subsystem, database: database, command: command, proxyName: proxy, outputFile: output)
-                    if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {
-                        showAddStepSheet = false
-                        return nil
-                    }
-                    let err = viewModel.errorMessage
-                    viewModel.errorMessage = nil
-                    return err
+                onParse: { try await viewModel.parseCommand($0) },
+                onSave: { draft in
+                    await saveStep {
+                        await viewModel.addStep(name: draft.name, subsystem: draft.subsystem, database: draft.database, command: draft.command,
+                                                proxyName: draft.proxyName, outputFile: draft.outputFile, outcome: draft.outcome)
+                    } onSuccess: { showAddStepSheet = false }
                 },
                 onCancel: { showAddStepSheet = false }
             )
@@ -93,28 +89,42 @@ extension JobDetailsView {
         }
         .sheet(item: $editingStep) { step in
             AgentJobStepEditorSheet(
-                name: step.name,
-                subsystem: step.subsystem,
-                database: step.database ?? "",
-                command: step.command ?? "",
+                step: step,
+                jobName: selectedJobName,
+                otherSteps: stepNames(excluding: step.id),
+                lastRunLine: AgentJobStepLastRun.line(stepID: step.id, history: viewModel.history),
                 databaseNames: viewModel.databaseNames,
                 proxyNames: viewModel.proxyNames,
-                title: "Edit Step",
-                actionLabel: "Save",
-                onSaveAsync: { _, _, database, command, _, _ in
-                    let beforeError = viewModel.errorMessage
-                    await viewModel.updateStep(stepName: step.name, newCommand: command, database: database)
-                    if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {
-                        editingStep = nil
-                        return nil
-                    }
-                    let err = viewModel.errorMessage
-                    viewModel.errorMessage = nil
-                    return err
+                onParse: { try await viewModel.parseCommand($0) },
+                onSave: { draft in
+                    await saveStep {
+                        await viewModel.updateStep(stepName: step.name, newCommand: draft.command, database: draft.database, outcome: draft.outcome)
+                    } onSuccess: { editingStep = nil }
                 },
                 onCancel: { editingStep = nil }
             )
         }
+    }
+
+    private var selectedJobName: String? {
+        viewModel.jobs.first { $0.id == viewModel.selectedJobID }?.name
+    }
+
+    private func stepNames(excluding id: Int?) -> [Int: String] {
+        Dictionary(uniqueKeysWithValues: viewModel.steps.filter { $0.id != id }.map { ($0.id, $0.name) })
+    }
+
+    /// Runs a step save; returns the error it caused, or closes the sheet.
+    private func saveStep(_ action: () async -> Void, onSuccess: () -> Void) async -> String? {
+        let beforeError = viewModel.errorMessage
+        await action()
+        if viewModel.errorMessage == nil || viewModel.errorMessage == beforeError {
+            onSuccess()
+            return nil
+        }
+        let error = viewModel.errorMessage
+        viewModel.errorMessage = nil
+        return error
     }
 
     func stepListRow(_ step: JobQueueViewModel.StepRow) -> some View {

@@ -18,7 +18,7 @@ enum ToolTabsArea {
         summary: "Every tool tab starts with one header on the canvas; its panes are cards a gutter apart; monitoring tools open on dashboard tiles.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "85dca995", date: "2026-10-01",
+                level: .code, commit: "2ee48ea8", date: "2026-10-01",
                 note: "Read from ToolTabHeader, ToolTabContainer, CardSplitView, ActivityMonitorSparklineStrip and Design/05-components. The specimen is a stand-in Activity Monitor; not compared with the running app."),
             stageHeight: 380,
             behaviours: [
@@ -29,6 +29,7 @@ enum ToolTabsArea {
                 .init(trigger: "Open a tool's bottom panel", result: "It grows up out of the status bar like the query tab's results, and folds back; ⌥⇧⌘Y maximises it to a one-line content card."),
                 .init(trigger: "Monitoring tool", result: "Opens on dashboard tiles: the key figures with sparklines above the detail."),
                 .init(trigger: "Agent Jobs", result: "Jobs the full height on the left, Details over History on the right; each pane with the one pane header (round 33)."),
+                .init(trigger: "New Step or Edit Step", result: "A wide sheet: the command full height in the SQL editor with Parse, the step's settings and what it does when it finishes in a sidebar at the right; Edit Step shows how the step last ran (round 33.2)."),
                 .init(trigger: "A job runs", result: "Its symbol spins and Last Run counts up from when the Agent started it; the list reloads when it ends."),
             ],
             motions: [

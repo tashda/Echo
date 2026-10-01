@@ -2,6 +2,17 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 33.2 accepted: New Step and Edit Step
+
+Echo Labs › Tool tabs › SQL Server Agent Jobs: New Step · round 33, page 2, revision 2. The owner's picks where they differ from the recommendation are marked.
+
+- **Layout (NS4, owner's pick over NS3):** wide, 760 by 480pt at least: the command **full height at the left**, the settings in a **sidebar at the right** (300pt, the canvas colour): Step, then When it finishes. The title names the job ("New Step · Nightly").
+- **Edges (SE1):** **no hairlines**: title, content and buttons on one surface. This is `SheetLayout`, so **every sheet** loses the hairline over its buttons (VISUAL_GUIDELINES › Sheets updated).
+- **Command (CE2):** Echo's SQL editor (highlighting, line numbers) with **Parse**, which checks the T-SQL without running it (`SET PARSEONLY`, sqlserver-nio `scripts.parse`) and marks the failing line in the editor as a failed query's is. Open in Editor stays. Other step types keep a plain monospaced editor.
+- **When it finishes (OC1):** On success and On failure (go to the next step, quit reporting success or failure, go to step N), Retry attempts and Retry interval, saved with `configureStep`. A new step goes to the next step on success and quits reporting failure, as SSMS does.
+- **Add Step (PB1):** prominent while it can be pressed, as every sheet: `SheetLayout` now makes its default button prominent when enabled (it was always bordered), and `SheetLayout.primaryButton` serves custom footers.
+- **Editing a step (ES1):** a line under the title, "Last run 26 Sep 23:00 · Succeeded · 14 min", from the job's history. Edit Step shows the name and type without letting them change, since the driver can't rename a step or change its type (they were editable and silently ignored). → `05-components` › Tool tabs, plan TL5
+
 ## 2026-10-01 · After round 35.1: ⌘D, Esc, and unsaved query tabs
 
 The owner's notes on the running app, decided in chat.

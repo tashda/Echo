@@ -214,6 +214,7 @@ nonisolated final class MSSQLDedicatedQuerySession: DatabaseSession, MSSQLSessio
 
     var metadata: SQLServerMetadataNamespace { metadataSession.metadata }
     var agent: SQLServerAgentOperations { metadataSession.agent }
+    var scripts: SQLServerScriptClient { metadataSession.scripts }
     var admin: SQLServerAdministrationClient { metadataSession.admin }
     var security: SQLServerSecurityClient { metadataSession.security }
     var serverSecurity: SQLServerServerSecurityClient { metadataSession.serverSecurity }

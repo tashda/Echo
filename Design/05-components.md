@@ -178,6 +178,8 @@ Decided 2026-09-30.
 - **Monitoring tools** open on dashboard tiles: the key figures as cards with sparklines above the detail. *Decided.*
 - Configuration stays in the tab; read-only detail such as a job's history may use the Inspector. *Decided.*
 - **Panes inside a tool tab share one pane header** (round 33, JH1): the title (13pt semibold), a grey count, the pane's actions at the right, on one 36pt line (`PaneHeader`). *Decided.*
+- **New Step and Edit Step** (round 33.2): the command full height at the left in Echo's SQL editor with Parse (T-SQL), the settings in a sidebar at the right (Step; When it finishes: On success, On failure, retries); Edit Step adds the step's last run under the title. *Decided.*
+- **Sheets are one surface** (round 33.2, SE1): no hairline between the content and the buttons; the default button is prominent while it can be pressed (`SheetLayout`). *Decided.*
 - **Agent Jobs** (round 33): Jobs the full height on the left, Details over History on the right; Details' sections segmented and centred under its header; the jobs' columns Status, Name, Last Run, Next Run, a running job spinning with its elapsed time in Last Run; New Job and Start/Stop on the Jobs header, the rest in ⋯ and right-click; no stripes below the last row. *Decided.*
 
 ## Results card

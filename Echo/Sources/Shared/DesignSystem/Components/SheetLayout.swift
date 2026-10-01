@@ -2,9 +2,10 @@ import SwiftUI
 
 /// A standardized sheet chrome matching the macOS System Settings sheet pattern.
 ///
-/// Provides: optional header (icon + title + subtitle), content area, divider,
-/// and footer with correct button styling. No `.background(.bar)` — matches
-/// the native sheet footer appearance.
+/// Provides: optional header (icon + title + subtitle), content area, and footer
+/// with correct button styling, all on one surface: no hairline between the content
+/// and the buttons, and no `.background(.bar)` (round 33.2, SE1). The primary button
+/// is prominent while it can be pressed (PB1).
 ///
 /// **Standard usage:**
 /// ```swift
@@ -75,8 +76,6 @@ struct SheetLayout<Content: View>: View {
 
             content()
 
-            Divider()
-
             HStack(spacing: SpacingTokens.sm) {
                 if let destructiveAction, let onDestructive {
                     Button(destructiveAction, role: .destructive) { onDestructive() }
@@ -101,10 +100,7 @@ struct SheetLayout<Content: View>: View {
                 Button("Cancel") { onCancel() }
                     .keyboardShortcut(.cancelAction)
 
-                Button(primaryAction) { Task { await onSubmit() } }
-                    .buttonStyle(.bordered)
-                    .disabled(!canSubmit)
-                    .keyboardShortcut(.defaultAction)
+                SheetLayout<EmptyView>.primaryButton(primaryAction, canSubmit: canSubmit) { Task { await onSubmit() } }
             }
             .padding(.horizontal, SpacingTokens.md2)
             .padding(.vertical, SpacingTokens.sm2)
@@ -143,8 +139,27 @@ struct SheetLayout<Content: View>: View {
     }
 }
 
+extension SheetLayout where Content == EmptyView {
+    /// The sheet's default button: prominent while it can be pressed, bordered and dimmed while not
+    /// (VISUAL_GUIDELINES › Sheets). For custom footers too.
+    @ViewBuilder
+    static func primaryButton(_ title: String, canSubmit: Bool, action: @escaping () -> Void) -> some View {
+        if canSubmit {
+            Button(title, action: action)
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+        } else {
+            Button(title, action: action)
+                .buttonStyle(.bordered)
+                .disabled(true)
+                .keyboardShortcut(.defaultAction)
+        }
+    }
+}
+
 /// A variant of `SheetLayout` for wizards and multi-step flows where the
-/// caller provides the entire footer content.
+/// caller provides the entire footer content. One surface, no hairline (round 33.2, SE1);
+/// use `SheetLayout.primaryButton` for the default button.
 struct SheetLayoutCustomFooter<Content: View, Footer: View>: View {
     let title: String
     @ViewBuilder let content: () -> Content
@@ -153,8 +168,6 @@ struct SheetLayoutCustomFooter<Content: View, Footer: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             content()
-
-            Divider()
 
             HStack(spacing: SpacingTokens.sm) {
                 footer()

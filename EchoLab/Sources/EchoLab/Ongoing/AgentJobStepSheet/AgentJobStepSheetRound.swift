@@ -9,6 +9,7 @@ import SwiftUI
 ///
 /// Revision 2 (owner: NS1's three sections are good, but the hairlines between the top and the
 /// bottom are not, and wants more radical layouts): NS3 to NS6, and the sheet's edges as a control.
+/// Accepted 2026-10-01 (NS4, SE1, CE2, OC1, PB1, ES1) and built into Echo: the Proposal opens on the picks.
 @MainActor
 enum AgentJobStepSheetRound {
     enum Structure: String, CaseIterable {
@@ -49,7 +50,7 @@ enum AgentJobStepSheetRound {
         var structure: Structure, edges: Edges, command: Command, completion: Completion, primary: Primary
         static let today = Look(structure: .today, edges: .hairlines, command: .today, completion: .none, primary: .bordered)
         @MainActor static func from(_ v: RoundValues) -> Look {
-            Look(structure: .init(rawValue: v["structure"]) ?? .editorFirst, edges: .init(rawValue: v["edges"]) ?? .plain,
+            Look(structure: .init(rawValue: v["structure"]) ?? .inspector, edges: .init(rawValue: v["edges"]) ?? .plain,
                  command: .init(rawValue: v["command"]) ?? .parse,
                  completion: .init(rawValue: v["completion"]) ?? .offered, primary: .init(rawValue: v["primary"]) ?? .prominent)
         }
@@ -57,7 +58,7 @@ enum AgentJobStepSheetRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("structure", "Layout", Structure.self, default: .editorFirst,
+            .of("structure", "Layout", Structure.self, default: .inspector,
                 question: "Compare the sheet's layouts, NS3 to NS6 first. Which reads best for a step you will come back to edit?",
                 recommend: .editorFirst,
                 why: "A step is its command: Name, Type and Database are three short values that fit on one line, and On success / On failure read naturally as a sentence, so the editor gets the whole sheet with no section frames at all. If you want to keep NS1's three sections exactly, NS6 keeps them with nothing drawn between. NS4 and NS5 need a sheet 760pt wide; NS5 is the most useful when a job has several steps, but it is a new view to maintain.",
@@ -103,22 +104,10 @@ enum AgentJobStepSheetRound {
         exhibitTopic: ("Which sheet?", "Is the Proposal the New Step sheet to build?", "proposal",
                        "The command fills the sheet with its settings on one line and what happens next as a sentence, no hairlines, Parse, and a prominent Add Step."),
         presets: [
-            .init(id: "recommended", name: "My recommendation",
-                  values: ["structure": Structure.editorFirst.rawValue, "edges": Edges.plain.rawValue, "command": Command.parse.rawValue,
+            .init(id: "accepted", name: "Accepted", summary: "The editor full height, settings at the right, no hairlines, Parse, prominent Add Step.",
+                  values: ["structure": Structure.inspector.rawValue, "edges": Edges.plain.rawValue, "command": Command.parse.rawValue,
                            "completion": Completion.offered.rawValue, "primary": Primary.prominent.rawValue],
                   isRecommended: true),
-            .init(id: "sectionsAsCards", name: "Your three sections", summary: "NS1's sections as cards, no hairlines.",
-                  values: ["structure": Structure.cards.rawValue, "edges": Edges.plain.rawValue, "command": Command.parse.rawValue,
-                           "completion": Completion.offered.rawValue, "primary": Primary.prominent.rawValue]),
-            .init(id: "inspector", name: "Inspector", summary: "The editor full height, settings at the right.",
-                  values: ["structure": Structure.inspector.rawValue, "edges": Edges.plain.rawValue, "command": Command.parse.rawValue,
-                           "completion": Completion.offered.rawValue, "primary": Primary.prominent.rawValue]),
-            .init(id: "flow", name: "In the job's flow", summary: "The steps and their arrows beside the form.",
-                  values: ["structure": Structure.flow.rawValue, "edges": Edges.plain.rawValue, "command": Command.parse.rawValue,
-                           "completion": Completion.offered.rawValue, "primary": Primary.prominent.rawValue]),
-            .init(id: "wide", name: "Wide", summary: "Settings and command side by side.",
-                  values: ["structure": Structure.twoPane.rawValue, "command": Command.parse.rawValue, "completion": Completion.offered.rawValue,
-                           "primary": Primary.prominent.rawValue]),
         ]
     )
 }

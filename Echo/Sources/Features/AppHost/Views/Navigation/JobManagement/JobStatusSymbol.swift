@@ -27,10 +27,3 @@ struct JobStatusSymbol: View {
         }
     }
 }
-
-extension LayoutTokens {
-    /// The Agent Jobs tab (round 33).
-    enum AgentJobs {
-        static let statusColumnWidth: CGFloat = SpacingTokens.lg2
-    }
-}

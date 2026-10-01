@@ -13,7 +13,11 @@ final class JobQueueViewModel {
         var lastRunDateSortKey: String { lastRunDate ?? "" }
         var nextRunSortKey: String { nextRun ?? "" }
     }
-    struct StepRow: Identifiable, Hashable { let id: Int; let name: String; let subsystem: String; let database: String?; let command: String? }
+    struct StepRow: Identifiable, Hashable {
+        let id: Int; let name: String; let subsystem: String; let database: String?; let command: String?
+        /// Where it goes on success and failure, and its retries (round 33.2, OC1).
+        var outcome = AgentJobStepOutcome()
+    }
     struct ScheduleRow: Identifiable, Hashable {
         let id: String; let name: String; let enabled: Bool; let freqType: Int; let freqInterval: Int; let next: String?
         var enabledSortKey: String { enabled ? "1" : "0" }

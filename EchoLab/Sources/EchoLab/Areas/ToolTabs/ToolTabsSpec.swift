@@ -114,6 +114,16 @@ enum ToolTabsSpec {
             SpecElement(number: "7.6", name: "Empty rows", summary: "No stripes: every list in the tab ends where its rows end (ER1).", groups: [
                 .material(.row("Rows", "inset style, alternating backgrounds off")),
             ], files: ["\(jobs)/JobHistoryView.swift", "\(jobs)/JobDetails/JobDetailsView+Steps.swift"]),
+            SpecElement(number: "7.7", name: "New Step and Edit Step", summary: "The command at the left, the settings at the right (round 33.2, NS4).", groups: [
+                .layout(.row("Size", "760 by 480pt at least", token: "LayoutTokens.AgentJobs.stepSheetMinWidth / stepSheetMinHeight"),
+                        .row("Sidebar", "300pt, the canvas colour, small controls", token: "LayoutTokens.AgentJobs.stepSidebarWidth"),
+                        .row("Title", "\"New Step · Nightly\", centred; Edit Step adds \"Last run 26 Sep 23:00 · Succeeded · 14 min\" (ES1)", token: "AgentJobStepLastRun")),
+                .behaviour(.row("Command", "Echo's SQL editor for T-SQL; Parse checks it without running it and marks the failing line (CE2)", token: "scripts.parse"),
+                           .row("When it finishes", "On success, On failure (next step, quit with success or failure, step N), Retry attempts and interval (OC1)", token: "AgentJobStepOutcome"),
+                           .row("Edit Step", "name and type shown, not editable: the driver can't rename a step or change its type"),
+                           .row("Edges and button", "one surface, no hairline (SE1); Add Step prominent while it can be pressed (PB1)", token: "SheetLayout.primaryButton")),
+            ], files: ["\(jobs)/Sheets/AgentJobStepEditorSheet.swift", "\(jobs)/Sheets/AgentJobStepEditorSheet+Sidebar.swift",
+                       "\(jobs)/Sheets/AgentJobStepEditorSheet+Command.swift", "\(jobs)/AgentJobStepOutcome.swift"]),
         ]),
     ]
 }
