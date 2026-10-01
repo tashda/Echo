@@ -2,6 +2,17 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 42 accepted: one set of rules for every context menu
+
+Echo Labs › Explorer tree › Context menus (42.1 to 42.6). Accepted: **one order everywhere** (open and create; Copy Name, Script as, Tasks, Open Tool; Refresh and connection commands; Drop; Properties last), **icons only on familiar actions** (New, Copy, Refresh, Properties, Drop), **no title**, **Copy Name in every object's menu**, **Drop in plain text in its own group**, **inapplicable commands hidden**, and an **Object menu** in the menu bar.
+
+- **Server:** Open Tool submenu for the tools, Refresh (not Refresh All), Edit Connection.
+- **Database:** Back Up and Restore in the menu itself, Query Builder beside New Query, Advanced Objects folded into Open Tool.
+- **Table and view:** Open Data, Edit Structure, Diagram; Truncate Table in Tasks; views the same shape; double-click opens data.
+- **Column:** a menu with Open Data Sorted, Insert in Query, Copy Name and Qualified Name, inline Rename that shows the ALTER; **routines:** Execute opens a tab with EXEC and the parameters.
+- **Folders:** the first item is the thing you create there, a Filter in every object folder, and an empty-space menu (New Connection, Refresh All Servers, Show Empty Folders).
+- Built so far: the order and icon rules, server, database, table/view, column (without Insert in Query and Rename) and folder order. Still to build: Filter, empty-space menu, double-click, the Object menu, Insert in Query, inline Rename.
+
 ## 2026-10-01 · Round 36.1 accepted: a tool's pages in its tab, refined
 
 Echo Labs › Tabs › Tool tabs with pages: the tab bar · round 36.1, revision 3. The owner kept TP0 (the tool's title, then its pages, in the active tab) and set every other style aside; the round refined it one fix at a time.
