@@ -217,7 +217,7 @@ struct ExplorerBlueprintWalker {
             let objectNodes = objects.map { object -> ObjectBrowserNode in
                 let objectID = ExplorerSidebarIdentity.object(connectionID: connectionID, databaseName: database.name, objectID: object.id)
                 let columns = showsColumns
-                    ? object.columns.map { ObjectBrowserNode(id: "\(objectID)#col#\($0.name)", row: .column($0)) }
+                    ? object.columns.map { ObjectBrowserNode(id: "\(objectID)#col#\($0.name)", row: .column($0, ExplorerColumnOwner(session: session, databaseName: database.name, object: object))) }
                     : []
                 return ObjectBrowserNode(id: objectID, row: .object(session, database.name, object), children: columns)
             }

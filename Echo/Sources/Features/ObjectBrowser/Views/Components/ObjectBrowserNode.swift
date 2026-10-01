@@ -39,6 +39,13 @@ enum ExplorerLoadingStyle {
     }
 }
 
+/// The table or view a column row belongs to, for the column's menu.
+struct ExplorerColumnOwner {
+    let session: ConnectionSession
+    let databaseName: String
+    let object: SchemaObjectInfo
+}
+
 @MainActor
 final class ObjectBrowserNode: NSObject {
     enum Row {
@@ -50,7 +57,7 @@ final class ObjectBrowserNode: NSObject {
         case database(ConnectionSession, DatabaseInfo, isLoading: Bool)
         case folder(ExplorerFolder)
         case object(ConnectionSession, String, SchemaObjectInfo)
-        case column(ColumnInfo)
+        case column(ColumnInfo, ExplorerColumnOwner)
         case item(ExplorerItemRow)
         /// A tool that opens a tab, a window or a sheet; inside a database it knows which one
         /// (Security Overview, round 38).

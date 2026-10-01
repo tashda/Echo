@@ -68,7 +68,7 @@ struct ObjectBrowserRowView: View {
             folderRow(folder)
         case .object(let session, _, let object):
             objectRow(object, session: session)
-        case .column(let column):
+        case .column(let column, _):
             columnRow(column: column)
         case .item(let row):
             itemRow(row)

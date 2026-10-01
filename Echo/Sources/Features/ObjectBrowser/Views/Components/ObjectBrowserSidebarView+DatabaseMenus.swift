@@ -38,8 +38,39 @@ extension ObjectBrowserSidebarView {
         let menu = NSMenu()
         let connID = session.connection.id
         let dbType = session.connection.databaseType
+        let isOnlineSQLServer = dbType == .microsoftSQL && database.isOnline
 
-        menu.addActionItem("Refresh Schema", systemImage: "arrow.clockwise") {
+        menu.addActionItem("New Query", systemImage: "plus.rectangle") {
+            environmentState.openQueryTab(for: session, database: database.name)
+        }
+        if dbType == .postgresql, projectStore.globalSettings.managedPostgresConsoleEnabled {
+            menu.addActionItem("Postgres Console", systemImage: "terminal") {
+                environmentState.openPSQLTab(for: session, database: database.name)
+            }
+        }
+        if dbType == .microsoftSQL {
+            menu.addActionItem("Query Builder", systemImage: "square.stack.3d.up") {
+                environmentState.openQueryBuilderTab(connectionID: connID)
+            }
+        }
+
+        menu.addDivider()
+        addBackUpAndRestore(to: menu, database: database, session: session)
+        menu.addCopyName(database.name)
+        if isOnlineSQLServer {
+            addMSSQLTasksSubmenu(to: menu, database: database, session: session)
+        }
+        if dbType == .sqlite && database.name.lowercased() != "main" && database.name.lowercased() != "temp" {
+            menu.addActionItem("Detach Database", systemImage: "externaldrive.badge.minus") {
+                sheetState.detachDatabaseName = database.name
+                sheetState.detachConnectionID = connID
+                sheetState.showDetachSheet = true
+            }
+        }
+        addOpenTool(to: menu, database: database, session: session)
+
+        menu.addDivider()
+        menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
             viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: connID, databaseName: database.name))
             Task {
                 let handle = AppDirector.shared.activityEngine.begin("Refreshing schema for \(database.name)", connectionSessionID: session.id)
@@ -47,157 +78,14 @@ extension ObjectBrowserSidebarView {
                 handle.succeed()
             }
         }
-        menu.addActionItem("New Query", systemImage: "doc.text") {
-            environmentState.openQueryTab(for: session, database: database.name)
-        }
-
-        menu.addDivider()
-
-        if dbType == .postgresql, projectStore.globalSettings.managedPostgresConsoleEnabled {
-            menu.addActionItem("Postgres Console", systemImage: "terminal") {
-                environmentState.openPSQLTab(for: session, database: database.name)
-            }
-            menu.addDivider()
-        }
-
-        menu.addActionItem("Maintenance", systemImage: "wrench.and.screwdriver") {
-            environmentState.openMaintenanceTab(connectionID: connID, databaseName: database.name)
-        }
-
-        if dbType == .postgresql {
-            menu.addSubmenu("Tasks", systemImage: "gearshape") { sub in
-                sub.addActionItem("Back Up", systemImage: "arrow.down.doc") {
-                    sheetState.pgBackupDatabaseName = database.name
-                    sheetState.pgBackupConnectionID = connID
-                    sheetState.showPgBackupSheet = true
-                }
-                sub.addActionItem("Restore", systemImage: "arrow.up.doc") {
-                    sheetState.pgBackupDatabaseName = database.name
-                    sheetState.pgBackupConnectionID = connID
-                    sheetState.showPgRestoreSheet = true
-                }
-            }
-        }
-
-        if dbType == .mysql {
-            menu.addSubmenu("Tasks", systemImage: "gearshape") { sub in
-                sub.addActionItem("Back Up", systemImage: "arrow.down.doc") {
-                    sheetState.mysqlBackupDatabaseName = database.name
-                    sheetState.mysqlBackupConnectionID = connID
-                    sheetState.showMySQLBackupSheet = true
-                }
-                sub.addActionItem("Restore", systemImage: "arrow.up.doc") {
-                    sheetState.mysqlBackupDatabaseName = database.name
-                    sheetState.mysqlBackupConnectionID = connID
-                    sheetState.showMySQLRestoreSheet = true
-                }
-            }
-        }
-
-        if dbType == .sqlite && database.name.lowercased() != "main" && database.name.lowercased() != "temp" {
-            menu.addDivider()
-            menu.addActionItem("Detach Database", systemImage: "externaldrive.badge.minus") {
-                sheetState.detachDatabaseName = database.name
-                sheetState.detachConnectionID = connID
-                sheetState.showDetachSheet = true
-            }
-        }
-
-        if dbType == .microsoftSQL {
-            menu.addSubmenu("Advanced Objects", systemImage: "puzzlepiece.extension") { sub in
-                sub.addActionItem("Change Tracking", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90") {
-                    environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .changeTracking)
-                }
-                sub.addActionItem("Change Data Capture", systemImage: "arrow.triangle.branch") {
-                    environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .cdc)
-                }
-                sub.addActionItem("Full-Text Search", systemImage: "text.magnifyingglass") {
-                    environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .fullTextSearch)
-                }
-                sub.addActionItem("Replication", systemImage: "arrow.triangle.swap") {
-                    environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: .replication)
-                }
-            }
-
-            menu.addSubmenu("Tasks", systemImage: "gearshape") { sub in
-                if database.isOnline {
-                    sub.addActionItem("Back Up", systemImage: "arrow.down.doc") {
-                        environmentState.openMaintenanceBackups(connectionID: connID, databaseName: database.name, action: .backup)
-                    }
-                    sub.addActionItem("Restore", systemImage: "arrow.up.doc") {
-                        environmentState.openMaintenanceBackups(connectionID: connID, databaseName: database.name, action: .restore)
-                    }
-                    sub.addDivider()
-                    sub.addActionItem("Shrink Database", systemImage: "arrow.down.right.and.arrow.up.left") {
-                        Task { await self.runMSSQLTask(session: session, database: database.name, task: .shrink) }
-                    }
-                    sub.addDivider()
-                    sub.addActionItem("Take Offline", systemImage: "bolt.slash") {
-                        Task { await self.runMSSQLTask(session: session, database: database.name, task: .takeOffline) }
-                    }
-                    sub.addDivider()
-                    sub.addActionItem("Detach Database", systemImage: "externaldrive.badge.minus") {
-                        sheetState.detachDatabaseName = database.name
-                        sheetState.detachConnectionID = connID
-                        sheetState.showDetachSheet = true
-                    }
-                    sub.addDivider()
-                    sub.addActionItem("Generate Scripts", systemImage: "scroll") {
-                        sheetState.generateScriptsDatabaseName = database.name
-                        sheetState.generateScriptsConnectionID = connID
-                        sheetState.showGenerateScriptsWizard = true
-                    }
-                    sub.addActionItem("Import Flat File", systemImage: "square.and.arrow.down.on.square") {
-                        sheetState.quickImportDatabaseName = database.name
-                        sheetState.quickImportConnectionID = connID
-                        sheetState.showQuickImportSheet = true
-                    }
-                    sub.addActionItem("Migrate Data", systemImage: "arrow.right.arrow.left") {
-                        sheetState.dataMigrationConnectionID = connID
-                        sheetState.showDataMigrationWizard = true
-                    }
-                    sub.addActionItem("Visual Query Builder", systemImage: "hammer") {
-                        environmentState.openQueryBuilderTab(connectionID: connID)
-                    }
-                    sub.addDivider()
-                    sub.addActionItem("Data-tier Application Tasks", systemImage: "archivebox") {
-                        sheetState.dacWizardDatabaseName = database.name
-                        sheetState.dacWizardConnectionID = connID
-                        sheetState.showDACWizard = true
-                    }
-                } else {
-                    sub.addActionItem("Bring Online", systemImage: "bolt") {
-                        Task { await self.runMSSQLTask(session: session, database: database.name, task: .bringOnline) }
-                    }
-                    sub.addActionItem("Restore", systemImage: "arrow.up.doc") {
-                        environmentState.openMaintenanceBackups(connectionID: connID, databaseName: database.name, action: .restore)
-                    }
-                }
+        if dbType == .microsoftSQL, !database.isOnline {
+            menu.addActionItem("Bring Online", systemImage: "bolt") {
+                Task { await self.runMSSQLTask(session: session, database: database.name, task: .bringOnline) }
             }
         }
 
         menu.addDivider()
-        if dbType == .postgresql {
-            menu.addSubmenu("Drop Database", systemImage: "trash") { sub in
-                sub.addActionItem("Drop", systemImage: "trash") {
-                    sheetState.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .standard)
-                    sheetState.showDropDatabaseAlert = true
-                }
-                sub.addActionItem("Drop (Cascade)", systemImage: "trash") {
-                    sheetState.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .cascade)
-                    sheetState.showDropDatabaseAlert = true
-                }
-                sub.addActionItem("Drop (Force)", systemImage: "trash") {
-                    sheetState.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .force)
-                    sheetState.showDropDatabaseAlert = true
-                }
-            }
-        } else {
-            menu.addActionItem("Drop Database", systemImage: "trash") {
-                sheetState.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: dbType, variant: .standard)
-                sheetState.showDropDatabaseAlert = true
-            }
-        }
+        addDropDatabase(to: menu, database: database, session: session)
 
         menu.addDivider()
         menu.addActionItem("Properties", systemImage: "info.circle") {
@@ -210,6 +98,135 @@ extension ObjectBrowserSidebarView {
         }
 
         return menu
+    }
+
+    /// Back Up and Restore sit in the menu itself (round 42.3, BU1).
+    private func addBackUpAndRestore(to menu: NSMenu, database: DatabaseInfo, session: ConnectionSession) {
+        let connID = session.connection.id
+        switch session.connection.databaseType {
+        case .postgresql:
+            menu.addActionItem("Back Up", systemImage: "arrow.down.doc") {
+                sheetState.pgBackupDatabaseName = database.name
+                sheetState.pgBackupConnectionID = connID
+                sheetState.showPgBackupSheet = true
+            }
+            menu.addActionItem("Restore", systemImage: "arrow.up.doc") {
+                sheetState.pgBackupDatabaseName = database.name
+                sheetState.pgBackupConnectionID = connID
+                sheetState.showPgRestoreSheet = true
+            }
+        case .mysql:
+            menu.addActionItem("Back Up", systemImage: "arrow.down.doc") {
+                sheetState.mysqlBackupDatabaseName = database.name
+                sheetState.mysqlBackupConnectionID = connID
+                sheetState.showMySQLBackupSheet = true
+            }
+            menu.addActionItem("Restore", systemImage: "arrow.up.doc") {
+                sheetState.mysqlBackupDatabaseName = database.name
+                sheetState.mysqlBackupConnectionID = connID
+                sheetState.showMySQLRestoreSheet = true
+            }
+        case .microsoftSQL:
+            if database.isOnline {
+                menu.addActionItem("Back Up", systemImage: "arrow.down.doc") {
+                    environmentState.openMaintenanceBackups(connectionID: connID, databaseName: database.name, action: .backup)
+                }
+            }
+            menu.addActionItem("Restore", systemImage: "arrow.up.doc") {
+                environmentState.openMaintenanceBackups(connectionID: connID, databaseName: database.name, action: .restore)
+            }
+        case .sqlite:
+            break
+        }
+    }
+
+    /// The tasks that are not Back Up or Restore, in one submenu (SQL Server).
+    private func addMSSQLTasksSubmenu(to menu: NSMenu, database: DatabaseInfo, session: ConnectionSession) {
+        let connID = session.connection.id
+        menu.addSubmenu("Tasks", systemImage: "checklist") { sub in
+            sub.addActionItem("Generate Scripts", systemImage: "scroll") {
+                sheetState.generateScriptsDatabaseName = database.name
+                sheetState.generateScriptsConnectionID = connID
+                sheetState.showGenerateScriptsWizard = true
+            }
+            sub.addActionItem("Import Flat File", systemImage: "square.and.arrow.down.on.square") {
+                sheetState.quickImportDatabaseName = database.name
+                sheetState.quickImportConnectionID = connID
+                sheetState.showQuickImportSheet = true
+            }
+            sub.addActionItem("Migrate Data", systemImage: "arrow.right.arrow.left") {
+                sheetState.dataMigrationConnectionID = connID
+                sheetState.showDataMigrationWizard = true
+            }
+            sub.addDivider()
+            sub.addActionItem("Shrink Database", systemImage: "arrow.down.right.and.arrow.up.left") {
+                Task { await self.runMSSQLTask(session: session, database: database.name, task: .shrink) }
+            }
+            sub.addActionItem("Take Offline", systemImage: "bolt.slash") {
+                Task { await self.runMSSQLTask(session: session, database: database.name, task: .takeOffline) }
+            }
+            sub.addActionItem("Detach Database", systemImage: "externaldrive.badge.minus") {
+                sheetState.detachDatabaseName = database.name
+                sheetState.detachConnectionID = connID
+                sheetState.showDetachSheet = true
+            }
+            sub.addDivider()
+            sub.addActionItem("Data-tier Application", systemImage: "archivebox") {
+                sheetState.dacWizardDatabaseName = database.name
+                sheetState.dacWizardConnectionID = connID
+                sheetState.showDACWizard = true
+            }
+        }
+    }
+
+    /// Maintenance, Security Overview and the advanced objects, in one Open Tool submenu (round 42.3, AO0).
+    private func addOpenTool(to menu: NSMenu, database: DatabaseInfo, session: ConnectionSession) {
+        let connID = session.connection.id
+        let openMaintenance = {
+            environmentState.openMaintenanceTab(connectionID: connID, databaseName: database.name)
+        }
+        guard session.connection.databaseType == .microsoftSQL else {
+            menu.addActionItem("Maintenance", systemImage: "wrench.and.screwdriver", action: openMaintenance)
+            return
+        }
+        menu.addSubmenu("Open Tool", systemImage: "wrench.and.screwdriver") { sub in
+            sub.addActionItem("Maintenance", systemImage: "wrench.and.screwdriver", action: openMaintenance)
+            sub.addActionItem("Security Overview", systemImage: "lock.shield") {
+                environmentState.openDatabaseSecurityTab(connectionID: connID, databaseName: database.name)
+            }
+            sub.addDivider()
+            let advanced: [(String, String, MSSQLAdvancedObjectsViewModel.Section)] = [
+                ("Change Tracking", "clock.arrow.trianglehead.counterclockwise.rotate.90", .changeTracking),
+                ("Change Data Capture", "arrow.triangle.branch", .cdc),
+                ("Full-Text Search", "text.magnifyingglass", .fullTextSearch),
+                ("Replication", "arrow.triangle.swap", .replication),
+            ]
+            for (title, symbol, section) in advanced {
+                sub.addActionItem(title, systemImage: symbol) {
+                    environmentState.openMSSQLAdvancedObjectsTab(connectionID: connID, databaseName: database.name, section: section)
+                }
+            }
+        }
+    }
+
+    private func addDropDatabase(to menu: NSMenu, database: DatabaseInfo, session: ConnectionSession) {
+        let connID = session.connection.id
+        let dbType = session.connection.databaseType
+        func target(_ variant: SidebarSheetState.DropVariant) -> () -> Void {
+            {
+                sheetState.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: dbType, variant: variant)
+                sheetState.showDropDatabaseAlert = true
+            }
+        }
+        if dbType == .postgresql {
+            menu.addSubmenu("Drop Database", systemImage: "trash") { sub in
+                sub.addActionItem("Drop", systemImage: "trash", action: target(.standard))
+                sub.addActionItem("Drop (Cascade)", systemImage: "trash", action: target(.cascade))
+                sub.addActionItem("Drop (Force)", systemImage: "trash", action: target(.force))
+            }
+        } else {
+            menu.addActionItem("Drop Database", systemImage: "trash", action: target(.standard))
+        }
     }
 
     func databaseFolderMenu(
