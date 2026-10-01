@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r34", label: "Round 34", title: "Refresh and the activity signal", date: "1 Oct 2026",
+             asked: "After a query runs, both Run and Refresh show a checkmark; only Run should. Do we still need the Refresh button, and what is it for?",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.refresh-and-activity-r34"]),
         Info(id: "r33", label: "Round 33", title: "SQL Server Agent Jobs: New Step", date: "1 Oct 2026",
              asked: "The New Step sheet doesn't look good.",
              outcome: "Being judged.",

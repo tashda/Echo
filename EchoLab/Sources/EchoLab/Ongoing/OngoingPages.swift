@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -361,6 +361,13 @@
         status: .judging,
         summary: "The sheet as built (one section repeating the title, a plain text box for the command, no On success/On failure, a bordered Add Step where the sheet rules want a prominent one) beside fuller sheets.",
         spec: AgentJobStepSheetRound.spec)
+
+    /// Round 34: Refresh and the activity signal.
+    static let refreshAndActivity = LabPage.round(
+        id: "ongoing.refresh-and-activity-r34", group: "Window and cards", title: "Refresh and the activity signal · round 34", symbol: "arrow.clockwise",
+        status: .judging,
+        summary: "Today Refresh (RefreshToolbarButton) does two jobs: it reloads the front tab (a tool tab's data, or a query tab's database schema) and it mirrors every ActivityEngine operation for the server, query runs included, with a spinner, ✓ or ✗. Run then shows its own ✓ too. Where activity should show, where Refresh should live, and what it does on a query tab.",
+        spec: RefreshAndActivityRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

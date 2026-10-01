@@ -111,6 +111,7 @@ enum LabAreas {
         "ongoing.panel-fills-dark-r32": "window",
         "ongoing.agent-jobs-tab-r33": "tool-tabs",
         "ongoing.agent-job-step-sheet-r33": "tool-tabs",
+        "ongoing.refresh-and-activity-r34": "window",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
