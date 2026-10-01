@@ -9,6 +9,8 @@ struct CommandPaletteCard: View {
     let scope: CommandPaletteScope
     let onClose: () -> Void
 
+    @State var keyMonitor: Any?
+
     @Environment(TabStore.self) var tabStore
     @Environment(EnvironmentState.self) var environmentState
 
@@ -30,6 +32,9 @@ struct CommandPaletteCard: View {
         // Glass on the card itself, not a GlassEffectContainer: a text field inside a container
         // sent AppKit's autofill into an endless key-view walk (round 10).
         .glassEffect(.regular, in: .rect(cornerRadius: LayoutTokens.FloatingSurface.cornerRadius, style: .continuous))
+        .onAppear { updateKeyMonitor(for: scope) }
+        .onChange(of: scope) { _, newScope in updateKeyMonitor(for: newScope) }
+        .onDisappear { removeKeyMonitor() }
     }
 
     private var field: some View {
@@ -37,25 +42,28 @@ struct CommandPaletteCard: View {
             Image(systemName: scope == .tabs ? "square.grid.2x2" : "magnifyingglass")
                 .font(TypographyTokens.prominent)
                 .foregroundStyle(ColorTokens.Text.secondary)
-            switch scope {
-            case .everything:
-                CommandPaletteSearchField(
-                    text: $model.query,
-                    placeholder: "Search objects, tabs, actions and snippets",
-                    onMove: { model.moveSelection(by: $0) },
-                    onSubmit: { if model.performSelected() { onClose() } },
-                    onCancel: onClose
-                )
-            case .tabs:
-                CommandPaletteSearchField(
-                    text: $tabOverview.query,
-                    placeholder: "Tab Overview: search this window's tabs",
-                    onMove: { tabOverview.moveSelection(by: $0, in: shownTabs, activeID: tabStore.activeTabId) },
-                    onSubmit: { if let id = selectedTabID { openTab(id) } },
-                    onCancel: onClose,
-                    onKeyCommand: performTabKey
-                )
-            }
+            // One field for both scopes, so it keeps the keyboard when "Tab Overview" turns the
+            // palette to the tabs.
+            CommandPaletteSearchField(
+                text: scope == .tabs ? $tabOverview.query : $model.query,
+                placeholder: scope == .tabs ? "Tab Overview: search this window's tabs" : "Search objects, tabs, actions and snippets",
+                onMove: { offset in
+                    if scope == .tabs {
+                        tabOverview.moveSelection(by: offset, in: shownTabs, activeID: tabStore.activeTabId)
+                    } else {
+                        model.moveSelection(by: offset)
+                    }
+                },
+                onSubmit: {
+                    if scope == .tabs {
+                        if let id = selectedTabID { openTab(id) }
+                    } else if model.performSelected() {
+                        onClose()
+                    }
+                },
+                onCancel: onClose,
+                onKeyCommand: { scope == .tabs ? performTabKey($0) : false }
+            )
         }
         .padding(.horizontal, SpacingTokens.xs)
         .frame(height: LayoutTokens.CommandPalette.fieldHeight)

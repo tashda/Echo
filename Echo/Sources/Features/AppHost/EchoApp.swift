@@ -163,6 +163,11 @@ struct QueryCommands: Commands {
         customShortcuts[title]?.swiftUIModifiers ?? defaultMods
     }
 
+    private var savableTab: WorkspaceTab? {
+        guard navigationStore.isWorkspaceWindowKey, let tab = tabStore.activeTab, tab.query != nil else { return nil }
+        return tab
+    }
+
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button {
@@ -208,6 +213,28 @@ struct QueryCommands: Commands {
                 Label("Close Query Tab", systemImage: "xmark.square")
             }
             .keyboardShortcut(key(for: "Close Query Tab", default: "w"), modifiers: mods(for: "Close Query Tab", default: [.command]))
+        }
+
+        // Save keeps the query as a bookmark (the tab's own, or a new one); Save As writes a .sql
+        // file (owner, 2026-10-01). The same choices the close alert offers.
+        CommandGroup(replacing: .saveItem) {
+            Button {
+                guard let tab = savableTab else { return }
+                Task { await environmentState.saveToBookmark(tab) }
+            } label: {
+                Label("Save", systemImage: "bookmark")
+            }
+            .keyboardShortcut(key(for: "Save", default: "s"), modifiers: mods(for: "Save", default: [.command]))
+            .disabled(savableTab == nil)
+
+            Button {
+                guard let tab = savableTab else { return }
+                Task { await environmentState.saveAsFile(tab) }
+            } label: {
+                Label("Save As", systemImage: "square.and.arrow.down")
+            }
+            .keyboardShortcut(key(for: "Save As", default: "s"), modifiers: mods(for: "Save As", default: [.command, .shift]))
+            .disabled(savableTab == nil)
         }
     }
 }

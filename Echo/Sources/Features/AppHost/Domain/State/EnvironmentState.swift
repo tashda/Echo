@@ -144,6 +144,10 @@ final class EnvironmentState {
 
         self.tabStore.delegate = self
         self.tabStore.closeGuard = { [weak self] tab in self?.holdCloseForOpenTransaction(tab) ?? false }
+        self.tabStore.unsavedChangesGuard = { [weak self] tab in self?.holdCloseForUnsavedChanges(tab) ?? false }
+        self.tabStore.severalUnsavedGuard = { [weak self] tabs, close in
+            self?.holdSeveralClosesForUnsavedChanges(tabs, close: close) ?? false
+        }
         setupBindings()
         loadRecentConnections()
     }

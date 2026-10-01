@@ -103,7 +103,8 @@ final class WorkspaceTab: Identifiable {
     /// Display-only subtitle shown in the tab strip (e.g. server name for server-level tabs).
     /// Falls back to `activeDatabaseName` when nil.
     var tabSubtitle: String?
-    @ObservationIgnored let bookmarkContext: BookmarkTabContext?
+    /// The bookmark the tab came from, or was last saved to; Save writes back to it.
+    @ObservationIgnored var bookmarkContext: BookmarkTabContext?
 
     @ObservationIgnored let resultsGridState = QueryResultsGridState()
     let panelState: BottomPanelState

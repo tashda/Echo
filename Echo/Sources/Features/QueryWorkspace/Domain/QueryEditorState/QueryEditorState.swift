@@ -6,6 +6,8 @@ import OSLog
 
 @Observable @MainActor final class QueryEditorState {
     var sql: String
+    /// The SQL as it was opened or last saved, to tell whether the tab has unsaved changes.
+    @ObservationIgnored var savedSQL: String
     var results: QueryResultSet?
     var errorMessage: String?
     var isExecuting: Bool = false
@@ -217,6 +219,7 @@ import OSLog
         backgroundFetchSize: Int = 4_096
     ) {
         self.sql = sql
+        self.savedSQL = sql
         let normalizedInitial = max(100, initialVisibleRowBatch)
         let normalizedPreview = max(normalizedInitial, previewRowLimit)
         let normalizedFetchSize = max(128, min(backgroundFetchSize, 16_384))

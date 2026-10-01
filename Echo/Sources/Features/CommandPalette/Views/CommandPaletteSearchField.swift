@@ -3,12 +3,12 @@ import SwiftUI
 
 /// The ⌘K palette's field (plan K4): an AppKit text field, so it takes the keyboard the moment the
 /// palette opens, whatever had focus, and so ↑ ↓ (and ⌃P ⌃N, ⇥ ⇧⇥) move the selection while
-/// Return performs it and Esc closes. In the tab overview, ⌫ ⌘⌫ ⌥⌫ and ⌘D act on the selected tab
+/// Return performs it and Esc closes. In the tab overview, ⌫ ⌘⌫ and ⌥⌫ act on the selected tab
 /// (round 35.1) when `onKeyCommand` takes them.
 struct CommandPaletteSearchField: NSViewRepresentable {
     /// Keys the field offers before acting on the text.
     enum KeyCommand: Equatable {
-        case deleteBackward, deleteToLineStart, deleteWordBackward, duplicate
+        case deleteBackward, deleteToLineStart, deleteWordBackward
     }
 
     @Binding var text: String
@@ -32,9 +32,6 @@ struct CommandPaletteSearchField: NSViewRepresentable {
         field.cell?.lineBreakMode = .byTruncatingTail
         field.delegate = context.coordinator
         field.stringValue = text
-        field.onDuplicate = { [weak coordinator = context.coordinator] in
-            coordinator?.parent.onKeyCommand(.duplicate) ?? false
-        }
         return field
     }
 
@@ -81,16 +78,6 @@ struct CommandPaletteSearchField: NSViewRepresentable {
 
 /// Becomes first responder as soon as it's in a window.
 final class FocusingTextField: NSTextField {
-    /// ⌘D, offered before the menus see it; returns whether it was handled.
-    var onDuplicate: () -> Bool = { false }
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-           event.charactersIgnoringModifiers == "d", onDuplicate() {
-            return true
-        }
-        return super.performKeyEquivalent(with: event)
-    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()

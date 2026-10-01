@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The tab overview's actions (round 35.1): go to a tab, and the keys the owner asked for
@@ -30,11 +31,40 @@ extension CommandPaletteCard {
         case .deleteWordBackward:
             guard tabOverview.query.isEmpty else { return false }
             closeOtherTabs()
-        case .duplicate:
-            duplicateSelectedTab()
         }
         return true
     }
+
+    /// ⌘D and Esc in the tab overview, seen before the menus and whatever holds the keyboard: ⌘D
+    /// never reached the field (owner, 1 Oct), and Esc must close the overview wherever focus is.
+    /// Installed only while the palette shows the tabs (the monitor keeps the scope it was made with).
+    func updateKeyMonitor(for scope: CommandPaletteScope) {
+        removeKeyMonitor()
+        if scope == .tabs { installKeyMonitor() }
+    }
+
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if event.keyCode == Self.escapeKeyCode, modifiers.isEmpty {
+                onClose()
+                return nil
+            }
+            if modifiers == .command, event.charactersIgnoringModifiers == "d" {
+                duplicateSelectedTab()
+                return nil
+            }
+            return event
+        }
+    }
+
+    func removeKeyMonitor() {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
+    }
+
+    private static let escapeKeyCode: UInt16 = 53
 
     private func closeSelectedTab() {
         let shown = shownTabs
@@ -53,7 +83,7 @@ extension CommandPaletteCard {
         tabOverview.selectedID = id
     }
 
-    private func duplicateSelectedTab() {
+    func duplicateSelectedTab() {
         guard let id = selectedTabID, let tab = tabStore.tabs.first(where: { $0.id == id }) else { return }
         let before = Set(tabStore.tabs.map(\.id))
         environmentState.duplicateTab(tab)
