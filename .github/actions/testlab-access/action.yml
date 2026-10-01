@@ -22,7 +22,6 @@ runs:
         oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
         oauth-secret: ${{ inputs.tailscale-oauth-secret }}
         tags: tag:ci
-        args: --accept-routes
 
     - shell: bash
       env:
