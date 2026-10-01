@@ -31,3 +31,5 @@ runs:
         CONFIG
         git config --global url."git@github-echo-server-lab:tashda/echo-server-lab".insteadOf "https://github.com/tashda/echo-server-lab"
         defaults write com.apple.dt.Xcode IDEPackageSupportUseBuiltinSCM -bool NO
+        # Fails here, not later in xcodebuild, when the key or the rewrite does not work.
+        git ls-remote https://github.com/tashda/echo-server-lab HEAD
