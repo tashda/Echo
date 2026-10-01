@@ -12,6 +12,11 @@ struct StartedServerMenus: View {
     private var hasProxy: Bool { server.parts.contains { $0.role == "proxy" } }
 
     var body: some View {
+        let limitation = LabServersModel.openInEchoLimitation(server)
+        Button("Open in Echo") { model.openInEcho(server) }
+            .disabled(limitation != nil)
+            .help(limitation ?? "Starts the newest Debug build of Echo already connected to this server")
+
         Menu("Parts") {
             ForEach(partRoles, id: \.self) { role in
                 Section(role) {
