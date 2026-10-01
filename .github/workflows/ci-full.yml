@@ -51,6 +51,11 @@ jobs:
       with:
         deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
+    - name: Experiment - fetch echo-server-lab over SSH
+      run: |
+        sed -i '' 's#https://github.com/tashda/echo-server-lab#git@github-echo-server-lab:tashda/echo-server-lab.git#' Echo.xcodeproj/project.pbxproj Echo.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+        grep -n "echo-server-lab" Echo.xcodeproj/project.pbxproj | head -3
+
     - name: Resolve packages
       env:
         GIT_TRACE: /tmp/git-trace.log
