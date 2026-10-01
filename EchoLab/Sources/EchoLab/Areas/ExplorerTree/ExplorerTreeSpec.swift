@@ -13,6 +13,7 @@ enum ExplorerTreeSpec {
     private static let r19Switching = "ongoing.section-dock-switching-r19"
     private static let r19Capsule = "ongoing.section-dock-capsule-r19"
     private static let r19Sections = "ongoing.section-dock-sections-r19"
+    private static let r30Collapse = "ongoing.server-header-collapse-r30"
 
     static func spec(settings: ExplorerTreeSpecimenSettings) -> AreaSpec {
         AreaSpec(code: "TREE", stageHeight: 400, parts: parts) { ExplorerTreeSpecimen(settings: settings) }
@@ -40,7 +41,7 @@ enum ExplorerTreeSpec {
             SpecElement(number: "2.1", name: "Server name", summary: "Bold, at the top left of the card, sized by the sidebar size.", groups: [
                 .type(.row("Font", "bold; compact 11 · small 10 · medium 13 · large 14pt", token: "serverNameFont / SidebarRowConstants.serverHeaderFont"),
                       .row("Colour", "primary"), .row("Lines", "1")),
-                .layout(.row("Padding", "12pt leading and top", token: "SpacingTokens.sm"), .row("Trailing", "8pt + 6pt")),
+                .layout(.row("Padding", "12pt leading; 12pt top while open, centred in the card while closed (round 30.2)", token: "SpacingTokens.sm / treeCardBottomPadding"), .row("Trailing", "8pt + 6pt")),
                 .states(.row("Connecting or testing", "a mini spinner at the trailing edge")),
             ], files: ["Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserRowView+Headers.swift"]),
             SpecElement(number: "2.2", name: "Product line", summary: "The product and release under the name, then the dock's current section (round 19).", groups: [
@@ -56,6 +57,21 @@ enum ExplorerTreeSpec {
                 .motion(.row("Wash in", "ease out, 0.12s")),
                 .behaviour(.row("No line and no grey material", "the soft blur is the only edge")),
             ], rounds: ["decided.tree-sticky-header", round16], files: ["Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerPinnedHeaderWash.swift"]),
+            SpecElement(number: "2.4", name: "Collapse chevron", summary: "At the trailing edge, centred on the name and product line (CP1); › turning down when open (CS0).", groups: [
+                .type(.row("Chevron", "semibold 11pt, tertiary", token: "SidebarRowConstants.sectionChevronFont")),
+                .layout(.row("Place", "trailing, centred on the two lines, open or closed", token: "HStack(alignment: .center)")),
+                .behaviour(.row("Shows", "on hover while open, always while closed (CV0)"), .row("Turns", "90° when open")),
+                .motion(.row("Turn", "ease in-out, 0.22s", token: "echoMotion.expand"), .row("Show and hide", "ease in-out, 0.15s")),
+            ], rounds: [r30Collapse], files: [components + "ObjectBrowserRowView+Headers.swift"]),
+            SpecElement(number: "2.5", name: "Folding the card", summary: "Click the header: the card folds to its header while the rows fade (CM2), and opens the same way.", groups: [
+                .layout(.row("Closed card", "the header only (CC0): the slot plus 4pt, the name, product line and chevron centred in it")),
+                .motion(.row("Card edge", "ease in-out, 0.22s", token: "echoMotion.expand / ExplorerTreeCardsLayer.foldingCardIDs"),
+                        .row("Rows and dock", "fade over the same 0.22s and are cut by the moving edge and its corners, so none shows outside the card", token: "ExplorerTreeFoldTransition"),
+                        .row("Header", "glides between its open place (12pt down) and the centre of the closed card")),
+                .behaviour(.row("Two steps", "the cards are marked as folding first, then the server opens or closes, so leaving rows carry the fold", token: "ObjectBrowserSidebarView.foldServerCard"),
+                           .row("The cards below", "move with the edge, on the same curve")),
+            ], rounds: [r30Collapse], files: [components + "ObjectBrowserSidebarView+Fold.swift", components + "ObjectBrowserOutlineView+Fold.swift",
+                                              "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeFoldTransition.swift"]),
         ]),
         SpecPart(number: "3", name: "Dock", summary: "The section icons under the server's name.", elements: [
             SpecElement(number: "3.1", name: "Capsule", summary: "A Liquid Glass capsule as wide as the card, with a hairline edge and a soft shadow (C5). The only glass in the card.", groups: [

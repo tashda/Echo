@@ -5,9 +5,12 @@ import SwiftUI
 /// children start at the card's left edge.
 extension ObjectBrowserRowView {
     /// The server's name, bold and sized by the sidebar size, with its product and release under
-    /// it (round 16; the full build is in the tooltip).
+    /// it (round 16; the full build is in the tooltip). The chevron is centred on the two lines
+    /// (round 30.2, CP1). Open, the lines sit 12pt from the card's top, above the dock; closed,
+    /// the lines and the chevron are centred in the card (the slot plus the card's bottom padding),
+    /// and they glide between the two as the card folds.
     func connectionSectionHeader(session: ConnectionSession, showsDisclosure: Bool) -> some View {
-        HStack(alignment: .top, spacing: SidebarRowConstants.iconTextSpacing) {
+        HStack(alignment: .center, spacing: SidebarRowConstants.iconTextSpacing) {
             VStack(alignment: .leading, spacing: SpacingTokens.micro) {
                 Text(serverDisplayName(session))
                     .font(serverNameFont)
@@ -37,8 +40,8 @@ extension ObjectBrowserRowView {
         }
         .padding(.leading, SpacingTokens.sm)
         .padding(.trailing, SidebarRowConstants.rowTrailingPadding + SidebarRowConstants.rowOuterHorizontalPadding)
-        .padding(.top, SpacingTokens.sm)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.top, isExpanded ? SpacingTokens.sm : LayoutTokens.Workspace.treeCardBottomPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isExpanded ? .topLeading : .leading)
         .contentShape(Rectangle())
         .onHover { isHeaderHovering = $0 }
     }

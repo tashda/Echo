@@ -6,6 +6,7 @@ import SwiftUI
 struct ExplorerTreeSpecimen: View {
     let settings: ExplorerTreeSpecimenSettings
     @Environment(\.workspaceCardCornerRadius) private var cornerRadius
+    @State private var isHeaderHovering = false
 
     private static let dock: [(symbol: String, color: Color)] = [
         ("cylinder", ColorTokens.Explorer.databaseInstance), ("shield", ColorTokens.Explorer.security),
@@ -53,12 +54,27 @@ struct ExplorerTreeSpecimen: View {
         .specAnchor("1.2")
     }
 
+    /// The open card's header: the chevron, turned down, centred on the two lines and shown on
+    /// hover (round 30.2).
     private var header: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.micro) {
-            Text("Test MSSQL").font(SidebarRowConstants.serverHeaderFont).lineLimit(1).specAnchor("2.1")
-            Text("SQL Server 2022 · Databases").font(SidebarRowConstants.trailingFont).foregroundStyle(ColorTokens.Text.tertiary).lineLimit(1).specAnchor("2.2")
+        HStack(alignment: .center, spacing: SidebarRowConstants.iconTextSpacing) {
+            VStack(alignment: .leading, spacing: SpacingTokens.micro) {
+                Text("Test MSSQL").font(SidebarRowConstants.serverHeaderFont).lineLimit(1).specAnchor("2.1")
+                Text("SQL Server 2022 · Databases").font(SidebarRowConstants.trailingFont).foregroundStyle(ColorTokens.Text.tertiary).lineLimit(1).specAnchor("2.2")
+            }
+            Spacer(minLength: SpacingTokens.xxs)
+            Image(systemName: "chevron.right")
+                .font(SidebarRowConstants.sectionChevronFont)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .rotationEffect(.degrees(90))
+                .frame(width: SidebarRowConstants.chevronWidth)
+                .opacity(isHeaderHovering ? 1 : 0)
+                .animation(.easeInOut(duration: 0.15), value: isHeaderHovering)
+                .specAnchor("2.4")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onHover { isHeaderHovering = $0 }
+        .padding(.trailing, SidebarRowConstants.rowTrailingPadding + SidebarRowConstants.rowOuterHorizontalPadding)
         .padding(.leading, SpacingTokens.sm)
         .padding(.top, SpacingTokens.sm)
         .padding(.bottom, SpacingTokens.xxs2)

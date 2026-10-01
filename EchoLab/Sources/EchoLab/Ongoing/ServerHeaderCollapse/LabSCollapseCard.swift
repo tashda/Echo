@@ -73,6 +73,9 @@ struct LabSCollapseCard: View {
         }
     }
 
+    /// The accepted proposal (not Echo today) centres a closed card's header in the card.
+    private var centresClosed: Bool { !isOpen && look.chevron != .top && look.closed == .header }
+
     private var header: some View {
         let showsChevron = switch look.shows {
         case .today: isHovering || !isOpen
@@ -91,9 +94,10 @@ struct LabSCollapseCard: View {
                 if look.chevron != .leading { chevron(showsChevron) }
             }
             .padding(.horizontal, SpacingTokens.sm)
-            .padding(.top, SpacingTokens.sm)
+            // Accepted with the owner's note: a closed card centres the header and the chevron in itself.
+            .padding(.top, centresClosed ? SpacingTokens.none : SpacingTokens.sm)
             .frame(maxHeight: .infinity, alignment: look.chevron == .top ? .top : .center)
-            .padding(.top, look.chevron == .top ? 0 : -SpacingTokens.xxs)
+            .padding(.top, look.chevron == .top || centresClosed ? 0 : -SpacingTokens.xxs)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

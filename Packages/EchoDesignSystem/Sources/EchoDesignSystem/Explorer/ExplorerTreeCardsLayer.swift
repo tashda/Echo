@@ -9,15 +9,28 @@ public struct ExplorerTreeCardsLayer<CardBackground: View>: View {
     /// its rows (Design/05-components › Explorer tree › Switching).
     let switchingCardIDs: Set<String>
     let edgeAnimation: Animation?
+    /// Cards folding or opening (round 30.2, CM2): their edge glides with `foldAnimation` while
+    /// their rows fade and are cut by it (`ExplorerTreeFoldTransition`).
+    let foldingCardIDs: Set<String>
+    let foldAnimation: Animation?
     let card: () -> CardBackground
 
     public init(cards: [ExplorerTreeCard], scroll: ExplorerTreeScrollState, switchingCardIDs: Set<String> = [],
-                edgeAnimation: Animation? = nil, @ViewBuilder card: @escaping () -> CardBackground) {
+                edgeAnimation: Animation? = nil, foldingCardIDs: Set<String> = [], foldAnimation: Animation? = nil,
+                @ViewBuilder card: @escaping () -> CardBackground) {
         self.cards = cards
         self.scroll = scroll
         self.switchingCardIDs = switchingCardIDs
         self.edgeAnimation = edgeAnimation
+        self.foldingCardIDs = foldingCardIDs
+        self.foldAnimation = foldAnimation
         self.card = card
+    }
+
+    private func animation(for card: ExplorerTreeCard) -> Animation? {
+        if switchingCardIDs.contains(card.id) { return edgeAnimation }
+        if foldingCardIDs.contains(card.id) { return foldAnimation }
+        return nil
     }
 
     public var body: some View {
@@ -33,7 +46,7 @@ public struct ExplorerTreeCardsLayer<CardBackground: View>: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: bottom - top)
                         .offset(y: top)
-                        .animation(switchingCardIDs.contains(card.id) ? edgeAnimation : nil, value: card.height)
+                        .animation(animation(for: card), value: card.height)
                 }
             }
         }

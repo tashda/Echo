@@ -5,6 +5,9 @@ import SwiftUI
 /// lines; it shows on hover while open and always while closed. Closing removes the dock and rows:
 /// they fade (opacity, `rowRemoval`) while the card's background (ExplorerTreeCardsLayer) changes
 /// height at once, so the rows briefly float over the canvas. Changes TREE-2.1 and TREE-1.2.
+///
+/// Accepted 2026-10-01 with every recommendation (CP1, CV0, CM2, CC0, CS0) and the note that a
+/// closed card centres its header and chevron; built into Echo as TREE-2.4 and TREE-2.5.
 @MainActor
 enum ServerHeaderCollapseRound {
     private static let width = LayoutTokens.Workspace.treeIdealWidth + SpacingTokens.xl * 2

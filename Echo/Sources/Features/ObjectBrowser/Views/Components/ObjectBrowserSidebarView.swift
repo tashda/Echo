@@ -14,7 +14,7 @@ struct ObjectBrowserSidebarView: View {
     @State var viewModel = ObjectBrowserSidebarViewModel()
     @State var sheetState = SidebarSheetState()
 
-    private var sessions: [ConnectionSession] {
+    var sessions: [ConnectionSession] {
         environmentState.sessionGroup.sessions
     }
 
@@ -116,6 +116,7 @@ struct ObjectBrowserSidebarView: View {
                     fadingConnectionIDs: viewModel.dockFadingConnectionIDs,
                     switchingConnectionIDs: viewModel.dockSwitchingConnectionIDs,
                     hiddenRowsConnectionIDs: viewModel.dockHiddenRowsConnectionIDs,
+                    foldingConnectionIDs: viewModel.foldingConnectionIDs,
                     contextMenu: { contextMenu(for: $0) },
                     revealAnimated: viewModel.revealAnimated
                 )
@@ -296,6 +297,10 @@ struct ObjectBrowserSidebarView: View {
     /// Opens or closes a row. Folders and servers animate with `expand`, the same animation the
     /// list uses for rows arriving after a load, so everything that moves shares one curve.
     func handleExpansionChange(of node: ObjectBrowserNode, isExpanded: Bool, animated: Bool = true) {
+        if animated, case .server(let session) = node.row {
+            foldServerCard(of: session, isExpanded: isExpanded)
+            return
+        }
         if animated { WindowDragPause.pauseWorkspace(for: 0.22 * motion.durationScale + 0.1) }
         withAnimation(animated ? motion.expand : nil) {
             if case .server(let session) = node.row {

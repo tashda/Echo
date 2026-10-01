@@ -34,6 +34,9 @@ struct ObjectBrowserOutlineView: View {
     /// Servers whose new rows wait, invisible under the veil, until the card has reached its
     /// new size, so no row ever shows outside the card while its edge moves.
     var hiddenRowsConnectionIDs: Set<UUID> = []
+    /// Servers whose cards are folding or opening (round 30.2): the edge glides and the rows fade
+    /// and are cut by it (ObjectBrowserOutlineView+Fold).
+    var foldingConnectionIDs: Set<UUID> = []
     /// A row's context menu; the tree has one menu host for all rows (ExplorerTreeContextMenuHost).
     var contextMenu: (ObjectBrowserNode) -> NSMenu? = { _ in nil }
     /// False makes the next reveal a jump, as a dock switch returning to its place (round 19).
@@ -54,7 +57,7 @@ struct ObjectBrowserOutlineView: View {
         }
     }
 
-    @Environment(\.echoMotion) private var motion
+    @Environment(\.echoMotion) var motion
     @State private var scroll = ExplorerTreeScrollState()
     @State private var position = ScrollPosition(edge: .top)
     @State private var handledRevealRequestID = 0
@@ -79,12 +82,13 @@ struct ObjectBrowserOutlineView: View {
                         if group.header.isEmpty {
                             rows(group.rows)
                         } else {
+                            let fold = fold(of: group, in: layout)
                             Section {
                                 rows(group.rows, underHeaderOf: group.header.reduce(SpacingTokens.none) { $0 + $1.height },
-                                     isSwitching: isSwitching(group))
+                                     isSwitching: isSwitching(group), fold: fold)
                                     .opacity(hidesRows(group) ? 0 : 1)
                             } header: {
-                                VStack(spacing: SpacingTokens.none) { rows(group.header) }
+                                VStack(spacing: SpacingTokens.none) { rows(group.header, fold: fold) }
                                     .background { ExplorerPinnedHeaderWash(restingMinY: group.header[0].minY, scroll: scroll) }
                             }
                         }
@@ -137,7 +141,8 @@ struct ObjectBrowserOutlineView: View {
         // window) taller than its space.
         .background(alignment: .top) {
             ExplorerTreeCardsLayer(cards: layout.cards, scroll: scroll,
-                                   switchingCardIDs: switchingCardIDs(in: layout), edgeAnimation: motion.dockEdge) {
+                                   switchingCardIDs: switchingCardIDs(in: layout), edgeAnimation: motion.dockEdge,
+                                   foldingCardIDs: foldingCardIDs(in: layout), foldAnimation: motion.expand) {
                 // The editor card's modifier, so the tree's cards match it exactly.
                 Color.clear.workspaceCard()
             }
@@ -167,7 +172,8 @@ struct ObjectBrowserOutlineView: View {
     /// Arriving rows fade in with the list's animation while their neighbours move; leaving rows
     /// fade out quickly, so they never sit under rows moving over them. A card mid-switch swaps
     /// its rows with no transitions at all: the whole card fades instead.
-    private func rows(_ rows: [ObjectBrowserTreeLayout.Row], underHeaderOf headerHeight: CGFloat = 0, isSwitching: Bool = false) -> some View {
+    private func rows(_ rows: [ObjectBrowserTreeLayout.Row], underHeaderOf headerHeight: CGFloat = 0, isSwitching: Bool = false,
+                      fold: ExplorerTreeFold? = nil) -> some View {
         ForEach(rows) { row in
             let node = row.node
             ExplorerTreeRowSlot(height: row.height) {
@@ -175,7 +181,7 @@ struct ObjectBrowserOutlineView: View {
                     .modifier(ExplorerRowEdgeBlur(headerHeight: headerHeight))
                     .environment(\.sidebarContextMenuActive, contextMenuNodeID == node.id)
             }
-            .transition(isSwitching ? .identity : Self.rowTransition(motion))
+            .transition(isSwitching ? .identity : rowTransition(for: row, fold: fold))
         }
     }
 

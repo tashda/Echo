@@ -129,4 +129,23 @@ struct ExplorerDockTests {
         #expect(groups[0].rows.map(\.id) == ["f0.a", "f0.b"])
         #expect(layout.rows.map(\.depth) == [0, 0, 0, 0])
     }
+
+    /// Round 30.2: a closed server is a header of its own, so its name stays the same view while
+    /// the card folds and opens.
+    @Test func closedServerIsAHeaderWithNoRows() {
+        let roots = ExplorerDock.apply(to: [server([.databases, .serverSecurity])], selections: [:])
+        let layout = ObjectBrowserTreeLayout(roots: roots, expandedNodeIDs: [], baseRowHeight: 24)
+        let groups = layout.groups
+        #expect(groups.count == 1)
+        #expect(groups[0].header.map(\.id) == ["server"])
+        #expect(groups[0].rows.isEmpty)
+    }
+
+    /// Round 30.2, CM2: the card's edge glides from its open bottom to its closed one.
+    @Test func foldEdgeMovesFromOpenToClosedBottom() {
+        let fold = ExplorerTreeFold(openBottom: 300, closedBottom: 53, cornerRadius: 10)
+        #expect(fold.edge(at: 0) == 300)
+        #expect(fold.edge(at: 1) == 53)
+        #expect(fold.edge(at: 0.5) == 176.5)
+    }
 }

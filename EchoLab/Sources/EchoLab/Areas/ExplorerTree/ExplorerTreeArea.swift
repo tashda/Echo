@@ -35,6 +35,7 @@ enum ExplorerTreeArea {
             behaviours: [
                 .init(trigger: "Hover a row", result: "A folder's icon turns into a chevron and its count appears. Nothing else moves."),
                 .init(trigger: "Click a folder", result: "It opens or closes; the rows below slide and fade, like the native outline."),
+                .init(trigger: "Click a server's name", result: "The card folds to its header while its dock and rows fade, cut by the card's moving edge, and the cards below follow (CM2); it opens the same way. Closed, the name, product line and chevron are centred in the card. The chevron sits at the trailing edge, centred on the two lines; it shows on hover while open and always while closed (round 30.2)."),
                 .init(trigger: "Click an object", result: "Grey selection fill with the row's icon in its accent."),
                 .init(trigger: "Click a dock icon", result: "A veil in the card's colour fades over the rows (0.12s); under it the new section swaps in and the card's edge moves to its size (0.28s, no overshoot), the view jumps to where that section was left, and the veil fades away (0.22s). Rows never slide or show outside the card, and the window holds still meanwhile. A section not shown before doesn't scroll; the header's second line names the current section."),
                 .init(trigger: "Hover a dock icon", result: "An icon that isn't the current one grows 12%."),
@@ -46,6 +47,7 @@ enum ExplorerTreeArea {
             ],
             motions: [
                 .init(name: "Folder open and close", curve: "ease in-out", duration: "0.22s", note: "echoMotion.expand"),
+                .init(name: "Server card fold", curve: "ease in-out", duration: "0.22s", note: "echoMotion.expand: the card's edge, the rows' fade and cut, and the header's glide on one curve (round 30.2)"),
                 .init(name: "Reveal in the tree", curve: "smooth", duration: "0.40s", note: "echoMotion.reveal, scrolling to a picked object"),
                 .init(name: "Hover fill", curve: "ease out", duration: "0.12s", note: "echoMotion.hover"),
                 .init(name: "Switch dock section: veil in", curve: "ease out", duration: "0.12s", note: "ExplorerDockSwitchTiming.fadeOut; scaled by the Motion speed setting"),
@@ -66,6 +68,8 @@ enum ExplorerTreeArea {
                 .init(label: "Dock icons", value: "Medium weight, 14pt at the default size", token: "ExplorerDockRow.iconFont"),
                 .init(label: "Sections in the capsule", value: "at most five", token: "ExplorerDock.capsuleLimit"),
                 .init(label: "Folder chevron", value: "Semibold 11pt", token: "SidebarRowConstants.chevronFont"),
+                .init(label: "Server chevron", value: "Semibold 11pt, trailing, centred on the name and product line", token: "SidebarRowConstants.sectionChevronFont"),
+                .init(label: "Closed card", value: "The header slot (49pt at the default size) plus 4pt, its contents centred", token: "serverHeaderExtraHeight / treeCardBottomPadding"),
                 .init(label: "Row label", value: "13pt at the default density (compact 10, small 11, large 15)", token: "SidebarRow.densityLabelFont"),
                 .init(label: "Row icon", value: "13pt light in a 18 × 16pt frame at the default density", token: "SidebarRow.densityIconFont / densityIconFrameWidth"),
                 .init(label: "Card corners", value: "16pt (setting: 10 to 26)", token: "LayoutTokens.Workspace.cardCornerRadius"),
@@ -88,6 +92,9 @@ enum ExplorerTreeArea {
                 .init(text: "Colourful duotone row icons by default, grey dock icons",
                       why: "Tiles, letters and dots were rejected; a Recraft icon set is planned, with SF Symbols drawn duotone until then. The dock stays grey with an accent current icon unless you choose Duotone.",
                       rounds: ["ported.Round 14 · section dock"]),
+                .init(text: "A server card folds while its rows fade",
+                      why: "Today the rows faded while the card snapped, so for a moment they floated on the canvas. The card's edge now moves with them and cuts them (CM2); a spring, rows rolling up and a cascade were rejected.",
+                      rounds: ["ongoing.server-header-collapse-r30"]),
                 .init(text: "No pinned path header",
                       why: "It cost space and added blur; the dock does the job of orientation.",
                       rounds: ["decided.tree-sticky-header"]),
@@ -97,6 +104,8 @@ enum ExplorerTreeArea {
                 "Echo/Sources/Features/ObjectBrowser/Views/Components/ExplorerRowModels.swift",
                 "Echo/Sources/Features/ObjectBrowser/Views/Components/ExplorerDock.swift",
                 "Echo/Sources/Shared/DesignSystem/Components/SidebarRow.swift",
+                "Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarView+Fold.swift",
+                "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeFoldTransition.swift",
             ]
         ) {
             ExplorerTreeSpecimen(settings: settings)

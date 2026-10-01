@@ -16,6 +16,11 @@ final class ObjectBrowserSidebarViewModel {
     var dockSwitchingConnectionIDs: Set<UUID> = []
     /// Servers whose new rows wait, invisible, until the card has its new size.
     var dockHiddenRowsConnectionIDs: Set<UUID> = []
+    /// Servers whose cards are folding or opening (round 30.2): set just before the change, so
+    /// the rows that leave already carry the fold's transition, and cleared when it ends.
+    var foldingConnectionIDs: Set<UUID> = []
+    /// Counts folds, so one that ends while a newer one runs leaves the newer one's cards alone.
+    @ObservationIgnored var foldGeneration = 0
     var highlightedNodeID: String?
     var highlightPulse = false
     /// Everything loaded for folders beyond the schema (logins, jobs, queues…), by source.
