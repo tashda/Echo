@@ -56,13 +56,15 @@ struct ExplainedWireView: View {
                   systemImage: problems == 0 ? "checkmark.seal" : "exclamationmark.triangle")
                 .foregroundStyle(problems == 0 ? ColorTokens.Status.success : ColorTokens.Status.warning)
             Spacer()
-            if model.startedServer(named: selected)?.engine == .sqlServer {
+            if let engine = model.startedServer(named: selected)?.engine, engine != .postgres {
                 TextField("SQL", text: $sql, prompt: Text("SELECT 1"))
                     .frame(maxWidth: 320)
                     .onSubmit(send)
-                Button("Send with sqlcmd", action: send)
+                Button(engine == .sqlServer ? "Send with sqlcmd" : "Send with mysql", action: send)
                     .disabled(sql.isEmpty)
-                    .help("Runs the SQL through Microsoft's sqlcmd with only the login encrypted, so the rest can be read here")
+                    .help(engine == .sqlServer
+                          ? "Runs the SQL through Microsoft's sqlcmd with only the login encrypted, so the rest can be read here"
+                          : "Runs the SQL through the server image's own client without TLS, so it can be read here")
             }
         }
         .font(TypographyTokens.detail)
@@ -72,7 +74,13 @@ struct ExplainedWireView: View {
     private func send() {
         guard let server = model.startedServer(named: selected) else { return }
         let text = sql
-        Task { await model.runMicrosoftClient(text, on: server) }
+        Task {
+            if server.engine == .sqlServer {
+                await model.runMicrosoftClient(text, on: server)
+            } else {
+                await model.runMySQLClient(text, on: server)
+            }
+        }
     }
 
     private func messageRow(_ message: ExplainedMessage) -> some View {

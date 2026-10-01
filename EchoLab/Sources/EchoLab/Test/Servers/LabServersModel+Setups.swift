@@ -56,6 +56,17 @@ extension LabServersModel {
         }
     }
 
+    /// Runs SQL through the MySQL or MariaDB image's own client without TLS, readable in Explained.
+    func runMySQLClient(_ sql: String, on server: LabDatabaseServer) async {
+        guard let lab else { return }
+        do {
+            let output = try await lab.runMySQLClient(server, sql: sql)
+            append("mysql: \(output.split(separator: "\n").prefix(20).joined(separator: "\n"))")
+        } catch {
+            append("mysql failed: \(error)")
+        }
+    }
+
     private func run(_ done: String, _ action: (ServerLab) async throws -> Void) async {
         guard let lab else { return }
         do {
