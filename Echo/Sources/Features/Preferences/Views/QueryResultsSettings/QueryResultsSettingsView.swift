@@ -6,11 +6,16 @@ struct QueryResultsSettingsView: View {
     @Environment(AppearanceStore.self) internal var appearanceStore
 
     var body: some View {
-        Form {
+        SettingsPage(
+            previewHeight: 190,
+            resetPage: projectStore.resetPage(Self.resettable),
+            preview: { ResultsSettingsPreview(settings: projectStore.globalSettings) }
+        ) {
             Section("Appearance") {
                 PropertyRow(
                     title: "Show row numbers",
-                    info: "Displays a numbered index column on the leading edge of the results table."
+                    info: "Displays a numbered index column on the leading edge of the results table.",
+                    resetAction: projectStore.resetAction(\.resultsShowRowNumbers)
                 ) {
                     Toggle("", isOn: showRowNumbersBinding)
                         .labelsHidden()
@@ -19,7 +24,8 @@ struct QueryResultsSettingsView: View {
 
                 PropertyRow(
                     title: "Alternate row shading",
-                    info: "Applies alternating background colors to result table rows for easier reading."
+                    info: "Applies alternating background colors to result table rows for easier reading.",
+                    resetAction: projectStore.resetAction(\.resultsAlternateRowShading)
                 ) {
                     Toggle("", isOn: alternateRowShadingBinding)
                         .labelsHidden()
@@ -27,8 +33,22 @@ struct QueryResultsSettingsView: View {
                 }
 
                 PropertyRow(
+                    title: "Selection summary",
+                    info: "What the footer's cell count also says about selected numbers. The popover always lists every figure.",
+                    resetAction: projectStore.resetAction(\.resultsSelectionPill)
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.resultsSelectionPill)) {
+                        ForEach(SelectionPillFigures.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                }
+
+                PropertyRow(
                     title: "Monospaced cells",
-                    info: "Shows every cell in the editor's monospaced font. Numbers always use aligned digits."
+                    info: "Shows every cell in the editor's monospaced font. Numbers always use aligned digits.",
+                    resetAction: projectStore.resetAction(\.resultsMonospacedCells)
                 ) {
                     Toggle("", isOn: projectStore.globalSettingBinding(\.resultsMonospacedCells))
                         .labelsHidden()
@@ -78,7 +98,10 @@ struct QueryResultsSettingsView: View {
 
             ResultGridColorSettingsSection()
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
     }
+
+    /// Everything Reset This Page puts back.
+    static let resettable: [ResettableSetting] = [
+        .init(\.resultsShowRowNumbers), .init(\.resultsAlternateRowShading), .init(\.resultsSelectionPill), .init(\.resultsMonospacedCells),
+    ]
 }

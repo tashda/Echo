@@ -88,10 +88,12 @@ struct EditorTypographySettingsTests {
         #expect(settings.defaultEditorPaletteIDDark == SQLEditorPalette.midnight.id)
     }
 
-    /// Round 28.11 (FS1): whole sizes, “13 pt”.
+    /// Round 43.3 (NU0): whole sizes in a stepper, 8 to 24 pt.
     @MainActor @Test func fontSizesAreWholePoints() {
-        #expect(EditorSettingsView.fontSizeOptions.allSatisfy { $0.rounded() == $0 })
-        #expect(EditorSettingsView.fontSizeLabel(13) == "13 pt")
+        let range = EditorSettingsView.fontSizeRange
+        #expect(range.lowerBound.rounded() == range.lowerBound)
+        #expect(range.upperBound.rounded() == range.upperBound)
+        #expect(range.contains(13))
     }
 
     @Test func aLineIsTheMultipleOfTheSizeNeverLessThanTheFont() {

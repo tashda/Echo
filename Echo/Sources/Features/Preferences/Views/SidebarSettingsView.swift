@@ -8,7 +8,11 @@ struct SidebarSettingsView: View {
     }
 
     var body: some View {
-        Form {
+        SettingsPage(
+            previewHeight: 230,
+            resetPage: projectStore.resetPage(Self.resettable),
+            preview: { SidebarSettingsPreview(settings: settings) }
+        ) {
             Section {
                 Toggle("Expand one connection at a time", isOn: expandOneConnectionToggle)
             } header: {
@@ -57,9 +61,14 @@ struct SidebarSettingsView: View {
                 )
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
     }
+
+    /// Everything Reset This Page puts back.
+    static let resettable: [ResettableSetting] = [
+        .init(\.sidebarExpandOneConnectionAtATime), .init(\.sidebarShowsScrollBar),
+        .init(\.sidebarHideOfflineDatabasesByDefault), .init(\.sidebarAutoExpandSections),
+        .init(\.sidebarCustomizePerDatabaseType),
+    ]
 
     // MARK: - Hide offline toggle
 

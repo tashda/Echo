@@ -403,6 +403,17 @@ Rules: `decisions.md` › 2026-10-01 round 28; `05-components` › Editor card.
 | QE16 | **One mark language (28.15):** `EditorMarkTokens`, round ends, two strengths, Settings › Editor › Marks. | `EditorMarkToken`, `SQLTextView+Marks`, `SQLLayoutManager`, `EditorSettingsView` | `EditorMarksTests`, `GlobalSettingsExtendedTests` 👁 | ☑ ac5089f6, 👁 pending |
 | QE17 | **Zoom pill (round 31):** 12pt in, 9pt up; above the server pill without results; 24pt, primary. | `EditorZoomControl`, `QueryInputSection` | `EditorZoomTests` 👁 | ☑ 3626716a, 👁 pending |
 
+## Phase 21 · Settings pages (round 43)
+
+| # | Task | Where | Done when | Status |
+|---|---|---|---|---|
+| SE1 | **The template:** `SettingsPage(preview:sections:)` with a pinned preview and Reset This Page; `PictureChoicePicker`; `PropertyRow` gains a ↺. | `DesignSystem/Components/SettingsPage`, `PictureChoicePicker`, `PropertyRow` | A page gets preview, ↺ and reset from the component 👁 | ☑ built, 👁 pending |
+| SE2 | **Editor page:** a live editor preview of every setting, pictures for gutter, corners and strength, a size stepper, short lines and ⓘ. | `EditorSettings/*` | Every setting changes the preview 👁 | ☑ built, 👁 pending |
+| SE3 | **Results and Sidebar previews:** the grid; a narrow server card (owner's note). Appearance has none: the app is the preview. | `ResultsSettingsPreview`, `SidebarSettingsPreview` | Matches the lab's Proposal 👁 | ☑ built, 👁 pending |
+| SE4 | **Search and reset:** a search field lists settings across pages; Reset This Page confirms first. | `SettingsSearchIndex`, `SettingsSearchResults`, `SettingsWindow` | Typing "gutter" finds Line Numbers and Gutter Style 👁 | ☑ built, 👁 pending |
+| SE5 | **Per connection (PC0):** a few chosen settings (row limit, confirm before UPDATE) with the connection's colour dot beside the row. | Connection properties, Settings | Not started: choose which settings first | ☐ |
+| SE6 | **Settings sync (SY0):** everything except window sizes and this Mac's paths. | Cloud sync | Not started | ☐ |
+
 ## Phase 10 · Finish
 
 | ID | Task | Done when | Status |
