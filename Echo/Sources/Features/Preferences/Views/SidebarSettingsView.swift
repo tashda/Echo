@@ -23,16 +23,6 @@ struct SidebarSettingsView: View {
                 Text("The scroll bar is hidden unless shown here; the rail shows which server you're in.")
             }
 
-            Section {
-                Picker("Clicking a server while the Explorer is hidden", selection: projectStore.globalSettingBinding(\.collapsedServerClick)) {
-                    ForEach(CollapsedServerClickBehavior.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                }
-            } header: {
-                Text("Server Rail")
-            } footer: {
-                Text("Peek slides that server's tree out over your work; click anywhere else to close it.")
-            }
-
             Section("Databases") {
                 Toggle("Hide offline databases by default", isOn: hideOfflineToggle)
             }

@@ -1,22 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// How a server in the rail was clicked. With the tree hidden, a plain click peeks and a
-/// ⌘-click or double-click shows the tree (Design/05-components.md › Server rail).
-enum ServerRailClick {
-    case plain
-    case command
-    case double
-
-    /// The click that triggered the current button action.
-    @MainActor static var current: ServerRailClick {
-        guard let event = NSApp.currentEvent else { return .plain }
-        if event.clickCount >= 2 { return .double }
-        if event.modifierFlags.contains(.command) { return .command }
-        return .plain
-    }
-}
-
 /// The server rail (Design/02-layout.md › Rail): two glass pills on the canvas at the window's
 /// leading edge. Servers are on top, in a pill that hugs them, grows with a spring as they
 /// connect and scrolls once it reaches the tools; its last item is the + that opens the
@@ -30,7 +14,7 @@ struct ServerRail: View {
     let itemSize: CGFloat
     /// The tool page showing in place of the tree, if any.
     let selectedTool: SidebarMenu.NavSection?
-    let onSelectSession: (ConnectionSession, ServerRailClick) -> Void
+    let onSelectSession: (ConnectionSession) -> Void
     let onRetryPending: (PendingConnection) -> Void
     let onSelectTool: (SidebarMenu.NavSection) -> Void
 
@@ -190,12 +174,11 @@ struct ServerRail: View {
     }
 
     private func activate(_ entry: ServerRailEntry) {
-        let click = ServerRailClick.current
         switch entry {
         case .session(let session):
             let connectionID = session.connection.id
             clickedConnectionID = connectionID
-            onSelectSession(session, click)
+            onSelectSession(session)
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(700))
                 if clickedConnectionID == connectionID {

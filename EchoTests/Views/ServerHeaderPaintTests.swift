@@ -48,7 +48,9 @@ struct ServerHeaderPaintTests {
         object.removeValue(forKey: "serverHeaderStyle")
         object.removeValue(forKey: "serverHeaderColorSource")
         object.removeValue(forKey: "sidebarDockCurrentIconTint")
+        // Settings removed since (rounds 30.3 and 40) are ignored when an older file is read.
         object["sidebarShowsEmptyFolders"] = true
+        object["collapsedServerClick"] = "peekCommandReopens"
         let decoded = try JSONDecoder().decode(GlobalSettings.self, from: JSONSerialization.data(withJSONObject: object))
         #expect(decoded.serverHeaderStyle == .wash)
         #expect(decoded.serverHeaderColorSource == .server)
