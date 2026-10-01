@@ -34,7 +34,7 @@
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "5c060b5907ce6ddb8f3deadf3ae014118b94e241"
+        "revision" : "fdfa078b6dfdc46129c9031743c8091ac62c1927"
       }
     },
     {
@@ -43,7 +43,7 @@
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "0f4b906ac2b04ac70e20128532aeb8ce343b1464"
+        "revision" : "9e448aa0ee02e4c059c7795af541ab03c1b13052"
       }
     },
     {
@@ -70,7 +70,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "17c954c627b9f70d78447234611350c3c5207897"
+        "revision" : "71bd21cdc8374f011373249695c24ff83ee66d94"
       }
     },
     {
@@ -78,7 +78,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/supabase/supabase-swift",
       "state" : {
-        "revision" : "40344fb3a7007d772218c6ddf6bca9febd8cb226",
+        "revision" : "9c8c9d283b13a369f52cc78d8639648d8a17f5d3",
         "version" : "2.55.2"
       }
     },
