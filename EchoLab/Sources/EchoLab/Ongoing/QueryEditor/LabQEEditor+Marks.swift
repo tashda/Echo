@@ -173,6 +173,16 @@ extension LabQEEditor {
                     }
                 }
                 .frame(width: rect.width, height: rect.height).offset(x: rect.minX, y: rect.minY)
+                // Rev 2, RP3: while replacing, each match shows its replacement before anything changes.
+                if scene.showsReplace, style.replaceStyle == .preview {
+                    Rectangle().fill(ColorTokens.Status.error).frame(width: rect.width, height: 1)
+                        .offset(x: rect.minX, y: rect.midY)
+                    Text(verbatim: "orders_2026").font(Font(layout.codeFont)).foregroundStyle(ColorTokens.Status.success)
+                        .padding(.horizontal, SpacingTokens.xxxs)
+                        .background(ColorTokens.Status.success.opacity(0.14), in: RoundedRectangle(cornerRadius: SpacingTokens.nano))
+                        .fixedSize()
+                        .offset(x: rect.minX, y: rect.minY - layout.lineHeight * 0.85)
+                }
             }
         }
     }

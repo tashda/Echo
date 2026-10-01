@@ -207,6 +207,10 @@
       {
         "date": "2026-10-01T11:54:16Z",
         "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T12:01:33Z",
+        "text": "Revision 2: Immersive glass find bars, Replace and what it searches"
       }
     ],
     "needsMore": [
@@ -226,8 +230,19 @@
       "selection": "fill"
     },
     "reviewedRevision": 1,
-    "revisions": [],
-    "status": "New feedback",
+    "revisions": [
+      {
+        "changes": [
+          "New find bars on glass, no white field: FB4 one capsule, FB5 capsule with glass buttons (recommended), FB6 FB2 made immersive, FB7 compact corner, FB8 bottom centre, FB9 a tab from the top edge, FB10 Spotlight with the matches listed",
+          "New step: Replace (RP0 second row, RP1 chevron inside, RP2 own capsule, RP3 preview every replacement, recommended) with a Replace gallery",
+          "New step: What it searches (SS0 whole script, SS1 the selection when it spans lines, recommended, SS2 an In Selection button, SS3 Script / Statement / Selection)"
+        ],
+        "date": "2026-10-01T12:01:33Z",
+        "number": 2,
+        "summary": "Immersive glass find bars, Replace and what it searches"
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.editor-find-typing-r28": {
@@ -387,6 +402,11 @@
         "date": "2026-10-01T11:50:38Z",
         "id": "CBD0FED9-E83A-4BC0-B388-6E6200989251",
         "text": "Review of Editor: after a run\n1. Which run note?: picked Proposal\n2. Look: picked R10 \u00b7 Glass with a symbol\n3. Place: picked P0 \u00b7 After the last line that ran (today)\n4. What ran: picked H4 \u00b7 The gutter bracket lights up; NEEDS MORE OPTIONS; note: I like H4, but can it \"pulse\" while it is running - please give me a new step in this round with options for \"When running\"\n5. The row count: picked RC0 \u00b7 Every row the server sent (fixed now)\n6. Wording: picked WD0 \u00b7 14,870 rows \u00b7 10.1 s (today)\n7. When it goes: picked LT0 \u00b7 At the first edit (today)\n8. A script with several statements: picked MS0 \u00b7 One note after each statement"
+      },
+      {
+        "date": "2026-10-01T11:58:10Z",
+        "id": "543BFEE8-DB8A-46DB-95BE-FBC60668FA62",
+        "text": "Review of Editor: after a run\n1. Which run note?: picked Proposal\n2. Look: picked R10 \u00b7 Glass with a symbol\n3. Place: picked P0 \u00b7 After the last line that ran (today)\n4. What ran: picked H9 \u00b7 A line in the gutter that fades\n5. While running: picked RR1 \u00b7 The bracket breathes\n6. The row count: picked RC0 \u00b7 Every row the server sent (fixed now)\n7. Wording: picked WD0 \u00b7 14,870 rows \u00b7 10.1 s (today)\n8. When it goes: picked LT0 \u00b7 At the first edit (today)\n9. A script with several statements: picked MS0 \u00b7 One note after each statement"
       }
     ],
     "generalNote": "",
@@ -406,6 +426,10 @@
       {
         "date": "2026-10-01T11:53:19Z",
         "text": "Revision 3: While running: what the bracket does while the query runs"
+      },
+      {
+        "date": "2026-10-01T11:58:10Z",
+        "text": "Accepted with picks"
       }
     ],
     "needsMore": [],
@@ -419,9 +443,10 @@
       "ranHighlight": "H9 \u00b7 A line in the gutter that fades",
       "runNoteLook": "R10 \u00b7 Glass with a symbol",
       "runNotePlace": "P0 \u00b7 After the last line that ran (today)",
+      "runningMark": "RR1 \u00b7 The bracket breathes",
       "wording": "dot"
     },
-    "reviewedRevision": 2,
+    "reviewedRevision": 3,
     "revisions": [
       {
         "changes": [
@@ -443,7 +468,7 @@
         "summary": "While running: what the bracket does while the query runs"
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
     "verdicts": {}
   },
   "ongoing.editor-settings-r28": {
@@ -884,6 +909,10 @@
       {
         "date": "2026-09-30T12:26:04Z",
         "text": "Built into Echo (arrival and the proposal confirmed in chat)"
+      },
+      {
+        "date": "2026-10-01T12:00:41Z",
+        "text": "Revision 2: Checked against Echo with verify-round.py: PASS"
       }
     ],
     "needsMore": [],
@@ -902,7 +931,18 @@
       "stacking": "S1 \u00b7 List of three (today)"
     },
     "reviewedRevision": 1,
-    "revisions": [],
+    "revisions": [
+      {
+        "changes": [
+          "Exhibit fix: the title and reason now use the toast's full width (the \u00d7 had its own stack that took half the row, cutting the title and wrapping the reason short); Echo already did this",
+          "Echo fix: when hovered, the buttons sit 6pt under the text (SpacingTokens.xxs2), as accepted; Echo had 8pt",
+          "Known: selectable text on glass draws with more contrast in Echo Labs than in Echo (tashda/Echo#32); the check leaves those pixels out"
+        ],
+        "date": "2026-10-01T12:00:41Z",
+        "number": 2,
+        "summary": "Checked against Echo with verify-round.py: PASS"
+      }
+    ],
     "status": "In Echo",
     "verdicts": {}
   },

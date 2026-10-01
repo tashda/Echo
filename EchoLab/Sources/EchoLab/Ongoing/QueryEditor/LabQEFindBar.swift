@@ -19,7 +19,7 @@ struct LabQEFindBar: View {
             .padding(.vertical, SpacingTokens.xxs)
             .background(.bar)
             .overlay(alignment: .bottom) { Rectangle().fill(ColorTokens.Separator.primary).frame(height: LayoutTokens.EditorGutter.edgeWidth) }
-        case .floating, .bottom:
+        case .floating, .bottom, .topCapsule, .safari, .immersiveStrip, .corner, .bottomCapsule, .notch, .spotlight:
             VStack(spacing: SpacingTokens.xxs) {
                 findRow(compact: true)
                 if showsReplace { replaceRow }

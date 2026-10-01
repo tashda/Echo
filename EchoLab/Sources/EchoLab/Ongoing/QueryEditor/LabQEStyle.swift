@@ -44,6 +44,8 @@ struct LabQEStyle {
     var findBar = LabQEFindBarPlace.native
     var findOptions = LabQEFindOptions.menu
     var findCount = LabQEFindCount.found
+    var replaceStyle = LabQEReplaceStyle.secondRow
+    var findScope = LabQEFindScope.editor
 
     static let before28 = LabQEStyle()
 
@@ -60,9 +62,16 @@ struct LabQEStyle {
         currentLine: .noBand, selectionColour: .system, selectionShape: .rounded, caret: .accent,
         statement: .bracket, runArrow: .symbol, wordHighlight: .soft, markCorner: .followSelection, markHeight: .letters,
         errorWord: .glow, errorMessage: .hover, errorDot: .dot,
-        runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .bracketPulse,
+        runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .gutterLine,
         zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always, errorGlow: .hairlineHalo,
         runningMark: .breathe, errorBubble: .card)
+        .with { $0.findBar = .safari; $0.replaceStyle = .preview; $0.findScope = .selectionAuto }
+
+    func with(_ change: (inout LabQEStyle) -> Void) -> LabQEStyle {
+        var copy = self
+        change(&copy)
+        return copy
+    }
 
     /// The gallery's handle on the find look, by the preview control's names.
     var findPreview: LabQEFindPreview {
@@ -86,6 +95,7 @@ struct LabQEStyle {
         set("runNotePlace", \.runNotePlace); set("ranHighlight", \.ranHighlight); set("zoom", \.zoom)
         set("zoomLook", \.zoomLook); set("zoomShows", \.zoomShows)
         set("errorGlow", \.errorGlow); set("runningMark", \.runningMark); set("errorBubble", \.errorBubble); set("findBar", \.findBar); set("findOptions", \.findOptions); set("findCount", \.findCount)
+        set("replaceStyle", \.replaceStyle); set("findScope", \.findScope)
         if let preview = LabQEFindPreview(rawValue: values["findPreview"]) { style.findLook = preview.look }
         if let place = LabQEZoomPlace(rawValue: values["zoomPlace"]) { style.zoomPlace = place }
         return style

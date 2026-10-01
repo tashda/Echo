@@ -75,14 +75,20 @@ struct LabQEEditor: View {
 
     private var findBarAlignment: Alignment {
         switch style.findBar {
-        case .floating: .topTrailing
+        case .floating, .corner: .topTrailing
         case .bottom: .bottomTrailing
+        case .bottomCapsule: .bottom
         default: .top
         }
     }
 
+    @ViewBuilder
     private func findBar(_ place: LabQEFindBarPlace) -> some View {
-        LabQEFindBar(place: place, options: style.findOptions, count: style.findCount, showsReplace: scene.showsReplace)
+        if place.isImmersive {
+            LabQEGlassFindBar(place: place, count: style.findCount, replace: style.replaceStyle, scope: style.findScope, showsReplace: scene.showsReplace)
+        } else {
+            LabQEFindBar(place: place, options: style.findOptions, count: style.findCount, showsReplace: scene.showsReplace)
+        }
     }
 
     private var zoomAlignment: Alignment {
