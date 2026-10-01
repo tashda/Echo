@@ -29,7 +29,8 @@ extension QueryResultsTableView.Coordinator {
                 tableColumn.headerCell.alignment = .left
             }
         }
-        tableView.headerView?.needsDisplay = true
+        // Only a change redraws the header (applyHeaderStyle marks it): this runs on every update
+        // pass, and redrawing it each time was a steady cost while results streamed (traced 2026-10-01).
         if headerNeedsRefresh { applyHeaderStyle(to: tableView) }
         cachedColumnKinds = parent.displayedColumns.map { ResultGridValueClassifier.kind(for: $0, value: "") }
         refreshColumnForms(parent.displayedColumns)

@@ -6,8 +6,8 @@ import AppKit
 ///
 ///     { "action": "scroll", "target": "sidebar", "distance": 1200, "seconds": 1.5 }
 ///
-/// `target` is `sidebar` (the leftmost big scroll view, past the rail: the Explorer tree) or `content` (the
-/// largest one: the active tab's grid or list).
+/// `target` is `sidebar` (the leftmost big scroll view, past the rail: the Explorer tree), `grid` (the
+/// largest table: a query tab's results) or `content` (the largest scroll view of any kind).
 extension AppDirector {
     func performAutomationScroll(target: String, distance: CGFloat, seconds: Double) async {
         guard let root = NSApp.windows.first(where: { $0.identifier == AppWindowIdentifier.workspace })?.contentView,
@@ -37,6 +37,9 @@ extension AppDirector {
         switch target {
         case "sidebar":
             return placed.min { $0.1.minX < $1.1.minX }?.0
+        case "grid":
+            return placed.filter { $0.0.documentView is NSTableView }
+                .max { $0.1.width * $0.1.height < $1.1.width * $1.1.height }?.0
         default:
             return placed.max { $0.1.width * $0.1.height < $1.1.width * $1.1.height }?.0
         }

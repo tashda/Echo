@@ -58,6 +58,11 @@ extension MSSQLDedicatedQuerySession {
         }
     }
 
+    /// Off the main actor, like Postgres's streaming: the query tab awaits this from the main
+    /// actor, and a nonisolated async function runs on its caller's actor (SE-0461), so every
+    /// row was read and handed to the batch worker on the main thread while results streamed in,
+    /// stalling scrolling for up to a quarter of a second (traced 2026-10-01).
+    @concurrent
     private func streamQueryWithProgress(
         _ sql: String,
         progressHandler: @escaping QueryProgressHandler

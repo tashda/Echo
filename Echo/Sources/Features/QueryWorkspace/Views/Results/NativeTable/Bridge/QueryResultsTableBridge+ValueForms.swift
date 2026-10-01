@@ -3,9 +3,18 @@ import AppKit
 
 /// Round 21 (values in the grid): the per-column value forms, decimal alignment and Copy as Shown.
 extension QueryResultsTableView.Coordinator {
+    /// Runs on every update pass. The widest fractions seen so far stay while the forms do (a new
+    /// run clears them in `resetForNewExecution`): starting again from zero made the next decimal
+    /// cell redraw every visible row, once per streamed batch (traced 2026-10-01).
     func refreshColumnForms(_ columns: [ColumnInfo]) {
-        cachedColumnForms = zip(columns, cachedColumnKinds).map { ResultCellValueForm.form(kind: $1, dataType: $0.dataType) }
+        let forms = zip(columns, cachedColumnKinds).map { ResultCellValueForm.form(kind: $1, dataType: $0.dataType) }
+        guard Self.formsChanged(forms, from: cachedColumnForms, fractionColumns: cachedFractionDigits.count) else { return }
+        cachedColumnForms = forms
         cachedFractionDigits = Array(repeating: 0, count: columns.count)
+    }
+
+    static func formsChanged(_ forms: [ResultCellValueForm], from cached: [ResultCellValueForm], fractionColumns: Int) -> Bool {
+        forms != cached || fractionColumns != forms.count
     }
 
     /// The text a visible cell draws. A decimal wider than the column's widest fraction so far widens
