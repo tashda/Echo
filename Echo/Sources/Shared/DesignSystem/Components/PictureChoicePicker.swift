@@ -38,6 +38,8 @@ public struct PictureChoicePicker<Value: Hashable, Picture: View>: View {
                         )
                     Text(title(option))
                         .font(TypographyTokens.detail)
+                        .lineLimit(1)
+                        .fixedSize()
                         .foregroundStyle(isSelected ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
                 }
                 .contentShape(Rectangle())

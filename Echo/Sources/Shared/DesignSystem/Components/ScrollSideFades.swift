@@ -45,6 +45,16 @@ final class ScrollSideFades {
         (visible.minX > 0.5, visible.maxX < contentWidth - 0.5)
     }
 
+    /// How strongly each side fades: in full while at least `width` of content waits beyond it, less
+    /// as the end comes closer, and not at all at the end, so the last column is never veiled (owner,
+    /// after round 47: the sides stayed white when scrolled all the way).
+    nonisolated static func fadeStrengths(visible: NSRect, contentWidth: CGFloat, width: CGFloat) -> (leading: CGFloat, trailing: CGFloat) {
+        guard width > 0 else { return (0, 0) }
+        let leading = min(max(visible.minX / width, 0), 1)
+        let trailing = min(max((contentWidth - visible.maxX) / width, 0), 1)
+        return (leading, trailing)
+    }
+
     private func place() {
         guard let clip else { return }
         let area = clip.bounds
@@ -53,9 +63,9 @@ final class ScrollSideFades {
         let top = clip.isFlipped ? area.minY : area.minY + bottomRoom
         leading.frame = NSRect(x: area.minX, y: top, width: width, height: height)
         trailing.frame = NSRect(x: area.maxX - width, y: top, width: width, height: height)
-        let sides = Self.fadingSides(visible: area, contentWidth: clip.documentView?.frame.width ?? 0)
-        leading.setShown(sides.leading)
-        trailing.setShown(sides.trailing)
+        let strengths = Self.fadeStrengths(visible: area, contentWidth: clip.documentView?.frame.width ?? 0, width: width)
+        leading.setStrength(strengths.leading)
+        trailing.setStrength(strengths.trailing)
     }
 }
 
@@ -63,7 +73,6 @@ final class ScrollSideFades {
 final class ScrollSideFadeView: NSView {
     private let towardsLeading: Bool
     private let gradient = CAGradientLayer()
-    private var isShown = false
     var color: NSColor = .textBackgroundColor { didSet { applyColor() } }
 
     init(towardsLeading: Bool) {
@@ -91,13 +100,10 @@ final class ScrollSideFadeView: NSView {
         CATransaction.commit()
     }
 
-    func setShown(_ shown: Bool) {
-        guard shown != isShown else { return }
-        isShown = shown
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.2
-            animator().alphaValue = shown ? 1 : 0
-        }
+    /// 0 to 1, following the scroll position (no animation: it is as wide as the fade itself).
+    func setStrength(_ strength: CGFloat) {
+        guard abs(alphaValue - strength) > 0.005 else { return }
+        alphaValue = strength
     }
 
     private func applyColor() {

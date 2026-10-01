@@ -39,6 +39,8 @@ extension QueryResultsSection {
     }
 
     internal func rebuildRowOrder() {
+        sortTask?.cancel()
+        sortTask = nil
         let count = query.displayedRowCount
         guard count > 0 else {
             rowOrder = []
@@ -51,11 +53,18 @@ extension QueryResultsSection {
             return
         }
 
-        let column = tableColumns[columnIndex]
-        let indices = Array(0..<count)
-        rowOrder = indices.sorted { lhs, rhs in
-            let result = compare(rowIndex: lhs, otherRowIndex: rhs, columnIndex: columnIndex, column: column)
-            return sort.ascending ? result == .orderedAscending : result == .orderedDescending
+        // Each row's value once; the keys and the sort itself are `ResultRowSorter`'s. A big result
+        // is sorted off the main thread, so the window keeps answering while it works.
+        let dataType = tableColumns[columnIndex].dataType
+        let values = (0..<count).map { rowValue(at: $0, columnIndex: columnIndex) }
+        if count <= ResultRowSorter.immediateLimit {
+            rowOrder = ResultRowSorter.order(keys: ResultRowSorter.keys(for: values, dataType: dataType), ascending: sort.ascending)
+            return
+        }
+        sortTask = Task(name: "results-sort") {
+            let order = await ResultRowSorter.sortedOrder(values: values, dataType: dataType, ascending: sort.ascending)
+            guard !Task.isCancelled else { return }
+            rowOrder = order
         }
     }
 
@@ -102,60 +111,5 @@ extension QueryResultsSection {
 
     internal func rowValue(at rowIndex: Int, columnIndex: Int) -> String? {
         query.valueForDisplay(row: rowIndex, column: columnIndex)
-    }
-
-    internal func compare(rowIndex lhs: Int, otherRowIndex rhs: Int, columnIndex: Int, column: ColumnInfo) -> ComparisonResult {
-        let left = rowValue(at: lhs, columnIndex: columnIndex)
-        let right = rowValue(at: rhs, columnIndex: columnIndex)
-        return compare(left, right, column: column)
-    }
-
-    internal func compare(_ lhs: String?, _ rhs: String?, column: ColumnInfo) -> ComparisonResult {
-        if lhs == rhs { return .orderedSame }
-        if lhs == nil { return .orderedDescending }
-        if rhs == nil { return .orderedAscending }
-
-        guard let lhs, let rhs else { return .orderedSame }
-
-        let trimmedLeft = lhs.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedRight = rhs.trimmingCharacters(in: .whitespacesAndNewlines)
-        let type = column.dataType.lowercased()
-
-        if isNumericType(type),
-           let leftNumber = Decimal(string: trimmedLeft),
-           let rightNumber = Decimal(string: trimmedRight) {
-            if leftNumber == rightNumber { return .orderedSame }
-            return leftNumber < rightNumber ? .orderedAscending : .orderedDescending
-        }
-
-        if type.contains("bool"),
-           let leftBool = parseBool(trimmedLeft),
-           let rightBool = parseBool(trimmedRight) {
-            if leftBool == rightBool { return .orderedSame }
-            return leftBool ? .orderedDescending : .orderedAscending
-        }
-
-        return trimmedLeft.caseInsensitiveCompare(trimmedRight)
-    }
-
-    private func isNumericType(_ type: String) -> Bool {
-        type.contains("int") ||
-        type.contains("serial") ||
-        type.contains("numeric") ||
-        type.contains("decimal") ||
-        type.contains("float") ||
-        type.contains("double") ||
-        type.contains("money")
-    }
-
-    private func parseBool(_ value: String) -> Bool? {
-        switch value.lowercased() {
-        case "true", "t", "1", "yes", "y":
-            return true
-        case "false", "f", "0", "no", "n":
-            return false
-        default:
-            return nil
-        }
     }
 }

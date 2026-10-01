@@ -41,7 +41,12 @@ final class ResultTableRowView: NSTableRowView {
 
     override func drawBackground(in dirtyRect: NSRect) {
         if let tableView = superview as? NSTableView, tableView.usesAlternatingRowBackgroundColors {
-            super.drawBackground(in: dirtyRect)
+            // The shaded rows, in the hover's shape, so a hovered row is never wider than its shade.
+            if !rowIndex.isMultiple(of: 2), let shade = NSColor.alternatingContentBackgroundColors.last {
+                shade.setFill()
+                let rect = bounds.insetBy(dx: ResultsGridMetrics.hoverHorizontalInset, dy: ResultsGridMetrics.hoverVerticalInset)
+                NSBezierPath(roundedRect: rect, xRadius: ResultsGridMetrics.hoverCornerRadius, yRadius: ResultsGridMetrics.hoverCornerRadius).fill()
+            }
         } else {
             let color = colorProvider?(rowIndex) ?? NSColor.clear
             color.setFill()

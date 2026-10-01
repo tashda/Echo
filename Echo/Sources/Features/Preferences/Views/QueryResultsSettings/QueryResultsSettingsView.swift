@@ -23,6 +23,18 @@ struct QueryResultsSettingsView: View {
                 }
 
                 PropertyRow(
+                    title: "Row Number Style",
+                    info: "How the numbers beside the rows look: Subtle shows numbers only; Column adds a faint full-height column; Lane a rounded, inset lane; Hairline only a thin edge.",
+                    resetAction: projectStore.resetAction(\.resultsGutterStyle)
+                ) {
+                    PictureChoicePicker(
+                        selection: projectStore.globalSettingBinding(\.resultsGutterStyle),
+                        options: EditorGutterStyle.allCases,
+                        title: \.displayName
+                    ) { EditorGutterPicture(style: $0) }
+                }
+
+                PropertyRow(
                     title: "Alternate row shading",
                     info: "Applies alternating background colors to result table rows for easier reading.",
                     resetAction: projectStore.resetAction(\.resultsAlternateRowShading)
@@ -36,18 +48,6 @@ struct QueryResultsSettingsView: View {
                     title: "Selection summary",
                     info: "What the footer's cell count also says about selected numbers. The popover always lists every figure.",
                     resetAction: projectStore.resetAction(\.resultsSelectionPill)
-                ) {
-                    Picker("", selection: projectStore.globalSettingBinding(\.resultsSelectionPill)) {
-                        ForEach(SelectionPillFigures.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
-                }
-
-                PropertyRow(
-                    title: "Selection summary",
-                    info: "What the footer's cell count also says about selected numbers. The popover always lists every figure."
                 ) {
                     Picker("", selection: projectStore.globalSettingBinding(\.resultsSelectionPill)) {
                         ForEach(SelectionPillFigures.allCases, id: \.self) { Text($0.displayName).tag($0) }
@@ -114,6 +114,6 @@ struct QueryResultsSettingsView: View {
 
     /// Everything Reset This Page puts back.
     static let resettable: [ResettableSetting] = [
-        .init(\.resultsShowRowNumbers), .init(\.resultsAlternateRowShading), .init(\.resultsSelectionPill), .init(\.resultsMonospacedCells),
+        .init(\.resultsShowRowNumbers), .init(\.resultsGutterStyle), .init(\.resultsAlternateRowShading), .init(\.resultsSelectionPill), .init(\.resultsMonospacedCells),
     ]
 }

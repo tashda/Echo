@@ -22,11 +22,9 @@ final class ResultTableHeaderView: NSTableHeaderView {
         wantsLayer = true
     }
 
-    /// One hairline at the header's true bottom (round 41.1, owner after HL1). On macOS 26 the rows
-    /// scroll under the header and the header paints nothing itself: the system's scroll pocket
-    /// behind it is opaque, with its own line, but stops about 4pt short of our 36pt header, so a
-    /// sliver of rows and a second line showed. The header paints its full height and draws the
-    /// line where the row-number column draws its own.
+    /// One hairline at the header's true bottom, level with the row-number column's (round 41.1,
+    /// round 47). The header paints its full height and its cells without the system's own bottom
+    /// line, which a standard-height header draws 4pt higher.
     override func draw(_ dirtyRect: NSRect) {
         NSColor(ColorTokens.Background.primary).setFill()
         dirtyRect.fill()
@@ -39,7 +37,6 @@ final class ResultTableHeaderView: NSTableHeaderView {
 
     override func layout() {
         super.layout()
-        if let scrollView = enclosingScrollView { SystemHeaderLineHider.hideLines(in: scrollView) }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1

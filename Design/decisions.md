@@ -6,6 +6,18 @@ The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 /
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · After round 47: two gutter settings, one header line for real, sorting that doesn't freeze
+
+The owner's notes on the running app, decided in chat. These change what round 47's entry says where they differ.
+
+- **Two settings, not one (changes SS0):** the owner changed their mind: **Settings › Results › Row Number Style** is its own setting (Subtle, Column, Lane, Hairline; **default Hairline**, the round's GS2), and **Settings › Editor › Gutter › Style** is the editor's alone, **back to Subtle** as its default (it was moved to Hairline for the shared setting). A stored choice stays. → FTR-4.5, EDT-2.1
+- **The line under the column header, found (changes 41.1 and round 47):** the system's second line came from the header cells' own drawing (`NSTableHeaderCell.draw(withFrame:in:)`, a line along the bottom of a standard-height header, 4pt above Echo's), not from the scroll pocket. Hiding the pocket's views by name did nothing and was removed. The header cell now draws only its text and arrow, so Echo's one hairline is the only one. Checked on a real window: the extra line 4.5pt above the bottom is gone.
+- **Sorting a big result no longer freezes Echo:** a column sort compared two rows by fetching, trimming and parsing both values on every comparison, on the main thread; with 121,000 rows Echo stopped answering and had to be force-quit. Each row's key is made once, and a result over 20,000 rows is sorted off the main thread (`ResultRowSorter`). The order is the same as before: numbers by value, NULLs last when ascending and first when descending, text ignoring case, ties in row order. → FTR-4.2
+- **The soft side edges follow the scroll position:** they fade in over 32pt as more columns wait beyond a side and are gone at the end, instead of switching on and off, and the grid has 44pt of empty room after the last column so its right edge can be grabbed and widened. → FTR-4.6
+- **Gutter style pictures in Settings** no longer wrap their names letter by letter ("H a ir li n e").
+- **One row shape (bug: the hover was wider than its shaded row):** the system drew the shaded rows inset about 8pt with rounded ends while Echo's hover was inset 2pt, so a hovered row stuck out past its shade. Echo now draws the shaded rows itself in the hover's shape (inset 8pt by 1pt, 6pt corners), so shade, hover and selection agree. → FTR-4.3
+- **A rounded gutter tint (owner: the grid's highlights are rounded and the gutter's was a sharp box):** the selected rows' tint in the gutter is now one rounded block per run of selected rows, inset 4pt from the gutter's sides, its ends 2pt in and 6pt round like the selection beside it, and a hovered row's number sits on the grid's hover tint. → FTR-4.5
+
 ## 2026-10-01 · Round 37.5 in Echo, changed: native toolbar buttons, no tab symbol
 
 The owner after checking round 37.5 in the running app: some buttons were very small, the highlight came and went, the tab's symbol "looks hideous", and switching tabs blinked instead of morphing. Same rules for what goes where; built in 3f9e54d2.

@@ -160,14 +160,14 @@ enum FooterResultsSpec {
             SpecElement(number: "4.2", name: "Column header", summary: "The column's name over its type, on two lines.", groups: [
                 .type(.row("Name", "12pt semibold"), .row("Type", "10pt monospaced, under the name")),
                 .layout(.row("Height", "36pt", token: "ResultsGridMetrics.headerHeight")),
-                .material(.row("Line under it", "one hairline at the header's true bottom, level with the row-number column's: the header paints its full height in the card's colour and draws it, and the system's own 1pt lines in its scroll pocket and header banner (4pt higher) are hidden (round 41.1, HL1, and round 47)"),
+                .material(.row("Line under it", "one hairline at the header's true bottom, level with the row-number column's: the header paints its full height in the card's colour and draws it, and the header cells draw only their text and arrow, as the system's cell drawing adds a second line 4pt higher (round 41.1, HL1, and round 47)"),
                           .row("Column dividers", "short separators between columns, kept: they mark where to drag a width (VD0)", token: "NSColor.separatorColor")),
                 .behaviour(.row("Sort arrow", "a 14pt box at the trailing edge, shown while hovered or sorted; click it to sort, click elsewhere to select the column",
                                 token: "ResultsGridMetrics.sortIndicatorSize")),
             ], rounds: ["decided.results-grid", r41Header], files: [grid + "Cells/ResultTableHeaderCell.swift", grid + "Cells/ResultTableHeaderView.swift"]),
             SpecElement(number: "4.3", name: "Row hover", summary: "A faint rounded tint on the row under the pointer.", groups: [
                 .material(.row("Fill", "hover fill", token: "ColorTokens.Sidebar.hoverFill")),
-                .layout(.row("Inset", "2pt by 1pt", token: "ResultsGridMetrics.hoverHorizontalInset / hoverVerticalInset"), .row("Corner", "5pt", token: "ResultsGridMetrics.hoverCornerRadius")),
+                .layout(.row("Inset", "8pt by 1pt, the shaded rows' shape: Echo draws the shaded rows itself so a hovered row is never wider than its shade", token: "ResultsGridMetrics.hoverHorizontalInset / hoverVerticalInset"), .row("Corner", "6pt", token: "ResultsGridMetrics.hoverCornerRadius")),
                 .behaviour(.row("Row number", "turns accent")),
             ], rounds: ["decided.results-grid"], files: [grid + "Cells/ResultTableRowView.swift"]),
             SpecElement(number: "4.4", name: "Selection", summary: "One rounded outline around the selected range and a stronger ring on the active cell.", groups: [
@@ -175,13 +175,13 @@ enum FooterResultsSpec {
                           .row("Active cell", "accent ring, 2pt, 4pt corner", token: "ResultsGridMetrics.activeCellRingWidth / activeCellCornerRadius")),
                 .behaviour(.row("Row numbers", "of the selected rows turn accent")),
             ], rounds: ["decided.results-grid"], files: [grid + "Cells/ResultTableRowView.swift", grid + "Cells/ResultTableRowNumberView.swift"]),
-            SpecElement(number: "4.5", name: "Row numbers", summary: "The gutter at the left: the editor's gutter style, right-aligned numbers (round 47).", groups: [
+            SpecElement(number: "4.5", name: "Row numbers", summary: "The gutter at the left, in its own style, with right-aligned numbers (round 47).", groups: [
                 .type(.row("Font", "12pt monospaced digits, tertiary; accent for selected and hovered rows", token: "ResultsGridMetrics.rowNumberFontSize"),
                       .row("Alignment", "right (NA0)")),
                 .layout(.row("Width", "fits the digits, at least 3, and grows; reserved for the known row count so it doesn't move while rows stream in (GW1)", token: "ResultsGridMetrics.minimumRowNumberDigits"),
                         .row("Padding", "8pt either side (the lane adds its 5pt inset)", token: "ResultsGridMetrics.rowNumberLeadingPadding / rowNumberTrailingPadding")),
-                .material(.row("Style", "follows Settings › Editor › Gutter › Style, Hairline by default: Subtle only numbers; Hairline a 0.5pt edge below the header (none through the header row); Column a quiet full-height tint with an edge; Lane an inset 5pt rounded lane, no edge (SS0, GS2)", token: "GlobalSettings.editorGutterStyle"),
-                          .row("Selected rows", "the number accent on the selection's own tint, accent at 18% (SR1)"),
+                .material(.row("Style", "Settings › Results › Row Number Style, Hairline by default, apart from the editor's gutter: Subtle only numbers; Hairline a 0.5pt edge below the header (none through the header row); Column a quiet full-height tint with an edge; Lane an inset 5pt rounded lane, no edge (SS0, GS2)", token: "GlobalSettings.resultsGutterStyle"),
+                          .row("Selected rows", "the number accent on the selection's own tint, accent at 18% (SR1): one rounded block per run of selected rows, inset 4pt from the gutter's sides, ends 2pt in and 6pt round like the selection beside it; a hovered row has the grid's hover tint", token: "ResultsGridMetrics.gutterTintInset / selectionCornerRadius"),
                           .row("Shaded rows", "stop at the gutter (RS1)")),
                 .behaviour(.row("Click a number", "selects its row"), .row("Drag", "extends the selection and autoscrolls"), .row("Right-click", "the row menu"),
                            .row("The # in the corner", "selects every cell; a hover tint and the tooltip Select All (GC2)"), .row("Setting", "Settings › Results › Show row numbers")),
@@ -191,7 +191,8 @@ enum FooterResultsSpec {
                         .row("Length", "as wide as the footer: from its left padding, over the row numbers, to its right padding (round 27, L2)", token: "SpacingTokens.sm"),
                         .row("How", "the footer's room as the content inset, and a 1pt scroller inset on top (AppKit adds them; the thumb sits 3pt inside its frame)", token: "LayoutTokens.Footer.scrollerInset(overFooter:)"),
                         .row("Vertical", "runs down to the horizontal bar"),
-                        .row("Soft edges", "the rows fade 32pt into the card's colour at a side where more columns wait", token: "LayoutTokens.EdgeBlur.sideFadeWidth")),
+                        .row("Soft edges", "the rows fade 32pt into the card's colour at a side where more columns wait, in proportion to how much waits: gone at the end, so the last column is never veiled", token: "LayoutTokens.EdgeBlur.sideFadeWidth"),
+                        .row("After the last column", "44pt of empty room, so its right edge can be grabbed and widened", token: "ResultsGridMetrics.trailingColumnRoom")),
                 .material(.row("Look", "the system's overlay bar, no track (T1)")),
                 .motion(.row("Blur rises", "under a footer, nothing rises: the footer's material already reaches past the bar (round 44); elsewhere, while the bar shows, the blur rises past its widest thumb in 0.32s and settles 0.9s after the last scroll, in 0.5s (U5)", token: "LayoutTokens.EdgeBlur.raiseDuration / settleDuration / raisedHold")),
                 .behaviour(.row("Shown", "while scrolling, as macOS does"),

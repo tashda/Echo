@@ -28,7 +28,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     var isResizing: Bool = false
     var alternateRowShading: Bool = false
     var showRowNumbers: Bool = true
-    /// The editor's gutter style, which the row numbers follow (round 47).
+    /// Settings › Results › Row Number Style (round 47).
     var gutterStyle: EditorGutterStyle = .hairline
     var colorOverrides: ResultGridColorOverrides = .init()
     var isDarkMode: Bool = false

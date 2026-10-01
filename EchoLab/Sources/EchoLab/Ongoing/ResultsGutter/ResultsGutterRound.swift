@@ -13,8 +13,8 @@ import SwiftUI
 /// Settings › Results › Show row numbers. Changes FTR-4.2 and FTR-4.5.
 ///
 /// Accepted 2026-10-01: GS2 (the Hairline, its edge starting below the header), NA0, GW1, HA0, GC2, SR1, RS1
-/// and SS0, the results following the editor's gutter style with Hairline the default for both. Built into
-/// Echo as FTR-4.5.
+/// and SS0 (the results following the editor's gutter style). The owner then split the settings: the results
+/// have their own Row Number Style, Hairline by default, and the editor's gutter stays Subtle. Built as FTR-4.5.
 @MainActor
 enum ResultsGutterRound {
     enum Style: String, CaseIterable {

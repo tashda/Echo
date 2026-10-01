@@ -50,11 +50,6 @@ final class ResultTableContainerView: NSView {
         ])
     }
 
-    override func layout() {
-        super.layout()
-        SystemHeaderLineHider.hideLines(in: scrollView)
-    }
-
     /// Room for the footer floating over the grid, the soft blur of the rows under it (round 9,
     /// FB1), the scroll bars just above its pills and soft edges where more columns wait
     /// (round 27). Zero removes the room and the blur.

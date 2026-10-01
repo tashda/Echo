@@ -16,6 +16,8 @@ struct QueryResultsSection: View {
     @State internal var sortCriteria: SortCriteria?
     @State internal var highlightedColumnIndex: Int?
     @State internal var rowOrder: [Int] = []
+    /// The sort of a big result, running off the main thread.
+    @State internal var sortTask: Task<Void, Never>?
     @State internal var lastObservedColumnIDs: [String] = []
 #if os(macOS)
     @State internal var jsonInspectorContext: JsonInspectorContext?

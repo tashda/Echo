@@ -57,7 +57,7 @@ enum EditorSpec {
             ], rounds: ["ongoing.editor-find-bar-r28", "ongoing.editor-search-replace-r28"], files: ["Echo/Sources/Features/QueryWorkspace/Views/Query/Find/"]),
         ]),
         SpecPart(number: "2", name: "Gutter", summary: "The strip of line numbers at the left.", elements: [
-            SpecElement(number: "2.1", name: "Style", summary: "Hairline (the default since round 47), Subtle, Column or Lane (a setting that the results' row numbers follow).", states: [SpecState(key: "column", name: "Column"), SpecState(key: "lane", name: "Lane"), SpecState(key: "subtle", name: "Subtle"), SpecState(key: "hairline", name: "Hairline")], defaultState: "column", groups: [
+            SpecElement(number: "2.1", name: "Style", summary: "Subtle (the default), Column, Lane or Hairline (a setting).", states: [SpecState(key: "column", name: "Column"), SpecState(key: "lane", name: "Lane"), SpecState(key: "subtle", name: "Subtle"), SpecState(key: "hairline", name: "Hairline")], defaultState: "column", groups: [
                 .material(.row("Subtle", "numbers only"),
                           .row("Column", "a faint full-height column in the theme's gutter colour with a 0.5pt separator edge towards the text", token: "LayoutTokens.EditorGutter.edgeWidth"),
                           .row("Lane (GT2)", "the whole gutter, 5pt from the card's edges, the card's full height, corners concentric with the card's, the system's quiet fill, numbers centred, no edge (round 28.14)", token: "laneInset / EditorGutterSurface"),

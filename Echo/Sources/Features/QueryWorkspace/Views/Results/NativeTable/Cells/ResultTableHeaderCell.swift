@@ -62,6 +62,12 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
         return adjusted
     }
 
+    /// Only the name, type and arrow: the system's header background and bottom line are not drawn,
+    /// so the header view's one hairline is the only line under the header (round 47).
+    override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
+        drawInterior(withFrame: cellFrame, in: controlView)
+    }
+
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
         if let sensitivity = columnSensitivity {
             drawClassificationDot(sensitivity: sensitivity, in: cellFrame)

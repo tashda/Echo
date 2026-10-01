@@ -149,8 +149,8 @@ extension QueryResultsTableView.Coordinator {
 
         var converted = rowView.convert(rect, from: tableView)
 
-        let topInset: CGFloat = isTop ? 2 : 0
-        let bottomInset: CGFloat = isBottom ? 2 : 0
+        let topInset: CGFloat = isTop ? ResultsGridMetrics.selectionEndInset : 0
+        let bottomInset: CGFloat = isBottom ? ResultsGridMetrics.selectionEndInset : 0
 
         if rowView.isFlipped {
             converted.origin.y += topInset
@@ -162,8 +162,8 @@ extension QueryResultsTableView.Coordinator {
 
         converted.size.height = max(converted.size.height, 0)
 
-        let topRadiusRaw: CGFloat = isTop ? 6 : 0
-        let bottomRadiusRaw: CGFloat = isBottom ? 6 : 0
+        let topRadiusRaw: CGFloat = isTop ? ResultsGridMetrics.selectionCornerRadius : 0
+        let bottomRadiusRaw: CGFloat = isBottom ? ResultsGridMetrics.selectionCornerRadius : 0
         let (topRadius, bottomRadius): (CGFloat, CGFloat)
         if rowView.isFlipped {
             topRadius = bottomRadiusRaw

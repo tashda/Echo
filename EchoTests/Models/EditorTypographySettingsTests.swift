@@ -112,7 +112,7 @@ struct EditorTypographySettingsTests {
         #expect(settings.defaultEditorLineHeight == EditorLineHeight.compact.rawValue)
     }
 
-    @Test(arguments: [("subtle", EditorGutterStyle.subtle), ("tinted", .tinted), ("lane", .lane), ("hairline", .hairline), ("unknown", .hairline)])
+    @Test(arguments: [("subtle", EditorGutterStyle.subtle), ("tinted", .tinted), ("lane", .lane), ("hairline", .hairline), ("unknown", .subtle)])
     func gutterStyleDecodes(raw: String, expected: EditorGutterStyle) throws {
         let settings = try decode { $0["editorGutterStyle"] = raw }
         #expect(settings.editorGutterStyle == expected)

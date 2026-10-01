@@ -122,8 +122,38 @@ struct ResultsGutterTests {
         #expect(abs((lane.requiredWidth - plain.requiredWidth) - 2 * LayoutTokens.EditorGutter.laneInset) < 0.001)
     }
 
-    @Test func hairlineIsTheDefaultGutterForBoth() {
-        #expect(GlobalSettings().editorGutterStyle == .hairline)
+    @Test func theResultsGutterIsHairlineAndTheEditorsStaysSubtle() {
+        #expect(GlobalSettings().resultsGutterStyle == .hairline)
+        #expect(GlobalSettings().editorGutterStyle == .subtle)
         #expect(ResultTableRowNumberView().gutterStyle == .hairline)
+    }
+}
+
+@Suite("Sorting a results column")
+struct ResultRowSorterTests {
+    private func order(_ values: [String?], type: String, ascending: Bool) -> [Int] {
+        ResultRowSorter.order(keys: ResultRowSorter.keys(for: values, dataType: type), ascending: ascending)
+    }
+
+    @Test func numbersSortByValueNotByText() {
+        #expect(order(["10", "9", "100", " 8 "], type: "int", ascending: true) == [3, 1, 0, 2])
+        #expect(order(["10", "9", "100"], type: "money", ascending: false) == [2, 0, 1])
+    }
+
+    @Test func nullsAreLastAscendingAndFirstDescending() {
+        #expect(order(["b", nil, "a"], type: "varchar", ascending: true) == [2, 0, 1])
+        #expect(order(["b", nil, "a"], type: "varchar", ascending: false) == [1, 0, 2])
+    }
+
+    @Test func textIgnoresCaseAndTiesKeepTheirOrder() {
+        #expect(order(["b", "A", "a", "B"], type: "varchar", ascending: true) == [1, 2, 0, 3])
+    }
+
+    @Test func aBigColumnSortsOffTheMainThread() async {
+        let values: [String?] = (0..<ResultRowSorter.immediateLimit + 1).map { String(($0 * 7919) % 100_003) }
+        let sorted = await ResultRowSorter.sortedOrder(values: values, dataType: "int", ascending: true)
+        #expect(sorted.count == values.count)
+        let numbers = sorted.map { Int(values[$0] ?? "") ?? 0 }
+        #expect(numbers == numbers.sorted())
     }
 }

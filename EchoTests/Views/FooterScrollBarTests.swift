@@ -31,6 +31,15 @@ struct FooterScrollBarTests {
         #expect(swiftUIFrameBottom == appKitFrameBottom)
     }
 
+    @Test func theSoftEdgesFadeOutTowardsTheEnds() {
+        let atStart = ScrollSideFades.fadeStrengths(visible: NSRect(x: 0, y: 0, width: 600, height: 300), contentWidth: 2000, width: 32)
+        #expect(atStart.leading == 0 && atStart.trailing == 1)
+        let nearEnd = ScrollSideFades.fadeStrengths(visible: NSRect(x: 1384, y: 0, width: 600, height: 300), contentWidth: 2000, width: 32)
+        #expect(nearEnd.trailing == 0.5)
+        let atEnd = ScrollSideFades.fadeStrengths(visible: NSRect(x: 1400, y: 0, width: 600, height: 300), contentWidth: 2000, width: 32)
+        #expect(atEnd.trailing == 0 && atEnd.leading == 1)
+    }
+
     @Test func sidesFadeOnlyWhereTheViewCanStillScroll() {
         let atStart = ScrollSideFades.fadingSides(visible: NSRect(x: 0, y: 0, width: 600, height: 300), contentWidth: 2000)
         #expect(!atStart.leading && atStart.trailing)

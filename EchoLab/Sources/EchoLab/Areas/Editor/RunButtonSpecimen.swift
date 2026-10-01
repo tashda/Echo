@@ -7,7 +7,7 @@ final class RunSpecimenState {
     let simulation = LabRunSimulation()
     var hasSelection = false
     /// Settings › Appearance › Line Number Gutter.
-    var gutter: EditorGutterLook = .hairline
+    var gutter: EditorGutterLook = .subtle
     /// Settings › Appearance › Statement Focus (on by default).
     var statementFocus = true
     /// A failing line shows a red dot beside its number.
@@ -27,7 +27,7 @@ final class RunSpecimenState {
 }
 
 enum EditorGutterLook: String, CaseIterable, Identifiable {
-    case subtle = "Subtle", column = "Column", lane = "Lane", hairline = "Hairline (default)"
+    case subtle = "Subtle (default)", column = "Column", lane = "Lane", hairline = "Hairline"
     var id: String { rawValue }
 }
 

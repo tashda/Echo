@@ -45,7 +45,7 @@ final class ResultTableRowNumberView: NSView {
         didSet { if oldValue != selectedRows { needsDisplay = true } }
     }
 
-    /// The editor's gutter style, which the results follow (round 47, SS0).
+    /// Settings › Results › Row Number Style; the editor's own gutter has its own setting (round 47).
     var gutterStyle: EditorGutterStyle = .hairline {
         didSet {
             guard oldValue != gutterStyle else { return }
@@ -193,6 +193,34 @@ final class ResultTableRowNumberView: NSView {
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }
 
+    // MARK: - Tints
+
+    /// The selected rows' tint and the hovered row's, in the grid's shape (round 47): rounded blocks
+    /// inset from the gutter's sides, one per run of selected rows with its ends 2pt in and 6pt
+    /// round, as the selection beside it; the hover as the grid's hover.
+    private func drawTints(tableView: NSTableView, firstRow: Int, lastRow: Int) {
+        let inset = sideInset + ResultsGridMetrics.gutterTintInset
+        let width = bounds.width - 2 * inset
+        guard width > 0 else { return }
+        func rowFrame(_ row: Int) -> NSRect {
+            let rect = tableView.rect(ofRow: row)
+            return NSRect(x: inset, y: tableView.convert(rect.origin, to: self).y, width: width, height: rect.height)
+        }
+        for run in selectedRows.rangeView {
+            guard let first = run.first, let last = run.last, last >= firstRow, first <= lastRow else { continue }
+            let top = rowFrame(first), bottom = rowFrame(last)
+            let block = NSRect(x: inset, y: top.minY + ResultsGridMetrics.selectionEndInset, width: width,
+                               height: bottom.maxY - top.minY - 2 * ResultsGridMetrics.selectionEndInset)
+            AppearanceStore.shared.accentNSColor.withAlphaComponent(0.18).setFill()
+            NSBezierPath(roundedRect: block, xRadius: ResultsGridMetrics.selectionCornerRadius, yRadius: ResultsGridMetrics.selectionCornerRadius).fill()
+        }
+        for row in accentRows.subtracting(selectedRows) where row >= firstRow && row <= lastRow {
+            let frame = rowFrame(row).insetBy(dx: 0, dy: ResultsGridMetrics.hoverVerticalInset)
+            NSColor(ColorTokens.Sidebar.hoverFill).setFill()
+            NSBezierPath(roundedRect: frame, xRadius: ResultsGridMetrics.hoverCornerRadius, yRadius: ResultsGridMetrics.hoverCornerRadius).fill()
+        }
+    }
+
     // MARK: - Header corner
 
     override func layout() {
@@ -309,16 +337,14 @@ final class ResultTableRowNumberView: NSView {
             return
         }
 
+        drawTints(tableView: tableView, firstRow: firstRow, lastRow: lastRow)
+
         for row in firstRow...lastRow {
             let rowRect = tableView.rect(ofRow: row)
             let convertedOrigin = tableView.convert(rowRect.origin, to: self)
             let convertedRowRect = NSRect(x: 0, y: convertedOrigin.y, width: bounds.width, height: rowRect.height)
             guard convertedRowRect.maxY >= dirtyRect.minY, convertedRowRect.minY <= dirtyRect.maxY else { continue }
             let label = "\(row + 1)" as NSString
-            if selectedRows.contains(row) {
-                AppearanceStore.shared.accentNSColor.withAlphaComponent(0.18).setFill()
-                NSRect(x: sideInset, y: convertedRowRect.minY, width: bounds.width - 2 * sideInset, height: convertedRowRect.height).fill()
-            }
             let textRect = NSRect(
                 x: leadingPadding + sideInset,
                 y: floor(convertedRowRect.midY - labelHeight / 2),
