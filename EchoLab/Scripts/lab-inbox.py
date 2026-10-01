@@ -9,6 +9,9 @@ tells a running agent, so run this at the start of any design work and again aft
   New feedback = the owner sent feedback: read the comment, change the round, then use
                  lab-revise.py (it records the revision and sets the status back to Judging).
   Accepted     = the owner accepted the verdict: build it into Echo, then set In Echo.
+  Taken by …   = another agent took that round (lab-brief.py --take): leave it alone unless
+                 the owner gives it to you. Take a round with `lab-brief.py <page-id> --take`,
+                 which also prints everything you need to work on it.
 
 It also lists the owner's answers in Test › Scenarios (the EchoSense scenario files):
   Messages     = the owner wrote feedback on a scenario (maybe about one check): act on it, then
@@ -34,7 +37,9 @@ for status, title in groups.items():
     found = True
     print(f"\n== {title}: {len(items)}")
     for page_id, item in sorted(items.items()):
-        print(f"\n- {page_id}")
+        claim = item.get("takenBy")
+        taken = f"   [TAKEN by {claim.get('agent')} since {claim.get('date','')[:16]}: leave it]" if claim and claim.get("status") == status else ""
+        print(f"\n- {page_id}{taken}")
         comments = item.get("comments", [])
         if comments:
             last = comments[-1]
@@ -77,3 +82,5 @@ if to_fix:
         print(f"- {s['id']} {s.get('title','')}: {s['knownIssue']}")
 if not found:
     print("Nothing is waiting for the agent.")
+else:
+    print("\nFor the whole brief on one round (and to take it): python3 EchoLab/Scripts/lab-brief.py <page-id> --take \"<who you are>\"")

@@ -37,7 +37,9 @@ struct QueryInputSection: View {
     )
     @State private var isSelectionActive = false
 
-    private let leadingPadding: CGFloat = SpacingTokens.xs
+    /// Round 28.14: the gutter starts at the card's edge, as Echo Labs draws it, so a lane can
+    /// centre its numbers without meeting the error dot.
+    private let leadingPadding: CGFloat = SpacingTokens.none
     private let trailingPadding: CGFloat = SpacingTokens.md1
     private let topPadding: CGFloat = 0
     private let bottomPadding: CGFloat = SpacingTokens.md2
@@ -83,7 +85,20 @@ struct QueryInputSection: View {
                 .padding(.leading, SpacingTokens.xs)
                 .padding(.bottom, bottomPadding + SpacingTokens.xs)
         }
+        .background(alignment: .leading) {
+            if appState.sqlEditorDisplay.showLineNumbers {
+                EditorGutterSurface(style: appState.sqlEditorDisplay.gutterStyle, width: gutterSurfaceWidth,
+                                    fill: resolvedTheme.surfaces.gutterBackground.color)
+            }
+        }
         .background(editorBackground)
+    }
+
+    /// The editor's padding plus the gutter, sized as LineNumberRulerView sizes itself.
+    private var gutterSurfaceWidth: CGFloat {
+        let lines = query.sql.utf8.reduce(1) { $1 == UInt8(ascii: "\n") ? $0 + 1 : $0 }
+        let digits = max(String(lines).count, LayoutTokens.EditorGutter.minimumDigits)
+        return leadingPadding + LineNumberRulerView.thickness(forDigits: digits, codeSize: editorTheme.fontSize)
     }
 
     func handleSelectionChange(_ selection: SQLEditorSelection) {

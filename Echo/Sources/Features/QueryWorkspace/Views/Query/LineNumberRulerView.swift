@@ -58,6 +58,11 @@ final class LineNumberRulerView: NSRulerView {
         style.alignment = .right
         return style
     }()
+    private let centredStyle: NSMutableParagraphStyle = {
+        let style = NSMutableParagraphStyle()
+        style.alignment = .center
+        return style
+    }()
 
     init(textView: SQLTextView, theme: SQLEditorTheme) {
         self.theme = theme
@@ -150,7 +155,6 @@ final class LineNumberRulerView: NSRulerView {
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
         let gutterWidth = max(0, ruleThickness)
-        drawBackground(width: gutterWidth)
 
         guard let textView = sqlTextView,
               let layoutManager = textView.layoutManager,
@@ -239,28 +243,6 @@ final class LineNumberRulerView: NSRulerView {
         let gutterWidth: CGFloat
     }
 
-    /// Column: a faint full-height column in the theme's gutter colour with an edge towards the
-    /// text; the card's rounded corners cut it. Lane: the same colour as a rounded, inset lane.
-    private func drawBackground(width: CGFloat) {
-        switch gutterStyle {
-        case .subtle:
-            return
-        case .tinted:
-            theme.surfaces.gutterBackground.nsColor.setFill()
-            NSRect(x: 0, y: bounds.minY, width: width, height: bounds.height).fill()
-            NSColor.separatorColor.setFill()
-            NSRect(x: width - LayoutTokens.EditorGutter.edgeWidth, y: bounds.minY, width: LayoutTokens.EditorGutter.edgeWidth, height: bounds.height).fill()
-        case .hairline:
-            NSColor.separatorColor.setFill()
-            NSRect(x: width - LayoutTokens.EditorGutter.edgeWidth, y: bounds.minY, width: LayoutTokens.EditorGutter.edgeWidth, height: bounds.height).fill()
-        case .lane:
-            let inset = LayoutTokens.EditorGutter.laneInset
-            let lane = NSRect(x: inset, y: bounds.minY + inset, width: max(width - inset * 2, 0), height: max(bounds.height - inset * 2, 0))
-            let radius = LayoutTokens.EditorGutter.laneCornerRadius
-            theme.surfaces.gutterBackground.nsColor.setFill()
-            NSBezierPath(roundedRect: lane, xRadius: radius, yRadius: radius).fill()
-        }
-    }
 
     private func drawLabel(_ lineNumber: Int, atFragmentMinY fragmentMinY: CGFloat, context: LabelContext) {
         // Round 28.2: the caret's number in the text colour (K1), the others tertiary (C1), one weight.
@@ -270,11 +252,15 @@ final class LineNumberRulerView: NSRulerView {
         let labelHeight = ceil(font.ascender - font.descender + font.leading)
         let baselineY = fragmentMinY + context.baselineOffset + context.containerOriginY - context.scrollOffsetY
         let labelY = baselineY - font.ascender
-        let labelRect = NSRect(x: 0, y: labelY, width: context.gutterWidth - LayoutTokens.EditorGutter.numberTrailing, height: labelHeight)
+        // Round 28.14 (LA1): on the lane, the numbers sit in its middle; otherwise right-aligned.
+        let inset = LayoutTokens.EditorGutter.laneInset
+        let labelRect = gutterStyle == .lane
+            ? NSRect(x: inset, y: labelY, width: max(context.gutterWidth - inset * 2, 0), height: labelHeight)
+            : NSRect(x: 0, y: labelY, width: context.gutterWidth - LayoutTokens.EditorGutter.numberTrailing, height: labelHeight)
         ("\(lineNumber)" as NSString).draw(in: labelRect, withAttributes: [
             .font: font,
             .foregroundColor: color,
-            .paragraphStyle: paragraphStyle
+            .paragraphStyle: gutterStyle == .lane ? centredStyle : paragraphStyle
         ])
 
         if lineNumber == runArrowLine, !errorLines.contains(lineNumber) {

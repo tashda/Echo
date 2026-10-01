@@ -19,10 +19,9 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var ghostTextEnabled: Bool
     /// Subtle (numbers only) or tinted (a faint column with an edge).
     var gutterStyle: EditorGutterStyle
-    /// Round 28.3: the selection's corner radius (0 is square).
-    var selectionCornerRadius: CGFloat
-    /// Round 28.5: the corner radius of marks on the text.
-    var highlightCornerRadius: CGFloat
+    /// Round 28.15: the corner of every mark and of the selection, and how strong marks are.
+    var markCorners: EditorMarkCorners
+    var markStrength: EditorMarkStrength
     /// Settings › Appearance › Card Corners; the EchoSense popup follows it (capped).
     var cardCornerRadius: CGFloat
 
@@ -40,8 +39,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         outlineEdgeEnabled: Bool = false,
         ghostTextEnabled: Bool = false,
         gutterStyle: EditorGutterStyle = .subtle,
-        selectionCornerRadius: CGFloat = CGFloat(EditorSelectionCorners.three.rawValue),
-        highlightCornerRadius: CGFloat = CGFloat(EditorSelectionCorners.three.rawValue),
+        markCorners: EditorMarkCorners = .round,
+        markStrength: EditorMarkStrength = .standard,
         cardCornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
     ) {
         self.showLineNumbers = showLineNumbers
@@ -57,8 +56,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.outlineEdgeEnabled = outlineEdgeEnabled
         self.ghostTextEnabled = ghostTextEnabled
         self.gutterStyle = gutterStyle
-        self.selectionCornerRadius = selectionCornerRadius
-        self.highlightCornerRadius = highlightCornerRadius
+        self.markCorners = markCorners
+        self.markStrength = markStrength
         self.cardCornerRadius = cardCornerRadius
     }
 
@@ -76,8 +75,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case outlineEdgeEnabled
         case ghostTextEnabled
         case gutterStyle
-        case selectionCornerRadius
-        case highlightCornerRadius
+        case markCorners
+        case markStrength
         case cardCornerRadius
     }
 
@@ -96,8 +95,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         outlineEdgeEnabled = try container.decodeIfPresent(Bool.self, forKey: .outlineEdgeEnabled) ?? false
         ghostTextEnabled = try container.decodeIfPresent(Bool.self, forKey: .ghostTextEnabled) ?? false
         gutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .gutterStyle)) ?? .subtle
-        selectionCornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .selectionCornerRadius) ?? CGFloat(EditorSelectionCorners.three.rawValue)
-        highlightCornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .highlightCornerRadius) ?? CGFloat(EditorSelectionCorners.three.rawValue)
+        markCorners = (try? container.decodeIfPresent(EditorMarkCorners.self, forKey: .markCorners)) ?? .round
+        markStrength = (try? container.decodeIfPresent(EditorMarkStrength.self, forKey: .markStrength)) ?? .standard
         cardCornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .cardCornerRadius) ?? LayoutTokens.Workspace.cardCornerRadius
     }
 
@@ -116,8 +115,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(outlineEdgeEnabled, forKey: .outlineEdgeEnabled)
         try container.encode(ghostTextEnabled, forKey: .ghostTextEnabled)
         try container.encode(gutterStyle, forKey: .gutterStyle)
-        try container.encode(selectionCornerRadius, forKey: .selectionCornerRadius)
-        try container.encode(highlightCornerRadius, forKey: .highlightCornerRadius)
+        try container.encode(markCorners, forKey: .markCorners)
+        try container.encode(markStrength, forKey: .markStrength)
         try container.encode(cardCornerRadius, forKey: .cardCornerRadius)
     }
 }

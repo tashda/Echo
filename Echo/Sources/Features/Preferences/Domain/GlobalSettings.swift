@@ -188,10 +188,9 @@ struct GlobalSettings: Codable, Hashable {
     /// order, as section keys. A type missing here uses its blueprint's default.
     var sidebarDockSections: [String: [String]] = [:]
     var editorGutterStyle: EditorGutterStyle = .subtle
-    /// Round 28.3: the selection's corner radius, in points (0 is square).
-    var editorSelectionCornerRadius: Double = EditorSelectionCorners.three.rawValue
-    /// Round 28.5: the corner radius of marks on the text (the word at the caret), in points.
-    var editorHighlightCornerRadius: Double = EditorSelectionCorners.three.rawValue
+    /// Round 28.15: the corner of every mark and of the selection, and how strong marks are.
+    var editorMarkCorners: EditorMarkCorners = .round
+    var editorMarkStrength: EditorMarkStrength = .standard
     /// 1 once the editor moved to 13pt with 1.55 line spacing (design board, 2026-09-30); 2 once
     /// line heights became named and the default font SF Mono (round 28.1).
     var editorTypographyRevision = 2
@@ -289,8 +288,8 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarDockIconStyle
         case sidebarDockSections
         case editorGutterStyle
-        case editorSelectionCornerRadius
-        case editorHighlightCornerRadius
+        case editorMarkCorners
+        case editorMarkStrength
         case editorTypographyRevision
         case resultsMonospacedCells
         case sidebarColoredIcons
@@ -414,8 +413,8 @@ struct GlobalSettings: Codable, Hashable {
         sidebarDockIconStyle = (try? container.decodeIfPresent(SidebarDockIconStyle.self, forKey: .sidebarDockIconStyle)) ?? .mono
         sidebarDockSections = (try? container.decodeIfPresent([String: [String]].self, forKey: .sidebarDockSections)) ?? [:]
         editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
-        editorSelectionCornerRadius = try container.decodeIfPresent(Double.self, forKey: .editorSelectionCornerRadius) ?? EditorSelectionCorners.three.rawValue
-        editorHighlightCornerRadius = try container.decodeIfPresent(Double.self, forKey: .editorHighlightCornerRadius) ?? EditorSelectionCorners.three.rawValue
+        editorMarkCorners = (try? container.decodeIfPresent(EditorMarkCorners.self, forKey: .editorMarkCorners)) ?? .round
+        editorMarkStrength = (try? container.decodeIfPresent(EditorMarkStrength.self, forKey: .editorMarkStrength)) ?? .standard
         let typographyRevision = try container.decodeIfPresent(Int.self, forKey: .editorTypographyRevision) ?? 0
         // Settings still on the old defaults (12pt, single spacing) move to the new ones once.
         if typographyRevision < 1 {
@@ -515,8 +514,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarDockIconStyle, forKey: .sidebarDockIconStyle)
         try container.encode(sidebarDockSections, forKey: .sidebarDockSections)
         try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
-        try container.encode(editorSelectionCornerRadius, forKey: .editorSelectionCornerRadius)
-        try container.encode(editorHighlightCornerRadius, forKey: .editorHighlightCornerRadius)
+        try container.encode(editorMarkCorners, forKey: .editorMarkCorners)
+        try container.encode(editorMarkStrength, forKey: .editorMarkStrength)
         try container.encode(editorTypographyRevision, forKey: .editorTypographyRevision)
         try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)

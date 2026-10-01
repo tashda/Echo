@@ -8,7 +8,8 @@ final class ResultTableContainerView: NSView {
     private var backgroundColor: NSColor
     private var showRowNumbers: Bool
     private var reservedRowNumberCount: Int = 0
-    private lazy var footerOverlay = FooterScrollOverlay(scrollView: scrollView, softEdges: true)
+    private lazy var footerOverlay = FooterScrollOverlay(scrollView: scrollView, softEdges: true,
+                                                         barLeadingInCard: leadingWidthConstraint?.constant ?? 0)
 
     init(scrollView: NSScrollView, showRowNumbers: Bool) {
         self.scrollView = scrollView
@@ -78,6 +79,7 @@ final class ResultTableContainerView: NSView {
     private func updateLeadingWidth(_ width: CGFloat) {
         guard leadingWidthConstraint?.constant != width else { return }
         leadingWidthConstraint?.constant = width
+        footerOverlay.update(barLeadingInCard: width)
         rowNumberView.isHidden = width == 0
         needsLayout = true
     }
@@ -104,5 +106,18 @@ final class ResultTableContainerView: NSView {
 
     var tableView: NSTableView? {
         scrollView.documentView as? NSTableView
+    }
+
+    /// The horizontal bar runs as wide as the footer, over the row numbers too (round 27, L2), so
+    /// a click on that part of it goes to the bar rather than the row numbers under it.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let superview, let bar = scrollView.horizontalScroller, let barParent = bar.superview {
+            let local = convert(point, from: superview)
+            // Only the part reaching past the grid; AppKit decides whether the bar takes the click.
+            if local.x < scrollView.frame.minX, let hit = bar.hitTest(barParent.convert(point, from: superview)) {
+                return hit
+            }
+        }
+        return super.hitTest(point)
     }
 }

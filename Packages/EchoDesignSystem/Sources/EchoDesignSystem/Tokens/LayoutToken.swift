@@ -98,17 +98,27 @@ public enum LayoutTokens {
         public static func scrollerInset(overFooter footerHeight: CGFloat) -> CGFloat {
             footerHeight > 0 ? scrollBarBottom - overlayThumbInset - footerHeight : 0
         }
+        /// An overlay scroll bar's thumb at its widest, under the pointer (measured on macOS 26).
+        public static let overlayThumbMaxHeight: CGFloat = 11
     }
 
     /// The soft blur of content passing under floating controls, such as the footer
     /// (`BackdropEdgeBlur`, round 9 FB1).
     public enum EdgeBlur {
-        /// How far the blur keeps fading beyond the control it sits under.
-        public static let fade: CGFloat = SpacingTokens.md
-        /// Blur radii from where it meets the sharp content to the edge.
-        public static let radii: [CGFloat] = [1, 3, 6, 10]
-        /// Share of the band over which each blur step fades into the next.
-        public static let step: CGFloat = 0.3
+        /// How far the blur keeps fading beyond the control it sits under (round 27: longer, so
+        /// the blur meets the sharp rows gradually instead of at a line).
+        public static let fade: CGFloat = SpacingTokens.lg
+        /// Blur radii from where it meets the sharp content to the edge: more, smaller steps at
+        /// the top, so no single step reads as an edge (round 27; was 1 · 3 · 6 · 10).
+        public static let radii: [CGFloat] = [0.75, 1.5, 3, 5, 7.5, 10]
+        /// Share of each step's reach over which it fades out, along a smooth S curve.
+        public static let step: CGFloat = 0.45
+        /// The blur rising past a horizontal scroll bar while it shows, and settling back after
+        /// (round 27, U5).
+        public static let raiseDuration: Double = 0.32
+        public static let settleDuration: Double = 0.5
+        /// How long the blur stays raised after the last scroll: the system's bar fades about then.
+        public static let raisedHold: Double = 0.9
         /// Card-coloured tint over the blur, so the control on it stays readable.
         public static let tintOpacity: Double = 0.35
         /// How wide the rows fade at a side where more columns wait (round 27, X1).
@@ -143,14 +153,18 @@ public enum LayoutTokens {
         public static let statementBracketWidth: CGFloat = SpacingTokens.xxxs
         public static let statementBracketInset: CGFloat = SpacingTokens.xxxs
         public static let statementBracketOpacity: CGFloat = 0.7
-        /// Round 28.5 (H1): the word's other uses, a soft tint as high as the letters.
-        public static let highlightOpacity: CGFloat = 0.09
-        public static let highlightPadding: CGFloat = SpacingTokens.micro
         /// Round 28.7: the running bracket breathes down to this opacity and back (RR1), and the
         /// line beside what ran fades out over this long (H9).
         public static let runningBreathFloor: Float = 0.45
         public static let runningBreathDuration: Double = 1.5
         public static let ranFadeDuration: Double = 2
+        /// Round 28.12 (FB5): the find bar's capsule.
+        public static let findBarWidth: CGFloat = 400
+        /// Round 28.6 (BB3): the error bubble's width (the mark itself is an EditorMarkTokens mark).
+        public static let errorBubbleMaxWidth: CGFloat = 360
+        /// Round 28.6 (T1): the live check waits this long after typing stops (or until the
+        /// caret leaves the line).
+        public static let liveCheckPause: Double = 2
         /// Round 28.8: how far a pinch has to go for one zoom step.
         public static let pinchStepThreshold: CGFloat = 0.15
         /// Round 28.9 (GL1): the Go to Line field.

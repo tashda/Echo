@@ -100,6 +100,18 @@ enum LabAreas {
         "ongoing.editor-settings-r28": "editor",
         "ongoing.mssql-always-encrypted-r29": "footer-results",
         "ongoing.editor-find-bar-r28": "editor",
+        "ongoing.editor-search-replace-r28": "editor",
+        "ongoing.editor-gutter-lane-r28": "editor",
+        "ongoing.editor-design-language-r28": "editor",
+        "ongoing.server-header-look-r30": "explorer-tree",
+        "ongoing.server-header-collapse-r30": "explorer-tree",
+        "ongoing.empty-folders-r30": "explorer-tree",
+        "ongoing.zoom-pill-footer-r31": "editor",
+        "ongoing.panel-fills-light-r32": "window",
+        "ongoing.panel-fills-dark-r32": "window",
+        "ongoing.agent-jobs-tab-r33": "tool-tabs",
+        "ongoing.agent-job-step-sheet-r33": "tool-tabs",
+        "ongoing.refresh-and-activity-r34": "window",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

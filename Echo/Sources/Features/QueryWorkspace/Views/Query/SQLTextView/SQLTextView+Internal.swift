@@ -39,7 +39,9 @@ extension SQLTextView {
             scrollView.setRulerVisible(displayOptions.showLineNumbers)
         }
         refreshStatements()
-        (layoutManager as? SQLLayoutManager)?.selectionCornerRadius = displayOptions.selectionCornerRadius
+        (layoutManager as? SQLLayoutManager)?.selectionCorners = displayOptions.markCorners
+        updateValidationOverlays()
+        showErrorMark()
         setNeedsDisplay(visibleRect)
 
         let container = textContainer

@@ -11,8 +11,11 @@ struct LabRSGridSetup: Equatable {
     var visibility: LabRSVisibility
     /// The bars' lane, for V3's reach.
     var lane: CGFloat
-    /// The footer's blur: how tall it is above the card's bottom edge.
-    var blurHeight: CGFloat
+    /// The footer's blur: how tall it rests and rises above the card's bottom edge, and whether
+    /// it is raised now (it moves between them as Echo's does, round 27 U5).
+    var restBlurHeight: CGFloat
+    var raisedBlurHeight: CGFloat
+    var isBlurRaised: Bool
     /// The row numbers' column.
     var gutterWidth: CGFloat
 }
@@ -69,7 +72,9 @@ struct LabRSGrid: NSViewRepresentable {
     func updateNSView(_ container: NSView, context: Context) {
         guard let scrollView = context.coordinator.scrollView else { return }
         context.coordinator.apply(setup)
-        context.coordinator.blur?.update(edge: .bottom, height: setup.blurHeight, radii: LayoutTokens.EdgeBlur.radii)
+        context.coordinator.blur?.update(edge: .bottom, restHeight: setup.restBlurHeight,
+                                         raisedHeight: setup.raisedBlurHeight, radii: LayoutTokens.EdgeBlur.radii)
+        context.coordinator.blur?.setRaised(setup.isBlurRaised)
         (container as? LabRSGridContainer)?.gutterWidth = setup.gutterWidth
         scrollView.tile()
         if context.coordinator.lastScrollToken != scrollToken {

@@ -30,6 +30,14 @@ final class LabStore {
         var id: Int { number }
     }
 
+    /// An agent working on a round (`lab-brief.py --take`). It holds only while the status is the
+    /// one it was taken in; any status change ends it.
+    struct Claim: Codable, Equatable {
+        var agent: String
+        var date: Date
+        var status: LabStatus
+    }
+
     struct Item: Codable, Equatable {
         var status: LabStatus
         var comments: [Comment] = []
@@ -48,6 +56,8 @@ final class LabStore {
         var revisions: [Revision] = []
         /// The revision the owner last reviewed (sent feedback on, accepted, or marked as seen).
         var reviewedRevision: Int = 1
+        /// The agent that took the round, written by `lab-brief.py --take`.
+        var takenBy: Claim?
 
         init(status: LabStatus) { self.status = status }
 
@@ -64,6 +74,7 @@ final class LabStore {
             generalNote = try container.decodeIfPresent(String.self, forKey: .generalNote) ?? ""
             revisions = try container.decodeIfPresent([Revision].self, forKey: .revisions) ?? []
             reviewedRevision = try container.decodeIfPresent(Int.self, forKey: .reviewedRevision) ?? 1
+            takenBy = try? container.decodeIfPresent(Claim.self, forKey: .takenBy)
         }
     }
 
@@ -106,6 +117,12 @@ final class LabStore {
     }
 
     func comments(for page: LabPage) -> [Comment] { items[page.id]?.comments ?? [] }
+
+    /// The agent working on the page now, if one took it in its current status.
+    func claim(of page: LabPage) -> Claim? {
+        guard let item = items[page.id], let claim = item.takenBy, claim.status == item.status else { return nil }
+        return claim
+    }
 
     // MARK: Revisions
 

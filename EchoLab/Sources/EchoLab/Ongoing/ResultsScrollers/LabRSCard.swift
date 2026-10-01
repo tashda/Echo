@@ -56,7 +56,9 @@ struct LabRSCard: View {
             verticalBottom: system ? options.verticalBottom(cornerRadius: cornerRadius, chips: Self.chips) : nil,
             visibility: options.visibility,
             lane: options.lane,
-            blurHeight: options.blurHeight(barShown: options.holdsBars || scroll.isScrolling),
+            restBlurHeight: options.restBlurHeight,
+            raisedBlurHeight: options.raisedBlurHeight,
+            isBlurRaised: options.isBlurRaised(barShown: options.holdsBars || scroll.isScrolling),
             gutterWidth: LabRSOptionSet.gutterWidth)
     }
 

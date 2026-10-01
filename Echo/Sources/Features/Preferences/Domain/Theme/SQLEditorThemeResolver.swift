@@ -67,8 +67,8 @@ enum SQLEditorThemeResolver {
             outlineEdgeEnabled: globalSettings.editorOutlineEdge,
             ghostTextEnabled: globalSettings.editorGhostTextCompletion,
             gutterStyle: globalSettings.editorGutterStyle,
-            selectionCornerRadius: CGFloat(max(0, globalSettings.editorSelectionCornerRadius)),
-            highlightCornerRadius: CGFloat(max(0, globalSettings.editorHighlightCornerRadius)),
+            markCorners: globalSettings.editorMarkCorners,
+            markStrength: globalSettings.editorMarkStrength,
             cardCornerRadius: globalSettings.workspaceCornerRadius.points
         )
     }

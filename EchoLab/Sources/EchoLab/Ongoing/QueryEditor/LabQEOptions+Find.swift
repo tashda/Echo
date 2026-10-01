@@ -133,6 +133,12 @@ enum LabQEFindScope: String, CaseIterable {
     }
 }
 
+/// Rev 4: whether the find bars show Replace, whatever the editor's scene says.
+enum LabQEShowReplace: String, CaseIterable {
+    case open = "Find and Replace"
+    case closed = "Find only"
+}
+
 enum LabQEFindCount: String, CaseIterable {
     case found = "C0 · “2 found” (today)"
     case position = "C1 · “1 of 2”"

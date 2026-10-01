@@ -77,6 +77,43 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.editor-design-language-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T12:52:05Z",
+        "id": "0C7A72A2-5178-496F-9F51-6264BAB7B9BF",
+        "text": "Review of Editor: one design language\n1. Which language?: picked Proposal\n2. Corners: picked DC2 \u00b7 Round ends for every mark\n3. Tints: picked DT1 \u00b7 Two steps: soft 10%, strong 22%\n4. Colours: picked DM1 \u00b7 By meaning\n5. Height: picked DH0 \u00b7 The letters' height (the selection keeps the line)\n6. Settings: picked DS1 \u00b7 One Marks section: Corners and Strength\n7. Floating pieces: picked DF0 \u00b7 Glass: symbol in colour, words in grey\n8. Where the language lives: picked TK0 \u00b7 Tokens: EditorMark (corner, soft, strong, colours by meaning, height)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T12:52:05Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T13:45:00Z",
+        "text": "Built into Echo (ac5089f6): EditorMarkTokens: round ends by default, soft 10% and strong 22%, colour by meaning, the letters' height; Settings \u203a Editor \u203a Marks (Corners, Strength) replaces Selection Corners and Highlight Corners"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "dlColour": "DM1 \u00b7 By meaning",
+      "dlCorner": "DC2 \u00b7 Round ends for every mark",
+      "dlFloating": "DF0 \u00b7 Glass: symbol in colour, words in grey",
+      "dlHeight": "DH0 \u00b7 The letters' height (the selection keeps the line)",
+      "dlSettings": "DS1 \u00b7 One Marks section: Corners and Strength",
+      "dlTint": "DT1 \u00b7 Two steps: soft 10%, strong 22%",
+      "exhibit": "proposal",
+      "tokens": "tokens"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.editor-empty-r28": {
     "comments": [
       {
@@ -90,6 +127,10 @@
       {
         "date": "2026-10-01T11:39:43Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (433f34e1): the prompt on the first line where you type, in the editor's font; no chips"
       }
     ],
     "needsMore": [],
@@ -104,7 +145,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-errors-r28": {
@@ -123,6 +164,11 @@
         "date": "2026-10-01T11:45:57Z",
         "id": "92344FE1-E773-4DBA-B4E8-01E83CB7F529",
         "text": "Review of Editor: errors in the text\n1. Which error marks?: picked Proposal\n2. The wrong word: picked E0 \u00b7 Glowing frame (today, while typing); NEEDS MORE OPTIONS; note: Still need more options - i like the glowing frame today, but need several more options - also with \"no glow\" but just give me everything you got.\n3. The message: picked M3 \u00b7 In a bubble, on hover or with the caret on the line; NEEDS MORE OPTIONS; note: I also need way more options for the bubble that appears - I don't like the look of it now\n4. Glow: picked GW2 \u00b7 Hairline with a halo; NEEDS MORE OPTIONS\n5. In the gutter: picked D0 \u00b7 Red dot by the number (today)\n6. While typing and after a run: picked SL0 \u00b7 The same mark and bubble\n7. When it appears: picked T1 \u00b7 When you leave the line or stop for 2 s\n8. Movement: picked MO0 \u00b7 Still\n9. Run note for an error: picked EN0 \u00b7 ! Error (today, RN1)"
+      },
+      {
+        "date": "2026-10-01T12:17:02Z",
+        "id": "5F1F3C07-DC11-4E25-876B-EB88A831E984",
+        "text": "Review of Editor: errors in the text\n1. Which error marks?: picked Proposal\n2. The wrong word: picked E10 \u00b7 Tinted pill\n3. The message: picked M3 \u00b7 In a bubble, on hover or with the caret on the line\n4. Glow: picked GW0 \u00b7 Three shifting strokes (today); note: No glow, I selected Tinted pill\n5. Bubble: picked BB3 \u00b7 Glass with a pointer\n6. In the gutter: picked D0 \u00b7 Red dot by the number (today)\n7. While typing and after a run: picked SL0 \u00b7 The same mark and bubble\n8. When it appears: picked T1 \u00b7 When you leave the line or stop for 2 s\n9. Movement: picked MO0 \u00b7 Still\n10. Run note for an error: picked EN0 \u00b7 ! Error (today, RN1)"
       }
     ],
     "generalNote": "",
@@ -146,30 +192,34 @@
       {
         "date": "2026-10-01T11:57:46Z",
         "text": "Revision 3: Everything for the wrong word, more glows, and new bubbles"
+      },
+      {
+        "date": "2026-10-01T12:17:02Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (306a8fb2): one tinted pill for every error (E10), its message in a glass popover with a pointer (BB3) on hover or with the caret on the line; the live check when you leave the line or after 2 s"
       }
     ],
-    "needsMore": [
-      "errorWord",
-      "errorMessage",
-      "errorGlow"
-    ],
+    "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
-      "errorMessage": "I also need way more options for the bubble that appears - I don't like the look of it now",
-      "errorWord": "Still need more options - i like the glowing frame today, but need several more options - also with \"no glow\" but just give me everything you got."
+      "errorGlow": "No glow, I selected Tinted pill"
     },
     "picks": {
+      "errorBubble": "BB3 \u00b7 Glass with a pointer",
       "errorDot": "D0 \u00b7 Red dot by the number (today)",
-      "errorGlow": "GW2 \u00b7 Hairline with a halo",
+      "errorGlow": "GW0 \u00b7 Three shifting strokes (today)",
       "errorMessage": "M3 \u00b7 In a bubble, on hover or with the caret on the line",
-      "errorWord": "E0 \u00b7 Glowing frame (today, while typing)",
+      "errorWord": "E10 \u00b7 Tinted pill",
       "exhibit": "proposal",
       "motion": "still",
       "sameLook": "same",
       "showMessage": "short",
       "timing": "leave"
     },
-    "reviewedRevision": 2,
+    "reviewedRevision": 3,
     "revisions": [
       {
         "changes": [
@@ -191,7 +241,7 @@
         "summary": "Everything for the wrong word, more glows, and new bubbles"
       }
     ],
-    "status": "Judging",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-find-bar-r28": {
@@ -205,6 +255,16 @@
         "date": "2026-10-01T12:08:45Z",
         "id": "16B5FA80-F598-48BF-8A5E-19F1741F25E5",
         "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where and how: picked FB5 \u00b7 A capsule with glass buttons beside it; note: fb5 is beautiful and perfect\n3. Replace: NEEDS MORE OPTIONS; note: I can't see how this looks in the previews. Needs way better previews that actually work\n4. What it searches: picked SS2 \u00b7 An In Selection button; NEEDS MORE OPTIONS; note: Both SS1 and SS2. When something is selected, the \"Selection\" button is toggled on (accent) When something isn't selected, there should only be a button if the user selects something\n5. Options: picked O0 \u00b7 In the field's menu (today)\n6. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n7. Regular expressions: picked RX0 \u00b7 No (today)\n8. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n9. Starting from a selection: picked SE1 \u00b7 The selection, every time"
+      },
+      {
+        "date": "2026-10-01T12:32:32Z",
+        "id": "F37EE3FD-0BED-48E5-BAC6-5FF03000AB70",
+        "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where and how: picked FB5 \u00b7 A capsule with glass buttons beside it; note: fb5 is beautiful and perfect\n3. Replace: picked RP1 \u00b7 A chevron opens it inside the capsule; NEEDS MORE OPTIONS; note: I like the idea of a chevron but we need a new round for search and replace all together. Like how the \"replacement\" is shown in the editor while typing, cause I love that idea but it should be refined, and the animations of opening the search fields replace second line - cause I want it to expand - and the shortcuts for opening \"Search and Replace\" and not only search.\n4. What it searches: picked SS4 \u00b7 A Selection button that appears with a selection, on\n5. Options: picked O0 \u00b7 In the field's menu (today)\n6. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n7. Regular expressions: picked RX0 \u00b7 No (today)\n8. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n9. Starting from a selection: picked SE1 \u00b7 The selection, every time"
+      },
+      {
+        "date": "2026-10-01T12:40:12Z",
+        "id": "5405DAAD-EBD7-45CD-B3D0-F82DE316EFE6",
+        "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where and how: picked FB5 \u00b7 A capsule with glass buttons beside it; note: fb5 is beautiful and perfect\n3. Replace: picked RP1 \u00b7 A chevron opens it inside the capsule; note: Rest of Replace handled in new round\n4. What it searches: picked SS4 \u00b7 A Selection button that appears with a selection, on\n5. Options: picked O0 \u00b7 In the field's menu (today)\n6. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n7. Regular expressions: picked RX0 \u00b7 No (today)\n8. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n9. Starting from a selection: picked SE1 \u00b7 The selection, every time"
       }
     ],
     "generalNote": "",
@@ -224,29 +284,46 @@
       {
         "date": "2026-10-01T12:11:02Z",
         "text": "Revision 3: Replace that works, and your Selection button"
+      },
+      {
+        "date": "2026-10-01T12:24:10Z",
+        "text": "Revision 4: Replace you can see"
+      },
+      {
+        "date": "2026-10-01T12:32:32Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T12:36:52Z",
+        "text": "Revision 5: Replace continues on 28.13"
+      },
+      {
+        "date": "2026-10-01T12:40:12Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T13:45:00Z",
+        "text": "Built into Echo (ac5089f6): Echo's own find bar replaces the system's: FB5 glass capsule with glass buttons, the Selection button for a multi-line selection (SS4), a selected word becomes the search (SE1), options in the magnifier's menu, \u201c2 found\u201d"
       }
     ],
-    "needsMore": [
-      "replaceStyle",
-      "findScope"
-    ],
+    "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
       "findBar": "fb5 is beautiful and perfect",
-      "findScope": "Both SS1 and SS2. When something is selected, the \"Selection\" button is toggled on (accent) When something isn't selected, there should only be a button if the user selects something",
-      "replaceStyle": "I can't see how this looks in the previews. Needs way better previews that actually work"
+      "replaceStyle": "Rest of Replace handled in new round"
     },
     "picks": {
       "exhibit": "proposal",
       "findBar": "FB5 \u00b7 A capsule with glass buttons beside it",
       "findCount": "C0 \u00b7 \u201c2 found\u201d (today)",
       "findOptions": "O0 \u00b7 In the field's menu (today)",
-      "findScope": "SS2 \u00b7 An In Selection button",
+      "findScope": "SS4 \u00b7 A Selection button that appears with a selection, on",
       "regex": "no",
+      "replaceStyle": "RP1 \u00b7 A chevron opens it inside the capsule",
       "scope": "editor",
       "selection": "fill"
     },
-    "reviewedRevision": 2,
+    "reviewedRevision": 5,
     "revisions": [
       {
         "changes": [
@@ -267,9 +344,27 @@
         "date": "2026-10-01T12:11:02Z",
         "number": 3,
         "summary": "Replace that works, and your Selection button"
+      },
+      {
+        "changes": [
+          "New control on the left: Show Replace (Find and Replace, or Find only); the Proposal and the Places gallery follow it, whatever The editor shows says",
+          "Replace and Replace All are tinted pills in every bar; the playgrounds' Replace All is the prominent button",
+          "FB5 shrinks to fit narrow cards instead of being cut off on the left"
+        ],
+        "date": "2026-10-01T12:24:10Z",
+        "number": 4,
+        "summary": "Replace you can see"
+      },
+      {
+        "changes": [
+          "Replace now recommends RP1, your pick; how it opens, the preview while typing and its shortcuts moved to the new page 28.13"
+        ],
+        "date": "2026-10-01T12:36:52Z",
+        "number": 5,
+        "summary": "Replace continues on 28.13"
       }
     ],
-    "status": "Judging",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-find-typing-r28": {
@@ -289,6 +384,10 @@
       {
         "date": "2026-10-01T11:39:42Z",
         "text": "Revision 2: Find moved to page 28.12; the rest accepted in chat"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (8464a8c1): Go to Line as a glass field; Tab is 4 spaces, \u21e7Tab outdents; Return keeps the indent; brackets and quotes close themselves; \u2318/ toggles --"
       }
     ],
     "needsMore": [
@@ -315,7 +414,51 @@
         "summary": "Find moved to page 28.12; the rest accepted in chat"
       }
     ],
-    "status": "Accepted",
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.editor-gutter-lane-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T12:54:52Z",
+        "id": "083E8781-291F-4AC3-A078-08ECC670FE8E",
+        "text": "Review of Editor: the gutter's lane\n1. Which lane?: picked Proposal\n2. What the lane holds: picked LH0 \u00b7 Numbers, error dot and Run arrow (today)\n3. Numbers: picked LA1 \u00b7 Centred in the lane\n4. Height: picked LT1 \u00b7 The card's height, 5pt from each edge\n5. Corners: picked LC1 \u00b7 Concentric with the card\n6. Fill: picked LF1 \u00b7 The system's quiet fill"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T12:54:52Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T13:45:00Z",
+        "text": "Built into Echo (ac5089f6): the lane is the whole gutter, the card's height 5pt from its edges, concentric corners, the system's quiet fill, the numbers centred; the gutter now starts at the card's edge"
+      },
+      {
+        "date": "2026-10-01T13:51:29Z",
+        "text": "Taken by lane-agent"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "exhibit": "proposal",
+      "laneAlign": "LA1 \u00b7 Centred in the lane",
+      "laneCorner": "LC1 \u00b7 Concentric with the card",
+      "laneFill": "LF1 \u00b7 The system's quiet fill",
+      "laneHeight": "LT1 \u00b7 The card's height, 5pt from each edge",
+      "laneHolds": "LH0 \u00b7 Numbers, error dot and Run arrow (today)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "takenBy": {
+      "agent": "lane-agent",
+      "date": "2026-10-01T13:51:29Z",
+      "status": "In Echo"
+    },
     "verdicts": {}
   },
   "ongoing.editor-gutter-r28": {
@@ -383,6 +526,10 @@
       {
         "date": "2026-10-01T11:42:54Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (56799682): the word's other uses in a soft tint as high as the letters, with Settings \u203a Highlight Corners (3pt); typing ) flashes its (. Find waits for 28.12"
       }
     ],
     "needsMore": [],
@@ -415,7 +562,7 @@
         "summary": "Find matches drawn in the editor, more corners"
       }
     ],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-run-note-r28": {
@@ -457,6 +604,10 @@
       {
         "date": "2026-10-01T11:58:10Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (f530ad91): the note on a glass pill with a symbol (R10), one per statement of a script (MS0); the bracket breathes while it runs (RR1), a gutter line fades when it ends (H9)"
       }
     ],
     "needsMore": [],
@@ -495,7 +646,67 @@
         "summary": "While running: what the bracket does while the query runs"
       }
     ],
-    "status": "Accepted",
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.editor-search-replace-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T12:45:36Z",
+        "id": "3C8E7F66-4478-478A-B76C-5DB936D91CE4",
+        "text": "Review of Editor: search and replace\n1. Search and replace: picked Proposal\n2. The replacement while you type: picked PV2 \u00b7 Inline: old struck through, new beside it; NEEDS MORE OPTIONS; note: I like this, but please see how we have colored the e.g. \"error\" when a query has run and it shows the error in the editor. We need to have the same kind of \"colors\" and bubbles/pills and corners of everything in editor, so it matches design tokens and can be configurable in settings - so this is good, but please look at the other decisions we made and suggest a \"design language\" within the editor (new round and also one that should update this with the new options)\n3. Opening Replace: picked AN1 \u00b7 The capsule grows\n4. Shortcuts: picked SH0 \u00b7 \u2318F and \u2325\u2318F\n5. Return in Replace: picked RK0 \u00b7 Replace this match and go to the next\n6. After Replace All: picked RA0 \u00b7 The count says \u201cReplaced 12\u201d until you type again\n7. Undo: picked UN0 \u00b7 Every replacement, in one step\n8. \u2318F with Replace open: picked FO0 \u00b7 Replace stays open; the caret goes to Find"
+      },
+      {
+        "date": "2026-10-01T12:53:28Z",
+        "id": "4A4BACF3-1882-42B1-94F1-FABC06269901",
+        "text": "Review of Editor: search and replace\n1. Search and replace: picked Proposal\n2. The replacement while you type: picked PV6 \u00b7 PV2 in the editor's language\n3. Opening Replace: picked AN1 \u00b7 The capsule grows\n4. Shortcuts: picked SH0 \u00b7 \u2318F and \u2325\u2318F\n5. Return in Replace: picked RK0 \u00b7 Replace this match and go to the next\n6. After Replace All: picked RA0 \u00b7 The count says \u201cReplaced 12\u201d until you type again\n7. Undo: picked UN0 \u00b7 Every replacement, in one step\n8. \u2318F with Replace open: picked FO0 \u00b7 Replace stays open; the caret goes to Find"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T12:45:36Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T12:49:32Z",
+        "text": "Revision 2: PV2 in the editor's design language"
+      },
+      {
+        "date": "2026-10-01T12:53:28Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T13:45:00Z",
+        "text": "Built into Echo (ac5089f6): Replace opens inside the capsule as it grows (RP1, AN1); each match shows its replacement in the marks' language (PV6); \u2318F, \u2325\u2318F; Return replaces and moves on; Replace All is one undo and says \u201cReplaced 12\u201d"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "afterAll": "count",
+      "exhibit": "proposal",
+      "findAgain": "keep",
+      "findShortcuts": "SH0 \u00b7 \u2318F and \u2325\u2318F",
+      "replaceOpening": "AN1 \u00b7 The capsule grows",
+      "replacePreview": "PV6 \u00b7 PV2 in the editor's language",
+      "returnKey": "replaceNext",
+      "undo": "all"
+    },
+    "reviewedRevision": 2,
+    "revisions": [
+      {
+        "changes": [
+          "New previews: PV6, your PV2 drawn with the editor's marks (recommended), and PV7, only the new word marked with the old struck through in grey",
+          "The marks' language itself is the new page 28.15"
+        ],
+        "date": "2026-10-01T12:49:32Z",
+        "number": 2,
+        "summary": "PV2 in the editor's design language"
+      }
+    ],
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-settings-r28": {
@@ -511,6 +722,10 @@
       {
         "date": "2026-10-01T11:41:35Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (c30bc3e7): one Settings \u203a Editor pane; switches for line numbers, word highlight and wrapping; only Aurora and Midnight; whole font sizes"
       }
     ],
     "needsMore": [],
@@ -531,7 +746,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-statement-r28": {
@@ -619,6 +834,10 @@
       {
         "date": "2026-10-01T11:35:44Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:30:00Z",
+        "text": "Built into Echo (a80770d9): a glass 100% pill at the bottom left with a menu; \u2318+ \u2318\u2212 \u23180 and pinch; per tab, editor only"
       }
     ],
     "needsMore": [],
@@ -633,6 +852,36 @@
       "zoomLook": "L2 \u00b7 100% with a menu",
       "zoomPlace": "Z1 \u00b7 Bottom left of the editor",
       "zoomShows": "V0 \u00b7 Always"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.empty-folders-r30": {
+    "comments": [
+      {
+        "date": "2026-10-01T13:58:07Z",
+        "id": "754B49F4-8184-42B2-8C14-6CD96024F2D8",
+        "text": "Review of Database folders that are empty\n1. Empty folders: picked EF1 \u00b7 Always show Tables, Views, Functions and Procedures\n2. Empty look: picked EL1 \u00b7 Dimmed name, no count\n3. Opening it: picked OE0 \u00b7 It opens to a grey \u201cNo views\u201d row\n4. Is Views really empty?: picked It has no views: decide the folder above\n5. The setting: picked ST1 \u00b7 Remove it: the rule above is the only behaviour"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T13:58:07Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "bug": "empty",
+      "look": "EL1 \u00b7 Dimmed name, no count",
+      "open": "OE0 \u00b7 It opens to a grey \u201cNo views\u201d row",
+      "policy": "EF1 \u00b7 Always show Tables, Views, Functions and Procedures",
+      "setting": "remove"
     },
     "reviewedRevision": 1,
     "revisions": [],
@@ -1453,6 +1702,11 @@
         "date": "2026-10-01T10:51:45Z",
         "id": "CF6B3A53-D787-430D-A20E-54886810DD4E",
         "text": "Review of Results scroll bars and the footer\n1. Horizontal bar: where: picked E \u00b7 On the footer's top edge; note: It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills.\n2. Bar: how it looks: picked S1 \u00b7 The system's bar\n3. Bars: when they show: picked V1 \u00b7 While scrolling\n4. Vertical bar: where it ends: picked R2 \u00b7 Runs down to the horizontal bar\n5. Tie the position to the card: picked X1 \u00b7 Soft edges where there is more\n6. Other grids: picked Every scroll bar in a card"
+      },
+      {
+        "date": "2026-10-01T12:48:48Z",
+        "id": "0A7B2F5C-220C-430B-BF24-B6E2025E3F2B",
+        "text": "Review of Results scroll bars and the footer\n1. How far it reaches: picked L2 \u00b7 As wide as the footer\n2. What is behind it: picked U5 \u00b7 The blur grows while the bar shows; note: I love this, but we need to make sure it is animating BEAUTIFULLY when growing and going down, not just lagging and skipping, and also the blur needs to be more \"natural\" against the table, right now it is pretty \"hard capped\"\n3. Gap to the pills: picked H1 \u00b7 9pt, as the pills sit above the edge\n4. Its track: picked T1 \u00b7 No track"
       }
     ],
     "generalNote": "",
@@ -1488,22 +1742,35 @@
       {
         "date": "2026-10-01T12:18:35Z",
         "text": "Revision 5: Refining what is built: its length, what is behind it, its gap to the pills, its track"
+      },
+      {
+        "date": "2026-10-01T12:48:48Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T13:58:54Z",
+        "text": "Revision 6: Built into Echo: as wide as the footer, the blur rising past the bar while it shows, everywhere"
       }
     ],
     "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
+      "behind": "I love this, but we need to make sure it is animating BEAUTIFULLY when growing and going down, not just lagging and skipping, and also the blur needs to be more \"natural\" against the table, right now it is pretty \"hard capped\"",
       "placement": "It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills."
     },
     "picks": {
+      "behind": "U5 \u00b7 The blur grows while the bar shows",
       "everywhere": "everything",
       "extra": "X1 \u00b7 Soft edges where there is more",
+      "gap": "H1 \u00b7 9pt, as the pills sit above the edge",
+      "length": "L2 \u00b7 As wide as the footer",
       "placement": "E \u00b7 On the footer's top edge",
       "style": "S1 \u00b7 The system's bar",
+      "track": "T1 \u00b7 No track",
       "vertical": "R2 \u00b7 Runs down to the horizontal bar",
       "visibility": "V1 \u00b7 While scrolling"
     },
-    "reviewedRevision": 3,
+    "reviewedRevision": 5,
     "revisions": [
       {
         "changes": [
@@ -1541,9 +1808,19 @@
         "date": "2026-10-01T12:18:35Z",
         "number": 5,
         "summary": "Refining what is built: its length, what is behind it, its gap to the pills, its track"
+      },
+      {
+        "changes": [
+          "The blur's masks move on the render server (0.32s up, settling 0.9s after the last scroll in 0.5s); finer steps and an S-curve fade, so it meets the rows softly",
+          "Every overlay horizontal bar in Echo gets the same blur (ScrollBarBlur), SwiftUI tables included",
+          "Check it in Echo: scroll a wide result and a tool tab's table sideways"
+        ],
+        "date": "2026-10-01T13:58:54Z",
+        "number": 6,
+        "summary": "Built into Echo: as wide as the footer, the blur rising past the bar while it shows, everywhere"
       }
     ],
-    "status": "Judging",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.run-button-look-r20": {
@@ -1863,6 +2140,103 @@
     "reviewedRevision": 1,
     "revisions": [],
     "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.server-header-collapse-r30": {
+    "comments": [
+      {
+        "date": "2026-10-01T13:56:27Z",
+        "id": "140E1B0B-5825-492B-9732-9EEEB24A62CD",
+        "text": "Review of Server card: collapsing\n1. Which collapse?: picked Proposal\n2. Chevron: picked CP1 \u00b7 Trailing, centred on name and product line\n3. Shows: picked CV0 \u00b7 On hover while open, always while closed (today)\n4. Motion: picked CM2 \u00b7 The card folds while the rows fade\n5. Closed card: picked CC0 \u00b7 The header only (today); note: Header only, but it - and the chevron - needs to be vertically center in the closed card\n6. Symbol: picked CS0 \u00b7 \u203a that turns down (today)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T13:56:27Z",
+        "text": "Accepted with picks"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "closed": "Header only, but it - and the chevron - needs to be vertically center in the closed card"
+    },
+    "picks": {
+      "chevron": "CP1 \u00b7 Trailing, centred on name and product line",
+      "closed": "CC0 \u00b7 The header only (today)",
+      "exhibit": "proposal",
+      "motion": "CM2 \u00b7 The card folds while the rows fade",
+      "shows": "CV0 \u00b7 On hover while open, always while closed (today)",
+      "symbol": "CS0 \u00b7 \u203a that turns down (today)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
+  "ongoing.server-header-look-r30": {
+    "comments": [
+      {
+        "date": "2026-10-01T13:50:10Z",
+        "id": "DA61B730-99FA-470C-9CBA-645F94F2B242",
+        "text": "Review of Server card: the header\n1. Which header?: picked Proposal\n2. Header: picked HD4 \u00b7 A wash of colour behind the header; NEEDS MORE OPTIONS; note: I like HD0 (Should be able to be selected by the user), HD4, HD5 (with a better looking line), HD7 and HD8. Please adjust this round with only these and extend further on these ideas.\n3. Colour: picked CS1 \u00b7 The server's colour; note: Should be a setting in Settings if it should use No color, Servers Color or Accent Color\n4. Second line: picked SL0 \u00b7 Product \u00b7 section (today)\n5. Dock icon: picked DK1 \u00b7 The header's colour; note: Should be a setting in Settings alongside \"Monochrome/Duotone\" menu icons.\n6. One colour per server: picked CO2 \u00b7 CO1, and a dot on the server's tabs and the footer's server pill\n7. Setting the colour: picked SC1 \u00b7 Also from the header's right-click menu, with the swatches"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T13:50:10Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T13:52:38Z",
+        "text": "Taken by header-agent"
+      },
+      {
+        "date": "2026-10-01T13:58:52Z",
+        "text": "Revision 2: Only HD0, HD4, HD5, HD7 and HD8, with variations on each; colour, dock icon and plain header as settings"
+      }
+    ],
+    "needsMore": [
+      "style"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "dockTint": "Should be a setting in Settings alongside \"Monochrome/Duotone\" menu icons.",
+      "source": "Should be a setting in Settings if it should use No color, Servers Color or Accent Color",
+      "style": "I like HD0 (Should be able to be selected by the user), HD4, HD5 (with a better looking line), HD7 and HD8. Please adjust this round with only these and extend further on these ideas."
+    },
+    "picks": {
+      "colourSet": "menu",
+      "colourShared": "tabs",
+      "dockTint": "DK1 \u00b7 The header's colour",
+      "exhibit": "proposal",
+      "secondLine": "SL0 \u00b7 Product \u00b7 section (today)",
+      "source": "CS1 \u00b7 The server's colour",
+      "style": "HD4 \u00b7 A wash of colour behind the header"
+    },
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "Removed at your request: HD1, HD2, HD3, HD6",
+          "HD5 redrawn: the line follows the card's top edge and corners and fades down the sides",
+          "New washes: HD9 tinted cap down to the dock, HD10 glow from the leading corner",
+          "New lines: HD11 short line fading at both ends, HD12 bar beside the name",
+          "New plates: HD13 name and product on one glass plate, HD14 name in a soft pill",
+          "New banners: HD15 inset banner concentric with the card, HD16 banner fading into the card",
+          "Every header: grouped by family",
+          "New exhibit: Settings (Appearance: Current Dock Icon beside Section Dock Icons; Server Header Style and Colour)",
+          "Colour is now a setting (None, Server's Colour, Accent Colour); CS3 custom removed, SC1 sets the server's colour",
+          "New question: how Settings offers the plain header (HS0 to HS2)"
+        ],
+        "date": "2026-10-01T13:58:52Z",
+        "number": 2,
+        "summary": "Only HD0, HD4, HD5, HD7 and HD8, with variations on each; colour, dock icon and plain header as settings"
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   }
 }

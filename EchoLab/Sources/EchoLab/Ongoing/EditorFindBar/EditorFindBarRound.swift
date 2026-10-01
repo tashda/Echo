@@ -14,10 +14,10 @@ enum EditorFindBarRound {
                 recommend: .safari,
                 why: "You picked FB5 (“beautiful and perfect”). FB5 is how macOS 26 itself does it (Safari's bar): the search on glass, with its buttons as glass circles that melt into it, so it reads as one control without a white box. It floats over the code's top edge without pushing it. FB4 (one capsule) is the close runner-up and narrower; FB6 keeps your strip but spans the whole card. My first recommendation was the system's bar (FB0): taking a glass bar means rebuilding Replace, ⌘E and ⌘G ourselves.",
                 summary: \.summary, newChoices: (2, LabQEFindBarPlace.addedInRev2)),
-            .of("replaceStyle", "Replace", LabQEReplaceStyle.self, default: .preview,
-                question: "Use the four Replace playgrounds (rev 3: they work: type, press Replace or All, Reset with ↺). How should Replace work?",
-                recommend: .preview,
-                why: "Replacing in a SQL script can change a table name you didn't mean to touch; showing each replacement in place before anything changes makes Replace All safe to press. The chevron (RP1) is the most compact; a separate capsule spreads the bar too wide over the code.",
+            .of("replaceStyle", "Replace", LabQEReplaceStyle.self, default: .expand,
+                question: "Which way should Replace sit in the bar? (How it opens, how the replacement shows while you type and its shortcuts are page 28.13.)",
+                recommend: .expand,
+                why: "You picked RP1, the chevron inside the capsule; page 28.13 refines it: its opening, the preview while you type and the shortcuts.",
                 summary: \.summary, addedIn: 2),
             .of("findScope", "What it searches", LabQEFindScope.self, default: .selectionButton,
                 question: "Set The editor shows to Finding in a selection, then to Finding “orders”. How should find limit itself to the selected text?",
@@ -33,14 +33,15 @@ enum EditorFindBarRound {
                 question: "Should the count say how many matches there are, or where you are among them?",
                 recommend: .found,
                 why: "“2 found” is what the system bar shows and can't change. “1 of 2” is better while stepping with ⌘G; take it with a bar of Echo's own."),
+            .of("showReplace", "Show Replace", LabQEShowReplace.self, default: .open, addedIn: 4),
             LabQERound.sceneControl(default: .find),
             LabQERound.baseControl,
         ],
         exhibits: [
             LabQERound.today("The system's find bar above the text, on “orders”; switch The editor shows to Replacing for its second row.", scene: .find),
-            LabQERound.proposal("Built from the controls; the matches look as page 28.5 recommends.", scene: .find),
+            LabQERound.proposal("Built from the controls; Show Replace (left) opens its Replace row.", scene: .find, sceneFor: findScene),
             LabQERound.gallery("Places", "Every find bar, on the proposal (rev 2: FB4 to FB10, immersive glass).", LabQEFindBarPlace.self, \.findBar,
-                               scene: .find, cellHeight: 170),
+                               scene: .find, cellHeight: 170, sceneFor: findScene),
             .init(id: "replace0", title: "Replace: RP0 · a second row", summary: "Working: type, press Replace or All; ↺ resets.", addedIn: 3,
                   designWidth: LabQEReplacePlayground.width, designHeight: LabQEReplacePlayground.height) { _ in LabQEReplacePlayground(style: .secondRow) },
             .init(id: "replace1", title: "Replace: RP1 · a chevron opens it", summary: "Working: the chevron at the start shows and hides Replace.", addedIn: 3,
@@ -90,4 +91,12 @@ enum EditorFindBarRound {
                   values: ["findBar": LabQEFindBarPlace.floating.rawValue, "findOptions": LabQEFindOptions.toggles.rawValue, "findCount": LabQEFindCount.position.rawValue]),
         ]
     )
+
+    /// Rev 4: Show Replace decides the find bar's rows everywhere on this page, so a scene set
+    /// elsewhere can't hide them; Finding in a selection keeps its selection.
+    static func findScene(_ values: RoundValues) -> LabQEScene {
+        let replacing = (LabQEShowReplace(rawValue: values["showReplace"]) ?? .open) == .open
+        let inSelection = values["scene"] == LabQESceneChoice.findInSelection.rawValue
+        return LabQEScene(selection: inSelection, wordHighlight: false, find: true, showsReplace: replacing)
+    }
 }

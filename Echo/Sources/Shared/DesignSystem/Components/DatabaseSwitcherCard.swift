@@ -22,6 +22,9 @@ struct DatabaseSwitcherCard: View {
 
     @State private var filter = ""
     @State private var highlighted: String?
+    /// The row the list scrolls to: set by the keyboard and the filter, never by the pointer, so
+    /// hovering near the list's edge highlights a row without scrolling the list under the pointer.
+    @State private var scrollTarget: String?
     @State private var cardFrame: CGRect = .zero
     @State private var eventMonitor: Any?
     @FocusState private var isFilterFocused: Bool
@@ -59,6 +62,7 @@ struct DatabaseSwitcherCard: View {
         .onChange(of: filter) { _, _ in
             if let highlighted, matches.contains(highlighted) { return }
             highlighted = matches.first
+            scrollTarget = matches.first
         }
     }
 
@@ -112,7 +116,7 @@ struct DatabaseSwitcherCard: View {
                     LayoutTokens.Footer.switcherListMaxHeight
                 ))
                 .onAppear { proxy.scrollTo(currentDatabase, anchor: .center) }
-                .onChange(of: highlighted) { _, id in
+                .onChange(of: scrollTarget) { _, id in
                     if let id { proxy.scrollTo(id) }
                 }
             }
@@ -156,7 +160,9 @@ struct DatabaseSwitcherCard: View {
     private func moveHighlight(by step: Int) {
         guard !matches.isEmpty else { return }
         let index = highlighted.flatMap { matches.firstIndex(of: $0) } ?? (step > 0 ? -1 : matches.count)
-        highlighted = matches[min(max(index + step, 0), matches.count - 1)]
+        let target = matches[min(max(index + step, 0), matches.count - 1)]
+        highlighted = target
+        scrollTarget = target
     }
 
     private func selectHighlighted() {

@@ -31,6 +31,7 @@ revisions = item.setdefault("revisions", [])
 number = (revisions[-1]["number"] if revisions else 1) + 1
 revisions.append({"number": number, "date": now, "summary": summary, "changes": changes})
 item["status"] = status
+item.pop("takenBy", None)  # a claim from lab-brief.py --take ends with the revision
 item.setdefault("history", []).append({"date": now, "text": f"Revision {number}: {summary}"})
 
 tmp = tempfile.NamedTemporaryFile("w", dir=os.path.dirname(path), delete=False, suffix=".tmp")

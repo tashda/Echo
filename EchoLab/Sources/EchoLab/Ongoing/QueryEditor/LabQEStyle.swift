@@ -41,6 +41,11 @@ struct LabQEStyle {
     var errorGlow = LabQEErrorGlow.today
     var runningMark = LabQERunningMark.nothing
     var errorBubble = LabQEErrorBubbleLook.today
+    var laneHolds = LabQELaneHolds.everything
+    var laneAlign = LabQELaneAlign.right
+    var laneHeight = LabQELaneHeight.short
+    var laneCorner = LabQELaneCorner.eight
+    var laneFill = LabQELaneFill.palette
     var findBar = LabQEFindBarPlace.native
     var findOptions = LabQEFindOptions.menu
     var findCount = LabQEFindCount.found
@@ -49,22 +54,28 @@ struct LabQEStyle {
 
     static let before28 = LabQEStyle()
 
-    /// Built into Echo: 28.1 text, 28.2 gutter, 28.3 caret line and selection, 28.4 statement.
+    /// Built into Echo: 28.1 to 28.15.
     static let today = LabQEStyle(
         font: .sfMono, size: .s13, ligatures: .off, lineHeight: .comfortable, codeGap: .g16, topMargin: .m8,
         gutter: .subtle, numberFont: .smaller, numberColour: .tertiary, currentNumber: .primary, markers: .left,
         currentLine: .noBand, selectionColour: .system, selectionShape: .rounded, caret: .accent,
-        statement: .bracket, runArrow: .symbol)
+        statement: .bracket, runArrow: .symbol, wordHighlight: .soft, markCorner: .c6, markHeight: .letters,
+        errorWord: .pill, errorMessage: .hover, errorDot: .dot,
+        runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .gutterLine,
+        zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always,
+        findLook: .yellow, runningMark: .breathe, errorBubble: .glass,
+        laneHolds: .everything, laneAlign: .centre, laneHeight: .full, laneCorner: .concentric, laneFill: .system,
+        findBar: .safari, findOptions: .menu, findCount: .found, replaceStyle: .expand, findScope: .selectionButton)
 
     static let recommended = LabQEStyle(
         font: .sfMono, size: .s13, ligatures: .off, lineHeight: .comfortable, codeGap: .g16, topMargin: .m8,
         gutter: .subtle, numberFont: .smaller, numberColour: .tertiary, currentNumber: .primary, markers: .left,
         currentLine: .noBand, selectionColour: .system, selectionShape: .rounded, caret: .accent,
         statement: .bracket, runArrow: .symbol, wordHighlight: .soft, markCorner: .followSelection, markHeight: .letters,
-        errorWord: .glow, errorMessage: .hover, errorDot: .dot,
+        errorWord: .pill, errorMessage: .hover, errorDot: .dot,
         runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .gutterLine,
-        zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always, errorGlow: .hairlineHalo,
-        runningMark: .breathe, errorBubble: .card)
+        zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always, errorGlow: .today,
+        runningMark: .breathe, errorBubble: .glass)
         .with { $0.findBar = .safari; $0.replaceStyle = .preview; $0.findScope = .selectionButton }
 
     func with(_ change: (inout LabQEStyle) -> Void) -> LabQEStyle {
@@ -94,7 +105,9 @@ struct LabQEStyle {
         set("errorMessage", \.errorMessage); set("errorDot", \.errorDot); set("runNoteLook", \.runNoteLook)
         set("runNotePlace", \.runNotePlace); set("ranHighlight", \.ranHighlight); set("zoom", \.zoom)
         set("zoomLook", \.zoomLook); set("zoomShows", \.zoomShows)
-        set("errorGlow", \.errorGlow); set("runningMark", \.runningMark); set("errorBubble", \.errorBubble); set("findBar", \.findBar); set("findOptions", \.findOptions); set("findCount", \.findCount)
+        set("errorGlow", \.errorGlow); set("runningMark", \.runningMark); set("errorBubble", \.errorBubble);
+        set("laneHolds", \.laneHolds); set("laneAlign", \.laneAlign); set("laneHeight", \.laneHeight)
+        set("laneCorner", \.laneCorner); set("laneFill", \.laneFill); set("findBar", \.findBar); set("findOptions", \.findOptions); set("findCount", \.findCount)
         set("replaceStyle", \.replaceStyle); set("findScope", \.findScope)
         if let preview = LabQEFindPreview(rawValue: values["findPreview"]) { style.findLook = preview.look }
         if let place = LabQEZoomPlace(rawValue: values["zoomPlace"]) { style.zoomPlace = place }

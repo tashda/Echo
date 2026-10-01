@@ -19,8 +19,8 @@ final class SQLLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         didSet { recalculateLineMetrics() }
     }
 
-    /// Round 28.3: the selection's corner radius; 0 draws it square.
-    var selectionCornerRadius: CGFloat = 0
+    /// Round 28.3, 28.15: the selection's corners, from Settings › Editor › Marks › Corners.
+    var selectionCorners: EditorMarkCorners = .square
     /// The text view's selection, handed over whenever it changes, so drawing can tell the
     /// selection's background from other background fills.
     var selectedRanges: [NSRange] = []
@@ -62,13 +62,13 @@ final class SQLLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     /// highlighted uses of a word) stay as they are.
     override func fillBackgroundRectArray(_ rectArray: UnsafePointer<NSRect>, count rectCount: Int,
                                           forCharacterRange charRange: NSRange, color: NSColor) {
-        guard selectionCornerRadius > 0, isSelected(charRange) else {
+        guard selectionCorners != .square, isSelected(charRange) else {
             super.fillBackgroundRectArray(rectArray, count: rectCount, forCharacterRange: charRange, color: color)
             return
         }
         for index in 0..<rectCount {
             let rect = rectArray[index]
-            let radius = min(selectionCornerRadius, rect.height / 2, rect.width / 2)
+            let radius = min(selectionCorners.radius(forHeight: rect.height), rect.width / 2)
             NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
         }
     }

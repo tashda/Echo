@@ -17,7 +17,8 @@ struct EditorTypographySettingsTests {
         #expect(settings.defaultEditorFontSize == 13)
         #expect(settings.defaultEditorLineHeight == 1.55)
         #expect(settings.defaultEditorFontFamily == SQLEditorTheme.systemFontIdentifier)
-        #expect(settings.editorSelectionCornerRadius == 3)
+        #expect(settings.editorMarkCorners == .round)
+        #expect(settings.editorMarkStrength == .standard)
         #expect(!settings.ligaturesEnabled(for: settings.defaultEditorFontFamily))
     }
 
@@ -66,9 +67,14 @@ struct EditorTypographySettingsTests {
         #expect(other.defaultEditorFontFamily == "Geist Mono")
     }
 
-    @Test func selectionCornersDecodeAndDefault() throws {
-        #expect(try decode { _ = $0.removeValue(forKey: "editorSelectionCornerRadius") }.editorSelectionCornerRadius == 3)
-        #expect(try decode { $0["editorSelectionCornerRadius"] = 6.0 }.editorSelectionCornerRadius == 6)
+    /// Round 28.15: one Corners setting for every mark and the selection, round by default.
+    @Test func markCornersDecodeAndDefault() throws {
+        #expect(try decode { _ = $0.removeValue(forKey: "editorMarkCorners") }.editorMarkCorners == .round)
+        #expect(try decode { $0["editorMarkCorners"] = "three" }.editorMarkCorners == .three)
+        #expect(try decode { $0["editorMarkStrength"] = "strong" }.editorMarkStrength == .strong)
+        #expect(EditorMarkCorners.round.radius(forHeight: 18) == 9)
+        #expect(EditorMarkCorners.six.radius(forHeight: 8) == 4)
+        #expect(EditorMarkStrength.subtle.multiplier < EditorMarkStrength.strong.multiplier)
     }
 
     /// Round 28.11 (TH1): only Aurora and Midnight are left; a removed palette falls back to them.
@@ -80,11 +86,6 @@ struct EditorTypographySettingsTests {
         }
         #expect(settings.defaultEditorPaletteIDLight == SQLEditorPalette.aurora.id)
         #expect(settings.defaultEditorPaletteIDDark == SQLEditorPalette.midnight.id)
-    }
-
-    @Test func highlightCornersDecodeAndDefault() throws {
-        #expect(GlobalSettings().editorHighlightCornerRadius == 3)
-        #expect(try decode { $0["editorHighlightCornerRadius"] = 0.0 }.editorHighlightCornerRadius == 0)
     }
 
     /// Round 28.11 (FS1): whole sizes, “13 pt”.

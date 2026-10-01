@@ -2,6 +2,15 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 27 refined and accepted again: the bar as wide as the footer, the blur rising past it, everywhere
+
+Echo Labs › Footer and results › round 27, revision 5. The owner loved the first build "about 90%": the bar didn't reach as far as the footer and sat over sharp rows.
+
+- **Length: L2 · as wide as the footer**, from its left padding, over the row numbers, to its right. The grid's width (as first built) was not chosen.
+- **Behind it: U5 · the blur rises past the bar while it shows**, with the owner's note that it must animate beautifully and meet the rows naturally rather than at a hard line. Built as: the blur's views keep the raised height and only their masks move, animated by Core Animation (0.32s up, settling 0.9s after the last scroll in 0.5s), and the blur has finer steps (0.75 · 1.5 · 3 · 5 · 7.5 · 10pt, was 1 · 3 · 6 · 10), a 24pt fade (was 16) and an S-curve fade per step. Sharp rows, the blur always that high, a glass lane and a band of the card's colour were not chosen.
+- **Gap: H1 · 9pt** and **track: T1 · none**, as built.
+- **Everywhere** (owner, after round 27): every overlay horizontal scroll bar in Echo gets the same rising blur, SwiftUI tables included, with nothing to set per view: `ScrollBarBlur`, attached by `ScrollBarBlurHook` after every `NSScrollView.tile()`, installed at launch. → Phase 5 R14
+
 ## 2026-10-01 · Round 29 accepted: SQL Server Always Encrypted columns
 
 Echo Labs › SQL Server › Always Encrypted columns · round 29. sqlserver-nio describes encrypted result columns (real type, deterministic or randomized, algorithm, key path); Echo has no column master keys, so the values stay ciphertext. Every recommendation was taken. Built in c25d5be9.
@@ -12,6 +21,27 @@ Echo Labs › SQL Server › Always Encrypted columns · round 29. sqlserver-nio
 - **Copy: CP1 · the ciphertext as hex (0x01…)**, the value Echo has. The word Encrypted was not chosen.
 - **When Echo asks: AO1 · always, no setting.** Every SQL Server connection asks for column encryption metadata; servers before 2016 ignore it. A per-connection switch was not chosen.
 - Also fixed in the driver (sqlserver-nio e8f975a): Table Data showed binary values as `0x01` `0xAB`… run together; it now shows one hex literal, as the query grid did. → Phase 18 S8
+
+## 2026-10-01 · Round 28 accepted: the find bar, search and replace, the lane, one mark language (28.12 to 28.15)
+
+Echo Labs › Editor and running › Query editor · round 28, pages 28.12 to 28.15. The owner's picks where they differ from the recommendation are marked. Built in ac5089f6 (the gutter's Column and Hairline full height in decd9770).
+
+- **Find bar (28.12):** Echo's own **glass capsule with glass buttons** over the top of the editor (FB5, owner's pick over a system find bar); options in a menu, the count as “3 of 12”; a selected word becomes the search; a selection over several lines gets a **Selection button, on** (SS2 + SS1, owner's note: no button without a selection). → EDT-1.6
+- **Search and replace (28.13):** each match shows its replacement **in the text while you type**: the old word struck through on red, the new one after it on green; the script itself does not change until Replace (PV6, owner's pick after the design language). ⌥⌘F or the chevron **opens Replace inside the capsule as it grows** (AN1); ⌘F goes to Find and leaves Replace as it is (FO0); Return replaces and moves on (RK0); Replace All is **one undo** and says “Replaced 12” (RA0, UN0); system shortcuts (SH0). → EDT-1.6
+- **The lane (28.14):** the whole gutter (LH0), 5pt from the card's edges, **the card's full height** (LT1), **corners concentric with the card's** (LC1), the system's quiet fill (LF1), **numbers centred** (LA1). → EDT-2.1
+- **One mark language (28.15):** every mark on the text comes from `EditorMarkTokens`: **round ends** (DC2, owner's pick over one 3pt corner), **two strengths, soft 10% and strong 22%** (DT1), **colour by meaning**: grey the same word, yellow found, red wrong or removed, green added, accent where you are (DM1); as high as the letters, the selection the whole line (DH0); **Settings › Editor › Marks: Corners and Strength** replace Selection Corners and Highlight Corners (DS1); everything that floats over the code is glass with a coloured symbol and grey words (DF0); tokens, not per-mark values (TK0). → EDT-2.5, 2.7, 2.8, `EditorMarkTokens`
+
+## 2026-10-01 · Round 28 accepted: marks, errors, the run note, zoom, typing, the empty tab, settings (28.5 to 28.11)
+
+Echo Labs › Editor and running › Query editor · round 28. The owner's picks where they differ from the recommendation are marked. Built in 56799682, 306a8fb2, f530ad91, a80770d9, 8464a8c1, 433f34e1, c30bc3e7.
+
+- **Marks (28.5):** the word's other uses in a **soft tint as high as the letters** (H1); **corners 3pt, a setting** (Highlight Corners; owner's pick over following the selection); **typing ) flashes its (** (P1); no glass on the text (GL0); 0.25 s. The find look is decided with the find bar (28.12). → EDT-2.7
+- **Errors (28.6):** a **tinted red pill** behind the word (E10, owner's pick after three revisions of glows), the same while typing and after a run (SL0); the message in a **glass popover with a pointer** (BB3, owner's pick), on hover or with the caret on the line (M3); the gutter dot stays; the live check runs **when you leave the line or 2 s after typing** (T1); nothing moves (MO0); “! Error” stays (RN1). → EDT-2.3, 2.8
+- **After a run (28.7):** the note on a **glass pill with the result's symbol** (R10, owner's pick), after the last line, **one per statement of a script** (MS0); while running the statement's **bracket breathes** (RR1, rev 3); when it ends a **line beside what ran fades** over 2 s (H9, owner's pick); the count is every row the server sent; it goes at the first edit. → EDT-3.3, 3.5, 3.6
+- **Zoom (28.8):** a glass **“100%” pill at the bottom left**, always shown, with a menu (Z1, L2, V0); ⌘+ ⌘− ⌘0 and pinch; per tab, not saved; 50% to 200%; the editor only. → EDT-1.4
+- **Typing (28.9):** Go to Line as a **glass field at the top** (GL1); **Tab 4 spaces**, ⇧Tab outdents; **Return keeps the indent**; **( and quotes close themselves**, the closer steps over; **⌘/ toggles --**; wrapping stays, with a switch. Find moved to 28.12. → EDT-1.5
+- **Empty tab (28.10):** the prompt **on the first line where you type** (Y1); **prompt only** (EC2, owner's pick: the recent tables and snippets go). Outline edge stays a setting, off; the system's scroll bar. → EDT-1.3
+- **Settings (28.11):** **one Settings › Editor pane** (SP0); switches for line numbers, the word highlight and wrapping (HS0); gutter style and statement focus stay; the live check and the error note move there; **only Aurora and Midnight** until themes return (TH1, owner's pick); whole font sizes, “13 pt” (FS1). → Settings › Editor
 
 ## 2026-10-01 · Round 28 accepted: the editor's text, gutter, caret line and statement (28.1 to 28.4)
 

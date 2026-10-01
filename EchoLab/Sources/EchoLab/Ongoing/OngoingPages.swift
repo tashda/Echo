@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -284,6 +284,90 @@
         status: .judging,
         summary: "The find bar itself, drawn: the system's bar above the text (today) against floating glass panels at the top right, along the top and at the bottom; its options, the match count and Replace. Asked in your notes on 28.5.",
         spec: EditorFindBarRound.spec)
+
+    /// Round 28: Editor: search and replace.
+    static let editorSearchReplace = LabPage.round(
+        id: "ongoing.editor-search-replace-r28", group: "Editor and running", title: "Editor: search and replace · round 28", symbol: "arrow.2.squarepath",
+        status: .judging,
+        summary: "Search and replace together, on FB5's glass: how the replacement shows in the editor while you type, how the Replace row opens from the chevron, the shortcuts for Find and for Find and Replace, and the keys inside the bar. Asked in your notes on 28.12.",
+        spec: EditorSearchReplaceRound.spec)
+
+    /// Round 28: Editor: the gutter's lane.
+    static let editorGutterLane = LabPage.round(
+        id: "ongoing.editor-gutter-lane-r28", group: "Editor and running", title: "Editor: the gutter's lane · round 28", symbol: "sidebar.squares.left",
+        status: .judging,
+        summary: "The Lane gutter style, redrawn: what it holds, how the numbers sit in it, its height, corners and fill. Today it floats 25pt above the card's bottom with the numbers pushed to its right edge. Asked with your screenshots of the gutter styles.",
+        spec: EditorGutterLaneRound.spec)
+
+    /// Round 28: Editor: one design language.
+    static let editorDesignLanguage = LabPage.round(
+        id: "ongoing.editor-design-language-r28", group: "Editor and running", title: "Editor: one design language · round 28", symbol: "paintpalette",
+        status: .judging,
+        summary: "Every mark in the editor in one language: one corner, one tint scale, colour by meaning, one height, one Marks section in Settings, and one look for floating pills. Today's marks mix pills, 3pt corners and tints from 9% to 35%. Asked in your notes on 28.13.",
+        spec: EditorDesignLanguageRound.spec)
+
+    /// Round 30: Server card: the header.
+    static let serverHeaderLook = LabPage.round(
+        id: "ongoing.server-header-look-r30", group: "Explorer tree", title: "Server card: the header · round 30", symbol: "rectangle.topthird.inset.filled",
+        status: .judging,
+        summary: "The server's name, product line and dock at the top of its card. Rev 2: the five headers you kept (HD0 plain, HD4 wash, HD5 line, HD7 plate, HD8 banner) and eight variations on them, and plain, the header's colour and the dock icon's colour as settings. Changes TREE-2.1 and TREE-2.2 (server header).",
+        spec: ServerHeaderLookRound.spec)
+
+    /// Round 30: Server card: collapsing.
+    static let serverHeaderCollapse = LabPage.round(
+        id: "ongoing.server-header-collapse-r30", group: "Explorer tree", title: "Server card: collapsing · round 30", symbol: "chevron.down.circle",
+        status: .judging,
+        summary: "Where the collapse chevron sits on the two-line header, and how the card folds away and opens again, beside Echo today.",
+        spec: ServerHeaderCollapseRound.spec)
+
+    /// Round 30: Database folders that are empty.
+    static let emptyFolders = LabPage.round(
+        id: "ongoing.empty-folders-r30", group: "Explorer tree", title: "Database folders that are empty · round 30", symbol: "folder",
+        status: .judging,
+        summary: "Views is loaded but hidden: Settings › Sidebar hides empty folders, and this database has no views. Should Tables, Views, Functions and Procedures always show, and how does an empty one look?",
+        spec: EmptyFoldersRound.spec)
+
+    /// Round 31: Editor: the zoom pill and the footer.
+    static let zoomPillFooter = LabPage.round(
+        id: "ongoing.zoom-pill-footer-r31", group: "Editor and running", title: "Editor: the zoom pill and the footer · round 31", symbol: "plus.magnifyingglass",
+        status: .judging,
+        summary: "Changes round 28.8's zoom pill: where it sits with and without results, its height (21 vs the footer's 24pt) and its text colour (secondary vs the footer's primary).",
+        spec: ZoomPillFooterRound.spec)
+
+    /// Round 32: Panels: is the inspector whiter?.
+    static let panelFillsLight = LabPage.round(
+        id: "ongoing.panel-fills-light-r32", group: "Window and cards", title: "Panels: is the inspector whiter? · round 32", symbol: "rectangle.split.3x1",
+        status: .judging,
+        summary: "Measured in your screenshots: every card is pure white (255) in light mode, the inspector included; what reads as greyer elsewhere is zebra rows and grey fills (245) inside the other panels, and an empty inspector is the one card with nothing on it. What should change, if anything.",
+        spec: PanelFillsLightRound.spec)
+
+    /// Round 32: Panels in dark mode.
+    static let panelFillsDark = LabPage.round(
+        id: "ongoing.panel-fills-dark-r32", group: "Window and cards", title: "Panels in dark mode · round 32", symbol: "moon",
+        status: .judging,
+        summary: "Measured: the dark canvas is 27–29 and the cards 30 (out of 255), so only the 0.5pt edge separates them and the shadow is invisible. Canvas, card, edge and shadow options for dark mode.",
+        spec: PanelFillsDarkRound.spec)
+
+    /// Round 33: SQL Server Agent Jobs: the tab.
+    static let agentJobsTab = LabPage.round(
+        id: "ongoing.agent-jobs-tab-r33", group: "Tool tabs", title: "SQL Server Agent Jobs: the tab · round 33", symbol: "clock",
+        status: .judging,
+        summary: "The Jobs, Details and History panes as built (three header styles: Jobs and History 13pt with 12 by 6pt padding, Details 14pt with 16 by 12pt), beside one header for every pane, the layout, the Details sections, the jobs' columns and the empty rows.",
+        spec: AgentJobsTabRound.spec)
+
+    /// Round 33: SQL Server Agent Jobs: New Step.
+    static let agentJobStepSheet = LabPage.round(
+        id: "ongoing.agent-job-step-sheet-r33", group: "Tool tabs", title: "SQL Server Agent Jobs: New Step · round 33", symbol: "list.number",
+        status: .judging,
+        summary: "The sheet as built (one section repeating the title, a plain text box for the command, no On success/On failure, a bordered Add Step where the sheet rules want a prominent one) beside fuller sheets.",
+        spec: AgentJobStepSheetRound.spec)
+
+    /// Round 34: Refresh and the activity signal.
+    static let refreshAndActivity = LabPage.round(
+        id: "ongoing.refresh-and-activity-r34", group: "Window and cards", title: "Refresh and the activity signal · round 34", symbol: "arrow.clockwise",
+        status: .judging,
+        summary: "Today Refresh (RefreshToolbarButton) does two jobs: it reloads the front tab (a tool tab's data, or a query tab's database schema) and it mirrors every ActivityEngine operation for the server, query runs included, with a spinner, ✓ or ✗. Run then shows its own ✓ too. Where activity should show, where Refresh should live, and what it does on a query tab.",
+        spec: RefreshAndActivityRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

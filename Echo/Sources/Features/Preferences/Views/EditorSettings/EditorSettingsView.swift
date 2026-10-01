@@ -43,11 +43,23 @@ struct EditorSettingsView: View {
                 toggleRow("Wrap Long Lines", \.editorWrapLines)
             }
 
-            Section("Selection and Highlights") {
-                cornersRow("Selection Corners", \.editorSelectionCornerRadius,
-                           subtitle: "How round the corners of selected text are.")
-                cornersRow("Highlight Corners", \.editorHighlightCornerRadius,
-                           subtitle: "How round the marks on the text are, such as the word at the caret.")
+            Section("Marks") {
+                PropertyRow(title: "Corners", subtitle: "Every mark on the text and the selection: the word at the caret, find, mistakes and replacements.") {
+                    Picker("", selection: projectStore.globalSettingBinding(\.editorMarkCorners)) {
+                        ForEach(EditorMarkCorners.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                }
+                PropertyRow(title: "Strength", subtitle: "How strong every mark's tint is.") {
+                    Picker("", selection: projectStore.globalSettingBinding(\.editorMarkStrength)) {
+                        ForEach(EditorMarkStrength.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                }
             }
 
             Section("After a Run") {
@@ -70,20 +82,6 @@ struct EditorSettingsView: View {
             Toggle("", isOn: projectStore.globalSettingBinding(keyPath))
                 .labelsHidden()
                 .toggleStyle(.switch)
-        }
-    }
-
-    private func cornersRow(_ title: String, _ keyPath: WritableKeyPath<GlobalSettings, Double>, subtitle: String) -> some View {
-        PropertyRow(title: title, subtitle: subtitle) {
-            Picker("", selection: Binding(
-                get: { EditorSelectionCorners(rawValue: projectStore.globalSettings[keyPath: keyPath]) ?? .three },
-                set: { projectStore.globalSettingBinding(keyPath).wrappedValue = $0.rawValue }
-            )) {
-                ForEach(EditorSelectionCorners.allCases, id: \.self) { Text($0.displayName).tag($0) }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
         }
     }
 }

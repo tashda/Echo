@@ -35,7 +35,7 @@ enum EditorRunNoteRound {
         ],
         actions: [LabQERound.runAgain],
         exhibits: [
-            LabQERound.today("“✓ 14,870 rows · 10.1 s” in green after line 8; nothing marks what ran.", scene: .afterRun),
+            LabQERound.today("“✓ 14,870 rows · 10.1 s” in green after line 8; nothing marks what ran.", scene: .afterRun, before28: true),
             LabQERound.proposal("Built from the controls. Press Run again to see the flash.", scene: .afterRun),
             .init(id: "looks", title: "All looks", summary: "Every look after the last line, with a success and an error.", addedIn: 2,
                   designWidth: LabQERunNoteSampler.width, designHeight: LabQERunNoteSampler.height) { _ in LabQERunNoteSampler() },

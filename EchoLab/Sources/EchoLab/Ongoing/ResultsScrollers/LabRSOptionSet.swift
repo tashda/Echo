@@ -19,7 +19,11 @@ struct LabRSOptionSet {
                                        vertical: .aboveFooter, extra: .none)
     /// Round 27 as accepted and built: E, S1, V1, R2, X1.
     static let decided = LabRSOptionSet(placement: .footerEdge, style: .system, visibility: .whileScrolling,
-                                        vertical: .toBottom, extra: .edgeFades)
+                                        vertical: .toBottom, extra: .edgeFades,
+                                        length: .footer, behind: .blurOnDemand, gap: .built, track: .none)
+    /// As built after the first acceptance (rev 4): before L2 and U5.
+    static let firstBuild = LabRSOptionSet(placement: .footerEdge, style: .system, visibility: .whileScrolling,
+                                           vertical: .toBottom, extra: .edgeFades)
 
     /// The bars' lane.
     var lane: CGFloat { style.lane }
@@ -42,10 +46,17 @@ struct LabRSOptionSet {
                              right: SpacingTokens.sm)
     }
 
-    /// The blur's height: as Echo has it, or past the bar when the option says so.
-    func blurHeight(barShown: Bool) -> CGFloat {
-        let reachesBar = behind.blursBar || (behind == .blurOnDemand && barShown)
-        return reachesBar ? thumbBottom + lane + LayoutTokens.EdgeBlur.fade : footerZone + LayoutTokens.EdgeBlur.fade
+    /// The blur at rest (under the footer) and raised past the thumb at its widest.
+    var restBlurHeight: CGFloat { footerZone + LayoutTokens.EdgeBlur.fade }
+    var raisedBlurHeight: CGFloat {
+        behind == .blurUp || behind == .blurOnDemand
+            ? max(restBlurHeight, thumbBottom + LayoutTokens.Footer.overlayThumbMaxHeight + LayoutTokens.EdgeBlur.fade)
+            : restBlurHeight
+    }
+
+    /// Whether the blur stands raised now.
+    func isBlurRaised(barShown: Bool) -> Bool {
+        behind == .blurUp || (behind == .blurOnDemand && barShown)
     }
 
     /// Where the vertical bar ends above the card's bottom edge; nil when there is none.

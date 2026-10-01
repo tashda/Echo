@@ -18,9 +18,9 @@ enum EditorFindTypingRound {
             LabQERound.baseControl,
         ],
         exhibits: [
-            .init(id: "today", title: "Echo today", summary: "The native find bar; ⌘L opens an alert.", isEchoToday: true,
+            .init(id: "today", title: "Echo before round 28", summary: "The native find bar; ⌘L opens an alert.", isEchoToday: true,
                   designWidth: LabQERound.width, designHeight: LabQERound.height) { values in
-                LabQEEditor(style: .today, scene: LabQERound.scene(values, .find))
+                LabQEEditor(style: .before28, scene: LabQERound.scene(values, .find))
                     .overlay { LabQEGoToLineView(look: .alert) }
             },
             .init(id: "proposal", title: "Proposal", summary: "The native find bar; ⌘L as chosen.",

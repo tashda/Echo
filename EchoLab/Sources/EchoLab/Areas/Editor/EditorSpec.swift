@@ -28,21 +28,40 @@ enum EditorSpec {
                       .row("Why", "more room reads calmer")),
                 .behaviour(.row("Bundled fonts", "Geist Mono, Google Sans Code, Intel One Mono, Martian Mono, Fragment Mono, Atkinson Hyperlegible Mono, Cascadia Code, Commit Mono and five Monaspace variants", token: "SQLEditorTheme.bundledFontFamilies")),
             ], rounds: ["ongoing.editor-text-r28"], files: [textView]),
-            SpecElement(number: "1.3", name: "Starting points", summary: "An empty tab shows faint suggestions.", groups: [
-                .type(.row("Prompt", "13pt tertiary: Start typing, or begin with a recent table or a snippet")),
-                .layout(.row("Chips", "11pt secondary on a capsule, 8pt by 2pt padding"), .row("Inset", "52pt from the left, 32pt from the top", token: "LayoutTokens.EmptyQueryHints")),
-                .behaviour(.row("Shows", "up to 4 tables last opened on this connection and database, then up to 4 snippets for the dialect"),
-                           .row("A table", "inserts a query for its first rows"), .row("Goes", "they vanish on typing")),
+            SpecElement(number: "1.3", name: "Empty prompt", summary: "An empty tab shows “Start typing a query” where you type (round 28.10).", groups: [
+                .type(.row("Prompt", "the editor's font, placeholder colour", token: "SQLTextView.emptyPrompt")),
+                .layout(.row("Place", "on the first line, at the caret")),
+                .behaviour(.row("Offers", "nothing else: the recent tables and snippets (QE6) were dropped"), .row("Goes", "with the first character")),
             ], rounds: ["ongoing.editor-empty-r28"], files: [textView]),
+            SpecElement(number: "1.4", name: "Zoom", summary: "A glass “100%” pill at the editor's bottom left (round 28.8).", groups: [
+                .material(.row("Pill", "Liquid Glass capsule, 11pt secondary, a menu of 50% to 200% and Actual Size")),
+                .behaviour(.row("Keys", "⌘+, ⌘− and ⌘0 in the View menu, and pinch"), .row("Scope", "this tab, until it closes; the editor's font and gutter, not the results")),
+            ], rounds: ["ongoing.editor-zoom-r28"], files: [textView, "Echo/Sources/Features/QueryWorkspace/Views/Query/EditorZoomControl.swift"]),
+            SpecElement(number: "1.5", name: "Typing", summary: "Tab, Return, pairs and comments (round 28.9).", groups: [
+                .behaviour(.row("Tab", "spaces to the next stop of four; on several lines, indents them; ⇧Tab outdents"),
+                           .row("Return", "keeps the line's indent"),
+                           .row("( and quotes", "close themselves; typing the closer steps over it"),
+                           .row("⌘/", "toggles -- on the selected lines"),
+                           .row("⌘L", "a small glass Go to Line field at the top, Return jumps, Escape closes")),
+            ], rounds: ["ongoing.editor-find-typing-r28"], files: [textView]),
+            SpecElement(number: "1.6", name: "Find and replace", summary: "Echo's glass find bar over the top of the editor; Replace opens inside it (rounds 28.12, 28.13).", groups: [
+                .material(.row("Bar", "a 400pt glass capsule and three 32pt glass circles, 8pt from the top", token: "LayoutTokens.EditorGutter.findBarWidth")),
+                .behaviour(.row("⌘F", "opens Find; a selected word becomes the search; Replace stays as it was"),
+                           .row("⌥⌘F, the chevron", "opens Replace inside the capsule as it grows"),
+                           .row("Selection", "a button, on, only when text over several lines is selected"),
+                           .row("Preview", "each match shows its replacement: the old struck through on red, the new after it on green; the script changes only on Replace", token: "EditorMarkTokens.Meaning.wrong / added"),
+                           .row("Return, Replace All", "Return replaces and moves on; Replace All is one undo and says “Replaced 12”")),
+            ], rounds: ["ongoing.editor-find-bar-r28", "ongoing.editor-search-replace-r28"], files: ["Echo/Sources/Features/QueryWorkspace/Views/Query/Find/"]),
         ]),
         SpecPart(number: "2", name: "Gutter", summary: "The strip of line numbers at the left.", elements: [
             SpecElement(number: "2.1", name: "Style", summary: "Subtle (the default), Column, Lane or Hairline (a setting).", states: [SpecState(key: "column", name: "Column"), SpecState(key: "lane", name: "Lane"), SpecState(key: "subtle", name: "Subtle"), SpecState(key: "hairline", name: "Hairline")], defaultState: "column", groups: [
                 .material(.row("Subtle", "numbers only"),
                           .row("Column", "a faint full-height column in the theme's gutter colour with a 0.5pt separator edge towards the text", token: "LayoutTokens.EditorGutter.edgeWidth"),
-                          .row("Lane (GT2)", "the same colour as a rounded lane inset 5pt, corner 8pt, no edge", token: "laneInset / laneCornerRadius"),
-                          .row("Hairline (round 28.2)", "no fill, only the 0.5pt separator edge", token: "LayoutTokens.EditorGutter.edgeWidth")),
+                          .row("Lane (GT2)", "the whole gutter, 5pt from the card's edges, the card's full height, corners concentric with the card's, the system's quiet fill, numbers centred, no edge (round 28.14)", token: "laneInset / EditorGutterSurface"),
+                          .row("Hairline (round 28.2)", "no fill, only the 0.5pt separator edge", token: "LayoutTokens.EditorGutter.edgeWidth"),
+                          .row("Drawn", "behind the editor across the card's full height (decd9770); the Lane: the whole gutter, 5pt from the card's edges, corners concentric with the card's, the system's quiet fill, numbers centred (round 28.14)", token: "EditorGutterSurface")),
                 .behaviour(.row("Tint height", "always the card's full height, even below the last line (GL1)")),
-            ], rounds: ["ongoing.editor-gutter-r28"], files: [textView, tokens]),
+            ], rounds: ["ongoing.editor-gutter-r28", "ongoing.editor-gutter-lane-r28"], files: [textView, tokens]),
             SpecElement(number: "2.2", name: "Numbers", summary: "Line numbers with room to breathe (QE4).", groups: [
                 .type(.row("Font", "SF digits 2pt under the code (11pt at 13pt)", token: "LineNumberRulerView.numberFont(forCodeSize:)"),
                       .row("Colours", "tertiary label; the caret's line in the text colour, same weight (round 28.2)")),
@@ -61,12 +80,22 @@ enum EditorSpec {
             ], rounds: ["ongoing.editor-caret-line-r28"], files: [textView, tokens]),
             SpecElement(number: "2.5", name: "Selection", summary: "The system's selection colour with rounded corners (round 28.3).", groups: [
                 .material(.row("Colour", "the system selection colour; grey while the editor isn't focused")),
-                .layout(.row("Corners", "3pt by default; Square, 2, 3, 4 or 6pt in Settings", token: "EditorSelectionCorners / SQLLayoutManager.fillBackgroundRectArray")),
+                .layout(.row("Corners", "the marks' corners: round by default; Settings › Editor › Marks › Corners (round 28.15)", token: "EditorMarkCorners / SQLLayoutManager.fillBackgroundRectArray")),
             ], rounds: ["ongoing.editor-caret-line-r28"], files: [textView]),
             SpecElement(number: "2.6", name: "Caret", summary: "The system's insertion point (round 28.3).", groups: [
                 .material(.row("Colour", "the accent colour", token: "NSColor.textInsertionPointColor")),
                 .behaviour(.row("Blinking", "as the system sets it")),
             ], rounds: ["ongoing.editor-caret-line-r28"], files: [textView]),
+            SpecElement(number: "2.7", name: "Word highlight", summary: "The word at the caret's other uses: a soft tint as high as the letters (round 28.5).", groups: [
+                .material(.row("Tint", "a soft grey mark (round 28.15)", token: "EditorMarkTokens.Meaning.same")),
+                .layout(.row("Corners", "Settings › Editor › Marks › Corners, round by default")),
+                .behaviour(.row("Typing )", "flashes its ( with the system's find indicator")),
+            ], rounds: ["ongoing.editor-marks-r28"], files: [textView]),
+            SpecElement(number: "2.8", name: "Error mark", summary: "A strong red mark behind a wrong word, the same while typing and after a run (rounds 28.6, 28.15).", groups: [
+                .material(.row("Mark", "a strong red mark (round 28.15)", token: "EditorMarkTokens.Meaning.wrong")),
+                .behaviour(.row("Bubble", "a popover (glass, with a pointer): title, message, detail, Fix; on hover or with the caret on the line"),
+                           .row("Live check", "when the caret leaves the edited line, or 2 s after typing stops", token: "LayoutTokens.EditorGutter.liveCheckPause")),
+            ], rounds: ["ongoing.editor-errors-r28"], files: [textView, "Echo/Sources/Features/QueryWorkspace/Views/Query/ErrorMark/"]),
         ]),
         SpecPart(number: "3", name: "Statement", summary: "The statement the caret is in.", elements: [
             SpecElement(number: "3.1", name: "Statement bracket", summary: "A thin bracket beside the statement's line numbers (QE1; a band before round 28.4).", groups: [
@@ -79,15 +108,22 @@ enum EditorSpec {
                 .material(.row("Colour", "tertiary grey; the accent under the pointer (round 28.4, A1)")),
                 .behaviour(.row("Click", "runs only that statement"), .row("Shown", "on the statement's first line, under the same conditions as the bracket")),
             ], rounds: ["ongoing.editor-statement-r28"], files: [textView, tokens]),
-            SpecElement(number: "3.3", name: "Run note", summary: "After a run: the rows and time, or the error, at the end of the statement (QE2).", groups: [
+            SpecElement(number: "3.3", name: "Run note", summary: "After a run: a glass pill with the result's symbol and the rows and time, at the end of each statement (QE2, round 28.7).", groups: [
                 .layout(.row("Gap after the last character", "20pt", token: "LayoutTokens.EditorGutter.runNoteGap")),
-                .type(.row("Font", "11pt", token: "TypographyTokens.AppKit.detail"), .row("Colour", "green for results, red for an error")),
-                .behaviour(.row("Rows", "every row the server sent, the footer's count")),
+                .material(.row("Pill", "Liquid Glass capsule; checkmark.circle.fill green, exclamationmark.circle.fill red, stop.circle.fill orange (R10)")),
+                .type(.row("Font", "11pt; the numbers secondary, an error's words red", token: "TypographyTokens.detail")),
+                .behaviour(.row("Rows", "every row the server sent, the footer's count"), .row("A script", "one note after each statement (MS0)")),
                 .behaviour(.row("Tooltip", "the detail of the result or error")),
             ], rounds: ["ongoing.editor-run-note-r28"], files: [textView, tokens]),
             SpecElement(number: "3.4", name: "Where a statement ends", summary: "At a semicolon, a GO line or a blank line.", groups: [
                 .behaviour(.row("Ends at", "a semicolon, a GO line or a blank line")),
             ], files: [textView]),
+            SpecElement(number: "3.5", name: "While running", summary: "The running statement's bracket breathes (round 28.7, RR1).", groups: [
+                .motion(.row("Breath", "opacity 1 to 0.45 and back, 1.5 s, until the result", token: "LayoutTokens.EditorGutter.runningBreath*")),
+            ], rounds: ["ongoing.editor-run-note-r28"], files: [textView, tokens]),
+            SpecElement(number: "3.6", name: "What ran", summary: "When a run ends, a line beside what ran fades out (round 28.7, H9).", groups: [
+                .motion(.row("Fade", "2 s, ease out", token: "LayoutTokens.EditorGutter.ranFadeDuration")),
+            ], rounds: ["ongoing.editor-run-note-r28"], files: [textView, tokens]),
         ]),
         SpecPart(number: "4", name: "Run", summary: "A plain ▶ in a capsule of its own, like its neighbours.", elements: [
             SpecElement(number: "4.1", name: "Idle", summary: "A standard toolbar button, icon only, in its own toolbar group.", groups: [
