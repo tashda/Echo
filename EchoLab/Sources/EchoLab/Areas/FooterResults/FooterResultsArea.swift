@@ -10,7 +10,7 @@ enum FooterResultsArea {
         summary: "The results grow up out of the footer. The footer floats on a soft blur with a glass pill per entry; the database switcher is a card above its chip.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "86d17abd", date: "2026-10-01",
+                level: .code, commit: "0eb8696c", date: "2026-10-01",
                 note: "Read from BottomPanelStatusBar (+Metrics), DatabaseSwitcherCard, BackdropEdgeBlur, ContentPanelCards, ResultsGridMetrics, ResultTableRowView, ResultTableHeaderCell, ResultCellPresentation and the Footer and EdgeBlur tokens. The specimen uses Echo's real BottomPanelStatusBar over a sample grid."),
             stageHeight: 480,
             behaviours: [
@@ -18,7 +18,7 @@ enum FooterResultsArea {
                 .init(trigger: "Close the results", result: "They fold back into the footer smoothly, the card's chrome fading out."),
                 .init(trigger: "Click a segment (Results, Messages, Execution Plan)", result: "Shows that panel, or hides it when it is the one showing; the tooltip says Show or Hide. A segment that can't be used is at 30% and disabled."),
                 .init(trigger: "Click empty footer space", result: "Opens or closes the panel. Clicking the metrics does the same, unless the tab has a statistics popover, which it toggles instead."),
-                .init(trigger: "Click the server · database chip", result: "A system popover rises above the chip with a filter field (prompt \"Filter N databases\") and the databases; type to narrow, ↑ ↓ and Return, or click; Esc or a click away closes it. The chip is disabled, with the name as its tooltip, when the tab can't switch database."),
+                .init(trigger: "Click the server · database chip", result: "A system popover rises above the chip with a filter field (prompt \"Filter N databases\") and the databases; type to narrow, ↑ ↓ and Return, or click; hovering highlights a row but never scrolls the list (only the wheel, the keys and filtering do); Esc or a click away closes it. The chip is disabled, with the name as its tooltip, when the tab can't switch database."),
                 .init(trigger: "Hover a result row", result: "A faint rounded tint on the row and its row number turns accent."),
                 .init(trigger: "Hover a column header", result: "The sort arrow appears at its trailing edge (it also stays while the column is sorted); clicking the arrow sorts, clicking elsewhere selects the column."),
                 .init(trigger: "Select cells", result: "One rounded outline around the whole selected range, a stronger ring on the active cell, and the row numbers of the selected rows in accent."),
