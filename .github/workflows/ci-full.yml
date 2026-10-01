@@ -51,6 +51,9 @@ jobs:
       with:
         deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
+    - name: Placeholder secrets for test builds
+      run: cp Echo/Configuration/Secrets.xcconfig.example Echo/Configuration/Secrets.xcconfig
+
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
@@ -142,6 +145,9 @@ jobs:
 
     - name: Build serverlab
       run: swift build -c release --product serverlab --package-path echo-server-lab
+
+    - name: Placeholder secrets for test builds
+      run: cp Echo/Configuration/Secrets.xcconfig.example Echo/Configuration/Secrets.xcconfig
 
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
