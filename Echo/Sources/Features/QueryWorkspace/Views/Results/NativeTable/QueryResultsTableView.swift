@@ -32,6 +32,8 @@ struct QueryResultsTableView: NSViewRepresentable {
     var isDarkMode: Bool = false
     /// Cells in a monospaced font (Settings › Query Results › Monospaced cells).
     var monospacedCells: Bool = false
+    /// The connection's engine: PostgreSQL types show without the OID Echo carries.
+    var databaseType: DatabaseType?
 
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
@@ -66,7 +68,8 @@ struct QueryResultsTableView: NSViewRepresentable {
             showRowNumbers: showRowNumbers,
             colorOverrides: colorOverrides,
             isDarkMode: isDarkMode,
-            monospacedCells: monospacedCells
+            monospacedCells: monospacedCells,
+            databaseType: databaseType
         )
     }
 

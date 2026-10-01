@@ -63,7 +63,7 @@ extension QueryResultsTableView.Coordinator {
             let headerCell = ResultTableHeaderCell(textCell: column.name)
             headerCell.columnSensitivity = classification?.classification(forColumnAt: index)
             // Round 29 (EH1): an encrypted column shows its real type and a lock; the details on hover.
-            headerCell.typeName = column.encryption?.typeName ?? column.dataType
+            headerCell.typeName = column.headerTypeName(on: parent.databaseType)
             headerCell.isEncrypted = column.encryption != nil
             tableColumn.headerCell = headerCell
             tableColumn.headerCell.controlSize = .regular; tableColumn.headerCell.alignment = .left
@@ -227,7 +227,7 @@ extension QueryResultsTableView.Coordinator {
             let dataIndex = visibleDataIndex(for: offset)
             if let headerCell = column.headerCell as? ResultTableHeaderCell,
                dataIndex >= 0, dataIndex < parent.displayedColumns.count {
-                headerCell.typeName = parent.displayedColumns[dataIndex].dataType
+                headerCell.typeName = parent.displayedColumns[dataIndex].headerTypeName(on: parent.databaseType)
             }
         }
         updateHeaderIndicators()
