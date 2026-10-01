@@ -122,6 +122,7 @@ enum LabAreas {
         "ongoing.tool-tab-header-r37": "tool-tabs",
         "ongoing.tool-tab-controls-r37": "tool-tabs",
         "ongoing.tool-tab-themes-r37": "tool-tabs",
+        "ongoing.tree-tool-rows-r38": "explorer-tree",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

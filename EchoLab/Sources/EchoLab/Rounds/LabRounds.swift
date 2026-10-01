@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r38", label: "Round 38", title: "Tree rows that open a tab", date: "1 Oct 2026",
+             asked: "Security Management is only reachable by right-clicking Security; make it a row under Security, and add a mark on the right of rows that open a tab, as Agent Jobs Overview does.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.tree-tool-rows-r38"]),
         Info(id: "r37", label: "Round 37", title: "Tool tabs: a theme per family", date: "1 Oct 2026",
              asked: "Make a unified design theme for every type of tab window except the query editor.",
              outcome: "Being judged.",
