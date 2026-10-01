@@ -1247,6 +1247,10 @@
       {
         "date": "2026-10-01T19:59:30Z",
         "text": "Also at the editor's bottom (bf7c0b2c), the owner's ask: with the results open the editor card gets the same material at the same height, and the text runs under it"
+      },
+      {
+        "date": "2026-10-01T20:23:19Z",
+        "text": "Only query tabs (bd137299): the material is under a query tab's footer and the editor's bottom; other tabs keep the light tint"
       }
     ],
     "needsMore": [],
@@ -2629,6 +2633,10 @@
       {
         "date": "2026-10-01T15:07:42Z",
         "text": "Changed in Echo, the owner's note that the blur was still a bar: ten small steps from sharp to 12pt, easing in, overlapping fades; the tint eases in too"
+      },
+      {
+        "date": "2026-10-01T20:23:19Z",
+        "text": "Changed in Echo (bd137299), the owner's call after round 44: the blur behind every horizontal bar is taken back (it looked wrong in Agent Jobs); only the results grid and the editor keep it"
       }
     ],
     "needsMore": [],

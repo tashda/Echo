@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · The blur only in the results: taken back everywhere else
+
+The owner, after round 44: the blur in other tables, such as SQL Server Agent Jobs, looked awful; for now it belongs only in the result panel. This takes back round 27's "every scroll bar in a card" and the owner's later ask for the same blur behind every horizontal bar in Echo. `ScrollBarBlur` now only serves the results grid and the editor (`FooterScrollOverlay`), and the footer's material (round 44) is only under a query tab's footer and the editor's bottom; every other tab's footer keeps the light card tint (35%, easing in). Built in bd137299. → FTR-2.2, FTR-4.6
+
 ## 2026-10-01 · Round 37.2 accepted and round 45 decided: one header line, tool actions in the tab
 
 Echo Labs › Tool tabs › round 37.2 (revision 2) and round 45. Built in bb01362f and 6e27bab7 with 36.2, 37.1, 37.3 and 37.4.
