@@ -144,7 +144,7 @@ struct LabMAPulsingDot: View {
     }
 }
 
-/// A whole tool tab under the toolbar: toolbar, strip (TP5), the one-line header (UH5) and rows.
+/// A whole tool tab under the toolbar: toolbar, strip (36.1, TP0 refined), the one-line header (UH5) and rows.
 struct LabMAExhibit: View {
     let tool: LabTTTool
     let action: LabMAAction

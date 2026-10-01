@@ -7,7 +7,7 @@ import SwiftUI
 /// Profiler's Start Trace is a bordered button in its own toolbar row inside the tab; Activity
 /// Monitor's Pause is an eye in the toolbar's tab-tools capsule; Agent Jobs' Start Job is a
 /// ToolbarRunButton (▶, red ■) in that capsule, beside Open in Window. Three tools, three places.
-/// Drawn with 36.1's TP5 strip and 37.2's UH5 header (both recommended, not yet decided).
+/// Drawn with 36.1's TP0 refined strip and 37.2's UH5 header (both recommended, not yet decided).
 @MainActor
 enum ToolTabMainActionRound {
     static let spec = RoundSpec(

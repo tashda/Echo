@@ -62,6 +62,8 @@ struct LabTPStrip: View {
     let activeID: String
     let style: LabTPStyle
     var single: LabTPSingle = .fill
+    /// TP0 refined (revision 3); nil draws the style as it is.
+    var refine: LabTPRefine? = nil
     @State var page: [String: String] = [:]
     @State var hangX: CGFloat = 0
     @Environment(\.echoMotion) var motion
@@ -104,7 +106,9 @@ struct LabTPStrip: View {
     @ViewBuilder
     private func tabView(_ tab: LabTPTab) -> some View {
         let isActive = tab.id == activeID
-        if isActive, !tab.pages.isEmpty, style == .group {
+        if isActive, !tab.pages.isEmpty, let refine {
+            refinedTab(tab, refine)
+        } else if isActive, !tab.pages.isEmpty, style == .group {
             groupView(tab)
         } else if isActive, !tab.pages.isEmpty, style == .beside {
             HStack(spacing: SpacingTokens.xs) { plainTab(tab).fixedSize(); besidePages(tab) }

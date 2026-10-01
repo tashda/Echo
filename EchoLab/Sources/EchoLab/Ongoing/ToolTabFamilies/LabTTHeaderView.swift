@@ -232,7 +232,7 @@ struct LabTTTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             if look.header.isOneLine {
-                LabTPStrip(tabs: [.query2, tool.stripTab], activeID: tool.stripTab.id, style: .group)
+                LabTPStrip(tabs: [.query2, tool.stripTab], activeID: tool.stripTab.id, style: .today, refine: .recommended)
             }
             LabTTHeaderView(tool: tool, look: look, running: running)
             VStack(spacing: SpacingTokens.none) {

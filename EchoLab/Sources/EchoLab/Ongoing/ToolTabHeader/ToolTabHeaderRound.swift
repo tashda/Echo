@@ -6,7 +6,7 @@ import SwiftUI
 /// Trace", a borderless trash, "Database" and a pop-up, borderless Events and Export symbols, and a
 /// green "Tracing" at the right; the owner finds it off against the rest of Echo.
 /// Revision 2: the owner wants the pages in the tab (confirmed: the tab bar, 36.1) and everything
-/// else on one line where the header is. Added UH5 to UH8, drawn under the strip with TP5.
+/// else on one line where the header is. Added UH5 to UH8, drawn under the strip (36.1, TP0 refined since its revision 3).
 @MainActor
 enum ToolTabHeaderRound {
     static let spec = RoundSpec(
@@ -35,10 +35,10 @@ enum ToolTabHeaderRound {
                   isWide: true, designWidth: 860, designHeight: 330) { values in
                 LabTTTab(tool: .activity, look: look(values))
             },
-            .init(id: "oneLines", title: "The four one-line headers", summary: "UH5 to UH8 on Policy Management, under its tab (TP5).",
+            .init(id: "oneLines", title: "The four one-line headers", summary: "UH5 to UH8 on Policy Management, under its tab (36.1, TP0 refined).",
                   isWide: true, addedIn: 2, designWidth: 860, designHeight: 340) { _ in
                 VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    LabTPStrip(tabs: [.query2, .policy], activeID: LabTPTab.policy.id, style: .group)
+                    LabTPStrip(tabs: [.query2, .policy], activeID: LabTPTab.policy.id, style: .today, refine: .recommended)
                     ForEach(LabTTHeaderStyle.revision2, id: \.self) { style in
                         Text(style.rawValue).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                         LabTTHeaderView(tool: .policy, look: { var look = LabTTLook(); look.header = style; return look }())
@@ -57,7 +57,7 @@ enum ToolTabHeaderRound {
                       .init(id: "row", name: "PG1 · No: pages lead the toolbar row; the tab stays plain"),
                   ],
                   recommended: "tab",
-                  why: "You told me the pages belong in the tab bar; UH5 to UH8 are drawn that way, with TP5's strip above them."),
+                  why: "You told me the pages belong in the tab bar; UH5 to UH8 are drawn that way, with 36.1's TP0 refined strip above them."),
         ],
         exhibitTopic: ("Which header?", "Which of these is the header for every tool?", "profiler",
                        "One line under the tab (UH5): tile, name and subtitle, then the controls in glass; the pages are in the tab."),

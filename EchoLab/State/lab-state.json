@@ -2943,6 +2943,11 @@
         "date": "2026-10-01T17:49:22Z",
         "id": "DFAFEB13-5779-454B-8059-0CBA63617FEA",
         "text": "Review of Tool tabs with pages: the tab bar\n1. Which tab bar?: NEEDS MORE OPTIONS; note: I don't really like any of these. TP0 is closest, but it looks weird with how the \"sub pages\" are in a tab within the tab and the activity monitor sits on the tab. This needs to look better, but I don't enjoy any of the other suggestions\n2. Pages: no answer yet\n3. One tab: no answer yet\n4. Switching tabs: no answer yet"
+      },
+      {
+        "date": "2026-10-01T18:18:02Z",
+        "id": "63836D69-F2FB-419F-AEC4-1028D7A176E4",
+        "text": "Review of Tool tabs with pages: the tab bar\n1. Which tab bar?: NEEDS MORE OPTIONS; note: I don't really like any of these. TP0 is closest, but it looks weird with how the \"sub pages\" are in a tab within the tab and the activity monitor sits on the tab. This needs to look better, but I don't enjoy any of the other suggestions\n2. Pages: no answer yet\n3. One tab: no answer yet\n4. Switching tabs: no answer yet"
       }
     ],
     "generalNote": "",
@@ -2958,6 +2963,14 @@
       {
         "date": "2026-10-01T18:09:48Z",
         "text": "Revision 2: Pages stay in the tab bar, drawn three new ways so nothing sits inside the tab"
+      },
+      {
+        "date": "2026-10-01T18:18:02Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T18:33:38Z",
+        "text": "Revision 3: TP0 refined: your favourite, with one knob per thing that looked off"
       }
     ],
     "needsMore": [
@@ -2968,7 +2981,7 @@
       "exhibit": "I don't really like any of these. TP0 is closest, but it looks weird with how the \"sub pages\" are in a tab within the tab and the activity monitor sits on the tab. This needs to look better, but I don't enjoy any of the other suggestions"
     },
     "picks": {},
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -2981,6 +2994,21 @@
         "date": "2026-10-01T18:09:48Z",
         "number": 2,
         "summary": "Pages stay in the tab bar, drawn three new ways so nothing sits inside the tab"
+      },
+      {
+        "changes": [
+          "New exhibit: TP0 refined (three tabs, alone, more tools with nine pages and a menu)",
+          "New exhibit: From today to refined, one fix at a time",
+          "New control: Tab width (RW1, as wide as its title and pages; recommended)",
+          "New control: Grey track (RT1, docked to the tab's right end with a matching curve; recommended)",
+          "New control: Type (RX1, title and pages at 11pt on one baseline; recommended)",
+          "New control: Between (hairline or not) and Shown page (white raised or tinted)",
+          "TP1 to TP7 kept under Earlier styles, no longer asked about",
+          "37.2 and round 45 now draw TP0 refined above their headers"
+        ],
+        "date": "2026-10-01T18:33:38Z",
+        "number": 3,
+        "summary": "TP0 refined: your favourite, with one knob per thing that looked off"
       }
     ],
     "status": "Judging",
