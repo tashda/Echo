@@ -29,7 +29,8 @@ enum ToolTabsSpec {
             ], files: [header]),
             SpecElement(number: "1.4", name: "Subtitle", summary: "The server, the database, and how fresh the data is.", groups: [
                 .type(.row("Font", "11pt, tabular digits", token: "TypographyTokens.detail"), .row("Colour", "secondary"), .row("Lines", "1")),
-                .behaviour(.row("Text", "server · database; a tool adds its freshness (\"updated 2 s ago\")")),
+                .behaviour(.row("Text", "server · database; a tool adds its freshness (\"updated 2 s ago\")"),
+                           .row("Ticking", "live while the tab is on screen; frozen in a tab kept mounted behind another (SinceDateText, owner's choice 2026-10-01)")),
             ], files: [header, container]),
             SpecElement(number: "1.5", name: "Actions", summary: "The tool's own actions at the right.", groups: [
                 .behaviour(.row("Placement", "trailing, in the tool's own controls")),

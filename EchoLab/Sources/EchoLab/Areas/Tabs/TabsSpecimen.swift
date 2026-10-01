@@ -40,6 +40,13 @@ struct TabsSpecimen: View {
 
     private struct Item { let title: String; let icon: String; let pages: [String]; let pinned: Bool }
 
+    /// The unfolded tab, or nil: the strip springs only when this changes (QueryTabStrip).
+    private var unfoldedKey: Int? {
+        let list = items
+        guard model.showsPages, list.count > 1, list.indices.contains(model.active), !list[model.active].pages.isEmpty else { return nil }
+        return model.active
+    }
+
     private var items: [Item] {
         var list: [Item] = []
         if model.hasPinned { list.append(Item(title: "Q", icon: "doc.text", pages: [], pinned: true)) }
@@ -115,7 +122,8 @@ struct TabsSpecimen: View {
                 }
                 .frame(height: stripHeight)
                 .specAnchor("1.1")
-                .animation(.snappy(duration: 0.32, extraBounce: 0.06), value: model.active)
+                // As in Echo: only a tool tab unfolding or folding springs; a plain switch is instant.
+                .animation(.snappy(duration: 0.32, extraBounce: 0.06), value: unfoldedKey)
             }
             .frame(maxHeight: .infinity, alignment: .center)
         }

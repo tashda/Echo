@@ -229,6 +229,11 @@ struct MaintenanceDateCell: View {
     let manual: Date?
     let auto: Date?
 
+    @Environment(\.keptAliveTabsActivity) private var tabsActivity
+    @Environment(\.keptAliveTabID) private var tabID
+    /// Live dates tick only while this tab is on screen (owner's choice, 2026-10-01).
+    private var isOnScreen: Bool { KeptAliveTabsActivity.isActive(tabID, in: tabsActivity) }
+
     private var latest: Date? {
         switch (manual, auto) {
         case let (m?, a?): return max(m, a)
@@ -240,8 +245,7 @@ struct MaintenanceDateCell: View {
 
     var body: some View {
         if let date = latest {
-            // Formatted when the row renders, not a live relative date that ticks every second in every row.
-            Text(date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
+            SinceDateText.text(since: date, isLive: isOnScreen)
                 .font(TypographyTokens.Table.date)
                 .foregroundStyle(isStale(date) ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
         } else {

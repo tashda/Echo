@@ -95,14 +95,16 @@ enum ExplorerTreeSpec {
                            .row("Dock", "opens the Customize Dock sheet"),
                            .row("The sheet", "titled Customize Dock with the server's name; Applies to every server of its type or this server only; the sections as toggles you drag to reorder (at most five show, the rest are under More); Icons for the dock (Mono or Duotone) and the tree (Colourful or Monochrome); Use Default Sections; Done, disabled while no section is on")),
             ], rounds: [round16], files: [components + "ExplorerDockCustomizationSheet.swift"]),
-            SpecElement(number: "3.7", name: "Switching sections", summary: "The rows fade out, swap and fade in while the card's edge settles (S3).", groups: [
-                .motion(.row("Fade out", "ease in, 0.08s", token: "ObjectBrowserSidebarView.dockFadeOutDuration"),
-                        .row("Fade in", "ease out, 0.18s", token: "dockFadeInDuration"),
-                        .row("Scaled by", "the Motion speed setting", token: "motion.durationScale"),
-                        .row("Card edge", "settles as the section changes, without overshoot")),
+            SpecElement(number: "3.7", name: "Switching sections", summary: "A veil in the card's colour fades over the rows, the section swaps and the card's edge moves under it, then the veil fades away (S3).", groups: [
+                .motion(.row("Veil in", "ease out, 0.12s", token: "ExplorerDockSwitchTiming.fadeOutDuration"),
+                        .row("Card edge", "smooth, no overshoot, 0.28s; only the switching card animates", token: "EchoMotion.dockEdge"),
+                        .row("Veil out", "ease out, 0.22s", token: "ExplorerDockSwitchTiming.fadeInDuration"),
+                        .row("Scaled by", "the Motion speed setting", token: "motion.durationScale")),
                 .behaviour(.row("Position", "each section keeps its scroll position and open folders; the view jumps, unanimated, to where the section was left"),
-                           .row("A section not shown before", "doesn't scroll"), .row("While fading", "another click is ignored")),
-            ], rounds: ["ported.Round 14 · section dock", round16, r19Switching], files: [components + "ObjectBrowserSidebarView+Dock.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarViewModel+Dock.swift"]),
+                           .row("A section not shown before", "doesn't scroll"), .row("While switching", "another click on that server's dock is ignored"),
+                           .row("The section", "opens (and starts loading) when the switch starts, under the fading veil"),
+                           .row("The window", "can't be dragged while the switch runs", token: "WindowDragPause")),
+            ], rounds: ["ported.Round 14 · section dock", round16, r19Switching], files: [components + "ObjectBrowserSidebarView+Dock.swift", components + "ExplorerMotion.swift", components + "ExplorerTreeVeilLayer.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ObjectBrowserSidebarViewModel+Dock.swift"]),
             SpecElement(number: "3.8", name: "SQL Server's five sections", summary: "Grouped as SSMS groups them (round 19).", groups: [
                 .behaviour(.row("Databases", "the databases, with Database Snapshots at the end"), .row("Security", "Logins, Server Roles, Credentials"),
                            .row("Server Objects", "Linked Servers, Server Triggers"), .row("Agent Jobs", "Job Queue and the jobs"),

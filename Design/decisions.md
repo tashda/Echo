@@ -2,6 +2,16 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Smoothness pass: the owner's answers
+
+After the overnight tracing pass (commits f90524d9 to 9819269c), asked in chat:
+
+- **A plain tab switch moves the highlight at once.** Only a tool tab unfolding or folding its pages springs (`QueryTabStrip.unfoldAnimation`, keyed on the unfolded tab). → Echo Labs › Tabs (TABS-5.2)
+- **Live dates tick only while their tab is on screen** ("updated 5 s ago" in a tool's header, Last Run, last vacuum); in a tab kept mounted behind another they are frozen (`SinceDateText`). → Echo Labs › Tool tabs (header text)
+- **Activity Monitor while the tree or inspector slides:** to be judged in a Lab round (hold the content's width during the slide, or reflow live at ~20 fps).
+- **Move the Explorer into a shared package** so Echo Labs renders the real tree: next.
+- Recorded as built, to confirm in the running app: six tabs stay loaded (was three); the window can't be dragged while a window or Explorer animation runs; a section switch fades a card-coloured veil in (0.12 s), moves the card's edge (0.28 s) and fades it out (0.22 s), where round 19 recorded 0.08 s and 0.18 s fades. → Echo Labs › Tabs, Window, Explorer tree
+
 ## 2026-09-30 · Round 23 accepted: PostgreSQL connection sheet for companies
 
 Echo Labs › Connections › round 23 (three pages), for what postgres-wire now supports: Kerberos, encrypted client keys, several servers with failover.

@@ -11,7 +11,7 @@ enum WindowArea {
         summary: "A canvas holding the server rail, the tree, and opaque cards. Glass is only for controls.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "d359a536", date: "2026-09-30",
+                level: .code, commit: "ef1c3bba", date: "2026-10-01",
                 note: "Read from WorkspaceShell, ServerRail, ServerRailEntry, ServerRailMonogram, WorkspaceWelcomeView, ConnectionDashboardView and the workspace, rail and welcome tokens. The specimen is the Echo Labs rail (servers and the tool pill) with a stand-in tree and two cards."),
             stageHeight: 520,
             behaviours: [
@@ -26,6 +26,7 @@ enum WindowArea {
                 .init(trigger: "No server and no tab", result: "The welcome sits on the canvas with no card: Echo's icon and name; Connect… (glass, prominent), Quick Connect and Manage (glass); then Recent, the latest five connections on one small card, each with its monogram in its colour, name, host and how long ago."),
                 .init(trigger: "Server active, no tab", result: "The server page on the canvas: the name large, its version as one quiet line, its tools on glass buttons (New Query first), and a databases card with a filter. Its top lines up with the rail's."),
                 .init(trigger: "Nothing to show in the tree", result: "The tree stays hidden and ⌃⌘S does nothing until a server connects or you pick a tool."),
+                .init(trigger: "While the tree, inspector, peek, tab overview or an Explorer switch animates", result: "The window can't be dragged for those few hundred milliseconds (WindowDragPause). Otherwise AppKit recomputed the window's drag regions on every frame, walking the whole window's focus order."),
             ],
             motions: [
                 .init(name: "Rail selection", curve: "liquid stretch: the leading edge races, the trailing edge follows", duration: "0.28s and 0.55s", note: "echoMotion.liquidLead and liquidTrail"),

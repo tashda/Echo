@@ -29,14 +29,14 @@ enum ExplorerTreeArea {
         summary: "Each server sits on its own card: quiet 28pt rows, duotone icons, and a dock of section icons pinned under the server's name.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "b1314d73", date: "2026-09-30",
-                note: "Read from SidebarRow, SidebarRowConstants, ExplorerDock, ExplorerDockRow, ObjectBrowserRowView+Headers, ObjectBrowserSidebarView+Dock, ExplorerTreeScrollState, ExplorerBlueprint+SQLServer and the tokens, as of round 19. The specimen is a self-contained copy of the server card."),
+                level: .code, commit: "ef1c3bba", date: "2026-10-01",
+                note: "Read from SidebarRow, SidebarRowConstants, ExplorerDock, ExplorerDockRow, ObjectBrowserRowView+Headers, ObjectBrowserSidebarView+Dock, ExplorerMotion, ExplorerTreeVeilLayer, ExplorerTreeScrollState, ExplorerBlueprint+SQLServer and the tokens, as of round 19 and the 2026-10-01 smoothness work. The specimen is a self-contained copy of the server card."),
             stageHeight: 540,
             behaviours: [
                 .init(trigger: "Hover a row", result: "A folder's icon turns into a chevron and its count appears. Nothing else moves."),
                 .init(trigger: "Click a folder", result: "It opens or closes; the rows below slide and fade, like the native outline."),
                 .init(trigger: "Click an object", result: "Grey selection fill with the row's icon in its accent."),
-                .init(trigger: "Click a dock icon", result: "The rows fade out (0.08s), the new section swaps in while the card's edge settles, the view jumps to where that section was left, and the rows fade in (0.18s). A section not shown before doesn't scroll; the header's second line names the current section."),
+                .init(trigger: "Click a dock icon", result: "A veil in the card's colour fades over the rows (0.12s); under it the new section swaps in and the card's edge moves to its size (0.28s, no overshoot), the view jumps to where that section was left, and the veil fades away (0.22s). Rows never slide or show outside the card, and the window holds still meanwhile. A section not shown before doesn't scroll; the header's second line names the current section."),
                 .init(trigger: "Hover a dock icon", result: "An icon that isn't the current one grows 12%."),
                 .init(trigger: "More (») in the dock", result: "Shows the sections the capsule leaves out (it holds at most five) as ordinary folders."),
                 .init(trigger: "A card gets shorter", result: "A spacer under the last card keeps the bottom where it was, so the cards above don't move; it gives the room back as you scroll up."),
@@ -48,8 +48,9 @@ enum ExplorerTreeArea {
                 .init(name: "Folder open and close", curve: "ease in-out", duration: "0.22s", note: "echoMotion.expand"),
                 .init(name: "Reveal in the tree", curve: "smooth", duration: "0.40s", note: "echoMotion.reveal, scrolling to a picked object"),
                 .init(name: "Hover fill", curve: "ease out", duration: "0.12s", note: "echoMotion.hover"),
-                .init(name: "Switch dock section: fade out", curve: "ease in", duration: "0.08s", note: "scaled by the Motion speed setting"),
-                .init(name: "Switch dock section: fade in", curve: "ease out", duration: "0.18s", note: "after the swap and the jump to the remembered position"),
+                .init(name: "Switch dock section: veil in", curve: "ease out", duration: "0.12s", note: "ExplorerDockSwitchTiming.fadeOut; scaled by the Motion speed setting"),
+                .init(name: "Switch dock section: card edge", curve: "smooth, no overshoot", duration: "0.28s", note: "echoMotion.dockEdge; only the switching card animates"),
+                .init(name: "Switch dock section: veil out", curve: "ease out", duration: "0.22s", note: "ExplorerDockSwitchTiming.fadeIn; after the swap and the jump to the remembered position"),
                 .init(name: "Dock icon hover", curve: "ease out", duration: "0.12s", note: "grows 12%; echoMotion.hover"),
             ],
             measurements: [

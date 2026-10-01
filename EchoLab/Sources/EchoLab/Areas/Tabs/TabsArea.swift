@@ -14,12 +14,12 @@ enum TabsArea {
         summary: "Safari-style tabs on one line: a grey plate with a raised white active tab, a glass + at the end, and a tool's pages unfolding inside its own tab.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "b1314d73", date: "2026-09-30",
+                level: .code, commit: "ef1c3bba", date: "2026-10-01",
                 note: "Read from QueryTabStrip, QueryTabButton (+Title, +CloseButton, +Appearance), TabPageChips and the tab tokens. The specimen is drawn with the same tokens and metrics."),
             stageHeight: 150,
             behaviours: [
-                .init(trigger: "Click a tab", result: "Selects on press, so the click counts at once; dragging still reorders. Pressing the close button doesn't select the tab."),
-                .init(trigger: "Switch back to a recent tab", result: "Its editor is still alive: scroll, undo history and cursor stay."),
+                .init(trigger: "Click a tab", result: "Selects on press, so the click counts at once; dragging still reorders. Pressing the close button doesn't select the tab. The highlight moves at once, as in Safari; only a tool tab unfolding or folding its pages springs."),
+                .init(trigger: "Switch back to a recent tab", result: "Its editor is still alive: scroll, undo history and cursor stay. The six most recent tabs stay loaded (KeptAliveTabsView.keptTabCount); an older one is rebuilt, and the one that drops out is unloaded a second later."),
                 .init(trigger: "Hover a tab", result: "The close × appears at its leading edge; the tooltip shows title, database and running time."),
                 .init(trigger: "Middle-click a tab", result: "Closes it."),
                 .init(trigger: "Query running", result: "A spinner replaces the tab's icon."),
@@ -29,7 +29,8 @@ enum TabsArea {
                 .init(trigger: "Drag a tab", result: "It follows the pointer; the others make room; separators next to it hide."),
             ],
             motions: [
-                .init(name: "Unfold pages", curve: "snappy, extra bounce 0.06", duration: "0.32s", note: "QueryTabStrip.unfoldAnimation"),
+                .init(name: "Unfold pages", curve: "snappy, extra bounce 0.06", duration: "0.32s", note: "QueryTabStrip.unfoldAnimation; only when the unfolded tab changes, not on a plain switch"),
+                .init(name: "Plain tab switch", curve: "none", duration: "instant", note: "decided 2026-10-01"),
                 .init(name: "Reorder while dragging", curve: "interactive spring, response 0.2, damping 0.9", duration: "interactive", note: "tabReorderAnimation"),
                 .init(name: "Page chip selection", curve: "snappy", duration: "0.22s"),
             ],
@@ -52,6 +53,9 @@ enum TabsArea {
                 .init(text: "The database is in the tooltip",
                       why: "One line keeps the strip calm.",
                       rounds: ["decided.round12-two-line-tabs"]),
+                .init(text: "A plain tab switch moves the highlight at once",
+                      why: "As native tab bars do. Springing every tab's colours re-rendered the strip for ~0.7 s on each switch. Owner's choice, 2026-10-01.",
+                      rounds: []),
                 .init(text: "A tool's pages unfold inside its tab (ST2)",
                       why: "Replaces the segmented control at the top of tool tabs.",
                       rounds: ["ported.Round 14 · tab bar and pages"]),
@@ -180,7 +184,8 @@ enum TabsArea {
                 .layout(.row("Ideal width", "title + pages + 76pt chrome", token: "TabPageChipsMetrics.idealWidth"),
                         .row("Never narrower", "than its equal share of the strip"), .row("Largest share of the strip", "62%", token: "LayoutTokens.TabPages.maxShareOfStrip"),
                         .row("Other tabs", "share what is left equally")),
-                .motion(.row("Unfold", "snappy, extra bounce 0.06, 0.32s", token: "unfoldAnimation")),
+                .motion(.row("Unfold", "snappy, extra bounce 0.06, 0.32s; only when the unfolded tab changes", token: "unfoldAnimation"),
+                        .row("Plain switch", "instant")),
             ], files: [files + "QueryTabStrip+Unfold.swift"]),
         ]),
         SpecPart(number: "6", name: "Not built", summary: "Things the plan mentioned that Echo does not do (yet).", elements: [

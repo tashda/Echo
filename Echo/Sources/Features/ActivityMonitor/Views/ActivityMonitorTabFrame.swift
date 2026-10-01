@@ -15,6 +15,10 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
 
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ProjectStore.self) private var projectStore
+    @Environment(\.keptAliveTabsActivity) private var tabsActivity
+    @Environment(\.keptAliveTabID) private var tabID
+    /// Live dates tick only while this tab is on screen (owner's choice, 2026-10-01).
+    private var isOnScreen: Bool { KeptAliveTabsActivity.isActive(tabID, in: tabsActivity) }
 
     var body: some View {
         // TT2 + TT3: the tool header on the canvas, the figures as tiles, then the page on its
@@ -48,9 +52,7 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
         let prefix = server.isEmpty ? "" : "\(server) · "
         if !viewModel.isRunning { return Text("\(prefix)Paused") }
         guard let lastUpdate else { return Text("\(prefix)Waiting for the first snapshot") }
-        // The snapshot's time, not a live "5 sec ago": a live relative date ticks every second, even
-        // in a hidden tab, and each tick re-lays out the window (about 100 ms a second).
-        return Text("\(prefix)Updated \(lastUpdate.formatted(date: .omitted, time: .standard))")
+        return Text("\(prefix)Updated \(SinceDateText.text(since: lastUpdate, isLive: isOnScreen)) ago")
     }
 
     private var permissionDeniedView: some View {
