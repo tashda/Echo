@@ -47,8 +47,13 @@ jobs:
         rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
         rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
 
+    - name: Access to echo-server-lab
+      uses: ./.github/actions/lab-repo-access
+      with:
+        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
+
     - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo -scmProvider system
 
     - name: Run Unit Tests
       run: |

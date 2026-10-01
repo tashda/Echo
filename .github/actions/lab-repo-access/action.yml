@@ -1,0 +1,33 @@
+name: "Access to echo-server-lab"
+description: >
+  Lets git and Xcode fetch the private echo-server-lab package with a read-only deploy key:
+  https://github.com/tashda/echo-server-lab is rewritten to SSH through that key, and Xcode
+  resolves packages with the system git so it honours the rewrite.
+inputs:
+  deploy-key:
+    description: "The deploy key's private half (secret LAB_DEPLOY_KEY)"
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        LAB_DEPLOY_KEY: ${{ inputs.deploy-key }}
+      run: |
+        if [ -z "$LAB_DEPLOY_KEY" ]; then
+          echo "::error::LAB_DEPLOY_KEY is not set; Echo's packages include the private echo-server-lab"
+          exit 1
+        fi
+        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+        printf '%s\n' "$LAB_DEPLOY_KEY" > ~/.ssh/echo-server-lab-deploy
+        chmod 600 ~/.ssh/echo-server-lab-deploy
+        echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts
+        cat >> ~/.ssh/config <<'CONFIG'
+        Host github-echo-server-lab
+          HostName github.com
+          User git
+          IdentityFile ~/.ssh/echo-server-lab-deploy
+          IdentitiesOnly yes
+        CONFIG
+        git config --global url."git@github-echo-server-lab:tashda/echo-server-lab".insteadOf "https://github.com/tashda/echo-server-lab"
+        defaults write com.apple.dt.Xcode IDEPackageSupportUseBuiltinSCM -bool NO
