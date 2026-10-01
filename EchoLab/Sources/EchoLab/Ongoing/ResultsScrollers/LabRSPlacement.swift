@@ -15,7 +15,7 @@ enum LabRSPlacement: String, CaseIterable {
 
     var summary: String {
         switch self {
-        case .aboveFooter: "Echo today: the bar floats over the last rows, just above the footer, and the vertical bar stops there too."
+        case .aboveFooter: "Echo today: the bar floats over the rows a footer's height above the footer (Echo adds the footer's room twice), and the vertical bar stops there too."
         case .bottomEdge: "The bar runs along the card's bottom edge, in the lane under the footer's chips, inside the rounded corners. The vertical bar runs down to meet it."
         case .inFooter: "The bar sits inside the footer, between the connection chip and the pills, as part of the footer bar."
         case .ownLane: "The footer is lifted by one bar's height, and the bar gets a lane of its own along the bottom edge, so it never meets a chip, even when it widens under the pointer."
@@ -25,36 +25,45 @@ enum LabRSPlacement: String, CaseIterable {
         }
     }
 
-    /// The scroll view's scroller insets for this placement. `footerZone` is the footer's height
-    /// plus its lift; `chips` is the room the footer's left chip and right pills take.
-    func scrollerInsets(footerZone: CGFloat, cornerRadius: CGFloat, chips: (left: CGFloat, right: CGFloat)) -> NSEdgeInsets {
+    /// Where the horizontal bar sits: its distance from the card's bottom edge and its ends' insets.
+    /// Nil when the placement has no bar (F and G). `lane` is the bar's height.
+    func horizontalFrame(footerZone: CGFloat, cornerRadius: CGFloat, chips: (left: CGFloat, right: CGFloat),
+                         lane: CGFloat) -> LabRSBarFrame? {
         switch self {
         case .aboveFooter:
-            // As Echo sets it (ResultTableContainerView.setFooterOverlay).
-            NSEdgeInsets(top: 0, left: 0, bottom: footerZone, right: 0)
+            // Echo adds the footer's room twice (content inset and scroller inset), measured 2026-10-01.
+            LabRSBarFrame(bottom: footerZone * 2, left: 0, right: 0)
         case .bottomEdge:
-            NSEdgeInsets(top: 0, left: cornerRadius, bottom: 0, right: cornerRadius)
+            LabRSBarFrame(bottom: 0, left: cornerRadius, right: cornerRadius)
         case .inFooter:
-            NSEdgeInsets(top: 0, left: chips.left, bottom: footerZone / 2 - Self.overlayThickness / 2, right: chips.right)
+            LabRSBarFrame(bottom: LayoutTokens.Footer.bottomLift + (LayoutTokens.Footer.height - lane) / 2,
+                          left: chips.left, right: chips.right)
         case .ownLane:
-            NSEdgeInsets(top: 0, left: cornerRadius, bottom: 0, right: cornerRadius)
+            LabRSBarFrame(bottom: 0, left: cornerRadius, right: cornerRadius)
         case .footerEdge:
-            NSEdgeInsets(top: 0, left: 0, bottom: footerZone - Self.overlayThickness / 2, right: 0)
+            LabRSBarFrame(bottom: footerZone - lane / 2, left: SpacingTokens.sm, right: SpacingTokens.sm)
         case .glassTrack, .positionChip:
-            NSEdgeInsets(top: 0, left: 0, bottom: footerZone, right: 0)
+            nil
         }
     }
 
-    /// Whether the grid keeps the system's horizontal bar.
-    var showsSystemBar: Bool { self != .glassTrack && self != .positionChip }
+    /// How much higher the footer sits than Echo's 4pt lift: D gives the bar a lane of its own.
+    func extraFooterLift(lane: CGFloat) -> CGFloat { self == .ownLane ? lane : 0 }
 
-    /// How much higher the footer sits than Echo's 4pt lift.
-    var extraFooterLift: CGFloat { self == .ownLane ? Self.overlayThickness : 0 }
+    /// The footer's gap between its chips is taken by the bar (C), the track (F) or the chip (G).
+    var takesFooterGap: Bool { self == .inFooter || self == .glassTrack || self == .positionChip }
 
     /// An overlay scroller's lane.
     static var overlayThickness: CGFloat {
         NSScroller.scrollerWidth(for: .regular, scrollerStyle: .overlay)
     }
+}
+
+/// A bar's place: distance from the card's bottom edge, and how far its ends are inset.
+struct LabRSBarFrame: Equatable {
+    var bottom: CGFloat
+    var left: CGFloat
+    var right: CGFloat
 }
 
 /// Wider than the card, so the horizontal bar has something to scroll.

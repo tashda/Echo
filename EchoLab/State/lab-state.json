@@ -817,6 +817,10 @@
       {
         "date": "2026-10-01T10:09:16Z",
         "text": "Revision 2: Four more places for the bar and three more scopes, as asked"
+      },
+      {
+        "date": "2026-10-01T10:39:37Z",
+        "text": "Revision 3: Way more options on every aspect, and the proposal now draws what it says"
       }
     ],
     "needsMore": [
@@ -836,6 +840,16 @@
         "date": "2026-10-01T10:09:16Z",
         "number": 2,
         "summary": "Four more places for the bar and three more scopes, as asked"
+      },
+      {
+        "changes": [
+          "Fixed: the proposal's bar was lifted by the footer's room (AppKit adds the content and scroller insets), so D looked like A; Echo today has the same doubling, which is why its bar floats so high",
+          "New controls: how the bar looks (S1 to S6: system, thin line, soft capsule in the card's tint, accent, glass track, groove), when bars show (V1 to V4), where the vertical bar ends (R1 to R3), and what else ties the position to the card (X0 to X4: soft edges, a line on the footer's edge, a column map in the footer, a line under the header)",
+          "Seven presets, from native in its own lane to almost nothing"
+        ],
+        "date": "2026-10-01T10:39:37Z",
+        "number": 3,
+        "summary": "Way more options on every aspect, and the proposal now draws what it says"
       }
     ],
     "status": "Judging",

@@ -123,7 +123,7 @@ enum FooterResultsSpec {
                 .layout(.row("Width", "at least 6 digits", token: "ResultsGridMetrics.minimumRowNumberDigits"), .row("Padding", "2pt leading, 5pt trailing")),
             ], files: [grid + "Cells/ResultTableRowNumberView.swift"]),
             SpecElement(number: "4.6", name: "Scroll bars", summary: "Overlay bars that stop above the footer; round 27 asks where they belong.", groups: [
-                .layout(.row("Horizontal", "floats over the last rows, its bottom at the footer's top (footer height + lift)", token: "LayoutTokens.Footer.height + bottomLift"),
+                .layout(.row("Horizontal", "floats over the rows a footer's height above the footer: Echo sets the footer's room as both the content inset and the scroller inset, and AppKit adds them (2 × (footer height + lift))", token: "LayoutTokens.Footer.height + bottomLift"),
                         .row("Vertical", "ends at the same height"),
                         .row("Rows", "scroll clear of the footer by the same inset")),
                 .behaviour(.row("Shown", "while scrolling, as the system's overlay bars")),
