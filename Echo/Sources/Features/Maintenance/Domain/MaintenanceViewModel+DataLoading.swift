@@ -1,5 +1,5 @@
 import Foundation
-import PostgresWire
+import PostgresKit
 
 extension MaintenanceViewModel {
 

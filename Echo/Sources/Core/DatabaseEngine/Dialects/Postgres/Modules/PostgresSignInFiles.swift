@@ -2,7 +2,7 @@ import Foundation
 #if os(macOS)
 import AppKit
 #endif
-import PostgresWire
+import PostgresKit
 
 /// The user's Kerberos ticket as the connection sheet shows it (Echo Labs round 23, KT1, KU1).
 enum KerberosTicketStatus: Equatable, Sendable {

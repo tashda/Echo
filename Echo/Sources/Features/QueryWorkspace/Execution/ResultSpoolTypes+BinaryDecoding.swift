@@ -1,5 +1,5 @@
 import Foundation
-import PostgresWire
+import PostgresKit
 
 /// Postgres column types as Echo stores them: `ColumnInfo.dataType` is `"NAME(OID)"`
 /// (from `PostgresRowExtractor.columns(from:)`), e.g. `"INTEGER(23)"` or `"TEXT[](1009)"`.
@@ -26,8 +26,8 @@ enum PostgresSpoolColumns {
         return oids
     }
 
-    /// Decodes one spooled row (per cell `0x00` for NULL or `0x01` + UInt32-LE length + Postgres binary
-    /// bytes) with the driver's formatter, so spooled rows read exactly like the live preview rows.
+    /// Decodes one spooled row (per cell `0x00` for NULL or `0x01` + UInt32-LE length + the
+    /// server's text bytes) with the driver's formatter, so spooled rows read exactly like the live preview rows.
     nonisolated static let formatter = PostgresCellFormatter()
 
     nonisolated static func decodeRow(_ data: Data, oids: [UInt32], formatter: PostgresCellFormatter = formatter) -> [String?] {

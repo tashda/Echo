@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import PostgresWire
+import PostgresKit
 
 @Observable
 final class MaintenanceViewModel {

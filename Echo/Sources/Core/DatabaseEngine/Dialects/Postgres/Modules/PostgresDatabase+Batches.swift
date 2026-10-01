@@ -1,6 +1,5 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 
 /// How a PostgreSQL script runs (Echo Labs round 21, script results: E3 and OT1).
 struct PostgresScriptOptions: Sendable, Equatable {

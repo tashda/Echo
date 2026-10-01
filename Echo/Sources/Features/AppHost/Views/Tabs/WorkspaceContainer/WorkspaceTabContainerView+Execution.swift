@@ -1,6 +1,6 @@
 import SwiftUI
 import EchoSense
-import PostgresWire
+import PostgresKit
 
 extension WorkspaceTabContainerView {
     func runQuery(tabId: UUID, sql: String) async {

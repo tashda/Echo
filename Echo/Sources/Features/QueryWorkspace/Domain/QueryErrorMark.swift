@@ -1,6 +1,5 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 import SQLServerKit
 
 /// Where a failed run's error is, marked in the editor (Echo Labs round 21, Postgres: where the
@@ -188,12 +187,7 @@ nonisolated enum QueryErrorMarker {
                 message = kit.serverMessage ?? kit.message
                 position = kit.position
                 hint = kit.hint
-                context = nil
-            } else if let psql = candidate as? PSQLError, let info = psql.serverInfo {
-                message = info[.message] ?? psql.localizedDescription
-                position = info[.position].flatMap { Int($0) }
-                hint = info[.hint]
-                context = info[.locationContext]
+                context = kit.context
             } else {
                 return nil
             }

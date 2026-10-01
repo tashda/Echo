@@ -1,6 +1,5 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 import os
 
 extension PostgresSession {
@@ -36,16 +35,7 @@ extension PostgresSession {
                 underlying: kitError
             )
         }
-        guard let pgError = error as? PSQLError else { return error }
-        return formatServerError(
-            message: pgError.serverInfo?[.message] ?? pgError.localizedDescription,
-            detail: pgError.serverInfo?[.detail],
-            hint: pgError.serverInfo?[.hint],
-            sqlState: pgError.serverInfo?[.sqlState],
-            position: pgError.serverInfo?[.position].flatMap { Int($0) },
-            contextSQL: contextSQL,
-            underlying: pgError
-        )
+        return error
     }
 
     /// Message, detail, hint, SQLSTATE and — when the server reports a position — the statement

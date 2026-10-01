@@ -1,6 +1,6 @@
 import SwiftUI
 import SQLServerKit
-import PostgresWire
+import PostgresKit
 
 @MainActor
 func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) -> (icon: String, text: String, color: Color) {

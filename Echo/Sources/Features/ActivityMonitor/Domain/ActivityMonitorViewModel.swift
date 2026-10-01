@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 import MySQLKit
 import SQLServerKit
-import PostgresWire
+import PostgresKit
 
 @MainActor @Observable
 final class ActivityMonitorViewModel {

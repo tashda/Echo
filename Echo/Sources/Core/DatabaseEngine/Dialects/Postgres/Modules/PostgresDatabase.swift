@@ -1,10 +1,7 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 import Logging
 import os
-
-typealias PostgresQueryResult = PostgresRowSequence
 
 struct PostgresNIOFactory: DatabaseFactory {
     private let packageLogger = Logging.Logger(label: "dev.echodb.echo.postgres")

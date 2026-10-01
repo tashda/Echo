@@ -1,7 +1,7 @@
 import Foundation
 import SQLServerKit
 import NIOCore
-import PostgresWire
+import PostgresKit
 
 struct ResultSpoolConfiguration: Equatable, Sendable {
     var rootDirectory: URL
