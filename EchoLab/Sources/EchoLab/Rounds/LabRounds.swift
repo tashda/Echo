@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r48", label: "Round 48", title: "Opening, connecting and closing the last tab", date: "1 Oct 2026",
+             asked: "Animate the welcome page (the mark alone, echoing in like echodb.dev), the jump from the welcome to a connected server's page, and closing the last tab, which today lands on the welcome instead of the server's page.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.opening-and-closing-r48"]),
         Info(id: "r47", label: "Round 47", title: "Results: the row-number gutter and the column header", date: "1 Oct 2026",
              asked: "The results' row-number column and column header look off (the header's names don't line up with the right-aligned numbers, two lines under the header); make the gutter as good and consistent as the editor's, keeping everything it does.",
              outcome: "Being judged.",
