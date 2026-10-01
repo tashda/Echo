@@ -555,11 +555,6 @@
     "reviewedRevision": 1,
     "revisions": [],
     "status": "In Echo",
-    "takenBy": {
-      "agent": "lane-agent",
-      "date": "2026-10-01T13:51:29Z",
-      "status": "In Echo"
-    },
     "verdicts": {}
   },
   "ongoing.editor-gutter-r28": {
