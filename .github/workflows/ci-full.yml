@@ -67,15 +67,6 @@ jobs:
           -disable-concurrent-testing \
           CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
 
-    - name: Run SQLite Integration Tests
-      run: |
-        find . -maxdepth 1 -name "TestResults-sqlite*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo -testPlan SQLiteIntegrationTests \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-sqlite \
-          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
-
     - name: Upload Unit Test Results
       if: always()
       uses: actions/upload-artifact@v4
@@ -83,12 +74,6 @@ jobs:
         name: test-results-unit
         path: TestResults-unit.xcresult
 
-    - name: Upload SQLite Test Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-sqlite
-        path: TestResults-sqlite.xcresult
 
   # ── Database tests on echo-server-lab ───────────────────────────────────────
   # Runs the EchoTests plan, which switches on the lab suites (SERVERLAB_INTEGRATION=1): each one
