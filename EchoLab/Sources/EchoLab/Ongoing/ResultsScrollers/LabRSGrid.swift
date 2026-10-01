@@ -9,6 +9,8 @@ struct LabRSGrid: NSViewRepresentable {
     let footerZone: CGFloat
     let scrollerInsets: NSEdgeInsets
     let scrollToken: String
+    var showsSystemBar = true
+    let scroll: LabRSScroll
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -40,6 +42,7 @@ struct LabRSGrid: NSViewRepresentable {
         scrollView.backgroundColor = .textBackgroundColor
         scrollView.automaticallyAdjustsContentInsets = false
         context.coordinator.scrollView = scrollView
+        context.coordinator.observe(scroll)
 
         let container = NSView()
         scrollView.frame = container.bounds
@@ -53,6 +56,7 @@ struct LabRSGrid: NSViewRepresentable {
         guard let scrollView = context.coordinator.scrollView else { return }
         scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: footerZone, right: 0)
         scrollView.scrollerInsets = scrollerInsets
+        if scrollView.hasHorizontalScroller != showsSystemBar { scrollView.hasHorizontalScroller = showsSystemBar }
         context.coordinator.blur?.update(edge: .bottom, height: footerZone + LayoutTokens.EdgeBlur.fade,
                                          radii: LayoutTokens.EdgeBlur.radii)
         if context.coordinator.lastScrollToken != scrollToken {
@@ -80,6 +84,7 @@ struct LabRSGrid: NSViewRepresentable {
         var columns: [LabColumn] = []
         var lastScrollToken = ""
         var glideTask: Task<Void, Never>?
+        private weak var scroll: LabRSScroll?
         private let rows = Array(repeating: LabResultsData.rows, count: 12).flatMap { $0 }
 
         func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
@@ -103,6 +108,39 @@ struct LabRSGrid: NSViewRepresentable {
                 label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
             ])
             return cell
+        }
+
+        /// Reports the sideways position to the footer, and lets it scroll the grid.
+        func observe(_ scroll: LabRSScroll) {
+            self.scroll = scroll
+            guard let clip = scrollView?.contentView else { return }
+            clip.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(self, selector: #selector(boundsChanged), name: NSView.boundsDidChangeNotification, object: clip)
+            scroll.scrollTo = { [weak self] position in self?.scroll(to: position) }
+            Task { @MainActor [weak self] in self?.report() }
+        }
+
+        @objc private func boundsChanged(_ notification: Notification) { report() }
+
+        private func report() {
+            guard let scroll, let scrollView, let table = scrollView.documentView as? NSTableView else { return }
+            let visible = scrollView.contentView.bounds
+            let width = max(table.frame.width, 1)
+            let travel = max(width - visible.width, 1)
+            scroll.visibleFraction = min(visible.width / width, 1)
+            scroll.position = min(max(visible.minX / travel, 0), 1)
+            let columns = table.columnIndexes(in: visible)
+            scroll.firstColumn = (columns.first ?? 0) + 1
+            scroll.lastColumn = (columns.last ?? 0) + 1
+            scroll.columnCount = table.numberOfColumns
+        }
+
+        private func scroll(to position: CGFloat) {
+            guard let scrollView, let document = scrollView.documentView else { return }
+            let clip = scrollView.contentView
+            let travel = max(document.frame.width - clip.bounds.width, 0)
+            clip.scroll(to: NSPoint(x: travel * min(max(position, 0), 1), y: clip.bounds.minY))
+            scrollView.reflectScrolledClipView(clip)
         }
 
         /// Scrolls right and down over a second, then back, so both bars show.

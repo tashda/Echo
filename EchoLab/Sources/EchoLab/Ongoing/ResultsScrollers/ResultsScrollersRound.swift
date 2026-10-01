@@ -11,11 +11,11 @@ enum ResultsScrollersRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("placement", "Horizontal scroll bar", LabRSPlacement.self, default: .bottomEdge,
-                question: "Press Scroll in both exhibits a few times (or scroll them yourself), with 40 columns. Which bar belongs to the card, and does it ever crowd the footer's chips?",
-                recommend: .bottomEdge,
-                why: "The bottom edge is where a Mac puts a horizontal bar, it keeps the full width of the card, and the lane under the chips (9pt) is free, so it reads as part of the footer without touching it. C ties the bar to the chips' widths, so it shrinks to a stub in a narrow window; A is today's bar floating over the rows.",
-                summary: \.summary),
+            .of("placement", "Horizontal scroll bar", LabRSPlacement.self, default: .ownLane,
+                question: "Press Scroll in both exhibits a few times (or scroll them yourself), with 40 columns, and try each option. Which bar belongs to the card, and does it ever crowd the footer's chips? D to G are new.",
+                recommend: .ownLane,
+                why: "D keeps the system bar where a Mac puts it, full width along the bottom, and gives it a lane of its own, so it never meets a chip even when it widens under the pointer; the footer moves up by only that lane. B is the same without the lane (it can touch the chips when it widens); E still sits over the rows; F and G replace a system control with our own, which loses the click-to-page and the widening thumb; C shrinks to a stub in a narrow window; A is today.",
+                summary: \.summary, newChoices: (2, LabRSPlacement.revision2)),
             .of("columns", "Columns", LabRSColumns.self, default: .forty),
         ],
         actions: [
@@ -28,18 +28,23 @@ enum ResultsScrollersRound {
             },
             .init(id: "proposal", title: "Proposal", summary: "Built from the control above.",
                   designWidth: width, designHeight: height) { values in
-                card(LabRSPlacement(rawValue: values["placement"]) ?? .bottomEdge, values)
+                card(LabRSPlacement(rawValue: values["placement"]) ?? .ownLane, values)
             },
         ],
         questions: [
             .init(id: "everywhere", title: "Other grids", question: "Should the same placement apply to every grid that sits over a footer (the Messages console, Extended Events data), not only query results?",
-                  choices: [.init(id: "all", name: "Every grid over a footer"), .init(id: "results", name: "Only query results")],
-                  recommended: "all",
-                  why: "They share the footer overlay (cardFooterOverlayHeight), so one rule keeps every card the same; only query results is a smaller change but leaves the others floating."),
+                  choices: [.init(id: "all", name: "Every grid over a footer"), .init(id: "results", name: "Only query results"),
+                            .init(id: "everything", name: "Every scroll bar in a card", summary: "Grids, the editor, the Activity Monitor and tool tabs, footer or not: the horizontal bar always sits the same way at the card's bottom.", addedIn: 2),
+                            .init(id: "gridsEditor", name: "Everything under the footer", summary: "The grids and the SQL editor, which also scroll under the footer today.", addedIn: 2),
+                            .init(id: "resultsData", name: "Query results and table data", summary: "The two grids of rows you browse; the Messages console and Extended Events keep today's bar.", addedIn: 2)],
+                  recommended: "everything",
+                  why: "One rule for every card makes the bar a piece of the card, not of the footer: cards without a footer already have their bar at the bottom edge, so this mostly brings the footer cards in line. Everything under the footer is the next best: the editor matches the grid it sits on."),
         ],
         presets: [
-            .init(id: "recommended", name: "Bottom edge", summary: "My recommendation.",
-                  values: ["placement": LabRSPlacement.bottomEdge.rawValue, "columns": LabRSColumns.forty.rawValue], isRecommended: true),
+            .init(id: "recommended", name: "Its own lane", summary: "My recommendation.",
+                  values: ["placement": LabRSPlacement.ownLane.rawValue, "columns": LabRSColumns.forty.rawValue], isRecommended: true),
+            .init(id: "bottomEdge", name: "Bottom edge", summary: "The first recommendation.",
+                  values: ["placement": LabRSPlacement.bottomEdge.rawValue, "columns": LabRSColumns.forty.rawValue]),
             .init(id: "today", name: "As today", summary: "Floating above the footer.",
                   values: ["placement": LabRSPlacement.aboveFooter.rawValue, "columns": LabRSColumns.forty.rawValue]),
         ]

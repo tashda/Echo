@@ -9,8 +9,9 @@ struct LabRSCard: View {
 
     @Environment(\.workspaceCardCornerRadius) private var cornerRadius
     @State private var segment: PanelSegment = .results
+    @State private var scroll = LabRSScroll()
 
-    private var footerZone: CGFloat { LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift }
+    private var footerZone: CGFloat { LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift + placement.extraFooterLift }
 
     /// Room the footer's connection chip (left) and its three pills (right) take in this sample,
     /// read from the exhibit at its design width, with the footer's own padding.
@@ -22,9 +23,17 @@ struct LabRSCard: View {
                 columnCount: columnCount,
                 footerZone: footerZone,
                 scrollerInsets: placement.scrollerInsets(footerZone: footerZone, cornerRadius: cornerRadius, chips: Self.chips),
-                scrollToken: scrollToken
+                scrollToken: scrollToken,
+                showsSystemBar: placement.showsSystemBar,
+                scroll: scroll
             )
             BottomPanelStatusBar(configuration: configuration)
+                .padding(.bottom, LayoutTokens.Footer.bottomLift + placement.extraFooterLift)
+            // F and G sit in the gap between the connection chip and the pills.
+            LabRSFooterAccessory(placement: placement, scroll: scroll)
+                .padding(.leading, Self.chips.left)
+                .padding(.trailing, Self.chips.right)
+                .frame(height: LayoutTokens.Footer.height)
                 .padding(.bottom, LayoutTokens.Footer.bottomLift)
         }
         .workspaceCard()
