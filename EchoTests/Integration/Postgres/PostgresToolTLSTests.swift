@@ -34,14 +34,14 @@ final class PostgresToolTLSTests: XCTestCase {
     }
 
     func testBackupVerifiesTheServerWithTheConnectionsCA() async throws {
-        let server = try await LabSharedServers.serverForSuite("pg-17-tls-required")
+        let server = try await labServer("pg-17-tls-required")
         let ca = try XCTUnwrap(server.tls?.caPath)
         let result = try await dumpSchema(viewModel(server, tlsMode: .verifyFull, caPath: ca))
         XCTAssertEqual(result.exitCode, 0, result.stderrLines.joined(separator: "\n"))
     }
 
     func testBackupWithoutTLSIsRefusedByATLSOnlyServer() async throws {
-        let server = try await LabSharedServers.serverForSuite("pg-17-tls-required")
+        let server = try await labServer("pg-17-tls-required")
         let result = try await dumpSchema(viewModel(server, tlsMode: .disable, caPath: nil))
         XCTAssertNotEqual(result.exitCode, 0)
     }
