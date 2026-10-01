@@ -2443,6 +2443,10 @@
       {
         "date": "2026-10-01T15:19:40Z",
         "text": "Built into Echo (6e4a0e60): ResultTableHeaderView no longer draws its own line; the system header's hairline is the only one; the column dividers stay. Please check: one line under the header, and the row-number column's line meets it."
+      },
+      {
+        "date": "2026-10-01T19:32:32Z",
+        "text": "Revised after the owner's notes (see decisions, After round 41): the header paints its full height and draws the one line at its true bottom (the system pocket stopped 4pt short)."
       }
     ],
     "needsMore": [],
@@ -2478,6 +2482,10 @@
       {
         "date": "2026-10-01T15:19:40Z",
         "text": "Built into Echo (6e4a0e60): grouped by statement (Line N heading), red symbol and semibold errors, counts that filter, copy and clear in a \u22ef menu; Echo's own lines and the metrics row gone. SQL Server GO batches share the run's heading for now."
+      },
+      {
+        "date": "2026-10-01T19:32:32Z",
+        "text": "Revised after the owner's notes (see decisions, After round 41): the symbol of a server message opens what the server returned."
       }
     ],
     "needsMore": [],
@@ -2516,6 +2524,10 @@
       {
         "date": "2026-10-01T15:19:40Z",
         "text": "Built into Echo (6e4a0e60): selection, rows, time and status each open their own popover with their actions; the status's Commit/Roll Back moved from its menu into the popover. Not yet: server CPU and the session (SPID); the drivers don't report them."
+      },
+      {
+        "date": "2026-10-01T19:32:32Z",
+        "text": "Revised after the owner's notes (see decisions, After round 41): no Messages or Run Again in Status, no Run Again in Time, no Export or Copy All in Rows (the grid menu has them)."
       }
     ],
     "needsMore": [],
@@ -2707,6 +2719,10 @@
       {
         "date": "2026-10-01T15:19:40Z",
         "text": "Built into Echo (6e4a0e60, EchoSense 2aa1815): the pill is only the count; clicking it opens the figures (Count, Sum, Average, Min, Max, Median, Distinct, Empty; text: Count, Distinct, Empty), exact, with Copy per line and Copy All."
+      },
+      {
+        "date": "2026-10-01T19:32:32Z",
+        "text": "Revised after the owner's notes (see decisions, After round 41): Settings \u203a Results \u203a Selection summary adds the sum and/or average to the pill."
       }
     ],
     "needsMore": [],

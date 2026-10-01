@@ -48,11 +48,28 @@ struct ConsoleMessageRow: View {
 
     private var isError: Bool { message.severity == .error }
 
+    @State private var showsServerMessage = false
+
+    /// The severity's symbol; for a message from the server it opens what the server returned.
+    @ViewBuilder
+    private var symbol: some View {
+        let image = Image(systemName: isError ? "xmark.octagon.fill" : message.severity.systemImage)
+            .font(TypographyTokens.detail)
+            .foregroundStyle(message.severity.tint)
+        if message.isFromServer {
+            Button { showsServerMessage.toggle() } label: { image.contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .help("Show what the server returned")
+                .accessibilityLabel("Show what the server returned")
+                .popover(isPresented: $showsServerMessage, arrowEdge: .bottom) { ServerMessagePopover(message: message) }
+        } else {
+            image
+        }
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.xs) {
-            Image(systemName: isError ? "xmark.octagon.fill" : message.severity.systemImage)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(message.severity.tint)
+            symbol
             VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                 Text(message.message)
                     .font(TypographyTokens.standard.weight(isError ? .semibold : .regular))

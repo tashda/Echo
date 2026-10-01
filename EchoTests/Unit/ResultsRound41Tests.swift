@@ -72,3 +72,34 @@ struct ResultsRound41Tests {
         #expect(groups.map(\.messages.count) == [2, 1, 1])
     }
 }
+
+@Suite("Results round 41: what the server returned")
+struct ServerMessageFieldsTests {
+    @Test func sqlServerFieldsComeInOrderThenTheRest() {
+        let message = QueryExecutionMessage(
+            index: 1, category: "Server Response", message: "overflowed", severity: .error, procedure: "dbo.load", line: 7,
+            metadata: ["messageNumber": "248", "level": "16", "state": "1", "server": "dwh", "sqlstate": "22003"])
+        #expect(message.isFromServer)
+        #expect(message.serverFields.map { $0.label } == ["Message number", "Level", "State", "Line", "Procedure", "Server", "sqlstate"])
+        #expect(message.serverCopyText.hasSuffix("\noverflowed"))
+    }
+
+    @Test func echosOwnLinesAreNotFromTheServer() {
+        #expect(!QueryExecutionMessage(index: 1, category: "Connection", message: "reconnected").isFromServer)
+        #expect(QueryExecutionMessage(index: 1, category: "Server Response", message: "hi").isFromServer)
+    }
+}
+
+@Suite("Results round 41: the selection pill's Setting")
+struct SelectionPillFiguresTests {
+    @Test func eachChoiceSaysWhichFiguresItAdds() {
+        #expect(!SelectionPillFigures.count.showsSum && !SelectionPillFigures.count.showsAverage)
+        #expect(SelectionPillFigures.countAndSum.showsSum && !SelectionPillFigures.countAndSum.showsAverage)
+        #expect(!SelectionPillFigures.countAndAverage.showsSum && SelectionPillFigures.countAndAverage.showsAverage)
+        #expect(SelectionPillFigures.countSumAndAverage.showsSum && SelectionPillFigures.countSumAndAverage.showsAverage)
+    }
+
+    @Test func theDefaultIsOnlyTheCount() {
+        #expect(GlobalSettings().resultsSelectionPill == .count)
+    }
+}

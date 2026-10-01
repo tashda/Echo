@@ -2,6 +2,15 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · After round 41: one real header line, fewer buttons in the popovers, the pill's Setting, the server's own message
+
+The owner's notes on the running app, decided in chat. These change what round 41's entry above says where they differ.
+
+- **One line under the column header, for real (41.1):** removing Echo's own line was not enough. On macOS 26 the grid's rows scroll under the header and the header paints nothing; the system's scroll pocket behind it has its own line but stops about 4pt short of Echo's 36pt header, so a sliver of rows and a second line showed. **The header now paints its full height in the card's colour and draws the one hairline at its bottom**, level with the row-number column's. → FTR-4.2
+- **Fewer buttons in the pill popovers (41.5):** the status popover has **no Messages and no Run Again** (Cancel, Commit / Roll Back and Show in Editor stay); the time popover has **no Run Again**; the rows popover has **no Export and no Copy All**. Export and copy of the results belong to the grid's right-click menu (Copy, Copy with Headers, Copy as Shown, Copy As, Save As, Select All), which already has them. → FTR-2.9 to 2.11
+- **A Setting for the selection pill (41.2):** Settings › Results › **Selection summary** adds the sum and/or the average to the pill: Count (the default) · Count and sum · Count and average · Count, sum and average, in the locale's short form ("89 cells · Sum 34.6T · Avg 389B"). Text selections stay a count. The popover always lists every exact figure. → FTR-2.8, `GlobalSettings.resultsSelectionPill`
+- **What the server returned (41.4):** the symbol on a message **from the server** opens a popover, "From the server": number, level, state, line, procedure and server for SQL Server, any other fields the driver passed on (PostgreSQL's SQLSTATE, detail, hint), and the text as sent, selectable, with Copy. Echo's own lines (a connection, a script, SQLCMD) keep a plain symbol. → FTR-5.3
+
 ## 2026-10-01 · Round 42 built into Echo
 
 Every pick of round 42 is in the running app except a database's Diagram (Echo draws only tables). Where a pick needed a choice: **Rename** opens the ALTER in a query tab to read and run, as Drop does, instead of running it from the tree; **Advanced Objects** are four flat items in Open Tool (one level of submenus); **New Connection** in the empty space opens Manage Connections. The Object menu in the menu bar is the selected row's context menu, built by the same code.

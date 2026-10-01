@@ -46,6 +46,18 @@ struct QueryResultsSettingsView: View {
                 }
 
                 PropertyRow(
+                    title: "Selection summary",
+                    info: "What the footer's cell count also says about selected numbers. The popover always lists every figure."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.resultsSelectionPill)) {
+                        ForEach(SelectionPillFigures.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                }
+
+                PropertyRow(
                     title: "Monospaced cells",
                     info: "Shows every cell in the editor's monospaced font. Numbers always use aligned digits.",
                     resetAction: projectStore.resetAction(\.resultsMonospacedCells)

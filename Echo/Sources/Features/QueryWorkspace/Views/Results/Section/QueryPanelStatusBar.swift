@@ -14,6 +14,7 @@ struct QueryPanelStatusBar: View {
     /// The server a connection with several moved to (round 23, FS1).
     var serverMove: ConnectionServerMove?
 
+    @Environment(ProjectStore.self) private var projectStore
     @State private var showDatabasePicker = false
 
     var body: some View {
@@ -122,7 +123,10 @@ struct QueryPanelStatusBar: View {
         }
 
         var metrics = BottomPanelStatusBarConfiguration.Metrics(rowCountText: rowCount, rowCountLabel: rowLabel, durationText: durationText)
-        metrics.selectionText = query.gridSelectionSummary.flatMap { $0.cellCount > 1 ? $0.text : nil }
+        let figures = projectStore.globalSettings.resultsSelectionPill
+        metrics.selectionText = query.gridSelectionSummary.flatMap {
+            $0.cellCount > 1 ? $0.pillText(showsSum: figures.showsSum, showsAverage: figures.showsAverage) : nil
+        }
         return metrics
     }
 

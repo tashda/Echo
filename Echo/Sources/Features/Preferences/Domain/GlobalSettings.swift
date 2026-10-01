@@ -131,6 +131,7 @@ struct GlobalSettings: Codable, Hashable {
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
     var resultsAlternateRowShading: Bool = false
     var resultsShowRowNumbers: Bool = true
+    var resultsSelectionPill: SelectionPillFigures = .count
     var resultGridColorOverrides: ResultGridColorOverrides = .init()
     var showForeignKeysInInspector: Bool = true
     var showJsonInInspector: Bool = true
@@ -256,7 +257,7 @@ struct GlobalSettings: Codable, Hashable {
         case editorGhostTextCompletion
         case useServerColorAsAccent, accentColorSource, customAccentColorHex
         case workspaceTabBarStyle
-        case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides
+        case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides, resultsSelectionPill
         case showForeignKeysInInspector, showJsonInInspector
         case resultsInitialRowLimit
         case resultSpoolMaxBytes, resultSpoolRetentionHours, resultSpoolCustomLocation
@@ -343,6 +344,7 @@ struct GlobalSettings: Codable, Hashable {
         workspaceTabBarStyle = try container.decodeIfPresent(WorkspaceTabBarStyle.self, forKey: .workspaceTabBarStyle) ?? .floating
         resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
         resultsShowRowNumbers = try container.decodeIfPresent(Bool.self, forKey: .resultsShowRowNumbers) ?? true
+        resultsSelectionPill = try container.decodeIfPresent(SelectionPillFigures.self, forKey: .resultsSelectionPill) ?? .count
         resultGridColorOverrides = try container.decodeIfPresent(ResultGridColorOverrides.self, forKey: .resultGridColorOverrides) ?? .init()
         showForeignKeysInInspector = try container.decodeIfPresent(Bool.self, forKey: .showForeignKeysInInspector) ?? true
         showJsonInInspector = try container.decodeIfPresent(Bool.self, forKey: .showJsonInInspector) ?? true
@@ -464,6 +466,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
         try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
         try container.encode(resultsShowRowNumbers, forKey: .resultsShowRowNumbers)
+        try container.encode(resultsSelectionPill, forKey: .resultsSelectionPill)
         try container.encode(resultGridColorOverrides, forKey: .resultGridColorOverrides)
         try container.encode(showForeignKeysInInspector, forKey: .showForeignKeysInInspector)
         try container.encode(showJsonInInspector, forKey: .showJsonInInspector)
