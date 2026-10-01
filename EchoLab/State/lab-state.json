@@ -992,6 +992,45 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.footer-blur-r44": {
+    "comments": [
+      {
+        "date": "2026-10-01T18:26:20Z",
+        "id": "EA237946-3AB0-4397-8887-D6FC76951E34",
+        "text": "Review of The blur under the footer\n1. Which technique?: picked BT4 \u00b7 The system's material\n2. Strongest blur: picked BS2 \u00b7 12pt (Echo today)\n3. How high it reaches: picked BH3 \u00b7 40pt above the footer\n4. How it grows: picked CV6 \u00b7 Grows like the eye sees it (exponential)\n5. Tint: picked TT1 \u00b7 15% of the card's colour\n6. Steps (BT1): picked ST2 \u00b7 16 steps"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T18:26:20Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T18:30:38Z",
+        "text": "Taken by editor-r28"
+      },
+      {
+        "date": "2026-10-01T18:45:16Z",
+        "text": "Built into Echo (b5eebdb9): the system's ultra-thin material with a 15% card tint under every floating footer, faded in exponentially from 40pt above it; the AppKit blur stays off under footers"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "curve": "CV6 \u00b7 Grows like the eye sees it (exponential)",
+      "exhibit": "material",
+      "reach": "BH3 \u00b7 40pt above the footer",
+      "steps": "ST2 \u00b7 16 steps",
+      "strength": "BS2 \u00b7 12pt (Echo today)",
+      "tint": "TT1 \u00b7 15% of the card's colour"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.mssql-always-encrypted-r29": {
     "comments": [
       {
