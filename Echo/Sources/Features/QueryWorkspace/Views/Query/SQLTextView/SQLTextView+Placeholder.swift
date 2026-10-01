@@ -7,8 +7,7 @@ import AppKit
 extension SQLTextView {
     static let emptyPrompt = "Start typing a query"
 
-    override func drawBackground(in rect: NSRect) {
-        super.drawBackground(in: rect)
+    func drawEmptyPrompt() {
         guard string.isEmpty, let textContainer else { return }
         let font = theme.nsFont
         let baseline = (layoutManager as? SQLLayoutManager)?.fixedBaselineOffset ?? font.ascender

@@ -143,6 +143,9 @@ public enum LayoutTokens {
         public static let statementBracketWidth: CGFloat = SpacingTokens.xxxs
         public static let statementBracketInset: CGFloat = SpacingTokens.xxxs
         public static let statementBracketOpacity: CGFloat = 0.7
+        /// Round 28.5 (H1): the word's other uses, a soft tint as high as the letters.
+        public static let highlightOpacity: CGFloat = 0.09
+        public static let highlightPadding: CGFloat = SpacingTokens.micro
         /// QE2: the gap between a statement's last character and its run note.
         public static let runNoteGap: CGFloat = SpacingTokens.md2
     }

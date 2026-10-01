@@ -189,7 +189,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
         suppressNextCompletionPopover = false; let trigger = determineCompletionTrigger(for: string); super.insertText(string, replacementRange: replacementRange)
-        handleCompletionTrigger(trigger, insertedText: (string as? String) ?? (string as? NSAttributedString)?.string ?? "")
+        let inserted = (string as? String) ?? (string as? NSAttributedString)?.string ?? ""
+        handleCompletionTrigger(trigger, insertedText: inserted)
+        if inserted == ")" { flashMatchingBracket(closingAt: selectedRange().location - 1) }
     }
 
     override func deleteBackward(_ sender: Any?) {
