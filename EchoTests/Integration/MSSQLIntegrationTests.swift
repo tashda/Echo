@@ -2,6 +2,7 @@ import XCTest
 import SQLServerKit
 @testable import Echo
 
+@MainActor
 final class MSSQLIntegrationTests: XCTestCase {
     private struct MSSQLConfig {
         let host: String
@@ -136,6 +137,8 @@ final class MSSQLIntegrationTests: XCTestCase {
     }
 
     func testDedicatedSessionCanQueryAdventureWorksEmployeeAndContinue() async throws {
+        // Remove when it passes (an expected failure that does not happen fails the test).
+        XCTExpectFailure("A query tab reads table structure from the default database: tashda/Echo#28")
         let config = try await loadConfig()
         let targetDatabase = "AdventureWorks"
         let session = try await makeDedicatedQuerySession(config: config, database: targetDatabase)

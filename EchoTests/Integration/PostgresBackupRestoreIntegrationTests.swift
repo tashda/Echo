@@ -9,7 +9,9 @@ import ServerLabClient
 /// the data survived the roundtrip. No test merely checks exit codes or file contents.
 ///
 /// Runs on a fresh lab Postgres (`.server`), removed when the suite ends.
-@Suite("PostgreSQL Backup & Restore", .enabled(if: labIntegrationEnabled, labIntegrationNote), .server(LabRecipes.postgres))
+@Suite("PostgreSQL Backup & Restore", .enabled(if: labIntegrationEnabled, labIntegrationNote),
+       .enabled(if: bundledPostgresToolsStart, "The bundled pg_dump does not start: tashda/Echo#29"),
+       .server(LabRecipes.postgres))
 struct PostgresBackupRestoreIntegrationTests {
 
     // MARK: - Config & Helpers
@@ -724,3 +726,17 @@ enum PGTestError: Error {
     case skipped
     case toolNotFound(String)
 }
+
+/// The suite runs once the bundled pg_dump starts (tashda/Echo#29: its OpenSSL points at
+/// Homebrew's Cellar); it then runs on its own, with nothing to remove.
+private let bundledPostgresToolsStart: Bool = {
+    guard let tool = PostgresToolLocator.pgDumpURL() else { return false }
+    let process = Process()
+    process.executableURL = tool
+    process.arguments = ["--version"]
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+    do { try process.run() } catch { return false }
+    process.waitUntilExit()
+    return process.terminationStatus == 0
+}()

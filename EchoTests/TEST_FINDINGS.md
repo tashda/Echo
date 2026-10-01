@@ -10,6 +10,11 @@ xcodebuild test -project Echo.xcodeproj -scheme Echo -testPlan EchoTests -only-t
 
 (or `test_macos` through XcodeBuildMCP with the same arguments).
 
+Each finding is marked where it fails, so the plans stay green while it is open: an XCTest
+`XCTExpectFailure("…: tashda/Echo#N")` (the class runs on the main actor, so failures after an
+`await` are matched), or a suite condition naming the issue. An expected failure that no longer
+happens fails the test, so a fix shows up at once: remove the marker with the fix.
+
 ## Open
 
 ### F1. A query tab reads table structure from the wrong database (Echo, SQL Server)

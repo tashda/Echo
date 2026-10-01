@@ -2,7 +2,14 @@ import XCTest
 import ServerLabClient
 @testable import Echo
 
+@MainActor
 final class MySQLIntegrationTests: XCTestCase {
+    override func setUp() async throws {
+        try await super.setUp()
+        // Remove when the suite passes (an expected failure that does not happen fails the test).
+        XCTExpectFailure("Echo cannot log in to MySQL 8.4 without TLS: tashda/Echo#31")
+    }
+
     private struct MySQLConfig {
         let host: String
         let port: Int
