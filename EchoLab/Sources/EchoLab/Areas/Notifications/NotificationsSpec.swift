@@ -104,10 +104,12 @@ enum NotificationsSpec {
         SpecPart(number: "4", name: "Bell", summary: "The toolbar button that opens the history.", elements: [
             SpecElement(number: "4.1", name: "Bell button", summary: "In the toolbar, with an unread badge.", groups: [
                 .type(.row("Badge", "the system badge with the unread count", token: ".badge(unreadCount)")),
-                .states(.row("History showing", "the filled bell")),
+                .states(.row("History showing", "the filled bell"),
+                        .row("A long operation running", "a mini spinner at the bell's bottom right, once it has run 1 s (round 34)", token: "LayoutTokens.Bell.busyDelay")),
                 .behaviour(.row("Click", "the history takes the inspector's column and the badge clears; click again to put it away"),
-                           .row("Tooltip", "Notifications, with (N unread) when there are unread events")),
-            ], rounds: [r15], files: [bell]),
+                           .row("Tooltip", "Notifications, with (N unread) when there are unread events, and \"· Backup shop running\" or \"· 2 operations running\""),
+                           .row("Which operations", "every ActivityEngine operation except query runs, which show on Run", token: "ActivityEngine.bellOperations")),
+            ], rounds: [r15, "ongoing.refresh-and-activity-r34"], files: [bell]),
             SpecElement(number: "4.2", name: "Bell and inspector button", summary: "They switch the column between history and details.", groups: [
                 .behaviour(.row("Bell, then the bell again", "the history, then the column closes; it never falls back to the details"),
                            .row("Inspector button", "from the history it switches the column to the details")),

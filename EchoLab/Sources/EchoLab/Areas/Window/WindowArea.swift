@@ -17,6 +17,7 @@ enum WindowArea {
             behaviours: [
                 .init(trigger: "Click a server in the rail", result: "With the tree showing, the tree glides to that server and the rail keeps it selected while it does. While you scroll, the rail marks the server whose card is at the top."),
                 .init(trigger: "Click a server with the tree hidden", result: "A plain click peeks: the tree slides back out on glass over the cards, without moving them. A click on the cards, Esc, opening a tab or showing the tree puts it away; a plain click on the server that is peeking does too. ⌘-click or double-click shows the tree for good. The Collapsed Server Click setting changes this: peek and ⌘-click (default), always peek, or always show the tree."),
+                .init(trigger: "Refresh in the toolbar", result: "Only while the front tab can reload (tool tabs; never a query tab). It shows only its own reload: a spinner, then ✓ or ✗. ⌘R (View › Reload Tab) does the same (round 34)."),
                 .init(trigger: "Server connecting", result: "Its monogram breathes until it connects; with Reduce Motion it stays still and dimmed."),
                 .init(trigger: "Connection lost", result: "The monogram dims to 40%; the tooltip says why."),
                 .init(trigger: "Hover a server", result: "The monogram turns primary; the tooltip shows the name and host, and a line for connecting, lost, or how many queries are running. Running queries show nothing else in the rail."),
@@ -60,6 +61,9 @@ enum WindowArea {
                 .init(text: "Card corners are 16pt",
                       why: "The macOS 27 window corner, measured from a screenshot; a Card Corners setting offers 10 to 26.",
                       rounds: ["decided.window-canvas-and-cards"]),
+                .init(text: "A control signals only what it did",
+                      why: "After a query Run and Refresh both showed ✓; Refresh now shows only its own reload, and long operations show on the bell.",
+                      rounds: ["ongoing.refresh-and-activity-r34"]),
                 .init(text: "A + ends the server pill",
                       why: "With one server the pill held a single item and read as a double border; connecting from the rail is also closer to the servers.",
                       rounds: ["decided.rail-servers"]),
@@ -75,6 +79,7 @@ enum WindowArea {
             ],
             code: [
                 "Echo/Sources/Features/AppHost/Views/Navigation/WorkspaceShell.swift",
+                "Echo/Sources/Features/AppHost/Views/Toolbar/RefreshToolbarButton/TabReloader.swift",
                 "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail.swift",
                 "Echo/Sources/Features/AppHost/Views/Tabs/WorkspaceContainer/WorkspaceWelcomeView.swift",
                 "Echo/Sources/Features/AppHost/Views/Tabs/EditorContainer/ConnectionDashboard/ConnectionDashboardView.swift",

@@ -2,6 +2,15 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 34 accepted: Refresh and the activity signal
+
+Echo Labs › Window and cards › Refresh and the activity signal · round 34. Asked: after a query, Run and Refresh both showed ✓. Every recommendation was taken except where marked.
+
+- **Activity (AS2):** Refresh shows **only its own reload**. It no longer mirrors the `ActivityEngine` or the schema loading. **Long operations show on the bell**: a small spinner once one has run for a second, and its name in the bell's tooltip; their notifications say when they end. Query runs stay off the bell (`begin(…, showsOnBell: false)`): Run shows them.
+- **Refresh (RL1, owner's pick over RL2):** stays **in the toolbar, only while the front tab can reload** (Activity Monitor, Agent Jobs, Error Log, Extended Events, Structure, maintenance, diagrams, Profiler, Resource Governor, Tuning Advisor, Policy Management). Hidden on query tabs and with no tab.
+- **On a query tab (QR1):** nothing; the schema reloads from the tree's menu and after DDL.
+- **⌘R (KR0):** View › Reload Tab reloads the front tool tab, through the same reloader as the button, so the button shows it. → `05-components` › Toolbar, plan K6
+
 ## 2026-10-01 · After round 31: Run waits 3 s for the time, the zoom pill chases the results, an even blur
 
 The owner's notes on the running app, decided in chat. Built in f756a13b.

@@ -8,6 +8,8 @@ struct TrackedOperation: Identifiable {
     let label: String
     let connectionSessionID: UUID?
     let startedAt: Date
+    /// Whether the bell shows it while it runs (round 34, AS2). Query runs show on Run instead.
+    let showsOnBell: Bool
     var progress: Double?
     var message: String?
 }

@@ -10,9 +10,12 @@ struct WorkspaceToolbarContext: Equatable {
     var isQuery = false
     /// SQLCMD and Statistics, for SQL Server query tabs.
     var hasDatabaseToggles = false
+    /// Refresh, only while the front tab can reload (round 34, RL1).
+    var canReload = false
 
     init(kind: WorkspaceTab.Kind?, databaseType: DatabaseType?) {
         guard let kind else { return }
+        canReload = TabReloader.canReload(kind)
         switch kind {
         case .query:
             isQuery = true

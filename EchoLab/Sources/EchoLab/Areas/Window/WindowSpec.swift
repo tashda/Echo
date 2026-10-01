@@ -70,7 +70,8 @@ enum WindowSpec {
             SpecElement(number: "2.3", name: "Server item", summary: "A two-letter monogram.", groups: [
                 .layout(.row("Size", "28 · 34 (default) · 40pt, a setting", token: "RailItemSize.points")),
                 .type(.row("Monogram", "37% of the size: 12.5pt at 34pt, rounded design", token: "LayoutTokens.Rail.monogramFontRatio"),
-                      .row("Unselected", "semibold, secondary; primary while hovered"), .row("Selected", "bold, in the server's colour")),
+                      .row("Unselected", "semibold, secondary; primary while hovered"), .row("Selected", "bold, in the server's colour"),
+                      .row("Server Header Color: Server's Color", "always in the server's colour, bold when selected (round 30.1, CO1); the colour is read live, so one set from the header's menu shows at once", token: "ServerRailItem.isAlwaysColored")),
                 .behaviour(.row("Letters", "numbers-only words: the last two digits; two words: their initials; a name ending in two digits: those digits; otherwise its first two letters", token: "ServerRailMonogram.make"),
                            .row("Tooltip", "name · host, then Connecting…, Connection lost: reason, or N queries running", token: "ServerRailEntry.tooltip"),
                            .row("Why a monogram", "colour dots and engine badges were rejected")),
@@ -149,6 +150,15 @@ enum WindowSpec {
                 .behaviour(.row("Content", "the name (a Beta badge for beta engines), the version, the server's tools on glass buttons with New Query first, and a databases card with a filter"),
                            .row("Tooltip", "the host")),
             ], rounds: [canvasRound], files: [serverPage]),
+        ]),
+        SpecPart(number: "5", name: "Refresh", summary: "The toolbar's Refresh and ⌘R (round 34).", elements: [
+            SpecElement(number: "5.1", name: "Refresh button", summary: "In the right-hand capsule, before the bell, only while the front tab can reload.", groups: [
+                .behaviour(.row("Shown", "Activity Monitor, Agent Jobs, Error Log, Extended Events, Structure, maintenance, diagrams, Profiler, Resource Governor, Tuning Advisor, Policy Management", token: "TabReloader.canReload"),
+                           .row("Hidden", "query tabs and no tab: the schema reloads from the tree's menu and after DDL"),
+                           .row("Shows", "only its own reload: a spinner, ✓ for 1.2 s or ✗ for 2 s; hover after 3 s to cancel"),
+                           .row("⌘R", "View › Reload Tab, the same reload")),
+            ], files: ["Echo/Sources/Features/AppHost/Views/Toolbar/RefreshToolbarButton/RefreshToolbarButton.swift",
+                       "Echo/Sources/Features/AppHost/Views/Toolbar/RefreshToolbarButton/TabReloader.swift"]),
         ]),
     ]
 }

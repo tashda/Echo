@@ -177,6 +177,7 @@ Rules: `05-components` › Toolbar, Search.
 | K3 | **Shortcut fixes:** Find off ⇧⌘F, Validate off ⇧⌘V. EchoSense stays on ⌘. (owner, 2026-09-29) and can be rebound. | Commands, settings | No conflicts | ☑ built |
 | K4 | **Minimised toolbar search** with results in a glass card, and a **⌘K palette** (objects, tabs, actions, history, snippets, and "Switch database" for the current server, round 9 DB3) built on `SearchSidebarViewModel`. | New `CommandPalette` | Both open and find a table across servers | ☑ built, 👁 pending |
 | K5 | Delete the dead `Toolbar/Breadcrumbs/*` and `Toolbar/Popovers/*`. | Toolbar | Builds | ☑ built |
+| K6 | **Refresh and the activity signal (round 34):** Refresh only while the front tab can reload, showing only its own reload (`TabReloader`); ⌘R reloads the front tool tab; the bell spins for long operations; query runs off the bell. | `RefreshToolbarButton/*`, bell, `ActivityEngine`, View menu | Run alone shows ✓ after a query 👁 | ☑ built, 👁 pending |
 
 ### Notes from building it (Phase 6)
 

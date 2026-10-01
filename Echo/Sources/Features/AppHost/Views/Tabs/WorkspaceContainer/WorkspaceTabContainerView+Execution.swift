@@ -173,7 +173,7 @@ extension WorkspaceTabContainerView {
         }
         let foreignKeySource = resolveSchemaAndTable(for: inferredObject, connection: tab.connection)
 
-        let activityHandle = AppDirector.shared.activityEngine.begin("Executing query", connectionSessionID: tab.connectionSessionID)
+        let activityHandle = AppDirector.shared.activityEngine.begin("Executing query", connectionSessionID: tab.connectionSessionID, showsOnBell: false)
         let sentSQL = effectiveSQL
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }

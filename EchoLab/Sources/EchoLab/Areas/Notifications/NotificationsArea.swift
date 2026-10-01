@@ -25,6 +25,7 @@ enum NotificationsArea {
                 .init(trigger: "Other toasts", result: "They go after 3 seconds; 5 for connection failures, database switch failures and job errors. A hovered toast waits until the pointer leaves."),
                 .init(trigger: "Delivery setting", result: "Each category can be off, and delivery is an in-app toast, a native macOS notification, or both. History records the event either way."),
                 .init(trigger: "Click the bell", result: "The history takes the inspector's column; the badge clears. Click again to put it away."),
+                .init(trigger: "A long operation runs", result: "After a second a small spinner sits on the bell and its tooltip names the operation; query runs show only on Run (round 34)."),
                 .init(trigger: "Click the inspector button", result: "From the history it switches the column to the details."),
                 .init(trigger: "The history", result: "Compact cards grouped Today, Yesterday, then by date: an icon, the message's first part and the time on one line. What was new when the bell opened is bold and counted beside the title."),
                 .init(trigger: "Click a card", result: "It fades open to the server, the rest of the message (selectable) and small Open Tab or Show Server and Copy buttons."),

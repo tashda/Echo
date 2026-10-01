@@ -21,6 +21,7 @@ struct WorkspaceToolbarContextTests {
     }
 
     @Test func noTabShowsNeither() {
-        #expect(WorkspaceToolbarContext(kind: nil, databaseType: nil) == WorkspaceToolbarContext(kind: .diagram, databaseType: nil))
+        // A schema diff neither runs queries nor reloads (round 34: a diagram reloads, so it shows Refresh).
+        #expect(WorkspaceToolbarContext(kind: nil, databaseType: nil) == WorkspaceToolbarContext(kind: .schemaDiff, databaseType: nil))
     }
 }

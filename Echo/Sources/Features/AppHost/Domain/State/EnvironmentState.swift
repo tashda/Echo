@@ -26,6 +26,8 @@ final class EnvironmentState {
     var recentConnections: [RecentConnectionRecord] = []
     /// Tables opened recently, for the empty query tab's starting points (QE6).
     let recentTables = RecentTableStore()
+    /// Reloads the front tab for Refresh and ⌘R (round 34).
+    let tabReloader = TabReloader()
     var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
     var userEditorViewModels: [UserEditorWindowValue: UserEditorViewModel] = [:]
     var loginEditorViewModels: [LoginEditorWindowValue: LoginEditorViewModel] = [:]

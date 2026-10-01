@@ -6,6 +6,7 @@ import SwiftUI
 /// icon also mirrors the ActivityEngine for the server: a spinner while anything runs, then ✓ or ✗
 /// (RefreshToolbarButton+Content). Running a query begins "Executing query"
 /// (WorkspaceTabContainerView+Execution), so after a run both Run and Refresh show ✓.
+/// Accepted 2026-10-01 (AS2, RL1, QR1, KR0) and built into Echo: the Proposal opens on the picks.
 @MainActor
 enum RefreshAndActivityRound {
     enum Signal: String, CaseIterable {
@@ -42,7 +43,7 @@ enum RefreshAndActivityRound {
         var signal: Signal, place: Place
         static let today = Look(signal: .today, place: .toolbar)
         @MainActor static func from(_ v: RoundValues) -> Look {
-            Look(signal: .init(rawValue: v["signal"]) ?? .ownOnly, place: .init(rawValue: v["place"]) ?? .inTabs)
+            Look(signal: .init(rawValue: v["signal"]) ?? .ownOnly, place: .init(rawValue: v["place"]) ?? .toolbarWhenUseful)
         }
     }
 
@@ -53,7 +54,7 @@ enum RefreshAndActivityRound {
                 recommend: .ownOnly,
                 why: "A control should only tell you about itself: Run already shows the query's ✓, and a checkmark on Refresh for work you didn't start there reads as a refresh you didn't ask for. Long operations already post notifications; a spinner on the bell while one runs finishes the job. AS3 is right if you often run several long operations at once.",
                 summary: \.summary),
-            .of("place", "Refresh", Place.self, default: .inTabs,
+            .of("place", "Refresh", Place.self, default: .toolbarWhenUseful,
                 question: "Look at where Refresh is in each exhibit, on a query tab and on Activity Monitor.",
                 recommend: .inTabs,
                 why: "Refresh reloads one tab's data, so it belongs on that tab, where the data is; on a query tab the schema reload already happens on its own and from the tree. That frees a toolbar slot and ends the question of what the toolbar button does.",
@@ -94,11 +95,8 @@ enum RefreshAndActivityRound {
                   why: "⌘R is reload in Safari, Xcode's Instruments and Activity Monitor, so it's where the hand goes."),
         ],
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "Each control signals itself; Refresh lives in the tool tabs.",
-                  values: ["signal": Signal.ownOnly.rawValue, "place": Place.inTabs.rawValue], isRecommended: true),
-            .init(id: "smallest", name: "Smallest fix", summary: "Keep Refresh; stop mirroring query runs.",
-                  values: ["signal": Signal.notQueries.rawValue, "place": Place.toolbar.rawValue]),
-            .init(id: "activity", name: "Activity centre", values: ["signal": Signal.activity.rawValue, "place": Place.inTabs.rawValue]),
+            .init(id: "accepted", name: "Accepted", summary: "Each control signals itself; Refresh in the toolbar only while the tab can reload.",
+                  values: ["signal": Signal.ownOnly.rawValue, "place": Place.toolbarWhenUseful.rawValue], isRecommended: true),
         ]
     )
 }

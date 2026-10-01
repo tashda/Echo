@@ -110,6 +110,16 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("o", modifiers: [.command, .shift])
             .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
 
+            // Round 34 (KR0): ⌘R reloads the front tool tab, as Refresh in the toolbar does.
+            Button {
+                guard let tab = reloadableTab else { return }
+                environmentState.tabReloader.reload(tab, environmentState: environmentState)
+            } label: {
+                Label("Reload Tab", systemImage: "arrow.clockwise")
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .disabled(reloadableTab == nil)
+
             Divider()
 
             // Round 28.8 (ZK0): the query editor's zoom, this tab only.
@@ -123,6 +133,11 @@ struct ViewMenuCommands: Commands {
                 .keyboardShortcut("0", modifiers: .command)
                 .disabled(editorQuery == nil)
         }
+    }
+
+    private var reloadableTab: WorkspaceTab? {
+        guard navigationStore.isWorkspaceWindowKey, let tab = tabStore.activeTab, TabReloader.canReload(tab.kind) else { return nil }
+        return tab
     }
 
     private var editorQuery: QueryEditorState? {

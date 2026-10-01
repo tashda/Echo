@@ -99,12 +99,15 @@ struct WorkspaceToolbarItems: ToolbarContent {
     // MARK: - Right Side: Workspace Actions
 
     /// [Search · Overview · Refresh · Bell · Inspector] share one capsule; Inspector stays last.
+    /// Refresh is there only while the front tab can reload (round 34, RL1).
     @ToolbarContentBuilder
     private var workspaceActionItems: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             SearchToolbarButton()
             TabOverviewToolbarButton()
-            RefreshToolbarButton()
+            if toolbarContext.canReload {
+                RefreshToolbarButton()
+            }
             NotificationBellToolbarButton()
             InspectorToolbarButton()
         }
