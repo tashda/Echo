@@ -11,7 +11,7 @@ enum WindowArea {
         summary: "A canvas holding the server rail, the tree, and opaque cards. Glass is only for controls.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "b113aaa2", date: "2026-10-01",
+                level: .code, commit: "d1fb73aa", date: "2026-10-01",
                 note: "Read from WorkspaceShell, ServerRail, ServerRailEntry, ServerRailMonogram, WorkspaceWelcomeView, ConnectionDashboardView and the workspace, rail and welcome tokens. The specimen is the Echo Labs server rail (tool pill removed in round 39) with a stand-in tree and two cards. Checked b5eebdb9 and fb789c41: only footer-blur tokens changed; no window measurements changed. 2026-10-01: checked the commits since ef1c3bba (round 32.2's dark canvas, card edges and shadows; round 30.1's always-coloured monogram; round 34's Refresh); the LayoutToken changes in that range are the editor's and results'."),
             stageHeight: 520,
             behaviours: [

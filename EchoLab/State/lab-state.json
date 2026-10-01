@@ -37,6 +37,10 @@
       {
         "date": "2026-10-01T18:49:24Z",
         "text": "Built into Echo: the command at the left in the SQL editor with Parse, settings sidebar with On success, On failure and retries, last run on Edit Step; SheetLayout one surface with a prominent default button for every sheet (b6c8b5d5)"
+      },
+      {
+        "date": "2026-10-01T20:30:47Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -64,7 +68,7 @@
         "summary": "Four more radical layouts and the sheet's edges as a choice; your three sections kept"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.agent-jobs-tab-r33": {
@@ -88,6 +92,10 @@
       {
         "date": "2026-10-01T14:22:57Z",
         "text": "Built into Echo: one pane header, Jobs full height beside Details over History, Status/Name/Last Run/Next Run with a spinning running job and its elapsed time, New Job and Start/Stop on the header, no stripes (85dca995)"
+      },
+      {
+        "date": "2026-10-01T20:30:44Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -105,7 +113,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.content-during-slide-r26": {
@@ -125,6 +133,10 @@
       {
         "date": "2026-10-01T10:09:20Z",
         "text": "Revision 2: Kept A, live reflow, on every tab: nothing to build, it is how Echo works"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -134,7 +146,7 @@
       "mode": "A \u00b7 Reflow live",
       "scope": "all"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -145,7 +157,7 @@
         "summary": "Kept A, live reflow, on every tab: nothing to build, it is how Echo works"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.context-menu-anatomy-r42": {
@@ -387,6 +399,10 @@
       {
         "date": "2026-10-01T11:40:00Z",
         "text": "Built into Echo (9715ce3b): no current-line band; the system selection with 3pt corners, Settings \u203a Selection Corners (Square, 2, 3, 4, 6pt); the system caret. Correction: Echo already drew the system selection colour, not the palette's blue"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -405,7 +421,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-design-language-r28": {
@@ -425,6 +441,10 @@
       {
         "date": "2026-10-01T13:45:00Z",
         "text": "Built into Echo (ac5089f6): EditorMarkTokens: round ends by default, soft 10% and strong 22%, colour by meaning, the letters' height; Settings \u203a Editor \u203a Marks (Corners, Strength) replaces Selection Corners and Highlight Corners"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -442,7 +462,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-empty-r28": {
@@ -462,6 +482,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (433f34e1): the prompt on the first line where you type, in the editor's font; no chips"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -476,7 +500,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-errors-r28": {
@@ -531,6 +555,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (306a8fb2): one tinted pill for every error (E10), its message in a glass popover with a pointer (BB3) on hover or with the caret on the line; the live check when you leave the line or after 2 s"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -572,7 +600,7 @@
         "summary": "Everything for the wrong word, more glows, and new bubbles"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-find-bar-r28": {
@@ -635,6 +663,10 @@
       {
         "date": "2026-10-01T13:45:00Z",
         "text": "Built into Echo (ac5089f6): Echo's own find bar replaces the system's: FB5 glass capsule with glass buttons, the Selection button for a multi-line selection (SS4), a selected word becomes the search (SE1), options in the magnifier's menu, \u201c2 found\u201d"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -695,7 +727,7 @@
         "summary": "Replace continues on 28.13"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-find-typing-r28": {
@@ -719,6 +751,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (8464a8c1): Go to Line as a glass field; Tab is 4 spaces, \u21e7Tab outdents; Return keeps the indent; brackets and quotes close themselves; \u2318/ toggles --"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [
@@ -734,7 +770,7 @@
       "tab": "spaces",
       "wrap": "wrap"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -745,7 +781,7 @@
         "summary": "Find moved to page 28.12; the rest accepted in chat"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-gutter-lane-r28": {
@@ -769,6 +805,10 @@
       {
         "date": "2026-10-01T13:51:29Z",
         "text": "Taken by lane-agent"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -784,7 +824,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-gutter-r28": {
@@ -804,6 +844,10 @@
       {
         "date": "2026-10-01T11:40:00Z",
         "text": "Built into Echo (9715ce3b): SF digits 2pt under the code, tertiary, the caret line's number in the text colour; Hairline added beside Subtle, Column and Lane in Settings (your note)"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -823,7 +867,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-marks-r28": {
@@ -856,6 +900,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (56799682): the word's other uses in a soft tint as high as the letters, with Settings \u203a Highlight Corners (3pt); typing ) flashes its (. Find waits for 28.12"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -888,7 +936,7 @@
         "summary": "Find matches drawn in the editor, more corners"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-run-note-r28": {
@@ -934,6 +982,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (f530ad91): the note on a glass pill with a symbol (R10), one per statement of a script (MS0); the bracket breathes while it runs (RR1), a gutter line fades when it ends (H9)"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -972,7 +1024,7 @@
         "summary": "While running: what the bracket does while the query runs"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-search-replace-r28": {
@@ -1005,6 +1057,10 @@
       {
         "date": "2026-10-01T13:45:00Z",
         "text": "Built into Echo (ac5089f6): Replace opens inside the capsule as it grows (RP1, AN1); each match shows its replacement in the marks' language (PV6); \u2318F, \u2325\u2318F; Return replaces and moves on; Replace All is one undo and says \u201cReplaced 12\u201d"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1032,7 +1088,7 @@
         "summary": "PV2 in the editor's design language"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-settings-r28": {
@@ -1052,6 +1108,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (c30bc3e7): one Settings \u203a Editor pane; switches for line numbers, word highlight and wrapping; only Aurora and Midnight; whole font sizes"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1072,7 +1132,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-statement-r28": {
@@ -1092,6 +1152,10 @@
       {
         "date": "2026-10-01T11:40:00Z",
         "text": "Built into Echo (9715ce3b): a bracket beside the statement's numbers, solid for a selected result's statement; the Run arrow grey, accent under the pointer"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1107,7 +1171,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-text-r28": {
@@ -1127,6 +1191,10 @@
       {
         "date": "2026-10-01T11:40:00Z",
         "text": "Built into Echo (9715ce3b): lines 1.55 \u00d7 the size (20pt at 13pt); Line Height Compact, Comfortable, Relaxed; SF Mono by default; ligatures off; code 16pt after the numbers; 8pt above the first line"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1144,7 +1212,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.editor-zoom-r28": {
@@ -1164,6 +1232,10 @@
       {
         "date": "2026-10-01T12:30:00Z",
         "text": "Built into Echo (a80770d9): a glass 100% pill at the bottom left with a menu; \u2318+ \u2318\u2212 \u23180 and pinch; per tab, editor only"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1181,7 +1253,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.empty-folders-r30": {
@@ -1205,6 +1277,10 @@
       {
         "date": "2026-10-01T14:53:09Z",
         "text": "Built into Echo (5be677fc): Tables, Views, Functions and Procedures always show; an empty one is dimmed with no count and opens to a grey 'No views' row; Show empty folders removed from Settings \u203a Sidebar. Test: ExplorerBlueprintTests.mainObjectFoldersShowEvenWhenEmpty."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1219,7 +1295,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.footer-blur-r44": {
@@ -1326,6 +1402,10 @@
       {
         "date": "2026-09-30T15:27:07Z",
         "text": "Built into Echo (057a797b): Mandatory default, menu says what is checked, Trust dims under Strict, Allow TLS 1.0 per connection, Test names the failed check with a fix button"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1341,7 +1421,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.mssql-errors-r22": {
@@ -1361,6 +1441,10 @@
       {
         "date": "2026-09-30T17:09:29Z",
         "text": "Built into Echo (8e8ea135, d6cf8cf3): every message in order under the SSMS header, Line N selects the line, COMMIT outcome unknown wording, severity 20 as a lost connection, and the shared error mark"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1377,7 +1461,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.mssql-import-r25": {
@@ -1397,6 +1481,10 @@
       {
         "date": "2026-10-01T10:07:06Z",
         "text": "Built into Echo (2a235de8): an Options section (empty cells, keep identity values, check constraints, fire triggers, lock the table), the import in one transaction, 10,000-row batches and a note when INSERT statements were used"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1412,7 +1500,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.mssql-sessions-r22": {
@@ -1450,6 +1538,10 @@
       {
         "date": "2026-09-30T17:09:29Z",
         "text": "Built into Echo (057a797b, c051c455, a5ed0ffb, 20688328): no 45 s limit, cancel keeps the session and looks like PostgreSQL, Transaction rolled back, APP_NAME Echo, dropped connection with Reconnect, extra result sets spooled"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1465,7 +1557,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.mssql-values-r22": {
@@ -1485,6 +1577,10 @@
       {
         "date": "2026-09-30T15:48:44Z",
         "text": "Built into Echo (ce98d8e4): every row is spooled as wire bytes and formatted by the driver, so rows after 200 read like the preview (dates, datetimeoffset, money, geography, code-page varchar)"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1500,7 +1596,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.notification-history-r17": {
@@ -1570,6 +1666,10 @@
       {
         "date": "2026-10-01T12:00:41Z",
         "text": "Revision 2: Checked against Echo with verify-round.py: PASS"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1587,7 +1687,7 @@
       "material": "M1 \u00b7 Liquid Glass (today)",
       "stacking": "S1 \u00b7 List of three (today)"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -1600,8 +1700,61 @@
         "summary": "Checked against Echo with verify-round.py: PASS"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
+  },
+  "ongoing.opening-and-closing-r48": {
+    "comments": [
+      {
+        "date": "2026-10-01T21:20:57Z",
+        "id": "7E598CF3-7121-4C2E-9E48-96171BC80FFD",
+        "text": "Review of Opening, connecting and closing the last tab\n1. Which opening?: picked Proposal\n2. Mark: picked WM2 \u00b7 The mark alone, the pills echo in (echodb.dev)\n3. Buttons and recents: picked WR1 \u00b7 They rise in under the mark, one after the other\n4. Welcome on connect: picked LV2 \u00b7 The pills echo out to the left, then the columns come in\n5. Rail and tree: picked CO1 \u00b7 The server appears in the rail, then the tree slides out\n6. Server page: picked AR2 \u00b7 The page builds up: name, version, tools, databases\n7. After the last tab: picked CW1 \u00b7 The page of the server the tab belonged to\n8. Closing animation: picked CH1 \u00b7 The page was underneath: the card lifts away and reveals it\n9. When the mark plays: picked Every time the welcome appears"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T21:20:57Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T21:21:17Z",
+        "text": "Taken by welcome-agent"
+      },
+      {
+        "date": "2026-10-01T21:32:43Z",
+        "text": "Built into Echo: the mark alone echoing in, pills echoing out on connect, rail then tree, the page building up, closing the last tab keeps the server and lifts the card (d1fb73aa)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "arrive": "AR2 \u00b7 The page builds up: name, version, tools, databases",
+      "closeHow": "CH1 \u00b7 The page was underneath: the card lifts away and reveals it",
+      "closeWhere": "CW1 \u00b7 The page of the server the tab belonged to",
+      "columns": "CO1 \u00b7 The server appears in the rail, then the tree slides out",
+      "exhibit": "proposal",
+      "leave": "LV2 \u00b7 The pills echo out to the left, then the columns come in",
+      "mark": "WM2 \u00b7 The mark alone, the pills echo in (echodb.dev)",
+      "plays": "every",
+      "rest": "WR1 \u00b7 They rise in under the mark, one after the other"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Quit and open Echo: the mark echoes in with no name, then the buttons and recents rise",
+        "Connect to a server: the pills echo out, then the server grows into the rail, the tree slides out and the server page builds up",
+        "Open a tab, then close it: you land on the server's page (the card lifts away), not the welcome",
+        "Fail a connection (wrong host): the welcome comes back and echoes in again"
+      ],
+      "done": [],
+      "shots": [],
+      "summary": "Welcome, connect and closing the last tab animate as you picked in round 48 (LV2 instead of LV1)"
+    }
   },
   "ongoing.panel-fills-dark-r32": {
     "comments": [
@@ -1637,6 +1790,10 @@
       {
         "date": "2026-10-01T14:23:03Z",
         "text": "Built into Echo: dark canvas 24 (DC6), cards 30, 7% hairline with lit top (DE5), contact + ambient shadow (DS5), solid 1pt edge with Increase Contrast (IC0). Light mode unchanged. Edge note 'need to see more options' was the earlier note, taken as stale since DE5 was picked"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1667,7 +1824,7 @@
         "summary": "More canvas, edge, shadow and Increase Contrast options, and every option shown in light mode too"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.panel-fills-light-r32": {
@@ -1700,6 +1857,10 @@
       {
         "date": "2026-10-01T14:09:21Z",
         "text": "Built into Echo: empty inspector centred with a symbol (EI2); zebra and white cards unchanged. Compile of InfoSidebarView not separately confirmed: build blocked by another agent's ObjectBrowserSidebarView+Fold.swift"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1713,7 +1874,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-cancel-r21": {
@@ -1733,6 +1894,10 @@
       {
         "date": "2026-09-30T15:48:42Z",
         "text": "Built into Echo (plan R9): footer Cancelling (no dots), partial rows marked, Force Stop after 5 s, run note and Messages 'Cancelled after \u2026', ROLLBACK note inside a transaction; \u2325\u2318. only. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1752,7 +1917,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-client-key-password-r23": {
@@ -1776,6 +1941,10 @@
       {
         "date": "2026-09-30T20:36:28Z",
         "text": "Owner confirmed in chat: accept .p12/.pfx files (PF2); the saved pick said PF1."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1792,7 +1961,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-connection-lost-r21": {
@@ -1812,6 +1981,10 @@
       {
         "date": "2026-09-30T14:45:57Z",
         "text": "Built into Echo (plan N6): told at once in Messages and a notification with Reconnect; footer Disconnected; runs wait for Reconnect; idle drops quiet. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1831,7 +2004,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-error-location-r21": {
@@ -1851,6 +2024,10 @@
       {
         "date": "2026-09-30T17:09:29Z",
         "text": "Built into Echo (d6cf8cf3) for PostgreSQL and SQL Server: squiggle with bubble, Fix, cleared by an edit or the next run, ! Error run note with a Settings choice, Go to Error on the notification"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1870,7 +2047,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-failover-hosts-r23": {
@@ -1890,6 +2067,10 @@
       {
         "date": "2026-09-30T20:26:49Z",
         "text": "Built into Echo: + Add Server rows, Connect To, Test checks every server, pasted multi-server URLs, footer chip and notification after a failover. Check in the running app."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1908,7 +2089,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-kerberos-signin-r23": {
@@ -1928,6 +2109,10 @@
       {
         "date": "2026-09-30T20:26:49Z",
         "text": "Built into Echo: Mechanism Password or Kerberos, ticket line with Open Ticket Viewer, Kerberos Service in the disclosure, user name from the ticket, Test fixes (NT1, KF1). Check in the running app."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1946,7 +2131,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-open-transaction-guard-r21": {
@@ -1966,6 +2151,10 @@
       {
         "date": "2026-09-30T18:22:07Z",
         "text": "Built into Echo (plan R11): alert before closing, switching database, disconnecting and quitting; Commit default; time and statements; failed offers Roll Back; quitting lists the tabs. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -1983,7 +2172,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-script-results-r21": {
@@ -2003,6 +2192,10 @@
       {
         "date": "2026-09-30T15:34:34Z",
         "text": "Built into Echo (plan R8): statement list at the left, first-word labels, command entries, one Messages line per statement, the selected result lights its statement, stop on a failed statement (setting to continue), Run as One Transaction. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2020,7 +2213,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-timeouts-r21": {
@@ -2053,6 +2246,10 @@
       {
         "date": "2026-09-30T18:31:46Z",
         "text": "Built into Echo (plan R12): Settings default + connection override, old 60 s reset with a one-time notice, statement_timeout per tab, footer 0:12 / 0:30, stop explained with Run Without Limit, server limit named, Waiting for lock with the holder on hover. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2089,7 +2286,7 @@
         "summary": "Your picks are now the recommendations; nothing shows unless a limit is set; where the message goes, with notifications; lock waits in the footer; a limit set on the server"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.pg-transaction-state-r21": {
@@ -2109,6 +2306,10 @@
       {
         "date": "2026-09-30T15:56:46Z",
         "text": "Built into Echo (plan R10): footer status pill Transaction (orange, time after a minute) or Failed \u2014 roll back (red), Commit and Roll Back in its menu, a notification after 15 minutes idle, state from the statements. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2127,7 +2328,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {
       "exhibit/proposal": "no",
       "exhibit/today": "no"
@@ -2150,6 +2351,10 @@
       {
         "date": "2026-09-30T14:17:25Z",
         "text": "Built into Echo (plan R7): array count and items, JSON summary, binary kind and size, decimal-point alignment, Copy as Shown. Please check it in the running app."
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2168,7 +2373,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.rail-bookmarks-r39": {
@@ -2208,7 +2413,7 @@
       "parameters": "later",
       "save": "BS2 \u00b7 BS1, and saving opens a small popover: name, folder, note"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -2471,6 +2676,10 @@
       {
         "date": "2026-10-01T14:51:10Z",
         "text": "Built into Echo: Refresh only while the front tab can reload and only its own reload; \u2318R reloads the front tool tab; the bell spins for long operations, query runs off it (8fad4a2d)"
+      },
+      {
+        "date": "2026-10-01T20:30:54Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2484,7 +2693,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.results-error-page-r41": {
@@ -2775,6 +2984,10 @@
       {
         "date": "2026-10-01T20:23:19Z",
         "text": "Changed in Echo (bd137299), the owner's call after round 44: the blur behind every horizontal bar is taken back (it looked wrong in Agent Jobs); only the results grid and the editor keep it"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2845,7 +3058,7 @@
         "summary": "Built into Echo: as wide as the footer, the blur rising past the bar while it shows, everywhere"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.results-selection-summary-r41": {
@@ -2906,6 +3119,10 @@
       {
         "date": "2026-09-30T20:28:22Z",
         "text": "Built into Echo: tooltip says where it runs or why it can't (U1, T1), never in the toolbar overflow (V1), \u2318\u21a9 toggles Run and Stop"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2931,7 +3148,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.run-button-running-r20": {
@@ -2955,6 +3172,10 @@
       {
         "date": "2026-10-01T14:36:51Z",
         "text": "Changed in Echo (f756a13b), the owner's call after round 31: the capsule widens for the time only once the query has run 3 s (was at once, G0)"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -2983,7 +3204,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.run-into-running-r24": {
@@ -3003,6 +3224,10 @@
       {
         "date": "2026-09-30T20:28:22Z",
         "text": "Built into Echo: one button in its own glass; \u25b6 replaced by \u25a0 in place (M1), the glass fades to red (F1), then it grows and the time fades in (W1, K2 staged); the red drains as the \u2713 draws (B0); Echo draws the red (Y)"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -3019,7 +3244,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.section-dock-capsule-r19": {
@@ -3039,6 +3264,10 @@
       {
         "date": "2026-09-30T13:00:00Z",
         "text": "Built into Echo"
+      },
+      {
+        "date": "2026-10-01T20:29:20Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -3054,7 +3283,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.section-dock-sections-r19": {
@@ -3092,6 +3321,10 @@
       {
         "date": "2026-09-30T13:00:00Z",
         "text": "Built into Echo"
+      },
+      {
+        "date": "2026-10-01T20:29:55Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -3106,7 +3339,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.section-dock-switching-r19": {
@@ -3126,6 +3359,10 @@
       {
         "date": "2026-09-30T13:00:00Z",
         "text": "Built into Echo"
+      },
+      {
+        "date": "2026-10-01T20:29:14Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -3138,7 +3375,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.server-card-r16": {
@@ -3184,6 +3421,10 @@
       {
         "date": "2026-09-30T11:45:00Z",
         "text": "Built into Echo"
+      },
+      {
+        "date": "2026-10-01T20:29:23Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -3209,7 +3450,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.server-card-unfold-r46": {
@@ -3270,6 +3511,10 @@
       {
         "date": "2026-10-01T14:23:54Z",
         "text": "Built into Echo (7503bb42): the chevron centred on the name and product line; the card's edge glides while the dock and rows fade and are cut by it; a closed card centres its header and chevron. Tests: ExplorerDockTests (closed server header, fold edge)."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -3287,7 +3532,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.server-header-look-r30": {
@@ -3328,6 +3573,10 @@
       {
         "date": "2026-10-01T14:53:09Z",
         "text": "Built into Echo (5be677fc): HD4 wash by default; Plain, Bar, Glass Plate and Banner in Settings \u203a Appearance \u203a Server Header; Server Header Color (server, accent, none); Current Dock Icon beside Section Dock Icons; with the server's colour the rail's monogram is always coloured and tabs and the footer's server pill carry a dot; Color swatches in the header's right-click menu. Tabs, Window and Footer pages got rows for the dot and the monogram but were not stamped (they had drift from other rounds). Tests: ServerHeaderPaintTests."
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -3368,7 +3617,7 @@
         "summary": "Only HD0, HD4, HD5, HD7 and HD8, with variations on each; colour, dock icon and plain header as settings"
       }
     ],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.settings-controls-r43": {
@@ -3502,6 +3751,10 @@
       {
         "date": "2026-10-01T19:06:14Z",
         "text": "Built into Echo: a search field lists matching settings across pages (opens the page, highlights the group); Reset This Page with a confirmation on Editor, Results and Sidebar; no sidebar dots (MD1). NOT built yet: per-connection settings (PC0) and settings sync (SY0), tasks SE5 and SE6 in Design/plan.md (6a693827)"
+      },
+      {
+        "date": "2026-10-01T20:25:08Z",
+        "text": "Built into Echo: search across every page; Reset This Page; Per connection (PC0): Confirm Unguarded Writes (Default/Always/Never in the connection editor, listed in Settings \u203a Databases with each connection's colour dot) beside the existing per-connection query time limit; Sync (SY0): settings already synced whole, now this Mac's paths stay local (604d90f4)"
       }
     ],
     "needsMore": [],
@@ -3575,6 +3828,10 @@
       {
         "date": "2026-10-01T14:55:40Z",
         "text": "Built into Echo: the tab overview is now the \u2318K palette turned to this window's tabs (a 'Tab Overview' row in \u2318K, \u21e7\u2318O, the toolbar button, a pinch in). Rows grouped by server with a live state (Running m:ss, Failed, N rows, Not run). \u232b closes the selected tab while nothing is typed (\u2318\u232b always), \u2318D duplicates, \u2325\u232b closes the others; the palette stays open. The full-window grid and its style setting are removed. Tabs As built: spec part 7 (TABS-7.1 to 7.4)."
+      },
+      {
+        "date": "2026-10-01T20:30:59Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -3589,7 +3846,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
     "verdicts": {}
   },
   "ongoing.tool-tab-controls-r37": {
@@ -4096,6 +4353,10 @@
       {
         "date": "2026-10-01T14:36:51Z",
         "text": "Changed in Echo (f756a13b), the owner's note: the pill rides on the editor card's edge while the results grow or fold, a moment behind with a small bounce"
+      },
+      {
+        "date": "2026-10-01T20:30:33Z",
+        "text": "Confirmed in Echo"
       }
     ],
     "needsMore": [],
@@ -4109,7 +4370,79 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "In Echo",
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ported.Round 14 \u00b7 section dock": {
+    "comments": [],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:20:18Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ported.Round 15 \u00b7 Run": {
+    "comments": [],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:20:14Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ported.Round 15 \u00b7 inspector": {
+    "comments": [],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:20:25Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
+    "verdicts": {}
+  },
+  "ported.Round 15 \u00b7 notifications": {
+    "comments": [],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T20:20:22Z",
+        "text": "Confirmed in Echo"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Decided",
     "verdicts": {}
   }
 }
