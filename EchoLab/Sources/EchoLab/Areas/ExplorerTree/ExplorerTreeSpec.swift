@@ -72,6 +72,18 @@ enum ExplorerTreeSpec {
                            .row("The cards below", "move with the edge, on the same curve")),
             ], rounds: [r30Collapse], files: [components + "ObjectBrowserSidebarView+Fold.swift", components + "ObjectBrowserOutlineView+Fold.swift",
                                               "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Explorer/ExplorerTreeFoldTransition.swift"]),
+            SpecElement(number: "2.6", name: "Header colour", summary: "Settings › Appearance › Server Header and Server Header Color (round 30.1): a wash of the server's colour by default.", groups: [
+                .material(.row("Wash (HD4, default)", "the colour at 20% at the card's top edge, fading to clear through the dock (8% grey with None); the whole card when closed", token: "ServerHeaderBackdrop"),
+                          .row("Plain (HD0)", "the name and product line alone"),
+                          .row("Bar (HD12)", "a 3pt rounded bar of the colour in the leading padding, beside the two lines"),
+                          .row("Glass Plate (HD7)", "the name on a glass capsule tinted 28% with the colour"),
+                          .row("Banner (HD16)", "the colour at 95%, 80% halfway, clear by the dock's bottom; white name, product line and chevron; a closed card is all banner")),
+                .layout(.row("Reach", "the header slot and the dock slot while open, the closed card while closed, 0.5pt inside the card's edge, its top corners the card's", token: "ObjectBrowserRowView.serverBackdropHeight")),
+                .behaviour(.row("Colour", "the server's colour by default; the accent, or none, in Settings", token: "ServerHeaderColorSource"),
+                           .row("Server's colour elsewhere", "with the server's colour: the rail's monogram always (WIN-2.3), a dot on its tabs (TABS-2.3) and on the footer's server pill (FTR-2.4)", token: "ServerHeaderPaint.marksServer"),
+                           .row("Setting it", "the header's right-click menu › Color, with the connection sheet's five swatches; it saves the connection's colour and shows at once", token: "ObjectBrowserSidebarView.addServerColorMenu")),
+            ], rounds: ["ongoing.server-header-look-r30"], files: ["Echo/Sources/Features/ObjectBrowser/Domain/ServerHeaderPaint.swift", components + "ServerHeaderBackdrop.swift",
+                                                                    components + "ObjectBrowserRowView+ServerHeader.swift", components + "ObjectBrowserSidebarView+ServerColor.swift"]),
         ]),
         SpecPart(number: "3", name: "Dock", summary: "The section icons under the server's name.", elements: [
             SpecElement(number: "3.1", name: "Capsule", summary: "A Liquid Glass capsule as wide as the card, with a hairline edge and a soft shadow (C5). The only glass in the card.", groups: [
@@ -85,7 +97,7 @@ enum ExplorerTreeSpec {
             ], rounds: [round16, round14, r19Capsule], files: [components + "ExplorerDockRow.swift"]),
             SpecElement(number: "3.2", name: "Current section icon", summary: "The section shown, in the accent colour. It has no fill.", groups: [
                 .type(.row("Symbol", "medium weight; 14pt at the default size (compact 11, small 10, large: display medium)", token: "ExplorerDockRow.iconFont")),
-                .states(.row("Colour", "accent", token: "ColorTokens.accent"), .row("Fill", "none")),
+                .states(.row("Colour", "the header's colour by default (Settings › Appearance › Current Dock Icon: Header's Color, round 30.1, DK1); the accent with Accent Color or when the header has no colour", token: "ServerHeaderPaint.dockColor"), .row("Fill", "none")),
                 .layout(.row("Slot", "equal share of the capsule, as tall as the capsule"), .row("Hit area", "the whole slot")),
             ], rounds: [round16], files: [components + "ExplorerDockRow.swift"]),
             SpecElement(number: "3.3", name: "Other section icons", summary: "Grey by default; duotone in the tree's colours is a setting (Dock icons).", groups: [

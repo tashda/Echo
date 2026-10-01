@@ -2,6 +2,25 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 30.1 accepted: the server header in the server's colour
+
+Echo Labs › Explorer tree › Server card: the header · round 30.1, revision 2. The owner's picks where they differ from the recommendation are marked. Built in 5be677fc.
+
+- **Header (HD4, owner's pick over HD10's glow):** a **wash of the colour** at 20% from the card's top edge, fading to clear through the dock; on a closed card it covers the card. **Settings › Appearance › Server Header** also offers **Plain (HD0), Bar (HD12), Glass Plate (HD7) and Banner (HD16)** (owner's list; HS0 with the note "put it where it makes sense", so it sits in Appearance until the Settings round). → TREE-2.6
+- **Colour (CS1):** the **server's colour** by default; **Server Header Color** offers None and Accent Color (owner's note). The custom colour (CS3) was dropped in revision 2.
+- **Second line (SL0):** product · section, as before.
+- **Dock icon (DK1):** the current icon in **the header's colour**, as a setting beside Section Dock Icons (**Current Dock Icon**, owner's note); the accent when the header has none. → TREE-3.2
+- **One colour per server (CO2):** with the server's colour, **the rail's monogram is always in it** and **the server's tabs and the footer's server pill carry a 6pt dot of it**. → WIN-2.3, TABS-2.3, FTR-2.4
+- **Setting the colour (SC1):** the header's right-click menu › **Color**, with the connection sheet's five swatches; open sessions read the colour live.
+
+## 2026-10-01 · Round 30.3 accepted: the main folders never disappear
+
+Echo Labs › Explorer tree › Database folders that are empty · round 30.3. Built in 5be677fc.
+
+- **Tables, Views, Functions and Procedures always show** (EF1); Synonyms, Sequences, Types and the other rare folders only when they have something. The owner's database really had no views: nothing was lost while loading.
+- An empty folder is **dimmed with no count** (EL1) and **opens to a grey “No views” row** (OE0).
+- **Settings › Sidebar › Show empty folders is removed** (ST1, owner's pick over keeping it). → TREE-6.2
+
 ## 2026-10-01 · Round 34 accepted: Refresh and the activity signal
 
 Echo Labs › Window and cards › Refresh and the activity signal · round 34. Asked: after a query, Run and Refresh both showed ✓. Every recommendation was taken except where marked.

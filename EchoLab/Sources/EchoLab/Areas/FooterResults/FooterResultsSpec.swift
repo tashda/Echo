@@ -61,6 +61,7 @@ enum FooterResultsSpec {
                 .material(.row("Glass", "Liquid Glass capsule; interactive when the tab can switch database")),
                 .layout(.row("Height", "24pt", token: "LayoutTokens.Footer.chipHeight"), .row("Horizontal padding", "10pt", token: "LayoutTokens.Footer.chipHorizontalPadding")),
                 .type(.row("Font", "11pt primary: server · database, truncated in the middle", token: "TypographyTokens.detail")),
+                .material(.row("Server dot", "with Server Header Color set to Server's Color, a 6pt dot of the server's colour before the name, 6pt from it (round 30.1, CO2)", token: "EnvironmentValues.serverPillColor")),
                 .behaviour(.row("Click", "opens the database switcher"), .row("Can't switch", "disabled; the tooltip is the name"), .row("Tooltip", "Switch Database")),
             ], rounds: [r10], files: [bar]),
             SpecElement(number: "2.5", name: "Metric pills", summary: "A glass pill per entry at the right: status, selection summary, rows and time.", groups: [

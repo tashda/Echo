@@ -25,8 +25,16 @@ struct ExplorerTreeSpecimen: View {
     /// The card as it rests: name, dock, rows.
     private var card: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.none) {
-            header
-            dock
+            VStack(alignment: .leading, spacing: SpacingTokens.none) {
+                header
+                dock
+            }
+            // Round 30.1, HD4: the server's colour washes down from the top through the dock.
+            .background {
+                LinearGradient(colors: [ColorTokens.Status.info.opacity(0.2), ColorTokens.Status.info.opacity(0)], startPoint: .top, endPoint: .bottom)
+                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: cornerRadius, topTrailingRadius: cornerRadius, style: .continuous))
+                    .specAnchor("2.6")
+            }
             rows
             Spacer(minLength: 0)
         }
@@ -85,8 +93,9 @@ struct ExplorerTreeSpecimen: View {
             HStack(spacing: SpacingTokens.none) {
                 ForEach(Array(Self.dock.enumerated()), id: \.offset) { index, item in
                     let isCurrent = index == 0
-                    LabDuotoneSymbol(name: item.symbol, color: isCurrent ? ColorTokens.accent : item.color, mode: settings.dockMode,
-                                     monoColor: isCurrent ? ColorTokens.accent : ColorTokens.Sidebar.symbol, font: TypographyTokens.prominent.weight(.medium))
+                    // The current icon in the header's colour (round 30.1, DK1).
+                    LabDuotoneSymbol(name: item.symbol, color: isCurrent ? ColorTokens.Status.info : item.color, mode: settings.dockMode,
+                                     monoColor: isCurrent ? ColorTokens.Status.info : ColorTokens.Sidebar.symbol, font: TypographyTokens.prominent.weight(.medium))
                         .frame(maxWidth: .infinity).frame(height: 28)
                         .specAnchor(isCurrent ? "3.2" : "3.3")
                 }

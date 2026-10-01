@@ -29,12 +29,14 @@ enum ExplorerTreeArea {
         summary: "Each server sits on its own card: quiet 28pt rows, duotone icons, and a dock of section icons pinned under the server's name.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "f362b85c", date: "2026-10-01",
+                level: .code, commit: "24edc421", date: "2026-10-01",
                 note: "Read from SidebarRow, SidebarRowConstants, ExplorerDock, ExplorerDockRow, ObjectBrowserRowView+Headers, ObjectBrowserSidebarView+Dock, ExplorerMotion, ExplorerTreeVeilLayer, ExplorerTreeScrollState, ExplorerBlueprint+SQLServer and the tokens, as of round 19 and the 2026-10-01 smoothness work. The specimen is a self-contained copy of the server card."),
             stageHeight: 540,
             behaviours: [
                 .init(trigger: "Hover a row", result: "A folder's icon turns into a chevron and its count appears. Nothing else moves."),
                 .init(trigger: "Click a folder", result: "It opens or closes; the rows below slide and fade, like the native outline."),
+                .init(trigger: "Look at a server's name", result: "A wash of the server's colour fades down from the card's top edge through the dock; the dock's current icon is in the same colour. Settings › Appearance › Server Header offers Plain, Bar, Glass Plate and Banner, and Server Header Color the accent or none (round 30.1)."),
+                .init(trigger: "Right-click a server's name › Color", result: "Five swatches, the connection sheet's; the header, rail, tabs and footer pill change at once."),
                 .init(trigger: "Click a server's name", result: "The card folds to its header while its dock and rows fade, cut by the card's moving edge, and the cards below follow (CM2); it opens the same way. Closed, the name, product line and chevron are centred in the card. The chevron sits at the trailing edge, centred on the two lines; it shows on hover while open and always while closed (round 30.2)."),
                 .init(trigger: "Click an object", result: "Grey selection fill with the row's icon in its accent."),
                 .init(trigger: "Click a dock icon", result: "A veil in the card's colour fades over the rows (0.12s); under it the new section swaps in and the card's edge moves to its size (0.28s, no overshoot), the view jumps to where that section was left, and the veil fades away (0.22s). Rows never slide or show outside the card, and the window holds still meanwhile. A section not shown before doesn't scroll; the header's second line names the current section."),
@@ -77,6 +79,8 @@ enum ExplorerTreeArea {
                 .init(label: "Card edge", value: "0.5pt at 35% separator", token: "cardEdgeWidth / cardEdgeOpacity"),
                 .init(label: "Row icons", value: "Colourful (duotone, softened 22%) by default; Monochrome is a setting; objects are always grey", token: "SidebarIconColorMode"),
                 .init(label: "Dock icons", value: "Mono by default; Duotone is a setting", token: "SidebarDockIconStyle"),
+                .init(label: "Header wash", value: "The server's colour at 20%, fading to clear over the header and dock (86pt at the default size)", token: "ServerHeaderBackdrop"),
+                .init(label: "Server dot", value: "6pt, on tabs and the footer's server pill, with the server's colour", token: "SpacingTokens.xxs2"),
             ],
             rules: [
                 .init(text: "Every server has its own opaque card",
@@ -96,6 +100,9 @@ enum ExplorerTreeArea {
                 .init(text: "A server card folds while its rows fade",
                       why: "Today the rows faded while the card snapped, so for a moment they floated on the canvas. The card's edge now moves with them and cuts them (CM2); a spring, rows rolling up and a cascade were rejected.",
                       rounds: ["ongoing.server-header-collapse-r30"]),
+                .init(text: "A server's header in its colour",
+                      why: "The header was too quiet. A wash of the server's own colour gives it presence and tells production from test at a glance; the same colour marks the rail, its tabs and the footer pill, so you know where Run will go. The style and colour are settings.",
+                      rounds: ["ongoing.server-header-look-r30"]),
                 .init(text: "The main folders never disappear",
                       why: "The owner went looking for Views and thought it was gone. Tables, Views, Functions and Procedures always show, dimmed when empty; hiding every empty folder and showing every folder were rejected, and the setting was removed.",
                       rounds: ["ongoing.empty-folders-r30"]),

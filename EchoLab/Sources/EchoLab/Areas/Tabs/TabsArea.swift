@@ -108,6 +108,7 @@ enum TabsArea {
                       .row("Lines", "1, truncated at the end"),
                       .row("Active colour", "label", token: "NSColor.labelColor"),
                       .row("Inactive colour", "secondary label", token: "NSColor.secondaryLabelColor")),
+                .behaviour(.row("Server dot", "with Server Header Color set to Server's Color, a 6pt dot of the server's colour after the title (round 30.1, CO2); not on pinned tabs", token: "QueryTabButton.serverDotColor")),
             ], files: [files + "QueryTabButton+Title.swift"]),
             SpecElement(number: "2.4", name: "Active tab", summary: "The raised white tab. No glass.", states: [SpecState(key: "hoverActive", name: "Hovered")], groups: [
                 .material(.row("Fill", "vertical gradient, near white", token: "ColorTokens.TabStrip.ActiveTab.Light", swatch: ColorTokens.TabStrip.ActiveTab.Light.top),
