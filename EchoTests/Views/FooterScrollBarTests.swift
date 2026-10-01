@@ -42,3 +42,42 @@ struct FooterScrollBarTests {
         #expect(!narrow.leading && !narrow.trailing)
     }
 }
+
+@MainActor
+@Suite("Scroll bar blur (round 27, U5)")
+struct ScrollBarBlurTests {
+    @Test func aStepFadesOutAtItsShareOfTheReach() {
+        let stops = BackdropEdgeBlurLayerView.locations(reach: 60, of: 120, share: 1)
+        #expect(stops.first == 0)
+        #expect(stops.last == 0.5)
+        #expect(stops == stops.sorted())
+        #expect(stops[1] == 0.5 * (1 - LayoutTokens.EdgeBlur.step))
+    }
+
+    @Test func weakerStepsReachLess() {
+        let full = BackdropEdgeBlurLayerView.locations(reach: 100, of: 100, share: 1)
+        let half = BackdropEdgeBlurLayerView.locations(reach: 100, of: 100, share: 0.5)
+        #expect(half.last == 0.5)
+        #expect(full.last == 1)
+    }
+
+    @Test func nothingReachedIsClear() {
+        let stops = BackdropEdgeBlurLayerView.locations(reach: 0, of: 100, share: 1)
+        #expect(stops.allSatisfy { $0 == 0 })
+        #expect(BackdropEdgeBlurLayerView.locations(reach: 50, of: 0, share: 1).allSatisfy { $0 == 0 })
+    }
+
+    @Test func theFadeIsAnSCurve() {
+        let alphas = BackdropEdgeBlurLayerView.fadeAlphas
+        #expect(alphas.first == 1 && alphas.last == 0)
+        #expect(alphas == alphas.sorted(by: >))
+        // Symmetric around the middle, as smoothstep is.
+        #expect(abs(alphas[2] + alphas[4] - 1) < 0.0001)
+    }
+
+    @Test func raisedBlurPassesTheWidestThumb() {
+        let barThumb = LayoutTokens.Footer.scrollBarBottom
+        let raised = barThumb + LayoutTokens.Footer.overlayThumbMaxHeight + LayoutTokens.EdgeBlur.fade
+        #expect(raised > LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift + LayoutTokens.EdgeBlur.fade)
+    }
+}

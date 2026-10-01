@@ -2,6 +2,15 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 27 refined and accepted again: the bar as wide as the footer, the blur rising past it, everywhere
+
+Echo Labs › Footer and results › round 27, revision 5. The owner loved the first build "about 90%": the bar didn't reach as far as the footer and sat over sharp rows.
+
+- **Length: L2 · as wide as the footer**, from its left padding, over the row numbers, to its right. The grid's width (as first built) was not chosen.
+- **Behind it: U5 · the blur rises past the bar while it shows**, with the owner's note that it must animate beautifully and meet the rows naturally rather than at a hard line. Built as: the blur's views keep the raised height and only their masks move, animated by Core Animation (0.32s up, settling 0.9s after the last scroll in 0.5s), and the blur has finer steps (0.75 · 1.5 · 3 · 5 · 7.5 · 10pt, was 1 · 3 · 6 · 10), a 24pt fade (was 16) and an S-curve fade per step. Sharp rows, the blur always that high, a glass lane and a band of the card's colour were not chosen.
+- **Gap: H1 · 9pt** and **track: T1 · none**, as built.
+- **Everywhere** (owner, after round 27): every overlay horizontal scroll bar in Echo gets the same rising blur, SwiftUI tables included, with nothing to set per view: `ScrollBarBlur`, attached by `ScrollBarBlurHook` after every `NSScrollView.tile()`, installed at launch. → Phase 5 R14
+
 ## 2026-10-01 · Round 28 accepted: the find bar, search and replace, the lane, one mark language (28.12 to 28.15)
 
 Echo Labs › Editor and running › Query editor · round 28, pages 28.12 to 28.15. The owner's picks where they differ from the recommendation are marked. Built in ac5089f6 (the gutter's Column and Hairline full height in decd9770).
