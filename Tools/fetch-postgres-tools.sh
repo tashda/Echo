@@ -9,8 +9,8 @@
 # checksums.txt.
 set -euo pipefail
 
-RELEASE="1.0.0"
-SHA256="e77497c88a32f31b01594989a15d9299e65ff64f6daad17b0b0d9542e3ad9858"
+RELEASE="1.1.0"
+SHA256="cfa3b347967e25a68f391ff0ce74577efda8f3b1337d3d229daaa586149ffc95"
 URL="https://github.com/tashda/echo-libraries/releases/download/$RELEASE/PostgresTools.zip"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

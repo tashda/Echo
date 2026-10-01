@@ -826,7 +826,7 @@
 			repositoryURL = "https://github.com/tashda/echo-libraries";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
+				minimumVersion = 1.1.0;
 			};
 		};
 		0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */ = {
