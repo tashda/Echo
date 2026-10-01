@@ -220,29 +220,37 @@ struct LabMailPageDetail: View {
 
     var body: some View {
         let info = LabRounds.info(forPage: page.id)
+        let fast = FastRoundStore.shared.round(forPage: page.id)
         let areaTitle = LabAreas.area(id: LabAreas.areaID(ofPage: page.id))?.title
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.md) {
                 VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                    Text([info?.date, areaTitle].compactMap { $0 }.joined(separator: " · "))
+                    Text([info?.date ?? fast?.date, areaTitle].compactMap { $0 }.joined(separator: " · "))
                         .font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                     LabRoundTitle(text: page.title, pageID: page.id, font: .system(size: 26, weight: .bold), badgeSize: 16)
                     HStack(spacing: 6) {
                         if let status = store.status(of: page) { LabStatusChip(status: status) }
-                        LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
+                        if fast != nil { LabTag(text: "Fast round", symbol: "bolt") }
+                        else { LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath") }
                         if let areaTitle { LabTag(text: areaTitle, symbol: "square.grid.2x2") }
                     }
                     HStack(spacing: SpacingTokens.xs) {
-                        Button { navigator.openPage(page.id) } label: { Label("Open", systemImage: "arrow.up.right.square") }
-                            .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true))
+                        if fast == nil {
+                            Button { navigator.openPage(page.id) } label: { Label("Open", systemImage: "arrow.up.right.square") }
+                                .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true))
+                        }
                         LabAgentHandoffButton(page: page).buttonStyle(LabPillButtonStyle())
                         LabClaimTag(page: page)
                     }
                     .padding(.top, 4)
                 }
                 if store.status(of: page) == .inEcho { LabInboxCheckCard(page: page) }
+                if fast != nil {
+                    if store.status(of: page) == .judging { FastRoundDecisionCard(page: page) }
+                    FastRoundBody(pageID: page.id)
+                }
                 sinceReview
-                if !page.summary.isEmpty {
+                if fast == nil, !page.summary.isEmpty {
                     LabReadingCard(title: "What it's about", symbol: "text.alignleft") {
                         Text(page.summary).font(TypographyTokens.prominent).fixedSize(horizontal: false, vertical: true)
                     }

@@ -165,6 +165,62 @@ def steps(status, page_id, area_folder, round_file):
         ]
     return [f"Unknown status {status!r}."]
 
+FAST = LAB / "State" / "fast-rounds"
+
+
+def fast_brief(query, take, force):
+    """A fast round (State/fast-rounds/<slug>.json): text only; the brief is its file and the owner's words."""
+    slug = query.removeprefix("fast.")
+    file = FAST / f"{slug}.json"
+    if not file.exists():
+        hits = [f for f in FAST.glob("*.json") if slug in f.stem]
+        if len(hits) != 1: sys.exit(f"No fast round matches '{query}'. Files: " + ", ".join(f.stem for f in FAST.glob("*.json")))
+        file = hits[0]
+    page_id = f"fast.{file.stem}"
+    state = json.loads(STATE.read_text()) if STATE.exists() else {}
+    item = state.get(page_id, {})
+    status = item.get("status") or "Judging"
+    claim = item.get("takenBy")
+    if take:
+        if claim and claim.get("status") == status and not force:
+            sys.exit(f"{page_id} was taken by {claim.get('agent')} while {status}. Ask the owner, or pass --force.")
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        entry = state.setdefault(page_id, {"status": status, "comments": [], "history": []})
+        entry["status"] = status
+        entry["takenBy"] = {"agent": take, "date": now, "status": status}
+        entry.setdefault("history", []).append({"date": now, "text": f"Taken by {take}"})
+        tmp = tempfile.NamedTemporaryFile("w", dir=STATE.parent, delete=False, suffix=".tmp")
+        json.dump(state, tmp, indent=2, sort_keys=True); tmp.write("\n"); tmp.close()
+        os.replace(tmp.name, STATE)
+        item = entry
+    data = json.loads(file.read_text())
+    print("=" * 78); print(f"ECHO LABS FAST ROUND  {data.get('title', '')}"); print("=" * 78)
+    print(f"Page id: {page_id}\nStatus:  {status}\nFile:    {file.relative_to(REPO)}\nArea:    {data.get('area', '')}")
+    print(f"\nWhat the owner said:\n  {data.get('feedback', '')}")
+    if data.get("summary"): print(f"\nYour analysis, in short:\n  {data['summary']}")
+    for sec in data.get("analysis", []): print(f"\n[{sec.get('heading')}]\n  {sec.get('body')}")
+    if data.get("recommendation"): print(f"\nRecommendation:\n  {data['recommendation']}")
+    for c in data.get("changes", []): print(f"  - {c}")
+    for c in item.get("comments", []):
+        print(f"\nOwner's note ({c.get('date','')[:16]}):\n  " + c.get("text", "").replace("\n", "\n  "))
+    lab = "EchoLab/Scripts"
+    print("\nWhat to do for this status:")
+    if status == "New feedback":
+        print(f"  The owner rejected or commented: read the note above, rewrite the analysis in {file.relative_to(REPO)}")
+        print("  (Echo Labs shows the change within a second, no rebuild), then")
+        print(f"  python3 {lab}/lab-status.py {page_id} Judging \"Revised: <what changed>\" and commit your paths.")
+    elif status == "Accepted":
+        print("  The owner accepted the analysis (their note, if any, is above). Build it into Echo as described under")
+        print("  'changes'. Before you touch Echo, look the area up in Echo Labs (As built page, rounds) as CLAUDE.md says;")
+        print("  if the change differs from what Echo Labs records, ask the owner first. Then update the area's As built page,")
+        print(f"  and set it: python3 {lab}/lab-status.py {page_id} \"In Echo\" \"Built into Echo: ...\" --summary \"...\" --check \"...\"")
+    elif status == "In Echo":
+        print("  Built; waiting for the owner to check it in the running app. Nothing to do.")
+    elif status == "Judging":
+        print("  Waiting for the owner's Accept or Reject in the Inbox. Nothing to do.")
+    else:
+        print("  Decided: nothing to do. A fast round is not frozen into the library.")
+
 
 def main():
     args = sys.argv[1:]
@@ -177,6 +233,9 @@ def main():
         del args[i:i + (2 if named else 1)]
     force = "--force" in args
     args = [a for a in args if a != "--force"]
+
+    if args[0].startswith("fast"):
+        return fast_brief(args[0], take, force)
 
     all_rounds, all_pages = rounds(), pages()
     page_id = resolve(args[0], all_pages, all_rounds)

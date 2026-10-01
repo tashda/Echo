@@ -72,6 +72,7 @@ struct LabRootView: View {
         }
         .onAppear {
             LabBuilder.shared.startWatching()
+            FastRoundStore.shared.startWatching()
             if ProcessInfo.processInfo.environment["ECHOLAB_ACTION"] == "rebuild" { LabBuilder.shared.rebuild() }   // for testing
             // A rebuild waits for you when the page you're on has picks that aren't sent yet.
             LabBuilder.shared.shouldAskBeforeRelaunch = { [store, navigator] in
