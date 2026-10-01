@@ -55,22 +55,11 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     // MARK: - Right Side (plan K2)
 
-    /// [tab tools] [Run] [Format · Validate · Help · Plan] [MSSQL toggles], each one system glass
-    /// capsule, hidden when the active tab has no use for it.
+    /// [Run] [Format · Validate · Help · Plan] [MSSQL toggles], each one system glass capsule,
+    /// hidden when the active tab has no use for it. Only the query editor has anything here: a
+    /// tool's actions live in its own tab (round 45).
     @ToolbarContentBuilder
     private var contextActionItems: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
-            TableStructureToolbarItem()
-            ActivityMonitorToolbarItem()
-            JobQueuePlayToolbarItem()
-            JobQueuePopOutToolbarItem()
-            ErrorLogCycleToolbarItem()
-            TabContextToolbarButton()
-        }
-        .hidden(!toolbarContext.hasTabTools)
-
-        ToolbarSpacer(.fixed, placement: .primaryAction)
-
         ToolbarItem(id: "workspace.primary.queryrun", placement: .primaryAction) {
             QueryRunToolbarItem()
         }

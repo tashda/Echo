@@ -23,9 +23,11 @@ struct PostgresDatabaseSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            sectionPicker
-        } content: {
+            // Its pages are in the tab (round 36.2); Grant Wizard on the header line (37.2).
             sectionContent
+        }
+        .toolTabHeaderControls {
+            ToolTabPrimaryButton(title: "Grant Wizard", systemImage: "key.fill") { showGrantWizard = true }
         }
         .task {
             await viewModel.initialize()
@@ -69,27 +71,6 @@ struct PostgresDatabaseSecurityView: View {
             return .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true)
         }
         return nil
-    }
-
-    private var sectionPicker: some View {
-        CenteredTabSectionLayout {
-            TabSectionPicker(
-                "Security Section",
-                selection: $viewModel.selectedSection,
-                itemCount: PostgresDatabaseSecurityViewModel.Section.allCases.count
-            ) {
-                ForEach(PostgresDatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            }
-        } controls: {
-            Button {
-                showGrantWizard = true
-            } label: {
-                Label("Grant Wizard", systemImage: "key.fill")
-            }
-            .buttonStyle(.borderless)
-        }
     }
 
     @ViewBuilder

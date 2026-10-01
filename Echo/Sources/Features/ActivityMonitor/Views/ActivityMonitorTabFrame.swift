@@ -25,7 +25,9 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
         // own card. The pages are chosen in the tab itself (ST2).
         VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
             ToolTabHeader(systemImage: "waveform.path.ecg", tint: ColorTokens.Status.warning,
-                          title: "Activity Monitor", subtitle: headerSubtitle)
+                          title: "Activity Monitor", subtitle: headerSubtitle) {
+                headerControls
+            }
             if !hasPermission {
                 permissionDeniedView.workspaceCard()
             } else if !hasSnapshot {
@@ -44,6 +46,30 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
             }
         }
     }
+
+    /// How often it samples, Refresh, and Pause or Resume on the header line (round 37.2, 37.3);
+    /// Pause was an eye in the window toolbar before round 45.
+    @ViewBuilder
+    private var headerControls: some View {
+        ToolTabPickerPill(
+            title: "Refresh Interval", systemImage: "timer",
+            selection: Binding(get: { viewModel.refreshInterval }, set: { interval in
+                viewModel.refreshInterval = interval
+                if viewModel.isRunning { viewModel.startStreaming() }
+            }),
+            options: Self.intervals,
+            label: { "Every \(Int($0)) s" }
+        )
+        ToolTabActionGroup {
+            ToolTabActionButton(title: "Refresh Now", systemImage: "arrow.clockwise") { viewModel.refresh() }
+        }
+        ToolTabPrimaryButton(title: viewModel.isRunning ? "Pause" : "Resume",
+                             systemImage: viewModel.isRunning ? "pause.fill" : "play.fill") {
+            if viewModel.isRunning { viewModel.stopStreaming() } else { viewModel.startStreaming() }
+        }
+    }
+
+    private static var intervals: [TimeInterval] { [1, 2, 5, 10, 30] }
 
     /// The server, and how fresh the figures are.
     private var headerSubtitle: Text {

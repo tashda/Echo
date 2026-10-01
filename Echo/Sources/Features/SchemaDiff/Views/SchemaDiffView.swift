@@ -17,10 +17,10 @@ struct SchemaDiffView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            toolbarContent
-        } content: {
             diffContent
         }
+        .toolTabHeaderControls { headerControls }
+        .toolTabHeaderDetail(viewModel.diffs.isEmpty ? nil : viewModel.statusSummary)
         .task { await viewModel.initialize() }
     }
 
@@ -37,102 +37,54 @@ struct SchemaDiffView: View {
         return nil
     }
 
-    // MARK: - Toolbar
+    // MARK: - Header line
 
-    private var toolbarContent: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Picker("Source", selection: $viewModel.sourceSchema) {
-                ForEach(viewModel.availableSchemas, id: \.self) { Text($0).tag($0) }
-            }
-            .pickerStyle(.menu)
-            .frame(maxWidth: 160)
-
-            Image(systemName: "arrow.right")
-                .foregroundStyle(ColorTokens.Text.secondary)
-
-            Picker("Target", selection: $viewModel.targetSchema) {
-                ForEach(viewModel.availableSchemas, id: \.self) { Text($0).tag($0) }
-            }
-            .pickerStyle(.menu)
-            .frame(maxWidth: 160)
-
-            if viewModel.canCompare {
-                Button("Compare") { Task { await viewModel.compare() } }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-            } else {
-                Button("Compare") {}
-                    .buttonStyle(.bordered)
-                    .disabled(true)
-                    .controlSize(.small)
-            }
-
-            Spacer()
-
-            if !viewModel.diffs.isEmpty {
-                TextField("", text: $viewModel.searchText, prompt: Text("Filter objects"))
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 180)
-
-                Text(viewModel.statusSummary)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-
-                objectTypePicker
-                filterPicker
-
-                Button("Copy Migration SQL") {
-                    let sql = viewModel.generateMigrationSQLForFilteredDiffs()
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(sql, forType: .string)
+    /// Source → target and Compare on the tool's header line, with the filters and the migration
+    /// script's actions once there is a comparison (round 37.2, 37.3).
+    @ViewBuilder
+    private var headerControls: some View {
+        if !viewModel.diffs.isEmpty {
+            ToolTabSearchField(prompt: "Filter objects", text: $viewModel.searchText)
+            objectTypePicker
+            filterPicker
+            ToolTabActionGroup {
+                let hasSQL = !viewModel.generateMigrationSQLForFilteredDiffs().isEmpty
+                ToolTabActionMenu(title: "Migration SQL and Report", systemImage: "square.and.arrow.up") {
+                    Button("Open Migration SQL") { openMigrationSQLInQueryTab() }.disabled(!hasSQL)
+                    Button("Copy Migration SQL") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(viewModel.generateMigrationSQLForFilteredDiffs(), forType: .string)
+                    }
+                    .disabled(!hasSQL)
+                    Button("Export Migration SQL") { exportMigrationSQL() }.disabled(!hasSQL)
+                    Divider()
+                    Button("Export Report as HTML") { exportComparisonReport(as: .html) }
+                    Button("Export Report as Markdown") { exportComparisonReport(as: .markdown) }
+                    Button("Export Report as Text") { exportComparisonReport(as: .text) }
                 }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
-
-                Button("Export Migration SQL") {
-                    exportMigrationSQL()
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
-
-                Menu("Export Report") {
-                    Button("Export as HTML") { exportComparisonReport(as: .html) }
-                    Button("Export as Markdown") { exportComparisonReport(as: .markdown) }
-                    Button("Export as Text") { exportComparisonReport(as: .text) }
-                }
-                .disabled(viewModel.filteredDiffs.isEmpty)
-
-                Button("Open Migration SQL") {
-                    openMigrationSQLInQueryTab()
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.generateMigrationSQLForFilteredDiffs().isEmpty)
             }
+        }
+        ToolTabPickerPill(title: "Source", systemImage: "square.stack.3d.up", selection: $viewModel.sourceSchema,
+                          options: viewModel.availableSchemas, label: { $0 })
+        Image(systemName: "arrow.right").foregroundStyle(ColorTokens.Text.secondary).accessibilityHidden(true)
+        ToolTabPickerPill(title: "Target", systemImage: "square.stack.3d.down.right", selection: $viewModel.targetSchema,
+                          options: viewModel.availableSchemas, label: { $0 })
+        ToolTabPrimaryButton(title: viewModel.isComparing ? "Comparing" : "Compare", systemImage: "arrow.left.arrow.right",
+                             isDisabled: !viewModel.canCompare || viewModel.isComparing) {
+            Task { await viewModel.compare() }
         }
     }
 
     private var filterPicker: some View {
-        Picker("Filter", selection: $viewModel.filterStatus) {
-            Text("All").tag(nil as SchemaDiffStatus?)
-            Divider()
-            ForEach(SchemaDiffStatus.allCases, id: \.self) { status in
-                Label(status.rawValue, systemImage: status.icon).tag(status as SchemaDiffStatus?)
-            }
-        }
-        .pickerStyle(.menu)
-        .frame(maxWidth: 120)
+        ToolTabPickerPill(title: "Status", systemImage: "line.3.horizontal.decrease", selection: $viewModel.filterStatus,
+                          options: [nil] + SchemaDiffStatus.allCases.map(Optional.some),
+                          label: { $0?.rawValue ?? "All Changes" })
     }
 
     private var objectTypePicker: some View {
-        Picker("Object Type", selection: $viewModel.filterObjectType) {
-            Text("All Types").tag(nil as String?)
-            Divider()
-            ForEach(viewModel.availableObjectTypes, id: \.self) { objectType in
-                Text(objectType).tag(objectType as String?)
-            }
-        }
-        .pickerStyle(.menu)
-        .frame(maxWidth: 140)
+        ToolTabPickerPill(title: "Object Type", systemImage: "square.grid.2x2", selection: $viewModel.filterObjectType,
+                          options: [nil] + viewModel.availableObjectTypes.map(Optional.some),
+                          label: { $0 ?? "All Types" })
     }
 
     // MARK: - Content

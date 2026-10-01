@@ -28,6 +28,7 @@ struct JobQueueView: View {
 
     var body: some View {
         VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
+        JobQueueHeader(viewModel: viewModel, hostTab: hostTab, serverName: connectionSession?.connection.connectionName)
         if !canViewJobs {
             PermissionBanner(
                 message: "You do not have permission to view SQL Agent jobs. This requires membership in SQLAgentUserRole or a higher role.",

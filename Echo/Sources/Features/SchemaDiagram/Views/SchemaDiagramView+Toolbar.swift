@@ -2,35 +2,13 @@ import SwiftUI
 
 extension SchemaDiagramView {
 
-    var toolbarOverlay: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            // Filter
-            HStack(spacing: SpacingTokens.xs) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .font(TypographyTokens.caption2)
-                TextField("Filter tables\u{2026}", text: $diagramSearchText)
-                    .textFieldStyle(.plain)
-                    .font(TypographyTokens.caption2)
-                    .frame(width: 120)
-                if !diagramSearchText.isEmpty {
-                    Button {
-                        diagramSearchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Clear Search")
-                    .accessibilityLabel("Clear Search")
-                }
-            }
-
-            Divider()
-                .frame(height: 16)
-
-            // Export
-            Menu {
+    /// The diagram's filter and Export on the tool's header line (round 37.2, 37.3); the view
+    /// controls float on the drawing (37.4, CA0).
+    @ViewBuilder
+    var headerControls: some View {
+        ToolTabSearchField(prompt: "Filter tables", text: $diagramSearchText)
+        ToolTabActionGroup {
+            ToolTabActionMenu(title: "Export Diagram", systemImage: "square.and.arrow.up") {
                 Button("Export as PNG") { exportDiagram(as: .png) }
                 Button("Export as PDF") { exportDiagram(as: .pdf) }
                 Divider()
@@ -42,51 +20,13 @@ extension SchemaDiagramView {
                 Button("Export Documentation as Text") { exportDiagram(as: .textDocumentation) }
                 Divider()
                 Button("Print") { printDiagram() }
-            } label: {
-                Label("Export", systemImage: "square.and.arrow.up")
-                    .labelStyle(.iconOnly)
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("Export Diagram")
-            .accessibilityLabel("Export Diagram")
-
-            Divider()
-                .frame(height: 16)
-
-            // Visibility toggles
-            Menu {
-                Toggle("Relationships", isOn: $showRelationships)
-                Toggle("Indexes", isOn: $showIndexes)
-            } label: {
-                Label("Visibility", systemImage: "eye")
-                    .labelStyle(.iconOnly)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("Toggle Visibility")
-            .accessibilityLabel("Toggle element visibility")
-
-            Divider()
-                .frame(height: 16)
-
-            // Status badge — rightmost
-            loadSourceBadge
         }
-        .padding(.horizontal, SpacingTokens.sm)
-        .padding(.vertical, SpacingTokens.xs)
-        .background(.ultraThinMaterial, in: Capsule())
-        .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
     }
 
-    var loadSourceBadge: some View {
-        let descriptor = loadSourceDescriptor(for: viewModel.loadSource)
-        return Label(descriptor.text, systemImage: descriptor.icon)
-            .font(TypographyTokens.caption2.weight(.semibold))
-            .padding(.horizontal, SpacingTokens.xs2)
-            .padding(.vertical, SpacingTokens.xxs2)
-            .background(descriptor.background, in: Capsule())
-            .foregroundColor(descriptor.foreground)
+    /// Where the diagram came from, after the server in the header: "Live · 2 min ago".
+    var loadSourceDetail: String {
+        loadSourceDescriptor(for: viewModel.loadSource).text
     }
 
     func loadSourceDescriptor(for source: DiagramLoadSource) -> (text: String, icon: String, foreground: Color, background: Color) {

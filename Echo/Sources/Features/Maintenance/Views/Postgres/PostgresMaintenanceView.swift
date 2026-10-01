@@ -9,19 +9,11 @@ struct PostgresMaintenanceView: View {
     @Environment(AppState.self) var appState
     @Environment(ProjectStore.self) private var projectStore
 
-    @State private var selectedSection: PostgresMaintenanceSection = .health
-
     @State private var tableStatsSortOrder = [KeyPathComparator(\PostgresMaintenanceTableStat.nDeadTup, order: .reverse)]
     @State private var indexStatsSortOrder = [KeyPathComparator(\PostgresIndexStat.idxScan)]
 
     @State private var selectedTableIDs: Set<PostgresMaintenanceTableStat.ID> = []
     @State private var selectedIndexIDs: Set<PostgresIndexStat.ID> = []
-
-    enum PostgresMaintenanceSection: String, CaseIterable {
-        case health = "Health"
-        case tables = "Tables"
-        case indexes = "Indexes"
-    }
 
     var body: some View {
         MaintenanceTabFrame(
@@ -30,17 +22,13 @@ struct PostgresMaintenanceView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            TabSectionPicker(
-                "Maintenance Section",
-                selection: $selectedSection,
-                itemCount: PostgresMaintenanceSection.allCases.count
-            ) {
-                ForEach(PostgresMaintenanceSection.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            }
-        } content: {
+            // Its pages are in the tab (round 36.2); the database on the header line (37.2).
             sectionContent
+        }
+        .toolTabHeaderControls {
+            ToolTabDatabasePill(databases: viewModel.databaseList, selected: viewModel.selectedDatabase) { database in
+                viewModel.selectedDatabase = database
+            }
         }
         .task(id: viewModel.connectionSessionID) {
             viewModel.pgBackupsVM?.panelState = panelState
@@ -60,7 +48,7 @@ struct PostgresMaintenanceView: View {
             }
             Task { await loadData(for: newDB) }
         }
-        .onChange(of: selectedSection) { _, _ in
+        .onChange(of: viewModel.selectedSection) { _, _ in
             environmentState.dataInspectorContent = nil
             guard let db = viewModel.selectedDatabase else { return }
             Task { await loadSectionData(for: db) }
@@ -72,15 +60,15 @@ struct PostgresMaintenanceView: View {
         }
         .onAppear {
             if let sectionName = viewModel.requestedSection,
-               let section = PostgresMaintenanceSection(rawValue: sectionName) {
-                selectedSection = section
+               let section = MaintenanceViewModel.PostgresMaintenanceSection(rawValue: sectionName) {
+                viewModel.selectedSection = section
                 viewModel.requestedSection = nil
             }
         }
         .onChange(of: viewModel.requestedSection) { _, newSection in
             if let sectionName = newSection,
-               let section = PostgresMaintenanceSection(rawValue: sectionName) {
-                selectedSection = section
+               let section = MaintenanceViewModel.PostgresMaintenanceSection(rawValue: sectionName) {
+                viewModel.selectedSection = section
                 viewModel.requestedSection = nil
             }
         }
@@ -122,7 +110,7 @@ struct PostgresMaintenanceView: View {
         if !(session?.permissions?.canVacuumFull ?? true) {
             PermissionBanner(message: "Some operations require the superuser role.")
         }
-        switch selectedSection {
+        switch viewModel.selectedSection {
         case .health:
             PostgresMaintenanceHealthView(viewModel: viewModel)
         case .tables:
@@ -149,7 +137,7 @@ struct PostgresMaintenanceView: View {
     }
 
     private func loadSectionData(for database: String) async {
-        switch selectedSection {
+        switch viewModel.selectedSection {
         case .health:
             await viewModel.fetchHealth(for: database)
         case .tables:

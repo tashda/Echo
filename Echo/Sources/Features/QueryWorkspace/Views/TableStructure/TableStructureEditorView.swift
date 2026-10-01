@@ -7,7 +7,11 @@ struct TableStructureEditorView: View {
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(EnvironmentState.self) internal var environmentState
 
-    @State internal var selectedSection: TableStructureSection
+    /// The page shown, chosen in the tab (round 36.2).
+    internal var selectedSection: TableStructureSection {
+        get { viewModel.selectedSection }
+        nonmutating set { viewModel.selectedSection = newValue }
+    }
     @State internal var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
     @State internal var selectedIndexIDs: Set<TableStructureEditorViewModel.IndexModel.ID> = []
     @State internal var selectedForeignKeyIDs: Set<TableStructureEditorViewModel.ForeignKeyModel.ID> = []
@@ -20,7 +24,6 @@ struct TableStructureEditorView: View {
     init(tab: WorkspaceTab, viewModel: TableStructureEditorViewModel) {
         self.tab = tab
         self.viewModel = viewModel
-        _selectedSection = State(initialValue: viewModel.requestedSection ?? .columns)
     }
 
     internal var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
@@ -28,11 +31,18 @@ struct TableStructureEditorView: View {
     }
 
     var body: some View {
+        // Properties (round 37.4): its sections are pages in the tab (36.2), Add on the header line
+        // (37.2), and the changes wait in an Apply bar at the bottom (PR0), not in the window
+        // toolbar (round 45).
         VStack(spacing: 0) {
-            header
             content
+            if viewModel.hasPendingChanges {
+                TableStructureApplyBar(tab: tab, viewModel: viewModel)
+            }
         }
+        .animation(.default, value: viewModel.hasPendingChanges)
         .background(ColorTokens.Background.primary)
+        .toolTabHeaderControls { sectionAddButton }
         .onAppear {
             if let requested = viewModel.requestedSection {
                 selectedSection = requested

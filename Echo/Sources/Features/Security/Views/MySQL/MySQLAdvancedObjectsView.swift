@@ -4,7 +4,6 @@ struct MySQLAdvancedObjectsView: View {
     @Bindable var viewModel: MySQLDatabaseSecurityViewModel
 
     @State private var draftKind: DraftKind?
-    @Environment(ProjectStore.self) private var projectStore
 
     enum DraftKind: String, Identifiable {
         case function
@@ -15,43 +14,28 @@ struct MySQLAdvancedObjectsView: View {
         var id: String { rawValue }
     }
 
-    var body: some View {
-        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
-            TabSectionToolbar {
-                HStack(spacing: SpacingTokens.sm) {
-                    Picker("Object Type", selection: $viewModel.selectedAdvancedObjectSection) {
-                        ForEach(MySQLDatabaseSecurityViewModel.AdvancedObjectSection.allCases, id: \.self) {
-                            Text($0.rawValue).tag($0)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 170)
-
-                    Picker("Database", selection: $viewModel.advancedObjectSchemaFilter) {
-                        ForEach(viewModel.availableObjectSchemas, id: \.self) { Text($0).tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 200)
-
-                    if viewModel.isLoadingAdvancedObjects {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-                }
-            } controls: {
-                Button {
-                    draftKind = draftKindForCurrentSection
-                } label: {
-                    Label(newButtonTitle, systemImage: "plus")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+    @ViewBuilder
+    private var headerControls: some View {
+        ToolTabPickerPill(title: "Object Type", systemImage: "square.stack.3d.up",
+                          selection: $viewModel.selectedAdvancedObjectSection,
+                          options: MySQLDatabaseSecurityViewModel.AdvancedObjectSection.allCases, label: \.rawValue)
+        ToolTabPickerPill(title: "Database", systemImage: "cylinder", selection: $viewModel.advancedObjectSchemaFilter,
+                          options: viewModel.availableObjectSchemas, label: { $0 })
+        ToolTabActionGroup {
+            ToolTabRefreshButton(isRefreshing: viewModel.isLoadingAdvancedObjects) {
+                Task { await viewModel.loadCurrentSection() }
             }
-            .tabSectionToolbarOnCanvas()
+        }
+        ToolTabPrimaryButton(title: newButtonTitle, systemImage: "plus") { draftKind = draftKindForCurrentSection }
+    }
 
+    var body: some View {
+        // Its object type, database and New sit on the tool's header line (round 37.2, 37.3).
+        VStack(spacing: SpacingTokens.none) {
             MySQLAdvancedObjectsContent(viewModel: viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .toolTabHeaderControls { headerControls }
         .task {
             guard !viewModel.isInitialized else { return }
             await viewModel.initialize()

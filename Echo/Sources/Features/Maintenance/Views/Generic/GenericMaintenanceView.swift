@@ -17,9 +17,7 @@ struct GenericMaintenanceView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            Text("Operations")
-                .font(TypographyTokens.standard.weight(.medium))
-        } content: {
+            // One page of operations: no row above it (round 37.2).
             operationsList
         }
         .task {

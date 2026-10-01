@@ -1,17 +1,14 @@
 import Foundation
 
-/// Tool tabs start with the shared ToolTabHeader (Design/05-components › Tool tabs, TT2).
-/// Object editors (structure, diagram, table data, psql) and query tabs don't.
+/// Tool tabs start with the shared ToolTabHeader (Design/05-components › Tool tabs, TT2): every
+/// tab with a family (round 37.1). Activity Monitor and Agent Jobs draw their cards and header
+/// themselves; the query editor and the psql console have no header.
 extension WorkspaceTab.Kind {
     var isToolTab: Bool {
+        guard toolFamily != nil else { return false }
         switch self {
-        case .extensionsManager, .maintenance, .mssqlMaintenance, .extendedEvents, .availabilityGroups,
-             .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .errorLog, .profiler,
-             .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement,
-             .postgresAdvancedObjects, .mssqlAdvancedObjects, .schemaDiff, .queryBuilder:
-            true
-        case .query, .structure, .diagram, .jobQueue, .psql, .extensionStructure, .activityMonitor:
-            false
+        case .activityMonitor, .jobQueue: return false
+        default: return true
         }
     }
 }

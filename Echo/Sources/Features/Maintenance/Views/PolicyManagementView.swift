@@ -5,25 +5,11 @@ struct PolicyManagementView: View {
     @Bindable var viewModel: PolicyManagementViewModel
     
     var body: some View {
-        VStack(spacing: 0) {
-            CenteredTabSectionToolbar {
-                TabSectionPicker(
-                    "Policy Section",
-                    selection: $viewModel.selectedTab,
-                    itemCount: PolicyManagementViewModel.PolicyTab.allCases.count
-                ) {
-                    ForEach(PolicyManagementViewModel.PolicyTab.allCases) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-            } controls: {
-                toolbarControls
-            }
-            Divider()
-
-            content
-        }
-        .background(ColorTokens.Background.primary)
+        // Its pages are in the tab (round 36.2); its actions on the header line (37.2).
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(ColorTokens.Background.primary)
+            .toolTabHeaderControls { toolbarControls }
         .tabContentFrame()
         .onAppear {
             viewModel.refresh()
@@ -31,8 +17,8 @@ struct PolicyManagementView: View {
     }
 
     private var toolbarControls: some View {
-        TabRefreshButton(isRefreshing: viewModel.isRefreshing) {
-            viewModel.refresh()
+        ToolTabActionGroup {
+            ToolTabRefreshButton(isRefreshing: viewModel.isRefreshing) { viewModel.refresh() }
         }
     }
     

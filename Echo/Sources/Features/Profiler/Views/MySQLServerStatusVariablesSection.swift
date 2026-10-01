@@ -8,30 +8,6 @@ struct MySQLServerStatusVariablesSection: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabSectionToolbar {
-                HStack(spacing: SpacingTokens.sm) {
-                    TextField("", text: $viewModel.searchText, prompt: Text("Filter status variables"))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 260)
-
-                    Picker("Category", selection: $selectedCategory) {
-                        Text("All").tag("All")
-                        ForEach(statusCategories, id: \.self) { category in
-                            Text(category).tag(category)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 160)
-                }
-            } controls: {
-                Button("Refresh") {
-                    Task { await viewModel.loadCurrentSection() }
-                }
-                .buttonStyle(.borderless)
-            }
-
-            Divider()
-
             Table(filteredStatusVariables, selection: $selectedStatusVariableID) {
                 TableColumn("Variable") { item in
                     Text(item.name)
@@ -100,7 +76,16 @@ struct MySQLServerStatusVariablesSection: View {
         .onChange(of: viewModel.searchText) { _, _ in
             refreshSelection()
         }
+        .toolTabHeaderControls {
+            ToolTabPickerPill(title: "Category", systemImage: "line.3.horizontal.decrease", selection: $selectedCategory,
+                              options: ["All"] + statusCategories, label: { $0 })
+            ToolTabSearchField(prompt: "Filter status variables", text: $viewModel.searchText)
+            ToolTabActionGroup {
+                ToolTabRefreshButton(isRefreshing: false) { Task { await viewModel.loadCurrentSection() } }
+            }
+        }
     }
+
 
     private var filteredStatusVariables: [ServerPropertiesViewModel.PropertyItem] {
         let items = viewModel.filteredStatusVariables

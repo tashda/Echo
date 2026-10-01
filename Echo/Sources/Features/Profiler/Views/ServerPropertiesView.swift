@@ -50,16 +50,7 @@ struct ServerPropertiesView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {
-            TabSectionPicker(
-                "Server Properties Section",
-                selection: $viewModel.selectedSection,
-                itemCount: ServerPropertiesViewModel.Section.allCases.count
-            ) {
-                ForEach(ServerPropertiesViewModel.Section.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            }
-        } content: {
+            // Its pages are in the tab (round 36.2).
             switch viewModel.selectedSection {
             case .overview:
                 propertiesTable(viewModel.overviewItems)
@@ -127,23 +118,13 @@ struct ServerPropertiesView: View {
     }
 
     private var postgresContent: some View {
-        let availableSections: [ServerPropertiesViewModel.Section] = [.overview, .control, .variables, .status]
         return MaintenanceTabFrame(
             panelState: panelState,
             serverName: hostTab?.connection.connectionName ?? "Server",
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {
-            TabSectionPicker(
-                "Server Properties Section",
-                selection: $viewModel.selectedSection,
-                itemCount: availableSections.count
-            ) {
-                ForEach(availableSections, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            }
-        } content: {
+            // Its pages are in the tab (round 36.2).
             switch viewModel.selectedSection {
             case .overview:
                 propertiesTable(viewModel.overviewItems)

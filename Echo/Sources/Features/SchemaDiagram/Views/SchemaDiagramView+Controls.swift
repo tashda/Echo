@@ -2,53 +2,26 @@ import SwiftUI
 import EchoSense
 
 extension SchemaDiagramView {
+    /// The view controls in a glass bar floating at the bottom of the drawing (round 37.4, CA0).
     var zoomControls: some View {
         VStack {
             Spacer()
-            HStack {
-                Spacer()
-                HStack(spacing: SpacingTokens.sm) {
-                    Button {
-                        updateZoom(to: max(minZoom, zoom - 0.1))
-                    } label: {
-                        Image(systemName: "minus.magnifyingglass")
-                    }
-                    .buttonStyle(.bordered)
-                    .help("Zoom Out")
-                    .accessibilityLabel("Zoom Out")
-
-                    Slider(value: Binding(
-                        get: { zoom },
-                        set: { updateZoom(to: $0) }
-                    ), in: minZoom...maxZoom)
-                    .frame(width: 160)
-
-                    Button {
-                        updateZoom(to: min(maxZoom, zoom + 0.1))
-                    } label: {
-                        Image(systemName: "plus.magnifyingglass")
-                    }
-                    .buttonStyle(.bordered)
-                    .help("Zoom In")
-                    .accessibilityLabel("Zoom In")
-
-                    Divider()
-                        .frame(height: 16)
-
-                    Button {
-                        zoomToFit(in: viewSize)
-                    } label: {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    }
-                    .buttonStyle(.bordered)
-                    .help("Zoom to Fit All")
-                    .accessibilityLabel("Zoom to Fit All")
+            CanvasFloatingBar {
+                CanvasZoomControls(zoom: zoom, range: minZoom...maxZoom, onZoom: updateZoom(to:)) {
+                    zoomToFit(in: viewSize)
                 }
-                .padding(SpacingTokens.xs2)
-                .background(.regularMaterial, in: Capsule())
-                .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
-                .padding(.bottom, SpacingTokens.lg)
-                .padding(.trailing, SpacingTokens.lg)
+                Divider().frame(height: SpacingTokens.md)
+                Menu {
+                    Toggle("Relationships", isOn: $showRelationships)
+                    Toggle("Indexes", isOn: $showIndexes)
+                } label: {
+                    Image(systemName: "eye")
+                }
+                .menuStyle(.button)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Show Relationships and Indexes")
+                .accessibilityLabel("Show Relationships and Indexes")
             }
         }
     }

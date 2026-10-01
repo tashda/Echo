@@ -7,9 +7,9 @@ struct PostgresExtensionsView: View {
     @Environment(EnvironmentState.self) var environmentState
     
     var body: some View {
+        // Installed and Marketplace are pages in the tab (round 36.2); search and Refresh sit on
+        // the tool's header line (37.2, 37.3).
         VStack(spacing: 0) {
-            header
-            
             if viewModel.isLoading {
                 VStack {
                     Spacer()
@@ -33,64 +33,17 @@ struct PostgresExtensionsView: View {
                 content
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Background.primary)
+        .toolTabHeaderControls {
+            ToolTabSearchField(prompt: "Search extensions", text: $viewModel.searchText)
+            ToolTabActionGroup {
+                ToolTabRefreshButton(isRefreshing: viewModel.isLoading) { Task { await viewModel.reload() } }
+            }
+        }
         .task {
             await viewModel.reload()
         }
-    }
-    
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: SpacingTokens.sm) {
-                Image(systemName: "puzzlepiece")
-                    .font(TypographyTokens.hero)
-                    .foregroundStyle(ColorTokens.Status.info)
-                
-                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                    Text("Extension Manager")
-                        .font(TypographyTokens.standard.weight(.bold))
-                    
-                    Text(viewModel.databaseName)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-                
-                Spacer()
-
-                Button(action: { Task { await viewModel.reload() } }) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.plain)
-                .font(TypographyTokens.detail)
-            }
-            .padding(.horizontal, SpacingTokens.lg)
-            .padding(.top, SpacingTokens.lg)
-
-            CenteredTabSectionToolbar {
-                TabSectionPicker(
-                    "Extension Section",
-                    selection: $viewModel.selectedTab,
-                    itemCount: PostgresExtensionsViewModel.Tab.allCases.count
-                ) {
-                    ForEach(PostgresExtensionsViewModel.Tab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-            }
-            
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                TextField("Search extensions\u{2026}", text: $viewModel.searchText)
-                    .textFieldStyle(.plain)
-            }
-            .padding(SpacingTokens.xs)
-            .background(ColorTokens.Text.primary.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: SpacingTokens.xs))
-            .padding(.horizontal, SpacingTokens.lg)
-            .padding(.bottom, SpacingTokens.lg)
-        }
-        .background(ColorTokens.Background.secondary.opacity(0.5))
     }
     
     var content: some View {

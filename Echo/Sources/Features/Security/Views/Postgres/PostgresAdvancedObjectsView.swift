@@ -4,7 +4,6 @@ struct PostgresAdvancedObjectsView: View {
     @Bindable var viewModel: PostgresAdvancedObjectsViewModel
     @Environment(TabStore.self) private var tabStore
     @Environment(EnvironmentState.self) private var environmentState
-    @Environment(ProjectStore.self) private var projectStore
 
     @State private var showNewForeignServerSheet = false
     @State private var showNewEventTriggerSheet = false
@@ -21,15 +20,9 @@ struct PostgresAdvancedObjectsView: View {
     @State private var showNewCastSheet = false
 
     var body: some View {
-        // TT1: the toolbar on the canvas; each section is one card, or its own cards.
-        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
-            TabSectionToolbar {
-                sectionPicker
-            } controls: {
-                addButton
-            }
-            .tabSectionToolbarOnCanvas()
-
+        // TT1: each section is one card, or its own cards. The sections are pages in the tab
+        // (round 36.2); the schema and actions on the header line (37.2, 37.3).
+        Group {
             Group {
                 if !viewModel.isInitialized {
                     TabInitializingPlaceholder(
@@ -44,6 +37,7 @@ struct PostgresAdvancedObjectsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .adaptiveWorkspaceCard()
         }
+        .toolTabHeaderControls { headerControls }
         .task { await viewModel.initialize() }
         .onChange(of: viewModel.selectedSection) { _, _ in
             guard viewModel.isInitialized else { return }
@@ -68,40 +62,20 @@ struct PostgresAdvancedObjectsView: View {
         .sheet(isPresented: $showNewCastSheet) { newCastSheet }
     }
 
-    // MARK: - Toolbar
-
-    private var sectionPicker: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Picker(selection: $viewModel.selectedSection) {
-                ForEach(PostgresAdvancedObjectsViewModel.Section.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            } label: { EmptyView() }
-            .pickerStyle(.menu)
-            .frame(maxWidth: 180)
-
-            if sectionUsesSchemaFilter {
-                Picker("Schema", selection: $viewModel.schemaFilter) {
-                    ForEach(viewModel.availableSchemas, id: \.self) { Text($0).tag($0) }
-                }
-                .pickerStyle(.menu)
-                .frame(maxWidth: 160)
-            }
-
-            if viewModel.isLoadingCurrentSection {
-                ProgressView()
-                    .controlSize(.small)
-            }
-        }
-    }
+    // MARK: - Header line
 
     @ViewBuilder
-    private var addButton: some View {
-        Button { presentNewSheet() } label: {
-            Label("Add", systemImage: "plus")
+    private var headerControls: some View {
+        if sectionUsesSchemaFilter {
+            ToolTabPickerPill(title: "Schema", systemImage: "folder", selection: $viewModel.schemaFilter,
+                              options: viewModel.availableSchemas, label: { $0 })
         }
-        .controlSize(.small)
-        .buttonStyle(.bordered)
+        ToolTabActionGroup {
+            ToolTabRefreshButton(isRefreshing: viewModel.isLoadingCurrentSection) {
+                Task { await viewModel.loadCurrentSection() }
+            }
+        }
+        ToolTabPrimaryButton(title: "Add", systemImage: "plus") { presentNewSheet() }
     }
 
     // MARK: - Content

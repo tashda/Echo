@@ -9,58 +9,6 @@ struct MySQLServerVariablesSection: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabSectionToolbar {
-                HStack(spacing: SpacingTokens.sm) {
-                    TextField("", text: $viewModel.searchText, prompt: Text("Filter variables"))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 260)
-
-                    Picker("Category", selection: $selectedCategory) {
-                        Text("All").tag("All")
-                        ForEach(viewModel.variableCategories, id: \.self) { category in
-                            Text(category).tag(category)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 160)
-                }
-            } controls: {
-                Button("Refresh") {
-                    Task { await viewModel.loadCurrentSection() }
-                }
-                .buttonStyle(.borderless)
-
-                Button("Script SET") {
-                    if let sql = selectedVariable.map(setSQL(for:)) {
-                        openQueryTab(sql)
-                    }
-                }
-                .buttonStyle(.borderless)
-                .disabled(selectedVariable == nil)
-
-                Button("Script RESET") {
-                    if let sql = selectedVariable.map(resetSQL(for:)) {
-                        openQueryTab(sql)
-                    }
-                }
-                .buttonStyle(.borderless)
-                .disabled(selectedVariable == nil)
-
-                Button("Reset") {
-                    Task { await viewModel.resetSelectedVariable() }
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.selectedVariable == nil)
-
-                Button("Edit…") {
-                    showVariableEditor = true
-                }
-                .buttonStyle(.borderless)
-                .disabled(viewModel.selectedVariable == nil)
-            }
-
-            Divider()
-
             ServerPropertiesVariablesTable(
                 items: filteredVariables,
                 selection: $viewModel.selectedVariableID
@@ -69,6 +17,30 @@ struct MySQLServerVariablesSection: View {
             Divider()
 
             variableDetailPanel
+        }
+        .toolTabHeaderControls { headerControls }
+    }
+
+    /// Category, search and the variable's actions on the tool's header line (round 37.2, 37.3).
+    @ViewBuilder
+    private var headerControls: some View {
+        ToolTabPickerPill(title: "Category", systemImage: "line.3.horizontal.decrease", selection: $selectedCategory,
+                          options: ["All"] + viewModel.variableCategories, label: { $0 })
+        ToolTabSearchField(prompt: "Filter variables", text: $viewModel.searchText)
+        ToolTabActionGroup {
+            ToolTabActionButton(title: "Script SET", systemImage: "doc.text", isDisabled: selectedVariable == nil) {
+                if let sql = selectedVariable.map(setSQL(for:)) { openQueryTab(sql) }
+            }
+            ToolTabActionButton(title: "Script RESET", systemImage: "doc.text.below.ecg", isDisabled: selectedVariable == nil) {
+                if let sql = selectedVariable.map(resetSQL(for:)) { openQueryTab(sql) }
+            }
+            ToolTabActionButton(title: "Reset to Default", systemImage: "arrow.uturn.backward", isDisabled: viewModel.selectedVariable == nil) {
+                Task { await viewModel.resetSelectedVariable() }
+            }
+            ToolTabRefreshButton(isRefreshing: false) { Task { await viewModel.loadCurrentSection() } }
+        }
+        ToolTabPrimaryButton(title: "Edit", systemImage: "pencil", isDisabled: viewModel.selectedVariable == nil) {
+            showVariableEditor = true
         }
     }
 

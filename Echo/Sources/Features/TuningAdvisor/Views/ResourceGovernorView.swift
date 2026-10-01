@@ -9,18 +9,16 @@ struct ResourceGovernorView: View {
     @State var pendingDropPool: String?
     @State var pendingDropGroup: String?
     @State private var poolsFraction: CGFloat = 0.5
-    @Environment(ProjectStore.self) private var projectStore
 
     var body: some View {
-        // TT1: the toolbar on the canvas, pools and workload groups as two cards.
-        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
-            toolbar
-                .tabSectionToolbarOnCanvas()
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .adaptiveWorkspaceCard()
-        }
-        .tabContentFrame()
+        // TT1: pools and workload groups as two cards; the state after the server and the
+        // controls on the header line (round 37.2, 37.3).
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .adaptiveWorkspaceCard()
+            .tabContentFrame()
+            .toolTabHeaderControls { headerControls }
+            .toolTabHeaderDetail(configurationDetail)
         .onAppear {
             viewModel.refresh()
         }
@@ -60,47 +58,28 @@ struct ResourceGovernorView: View {
         }
     }
     
-    private var toolbar: some View {
-        TabSectionToolbar {
-            configurationControls
-        } controls: {
-            TabRefreshButton(isRefreshing: viewModel.isRefreshing) {
-                viewModel.refresh()
-            }
-        }
+    /// "Enabled · classifier dbo.fn" after the server.
+    private var configurationDetail: String? {
+        guard let config = viewModel.configuration else { return nil }
+        var parts = [config.isEnabled ? "Enabled" : "Disabled"]
+        if let classifier = config.classifierFunction { parts.append("classifier \(classifier)") }
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder
-    private var configurationControls: some View {
-        if let config = viewModel.configuration {
-            Label(
-                config.isEnabled ? "Enabled" : "Disabled",
-                systemImage: config.isEnabled ? "checkmark.circle.fill" : "xmark.circle.fill"
-            )
-            .font(TypographyTokens.detail)
-            .foregroundStyle(config.isEnabled ? ColorTokens.Status.success : ColorTokens.Status.error)
-
-            Button(config.isEnabled ? "Disable" : "Enable") {
-                Task { await viewModel.toggleEnabled() }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(viewModel.isToggling)
-
-            if let classifier = config.classifierFunction {
-                Text("Classifier: \(classifier)")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .lineLimit(1)
-            }
-
-            if config.isReconfigurationPending {
-                Button("Apply Changes") {
-                    Task { await viewModel.reconfigure() }
+    private var headerControls: some View {
+        ToolTabActionGroup {
+            if let config = viewModel.configuration {
+                ToolTabActionButton(title: config.isEnabled ? "Disable Resource Governor" : "Enable Resource Governor",
+                                    systemImage: "power", isDisabled: viewModel.isToggling, isOn: config.isEnabled) {
+                    Task { await viewModel.toggleEnabled() }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(ColorTokens.Status.warning)
+            }
+            ToolTabRefreshButton(isRefreshing: viewModel.isRefreshing) { viewModel.refresh() }
+        }
+        if viewModel.configuration?.isReconfigurationPending == true {
+            ToolTabPrimaryButton(title: "Apply Changes", systemImage: "checkmark.circle") {
+                Task { await viewModel.reconfigure() }
             }
         }
     }

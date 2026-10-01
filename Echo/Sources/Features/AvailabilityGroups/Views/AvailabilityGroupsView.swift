@@ -5,10 +5,8 @@ struct AvailabilityGroupsView: View {
     @Bindable var viewModel: AvailabilityGroupsViewModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            AvailabilityGroupsToolbar(viewModel: viewModel)
-            Divider()
-
+        // Its controls on the header line, Always On's state after the server (round 37.2).
+        Group {
             if viewModel.loadingState == .loading && viewModel.groups.isEmpty {
                 loadingPlaceholder
             } else if case .error(let message) = viewModel.loadingState,
@@ -20,8 +18,11 @@ struct AvailabilityGroupsView: View {
                 contentView
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Background.primary)
         .tabContentFrame()
+        .toolTabHeaderControls { AvailabilityGroupsHeaderControls(viewModel: viewModel) }
+        .toolTabHeaderDetail(viewModel.loadingState == .loaded ? (viewModel.isHadrEnabled ? "Always On enabled" : "Always On disabled") : nil)
         .task {
             await viewModel.loadAll()
         }

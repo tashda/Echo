@@ -32,12 +32,12 @@ struct ExtendedEventsView: View {
         @Bindable var viewModel = viewModel
         @Bindable var panelState = panelState
         
-        // TT1: the toolbar on the canvas; the sessions and their details as cards, with the
-        // Live Data and Messages panel below.
+        // A Monitor (round 37.4): the figures as tiles, then the sessions and their details as
+        // cards with the Live Data and Messages panel below (TT1); the controls on the header
+        // line (37.2, 37.3).
         VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
             if hasSessionsLoaded {
-                sectionToolbar
-                    .tabSectionToolbarOnCanvas()
+                ActivityMonitorSparklineStrip(metrics: ExtendedEventsFigures.metrics(sessions: viewModel.sessions, events: viewModel.eventData))
             }
             TabContentWithPanel(
                 panelState: panelState,
@@ -48,6 +48,8 @@ struct ExtendedEventsView: View {
                 panelContentView
             }
         }
+        .toolTabHeaderControls { if hasSessionsLoaded { headerControls } }
+        .toolTabHeaderDetail(viewModel.sessions.isEmpty ? nil : "\(viewModel.sessions.count) sessions")
         .task {
             await viewModel.loadSessions()
         }
@@ -96,48 +98,29 @@ struct ExtendedEventsView: View {
         }
     }
 
-    private var sectionToolbar: some View {
-        TabSectionToolbar {
-            Button {
-                viewModel.showCreateSheet = true
-            } label: {
-                Label("New Session", systemImage: "waveform.badge.plus")
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .help("Create an Extended Events session")
-        } controls: {
-            watchLiveDataToggle
+    private var headerControls: some View {
+        Group {
+            ToolTabActionGroup { watchLiveDataButton }
+            ToolTabPrimaryButton(title: "New Session", systemImage: "waveform.badge.plus") { viewModel.showCreateSheet = true }
         }
     }
 
-    @ViewBuilder
-    private var watchLiveDataToggle: some View {
-        @Bindable var panelState = panelState
-        let selectedSession = viewModel.sessions.first(where: { $0.name == viewModel.selectedSessionName })
-        let canWatch = selectedSession?.isRunning == true
-
-        Toggle(
-            "Watch Live Data",
+    private var watchLiveDataButton: some View {
+        let canWatch = viewModel.sessions.first(where: { $0.name == viewModel.selectedSessionName })?.isRunning == true
+        return ToolTabActionButton(
+            title: canWatch || isWatchingLiveData ? "Watch Live Data" : "Select a running session to watch live data",
             systemImage: "waveform.path.ecg",
-            isOn: Binding(
-                get: { isWatchingLiveData },
-                set: { newValue in
-                    if newValue {
-                        panelState.selectedSegment = .liveData
-                        panelState.isOpen = true
-                        Task { await viewModel.loadEventData() }
-                    } else {
-                        panelState.isOpen = false
-                    }
-                }
-            )
-        )
-        .toggleStyle(.button)
-        .controlSize(.small)
-        .disabled(!canWatch && !isWatchingLiveData)
-        .help(canWatch ? "Toggle live event streaming" : "Select a running session to watch live data")
+            isDisabled: !canWatch && !isWatchingLiveData,
+            isOn: isWatchingLiveData
+        ) {
+            if isWatchingLiveData {
+                panelState.isOpen = false
+            } else {
+                panelState.selectedSegment = .liveData
+                panelState.isOpen = true
+                Task { await viewModel.loadEventData() }
+            }
+        }
     }
 
     @ViewBuilder

@@ -6,17 +6,19 @@ import Testing
 struct WorkspaceToolbarContextTests {
     @Test func queryTabsShowRunAndEditorActions() {
         let context = WorkspaceToolbarContext(kind: .query, databaseType: .postgresql)
-        #expect(context.isQuery && !context.hasTabTools && !context.hasDatabaseToggles)
+        #expect(context.isQuery && !context.hasDatabaseToggles)
     }
 
     @Test func sqlServerQueryTabsShowToggles() {
         #expect(WorkspaceToolbarContext(kind: .query, databaseType: .microsoftSQL).hasDatabaseToggles)
     }
 
-    @Test func toolTabsShowTheContextualCapsule() {
-        for kind in [WorkspaceTab.Kind.structure, .activityMonitor, .jobQueue, .errorLog, .maintenance, .mssqlMaintenance] {
+    /// Round 45: a tool's actions live in its tab, so no tool tab adds Run, the editor actions or
+    /// the toggles to the window toolbar.
+    @Test func toolTabsAddNothingToTheToolbar() {
+        for kind in WorkspaceTab.Kind.allCases where kind != .query {
             let context = WorkspaceToolbarContext(kind: kind, databaseType: .microsoftSQL)
-            #expect(context.hasTabTools && !context.isQuery)
+            #expect(!context.isQuery && !context.hasDatabaseToggles)
         }
     }
 

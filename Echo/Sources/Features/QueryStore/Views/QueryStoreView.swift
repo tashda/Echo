@@ -11,20 +11,13 @@ struct QueryStoreView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabSectionToolbar {
-                if let options = viewModel.storeOptions {
-                    QueryStoreStatusBar(options: options)
-                }
-            } controls: {
-                TabSectionPicker(
-                    "Query View",
-                    selection: $viewModel.selectedSection,
-                    itemCount: QueryStoreViewModel.SelectedSection.allCases.count
-                ) {
-                    ForEach(QueryStoreViewModel.SelectedSection.allCases, id: \.self) { section in
-                        Text(section.rawValue).tag(section)
-                    }
-                }
+            // Query Store is a page of Maintenance: its view is a picker on the tool's header line
+            // (round 37.2); its state and storage stay as the card's first line.
+            if let options = viewModel.storeOptions {
+                QueryStoreStatusBar(options: options)
+                    .padding(.horizontal, SpacingTokens.sm)
+                    .padding(.vertical, SpacingTokens.xs)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             if viewModel.loadingState == .loading || viewModel.loadingState == .idle {
@@ -47,6 +40,10 @@ struct QueryStoreView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(ColorTokens.Background.primary)
+        .toolTabHeaderControls {
+            ToolTabPickerPill(title: "Query View", systemImage: "chart.bar.xaxis", selection: $viewModel.selectedSection,
+                              options: QueryStoreViewModel.SelectedSection.allCases, label: \.rawValue)
+        }
         .sheet(item: $selectedSQLContext) { context in
             SQLInspectorSheet(context: context) { sql, database in
                 environmentState.openFormattedQueryTab(

@@ -17,40 +17,7 @@ struct MySQLDatabaseSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            CenteredTabSectionLayout {
-                TabSectionPicker(
-                    "Security Section",
-                    selection: $viewModel.selectedSection,
-                    itemCount: MySQLDatabaseSecurityViewModel.Section.allCases.count
-                ) {
-                    ForEach(MySQLDatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
-                        Text(section.rawValue).tag(section)
-                    }
-                }
-            } controls: {
-                switch viewModel.selectedSection {
-                case .users:
-                    Button { showNewUserSheet = true } label: {
-                        Label("New User", systemImage: "person.badge.plus")
-                    }
-                    .buttonStyle(.borderless)
-                case .roles:
-                    Button { showNewRoleSheet = true } label: {
-                        Label("New Role", systemImage: "person.2.badge.plus")
-                    }
-                    .buttonStyle(.borderless)
-                case .privileges:
-                    Button {
-                        showGrantPrivilegesSheet = true
-                    } label: {
-                        Label("Grant…", systemImage: "key.fill")
-                    }
-                    .buttonStyle(.borderless)
-                case .advancedObjects, .passwordPolicies, .dataMasking, .encryption, .audit, .firewall:
-                    EmptyView()
-                }
-            }
-        } content: {
+            // Its pages are in the tab (round 36.2); its main action on the header line (37.2).
             VStack(spacing: 0) {
                 switch viewModel.selectedSection {
                 case .users:
@@ -75,6 +42,7 @@ struct MySQLDatabaseSecurityView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .toolTabHeaderControls { primaryAction }
         .task {
             await viewModel.initialize()
         }
@@ -112,6 +80,21 @@ struct MySQLDatabaseSecurityView: View {
         }
     }
 
+
+    /// The page's main action (round 37.3, PA1): what you make on this page.
+    @ViewBuilder
+    private var primaryAction: some View {
+        switch viewModel.selectedSection {
+        case .users:
+            ToolTabPrimaryButton(title: "New User", systemImage: "person.badge.plus") { showNewUserSheet = true }
+        case .roles:
+            ToolTabPrimaryButton(title: "New Role", systemImage: "person.2.badge.plus") { showNewRoleSheet = true }
+        case .privileges:
+            ToolTabPrimaryButton(title: "Grant", systemImage: "key.fill") { showGrantPrivilegesSheet = true }
+        case .advancedObjects, .passwordPolicies, .dataMasking, .encryption, .audit, .firewall:
+            EmptyView()
+        }
+    }
     private var connectionText: String {
         let connText = hostTab?.connection.connectionName ?? "Server"
         let db = hostTab?.activeDatabaseName

@@ -7,20 +7,32 @@ struct ProfilerView: View {
     var onDoubleClick: (() -> Void)?
 
     @State private var showTemplateSheet = false
+    @State private var searchText = ""
     @State private var sortOrder = [KeyPathComparator(\SQLServerProfilerEvent.timestamp, order: .reverse)]
+    @Environment(ProjectStore.self) private var projectStore
 
     private var sortedEvents: [SQLServerProfilerEvent] {
-        viewModel.events.sorted(using: sortOrder)
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        let events = query.isEmpty ? viewModel.events : viewModel.events.filter { event in
+            [event.eventName, event.textData, event.databaseName, event.loginName]
+                .contains { $0?.localizedCaseInsensitiveContains(query) ?? false }
+        }
+        return events.sorted(using: sortOrder)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-            Divider()
+        // A Monitor (round 37.4): the figures as tiles, then the live table on its card; the
+        // controls on the header line (37.2, 37.3).
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
+            ActivityMonitorSparklineStrip(metrics: ProfilerFigures.metrics(for: viewModel.events))
             eventContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(ColorTokens.Background.primary)
+                .workspaceCard()
         }
-        .background(ColorTokens.Background.primary)
         .tabContentFrame()
+        .toolTabHeaderControls { headerControls }
+        .toolTabHeaderDetail(viewModel.events.isEmpty ? nil : "\(viewModel.events.count.formatted()) events")
         .task { await viewModel.loadDatabases() }
         .sheet(isPresented: $showTemplateSheet) {
             ProfilerEventPickerSheet(
@@ -30,72 +42,27 @@ struct ProfilerView: View {
         }
     }
 
-    private var toolbar: some View {
-        TabSectionToolbar {
-            Button {
-                viewModel.toggleTracing()
-            } label: {
-                Label(
-                    viewModel.isRunning ? "Stop Trace" : "Start Trace",
-                    systemImage: viewModel.isRunning ? "stop.fill" : "play.fill"
-                )
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(viewModel.isRunning ? ColorTokens.Status.error : ColorTokens.accent)
-            
-            Button {
-                viewModel.clear()
-            } label: {
-                Label("Clear", systemImage: "trash")
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .disabled(viewModel.events.isEmpty)
-            .help("Clear captured trace events")
-
-            Picker("Database", selection: Binding(
-                get: { viewModel.targetDatabase ?? "" },
-                set: { viewModel.targetDatabase = $0.isEmpty ? nil : $0 }
-            )) {
-                Text("All Databases").tag("")
-                ForEach(viewModel.databaseList, id: \.self) { db in
-                    Text(db).tag(db)
-                }
-            }
-            .pickerStyle(.menu)
-            .controlSize(.small)
-            .fixedSize()
+    private var headerControls: some View {
+        Group {
+            ToolTabPickerPill(
+                title: "Database", systemImage: "cylinder",
+                selection: Binding(get: { viewModel.targetDatabase ?? "" },
+                                   set: { viewModel.targetDatabase = $0.isEmpty ? nil : $0 }),
+                options: [""] + viewModel.databaseList,
+                label: { $0.isEmpty ? "All Databases" : $0 }
+            )
             .disabled(viewModel.isRunning)
-
-            Button {
-                showTemplateSheet = true
-            } label: {
-                Label("Events (\(viewModel.selectedTraceEvents.count))", systemImage: "list.bullet")
+            ToolTabSearchField(prompt: "Filter events", text: $searchText)
+            ToolTabActionGroup {
+                ToolTabActionButton(title: "Choose trace events (\(viewModel.selectedTraceEvents.count))", systemImage: "list.bullet",
+                                    isDisabled: viewModel.isRunning) { showTemplateSheet = true }
+                ToolTabActionButton(title: "Clear captured trace events", systemImage: "trash",
+                                    isDisabled: viewModel.events.isEmpty) { viewModel.clear() }
+                ToolTabActionButton(title: "Export captured trace events", systemImage: "square.and.arrow.up",
+                                    isDisabled: viewModel.events.isEmpty) { exportTrace() }
             }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .disabled(viewModel.isRunning)
-            .help("Choose trace events")
-
-            Button {
-                exportTrace()
-            } label: {
-                Label("Export", systemImage: "square.and.arrow.up")
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .disabled(viewModel.events.isEmpty)
-            .help("Export captured trace events")
-        } controls: {
-            if viewModel.isRunning {
-                Label("Tracing", systemImage: "record.circle")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Status.success)
-            }
+            ToolTabPrimaryButton(title: "Start Trace", systemImage: "play.fill", isRunning: viewModel.isRunning,
+                                 runningTitle: "Stop Trace") { viewModel.toggleTracing() }
         }
     }
 

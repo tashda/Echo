@@ -13,67 +13,28 @@ extension TableStructureEditorView {
         }
     }
     
-    internal var header: some View {
-        CenteredTabSectionToolbar {
-            structureSectionPicker
-        }
-    }
-    
-    private var structureSectionPicker: some View {
-        let sections = TableStructureSection.sections(for: viewModel.databaseType)
-        return TabSectionPicker(
-            "Table Structure Section",
-            selection: $selectedSection,
-            itemCount: sections.count
-        ) {
-            ForEach(sections) { section in
-                Text(section.displayName).tag(section)
-            }
-        }
-    }
-    
     @ViewBuilder
-    private var sectionAddButton: some View {
+    internal var sectionAddButton: some View {
         switch selectedSection {
         case .columns:
-            Button { presentNewColumn() } label: {
-                Label("Add", systemImage: "plus")
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            
+            ToolTabPrimaryButton(title: "Add Column", systemImage: "plus") { presentNewColumn() }
         case .indexes:
-            Button { presentNewIndex() } label: {
-                Label("Add", systemImage: "plus")
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            
+            ToolTabPrimaryButton(title: "Add Index", systemImage: "plus") { presentNewIndex() }
         case .constraints:
-            Menu {
+            ToolTabPrimaryMenu(title: "Add", systemImage: "plus") {
                 if viewModel.primaryKey == nil {
                     Button("Primary Key") { presentPrimaryKeyEditor(isNew: true) }
                 }
                 Button("Unique Constraint") { presentNewUniqueConstraint() }
                 Button("Check Constraint") { presentNewCheckConstraint() }
-            } label: {
-                Label("Add", systemImage: "plus")
             }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            
         case .relations:
-            Button { presentNewForeignKey() } label: {
-                Label("Add", systemImage: "plus")
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            
+            ToolTabPrimaryButton(title: "Add Foreign Key", systemImage: "plus") { presentNewForeignKey() }
         case .partitions, .inheritance:
             EmptyView()
         }
     }
-    
+
     internal var content: some View {
         VStack(spacing: 0) {
             if viewModel.isLoading && viewModel.columns.isEmpty {

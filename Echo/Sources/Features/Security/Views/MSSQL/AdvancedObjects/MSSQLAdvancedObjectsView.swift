@@ -11,15 +11,8 @@ struct MSSQLAdvancedObjectsView: View {
     @State private var showConfigureDistribution = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            TabSectionToolbar {
-                sectionPicker
-            } controls: {
-                toolbarControls
-            }
-
-            Divider()
-
+        // The sections are pages in the tab (round 36.2); the actions on the header line (37.2).
+        Group {
             if !viewModel.isInitialized {
                 TabInitializingPlaceholder(
                     icon: "puzzlepiece.extension",
@@ -30,7 +23,9 @@ struct MSSQLAdvancedObjectsView: View {
                 sectionContent
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Background.primary)
+        .toolTabHeaderControls { headerControls }
         .task { await viewModel.initialize() }
         .onChange(of: viewModel.selectedSection) { _, _ in
             guard viewModel.isInitialized else { return }
@@ -89,47 +84,23 @@ struct MSSQLAdvancedObjectsView: View {
 
     // MARK: - Toolbar
 
-    private var sectionPicker: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Picker(selection: $viewModel.selectedSection) {
-                ForEach(MSSQLAdvancedObjectsViewModel.Section.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            } label: { EmptyView() }
-            .pickerStyle(.menu)
-            .frame(maxWidth: 200)
-
-            if viewModel.isLoadingCurrentSection {
-                ProgressView()
-                    .controlSize(.small)
+    @ViewBuilder
+    private var headerControls: some View {
+        ToolTabActionGroup {
+            ToolTabRefreshButton(isRefreshing: viewModel.isLoadingCurrentSection) {
+                Task { await viewModel.loadCurrentSection() }
             }
         }
-    }
-
-    @ViewBuilder
-    private var toolbarControls: some View {
         switch viewModel.selectedSection {
         case .changeTracking, .cdc:
             EmptyView()
         case .fullTextSearch:
-            Button { showNewCatalogSheet = true } label: {
-                Label("New Catalog", systemImage: "plus")
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
+            ToolTabPrimaryButton(title: "New Catalog", systemImage: "plus") { showNewCatalogSheet = true }
         case .replication:
-            if !viewModel.distributorConfigured {
-                Button { showConfigureDistribution = true } label: {
-                    Label("Configure Distribution", systemImage: "gearshape")
-                }
-                .controlSize(.small)
-                .buttonStyle(.bordered)
+            if viewModel.distributorConfigured {
+                ToolTabPrimaryButton(title: "New Publication", systemImage: "plus") { showNewPublicationSheet = true }
             } else {
-                Button { showNewPublicationSheet = true } label: {
-                    Label("New Publication", systemImage: "plus")
-                }
-                .controlSize(.small)
-                .buttonStyle(.bordered)
+                ToolTabPrimaryButton(title: "Configure Distribution", systemImage: "gearshape") { showConfigureDistribution = true }
             }
         }
     }

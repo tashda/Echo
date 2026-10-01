@@ -22,11 +22,10 @@ struct MSSQLMaintenanceBackupsView: View {
                     Text(permissionError)
                 }
             } else {
-                VStack(spacing: 0) {
-                    toolbar
-                    Divider()
-                    historyContent
-                }
+                // New Backup and Restore on the tool's header line (round 37.2, 37.3).
+                historyContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .toolTabHeaderControls { headerControls }
                 .sheet(isPresented: $showBackupSheet) {
                     if let vm = viewModel.backupsVM {
                         MSSQLBackupSidebarSheet(viewModel: vm) {
@@ -48,29 +47,19 @@ struct MSSQLMaintenanceBackupsView: View {
         .tabContentFrame()
     }
 
-    private var toolbar: some View {
-        TabSectionToolbar {
-            EmptyView()
-        } controls: {
-            Button {
+    private var headerControls: some View {
+        let allowed = session?.permissions?.canBackupRestore ?? true
+        return Group {
+            ToolTabActionGroup {
+                ToolTabActionButton(title: "Restore", systemImage: "arrow.counterclockwise", isDisabled: !allowed) {
+                    viewModel.backupsVM?.resetRestoreState()
+                    showRestoreSheet = true
+                }
+            }
+            ToolTabPrimaryButton(title: "New Backup", systemImage: "plus", isDisabled: !allowed) {
                 viewModel.backupsVM?.resetBackupState()
                 showBackupSheet = true
-            } label: {
-                Label("New Backup", systemImage: "plus")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(!(session?.permissions?.canBackupRestore ?? true))
-
-            Button {
-                viewModel.backupsVM?.resetRestoreState()
-                showRestoreSheet = true
-            } label: {
-                Label("Restore", systemImage: "arrow.counterclockwise")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(!(session?.permissions?.canBackupRestore ?? true))
         }
     }
 

@@ -4,6 +4,13 @@ import PostgresWire
 
 @Observable
 final class MaintenanceViewModel {
+    /// PostgreSQL's maintenance pages, shown in the tab (round 36.2).
+    enum PostgresMaintenanceSection: String, CaseIterable {
+        case health = "Health"
+        case tables = "Tables"
+        case indexes = "Indexes"
+    }
+
     let connectionID: UUID
     let connectionSessionID: UUID
     let databaseType: DatabaseType
@@ -22,6 +29,7 @@ final class MaintenanceViewModel {
     var isInitialized = false
     var pgBackupsVM: PostgresBackupRestoreViewModel?
     var requestedSection: String?
+    var selectedSection: PostgresMaintenanceSection = .health
 
     init(
         session: DatabaseSession,

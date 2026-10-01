@@ -22,8 +22,7 @@ struct MSSQLServerSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            sectionPicker
-        } content: {
+            // Its pages are in the tab (round 36.2).
             sectionContent
         }
         .task {
@@ -70,18 +69,5 @@ struct MSSQLServerSecurityView: View {
         return nil
     }
 
-    // MARK: - Section Picker
-
-    private var sectionPicker: some View {
-        TabSectionPicker(
-            "Security Section",
-            selection: $viewModel.selectedSection,
-            itemCount: ServerSecurityViewModel.Section.allCases.count
-        ) {
-            ForEach(ServerSecurityViewModel.Section.allCases, id: \.self) { section in
-                Text(section.rawValue).tag(section)
-            }
-        }
-    }
 
 }

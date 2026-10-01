@@ -135,6 +135,7 @@ final class WorkspaceTab: Identifiable {
         self.bookmarkContext = bookmarkContext
         self.panelState = Self.makePanelState(for: content)
         setupRowCountRefreshHandler()
+        restoreToolPage()
     }
 
     func configureQueryLaunch(autoExecute: Bool) {
