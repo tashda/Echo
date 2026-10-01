@@ -51,6 +51,22 @@ extension EnvironmentState {
         }
     }
 
+    /// Before tabs are lost together (quitting, switching project): nothing if none are unsaved,
+    /// the one-tab alert for one, the several-tabs alert for more. True when they may go.
+    func confirmUnsavedChangesBeforeLosing(_ tabs: [WorkspaceTab]) async -> Bool {
+        let unsaved = tabs.filter { hasUnsavedChanges($0) }
+        switch unsaved.count {
+        case 0: return true
+        case 1: return await confirmUnsavedChanges(in: unsaved[0])
+        default: return await confirmUnsavedChanges(in: unsaved)
+        }
+    }
+
+    /// Lets these tabs close without asking again (their changes were dealt with).
+    func confirmUnsavedCloses(of tabs: [WorkspaceTab]) {
+        Self.confirmedUnsavedCloses.formUnion(tabs.map(\.id))
+    }
+
     /// Asks once about several tabs; Review Each brings each to the front and asks about it.
     func confirmUnsavedChanges(in tabs: [WorkspaceTab]) async -> Bool {
         switch await UnsavedChangesAlert.askForSeveral(tabs.map(\.title)) {
