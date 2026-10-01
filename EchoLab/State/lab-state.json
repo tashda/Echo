@@ -1,4 +1,23 @@
 {
+  "ongoing.agent-jobs-tab-r33": {
+    "comments": [],
+    "generalNote": "",
+    "history": [],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "columns": "JC1 \u00b7 Status, Name, Last run, Next run",
+      "exhibit": "proposal",
+      "headers": "JH1 \u00b7 One header for every pane",
+      "layout": "JL1 \u00b7 Jobs the full height on the left; Details over History on the right",
+      "sections": "DT0 \u00b7 Segmented, centred under the title (today)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Judging",
+    "verdicts": {}
+  },
   "ongoing.content-during-slide-r26": {
     "comments": [
       {
@@ -871,6 +890,10 @@
       {
         "date": "2026-10-01T13:58:07Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:04:29Z",
+        "text": "Taken by header-agent"
       }
     ],
     "needsMore": [],
@@ -886,6 +909,11 @@
     "reviewedRevision": 1,
     "revisions": [],
     "status": "Accepted",
+    "takenBy": {
+      "agent": "header-agent",
+      "date": "2026-10-01T14:04:29Z",
+      "status": "Accepted"
+    },
     "verdicts": {}
   },
   "ongoing.mssql-always-encrypted-r29": {
@@ -1219,6 +1247,109 @@
         "summary": "Checked against Echo with verify-round.py: PASS"
       }
     ],
+    "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.panel-fills-dark-r32": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:08:12Z",
+        "id": "5AF90B7C-2340-46AE-8A46-DDA8C78C0C33",
+        "text": "Review of Panels in dark mode\n1. Which dark window?: no answer yet\n2. Canvas: NEEDS MORE OPTIONS; note: Don't like the look of any of them.\n3. Cards: picked DD0 \u00b7 Text background, 30 (today, the Midnight editor's colour)\n4. Edge: NEEDS MORE OPTIONS; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode\n5. Shadow: NEEDS MORE OPTIONS; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode\n6. Increase Contrast: NEEDS MORE OPTIONS; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:08:12Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T14:09:24Z",
+        "text": "Taken by panels-agent"
+      },
+      {
+        "date": "2026-10-01T14:12:29Z",
+        "text": "Revision 2: More canvas, edge, shadow and Increase Contrast options, and every option shown in light mode too"
+      }
+    ],
+    "needsMore": [
+      "canvas",
+      "edge",
+      "shadow",
+      "contrast"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "canvas": "Don't like the look of any of them.",
+      "contrast": "Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode",
+      "edge": "Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode",
+      "shadow": "Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode"
+    },
+    "picks": {
+      "card": "DD0 \u00b7 Text background, 30 (today, the Midnight editor's colour)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "New canvas: DC4 cool graphite, DC5 warm graphite, DC6 just under the cards, DC7 under-page colour, DC8 accent tint",
+          "New edges: DE3 1pt stronger, DE4 bevel with outer line, DE5 quiet lit",
+          "New shadows: DS2 tight, DS3 wide and soft, DS4 none, DS5 contact plus ambient",
+          "New Increase Contrast: IC2 2pt edge, IC3 edge and canvas pushed, IC4 crisp no shadow; now a control with its own exhibits",
+          "New exhibits: Increase Contrast on, light mode today, Proposal in light mode, light with Increase Contrast"
+        ],
+        "date": "2026-10-01T14:12:29Z",
+        "number": 2,
+        "summary": "More canvas, edge, shadow and Increase Contrast options, and every option shown in light mode too"
+      }
+    ],
+    "status": "Judging",
+    "verdicts": {}
+  },
+  "ongoing.panel-fills-light-r32": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:05:26Z",
+        "id": "E4F672E9-31CF-4E67-9944-871657DCF601",
+        "text": "Review of Panels: is the inspector whiter?\n1. Zebra rows: picked ZB0 \u00b7 Zebra rows in grids and tool-tab tables (today)\n2. Side cards: picked SC0 \u00b7 Every card white (today)\n3. Empty inspector: picked EI2 \u00b7 Centred, with a symbol, like the system's empty views\n4. Is it true?: picked Yes: it's the stripes and the empty card"
+      },
+      {
+        "date": "2026-10-01T14:05:27Z",
+        "id": "9F70C950-50DB-4FCC-8563-55F030778265",
+        "text": "Review of Panels: is the inspector whiter?\n1. Zebra rows: picked ZB0 \u00b7 Zebra rows in grids and tool-tab tables (today)\n2. Side cards: picked SC0 \u00b7 Every card white (today)\n3. Empty inspector: picked EI2 \u00b7 Centred, with a symbol, like the system's empty views\n4. Is it true?: picked Yes: it's the stripes and the empty card"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:05:26Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:05:27Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T14:06:14Z",
+        "text": "Taken by panels-agent"
+      },
+      {
+        "date": "2026-10-01T14:09:21Z",
+        "text": "Built into Echo: empty inspector centred with a symbol (EI2); zebra and white cards unchanged. Compile of InfoSidebarView not separately confirmed: build blocked by another agent's ObjectBrowserSidebarView+Fold.swift"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "emptyInspector": "EI2 \u00b7 Centred, with a symbol, like the system's empty views",
+      "measured": "yes",
+      "sideCards": "SC0 \u00b7 Every card white (today)",
+      "zebra": "ZB0 \u00b7 Zebra rows in grids and tool-tab tables (today)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
     "status": "In Echo",
     "verdicts": {}
   },
@@ -2151,6 +2282,10 @@
       {
         "date": "2026-10-01T13:56:27Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T13:59:16Z",
+        "text": "Taken by header-agent"
       }
     ],
     "needsMore": [],
@@ -2169,6 +2304,11 @@
     "reviewedRevision": 1,
     "revisions": [],
     "status": "Accepted",
+    "takenBy": {
+      "agent": "header-agent",
+      "date": "2026-10-01T13:59:16Z",
+      "status": "Accepted"
+    },
     "verdicts": {}
   },
   "ongoing.server-header-look-r30": {
@@ -2177,6 +2317,11 @@
         "date": "2026-10-01T13:50:10Z",
         "id": "DA61B730-99FA-470C-9CBA-645F94F2B242",
         "text": "Review of Server card: the header\n1. Which header?: picked Proposal\n2. Header: picked HD4 \u00b7 A wash of colour behind the header; NEEDS MORE OPTIONS; note: I like HD0 (Should be able to be selected by the user), HD4, HD5 (with a better looking line), HD7 and HD8. Please adjust this round with only these and extend further on these ideas.\n3. Colour: picked CS1 \u00b7 The server's colour; note: Should be a setting in Settings if it should use No color, Servers Color or Accent Color\n4. Second line: picked SL0 \u00b7 Product \u00b7 section (today)\n5. Dock icon: picked DK1 \u00b7 The header's colour; note: Should be a setting in Settings alongside \"Monochrome/Duotone\" menu icons.\n6. One colour per server: picked CO2 \u00b7 CO1, and a dot on the server's tabs and the footer's server pill\n7. Setting the colour: picked SC1 \u00b7 Also from the header's right-click menu, with the swatches"
+      },
+      {
+        "date": "2026-10-01T14:03:59Z",
+        "id": "FF54CCCA-76A7-4103-961D-DD753294A571",
+        "text": "Review of Server card: the header\n1. Which header?: picked Proposal\n2. Header: picked HD4 \u00b7 A wash of colour behind the header; note: I want HD4 to be the default. Also available for the user to select is: HD0, HD12, HD7 and HD16\n3. Colour: picked CS1 \u00b7 The server's colour; note: Should be a setting in Settings if it should use No color, Servers Color or Accent Color\n4. Second line: picked SL0 \u00b7 Product \u00b7 section (today)\n5. Dock icon: picked DK1 \u00b7 The header's colour; note: Should be a setting in Settings alongside \"Monochrome/Duotone\" menu icons.\n6. Plain header as a setting: picked HS0 \u00b7 Server Header: Plain or Coloured (the header chosen here); note: We have a round for optimizing the Echo Settings. For now put it where it makes sense\n7. One colour per server: picked CO2 \u00b7 CO1, and a dot on the server's tabs and the footer's server pill\n8. Setting the colour: picked SC1 \u00b7 Also from the header's right-click menu, with the swatches"
       }
     ],
     "generalNote": "",
@@ -2192,27 +2337,35 @@
       {
         "date": "2026-10-01T13:58:52Z",
         "text": "Revision 2: Only HD0, HD4, HD5, HD7 and HD8, with variations on each; colour, dock icon and plain header as settings"
+      },
+      {
+        "date": "2026-10-01T14:03:59Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:04:28Z",
+        "text": "Taken by header-agent"
       }
     ],
-    "needsMore": [
-      "style"
-    ],
+    "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
       "dockTint": "Should be a setting in Settings alongside \"Monochrome/Duotone\" menu icons.",
+      "plainSetting": "We have a round for optimizing the Echo Settings. For now put it where it makes sense",
       "source": "Should be a setting in Settings if it should use No color, Servers Color or Accent Color",
-      "style": "I like HD0 (Should be able to be selected by the user), HD4, HD5 (with a better looking line), HD7 and HD8. Please adjust this round with only these and extend further on these ideas."
+      "style": "I want HD4 to be the default. Also available for the user to select is: HD0, HD12, HD7 and HD16"
     },
     "picks": {
       "colourSet": "menu",
       "colourShared": "tabs",
       "dockTint": "DK1 \u00b7 The header's colour",
       "exhibit": "proposal",
+      "plainSetting": "pair",
       "secondLine": "SL0 \u00b7 Product \u00b7 section (today)",
       "source": "CS1 \u00b7 The server's colour",
       "style": "HD4 \u00b7 A wash of colour behind the header"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -2232,7 +2385,50 @@
         "summary": "Only HD0, HD4, HD5, HD7 and HD8, with variations on each; colour, dock icon and plain header as settings"
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "header-agent",
+      "date": "2026-10-01T14:04:28Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.zoom-pill-footer-r31": {
+    "comments": [
+      {
+        "date": "2026-10-01T13:59:42Z",
+        "id": "B0291702-3C4A-4A8B-BF6D-29C95F8B9483",
+        "text": "Review of Editor: the zoom pill and the footer\n1. With results: picked ZW1 \u00b7 9pt up, 12pt in: where the footer's pills sit in their card\n2. Without results: picked ZN2 \u00b7 Above the server pill, left edges aligned, 9pt between\n3. Height: picked ZH1 \u00b7 24pt, as the footer's pills\n4. Text: picked ZT1 \u00b7 Primary, as the server pill"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T13:59:42Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:00:11Z",
+        "text": "Taken by editor-r28"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "height": "ZH1 \u00b7 24pt, as the footer's pills",
+      "text": "ZT1 \u00b7 Primary, as the server pill",
+      "withResults": "ZW1 \u00b7 9pt up, 12pt in: where the footer's pills sit in their card",
+      "withoutResults": "ZN2 \u00b7 Above the server pill, left edges aligned, 9pt between"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "editor-r28",
+      "date": "2026-10-01T14:00:11Z",
+      "status": "Accepted"
+    },
     "verdicts": {}
   }
 }

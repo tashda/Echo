@@ -6,14 +6,38 @@ struct InfoSidebarView: View {
     @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
-        ScrollView {
-            content
-                .padding(LayoutTokens.Inspector.cardPadding)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+        Group {
+            if environmentState.dataInspectorContent == nil {
+                emptyState
+            } else {
+                ScrollView {
+                    content
+                        .padding(LayoutTokens.Inspector.cardPadding)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .scrollIndicators(.never)
+            }
         }
-        .scrollIndicators(.never)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .workspaceCard()
+    }
+
+    /// Round 32, EI2: centred with a symbol, like the system's empty views.
+    private var emptyState: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "sidebar.right")
+                .font(TypographyTokens.title2)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("No Selection")
+                .font(TypographyTokens.standard.weight(.semibold))
+                .foregroundStyle(ColorTokens.Text.secondary)
+            Text("Select an object, a cell or a row.")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(SpacingTokens.sm)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -32,14 +56,7 @@ struct InfoSidebarView: View {
         case .sqlHelp(let helpContent):
             SQLHelpInspectorPanel(content: helpContent)
         case nil:
-            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                Text("No Selection")
-                    .font(TypographyTokens.standard.weight(.semibold))
-                Text("Select an object, a cell or a row to inspect its details.")
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            }
-            .padding(SpacingTokens.xxs)
+            EmptyView()
         }
     }
 }
