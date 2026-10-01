@@ -115,4 +115,24 @@ final class MySQLIntegrationTests: XCTestCase {
         XCTAssertNotNil(results[2].error)
         XCTAssertTrue(results[3].skipped)
     }
+
+    // MARK: - Open transaction on close (round 21, #57)
+
+    /// A MySQL tab's open transaction is found with no round trip and can be ended from the alert.
+    func testOpenTransactionIsFoundAndEnded() async throws {
+        let config = try await loadConfig()
+        let connected = try await connect(config: config)
+        let session = try XCTUnwrap(connected as? MySQLSession)
+        defer { Task { @MainActor in await session.close() } }
+
+        let none = await session.openTransactions(startedAt: nil)
+        XCTAssertTrue(none.isEmpty)
+        _ = try await session.simpleQuery("START TRANSACTION")
+        let open = await session.openTransactions(startedAt: nil)
+        XCTAssertEqual(open.count, 1)
+        XCTAssertEqual(open.first?.failed, false)
+        try await session.endTransactions(commit: false)
+        let after = await session.openTransactions(startedAt: nil)
+        XCTAssertTrue(after.isEmpty)
+    }
 }

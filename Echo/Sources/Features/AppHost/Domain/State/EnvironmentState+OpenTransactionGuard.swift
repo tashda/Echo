@@ -3,7 +3,7 @@ import Foundation
 import AppKit
 #endif
 
-/// Asking before a PostgreSQL transaction would be lost (Echo Labs round 21, open transaction on
+/// Asking before a PostgreSQL or MySQL transaction would be lost (Echo Labs round 21, open transaction on
 /// close, accepted): an alert (G2) with Commit as the default button (D1), the sentence, how long it
 /// has been open and how many statements ran (DT2), on closing a tab, switching database,
 /// disconnecting and quitting (W1). A failed transaction offers Roll Back and Cancel and says it
@@ -16,15 +16,14 @@ extension EnvironmentState {
 
     /// Whether the tab looks like it has an open transaction (Echo's own tracking; no server call).
     func mayHaveOpenTransaction(_ tab: WorkspaceTab) -> Bool {
-        guard tab.connection.databaseType == .postgresql, let query = tab.query else { return false }
+        guard tab.connection.databaseType == .postgresql || tab.connection.databaseType == .mysql, let query = tab.query else { return false }
         return query.transactionState != .none
     }
 
     /// Asks about `tab`'s open transactions before `action`; true when the action may go ahead
     /// (nothing was open, or the user committed or rolled back and it worked).
     func confirmOpenTransactions(in tab: WorkspaceTab, for action: OpenTransactionAction) async -> Bool {
-        guard let store = (tab.session as? PostgresSession)?.pinnedStore else { return true }
-        let open = await store.openTransactions()
+        guard let open = await openTransactions(in: tab) else { return true }
         tab.query?.refreshTransactionState()
         guard !open.isEmpty else { return true }
         let failed = open.allSatisfy(\.failed)
@@ -34,7 +33,7 @@ extension EnvironmentState {
             return false
         case .commit, .rollBack:
             do {
-                try await store.endTransactions(commit: choice == .commit && !failed)
+                try await endTransactions(in: tab, commit: choice == .commit && !failed)
                 tab.query?.refreshTransactionState()
                 return true
             } catch {
@@ -48,11 +47,10 @@ extension EnvironmentState {
     /// Several tabs at once (disconnecting a server, quitting): one alert listing them (Q1).
     /// Review brings the first tab to the front and stops; Roll Back All rolls each back.
     func confirmOpenTransactions(in tabs: [WorkspaceTab], for action: OpenTransactionAction) async -> Bool {
-        var open: [(tab: WorkspaceTab, transactions: [PostgresPinnedSessionStore.OpenTransaction])] = []
+        var open: [(tab: WorkspaceTab, transactions: [QueryOpenTransaction])] = []
         for tab in tabs {
-            guard let store = (tab.session as? PostgresSession)?.pinnedStore else { continue }
-            let transactions = await store.openTransactions()
-            if !transactions.isEmpty { open.append((tab, transactions)) }
+            guard let transactions = await openTransactions(in: tab), !transactions.isEmpty else { continue }
+            open.append((tab, transactions))
         }
         guard !open.isEmpty else { return true }
         if open.count == 1, action != .quit {
@@ -66,7 +64,7 @@ extension EnvironmentState {
             return false
         case .rollBackAll:
             for entry in open {
-                try? await (entry.tab.session as? PostgresSession)?.pinnedStore?.endTransactions(commit: false)
+                try? await endTransactions(in: entry.tab, commit: false)
                 entry.tab.query?.refreshTransactionState()
             }
             return true
@@ -96,7 +94,7 @@ enum OpenTransactionAlert {
     enum Choice { case commit, rollBack, cancel }
     enum SeveralChoice { case review, rollBackAll, cancel }
 
-    static func ask(tab: String, open: [PostgresPinnedSessionStore.OpenTransaction], action: EnvironmentState.OpenTransactionAction) async -> Choice {
+    static func ask(tab: String, open: [QueryOpenTransaction], action: EnvironmentState.OpenTransactionAction) async -> Choice {
         let failed = open.allSatisfy(\.failed)
         let text = texts(tab: tab, open: open, action: action)
         let buttons: [(String, Choice, Bool)] = failed
@@ -106,7 +104,7 @@ enum OpenTransactionAlert {
         return buttons[min(index, buttons.count - 1)].1
     }
 
-    static func askForSeveral(_ open: [(tab: String, transactions: [PostgresPinnedSessionStore.OpenTransaction])],
+    static func askForSeveral(_ open: [(tab: String, transactions: [QueryOpenTransaction])],
                               action: EnvironmentState.OpenTransactionAction) async -> SeveralChoice {
         let lines = open.map { entry in
             let databases = entry.transactions.map(\.database).joined(separator: ", ")
@@ -127,7 +125,7 @@ enum OpenTransactionAlert {
     }
 
     /// Title and message (DT2: the sentence, how long it has been open, how many statements).
-    static func texts(tab: String, open: [PostgresPinnedSessionStore.OpenTransaction],
+    static func texts(tab: String, open: [QueryOpenTransaction],
                       action: EnvironmentState.OpenTransactionAction, now: Date = Date()) -> (title: String, message: String) {
         let failed = open.allSatisfy(\.failed)
         let title: String
@@ -149,7 +147,7 @@ enum OpenTransactionAlert {
     }
 
     /// "Open for 12 minutes · 3 statements".
-    static func summary(_ transaction: PostgresPinnedSessionStore.OpenTransaction, now: Date = Date()) -> String {
+    static func summary(_ transaction: QueryOpenTransaction, now: Date = Date()) -> String {
         var parts: [String] = []
         if let started = transaction.startedAt {
             let minutes = Int(now.timeIntervalSince(started) / 60)
