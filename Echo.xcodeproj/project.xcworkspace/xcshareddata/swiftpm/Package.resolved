@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/echo-server-lab",
       "state" : {
-        "branch" : "official",
-        "revision" : "97ce79e1f4e71618185ffb5efef45ca7ca67e756"
+        "branch" : "dev",
+        "revision" : "31d0cbb9ed5f92a2ba599735e32da143401fc941"
       }
     },
     {
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
-        "branch" : "official",
-        "revision" : "fe680dea11ba380994326cd99f7fa10d64c06e81"
+        "branch" : "dev",
+        "revision" : "69cb51069a24f0eba967deeb390495444705c95f"
       }
     },
     {
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
-        "branch" : "official",
-        "revision" : "1c8838fdeb3a3e5c7c98bb96c016624deac7ddb4"
+        "branch" : "dev",
+        "revision" : "a4d47b964e04d49565c00e7805263aace3159e40"
       }
     },
     {

@@ -795,7 +795,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/postgres-wire";
 			requirement = {
-				branch = official;
+				branch = dev;
 				kind = branch;
 			};
 		};
@@ -835,7 +835,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/mysql-wire";
 			requirement = {
-				branch = official;
+				branch = dev;
 				kind = branch;
 			};
 		};
@@ -851,7 +851,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/echo-server-lab";
 			requirement = {
-				branch = official;
+				branch = dev;
 				kind = branch;
 			};
 		};
