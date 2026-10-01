@@ -66,7 +66,7 @@ struct LabInboxView: View {
             reading
         }
         .background(ColorTokens.Workspace.canvas)
-        .searchable(text: $search, placement: .toolbar, prompt: "Search the inbox")
+        .labToolbarSearch(text: $search, prompt: "Search the inbox")
         .toolbar {
             ToolbarItem {
                 Menu {
@@ -75,10 +75,7 @@ struct LabInboxView: View {
                     }
                     .pickerStyle(.inline)
                 } label: {
-                    Image(systemName: filter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
-                        .font(.system(size: 15, weight: .regular))
-                        .frame(width: 22, height: 22)
-                        .accessibilityLabel("Filter")
+                    Label("Filter", systemImage: filter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
                 }
                 .menuIndicator(.hidden)
                 .help("Show: \(filter.rawValue)")

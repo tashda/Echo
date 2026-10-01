@@ -25,7 +25,7 @@ struct DomainScenariosPage: View {
                 }
             }
         }
-        .searchable(text: $search, placement: .toolbar, prompt: "Search scenarios")
+        .labToolbarSearch(text: $search, prompt: "Search scenarios")
         .toolbar { ToolbarItem { Button("Run all", systemImage: "play.circle") { store.reload() }.help("Reload the files and run every scenario") } }
         .onAppear { if selectedID == nil { selectedID = store.scenarios(in: domain.id).first?.id } }
     }

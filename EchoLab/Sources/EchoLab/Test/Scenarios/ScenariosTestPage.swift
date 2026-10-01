@@ -33,7 +33,7 @@ struct ScenariosTestPage: View {
                 }
             }
         }
-        .searchable(text: $search, placement: .toolbar, prompt: "Search scenarios")
+        .labToolbarSearch(text: $search, prompt: "Search scenarios")
         .toolbar {
             ToolbarItem { Button("Run all", systemImage: "arrow.clockwise") { store.reload() }.help("Read the files again and run every scenario") }
         }
