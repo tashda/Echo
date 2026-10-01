@@ -2,6 +2,15 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 28 accepted: the find bar, search and replace, the lane, one mark language (28.12 to 28.15)
+
+Echo Labs › Editor and running › Query editor · round 28, pages 28.12 to 28.15. The owner's picks where they differ from the recommendation are marked. Built in ac5089f6 (the gutter's Column and Hairline full height in decd9770).
+
+- **Find bar (28.12):** Echo's own **glass capsule with glass buttons** over the top of the editor (FB5, owner's pick over a system find bar); options in a menu, the count as “3 of 12”; a selected word becomes the search; a selection over several lines gets a **Selection button, on** (SS2 + SS1, owner's note: no button without a selection). → EDT-1.6
+- **Search and replace (28.13):** each match shows its replacement **in the text while you type**: the old word struck through on red, the new one after it on green; the script itself does not change until Replace (PV6, owner's pick after the design language). ⌥⌘F or the chevron **opens Replace inside the capsule as it grows** (AN1); ⌘F goes to Find and leaves Replace as it is (FO0); Return replaces and moves on (RK0); Replace All is **one undo** and says “Replaced 12” (RA0, UN0); system shortcuts (SH0). → EDT-1.6
+- **The lane (28.14):** the whole gutter (LH0), 5pt from the card's edges, **the card's full height** (LT1), **corners concentric with the card's** (LC1), the system's quiet fill (LF1), **numbers centred** (LA1). → EDT-2.1
+- **One mark language (28.15):** every mark on the text comes from `EditorMarkTokens`: **round ends** (DC2, owner's pick over one 3pt corner), **two strengths, soft 10% and strong 22%** (DT1), **colour by meaning**: grey the same word, yellow found, red wrong or removed, green added, accent where you are (DM1); as high as the letters, the selection the whole line (DH0); **Settings › Editor › Marks: Corners and Strength** replace Selection Corners and Highlight Corners (DS1); everything that floats over the code is glass with a coloured symbol and grey words (DF0); tokens, not per-mark values (TK0). → EDT-2.5, 2.7, 2.8, `EditorMarkTokens`
+
 ## 2026-10-01 · Round 28 accepted: marks, errors, the run note, zoom, typing, the empty tab, settings (28.5 to 28.11)
 
 Echo Labs › Editor and running › Query editor · round 28. The owner's picks where they differ from the recommendation are marked. Built in 56799682, 306a8fb2, f530ad91, a80770d9, 8464a8c1, 433f34e1, c30bc3e7.

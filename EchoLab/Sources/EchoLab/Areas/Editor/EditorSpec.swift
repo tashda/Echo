@@ -44,15 +44,24 @@ enum EditorSpec {
                            .row("⌘/", "toggles -- on the selected lines"),
                            .row("⌘L", "a small glass Go to Line field at the top, Return jumps, Escape closes")),
             ], rounds: ["ongoing.editor-find-typing-r28"], files: [textView]),
+            SpecElement(number: "1.6", name: "Find and replace", summary: "Echo's glass find bar over the top of the editor; Replace opens inside it (rounds 28.12, 28.13).", groups: [
+                .material(.row("Bar", "a 400pt glass capsule and three 32pt glass circles, 8pt from the top", token: "LayoutTokens.EditorGutter.findBarWidth")),
+                .behaviour(.row("⌘F", "opens Find; a selected word becomes the search; Replace stays as it was"),
+                           .row("⌥⌘F, the chevron", "opens Replace inside the capsule as it grows"),
+                           .row("Selection", "a button, on, only when text over several lines is selected"),
+                           .row("Preview", "each match shows its replacement: the old struck through on red, the new after it on green; the script changes only on Replace", token: "EditorMarkTokens.Meaning.wrong / added"),
+                           .row("Return, Replace All", "Return replaces and moves on; Replace All is one undo and says “Replaced 12”")),
+            ], rounds: ["ongoing.editor-find-bar-r28", "ongoing.editor-search-replace-r28"], files: ["Echo/Sources/Features/QueryWorkspace/Views/Query/Find/"]),
         ]),
         SpecPart(number: "2", name: "Gutter", summary: "The strip of line numbers at the left.", elements: [
             SpecElement(number: "2.1", name: "Style", summary: "Subtle (the default), Column, Lane or Hairline (a setting).", states: [SpecState(key: "column", name: "Column"), SpecState(key: "lane", name: "Lane"), SpecState(key: "subtle", name: "Subtle"), SpecState(key: "hairline", name: "Hairline")], defaultState: "column", groups: [
                 .material(.row("Subtle", "numbers only"),
                           .row("Column", "a faint full-height column in the theme's gutter colour with a 0.5pt separator edge towards the text", token: "LayoutTokens.EditorGutter.edgeWidth"),
-                          .row("Lane (GT2)", "the same colour as a rounded lane inset 5pt, corner 8pt, no edge", token: "laneInset / laneCornerRadius"),
-                          .row("Hairline (round 28.2)", "no fill, only the 0.5pt separator edge", token: "LayoutTokens.EditorGutter.edgeWidth")),
+                          .row("Lane (GT2)", "the whole gutter, 5pt from the card's edges, the card's full height, corners concentric with the card's, the system's quiet fill, numbers centred, no edge (round 28.14)", token: "laneInset / EditorGutterSurface"),
+                          .row("Hairline (round 28.2)", "no fill, only the 0.5pt separator edge", token: "LayoutTokens.EditorGutter.edgeWidth"),
+                          .row("Drawn", "behind the editor across the card's full height (decd9770); the Lane: the whole gutter, 5pt from the card's edges, corners concentric with the card's, the system's quiet fill, numbers centred (round 28.14)", token: "EditorGutterSurface")),
                 .behaviour(.row("Tint height", "always the card's full height, even below the last line (GL1)")),
-            ], rounds: ["ongoing.editor-gutter-r28"], files: [textView, tokens]),
+            ], rounds: ["ongoing.editor-gutter-r28", "ongoing.editor-gutter-lane-r28"], files: [textView, tokens]),
             SpecElement(number: "2.2", name: "Numbers", summary: "Line numbers with room to breathe (QE4).", groups: [
                 .type(.row("Font", "SF digits 2pt under the code (11pt at 13pt)", token: "LineNumberRulerView.numberFont(forCodeSize:)"),
                       .row("Colours", "tertiary label; the caret's line in the text colour, same weight (round 28.2)")),
@@ -78,12 +87,12 @@ enum EditorSpec {
                 .behaviour(.row("Blinking", "as the system sets it")),
             ], rounds: ["ongoing.editor-caret-line-r28"], files: [textView]),
             SpecElement(number: "2.7", name: "Word highlight", summary: "The word at the caret's other uses: a soft tint as high as the letters (round 28.5).", groups: [
-                .material(.row("Tint", "label colour at 9%", token: "LayoutTokens.EditorGutter.highlightOpacity")),
-                .layout(.row("Corners", "Settings › Highlight Corners, 3pt by default")),
+                .material(.row("Tint", "a soft grey mark (round 28.15)", token: "EditorMarkTokens.Meaning.same")),
+                .layout(.row("Corners", "Settings › Editor › Marks › Corners, round by default")),
                 .behaviour(.row("Typing )", "flashes its ( with the system's find indicator")),
             ], rounds: ["ongoing.editor-marks-r28"], files: [textView]),
-            SpecElement(number: "2.8", name: "Error mark", summary: "A tinted red pill behind a wrong word, the same while typing and after a run (round 28.6).", groups: [
-                .material(.row("Pill", "red at 14%, as high as the letters, 4pt wider each side", token: "LayoutTokens.EditorGutter.errorPillOpacity")),
+            SpecElement(number: "2.8", name: "Error mark", summary: "A strong red mark behind a wrong word, the same while typing and after a run (rounds 28.6, 28.15).", groups: [
+                .material(.row("Mark", "a strong red mark (round 28.15)", token: "EditorMarkTokens.Meaning.wrong")),
                 .behaviour(.row("Bubble", "a popover (glass, with a pointer): title, message, detail, Fix; on hover or with the caret on the line"),
                            .row("Live check", "when the caret leaves the edited line, or 2 s after typing stops", token: "LayoutTokens.EditorGutter.liveCheckPause")),
             ], rounds: ["ongoing.editor-errors-r28"], files: [textView, "Echo/Sources/Features/QueryWorkspace/Views/Query/ErrorMark/"]),

@@ -54,16 +54,18 @@ struct LabQEStyle {
 
     static let before28 = LabQEStyle()
 
-    /// Built into Echo: 28.1 to 28.11 (find looks wait for 28.12).
+    /// Built into Echo: 28.1 to 28.15.
     static let today = LabQEStyle(
         font: .sfMono, size: .s13, ligatures: .off, lineHeight: .comfortable, codeGap: .g16, topMargin: .m8,
         gutter: .subtle, numberFont: .smaller, numberColour: .tertiary, currentNumber: .primary, markers: .left,
         currentLine: .noBand, selectionColour: .system, selectionShape: .rounded, caret: .accent,
-        statement: .bracket, runArrow: .symbol, wordHighlight: .soft, markCorner: .c3, markHeight: .letters,
+        statement: .bracket, runArrow: .symbol, wordHighlight: .soft, markCorner: .c6, markHeight: .letters,
         errorWord: .pill, errorMessage: .hover, errorDot: .dot,
         runNoteLook: .glassSymbol, runNotePlace: .lineEnd, ranHighlight: .gutterLine,
         zoom: .z100, zoomPlace: .bottomLeft, zoomLook: .menu, zoomShows: .always,
-        runningMark: .breathe, errorBubble: .glass)
+        findLook: .yellow, runningMark: .breathe, errorBubble: .glass,
+        laneHolds: .everything, laneAlign: .centre, laneHeight: .full, laneCorner: .concentric, laneFill: .system,
+        findBar: .safari, findOptions: .menu, findCount: .found, replaceStyle: .expand, findScope: .selectionButton)
 
     static let recommended = LabQEStyle(
         font: .sfMono, size: .s13, ligatures: .off, lineHeight: .comfortable, codeGap: .g16, topMargin: .m8,

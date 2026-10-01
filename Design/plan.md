@@ -375,7 +375,10 @@ Rules: `decisions.md` › 2026-10-01 round 28; `05-components` › Editor card.
 | QE10 | **Typing (28.9):** Go to Line field, soft tabs, indent, pairs, ⌘/. | `SQLEditorTyping`, `SQLTextView+Typing`, `GoToLineField` | `EditorTypingTests` 👁 | ☑ 8464a8c1, 👁 pending |
 | QE11 | **Empty tab (28.10):** prompt on line 1, nothing else. | `SQLTextView+Placeholder` | `TablePreviewQueryTests` 👁 | ☑ 433f34e1, 👁 pending |
 | QE12 | **Settings (28.11):** Settings › Editor; Aurora and Midnight only; whole sizes. | `EditorSettingsView`, `SQLEditorPalette+BuiltIn` | `EditorTypographySettingsTests`, `GlobalSettingsTests` 👁 | ☑ c30bc3e7, 👁 pending |
-| QE13 | **Find bar (28.12):** FB5 chosen; Replace and scope still being judged. | | | ☐ |
+| QE13 | **Find bar (28.12):** glass capsule, menu options, Selection button. | `EditorFindBar`, `EditorFind`, `SQLTextView+Find` | `EditorFindTests` 👁 | ☑ ac5089f6, 👁 pending |
+| QE14 | **Search and replace (28.13):** preview in the text, Replace grows the capsule, one-step Replace All. | `SQLTextView+FindPreview`, `EditorFindBar` | `EditorFindTests` 👁 | ☑ ac5089f6, 👁 pending |
+| QE15 | **The lane (28.14):** full height, concentric corners, numbers centred. | `EditorGutterSurface`, `LineNumberRulerView` | `LineNumberRulerTests` 👁 | ☑ ac5089f6, 👁 pending |
+| QE16 | **One mark language (28.15):** `EditorMarkTokens`, round ends, two strengths, Settings › Editor › Marks. | `EditorMarkToken`, `SQLTextView+Marks`, `SQLLayoutManager`, `EditorSettingsView` | `EditorMarksTests`, `GlobalSettingsExtendedTests` 👁 | ☑ ac5089f6, 👁 pending |
 
 ## Phase 10 · Finish
 
