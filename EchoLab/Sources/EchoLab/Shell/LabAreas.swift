@@ -102,6 +102,7 @@ enum LabAreas {
         "ongoing.editor-find-bar-r28": "editor",
         "ongoing.editor-search-replace-r28": "editor",
         "ongoing.editor-gutter-lane-r28": "editor",
+        "ongoing.editor-design-language-r28": "editor",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

@@ -8,11 +8,11 @@ import SwiftUI
 enum EditorSearchReplaceRound {
     static let spec = RoundSpec(
         controls: [
-            .of("replacePreview", "The replacement while you type", LabQEReplacePreview.self, default: .inlineDiff,
+            .of("replacePreview", "The replacement while you type", LabQEReplacePreview.self, default: .languageDiff,
                 question: "Open Replace in the Proposal (chevron, or Find and Replace on the left), type a replacement, and compare All previews. How should the editor show what will change?",
-                recommend: .inlineDiff,
-                why: "You loved seeing the replacement in the editor; reading it as a diff on its own line (old struck through, new beside it) says exactly what changes without covering the line above, which PV1's tags did. PV4 (the current match only) is the calm runner-up for long scripts; PV3 hides the old word, so you can't check it; the gutter marks (PV5) help with Replace All in a long script.",
-                summary: \.summary),
+                recommend: .languageDiff,
+                why: "You picked PV2 and asked for it in the editor's own language (28.15). PV6 is PV2 drawn with the same marks as a mistake and the word at the caret: rounded, as high as the letters, a strong red for what goes and a soft green for what comes, the current match a step stronger. PV7 is calmer, but a grey strike is easy to miss when checking a Replace All.",
+                summary: \.summary, newChoices: (2, LabQEReplacePreview.addedInRev2)),
             .of("replaceOpening", "Opening Replace", LabQEReplaceOpening.self, default: .grow,
                 question: "Click the chevron in the Proposal a few times with each choice. How should the Replace row open?",
                 recommend: .grow,
@@ -35,12 +35,12 @@ enum EditorSearchReplaceRound {
             },
             .init(id: "proposal", title: "Proposal", summary: "Working: type, open Replace with the chevron, Replace (or Return), Replace All; ↺ resets.",
                   designWidth: LabQESearchReplacePlayground.width, designHeight: LabQESearchReplacePlayground.height) { values in
-                LabQESearchReplacePlayground(preview: LabQEReplacePreview(rawValue: values["replacePreview"]) ?? .inlineDiff,
+                LabQESearchReplacePlayground(preview: LabQEReplacePreview(rawValue: values["replacePreview"]) ?? .languageDiff,
                                              opening: LabQEReplaceOpening(rawValue: values["replaceOpening"]) ?? .grow,
                                              shortcuts: LabQEFindShortcuts(rawValue: values["findShortcuts"]) ?? .macOS)
             },
             .init(id: "previews", title: "All previews", summary: "Every preview, replacing “orders” with “orders_2026”; the first match is the current one.",
-                  designWidth: 700, designHeight: 640) { _ in
+                  designWidth: 700, designHeight: 860) { _ in
                 LabQEPreviewGrid()
             },
             .init(id: "menu", title: "Edit › Find", summary: "The menu with the chosen shortcuts.", designWidth: 340, designHeight: 240) { values in
@@ -85,8 +85,8 @@ enum EditorSearchReplaceRound {
         exhibitTopic: ("Search and replace", "Replace in the Proposal with each choice. Is it better than Echo today?", "proposal",
                        "FB5's glass grows to show Replace, every change reads as a diff before you press anything, and the keys are the Mac's."),
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "Inline diff, the capsule grows, ⌘F and ⌥⌘F.",
-                  values: ["replacePreview": LabQEReplacePreview.inlineDiff.rawValue, "replaceOpening": LabQEReplaceOpening.grow.rawValue,
+            .init(id: "recommended", name: "My recommendation", summary: "PV2 in the editor's language, the capsule grows, ⌘F and ⌥⌘F.",
+                  values: ["replacePreview": LabQEReplacePreview.languageDiff.rawValue, "replaceOpening": LabQEReplaceOpening.grow.rawValue,
                            "findShortcuts": LabQEFindShortcuts.macOS.rawValue],
                   isRecommended: true),
             .init(id: "calm", name: "Calm", summary: "Only the current match previews; the glass row melts out.",

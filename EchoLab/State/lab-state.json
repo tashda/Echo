@@ -223,6 +223,11 @@
         "date": "2026-10-01T12:32:32Z",
         "id": "F37EE3FD-0BED-48E5-BAC6-5FF03000AB70",
         "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where and how: picked FB5 \u00b7 A capsule with glass buttons beside it; note: fb5 is beautiful and perfect\n3. Replace: picked RP1 \u00b7 A chevron opens it inside the capsule; NEEDS MORE OPTIONS; note: I like the idea of a chevron but we need a new round for search and replace all together. Like how the \"replacement\" is shown in the editor while typing, cause I love that idea but it should be refined, and the animations of opening the search fields replace second line - cause I want it to expand - and the shortcuts for opening \"Search and Replace\" and not only search.\n4. What it searches: picked SS4 \u00b7 A Selection button that appears with a selection, on\n5. Options: picked O0 \u00b7 In the field's menu (today)\n6. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n7. Regular expressions: picked RX0 \u00b7 No (today)\n8. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n9. Starting from a selection: picked SE1 \u00b7 The selection, every time"
+      },
+      {
+        "date": "2026-10-01T12:40:12Z",
+        "id": "5405DAAD-EBD7-45CD-B3D0-F82DE316EFE6",
+        "text": "Review of Editor: the find bar\n1. Which find bar?: picked Proposal\n2. Where and how: picked FB5 \u00b7 A capsule with glass buttons beside it; note: fb5 is beautiful and perfect\n3. Replace: picked RP1 \u00b7 A chevron opens it inside the capsule; note: Rest of Replace handled in new round\n4. What it searches: picked SS4 \u00b7 A Selection button that appears with a selection, on\n5. Options: picked O0 \u00b7 In the field's menu (today)\n6. Match count: picked C0 \u00b7 \u201c2 found\u201d (today)\n7. Regular expressions: picked RX0 \u00b7 No (today)\n8. What it searches: picked SC0 \u00b7 The script only; the grid has its own \u2318F when it has the keyboard\n9. Starting from a selection: picked SE1 \u00b7 The selection, every time"
       }
     ],
     "generalNote": "",
@@ -254,15 +259,17 @@
       {
         "date": "2026-10-01T12:36:52Z",
         "text": "Revision 5: Replace continues on 28.13"
+      },
+      {
+        "date": "2026-10-01T12:40:12Z",
+        "text": "Accepted with picks"
       }
     ],
-    "needsMore": [
-      "replaceStyle"
-    ],
+    "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
       "findBar": "fb5 is beautiful and perfect",
-      "replaceStyle": "I like the idea of a chevron but we need a new round for search and replace all together. Like how the \"replacement\" is shown in the editor while typing, cause I love that idea but it should be refined, and the animations of opening the search fields replace second line - cause I want it to expand - and the shortcuts for opening \"Search and Replace\" and not only search."
+      "replaceStyle": "Rest of Replace handled in new round"
     },
     "picks": {
       "exhibit": "proposal",
@@ -275,7 +282,7 @@
       "scope": "editor",
       "selection": "fill"
     },
-    "reviewedRevision": 4,
+    "reviewedRevision": 5,
     "revisions": [
       {
         "changes": [
@@ -316,7 +323,7 @@
         "summary": "Replace continues on 28.13"
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
     "verdicts": {}
   },
   "ongoing.editor-find-typing-r28": {
@@ -555,6 +562,57 @@
       }
     ],
     "status": "In Echo",
+    "verdicts": {}
+  },
+  "ongoing.editor-search-replace-r28": {
+    "comments": [
+      {
+        "date": "2026-10-01T12:45:36Z",
+        "id": "3C8E7F66-4478-478A-B76C-5DB936D91CE4",
+        "text": "Review of Editor: search and replace\n1. Search and replace: picked Proposal\n2. The replacement while you type: picked PV2 \u00b7 Inline: old struck through, new beside it; NEEDS MORE OPTIONS; note: I like this, but please see how we have colored the e.g. \"error\" when a query has run and it shows the error in the editor. We need to have the same kind of \"colors\" and bubbles/pills and corners of everything in editor, so it matches design tokens and can be configurable in settings - so this is good, but please look at the other decisions we made and suggest a \"design language\" within the editor (new round and also one that should update this with the new options)\n3. Opening Replace: picked AN1 \u00b7 The capsule grows\n4. Shortcuts: picked SH0 \u00b7 \u2318F and \u2325\u2318F\n5. Return in Replace: picked RK0 \u00b7 Replace this match and go to the next\n6. After Replace All: picked RA0 \u00b7 The count says \u201cReplaced 12\u201d until you type again\n7. Undo: picked UN0 \u00b7 Every replacement, in one step\n8. \u2318F with Replace open: picked FO0 \u00b7 Replace stays open; the caret goes to Find"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T12:45:36Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T12:49:32Z",
+        "text": "Revision 2: PV2 in the editor's design language"
+      }
+    ],
+    "needsMore": [
+      "replacePreview"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "replacePreview": "I like this, but please see how we have colored the e.g. \"error\" when a query has run and it shows the error in the editor. We need to have the same kind of \"colors\" and bubbles/pills and corners of everything in editor, so it matches design tokens and can be configurable in settings - so this is good, but please look at the other decisions we made and suggest a \"design language\" within the editor (new round and also one that should update this with the new options)"
+    },
+    "picks": {
+      "afterAll": "count",
+      "exhibit": "proposal",
+      "findAgain": "keep",
+      "findShortcuts": "SH0 \u00b7 \u2318F and \u2325\u2318F",
+      "replaceOpening": "AN1 \u00b7 The capsule grows",
+      "replacePreview": "PV2 \u00b7 Inline: old struck through, new beside it",
+      "returnKey": "replaceNext",
+      "undo": "all"
+    },
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "New previews: PV6, your PV2 drawn with the editor's marks (recommended), and PV7, only the new word marked with the old struck through in grey",
+          "The marks' language itself is the new page 28.15"
+        ],
+        "date": "2026-10-01T12:49:32Z",
+        "number": 2,
+        "summary": "PV2 in the editor's design language"
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.editor-settings-r28": {
@@ -1516,6 +1574,11 @@
         "date": "2026-10-01T10:51:45Z",
         "id": "CF6B3A53-D787-430D-A20E-54886810DD4E",
         "text": "Review of Results scroll bars and the footer\n1. Horizontal bar: where: picked E \u00b7 On the footer's top edge; note: It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills.\n2. Bar: how it looks: picked S1 \u00b7 The system's bar\n3. Bars: when they show: picked V1 \u00b7 While scrolling\n4. Vertical bar: where it ends: picked R2 \u00b7 Runs down to the horizontal bar\n5. Tie the position to the card: picked X1 \u00b7 Soft edges where there is more\n6. Other grids: picked Every scroll bar in a card"
+      },
+      {
+        "date": "2026-10-01T12:48:48Z",
+        "id": "0A7B2F5C-220C-430B-BF24-B6E2025E3F2B",
+        "text": "Review of Results scroll bars and the footer\n1. How far it reaches: picked L2 \u00b7 As wide as the footer\n2. What is behind it: picked U5 \u00b7 The blur grows while the bar shows; note: I love this, but we need to make sure it is animating BEAUTIFULLY when growing and going down, not just lagging and skipping, and also the blur needs to be more \"natural\" against the table, right now it is pretty \"hard capped\"\n3. Gap to the pills: picked H1 \u00b7 9pt, as the pills sit above the edge\n4. Its track: picked T1 \u00b7 No track"
       }
     ],
     "generalNote": "",
@@ -1551,22 +1614,31 @@
       {
         "date": "2026-10-01T12:18:35Z",
         "text": "Revision 5: Refining what is built: its length, what is behind it, its gap to the pills, its track"
+      },
+      {
+        "date": "2026-10-01T12:48:48Z",
+        "text": "Accepted with picks"
       }
     ],
     "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
+      "behind": "I love this, but we need to make sure it is animating BEAUTIFULLY when growing and going down, not just lagging and skipping, and also the blur needs to be more \"natural\" against the table, right now it is pretty \"hard capped\"",
       "placement": "It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills."
     },
     "picks": {
+      "behind": "U5 \u00b7 The blur grows while the bar shows",
       "everywhere": "everything",
       "extra": "X1 \u00b7 Soft edges where there is more",
+      "gap": "H1 \u00b7 9pt, as the pills sit above the edge",
+      "length": "L2 \u00b7 As wide as the footer",
       "placement": "E \u00b7 On the footer's top edge",
       "style": "S1 \u00b7 The system's bar",
+      "track": "T1 \u00b7 No track",
       "vertical": "R2 \u00b7 Runs down to the horizontal bar",
       "visibility": "V1 \u00b7 While scrolling"
     },
-    "reviewedRevision": 3,
+    "reviewedRevision": 5,
     "revisions": [
       {
         "changes": [
@@ -1606,7 +1678,7 @@
         "summary": "Refining what is built: its length, what is behind it, its gap to the pills, its track"
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
     "verdicts": {}
   },
   "ongoing.run-button-look-r20": {

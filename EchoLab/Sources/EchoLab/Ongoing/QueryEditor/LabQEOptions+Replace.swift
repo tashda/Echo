@@ -12,6 +12,12 @@ enum LabQEReplacePreview: String, CaseIterable {
     case inPlace = "PV3 · The new text in place, tinted"
     case currentOnly = "PV4 · Inline on the current match only"
     case withGutter = "PV5 · In place, and marked in the gutter"
+    case languageDiff = "PV6 · PV2 in the editor's language"
+    case languageQuiet = "PV7 · The new word marked, the old struck through in grey"
+
+    /// Rev 2: PV2 refined in the design language of round 28.15.
+    static let addedInRev2: [LabQEReplacePreview] = [.languageDiff, .languageQuiet]
+    var usesLanguage: Bool { self == .languageDiff || self == .languageQuiet }
 
     var summary: String {
         switch self {
@@ -21,6 +27,8 @@ enum LabQEReplacePreview: String, CaseIterable {
         case .inPlace: "Each match already shows the new word in a soft green tint; the old word is gone from view until you close Replace."
         case .currentOnly: "Only the current match shows the inline diff; the others stay lit as matches, so the line you are on is the one you read."
         case .withGutter: "PV3, plus a small green mark beside the numbers of every line that will change, so you can see the reach of Replace All."
+        case .languageDiff: "Your PV2 drawn with the editor's marks (28.15): the old word in a strong red mark, struck through, the new word in a soft green mark, both with the marks' corner and the letters' height; the current match a step stronger."
+        case .languageQuiet: "Only the new word gets a mark (soft green); the old word stays, struck through in grey, so the line reads calmly and the mistake colour stays for mistakes."
         }
     }
 }

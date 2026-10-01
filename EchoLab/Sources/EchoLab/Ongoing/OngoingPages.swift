@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -298,6 +298,13 @@
         status: .judging,
         summary: "The Lane gutter style, redrawn: what it holds, how the numbers sit in it, its height, corners and fill. Today it floats 25pt above the card's bottom with the numbers pushed to its right edge. Asked with your screenshots of the gutter styles.",
         spec: EditorGutterLaneRound.spec)
+
+    /// Round 28: Editor: one design language.
+    static let editorDesignLanguage = LabPage.round(
+        id: "ongoing.editor-design-language-r28", group: "Editor and running", title: "Editor: one design language · round 28", symbol: "paintpalette",
+        status: .judging,
+        summary: "Every mark in the editor in one language: one corner, one tint scale, colour by meaning, one height, one Marks section in Settings, and one look for floating pills. Today's marks mix pills, 3pt corners and tints from 9% to 35%. Asked in your notes on 28.13.",
+        spec: EditorDesignLanguageRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

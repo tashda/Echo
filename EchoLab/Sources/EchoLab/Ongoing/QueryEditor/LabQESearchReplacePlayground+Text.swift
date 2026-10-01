@@ -23,7 +23,11 @@ extension LabQESearchReplacePlayground {
                                 }
                             }
                         Color.clear.frame(width: SpacingTokens.xs, height: 1)
-                        Text(attributed(line, line: index + 1, matches: all, current: currentSpan)).fixedSize()
+                        if isPreviewing, preview.usesLanguage {
+                            languageLine(line, line: index + 1, matches: all, current: currentSpan, advance: advance)
+                        } else {
+                            Text(attributed(line, line: index + 1, matches: all, current: currentSpan)).fixedSize()
+                        }
                     }
                     .font(Font(codeFont))
                     .frame(height: lineHeight, alignment: .leading)
@@ -96,6 +100,46 @@ extension LabQESearchReplacePlayground {
         case .inlineDiff: return old() + new()
         case .inPlace, .withGutter: return new()
         case .currentOnly: return isCurrent ? old() + new() : found()
+        case .languageDiff, .languageQuiet: return found()
+        }
+    }
+
+    /// PV6, PV7: the line with each match followed by its replacement, marked as round 28.15's
+    /// language draws marks (rounded, letters' height, soft and strong).
+    private func languageLine(_ line: String, line number: Int, matches: [LabQESpan], current: LabQESpan?, advance: CGFloat) -> some View {
+        let language = LabQEMarkLanguage(corner: .oneCorner, tint: .twoSteps, colour: .meaning, height: .letters, floating: .glass)
+        let chars = Array(line)
+        let quiet = preview == .languageQuiet
+        var text = AttributedString()
+        var marks: [(start: Int, end: Int, kind: LabQEMarkLanguage.Kind, strong: Bool)] = []
+        var column = 0
+        var display = 0
+        for span in matches.filter({ $0.line == number }) where span.start >= column {
+            text += AttributedString(String(chars[column..<span.start]))
+            display += span.start - column
+            var old = AttributedString(String(chars[span.start..<span.end]))
+            old.strikethroughStyle = Text.LineStyle(pattern: .solid, color: quiet ? ColorTokens.Text.tertiary : ColorTokens.Status.error)
+            old.foregroundColor = quiet ? ColorTokens.Text.tertiary : ColorTokens.Status.error
+            if !quiet { marks.append((display, display + span.end - span.start, .removed, span == current)) }
+            text += old + AttributedString(" ")
+            display += span.end - span.start + 1
+            var new = AttributedString(replacement)
+            new.foregroundColor = ColorTokens.Status.success
+            marks.append((display, display + replacement.count, .added, span == current))
+            text += new
+            display += replacement.count
+            column = span.end
+        }
+        text += AttributedString(String(chars[min(column, chars.count)...]))
+        let letters = ceil(codeFont.ascender - codeFont.descender) + LayoutTokens.EditorGutter.highlightPadding * 2
+        return ZStack(alignment: .leading) {
+            ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
+                RoundedRectangle(cornerRadius: language.cornerRadius(for: mark.kind, height: letters), style: .continuous)
+                    .fill(language.color(for: mark.kind).opacity(language.opacity(for: mark.kind) * (mark.strong ? 1.6 : 1)))
+                    .frame(width: CGFloat(mark.end - mark.start) * advance + SpacingTokens.xxxs, height: letters)
+                    .offset(x: CGFloat(mark.start) * advance - SpacingTokens.micro)
+            }
+            Text(text).fixedSize()
         }
     }
 }
