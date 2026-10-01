@@ -5,23 +5,25 @@ import XCTest
 
 /// One echo-server-lab server per recipe for the whole test run, for the XCTest suites (Swift
 /// Testing suites use `.server(...)` instead). The first suite that asks starts it; it is removed
-/// when the test bundle finishes, or by its lease (and CI's owner-prefix cleanup) after a crash.
+/// when the test bundle finishes. Its owner names this process (`EchoTests@<machine>:<pid>`), so
+/// when the process is killed the next one removes it (`serverlab down --abandoned`).
 actor LabSharedServers {
     static let shared = LabSharedServers()
 
     private var starts: [String: Task<LabServer, any Error>] = [:]
     private var observerRegistered = false
-
-    /// The shared server for an XCTest suite, or a skip when lab suites are switched off.
-    static func serverForSuite(_ recipe: String) async throws -> LabServer {
-        guard labIntegrationEnabled else { throw XCTSkip("\(labIntegrationNote)") }
-        return try await shared.server(for: recipe)
-    }
+    private var abandonedRemoved = false
 
     func server(for recipe: String) async throws -> LabServer {
         if let start = starts[recipe] { return try await start.value }
+        if !abandonedRemoved {
+            // A test process killed for a test over its time limit leaves its servers behind; the
+            // next process (this one) removes them before starting its own.
+            abandonedRemoved = true
+            try? await ServerLabCLI.removeAbandoned()
+        }
         let start = Task(name: "lab-server-\(recipe)") {
-            try await ServerLabCLI.up(recipe, owner: ServerLabCLI.owner(forSuite: "EchoTests"), leaseMinutes: 120)
+            try await ServerLabCLI.up(recipe, owner: ServerLabCLI.processOwner("EchoTests"), leaseMinutes: 120)
         }
         starts[recipe] = start
         if !observerRegistered {
@@ -64,5 +66,20 @@ final class LabSharedServerRemoval: NSObject, XCTestObservation {
         process.arguments = ["down"] + containers
         try? process.run()
         process.waitUntilExit()
+    }
+}
+
+extension XCTestCase {
+    /// The shared lab server for `recipe`, or a skip when lab suites are switched off. Getting it can
+    /// take minutes (the server's start, the lab's memory budget), so the test may run 15 minutes
+    /// while it waits and has two minutes from the moment it has the server: a slow start is not a
+    /// hang, and a hang still fails fast.
+    nonisolated(nonsending) func labServer(_ recipe: String) async throws -> LabServer {
+        guard labIntegrationEnabled else { throw XCTSkip("\(labIntegrationNote)") }
+        let started = ContinuousClock.now
+        executionTimeAllowance = 900
+        let server = try await LabSharedServers.shared.server(for: recipe)
+        executionTimeAllowance = TimeInterval((ContinuousClock.now - started).components.seconds) + 120
+        return server
     }
 }

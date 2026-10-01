@@ -367,7 +367,7 @@ final class SessionProtocolComplianceTests: XCTestCase {
     // MARK: - On a SQL Server (the lab server the suites share; skipped without the lab)
 
     private func sqlServerSession(database: String = "master") async throws -> DatabaseSession {
-        let server = try await LabSharedServers.serverForSuite(MSSQLLabTestCase.recipe)
+        let server = try await labServer(MSSQLLabTestCase.recipe)
         return try await MSSQLNIOFactory().connect(
             host: server.host, port: server.port, database: database, tls: true, trustServerCertificate: true,
             authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password),

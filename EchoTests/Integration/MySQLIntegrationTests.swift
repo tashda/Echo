@@ -20,7 +20,7 @@ final class MySQLIntegrationTests: XCTestCase {
 
     /// The lab MySQL the suites share (`LabSharedServers`); the tests only read.
     private func loadConfig() async throws -> MySQLConfig {
-        let server = try await LabSharedServers.serverForSuite(LabRecipes.mysql)
+        let server = try await labServer(LabRecipes.mysql)
         return MySQLConfig(host: server.host, port: server.port, database: "mysql",
                            username: server.username, password: server.password)
     }

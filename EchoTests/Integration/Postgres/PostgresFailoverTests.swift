@@ -6,7 +6,7 @@ import Testing
 /// Echo Labs round 23 (failover) end to end on two fresh echo-server-lab servers: a saved
 /// connection with both connects, Test checks both, and when the first server goes away Echo carries
 /// on with the second and reports the move. Both servers are removed afterwards.
-@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .serialized)
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .serialized, .timeLimit(.minutes(10)))
 struct PostgresFailoverTests {
     /// Starts two servers, runs `body`, and removes whatever is left of them.
     private func withTwoServers(_ body: ([LabServer]) async throws -> Void) async throws {

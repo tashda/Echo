@@ -10,13 +10,17 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
 - **A database suite** either has `@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote),
   .server("recipe"))` (Swift Testing, its own server, removed when the suite ends), or gets the
   server every suite of the run shares from `LabSharedServers` (`MSSQLLabTestCase`,
-  `LabSharedServers.serverForSuite(recipe)`), removed when the test bundle finishes.
+  `labServer(recipe)` in any XCTest), removed when the test bundle finishes; servers of a test
+  process that was killed are removed by the next one (owners `EchoTests@<machine>:<pid>`).
 - **Recipes:** `LabRecipes` in `EchoTests/Integration/Lab/LabIntegration.swift`. SQL Server:
   `mssql-<version>-agent` and `mssql-<version>-adventureworks`, with the version from
   `ECHO_LAB_SQLSERVER_VERSION` (2022 when unset) and an optional `ECHO_LAB_SQLSERVER_COMPAT`.
 - **Plans:**
   - **UnitTests:** no server; lab suites skip (`SERVERLAB_INTEGRATION` unset).
-  - **EchoTests:** everything, lab suites on.
+  - **EchoTests:** everything, lab suites on (local use).
+  - **LabTests:** only the suites that use lab servers, in one process, with time limits (CI's
+    lab job). `LabTestPlansTests` (a unit test) fails when a lab suite is missing from it or, for
+    SQL Server suites, from SQLServerVersions.
   - **SQLServerVersions:** the SQL Server suites in 8 configurations (2017, 2019, 2022, 2025, and
     2017 at compatibility levels 100, 110, 120 and 130).
 - **CI:**
@@ -25,8 +29,16 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
     over Tailscale.
   - **Nightly**, by hand: SQLServerVersions.
 
-  The lab setup is one action, `.github/actions/lab-tests-setup`. Each run's servers are owned by
+  The lab setup is one action, `.github/actions/lab-tests-setup`; the runner joins the tailnet
+  only after every download and leaves it before uploading. Each run's servers are owned by
   `ci-<run>` or `nightly-<run>` and removed afterwards.
+- **Time limits and the watchdog:** a hang fails one test, not the run. XCTest lab tests have 5
+  minutes each (the plans' `defaultTestExecutionTimeAllowance`); `MSSQLLabTestCase` allows up to 15
+  minutes while the shared server starts and then 2 minutes per test; Swift Testing lab suites have
+  `.timeLimit(.minutes(10))`. Every CI test step runs through `.github/scripts/run-test-plan.sh`:
+  the job log shows test results and a progress line every five minutes, the full log is uploaded
+  with the results, and if nothing finishes for 15 minutes it names the tests still running,
+  samples the test processes (`diagnostics/`) and stops the run.
 - **Locally:** run the EchoTests plan; testlab must be reachable (home network), or set
   `SERVERLAB_HOST=local` for Docker on the Mac.
 

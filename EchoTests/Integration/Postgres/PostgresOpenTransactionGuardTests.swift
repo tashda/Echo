@@ -8,7 +8,7 @@ import Testing
 /// (checked with the server), commits or rolls them back, and a failed one is only rolled back.
 /// The transactions are SQL a user types in the editor; the tables around them are made with
 /// postgres-wire's typed APIs.
-@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("pg-17-empty"))
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("pg-17-empty"), .timeLimit(.minutes(10)))
 @MainActor
 struct PostgresOpenTransactionGuardTests {
     /// A pinned session (as a query tab has) and a fresh table only this test uses; the table and

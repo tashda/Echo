@@ -56,14 +56,7 @@ jobs:
         TEST_RUNNER_SERVERLAB_CLI: ${{ steps.lab.outputs.serverlab }}
         TEST_RUNNER_SERVERLAB_PASSWORD: ${{ secrets.SERVERLAB_PASSWORD }}
         TEST_RUNNER_SERVERLAB_OWNER_PREFIX: nightly-${{ github.run_id }}-${{ github.run_attempt }}
-      run: |
-        find . -maxdepth 1 -name "TestResults-sqlserver*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo -testPlan SQLServerVersions \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-sqlserver-versions \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+      run: .github/scripts/run-test-plan.sh SQLServerVersions TestResults-sqlserver-versions
 
     - name: Remove servers this run left behind
       if: always()
@@ -83,4 +76,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-results-sqlserver-versions
-        path: TestResults-sqlserver-versions.xcresult
+        path: |
+          TestResults-sqlserver-versions.xcresult
+          TestResults-sqlserver-versions.log
+          diagnostics/

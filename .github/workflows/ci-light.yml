@@ -59,20 +59,14 @@ jobs:
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Run Unit Tests
-      run: |
-        find . -maxdepth 1 -name "TestResults-unit*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -testPlan UnitTests \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-unit \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+      run: .github/scripts/run-test-plan.sh UnitTests TestResults-unit
 
     - name: Upload Unit Test Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-unit
-        path: TestResults-unit.xcresult
+        path: |
+          TestResults-unit.xcresult
+          TestResults-unit.log
 
