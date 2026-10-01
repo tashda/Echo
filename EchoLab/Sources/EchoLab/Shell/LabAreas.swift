@@ -86,6 +86,7 @@ enum LabAreas {
         "ongoing.run-into-running-r24": "editor",
         "ongoing.mssql-import-r25": "explorer-tree",
         "ongoing.content-during-slide-r26": "window",
+        "ongoing.results-scrollers-r27": "footer-results",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

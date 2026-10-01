@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -186,6 +186,13 @@
         status: .judging,
         summary: "Changes WIN-3.2 (Hide and show) and the inspector's slide. Over the Activity Monitor the slide runs at about 20 fps, because every table cell re-lays out on every frame; over a query tab it is 60 fps.",
         spec: ContentDuringSlideRound.spec)
+
+    /// Round 27: Results scroll bars and the footer.
+    static let resultsScrollers = LabPage.round(
+        id: "ongoing.results-scrollers-r27", group: "Footer and results", title: "Results scroll bars and the footer · round 27", symbol: "scroll",
+        status: .judging,
+        summary: "Changes FTR-4.6. The grid's horizontal scroll bar floats over the last rows above the footer; where should it sit so it blends in with the footer? Asked 2026-10-01 alongside the results smoothness work.",
+        spec: ResultsScrollersRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

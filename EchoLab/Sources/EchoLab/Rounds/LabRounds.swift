@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r27", label: "Round 27", title: "Results scroll bars and the footer", date: "1 Oct 2026",
+             asked: "Where should the results grid's horizontal scroll bar sit so it blends in with the footer instead of floating over the rows above it?",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.results-scrollers-r27"]),
         Info(id: "r26", label: "Round 26", title: "Tab content while the tree slides", date: "1 Oct 2026",
              asked: "How should a heavy tab (Activity Monitor's tables) behave while the tree or inspector slides: reflow live, or hold its width and settle at the end?",
              outcome: "Being judged.",
