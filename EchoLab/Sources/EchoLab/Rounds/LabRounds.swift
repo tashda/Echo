@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r45", label: "Round 45", title: "Tool tabs: the main action in the toolbar", date: "1 Oct 2026",
+             asked: "Main actions such as New Policy or Start Trace / Stop Trace should live in a separate group in the window toolbar, like the Run button or a + sign, and running could use the toolbar's Run button (owner's feedback on 37.3).",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.tool-tab-main-action-r45"]),
         Info(id: "r43", label: "Round 43", title: "Settings: search, reset and overrides", date: "1 Oct 2026",
              asked: "Make Editor settings the template for every settings page, with a preview for everything that changes something.",
              outcome: "Being judged.",

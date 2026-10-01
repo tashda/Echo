@@ -57,6 +57,8 @@ struct LabTTHeaderView: View {
                 .padding(.horizontal, SpacingTokens.xs).padding(.vertical, SpacingTokens.xxs)
                 .glassEffect(.regular, in: .capsule)
             }
+        case .oneLine, .slimLine, .glassLine, .controlsOnly:
+            oneLineHeader
         case .windowToolbar:
             VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                 HStack(spacing: SpacingTokens.xs) {
@@ -72,7 +74,7 @@ struct LabTTHeaderView: View {
         }
     }
 
-    private var title: some View {
+    var title: some View {
         HStack(spacing: SpacingTokens.sm) {
             Image(systemName: tool.symbol).font(TypographyTokens.prominent.weight(.semibold)).foregroundStyle(tool.tint)
                 .frame(width: SpacingTokens.lg + SpacingTokens.xxs, height: SpacingTokens.lg + SpacingTokens.xxs)
@@ -85,7 +87,7 @@ struct LabTTHeaderView: View {
     }
 
     @ViewBuilder
-    private var pages: some View {
+    var pages: some View {
         if !tool.pages.isEmpty {
             Picker("Page", selection: Binding(get: { page.isEmpty ? tool.pages[0] : page }, set: { page = $0 })) {
                 ForEach(tool.pages, id: \.self) { Text($0).tag($0) }
@@ -95,8 +97,8 @@ struct LabTTHeaderView: View {
     }
 
     @ViewBuilder
-    private var primaryButton: some View {
-        if let primary = tool.primary {
+    var primaryButton: some View {
+        if let primary = tool.primary, look.primaryInHeader {
             let isStop = running && look.status == .inButton && primary.title == "Start Trace"
             let title = isStop ? "Stop Trace" : primary.title
             let symbol = isStop ? "stop.fill" : primary.symbol
@@ -124,7 +126,7 @@ struct LabTTHeaderView: View {
     }
 
     @ViewBuilder
-    private var secondaryButtons: some View {
+    var secondaryButtons: some View {
         if !tool.secondary.isEmpty {
             switch look.secondary {
             case .today:
@@ -150,7 +152,7 @@ struct LabTTHeaderView: View {
     }
 
     @ViewBuilder
-    private var pickerView: some View {
+    var pickerView: some View {
         if let picker = tool.picker {
             switch look.picker {
             case .today:
@@ -177,7 +179,7 @@ struct LabTTHeaderView: View {
     }
 
     @ViewBuilder
-    private var statusView: some View {
+    var statusView: some View {
         if running, let status = tool.status {
             switch look.status {
             case .today:
@@ -196,7 +198,7 @@ struct LabTTHeaderView: View {
     }
 
     @ViewBuilder
-    private var searchView: some View {
+    var searchView: some View {
         if let prompt = tool.searchPrompt {
             switch look.search {
             case .none: EmptyView()
@@ -229,6 +231,9 @@ struct LabTTTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            if look.header.isOneLine {
+                LabTPStrip(tabs: [.query2, tool.stripTab], activeID: tool.stripTab.id, style: .group)
+            }
             LabTTHeaderView(tool: tool, look: look, running: running)
             VStack(spacing: SpacingTokens.none) {
                 ForEach(0..<6, id: \.self) { row in

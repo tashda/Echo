@@ -2789,6 +2789,279 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.tool-tab-controls-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:53:58Z",
+        "id": "DE440F8A-2A10-4E6F-A5F4-0089713333F9",
+        "text": "Review of Tool tabs: buttons and controls\n1. Main action: picked PA1 \u00b7 Glass capsule: symbol in colour, word in grey\n2. Other actions: picked SA2 \u00b7 Together in one glass capsule\n3. Pickers: picked PK1 \u00b7 One glass pill: symbol, value and a chevron\n4. Running: picked ST1 \u00b7 The primary button turns into Stop with a pulsing dot; NEEDS MORE OPTIONS; note: Can't we use the run button in the toolbar for this?\n5. Search: picked SF1 \u00b7 A glass search capsule at the right of the row\n6. Control height: picked CH0 \u00b7 28pt, as the toolbar's capsules\nOverall: For e.g. \"New Policy\" or \"Trace/Stop trace\", I feel like this should live in a seperate group in the toolbar like Ru Button or a + sign. Please give this a new round with my feedback"
+      },
+      {
+        "date": "2026-10-01T17:56:41Z",
+        "id": "CCFC6C47-4636-4928-A33A-F53573ACB180",
+        "text": "Review of Tool tabs: buttons and controls\n1. Main action: picked PA1 \u00b7 Glass capsule: symbol in colour, word in grey\n2. Other actions: picked SA2 \u00b7 Together in one glass capsule\n3. Pickers: picked PK1 \u00b7 One glass pill: symbol, value and a chevron\n4. Running: picked ST1 \u00b7 The primary button turns into Stop with a pulsing dot\n5. Search: picked SF1 \u00b7 A glass search capsule at the right of the row\n6. Control height: picked CH0 \u00b7 28pt, as the toolbar's capsules"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:53:58Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T17:56:41Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T17:58:14Z",
+        "text": "Taken by Opus r36-37"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "picker": "PK1 \u00b7 One glass pill: symbol, value and a chevron",
+      "primary": "PA1 \u00b7 Glass capsule: symbol in colour, word in grey",
+      "search": "SF1 \u00b7 A glass search capsule at the right of the row",
+      "secondary": "SA2 \u00b7 Together in one glass capsule",
+      "size": "28",
+      "status": "ST1 \u00b7 The primary button turns into Stop with a pulsing dot"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Opus r36-37",
+      "date": "2026-10-01T17:58:14Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-families-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:47:22Z",
+        "id": "4770EC8B-E215-43CA-BBC2-B2AF9D9BBB21",
+        "text": "Review of Tool tabs: the families\n1. The families: picked FA0 \u00b7 Yes: monitor, manage, health, properties, canvas\n2. Query Store: picked QS1 \u00b7 Health (it finds regressions to fix)\n3. psql console: picked PS0 \u00b7 No: it follows the editor's design (round 28)\n4. One theme for all: picked UT1 \u00b7 UT0, plus pane cards, tables and empty states"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:47:22Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T17:58:13Z",
+        "text": "Taken by Opus r36-37"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "families": "yes",
+      "psql": "editor",
+      "queryStore": "health",
+      "unified": "headerPanes"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Opus r36-37",
+      "date": "2026-10-01T17:58:13Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-header-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:51:38Z",
+        "id": "C20BC8B3-50C1-4128-9B4F-FFBCE4257DE9",
+        "text": "Review of Tool tabs: the header and toolbar row\n1. Which header?: picked Proposal: SQL Profiler; NEEDS MORE OPTIONS; note: The pages needs to bee in the tab, so maybe we could add everything on \"one line\" where the header is. please investigate this and then make proper suggestions\n2. Layout: no answer yet\n3. Pages: no answer yet"
+      },
+      {
+        "date": "2026-10-01T17:51:40Z",
+        "id": "6735196C-FD88-43F7-8456-8E9C6D68AAAF",
+        "text": "Review of Tool tabs: the header and toolbar row\n1. Which header?: picked Proposal: SQL Profiler; NEEDS MORE OPTIONS; note: The pages needs to bee in the tab, so maybe we could add everything on \"one line\" where the header is. please investigate this and then make proper suggestions\n2. Layout: no answer yet\n3. Pages: no answer yet"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:51:38Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T17:51:40Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T17:58:14Z",
+        "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T18:09:48Z",
+        "text": "Revision 2: The header on one line; the pages are in the tab (36.1)"
+      }
+    ],
+    "needsMore": [
+      "exhibit"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "exhibit": "The pages needs to bee in the tab, so maybe we could add everything on \"one line\" where the header is. please investigate this and then make proper suggestions"
+    },
+    "picks": {
+      "exhibit": "profiler"
+    },
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "New option: UH5 \u00b7 One line: tile, name and subtitle at the left, every control at the right (recommended)",
+          "New option: UH6 \u00b7 One slim line: name \u00b7 subtitle as text, controls at the right",
+          "New option: UH7 \u00b7 One glass line: the whole header in one floating glass capsule",
+          "New option: UH8 \u00b7 No name: the tab names the tool; subtitle and controls on one line",
+          "New exhibit: The four one-line headers, under Policy Management's tab",
+          "The proposals draw TP5's strip above the one-line headers"
+        ],
+        "date": "2026-10-01T18:09:48Z",
+        "number": 2,
+        "summary": "The header on one line; the pages are in the tab (36.1)"
+      }
+    ],
+    "status": "Judging",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-pages-r36": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:49:22Z",
+        "id": "DFAFEB13-5779-454B-8059-0CBA63617FEA",
+        "text": "Review of Tool tabs with pages: the tab bar\n1. Which tab bar?: NEEDS MORE OPTIONS; note: I don't really like any of these. TP0 is closest, but it looks weird with how the \"sub pages\" are in a tab within the tab and the activity monitor sits on the tab. This needs to look better, but I don't enjoy any of the other suggestions\n2. Pages: no answer yet\n3. One tab: no answer yet\n4. Switching tabs: no answer yet"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:49:22Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-01T17:58:13Z",
+        "text": "Taken by Opus r36-37"
+      },
+      {
+        "date": "2026-10-01T18:09:48Z",
+        "text": "Revision 2: Pages stay in the tab bar, drawn three new ways so nothing sits inside the tab"
+      }
+    ],
+    "needsMore": [
+      "exhibit"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "exhibit": "I don't really like any of these. TP0 is closest, but it looks weird with how the \"sub pages\" are in a tab within the tab and the activity monitor sits on the tab. This needs to look better, but I don't enjoy any of the other suggestions"
+    },
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "New option: TP5 \u00b7 The tool becomes a group: a tinted label, then each page a tab of its own (recommended)",
+          "New option: TP6 \u00b7 A normal tab, its pages beside it on the strip as plain words",
+          "New option: TP7 \u00b7 A normal tab, its pages in a slim row hanging under it",
+          "New exhibit: The new styles (three tabs and alone)",
+          "New exhibit: Nine pages (Database Security with a More menu, 36.2 OF1)"
+        ],
+        "date": "2026-10-01T18:09:48Z",
+        "number": 2,
+        "summary": "Pages stay in the tab bar, drawn three new ways so nothing sits inside the tab"
+      }
+    ],
+    "status": "Judging",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-pages-where-r36": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:50:13Z",
+        "id": "01841F8F-58C4-4E93-8572-16AF534858E2",
+        "text": "Review of Tool tabs with pages: which tools\n1. Which tools: picked WP1 \u00b7 Every tool whose sections are separate views (all ten)\n2. Too many pages: picked OF1 \u00b7 The pages that don't fit go into a More menu at the end\n3. Remembering the page: picked RM0 \u00b7 History, the last page you used on this server"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:50:13Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T17:58:13Z",
+        "text": "Taken by Opus r36-37"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "overflow": "OF1 \u00b7 The pages that don't fit go into a More menu at the end",
+      "remember": "last",
+      "which": "WP1 \u00b7 Every tool whose sections are separate views (all ten)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Opus r36-37",
+      "date": "2026-10-01T17:58:13Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-themes-r37": {
+    "comments": [
+      {
+        "date": "2026-10-01T17:55:41Z",
+        "id": "0023A333-51F6-4913-A956-889F1013182D",
+        "text": "Review of Tool tabs: a theme per family\n1. Monitor: picked MO0 \u00b7 Yes, tiles first\n2. Manage: picked MA0 \u00b7 A details card beside the list (as drawn)\n3. Health: picked HE0 \u00b7 Yes: Fix, Back Up Now, Rebuild\n4. Properties: picked PR0 \u00b7 An Apply bar at the bottom with the number of changes (as drawn)\n5. Canvas: picked CA0 \u00b7 A floating glass bar at the bottom (as drawn)"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T17:55:41Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T17:58:14Z",
+        "text": "Taken by Opus r36-37"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "canvas": "floating",
+      "health": "fix",
+      "manage": "pane",
+      "monitor": "tiles",
+      "properties": "bar"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "Opus r36-37",
+      "date": "2026-10-01T17:58:14Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
   "ongoing.tree-tool-rows-r38": {
     "comments": [
       {

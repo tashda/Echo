@@ -145,6 +145,7 @@ enum LabAreas {
         "ongoing.settings-controls-r43": "foundations",
         "ongoing.settings-template-r43": "foundations",
         "ongoing.settings-scenarios-r43": "foundations",
+        "ongoing.tool-tab-main-action-r45": "tool-tabs",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

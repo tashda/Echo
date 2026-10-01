@@ -4,15 +4,17 @@ import SwiftUI
 /// ST2 from round 14): the active Activity Monitor tab widens (up to 62% of the strip) and shows its
 /// pages as 10pt chips on a grey track capsule inside the tab's raised capsule; alone, it fills the
 /// whole strip. The owner sees a pill in a pill that looks buggy, and a hideous strip with one tab.
+/// Revision 2: the owner found TP0 closest but still a tab inside a tab with the title sitting on it,
+/// and confirmed the pages stay in the tab bar (not the tool's header). Added TP5 to TP7.
 @MainActor
 enum ToolTabPagesRound {
     static let spec = RoundSpec(
         controls: [
-            .of("style", "Pages", LabTPStyle.self, default: .segments,
-                question: "Click through the pages in every style, with three tabs and with Activity Monitor alone. Which looks like it belongs in the strip?",
-                recommend: .segments,
-                why: "The strip already has one shape that means 'you are here': the raised plate. TP2 lets that plate move between the pages, so there is no second pill and nothing nested. TP1 is lighter but its dot is a new mark; TP4 is the fallback if pages in the strip still feel crowded with many tabs.",
-                summary: \.summary),
+            .of("style", "Pages", LabTPStyle.self, default: .group,
+                question: "Click through the pages in TP5, TP6 and TP7, with three tabs and with Activity Monitor alone. Which looks like it belongs in the strip?",
+                recommend: .group,
+                why: "You disliked a shape inside the tab and the title sitting on it. TP5 removes both: the title becomes a tinted label (as Safari and Chrome mark a tab group) and each page is an ordinary tab, so the strip has one shape and the plate only ever means 'shown'. TP6 is quieter but its accent words are a new mark in the strip; TP7 has the most room (nine pages) but adds a row under the strip.",
+                summary: \.summary, newChoices: (2, LabTPStyle.revision2)),
             .of("single", "One tab", LabTPSingle.self, default: .leading,
                 question: "Look at the strip with Activity Monitor alone.",
                 recommend: .leading,
@@ -29,16 +31,34 @@ enum ToolTabPagesRound {
             },
             .init(id: "proposal", title: "Proposal", summary: "Built from the controls. Click the pages.",
                   isWide: true, designWidth: 860, designHeight: 160) { values in
-                LabTPExhibit(style: LabTPStyle(rawValue: values["style"]) ?? .segments, single: LabTPSingle(rawValue: values["single"]) ?? .leading, alone: false)
+                LabTPExhibit(style: LabTPStyle(rawValue: values["style"]) ?? .group, single: LabTPSingle(rawValue: values["single"]) ?? .leading, alone: false)
             },
             .init(id: "proposalAlone", title: "Proposal, alone", summary: "Built from the controls.",
                   isWide: true, designWidth: 860, designHeight: 160) { values in
-                LabTPExhibit(style: LabTPStyle(rawValue: values["style"]) ?? .segments, single: LabTPSingle(rawValue: values["single"]) ?? .leading, alone: true)
+                LabTPExhibit(style: LabTPStyle(rawValue: values["style"]) ?? .group, single: LabTPSingle(rawValue: values["single"]) ?? .leading, alone: true)
             },
-            .init(id: "all", title: "Every style", summary: "The five styles, three tabs each.",
+            .init(id: "revision2", title: "The new styles", summary: "TP5, TP6 and TP7, three tabs each, then alone. Click the pages.",
+                  isWide: true, addedIn: 2, designWidth: 860, designHeight: 420) { _ in
+                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                    ForEach(LabTPStyle.revision2, id: \.self) { style in
+                        Text(style.rawValue).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
+                        LabTPStrip(tabs: [.query2, .jobs, .activityMonitor], activeID: "am", style: style)
+                        LabTPStrip(tabs: [.activityMonitor], activeID: "am", style: style, single: .leading)
+                    }
+                }
+                .padding(SpacingTokens.md)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(ColorTokens.Workspace.canvas)
+            },
+            .init(id: "nine", title: "Nine pages", summary: "Database Security in the Proposal's style: five pages, then More (36.2, OF1).",
+                  isWide: true, addedIn: 2, designWidth: 860, designHeight: 160) { values in
+                LabTPExhibit(style: LabTPStyle(rawValue: values["style"]) ?? .group, single: LabTPSingle(rawValue: values["single"]) ?? .leading,
+                             alone: false, tool: .dbSecurity)
+            },
+            .init(id: "all", title: "Every style", summary: "The first five styles, three tabs each.",
                   isWide: true, designWidth: 860, designHeight: 420) { values in
                 VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    ForEach(LabTPStyle.allCases, id: \.self) { style in
+                    ForEach(LabTPStyle.allCases.filter { !LabTPStyle.revision2.contains($0) }, id: \.self) { style in
                         Text(style.rawValue).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
                         LabTPStrip(tabs: [.query2, .jobs, .activityMonitor], activeID: "am", style: style)
                     }
@@ -59,9 +79,11 @@ enum ToolTabPagesRound {
                   why: "Every other moving part of the window uses the house spring (EchoMotion.standard); the strip's own snappy curve is the one exception. Fading the pages first keeps text from squeezing as the tab narrows."),
         ],
         exhibitTopic: ("Which tab bar?", "Do the Proposal's strips look finished, with three tabs and alone?", "proposal",
-                       "One raised plate moving between the pages, and a lone tab at its own width."),
+                       "TP5: the tool's name as a tinted label and its pages as ordinary tabs, so nothing sits inside a tab; a lone tool at its own width."),
         presets: [
-            .init(id: "recommended", name: "My recommendation", values: ["style": LabTPStyle.segments.rawValue, "single": LabTPSingle.leading.rawValue], isRecommended: true),
+            .init(id: "recommended", name: "My recommendation", values: ["style": LabTPStyle.group.rawValue, "single": LabTPSingle.leading.rawValue], isRecommended: true),
+            .init(id: "hanging", name: "Room for many pages", summary: "TP7: the pages in a row hanging under the tab.",
+                  values: ["style": LabTPStyle.hanging.rawValue, "single": LabTPSingle.leading.rawValue]),
             .init(id: "quiet", name: "Pages in the tab", summary: "The strip stays plain; the tool's header has the pages.",
                   values: ["style": LabTPStyle.inTab.rawValue, "single": LabTPSingle.leading.rawValue]),
         ]

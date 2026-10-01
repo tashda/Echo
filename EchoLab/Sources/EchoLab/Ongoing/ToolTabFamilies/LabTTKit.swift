@@ -51,16 +51,18 @@ struct LabTTTool {
     var picker: (label: String, value: String)?
     var status: String?
     var searchPrompt: String?
+    /// The tool's tab in the strip, for the one-line headers (pages in the tab, 36.1).
+    var stripTab: LabTPTab = .profiler
 
     static let profiler = LabTTTool(name: "SQL Profiler", symbol: "chart.xyaxis.line", tint: ColorTokens.Status.info, subtitle: "dkloosql10-p · 1,204 events",
                                     primary: ("Start Trace", "play.fill"), secondary: [("trash", "Clear"), ("list.bullet", "Events (12)"), ("square.and.arrow.up", "Export")],
-                                    picker: ("Database", "All Databases"), status: "Tracing", searchPrompt: "Filter events")
+                                    picker: ("Database", "All Databases"), status: "Tracing", searchPrompt: "Filter events", stripTab: .profiler)
     static let policy = LabTTTool(name: "Policy Management", symbol: "checkmark.shield", tint: ColorTokens.Status.success, subtitle: "dkloosql10-p · 14 policies",
                                   pages: ["Policies", "Conditions", "Facets", "History"], primary: ("New Policy", "plus"),
-                                  secondary: [("checkmark.circle", "Evaluate"), ("square.and.arrow.down", "Import")], searchPrompt: "Search policies")
+                                  secondary: [("checkmark.circle", "Evaluate"), ("square.and.arrow.down", "Import")], searchPrompt: "Search policies", stripTab: .policy)
     static let activity = LabTTTool(name: "Activity Monitor", symbol: "waveform.path.ecg", tint: ColorTokens.Status.warning, subtitle: "dkloosql10-p · updated 2 s ago",
                                     pages: ["Processes", "Waits", "I/O", "Queries"], primary: ("Pause", "pause.fill"),
-                                    secondary: [("arrow.clockwise", "Refresh")], picker: ("Every", "5 seconds"), searchPrompt: "Filter sessions")
+                                    secondary: [("arrow.clockwise", "Refresh")], picker: ("Every", "5 seconds"), searchPrompt: "Filter sessions", stripTab: .activityMonitor)
 }
 
 /// Round 37.2: the header and toolbar row.
@@ -70,6 +72,14 @@ enum LabTTHeaderStyle: String, CaseIterable {
     case twoRows = "UH2 · Two rows: name and primary action, then pages, filters and search"
     case glassBar = "UH3 · Name on the canvas, every control in one glass capsule"
     case windowToolbar = "UH4 · The controls in the window's toolbar while the tab is in front"
+    case oneLine = "UH5 · One line: tile, name and subtitle at the left, every control at the right"
+    case slimLine = "UH6 · One slim line: name · subtitle as one line of text, controls at the right"
+    case glassLine = "UH7 · One glass line: the whole header in a single floating glass capsule"
+    case controlsOnly = "UH8 · No name: the tab names the tool; the subtitle and the controls on one line"
+
+    /// Added in revision 2 of 37.2: one line, the pages in the tab (36.1).
+    static let revision2: [LabTTHeaderStyle] = [.oneLine, .slimLine, .glassLine, .controlsOnly]
+    var isOneLine: Bool { Self.revision2.contains(self) }
 
     var summary: String {
         switch self {
@@ -78,6 +88,10 @@ enum LabTTHeaderStyle: String, CaseIterable {
         case .twoRows: "The name line carries what the tool is and its one main action; the second line is how you look at it."
         case .glassBar: "Like the editor's find capsule (28.12, FB5): one floating piece holds the controls, in the editor's design language."
         case .windowToolbar: "Mail and Finder put view controls in the toolbar; Echo's toolbar already has three capsules."
+        case .oneLine: "TT2's header keeps its tile and two lines of text, and the controls move up beside it: 40pt instead of 84pt, and the pages are in the tab."
+        case .slimLine: "Drops the tile: one 30pt line, the name in semibold and the subtitle after it in grey; the leanest that still names the tool."
+        case .glassLine: "The editor's language (28.12, FB5): one floating glass piece with the name at the left and the controls at the right."
+        case .controlsOnly: "The tab already says Activity Monitor and which page; the header only says what you're looking at (server, count) and holds the controls."
         }
     }
 }
@@ -121,6 +135,8 @@ struct LabTTLook {
     var picker: LabTTPicker = .pill
     var status: LabTTStatus = .inButton
     var search: LabTTSearch = .capsule
+    /// False when the main action lives in the window toolbar (round 45).
+    var primaryInHeader = true
 
     static let today = LabTTLook(header: .today, primary: .today, secondary: .today, picker: .today, status: .today, search: .none)
 
