@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// A tool tab as Echo draws it: the header on the canvas, the toolbar row under it, dashboard
-/// tiles, and the panes as cards a gutter apart. Each part carries its Spec number.
+/// A tool tab as Echo draws it: the header on one line with its glass controls (round 37.2 and
+/// 37.3), dashboard tiles, and the panes as cards a gutter apart. The pages are in the tab
+/// (TABS-5). Each part carries its Spec number.
 struct ToolTabsSpecimen: View {
     @Environment(\.workspaceCardCornerRadius) private var cornerRadius
 
@@ -10,7 +11,6 @@ struct ToolTabsSpecimen: View {
     var body: some View {
         VStack(spacing: gutter) {
             header.specAnchor("1.1")
-            toolbarRow.specAnchor("2.1")
             tiles.specAnchor("3.1")
             HStack(spacing: gutter) {
                 pane("Jobs", count: 5, rows: ["Nightly backup", "Index maintenance", "Stats refresh", "Log cleanup", "ETL load"]).specAnchor("4.1")
@@ -37,24 +37,28 @@ struct ToolTabsSpecimen: View {
                 Text("Test MSSQL · AdventureWorks2022 · updated 2 s ago").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary).monospacedDigit().specAnchor("1.4")
             }
             Spacer()
-            Label("Pause", systemImage: "pause.fill").font(TypographyTokens.detail).padding(.horizontal, 10).frame(height: 24)
-                .glassEffect(.regular, in: .capsule).specAnchor("1.5")
+            HStack(spacing: SpacingTokens.xs) {
+                glassPill { Image(systemName: "timer").foregroundStyle(ColorTokens.Text.secondary); Text("Every 5 s")
+                    Image(systemName: "chevron.down").font(TypographyTokens.compact.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary) }
+                    .specAnchor("8.3")
+                glassPill { Image(systemName: "arrow.clockwise") }.specAnchor("8.2")
+                glassPill { Image(systemName: "pause.fill").foregroundStyle(ColorTokens.accent); Text("Pause").foregroundStyle(ColorTokens.Text.secondary) }
+                    .fontWeight(.medium)
+                    .specAnchor("8.1")
+            }
+            .specAnchor("1.5")
         }
         .padding(.horizontal, SpacingTokens.xs)
         .frame(height: 40)
     }
 
-    private var toolbarRow: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            ForEach(["Processes", "Waits", "I/O", "Queries"], id: \.self) { title in
-                Text(title).font(TypographyTokens.detail)
-                    .padding(.horizontal, 10).frame(height: 22)
-                    .background(title == "Processes" ? ColorTokens.Sidebar.selectedFill : .clear, in: Capsule())
-            }
-            Spacer()
-        }
-        .padding(.horizontal, SpacingTokens.xs)
-        .frame(height: 26)
+    /// A 28pt glass control (TLT-8).
+    private func glassPill<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        HStack(spacing: SpacingTokens.xxs2) { content() }
+            .font(TypographyTokens.standard)
+            .padding(.horizontal, SpacingTokens.sm)
+            .frame(height: LayoutTokens.Toolbar.glyph)
+            .glassEffect(.regular, in: .capsule)
     }
 
     private var tiles: some View {

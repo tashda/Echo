@@ -10,20 +10,27 @@ enum ToolTabsArea {
     private static let tiles = "Echo/Sources/Features/ActivityMonitor/Views/ActivityMonitorSparklineStrip.swift"
     private static let paneHeader = "Echo/Sources/Shared/DesignSystem/Components/PaneHeader.swift"
     private static let jobs = "Echo/Sources/Features/AppHost/Views/Navigation/JobManagement/JobQueue/JobQueueView.swift"
+    private static let controls = "Echo/Sources/Shared/DesignSystem/Components/ToolTabControls"
+    private static let family = "Echo/Sources/Features/AppHost/Domain/ToolTabFamily.swift"
 
     static let area = LabArea(
         id: "tool-tabs",
         title: "Tool tabs",
         symbol: "square.grid.2x2",
-        summary: "Every tool tab starts with one header on the canvas; its panes are cards a gutter apart; monitoring tools open on dashboard tiles.",
+        summary: "Every tab but the editors belongs to a family and starts with one header line holding the tool's glass controls; its pages are in the tab, its panes cards a gutter apart, and each family has its layout.",
         asBuilt: AsBuiltPage(
             verification: .init(
                 level: .code, commit: "b6c8b5d5", date: "2026-10-01",
                 note: "Read from ToolTabHeader, ToolTabContainer, CardSplitView, ActivityMonitorSparklineStrip and Design/05-components. The specimen is a stand-in Activity Monitor; not compared with the running app."),
             stageHeight: 380,
             behaviours: [
-                .init(trigger: "Open a tool", result: "A tab opens with the tool's header on the canvas, then its panes on cards."),
-                .init(trigger: "A tool with pages", result: "The pages unfold as chips inside the tool's tab (see Tabs)."),
+                .init(trigger: "Open a tool", result: "A tab opens with the tool's header on the canvas, its controls on the same line (picker, search, other actions, main action), then its panes on cards."),
+                .init(trigger: "A tool with pages", result: "The pages are in the tool's tab (see Tabs); it reopens on the last page used on that server (round 36.2)."),
+                .init(trigger: "Start something that runs", result: "The main action turns into Stop with a pulsing red dot (round 37.3, ST1)."),
+                .init(trigger: "A Health page", result: "Its findings come first, worst first, each with a fix: Back Up Now, Rebuild, Vacuum (round 37.4)."),
+                .init(trigger: "Change a Properties tool", result: "An Apply bar at the bottom counts the changes, with Revert and Apply (round 37.4)."),
+                .init(trigger: "A Canvas tool", result: "Zoom, fit and what to show float in a glass bar at the bottom of the drawing (round 37.4)."),
+                .init(trigger: "Any tool tab in front", result: "The window toolbar shows no tool buttons; only the query editor uses Run (round 45)."),
                 .init(trigger: "A page that brings its own cards", result: "The one big card steps aside (adaptiveWorkspaceCard)."),
                 .init(trigger: "Drag the gap between panes", result: "Resizes them; double-click maximises where the tool supports it."),
                 .init(trigger: "Open a tool's bottom panel", result: "It grows up out of the status bar like the query tab's results, and folds back; ⌥⇧⌘Y maximises it to a one-line content card."),
@@ -37,6 +44,9 @@ enum ToolTabsArea {
             ],
             measurements: [
                 .init(label: "Header height", value: "40pt", token: "LayoutTokens.ToolTab.headerHeight"),
+                .init(label: "Header controls", value: "28pt glass, 8pt apart", token: "LayoutTokens.ToolTab.controlHeight"),
+                .init(label: "Search field", value: "140pt", token: "LayoutTokens.ToolTab.searchFieldWidth"),
+                .init(label: "Canvas bar", value: "30pt glass capsule, 12pt above the bottom", token: "LayoutTokens.ToolTab.canvasBarHeight"),
                 .init(label: "Header icon", value: "14pt symbol in a 28pt tinted box, corner 7pt", token: "iconSize / iconBoxSize / iconCornerRadius"),
                 .init(label: "Title", value: "13pt semibold", token: "TypographyTokens.standard"),
                 .init(label: "Subtitle", value: "11pt secondary, tabular digits: server · database · freshness", token: "TypographyTokens.detail"),
@@ -49,15 +59,22 @@ enum ToolTabsArea {
             rules: [
                 .init(text: "One header for every tool tab (TT2)", why: "The tool's icon, title, server and freshness, with its actions on the right: every tool reads the same."),
                 .init(text: "Panes are cards (TT1)", why: "The same cards as the editor and results, a gutter apart, so a tool tab belongs to the window."),
-                .init(text: "The toolbar row sits on the canvas under the header", why: "Once panes are cards, a toolbar inside a card would double the chrome."),
+                .init(text: "One header line: the tool's controls beside its name (round 37.2, UH5)", why: "With the pages in the tab, the second row only held a few buttons; on the header line every tool loses 40pt and reads the same.",
+                      rounds: ["ongoing.tool-tab-header-r37"]),
+                .init(text: "The controls are 28pt glass (round 37.3)", why: "The editor's design language: a glass main action, the others in one capsule, picker pills, a search capsule.",
+                      rounds: ["ongoing.tool-tab-controls-r37"]),
+                .init(text: "Five families, one theme (round 37.1)", why: "Monitor, Manage, Health, Properties and Canvas each have one layout idea; every tool shares the header, cards, tables and empty states.",
+                      rounds: ["ongoing.tool-tab-families-r37", "ongoing.tool-tab-themes-r37"]),
+                .init(text: "Tool actions live in the tab (round 45)", why: "The owner: only the query editor uses the toolbar's Run, so it is clear what you are doing.",
+                      rounds: ["ongoing.tool-tab-main-action-r45"]),
                 .init(text: "A pane that compares two things of one object keeps them in one card", why: "A session's events and targets, or source and target DDL, are one subject."),
-                .init(text: "Monitoring tools open on tiles (TT3)", why: "The key figures first, the detail below."),
+                .init(text: "Every Monitor opens on tiles (TT3, round 37.4)", why: "The key figures first, the detail below: Activity Monitor, SQL Profiler and Extended Events."),
                 .init(text: "Configuration stays in the tab", why: "Read-only detail, such as a job's history, may use the Inspector."),
                 .init(text: "One pane header for every pane (round 33)", why: "Headers in different sizes and places made the panes look unfinished; one 36pt line with title, count and actions lines them up.",
                       rounds: ["ongoing.agent-jobs-tab-r33"]),
                 .init(text: "Lists end where their rows end (round 33)", why: "Stripes under the last row look like rows waiting to load.", rounds: ["ongoing.agent-jobs-tab-r33"]),
             ],
-            code: [header, container, split, tiles, paneHeader, jobs, "Design/05-components.md › Tool tabs"]
+            code: [header, container, controls, family, split, tiles, paneHeader, jobs, "Design/05-components.md › Tool tabs"]
         ) {
             ToolTabsSpecimen()
         },

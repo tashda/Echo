@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 37.2 accepted and round 45 decided: one header line, tool actions in the tab
+
+Echo Labs › Tool tabs › round 37.2 (revision 2) and round 45. Built in bb01362f and 6e27bab7 with 36.2, 37.1, 37.3 and 37.4.
+
+- **37.2 Header (UH5, PG0):** **one line**: the tool's tinted tile, name and subtitle at the left, every control at the right (picker, search, other actions, main action); the pages are in the tab (36.1). The second toolbar row is gone from every tool. A tool sets its controls from inside its content; a page can replace them. → TLT-1.5 (TLT-2.1 retired)
+- **Round 45 (the owner's note, sent back with no option picked):** "actions for these tabs should be within the tabs and only the query panel should use the run button." The main action stays in the tool's header (37.3's glass capsule, Stop with a pulsing dot while running), and **the window toolbar has no tool group any more**: the structure editor's Add, Script and Apply, Activity Monitor's pause, Start Job, Open in Window, Cycle Log and Maintenance's database menu moved into their tabs. → TLT-10.1
+- **37.4 as built:** tiles on SQL Profiler and Extended Events (with Activity Monitor's); findings with fixes on SQL Server's and PostgreSQL's maintenance Health; a details card beside Policy Management's list (Agent Jobs had one); an Apply bar on the structure editor and MySQL's config file; a floating glass bar on the diagram and Query Builder. The other Manage tools keep their current layouts for now. → TLT-9
+
 ## 2026-10-01 · The editor's bottom softens like the results'
 
 The owner, on round 44 in the running app: "absolutely perfect", and the same for the editor. With the results in their own card the editor card's bottom gets the same material (`FooterMaterialBlur`) at the same height, and the editor's text now runs to the card's edge with the footer's 38pt of room instead of stopping 20pt above it, so lines scroll down under the material and the last one rests above the pills. Built in bf7c0b2c. → EDT margins, FTR-2.2

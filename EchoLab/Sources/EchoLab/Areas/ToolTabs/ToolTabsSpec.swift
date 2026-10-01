@@ -10,13 +10,16 @@ enum ToolTabsSpec {
     private static let panels = "Echo/Sources/Shared/DesignSystem/Components/ContentPanelCards.swift"
     private static let paneHeader = "Echo/Sources/Shared/DesignSystem/Components/PaneHeader.swift"
     private static let jobs = "Echo/Sources/Features/AppHost/Views/Navigation/JobManagement"
+    private static let controls = "Echo/Sources/Shared/DesignSystem/Components/ToolTabControls"
+    private static let channel = controls + "/ToolTabHeaderContent.swift"
+    private static let family = "Echo/Sources/Features/AppHost/Domain/ToolTabFamily.swift"
 
     static func spec<Specimen: View>(stageHeight: CGFloat, @ViewBuilder specimen: @escaping () -> Specimen) -> AreaSpec {
         AreaSpec(code: "TLT", stageHeight: stageHeight, parts: parts, specimen: specimen)
     }
 
     private static let parts: [SpecPart] = [
-        SpecPart(number: "1", name: "Header", summary: "The one header every tool tab starts with (TT2).", elements: [
+        SpecPart(number: "1", name: "Header", summary: "The one header every tool tab starts with (TT2), on one line with the tool's controls (round 37.2, UH5).", elements: [
             SpecElement(number: "1.1", name: "Header", summary: "On the canvas above the tool's cards, with no card of its own.", groups: [
                 .layout(.row("Height", "40pt", token: "LayoutTokens.ToolTab.headerHeight"), .row("Padding", "8pt horizontal", token: "SpacingTokens.xs"),
                         .row("Spacing", "12pt between icon, text and actions", token: "SpacingTokens.sm")),
@@ -34,16 +37,16 @@ enum ToolTabsSpec {
                 .behaviour(.row("Text", "server · database; a tool adds its freshness (\"updated 2 s ago\")"),
                            .row("Ticking", "live while the tab is on screen; frozen in a tab kept mounted behind another (SinceDateText, owner's choice 2026-10-01)")),
             ], files: [header, container]),
-            SpecElement(number: "1.5", name: "Actions", summary: "The tool's own actions at the right.", groups: [
-                .behaviour(.row("Placement", "trailing, in the tool's own controls")),
-            ], files: [header]),
+            SpecElement(number: "1.5", name: "Controls", summary: "The tool's controls at the right of the same line: picker, search, other actions, then the main action (round 37.2).", groups: [
+                .layout(.row("Spacing", "8pt between controls", token: "SpacingTokens.xs"), .row("Glass", "one GlassEffectContainer around them")),
+                .behaviour(.row("Set by", "the tool, from inside its content (toolTabHeaderControls); the innermost page wins"),
+                           .row("Detail", "a tool can add one after the server: \"14 policies\", \"1,204 events\" (toolTabHeaderDetail)")),
+            ], rounds: ["ongoing.tool-tab-header-r37"], files: [header, channel, container]),
         ]),
-        SpecPart(number: "2", name: "Toolbar row", summary: "The tool's controls, under the header.", elements: [
-            SpecElement(number: "2.1", name: "Toolbar row", summary: "On the canvas, lined up with the header, once the panes are cards.", groups: [
-                .behaviour(.row("Placement", "under the header, on the canvas"), .row("Why", "a toolbar inside a card would double the chrome")),
-            ], files: [container]),
+        SpecPart(number: "2", name: "Toolbar row", summary: "Gone (round 37.2): the controls are on the header line, the pages in the tab.", elements: [
+            SpecElement(number: "2.1", name: "Toolbar row", summary: "A second row under the header for the tool's segmented control and buttons. Replaced by the header line (1.5) and the pages in the tab (TABS-5).", isRetired: true),
         ]),
-        SpecPart(number: "3", name: "Dashboard tiles", summary: "Monitoring tools open on tiles (TT3).", elements: [
+        SpecPart(number: "3", name: "Dashboard tiles", summary: "Every Monitor opens on tiles (TT3, round 37.4 MO0): Activity Monitor, SQL Profiler and Extended Events.", elements: [
             SpecElement(number: "3.1", name: "Tile strip", summary: "The key figures, each on its own card, above the detail.", groups: [
                 .layout(.row("Height", "76pt", token: "LayoutTokens.ToolTab.tileHeight"), .row("Gap", "the pane gutter", token: "workspaceGutter"),
                         .row("Padding", "12pt horizontal, 8pt vertical", token: "SpacingTokens.sm / xs")),
@@ -124,6 +127,61 @@ enum ToolTabsSpec {
                            .row("Edges and button", "one surface, no hairline (SE1); Add Step prominent while it can be pressed (PB1)", token: "SheetLayout.primaryButton")),
             ], files: ["\(jobs)/Sheets/AgentJobStepEditorSheet.swift", "\(jobs)/Sheets/AgentJobStepEditorSheet+Sidebar.swift",
                        "\(jobs)/Sheets/AgentJobStepEditorSheet+Command.swift", "\(jobs)/AgentJobStepOutcome.swift"]),
+        ]),
+        SpecPart(number: "8", name: "Controls", summary: "The header line's controls, in the editor's glass language (round 37.3).", elements: [
+            SpecElement(number: "8.1", name: "Main action", summary: "A glass capsule: its symbol in the accent colour, its word in grey (PA1).", groups: [
+                .layout(.row("Height", "28pt", token: "LayoutTokens.ToolTab.controlHeight"), .row("Padding", "12pt horizontal", token: "SpacingTokens.sm")),
+                .type(.row("Word", "13pt medium, secondary", token: "TypographyTokens.standard")),
+                .behaviour(.row("Running", "Stop with a pulsing red dot (ST1), as SQL Profiler's Stop Trace"),
+                           .row("More than one thing to make", "the same capsule opens a menu (Add › Primary Key, Unique, Check)"),
+                           .row("Where", "in the tab, never the window toolbar (round 45)")),
+            ], rounds: ["ongoing.tool-tab-controls-r37", "ongoing.tool-tab-main-action-r45"], files: [controls + "/ToolTabPrimaryButton.swift", controls + "/ToolTabPrimaryMenu.swift"]),
+            SpecElement(number: "8.2", name: "Other actions", summary: "Symbols together in one glass capsule (SA2); the title is the tooltip.", groups: [
+                .layout(.row("Height", "28pt", token: "controlHeight"), .row("Spacing", "12pt", token: "SpacingTokens.sm")),
+                .behaviour(.row("Refresh", "a spinner in its place while the tab reloads"), .row("A toggle that is on", "its symbol in the accent colour"),
+                           .row("Menu", "a symbol that opens a menu, as Export")),
+            ], rounds: ["ongoing.tool-tab-controls-r37"], files: [controls + "/ToolTabActionGroup.swift"]),
+            SpecElement(number: "8.3", name: "Picker", summary: "One glass pill: a symbol, the value and a chevron, opening a menu of the choices (PK1).", groups: [
+                .layout(.row("Height", "28pt", token: "controlHeight")),
+                .behaviour(.row("Database", "Maintenance's database, Profiler's All Databases, a schema, an interval")),
+            ], rounds: ["ongoing.tool-tab-controls-r37"], files: [controls + "/ToolTabPickerPill.swift", controls + "/ToolTabDatabasePill.swift"]),
+            SpecElement(number: "8.4", name: "Search", summary: "A glass capsule at the right of the line, before the actions (SF1).", groups: [
+                .layout(.row("Height", "28pt", token: "controlHeight"), .row("Field", "140pt", token: "LayoutTokens.ToolTab.searchFieldWidth")),
+                .behaviour(.row("Clear", "an × appears once something is typed")),
+            ], rounds: ["ongoing.tool-tab-controls-r37"], files: [controls + "/ToolTabSearchField.swift"]),
+        ]),
+        SpecPart(number: "9", name: "Families", summary: "Every tab but the query editor and the psql console belongs to one of five families (round 37.1), each with its layout (37.4).", elements: [
+            SpecElement(number: "9.1", name: "Families", summary: "Monitor, Manage, Health, Properties, Canvas.", groups: [
+                .behaviour(.row("Monitor", "Activity Monitor, SQL Profiler, Extended Events"),
+                           .row("Manage", "Agent Jobs, Server and Database Security, Policy Management, Availability Groups, Resource Governor, Extensions, Advanced Objects"),
+                           .row("Health", "Maintenance (Query Store is its page), Tuning Advisor, Error Log"),
+                           .row("Properties", "Server Properties, Table Structure, Extension Details"),
+                           .row("Canvas", "Schema Diagram, Query Builder, Schema Diff"),
+                           .row("One theme", "every one has the header (the structure editor, diagram and Agent Jobs included), pane cards, tables and empty states")),
+            ], rounds: ["ongoing.tool-tab-families-r37"], files: [family]),
+            SpecElement(number: "9.2", name: "Health findings", summary: "What is wrong first, worst first, each with its fix (HE0).", groups: [
+                .material(.row("Problem", "xmark.octagon.fill, red"), .row("Warning", "exclamationmark.triangle.fill, orange"), .row("Fine", "checkmark.circle.fill, green")),
+                .behaviour(.row("SQL Server", "no or an old full backup, no log backup in full recovery (Back Up Now); large indexes over 30% fragmented (Rebuild)"),
+                           .row("PostgreSQL", "tables with many dead rows (Vacuum); long open transactions, connections, the cache"),
+                           .row("Fix", "a glass capsule at the end of the row; a spinner while it runs")),
+            ], rounds: ["ongoing.tool-tab-themes-r37"], files: [controls + "/HealthFinding.swift", "Echo/Sources/Features/Maintenance/Domain/MaintenanceHealthFindings.swift"]),
+            SpecElement(number: "9.3", name: "Manage details", summary: "The selected item's details on a card beside the list (MA0).", groups: [
+                .behaviour(.row("Built", "Agent Jobs (Details over History), Policy Management (condition, facet, mode, schedule, last run)")),
+            ], rounds: ["ongoing.tool-tab-themes-r37"], files: ["Echo/Sources/Features/Maintenance/Views/PolicyDetailsPane.swift"]),
+            SpecElement(number: "9.4", name: "Apply bar", summary: "A Properties tool's changes wait in a bar at the bottom of its card (PR0).", groups: [
+                .layout(.row("Padding", "12pt horizontal, 8pt vertical", token: "SpacingTokens.sm / xs")),
+                .behaviour(.row("Text", "\"3 changes\" or \"Unsaved changes\""), .row("Buttons", "an extra (Script), Revert, then Apply, prominent and the default"),
+                           .row("Built", "the structure editor (Apply reviews the statements; ⇧⌘↩), MySQL's config file (Save)")),
+            ], rounds: ["ongoing.tool-tab-themes-r37"], files: [controls + "/ToolTabApplyBar.swift", "Echo/Sources/Features/QueryWorkspace/Views/TableStructure/TableStructureApplyBar.swift"]),
+            SpecElement(number: "9.5", name: "Canvas bar", summary: "Zoom, its percentage, fit and what to show, in one glass capsule floating at the bottom of the drawing (CA0).", groups: [
+                .layout(.row("Height", "30pt", token: "LayoutTokens.ToolTab.canvasBarHeight"), .row("Gap below", "12pt", token: "SpacingTokens.sm")),
+                .behaviour(.row("Zoom", "in 10% steps; a double-click on the percentage gives 100%"), .row("Built", "Schema Diagram, Query Builder")),
+            ], rounds: ["ongoing.tool-tab-themes-r37"], files: [controls + "/CanvasFloatingBar.swift"]),
+        ]),
+        SpecPart(number: "10", name: "Window toolbar", summary: "A tool adds nothing to the window toolbar (round 45): only the query editor uses Run.", elements: [
+            SpecElement(number: "10.1", name: "No tool group", summary: "The structure editor's Add, Script and Apply, Activity Monitor's pause, Start Job, Open in Window, Cycle Log and Maintenance's database menu moved into their tabs.", groups: [
+                .behaviour(.row("Why", "the owner: actions for these tabs belong in the tabs; it is clearer what you are doing")),
+            ], rounds: ["ongoing.tool-tab-main-action-r45"], files: ["Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/WorkspaceToolbarItems.swift"]),
         ]),
     ]
 }
