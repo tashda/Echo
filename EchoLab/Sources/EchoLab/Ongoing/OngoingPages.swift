@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , treeToolRows /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -445,6 +445,41 @@
         status: .judging,
         summary: "Today Open Security Management is only in the right-click menus of the server's and a database's Security; Agent Jobs Overview is a row that opens a tab but looks like any other row. Where the new row goes, what it's called, and the mark for rows that open a tab or a window.",
         spec: TreeToolRowsRound.spec)
+
+    /// Round 39: Rail tools: keep, merge or move.
+    static let railTools = LabPage.round(
+        id: "ongoing.rail-tools-r39", group: "Window and cards", title: "Rail tools: keep, merge or move · round 39", symbol: "square.stack",
+        status: .judging,
+        summary: "Today each opens in place of the tree. History is a Coming Soon placeholder, Snippets is the built-in catalog only, Clipboard is Echo's own copy history (macOS 26 has one in Spotlight), Bookmarks saves SQL per server. Which stay, where they live, and how you reach them.",
+        spec: RailToolsRound.spec)
+
+    /// Round 39: Rail tools: Bookmarks.
+    static let railBookmarks = LabPage.round(
+        id: "ongoing.rail-bookmarks-r39", group: "Window and cards", title: "Rail tools: Bookmarks · round 39", symbol: "bookmark",
+        status: .judging,
+        summary: "How you save a query to Bookmarks, what a bookmark holds, how the list looks and what opening one does.",
+        spec: RailBookmarksRound.spec)
+
+    /// Round 39: Rail tools: Snippets.
+    static let railSnippets = LabPage.round(
+        id: "ongoing.rail-snippets-r39", group: "Window and cards", title: "Rail tools: Snippets · round 39", symbol: "curlybraces",
+        status: .judging,
+        summary: "Built-in and your own snippets: how you find them, insert them (click, drag, typing) and write your own.",
+        spec: RailSnippetsRound.spec)
+
+    /// Round 39: Rail tools: History.
+    static let railHistory = LabPage.round(
+        id: "ongoing.rail-history-r39", group: "Window and cards", title: "Rail tools: History · round 39", symbol: "clock.arrow.circlepath",
+        status: .judging,
+        summary: "A real query history in place of today's Coming Soon: what is kept, how it reads, search, and running a query again.",
+        spec: RailHistoryRound.spec)
+
+    /// Round 39: Rail tools: Clipboard.
+    static let railClipboard = LabPage.round(
+        id: "ongoing.rail-clipboard-r39", group: "Window and cards", title: "Rail tools: Clipboard · round 39", symbol: "list.clipboard",
+        status: .judging,
+        summary: "Whether Echo needs its own clipboard history now that macOS 26 keeps one in Spotlight, and what to keep from it.",
+        spec: RailClipboardRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

@@ -123,6 +123,11 @@ enum LabAreas {
         "ongoing.tool-tab-controls-r37": "tool-tabs",
         "ongoing.tool-tab-themes-r37": "tool-tabs",
         "ongoing.tree-tool-rows-r38": "explorer-tree",
+        "ongoing.rail-tools-r39": "window",
+        "ongoing.rail-bookmarks-r39": "window",
+        "ongoing.rail-snippets-r39": "window",
+        "ongoing.rail-history-r39": "window",
+        "ongoing.rail-clipboard-r39": "window",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
