@@ -7,7 +7,7 @@
       "location" : "https://github.com/tashda/echo-server-lab",
       "state" : {
         "branch" : "dev",
-        "revision" : "285fdb7c14cb801483878bbfd2e6d7e16886df97"
+        "revision" : "949009a5a1c0d62fbe561fe0c6d3816e256809bf"
       }
     },
     {
@@ -34,7 +34,7 @@
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "0f66698112df207b0e35f4ed078252b048af8c0e"
+        "revision" : "ff57e0917ab0a1629e72452a2ffe1c044d20205f"
       }
     },
     {
@@ -61,7 +61,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "57ce17d92db35ebd4562a6a70bf1822cb7046f0e"
+        "revision" : "8e44d7e54c15491af3254972fd847aa358396032"
       }
     },
     {
